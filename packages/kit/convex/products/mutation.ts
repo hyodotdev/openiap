@@ -1,3 +1,4 @@
+import { invalidateSubscriptionStats } from "../subscriptions/stats";
 import { mutation, type MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -462,6 +463,11 @@ export const upsertProduct = mutation({
         // (`upsertFromStore`) only sets `origin` when it is undefined.
         origin: "kit" as const,
       });
+      if (
+        args.billingPeriod !== undefined &&
+        args.billingPeriod !== existing.billingPeriod
+      )
+        await invalidateSubscriptionStats(ctx, project._id);
       return { id: existing._id, created: false };
     }
 
@@ -484,6 +490,8 @@ export const upsertProduct = mutation({
       updatedAt: now,
       origin: "kit",
     });
+    if (args.billingPeriod !== undefined)
+      await invalidateSubscriptionStats(ctx, project._id);
     return { id, created: true };
   },
 });

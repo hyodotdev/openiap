@@ -294,8 +294,15 @@ export default function AnalyticsPage() {
         sandbox series and the cohort rows. Each response echoes its{" "}
         <code>environment</code>, <code>definitionsFromDay</code>, and{" "}
         <code>trialSplitFromDay</code>.{" "}
-        <code>GET /v1/subscriptions/metrics</code> returns live counts and MRR
-        with <code>environment: &quot;Production&quot;</code>. The MCP{" "}
+        <code>GET /v1/subscriptions/metrics</code> returns production counts and
+        MRR with <code>environment: &quot;Production&quot;</code>. Use the
+        headline totals only when <code>stats?.state === "current"</code>;{" "}
+        <code>stats.asOf</code> records their evaluation time. Timestamps use
+        Unix milliseconds; null <code>validUntil</code> means no known counted
+        expiry. Missing metadata on an older server is unavailable; refresh
+        reads at <code>stats.validUntil</code> and during rebuilding. While a
+        large project rebuilds, incomplete totals stay hidden on the dashboard.{" "}
+        <code>recentCountsTruncated</code> marks a capped 30-day scan. The MCP{" "}
         <code>iapkit_revenue_analytics</code> tool takes the revenue options and
         returns the definitions with its totals. Daily rows expose{" "}
         <code>activeHistoryComplete</code>; an absent or false flag means the

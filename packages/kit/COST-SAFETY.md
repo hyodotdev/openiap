@@ -150,14 +150,17 @@ environment at a time.
 - **Late-event catch-up.** Only when a run finds notifications that no
   finished run covered. It recomputes from the oldest such day, at most every
   6 hours per project.
-- **Stats rebuild.** When `STATS_DEFINITIONS_VERSION` changes, each project's
-  next rollup requests one `subscriptionStats` rebuild, retried at most every
-  6 hours until it commits. The upgrade that excluded sandbox triggers this
-  once per project. The rebuild pages subscriptions in creation order, 250
-  per mutation with the same 8 MiB cap, into one `subscriptionStatsRebuilds` row. Every subscription
-  write that changes the live totals also reads that row (one indexed read)
-  and, during a rebuild, updates it for rows the scan has passed, so a rebuild
-  commits on its first pass however busy the project is.
+- **Stats rebuild.** A definitions upgrade or expired cache requests the existing
+  bounded rebuild at most every 6 hours through revenue maintenance. Pages read
+  at most 250 subscriptions / 8 MiB, plus only the needed product documents
+  under a 250-lookup / 2 MiB catalog budget (one document may cross the bound). Catalog-heavy
+  pages halve their row limit before committing any totals. Concurrent writes
+  update scanned rows; a passed expiry invalidates that checkpoint and delays
+  its fresh-ID restart five minutes. A busy project may remain incomplete;
+  reads expose that state rather than claiming a current total. Expiries do not
+  enqueue a full project scan each time. A fallback metrics read shares one
+  8 MiB subscription page between headline and 30-day counts, with the same
+  catalog bound and explicit incompleteness/truncation.
 - **Cohorts.** At most once a day per project: one paginated pass over its
   `subscriptions` and a replace of at most 24 months × 2 environments ×
   currencies rows. It uses the same 250-row / 8 MiB subscription page budget.

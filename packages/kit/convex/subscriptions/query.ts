@@ -1,3 +1,4 @@
+import { SUBSCRIPTION_SCAN_BYTES } from "./accessHistory";
 import { REVENUE_COUNTERS } from "./revenueCounters";
 import { query, type QueryCtx } from "../_generated/server";
 import { ConvexError, v, type Infer } from "convex/values";
@@ -15,7 +16,11 @@ import {
   SUBSCRIPTION_ENVIRONMENT_SCOPES,
   type SubscriptionEnvironmentScope,
 } from "./limits";
-import { statsContributionFor } from "./stats";
+import {
+  loadStatsPeriods,
+  statsAreCurrent,
+  statsContributionFor,
+} from "./stats";
 import { subscriptionEnvironment } from "./analyticsFacts";
 import { ROLLUP_DEFINITIONS_VERSION } from "./revenueMetrics";
 import { entitlementActive, isMisrecordedApplePass } from "./stateMachine";
@@ -642,17 +647,26 @@ async function projectForAdminRead(
   return projectForReadArgs(ctx, args, "admin");
 }
 
-// Live counts and MRR come from `subscriptionStats` (one row per currency), the
-// 30-day counters from a bounded indexed scan. A project with no stats rows yet
-// is computed on the fly until `recomputeSubscriptionStats` fills them. All of
-// it is production-only, which `environment` states.
+// Current caches avoid a subscription scan. Legacy or expired caches use a
+// bounded fallback; an incomplete result is explicit, never a current total.
 export const metricsSummary = query({
   args: {
     apiKey: v.optional(v.string()),
     projectId: v.optional(v.id("projects")),
+    refreshAt: v.optional(v.number()),
   },
   returns: v.object({
     environment: v.literal("Production"),
+    stats: v.object({
+      state: v.union(
+        v.literal("current"),
+        v.literal("rebuilding"),
+        v.literal("incomplete"),
+      ),
+      asOf: v.number(),
+      validUntil: v.union(v.number(), v.null()),
+    }),
+    recentCountsTruncated: v.boolean(),
     activeSubs: v.number(),
     inGracePeriod: v.number(),
     inBillingRetry: v.number(),
@@ -677,6 +691,12 @@ export const metricsSummary = query({
     if (!project) {
       return {
         environment: "Production" as const,
+        stats: {
+          state: "incomplete" as const,
+          asOf: Date.now(),
+          validUntil: null,
+        },
+        recentCountsTruncated: false,
         activeSubs: 0,
         inGracePeriod: 0,
         inBillingRetry: 0,
@@ -699,12 +719,38 @@ export const metricsSummary = query({
       .withIndex("by_project", (q) => q.eq("projectId", project._id))
       .collect();
 
+    const status = await ctx.db
+      .query("revenueMetricsRunStatus")
+      .withIndex("by_project", (q) => q.eq("projectId", project._id))
+      .unique();
+    const cacheCurrent = statsRows.length > 0 && statsAreCurrent(status, now);
+    const scan = ctx.db
+      .query("subscriptions")
+      .withIndex("by_project_and_updated", (q) =>
+        cacheCurrent
+          ? q.eq("projectId", project._id).gte("updatedAt", cutoff)
+          : q.eq("projectId", project._id),
+      );
+    const result = await scan.order("desc").paginate({
+      cursor: null,
+      numItems: 10_000,
+      maximumBytesRead: SUBSCRIPTION_SCAN_BYTES,
+    });
+    const recentlyChanged = result.page.filter(
+      (sub) => sub.updatedAt >= cutoff,
+    );
+    const recentCountsTruncated =
+      !result.isDone && (result.page.at(-1)?.updatedAt ?? now) >= cutoff;
+    let validUntil: number | null = cacheCurrent
+      ? (status?.statsValidUntil ?? null)
+      : null;
+    let statsState: "current" | "rebuilding" | "incomplete" = "current";
     let activeSubs = 0;
     let inGracePeriod = 0;
     let inBillingRetry = 0;
     const mrrAccumulators = new Map<string, number>();
 
-    if (statsRows.length > 0) {
+    if (cacheCurrent) {
       for (const row of statsRows) {
         activeSubs += row.activeSubs;
         inGracePeriod += row.inGracePeriod;
@@ -717,24 +763,25 @@ export const metricsSummary = query({
         }
       }
     } else {
-      // No stats rows yet: compute on the fly, capped so a huge project cannot
-      // break the render, until the drift-correction cron backfills
-      // `subscriptionStats`.
-      const FALLBACK_SCAN_CAP = 10_000;
-      const periodByProductId = await loadPeriodByProductId(ctx, project._id);
-      const allSubs = await ctx.db
-        .query("subscriptions")
-        .withIndex("by_project_and_updated", (q) =>
-          q.eq("projectId", project._id),
-        )
-        .order("desc")
-        .take(FALLBACK_SCAN_CAP);
-      for (const sub of allSubs) {
+      const periods = await loadStatsPeriods(ctx, project._id, result.page);
+      if (!result.isDone || periods === null) {
+        const rebuilding = await ctx.db
+          .query("subscriptionStatsRebuilds")
+          .withIndex("by_project", (q) => q.eq("projectId", project._id))
+          .unique();
+        statsState = rebuilding ? "rebuilding" : "incomplete";
+      }
+      for (const sub of result.page) {
         const contribution = statsContributionFor(
           sub,
-          periodByProductId.get(sub.productId),
+          periods?.get(`${sub.platform}:${sub.productId}`),
           now,
         );
+        if (contribution?.expiresAt !== undefined)
+          validUntil =
+            validUntil === null
+              ? contribution.expiresAt
+              : Math.min(validUntil, contribution.expiresAt);
         if (contribution?.state === "Active") {
           activeSubs += 1;
           if (contribution.mrrMicros > 0) {
@@ -752,17 +799,6 @@ export const metricsSummary = query({
       }
     }
 
-    // 30-day counters from one `by_project_and_updated` scan since the cutoff,
-    // so the cost follows recent churn, not history. The cap keeps a project
-    // with over 10k changes in 30 days under Convex's 40k read limit; past it
-    // the counts are approximate.
-    const ROLLING_SCAN_CAP = 10_000;
-    const recentlyChanged = await ctx.db
-      .query("subscriptions")
-      .withIndex("by_project_and_updated", (q) =>
-        q.eq("projectId", project._id).gte("updatedAt", cutoff),
-      )
-      .take(ROLLING_SCAN_CAP);
     let refunded30d = 0;
     let canceled30d = 0;
     const CANCELED_STATES = new Set([
@@ -802,6 +838,12 @@ export const metricsSummary = query({
 
     return {
       environment: "Production" as const,
+      stats: {
+        state: statsState,
+        asOf: cacheCurrent ? status!.statsUpdatedAt! : now,
+        validUntil,
+      },
+      recentCountsTruncated,
       activeSubs,
       inGracePeriod,
       inBillingRetry,
@@ -1142,30 +1184,6 @@ async function revenueCohorts(
       trialsUnobserved: row.trialsUnobserved,
       observedThrough: row.observedThrough,
     }));
-}
-async function loadPeriodByProductId(
-  ctx: QueryCtx,
-  projectId: Id<"projects">,
-): Promise<Map<string, string | undefined>> {
-  const periodByProductId = new Map<string, string | undefined>();
-  for (const platform of ["IOS", "Android"] as const) {
-    const productRows = await ctx.db
-      .query("products")
-      .withIndex("by_project_and_platform", (q) =>
-        q.eq("projectId", projectId).eq("platform", platform),
-      )
-      .collect();
-    for (const product of productRows) {
-      if (
-        !periodByProductId.has(product.productId) ||
-        (periodByProductId.get(product.productId) === undefined &&
-          product.billingPeriod !== undefined)
-      ) {
-        periodByProductId.set(product.productId, product.billingPeriod);
-      }
-    }
-  }
-  return periodByProductId;
 }
 
 const TIMELINE_ROWS_PER_KIND = 50;

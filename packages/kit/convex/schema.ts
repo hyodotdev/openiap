@@ -900,6 +900,9 @@ const schema = defineSchema({
     // Complete creation-order key of the last subscription the scan read.
     scannedThrough: v.optional(v.number()),
     scannedThroughId: v.optional(v.id("subscriptions")),
+    // Earliest counted expiry; null has no bound, undefined is a legacy page.
+    validUntil: v.optional(v.union(v.number(), v.null())),
+    restartAt: v.optional(v.number()),
     totals: v.array(
       v.object({
         currency: v.string(),
@@ -1021,6 +1024,8 @@ const schema = defineSchema({
     // `statsContributionFor`; a run requests a rebuild while it lags.
     statsDefinitionsVersion: v.optional(v.number()),
     statsRequestedAt: v.optional(v.number()),
+    statsUpdatedAt: v.optional(v.number()),
+    statsValidUntil: v.optional(v.union(v.number(), v.null())),
   })
     .index("by_project", ["projectId"])
     .index("by_run_started", ["runStartedAt"]),

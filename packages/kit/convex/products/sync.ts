@@ -5,6 +5,7 @@ import { productLocalizationsValidator } from "./localizations";
 import { productRegionsValidator } from "./regions";
 import type { Doc, Id } from "../_generated/dataModel";
 import { assertProjectWritable } from "../projects/writable";
+import { invalidateSubscriptionStats } from "../subscriptions/stats";
 
 const platformValidator = v.union(v.literal("IOS"), v.literal("Android"));
 const typeValidator = v.union(
@@ -190,6 +191,8 @@ export const upsertFromStore = internalMutation({
             ? { origin: "store" as const }
             : {}),
       });
+      if (existing.billingPeriod !== args.billingPeriod)
+        await invalidateSubscriptionStats(ctx, args.projectId);
       return existing._id;
     }
     const id: Id<"products"> = await ctx.db.insert("products", {
@@ -213,6 +216,8 @@ export const upsertFromStore = internalMutation({
       updatedAt: now,
       origin: "store",
     });
+    if (args.billingPeriod !== undefined)
+      await invalidateSubscriptionStats(ctx, args.projectId);
     return id;
   },
 });
@@ -586,6 +591,8 @@ export const deleteRemovedProductRow = internalMutation({
     // Client payloads live outside `products` and are kept, so a later pull
     // that recreates the row gets them back.
     await ctx.db.delete(existing._id);
+    if (existing.billingPeriod !== undefined)
+      await invalidateSubscriptionStats(ctx, args.projectId);
     return true;
   },
 });
@@ -618,6 +625,8 @@ export const deletePlatformCatalog = internalMutation({
     for (const row of toDelete) {
       await ctx.db.delete(row._id);
     }
+    if (toDelete.some((row) => row.billingPeriod !== undefined))
+      await invalidateSubscriptionStats(ctx, args.projectId);
     return { deleted: toDelete.length, hasMore };
   },
 });

@@ -1,3 +1,4 @@
+import { upsertFromStore, deletePlatformCatalog } from "../products/sync";
 import { SUBSCRIPTION_SCAN_PAGE_SIZE } from "./accessHistory";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { compareValues, type Value } from "convex/values";
@@ -175,11 +176,11 @@ function makeCtx(db: FakeDb, scheduled: string[]) {
     db,
     scheduler: {
       runAfter: async (
-        _delayMs: number,
+        delayMs: number,
         _fn: unknown,
         args: { projectId: string },
       ) => {
-        scheduled.push(args.projectId);
+        if (delayMs === 0) scheduled.push(args.projectId);
       },
     },
   };
@@ -303,6 +304,8 @@ describe("recomputeSubscriptionStats under concurrent writes", () => {
     rebuildId?: Id<"subscriptionStatsRebuilds">;
     startedAt?: number;
     cursor: string | null;
+    scheduledAt?: number;
+    pageSize?: number;
   };
 
   // Records each chained page instead of running it, so writes can land
@@ -311,8 +314,12 @@ describe("recomputeSubscriptionStats under concurrent writes", () => {
     return {
       db,
       scheduler: {
-        runAfter: async (_delayMs: number, _fn: unknown, args: PageArgs) => {
-          pages.push(args);
+        runAfter: async (delayMs: number, _fn: unknown, args: PageArgs) => {
+          pages.push({
+            ...args,
+            cursor: args.cursor ?? null,
+            ...(delayMs > 0 ? { scheduledAt: Date.now() + delayMs } : {}),
+          });
         },
       },
     };
@@ -323,7 +330,11 @@ describe("recomputeSubscriptionStats under concurrent writes", () => {
     ctx: ReturnType<typeof memoryCtx>,
     token: string,
     state: Doc<"subscriptions">["state"],
-    changes: { currency?: string; environment?: ReceiptEnvironment } = {},
+    changes: {
+      currency?: string;
+      environment?: ReceiptEnvironment;
+      expiresAt?: number;
+    } = {},
   ): Promise<void> {
     const { environment, ...nextChanges } = changes;
     await persistSubscriptionSnapshot(ctx as never, {
@@ -386,6 +397,163 @@ describe("recomputeSubscriptionStats under concurrent writes", () => {
     const pages: PageArgs[] = [];
     return { db, pages, ctx: memoryCtx(db, pages) };
   }
+
+  async function finishPages(
+    ctx: ReturnType<typeof memoryCtx>,
+    pages: PageArgs[],
+  ): Promise<void> {
+    for (let i = 0; i < pages.length; i++) {
+      if (i > 300) throw new Error("rebuild did not settle");
+      const { scheduledAt, ...args } = pages[i];
+      if (scheduledAt !== undefined && scheduledAt > Date.now())
+        vi.setSystemTime(scheduledAt);
+      await testableFunction(runRecomputePage)._handler(ctx, args);
+    }
+  }
+
+  it.each(["renewal", "expiry", "clock-only", "linked-merge"] as const)(
+    "reconciles a counted expiry between pages: %s",
+    async (kind) => {
+      const { db, pages, ctx } = await tiedRows();
+      const first = db
+        .rows("subscriptions")
+        .find((row) => row.purchaseToken === "token-0")!;
+      await db.patch(first._id, { expiresAt: DAY + 5 });
+      await rebuild(ctx);
+      vi.setSystemTime(DAY + 10);
+      if (kind === "renewal") await write(ctx, "token-0", "Active");
+      if (kind === "expiry")
+        await write(ctx, "token-0", "Expired", { expiresAt: DAY + 5 });
+      if (kind === "linked-merge") await merge(db, ctx, 0);
+      await finishPages(ctx, pages);
+      const expected =
+        SUBSCRIPTION_SCAN_PAGE_SIZE + (kind === "renewal" ? 1 : 0);
+      expect(db.rows("subscriptionStats")).toMatchObject([
+        { activeSubs: expected, mrrMicros: expected * 1_000_000 },
+      ]);
+    },
+  );
+
+  it("rebuilds legacy coverage instead of creating a partial delta cache", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    await write(ctx, "token-0", "Expired");
+    await finishPages(ctx, pages);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      { activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE },
+    ]);
+  });
+
+  it("removes an expired completed-cache contribution before a renewal", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    const first = db
+      .rows("subscriptions")
+      .find((row) => row.purchaseToken === "token-0")!;
+    await db.patch(first._id, { expiresAt: DAY + 5 });
+    await rebuild(ctx);
+    await finishPages(ctx, pages);
+    pages.length = 0;
+    vi.setSystemTime(DAY + 10);
+    await write(ctx, "token-0", "Active");
+    await rebuild(ctx);
+    await finishPages(ctx, pages);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      { activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE + 1 },
+    ]);
+  });
+
+  it("tracks a shortened expiry even when the counts do not change", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    await rebuild(ctx);
+    await finishPages(ctx, pages);
+    pages.length = 0;
+    await write(ctx, "token-0", "Active", { expiresAt: DAY + 5 });
+    vi.setSystemTime(DAY + 10);
+    await write(ctx, "token-0", "Expired", { expiresAt: DAY + 5 });
+    await rebuild(ctx);
+    await finishPages(ctx, pages);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      { activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE },
+    ]);
+  });
+
+  it.each(["completed", "in-progress"] as const)(
+    "rebuilds MRR after catalog changes: %s",
+    async (phase) => {
+      const { db, pages, ctx } = await tiedRows();
+      const product = db.rows("products")[0];
+      await db.patch(product._id, { billingPeriod: undefined });
+      await rebuild(ctx);
+      if (phase === "completed") {
+        await finishPages(ctx, pages);
+        pages.length = 0;
+      }
+      await testableFunction(upsertFromStore)._handler(ctx, {
+        projectId: PROJECT,
+        platform: "Android",
+        productId: "premium",
+        type: "Subscription",
+        title: "Premium",
+        storeRef: "synthetic-premium",
+        state: "Active",
+        billingPeriod: "P1M",
+      });
+      await finishPages(ctx, pages);
+      expect(db.rows("subscriptionStats")).toMatchObject([
+        { activeSubs: 251, mrrMicros: 251_000_000 },
+      ]);
+      pages.length = 0;
+      await testableFunction(deletePlatformCatalog)._handler(ctx, {
+        projectId: PROJECT,
+        platform: "Android",
+        limit: 10,
+      });
+      await finishPages(ctx, pages);
+      expect(db.rows("subscriptionStats")).toMatchObject([
+        { activeSubs: 251, mrrMicros: 0 },
+      ]);
+    },
+  );
+
+  it("does not start a whole-project scan on each expired-cache write", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    const first = db
+      .rows("subscriptions")
+      .find((row) => row.purchaseToken === "token-0")!;
+    await db.patch(first._id, { expiresAt: DAY + 5 });
+    await rebuild(ctx);
+    await finishPages(ctx, pages);
+    pages.length = 0;
+    vi.setSystemTime(DAY + 10);
+    await write(ctx, "token-0", "Expired");
+    await write(ctx, "token-0", "Expired");
+    expect(pages).toEqual([]);
+    await rebuild(ctx);
+    await finishPages(ctx, pages);
+    expect(db.rows("subscriptionStats")).toMatchObject([{ activeSubs: 250 }]);
+  });
+
+  it("shrinks a page when needed product documents exceed the read budget", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    const large = "x".repeat(900_000);
+    for (let i = 0; i < 8; i++) {
+      const productId = `large-${i}`;
+      db.seed("products", {
+        projectId: PROJECT,
+        platform: "Android",
+        productId,
+        billingPeriod: "P1M",
+        description: large,
+      });
+      await db.patch(db.rows("subscriptions")[i]._id, { productId });
+    }
+    await rebuild(ctx);
+    expect(db.rows("subscriptionStats")).toEqual([]);
+    expect(pages[0].pageSize).toBeLessThan(SUBSCRIPTION_SCAN_PAGE_SIZE);
+    await finishPages(ctx, pages);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      { activeSubs: 251, mrrMicros: 251_000_000 },
+    ]);
+  });
 
   it.each([SUBSCRIPTION_SCAN_PAGE_SIZE - 1, SUBSCRIPTION_SCAN_PAGE_SIZE])(
     "counts a transition at tied boundary row %i exactly once",

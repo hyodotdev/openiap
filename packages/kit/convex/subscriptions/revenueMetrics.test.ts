@@ -1065,6 +1065,8 @@ async function seedCurrentRunStatus(
     lastNotificationAt: { Production: NOW - 10 * 60 * 1000 },
     cohortsRequestedAt: NOW,
     statsDefinitionsVersion: STATS_DEFINITIONS_VERSION,
+    statsUpdatedAt: NOW,
+    statsValidUntil: null,
     ...fields,
   });
 }
@@ -2136,8 +2138,10 @@ describe("rollup run — failures and follow-ups", () => {
       updatedAt: NOW - 86_400_000,
     });
     const statsRebuilds = () =>
-      scheduled.filter((call) =>
-        call.name.endsWith(":recomputeSubscriptionStats"),
+      scheduled.filter(
+        (call) =>
+          call.name.endsWith(":recomputeSubscriptionStats") &&
+          !("ifExpired" in call.args),
       );
 
     await recompute(ctx);
@@ -3125,6 +3129,75 @@ describe("getRevenueMetrics — data state", () => {
     const result = await getRevenueMetrics._handler({ db }, range);
     expect(result.truncated).toBe(false);
     expect(result.days.map((day) => day.productId)).toEqual(["sub.monthly"]);
+  });
+
+  it("uses a full fallback instead of trusting a partial legacy cache", async () => {
+    const db = new MemDb();
+    await seedKey(db);
+    vi.setSystemTime(NOW);
+    await seedSub(db, { state: "Active", expiresAt: NOW + 86_400_000 });
+    await db.insert("subscriptionStats", {
+      projectId: PROJECT_ID,
+      currency: "USD",
+      activeSubs: 999,
+      inGracePeriod: 0,
+      inBillingRetry: 0,
+      mrrMicros: 999_000_000,
+      updatedAt: NOW,
+    });
+    const summary = await testableFunction(metricsSummary)._handler(
+      { db },
+      { apiKey: API_KEY },
+    );
+    expect(summary).toMatchObject({
+      activeSubs: 1,
+      stats: { state: "current", asOf: NOW },
+      recentCountsTruncated: false,
+    });
+  });
+
+  it("does not present a bounded fallback as complete", async () => {
+    const db = new MemDb();
+    await seedKey(db);
+    vi.setSystemTime(NOW);
+    await seedSub(db, {
+      state: "Refunded",
+      updatedAt: NOW - 1,
+      purchaseToken: "older-refund",
+    });
+    for (let i = 0; i < 10_000; i++)
+      await seedSub(db, {
+        state: "Active",
+        expiresAt: NOW + 86_400_000,
+        purchaseToken: `cap-${i}`,
+      });
+    const summary = await testableFunction(metricsSummary)._handler(
+      { db },
+      { apiKey: API_KEY },
+    );
+    expect(summary.stats.state).toBe("incomplete");
+    expect(summary.activeSubs).toBe(10_000);
+    expect(summary.recentCountsTruncated).toBe(true);
+    expect(summary.refunded30d).toBe(0);
+  });
+
+  it("re-evaluates an expired cache before its scheduler catches up", async () => {
+    const db = new MemDb();
+    await seedKey(db);
+    vi.setSystemTime(NOW);
+    await seedSub(db, { state: "Active", expiresAt: NOW + 5 });
+    await testableFunction(recomputeSubscriptionStats)._handler(makeCtx(db), {
+      projectId: PROJECT_ID,
+    });
+    vi.setSystemTime(NOW + 10);
+    const summary = await testableFunction(metricsSummary)._handler(
+      { db },
+      { apiKey: API_KEY },
+    );
+    expect(summary).toMatchObject({
+      activeSubs: 0,
+      stats: { state: "current", asOf: NOW + 10 },
+    });
   });
 
   it("echoes that live counts and MRR are production only", async () => {

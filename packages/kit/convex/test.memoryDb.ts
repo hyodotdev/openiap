@@ -3,7 +3,7 @@
 // snapshots. Not a convex-test substitute: it has no transactions, validators
 // or read limits. Two dots in the name keep it out of the Convex bundle.
 
-import { compareValues, type Value } from "convex/values";
+import { compareValues, getConvexSize, type Value } from "convex/values";
 
 import type { TableNames } from "./_generated/dataModel";
 import schema from "./schema";
@@ -129,7 +129,11 @@ class MemoryQuery {
     return this.results().map(snapshot);
   }
 
-  async paginate(options: { numItems: number; cursor: string | null }) {
+  async paginate(options: {
+    numItems: number;
+    cursor: string | null;
+    maximumBytesRead?: number;
+  }) {
     const boundary: Row | null =
       options.cursor === null ? null : JSON.parse(options.cursor);
     const rows = this.results().filter((row) => {
@@ -137,7 +141,13 @@ class MemoryQuery {
       const order = this.compareRows(row, boundary);
       return this.descending ? order < 0 : order > 0;
     });
-    const page = rows.slice(0, options.numItems);
+    const page: Row[] = [];
+    let bytes = 0;
+    for (const row of rows.slice(0, options.numItems)) {
+      page.push(row);
+      bytes += getConvexSize(row);
+      if (bytes >= (options.maximumBytesRead ?? Infinity)) break;
+    }
     const last = page.at(-1);
     return {
       page: page.map(snapshot),

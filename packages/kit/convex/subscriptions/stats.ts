@@ -5,10 +5,10 @@ import {
 // Keeps `subscriptionStats` in step with subscription transitions, so
 // metricsSummary's headline counts need no scan.
 
-import type { MutationCtx } from "../_generated/server";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { internalMutation } from "../_generated/server";
 import { internal } from "../_generated/api";
-import { compareValues, v } from "convex/values";
+import { compareValues, getConvexSize, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 
 import { monthlyMicrosForSub } from "./monthlyMicros";
@@ -20,7 +20,7 @@ import { getWritableProject } from "../projects/writable";
 // old totals until rebuilt, so each project's next revenue rollup then
 // requests one rebuild (see `markRevenueMetricsRun`), instead of waiting up to
 // a month for the drift-correction cron.
-export const STATS_DEFINITIONS_VERSION = 1;
+export const STATS_DEFINITIONS_VERSION = 2;
 
 // Other states carry no MRR; metricsSummary counts the recent ones in its
 // 30-day scan.
@@ -35,8 +35,9 @@ type StatsContribution = {
   // "" for a counted sub with no price yet (before the first webhook), so it is
   // still counted.
   currency: string;
-  state: CountedState | null;
+  state: CountedState;
   mrrMicros: number;
+  expiresAt?: number;
 };
 
 // What one row adds to the stats; null for a non-counted state. The stats are
@@ -65,7 +66,12 @@ export function statsContributionFor(
     sub.currency
       ? monthlyMicrosForSub(sub, billingPeriod)
       : 0;
-  return { currency, state: sub.state, mrrMicros };
+  return {
+    currency,
+    state: sub.state,
+    mrrMicros,
+    expiresAt: sub.state === "Active" ? sub.expiresAt : undefined,
+  };
 }
 
 // Applies one transition to the stats: `before` null is an insert, `after` null
@@ -79,39 +85,52 @@ export async function applyStatsTransition(
   after: StatsContribution | null,
   subscription: Pick<Doc<"subscriptions">, "_creationTime" | "_id">,
 ): Promise<void> {
-  // No-op when neither side counts.
-  if (before === null && after === null) return;
-  // Common case: a renewal changes nothing.
-  if (
-    before !== null &&
-    after !== null &&
-    before.currency === after.currency &&
-    before.state === after.state &&
-    before.mrrMicros === after.mrrMicros
-  ) {
+  const now = Date.now();
+  const rebuild = await getStatsRebuild(ctx, projectId);
+  const status = await getStatsStatus(ctx, projectId);
+  const liveCurrent = statsAreCurrent(status, now);
+  // The row is already persisted. Restarting reads its new value exactly once.
+  if (rebuild && !validThrough(rebuild.validUntil, now)) return;
+  if (!liveCurrent && !rebuild) {
+    if (status?.statsDefinitionsVersion !== STATS_DEFINITIONS_VERSION) {
+      await runRecomputePageInline(ctx, { projectId, cursor: null });
+    }
     return;
   }
 
-  const now = Date.now();
-  // One row unless the currency changed.
-  if (before && after && before.currency === after.currency) {
-    await touchStatsRow(ctx, projectId, before.currency, now, (row) =>
-      applyDelta(applyDelta(row, before, "subtract"), after, "add"),
-    );
-  } else {
-    if (before) {
-      await touchStatsRow(ctx, projectId, before.currency, now, (row) =>
-        applyDelta(row, before, "subtract"),
-      );
+  const changed =
+    before?.currency !== after?.currency ||
+    before?.state !== after?.state ||
+    before?.mrrMicros !== after?.mrrMicros;
+  if (liveCurrent && status) {
+    if (changed) {
+      if (before && after && before.currency === after.currency) {
+        await touchStatsRow(ctx, projectId, before.currency, now, (row) =>
+          applyDelta(applyDelta(row, before, "subtract"), after, "add"),
+        );
+      } else {
+        if (before)
+          await touchStatsRow(ctx, projectId, before.currency, now, (row) =>
+            applyDelta(row, before, "subtract"),
+          );
+        if (after)
+          await touchStatsRow(ctx, projectId, after.currency, now, (row) =>
+            applyDelta(row, after, "add"),
+          );
+      }
     }
-    if (after) {
-      await touchStatsRow(ctx, projectId, after.currency, now, (row) =>
-        applyDelta(row, after, "add"),
-      );
+    const validUntil = earlierExpiry(
+      status.statsValidUntil ?? null,
+      after?.expiresAt,
+    );
+    if (changed || validUntil !== status.statsValidUntil) {
+      await ctx.db.patch(status._id, {
+        statsUpdatedAt: now,
+        statsValidUntil: validUntil,
+      });
     }
   }
 
-  const rebuild = await getStatsRebuild(ctx, projectId);
   if (
     rebuild?.scannedThrough !== undefined &&
     rebuild.scannedThroughId !== undefined &&
@@ -121,10 +140,113 @@ export async function applyStatsTransition(
     ) <= 0
   ) {
     const totals = totalsFromRows(rebuild.totals);
-    if (before) addToTotals(totals, before, "subtract");
-    if (after) addToTotals(totals, after, "add");
-    await ctx.db.patch(rebuild._id, { totals: totalsToRows(totals) });
+    if (changed) {
+      if (before) addToTotals(totals, before, "subtract");
+      if (after) addToTotals(totals, after, "add");
+    }
+    await ctx.db.patch(rebuild._id, {
+      totals: totalsToRows(totals),
+      validUntil: earlierExpiry(rebuild.validUntil ?? null, after?.expiresAt),
+    });
   }
+}
+
+function validThrough(until: number | null | undefined, now: number): boolean {
+  return until === null || (until !== undefined && until > now);
+}
+
+export function statsAreCurrent(
+  status: Doc<"revenueMetricsRunStatus"> | null,
+  now: number,
+): boolean {
+  return (
+    status?.statsDefinitionsVersion === STATS_DEFINITIONS_VERSION &&
+    status.statsUpdatedAt !== undefined &&
+    validThrough(status.statsValidUntil, now)
+  );
+}
+
+// Removed minima may cause an early rebuild; raising one could hide an expiry.
+function earlierExpiry(
+  until: number | null,
+  expiry: number | undefined,
+): number | null {
+  return expiry === undefined
+    ? until
+    : until === null
+      ? expiry
+      : Math.min(until, expiry);
+}
+
+function getStatsStatus(
+  ctx: Pick<MutationCtx, "db">,
+  projectId: Id<"projects">,
+): Promise<Doc<"revenueMetricsRunStatus"> | null> {
+  return ctx.db
+    .query("revenueMetricsRunStatus")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .unique();
+}
+
+// Product documents may contain large localizations; read only the needed SKUs.
+export async function loadStatsPeriods(
+  ctx: Pick<QueryCtx, "db">,
+  projectId: Id<"projects">,
+  subscriptions: Doc<"subscriptions">[],
+): Promise<Map<string, string | undefined> | null> {
+  const periods = new Map<string, string | undefined>();
+  let bytes = 0;
+  for (const sub of subscriptions) {
+    const key = `${sub.platform}:${sub.productId}`;
+    if (periods.has(key)) continue;
+    if (periods.size >= SUBSCRIPTION_SCAN_PAGE_SIZE) return null;
+    const product = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", projectId)
+          .eq("platform", sub.platform)
+          .eq("productId", sub.productId),
+      )
+      .unique();
+    bytes += product ? getConvexSize(product) : 0;
+    if (bytes > 2 * 1024 * 1024) return null;
+    periods.set(key, product?.billingPeriod);
+  }
+  return periods;
+}
+
+// Billing periods change MRR even when no subscription field changes.
+export async function invalidateSubscriptionStats(
+  ctx: MutationCtx,
+  projectId: Id<"projects">,
+): Promise<void> {
+  const rebuild = await getStatsRebuild(ctx, projectId);
+  const status = await getStatsStatus(ctx, projectId);
+  if (
+    !rebuild &&
+    !status?.statsDefinitionsVersion &&
+    (
+      await ctx.db
+        .query("subscriptionStats")
+        .withIndex("by_project", (q) => q.eq("projectId", projectId))
+        .take(1)
+    ).length === 0
+  )
+    return;
+  if (rebuild) await ctx.db.patch(rebuild._id, { validUntil: 0 });
+  if (status) await ctx.db.patch(status._id, { statsValidUntil: 0 });
+  else
+    await ctx.db.insert("revenueMetricsRunStatus", {
+      projectId,
+      statsValidUntil: 0,
+    });
+  if (!rebuild && status?.statsValidUntil !== 0)
+    await ctx.scheduler.runAfter(
+      0,
+      internal.subscriptions.stats.recomputeSubscriptionStats,
+      { projectId },
+    );
 }
 
 type StatsRowShape = Pick<
@@ -154,9 +276,6 @@ function applyDelta(
       break;
     case "InBillingRetry":
       next.inBillingRetry += sign;
-      break;
-    case null:
-      // Unreachable for callers; keeps the switch total.
       break;
   }
   // A negative count means a missed event; clamp it and let
@@ -280,9 +399,8 @@ export const recomputeAllSubscriptionStats = internalMutation({
   },
 });
 
-// Scans subscriptions in creation order, which writes never reorder, so each
-// row is read once; concurrent writes reach the totals through
-// `applyStatsTransition`. The last page replaces the project's stats.
+// Scans creation-order pages; concurrent writes update passed rows. An expired
+// bound restarts the scan before the final page can publish stale totals.
 async function runRecomputePageInline(
   ctx: MutationCtx,
   args: {
@@ -290,6 +408,7 @@ async function runRecomputePageInline(
     rebuildId?: Id<"subscriptionStatsRebuilds">;
     startedAt?: number;
     cursor: string | null;
+    pageSize?: number;
   },
 ): Promise<void> {
   // Every scheduled page is a fresh transaction and can run after project or
@@ -305,56 +424,97 @@ async function runRecomputePageInline(
       ? rebuild
       : null;
   // A newer rebuild replaced this one.
-  if (args.cursor !== null && !ours) return;
+  if ((args.cursor !== null || args.rebuildId !== undefined) && !ours) return;
 
   // Legacy totals can already be corrupt. Restart them under a fresh row ID;
   // new checkpoints omit the timestamp so old pages cannot claim them.
-  const restart = args.cursor === null || args.rebuildId === undefined;
+  const now = Date.now();
+  const restart =
+    args.cursor === null ||
+    args.rebuildId === undefined ||
+    !validThrough(ours?.validUntil, now);
 
-  // Keyed by platform too: one SKU can have a different period per store.
-  // Re-read on every page; catalogs are small and cheaper to read than to pass
-  // through scheduler args.
-  const periodByPlatformProduct = new Map<string, string | undefined>();
-  for (const platform of ["IOS", "Android"] as const) {
-    const productRows = await ctx.db
-      .query("products")
-      .withIndex("by_project_and_platform", (q) =>
-        q.eq("projectId", args.projectId).eq("platform", platform),
-      )
-      .collect();
-    for (const product of productRows) {
-      periodByPlatformProduct.set(
-        `${platform}:${product.productId}`,
-        product.billingPeriod,
+  if (ours && !validThrough(ours.validUntil, now)) {
+    if (ours.restartAt === undefined) {
+      const restartAt = now + 5 * 60 * 1000;
+      await ctx.db.patch(ours._id, { restartAt });
+      await ctx.scheduler.runAfter(
+        restartAt - now,
+        internal.subscriptions.stats.runRecomputePage,
+        args,
       );
+      return;
     }
+    if (now < ours.restartAt) return;
   }
-
+  const pageSize = Math.max(
+    1,
+    Math.min(
+      SUBSCRIPTION_SCAN_PAGE_SIZE,
+      args.pageSize ?? SUBSCRIPTION_SCAN_PAGE_SIZE,
+    ),
+  );
   const result = await ctx.db
     .query("subscriptions")
     .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
     .paginate({
       maximumBytesRead: SUBSCRIPTION_SCAN_BYTES,
-      numItems: SUBSCRIPTION_SCAN_PAGE_SIZE,
+      numItems: pageSize,
       cursor: restart ? null : args.cursor,
     });
 
+  const periods = await loadStatsPeriods(ctx, args.projectId, result.page);
+  if (periods === null) {
+    let rebuildId = ours?._id;
+    if (!rebuildId) {
+      if (rebuild) await ctx.db.delete(rebuild._id);
+      rebuildId = await ctx.db.insert("subscriptionStatsRebuilds", {
+        projectId: args.projectId,
+        totals: [],
+        validUntil: null,
+      });
+    }
+    await ctx.scheduler.runAfter(
+      0,
+      internal.subscriptions.stats.runRecomputePage,
+      {
+        projectId: args.projectId,
+        rebuildId,
+        cursor: restart ? null : args.cursor,
+        pageSize: Math.max(1, Math.floor(pageSize / 2)),
+      },
+    );
+    return;
+  }
   const totals: StatsTotals =
     ours && !restart ? totalsFromRows(ours.totals) : new Map();
-  const now = Date.now();
+  let validUntil = restart ? null : (ours?.validUntil ?? null);
   for (const sub of result.page) {
     const contribution = statsContributionFor(
       sub,
-      periodByPlatformProduct.get(`${sub.platform}:${sub.productId}`),
+      periods.get(`${sub.platform}:${sub.productId}`),
       now,
     );
-    if (contribution) addToTotals(totals, contribution, "add");
+    if (contribution) {
+      addToTotals(totals, contribution, "add");
+      validUntil = earlierExpiry(validUntil, contribution.expiresAt);
+    }
   }
 
   if (!result.isDone) {
+    if (restart) {
+      const status = await getStatsStatus(ctx, args.projectId);
+      if (status) await ctx.db.patch(status._id, { statsRequestedAt: now });
+      else
+        await ctx.db.insert("revenueMetricsRunStatus", {
+          projectId: args.projectId,
+          statsRequestedAt: now,
+        });
+    }
     const lastRead = result.page[result.page.length - 1];
     const fields = {
       totals: totalsToRows(totals),
+      validUntil,
       scannedThrough:
         lastRead?._creationTime ?? (restart ? undefined : ours?.scannedThrough),
       scannedThroughId:
@@ -378,6 +538,7 @@ async function runRecomputePageInline(
         projectId: args.projectId,
         rebuildId,
         cursor: result.continueCursor,
+        pageSize,
       },
     );
     return;
@@ -414,18 +575,19 @@ async function runRecomputePageInline(
     }
   }
 
-  const runStatus = await ctx.db
-    .query("revenueMetricsRunStatus")
-    .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-    .unique();
-  if (
-    runStatus &&
-    runStatus.statsDefinitionsVersion !== STATS_DEFINITIONS_VERSION
-  ) {
-    await ctx.db.patch(runStatus._id, {
-      statsDefinitionsVersion: STATS_DEFINITIONS_VERSION,
+  const runStatus = await getStatsStatus(ctx, args.projectId);
+  const statusFields = {
+    statsDefinitionsVersion: STATS_DEFINITIONS_VERSION,
+    statsRequestedAt: now,
+    statsUpdatedAt: now,
+    statsValidUntil: validUntil,
+  };
+  if (runStatus) await ctx.db.patch(runStatus._id, statusFields);
+  else
+    await ctx.db.insert("revenueMetricsRunStatus", {
+      projectId: args.projectId,
+      ...statusFields,
     });
-  }
 }
 
 // Scheduler entry for chained pages; the kickoff runs the first page itself.
@@ -435,6 +597,7 @@ export const runRecomputePage = internalMutation({
     rebuildId: v.optional(v.id("subscriptionStatsRebuilds")),
     startedAt: v.optional(v.number()),
     cursor: v.union(v.string(), v.null()),
+    pageSize: v.optional(v.number()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {

@@ -73,7 +73,7 @@ import {
   SUBSCRIPTION_SCAN_PAGE_SIZE,
   SUBSCRIPTION_SCAN_BYTES,
 } from "./accessHistory";
-import { STATS_DEFINITIONS_VERSION } from "./stats";
+import { statsAreCurrent } from "./stats";
 import { receiptEnvironmentValidator } from "../utils/validation";
 
 // Raising this past ~7 days reads more events for almost no gain: later events
@@ -506,7 +506,7 @@ async function markRevenueMetricsRun(
       run.runStartedAt - existing.catchUpRequestedAt >=
         WIDE_RECOMPUTE_INTERVAL_MS);
   const statsDue =
-    existing?.statsDefinitionsVersion !== STATS_DEFINITIONS_VERSION &&
+    !statsAreCurrent(existing, run.runStartedAt) &&
     (existing?.statsRequestedAt === undefined ||
       run.runStartedAt - existing.statsRequestedAt >=
         WIDE_RECOMPUTE_INTERVAL_MS);

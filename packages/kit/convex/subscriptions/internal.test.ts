@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { compareValues } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { accessAt } from "./accessHistory";
 import { addSubscriptionToCohorts, type CohortBucket } from "./revenueCohorts";
@@ -44,6 +45,26 @@ class MemQuery {
 
   async collect(): Promise<Row[]> {
     return [...this.rows];
+  }
+
+  async paginate(options: { numItems: number; cursor: string | null }) {
+    const key = (row: Row) => [row._creationTime, row._id];
+    const boundary =
+      options.cursor === null ? null : JSON.parse(options.cursor);
+    const ordered = [...this.rows].sort((a, b) =>
+      compareValues(key(a), key(b)),
+    );
+    const remaining = ordered.filter(
+      (row) => boundary === null || compareValues(key(row), boundary) > 0,
+    );
+    const page = remaining.slice(0, options.numItems);
+    return {
+      page: structuredClone(page),
+      isDone: page.length === remaining.length,
+      continueCursor: page.length
+        ? JSON.stringify(key(page[page.length - 1]))
+        : (options.cursor ?? ""),
+    };
   }
 
   async take(count: number): Promise<Row[]> {
@@ -146,9 +167,7 @@ class MemDb {
 }
 
 function makeCtx(db: MemDb) {
-  return { db } as unknown as Parameters<
-    typeof recordVerifiedSubscriptionHandler
-  >[0];
+  return { db, scheduler: { runAfter: async () => null } } as never;
 }
 
 const PROJECT_ID = "projects_seed_1";
@@ -3258,10 +3277,10 @@ describe("user binding authorization", () => {
       userId: "attacker",
     };
     await expect(
-      bindSubscriptionToUserHandler(makeCtx(owned) as never, attacker),
+      bindSubscriptionToUserHandler(makeCtx(owned), attacker),
     ).resolves.toBeNull();
     await expect(
-      bindSubscriptionToUserHandler(makeCtx(unknown) as never, attacker),
+      bindSubscriptionToUserHandler(makeCtx(unknown), attacker),
     ).resolves.toBeNull();
     expect(owned.rows("subscriptions")[0].userId).toBe("victim");
   });
@@ -3411,7 +3430,7 @@ describe("user binding authorization", () => {
     const db = new MemDb();
     await seedBound(db, "wrong-user");
     await expect(
-      rebindSubscriptionToUserHandler(makeCtx(db) as never, {
+      rebindSubscriptionToUserHandler(makeCtx(db), {
         projectId: PROJECT_ID as never,
         purchaseToken: TOKEN,
         userId: "real-owner",
@@ -3710,7 +3729,9 @@ describe("subscription analytics facts", () => {
     });
     await apply(db, sandbox);
     expect(db.rows("subscriptions")[0].environment).toBe("Sandbox");
-    expect(db.rows("subscriptionStats")).toEqual([]);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      { activeSubs: 0, inGracePeriod: 0, inBillingRetry: 0, mrrMicros: 0 },
+    ]);
 
     await recordVerifiedSubscriptionHandler(makeCtx(db), {
       projectId: PROJECT_ID as never,
@@ -3729,7 +3750,9 @@ describe("subscription analytics facts", () => {
         .find((row) => row.purchaseToken === "verified_sandbox_token")
         ?.environment,
     ).toBe("Sandbox");
-    expect(db.rows("subscriptionStats")).toEqual([]);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      { activeSubs: 0, inGracePeriod: 0, inBillingRetry: 0, mrrMicros: 0 },
+    ]);
   });
 
   it("never lets an analytics failure block the lifecycle transition", async () => {

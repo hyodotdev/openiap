@@ -375,6 +375,7 @@ async function applyLifecycleEvent(
       removed.platform,
       removed.productId,
     );
+    await ctx.db.delete(removed._id);
     await applyStatsTransition(
       ctx,
       args.projectId,
@@ -382,7 +383,6 @@ async function applyLifecycleEvent(
       null,
       removed,
     );
-    await ctx.db.delete(removed._id);
     const previousAnalytics = [survivor.analytics, removed.analytics];
     existing = {
       ...survivor,

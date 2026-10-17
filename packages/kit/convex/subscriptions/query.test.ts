@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { testableFunction } from "../test.setup";
 import { statsContributionFor } from "./stats";
+import { MemoryDb } from "../test.memoryDb";
+import { metricsSummary } from "./query";
 
 import {
   assertUserSubscriptionRowLimit,
@@ -537,5 +539,113 @@ describe("shapeSubscriptionEvaluationSnapshot", () => {
     expect(snapshot.candidates.map((row) => row.id)).toEqual([
       "subscriptions_recovered",
     ]);
+  });
+});
+
+describe("metricsSummary byte budgets", () => {
+  afterEach(() => vi.useRealTimers());
+  function fixture() {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(100_000);
+    const db = new MemoryDb();
+    const projectId = "projects_metrics";
+    db.seed("organizations", { _id: "organizations_metrics" });
+    db.seed("projects", {
+      _id: projectId,
+      organizationId: "organizations_metrics",
+    });
+    db.seed("apiKeys", {
+      key: "openiap-kit_sk_metrics_budget",
+      keyType: "secret",
+      isActive: true,
+      projectId,
+      organizationId: "organizations_metrics",
+    });
+    return {
+      db,
+      projectId,
+      args: { apiKey: "openiap-kit_sk_metrics_budget", refreshAt: Date.now() },
+    };
+  }
+  it("marks a byte-limited subscription page incomplete", async () => {
+    const { db, projectId, args } = fixture();
+    const description = "x".repeat(100_000);
+    for (let i = 0; i < 100; i++)
+      db.seed("subscriptions", {
+        projectId,
+        productId: "premium",
+        platform: "Android",
+        state: "Active",
+        purchaseToken: `budget-${i}`,
+        environment: "Production",
+        startedAt: 1,
+        updatedAt: Date.now(),
+        cancellationReason: description,
+      });
+    const result = await testableFunction(metricsSummary)._handler(
+      { db },
+      args,
+    );
+    expect(result.stats.state).toBe("incomplete");
+    expect(result.activeSubs).toBeLessThan(100);
+    expect(result.recentCountsTruncated).toBe(true);
+  });
+  it("bounds distinct catalog lookups even when every product is missing", async () => {
+    const { db, projectId, args } = fixture();
+    for (let i = 0; i < 300; i++)
+      db.seed("subscriptions", {
+        projectId,
+        productId: `missing-${i}`,
+        platform: "Android",
+        state: "Active",
+        purchaseToken: `missing-${i}`,
+        environment: "Production",
+        startedAt: 1,
+        updatedAt: Date.now(),
+      });
+    const reads = vi.spyOn(db, "query");
+    const result = await testableFunction(metricsSummary)._handler(
+      { db },
+      args,
+    );
+    expect(result.stats.state).toBe("incomplete");
+    expect(
+      reads.mock.calls.filter(([table]) => table === "products"),
+    ).toHaveLength(250);
+    expect(result.recentCountsTruncated).toBe(false);
+  });
+
+  it("bounds catalog reads even when all subscriptions fit", async () => {
+    const { db, projectId, args } = fixture();
+    for (let i = 0; i < 8; i++) {
+      const productId = `premium-${i}`;
+      db.seed("products", {
+        projectId,
+        platform: "Android",
+        productId,
+        billingPeriod: "P1M",
+        description: "x".repeat(900_000),
+      });
+      db.seed("subscriptions", {
+        projectId,
+        productId,
+        platform: "Android",
+        state: "Active",
+        purchaseToken: `catalog-${i}`,
+        environment: "Production",
+        startedAt: 1,
+        updatedAt: Date.now(),
+      });
+    }
+    const reads = vi.spyOn(db, "query");
+    const result = await testableFunction(metricsSummary)._handler(
+      { db },
+      args,
+    );
+    expect(result.stats.state).toBe("incomplete");
+    expect(
+      reads.mock.calls.filter(([table]) => table === "products"),
+    ).toHaveLength(3);
+    expect(result.recentCountsTruncated).toBe(false);
   });
 });

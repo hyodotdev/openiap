@@ -279,7 +279,10 @@ describe("MCP Kit response contracts", () => {
   });
 
   it("keeps administrative read response types aligned", () => {
-    expectTypeOf<McpMetricsResponse>().toEqualTypeOf<ServerMetricsResponse>();
+    expectTypeOf<ServerMetricsResponse>().toMatchTypeOf<McpMetricsResponse>();
+    expectTypeOf<NonNullable<McpMetricsResponse["stats"]>>().toEqualTypeOf<
+      ServerMetricsResponse["stats"]
+    >();
     expectTypeOf<McpSubscriptionsResponse>().toEqualTypeOf<
       NormalizeContract<ServerSubscriptionsResponse>
     >();

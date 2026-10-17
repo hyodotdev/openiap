@@ -721,7 +721,9 @@ function Releases() {
             now return 410; migrate them to authenticated backend v2 reads.
             Never put a secret key in the app. Self-hosted IAPKit also requires
             a shared private verification source credential and coordinated
-            server rollout. The IAPKit changes this flow relies on are in the{' '}
+            server rollout. Subscription metrics include freshness and
+            scan-limit flags, exposed by the JavaScript Kit API types. The
+            IAPKit changes this flow relies on are in the{' '}
             <a href="https://kit.openiap.dev/docs/release-notes#week-2026-10-12">
               hosted history
             </a>

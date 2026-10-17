@@ -156,6 +156,16 @@ export type KitMrrCurrencyEntry = {
 };
 
 export type KitMetricsResponse = {
+  /** Headline counts and MRR are usable only when current; absent on older servers. */
+  stats?: {
+    state: "current" | "rebuilding" | "incomplete";
+    /** Last evaluation time in Unix milliseconds. */
+    asOf: number;
+    /** Earliest counted expiry in Unix milliseconds; null means no known expiry. */
+    validUntil: number | null;
+  };
+  /** The bounded 30-day scan omitted older matching rows. */
+  recentCountsTruncated?: boolean;
   activeSubs: number;
   inGracePeriod: number;
   inBillingRetry: number;

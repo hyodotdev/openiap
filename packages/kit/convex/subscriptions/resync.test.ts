@@ -34,7 +34,8 @@ const { resolveOperatorProject } = await import("../projects/helpers");
 const { buildEventPayload } = await import("../commerce/deliveryState");
 
 type Db = InstanceType<typeof MemoryDb>;
-const ctxOf = (db: Db) => ({ db }) as never;
+const ctxOf = (db: Db) =>
+  ({ db, scheduler: { runAfter: async () => null } }) as never;
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 const TOKEN = "2000000000000001";
@@ -87,11 +88,21 @@ async function applyStoreEvent(
 
 // A mutation ctx whose scheduled calls are recorded, not run.
 function schedulingCtx(db: Db) {
-  const runAfter = vi.fn(async () => null);
+  const runAfter = vi.fn(
+    async (
+      _delay: number,
+      _reference: Parameters<typeof getFunctionName>[0],
+      _args: Record<string, unknown>,
+    ) => null,
+  );
   return { ctx: { db, scheduler: { runAfter } } as never, runAfter };
 }
 const scheduledNames = (runAfter: ReturnType<typeof vi.fn>) =>
-  runAfter.mock.calls.map(([, reference]) => getFunctionName(reference));
+  runAfter.mock.calls
+    .map(([, reference]) => getFunctionName(reference))
+    .filter(
+      (name) => name === "subscriptions/action:resyncDisputedSubscription",
+    );
 
 beforeEach(() => {
   auth.userId = "users_1";
@@ -923,7 +934,7 @@ describe("a verify after a re-sync", () => {
     expect(db.rows("subscriptions")).toMatchObject([
       { state: "Active", expiresAt: now + 60 * DAY },
     ]);
-    expect(runAfter).toHaveBeenCalledTimes(1);
+    expect(scheduledNames(runAfter)).toHaveLength(1);
   });
 
   it("re-reads the store for an Apple refund reversal instead of dropping it", async () => {
@@ -964,7 +975,13 @@ describe("a verify after a re-sync", () => {
       verifiedSignedDate: now + HOUR,
     });
     expect(db.rows("subscriptions")).toMatchObject([{ state: "Revoked" }]);
-    expect(runAfter.mock.calls).toEqual([
+    expect(
+      runAfter.mock.calls.filter(
+        ([, reference]) =>
+          getFunctionName(reference) ===
+          "subscriptions/action:resyncDisputedSubscription",
+      ),
+    ).toEqual([
       [
         0,
         expect.anything(),
@@ -1058,10 +1075,10 @@ describe("a verify after a re-sync", () => {
 
     vi.setSystemTime(now + RESYNC_DISPUTE_COOLDOWN_MS - 1);
     await replay();
-    expect(runAfter).toHaveBeenCalledTimes(1);
+    expect(scheduledNames(runAfter)).toHaveLength(1);
     vi.setSystemTime(now + RESYNC_DISPUTE_COOLDOWN_MS);
     await replay();
-    expect(runAfter).toHaveBeenCalledTimes(2);
+    expect(scheduledNames(runAfter)).toHaveLength(2);
   });
 
   it("applies a Google read made after the re-sync, never one made before it", async () => {
@@ -1099,7 +1116,7 @@ describe("a verify after a re-sync", () => {
     // Read before the re-sync but committed after it: the store is asked again.
     await verify(now - 1, now + DAY);
     expect(db.rows("subscriptions")).toMatchObject([{ state: "Expired" }]);
-    expect(runAfter).toHaveBeenCalledTimes(1);
+    expect(scheduledNames(runAfter)).toHaveLength(1);
 
     await verify(now + 1, now + 30 * DAY);
     expect(db.rows("subscriptions")).toMatchObject([

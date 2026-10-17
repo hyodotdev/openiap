@@ -94,6 +94,17 @@ class MemQuery {
     );
   }
 
+  async paginate(options: { numItems: number; cursor: string | null }) {
+    if (options.cursor !== null || this.rows.length > options.numItems) {
+      throw new Error("This fixture supports only a complete first page");
+    }
+    return {
+      page: structuredClone(this.rows),
+      isDone: true,
+      continueCursor: "",
+    };
+  }
+
   async take(limit: number): Promise<Row[]> {
     return this.rows.slice(0, limit);
   }
@@ -151,6 +162,10 @@ class MemDb {
     const row = this.rows.get(id);
     if (!row) throw new Error(`missing row ${id}`);
     Object.assign(row, patch);
+  }
+
+  async delete(id: string): Promise<void> {
+    if (!this.rows.delete(id)) throw new Error(`missing row ${id}`);
   }
 
   async insert(

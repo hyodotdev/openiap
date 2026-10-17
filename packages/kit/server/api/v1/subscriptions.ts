@@ -231,6 +231,7 @@ async function handleMetrics(c: Context, apiKey: string) {
   try {
     const result = await client.query(api.subscriptions.query.metricsSummary, {
       apiKey,
+      refreshAt: Date.now(),
     });
     return c.json(result);
   } catch (error) {

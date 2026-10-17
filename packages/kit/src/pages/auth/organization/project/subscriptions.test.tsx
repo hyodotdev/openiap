@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 
 const mocks = vi.hoisted(() => ({
   project: {
@@ -10,7 +10,14 @@ const mocks = vi.hoisted(() => ({
     slug: "martie",
     reportingCurrency: "USD",
   },
+  metricsPending: false,
   metrics: {
+    stats: {
+      state: "current",
+      asOf: 1,
+      validUntil: Number.MAX_SAFE_INTEGER,
+    },
+    recentCountsTruncated: false,
     reportingCurrency: "USD",
     mrrMicros: 0,
     mrrByCurrency: [],
@@ -35,12 +42,15 @@ vi.mock("react-router-dom", () => ({
 
 vi.mock("convex/react", () => ({
   useAction: () => vi.fn(),
-  useQuery: (reference: string) =>
+  useQuery: vi.fn((reference: string) =>
     reference === "subscriptions.metricsSummary"
-      ? mocks.metrics
+      ? mocks.metricsPending
+        ? undefined
+        : mocks.metrics
       : reference === "commerce.destinations.canManage"
         ? false
         : mocks.subscriptions,
+  ),
 }));
 
 vi.mock("@/convex", () => ({
@@ -59,9 +69,67 @@ vi.mock("@/convex", () => ({
 }));
 
 import ProjectSubscriptions from "./subscriptions";
+import { useQuery } from "convex/react";
 
 describe("ProjectSubscriptions responsive metrics", () => {
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    mocks.metrics.stats.state = "current";
+    mocks.metrics.recentCountsTruncated = false;
+    mocks.metrics.stats.validUntil = Number.MAX_SAFE_INTEGER;
+    mocks.metricsPending = false;
+    vi.useRealTimers();
+  });
+
+  it("refreshes the query at the returned expiry and clears its timer", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    mocks.metrics.stats.validUntil = 1_050;
+    const view = render(<ProjectSubscriptions />);
+    await act(() => vi.advanceTimersByTime(50));
+    expect(vi.mocked(useQuery).mock.calls).toContainEqual([
+      "subscriptions.metricsSummary",
+      { projectId: "projects_test", refreshAt: 1_050 },
+    ]);
+    expect(screen.getAllByText("—")).toHaveLength(4);
+    view.unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("hides an expired arrival and requests a bounded immediate refresh", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_100);
+    mocks.metrics.stats.validUntil = 1_050;
+    render(<ProjectSubscriptions />);
+    expect(screen.getAllByText("—")).toHaveLength(4);
+    await act(() => vi.advanceTimersByTime(0));
+    expect(vi.mocked(useQuery).mock.calls).toContainEqual([
+      "subscriptions.metricsSummary",
+      { projectId: "projects_test", refreshAt: 1_101 },
+    ]);
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  it("keeps subscription rows visible while metrics refresh", () => {
+    mocks.metricsPending = true;
+    render(<ProjectSubscriptions />);
+    expect(screen.getByText("Total tracked")).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toContain("Updating");
+    expect(screen.getAllByText("—")).toHaveLength(6);
+  });
+
+  it.each(["rebuilding", "incomplete"] as const)(
+    "hides partial headline totals while %s",
+    (state) => {
+      mocks.metrics.stats.state = state;
+      render(<ProjectSubscriptions />);
+      expect(screen.getByRole("status").textContent).toMatch(
+        /subscription totals/i,
+      );
+      expect(screen.getAllByText("—")).toHaveLength(4);
+      expect(screen.getByText("Total tracked")).toBeTruthy();
+    },
+  );
 
   it("stacks secondary metric cards before the small breakpoint", () => {
     render(<ProjectSubscriptions />);
