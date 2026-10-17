@@ -386,6 +386,8 @@ export default function BackendEntitlementFlow({
     <ScrollView
       ref={setScrollView}
       style={styles.container}
+      automaticallyAdjustKeyboardInsets
+      keyboardDismissMode="on-drag"
       onScroll={onScroll}
       scrollEventThrottle={16}
       onScrollBeginDrag={onScrollBeginDrag}
@@ -418,6 +420,7 @@ export default function BackendEntitlementFlow({
             autoCapitalize="none"
             autoCorrect={false}
             autoComplete="off"
+            returnKeyType="done"
             style={styles.input}
             value={account}
             onChangeText={(value) => {
