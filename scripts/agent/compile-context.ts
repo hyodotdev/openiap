@@ -249,7 +249,7 @@ ungranted ownership-conflict purchases remain unfinished. Read
 https://openiap.dev/docs/features/validation and the runnable backend reference
 at https://kit.openiap.dev/docs/purchase-flow before wiring the finish policy.
 
-For public product copy, create a client with the SDKs' \`kitApi\`, then call
+For React Native and Expo apps, create a client with the SDKs' \`kitApi\`, then call
 \`clientPayload\` or \`localizedClientPayload\`. Cached reads can return
 \`stale: true\`; the localized helper returns \`null\` when it cannot provide
 supported copy, so keep built-in strings. Prices and offer terms come from the
