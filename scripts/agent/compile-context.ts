@@ -238,6 +238,24 @@ provides a server-side contract and conformance artifacts, not a mobile SDK or
 a hosted backend. IAPKit is one backend implementation, not a requirement for
 using OpenIAP SDKs.
 
+For backend-confirmed App Store and Google Play purchases, React Native IAP and
+Expo IAP export \`createPurchaseFlow\` and \`toPurchaseConfirmationRequest\`.
+The portable flow is also available from
+\`@hyodotdev/openiap-client-protocol/purchase-flow\`. Create one flow per
+signed-in account, pass store callbacks to \`processPurchase\`, and call
+\`recoverPurchases\` at launch and foreground. Your authenticated backend owns
+verification, purchase binding and granting access once. Pending, retryable and
+ungranted ownership-conflict purchases remain unfinished. Read
+https://openiap.dev/docs/features/validation and the runnable backend reference
+at https://kit.openiap.dev/docs/purchase-flow before wiring the finish policy.
+
+For React Native and Expo apps, create a client with the SDKs' \`kitApi\`, then call
+\`clientPayload\` or \`localizedClientPayload\`. Cached reads can return
+\`stale: true\`; the localized helper returns \`null\` when it cannot provide
+supported copy, so keep built-in strings. Prices and offer terms come from the
+store, and payloads must never contain secrets. Follow
+https://kit.openiap.dev/docs/products for cache, locale and schema handling.
+
 For a community store provider, read https://openiap.dev/docs/guides/store-providers.
 Its source walkthrough, actual example screens and acceptance brief reference
 https://github.com/hyodotdev/openiap-google-amazon-community. Read that repository's
