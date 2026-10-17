@@ -724,23 +724,26 @@ export const metricsSummary = query({
       .withIndex("by_project", (q) => q.eq("projectId", project._id))
       .unique();
     const cacheCurrent = statsRows.length > 0 && statsAreCurrent(status, now);
-    const scan = ctx.db
+    // Reactive pagination retains a journal, so its indexed range stays fixed.
+    const result = await ctx.db
       .query("subscriptions")
       .withIndex("by_project_and_updated", (q) =>
-        cacheCurrent
-          ? q.eq("projectId", project._id).gte("updatedAt", cutoff)
-          : q.eq("projectId", project._id),
-      );
-    const result = await scan.order("desc").paginate({
-      cursor: null,
-      numItems: 10_000,
-      maximumBytesRead: SUBSCRIPTION_SCAN_BYTES,
-    });
+        q.eq("projectId", project._id),
+      )
+      .order("desc")
+      .paginate({
+        cursor: null,
+        numItems: 10_000,
+        maximumRowsRead: 10_000,
+        maximumBytesRead: SUBSCRIPTION_SCAN_BYTES,
+      });
+    const pageComplete = result.isDone && result.pageStatus !== "SplitRequired";
     const recentlyChanged = result.page.filter(
       (sub) => sub.updatedAt >= cutoff,
     );
     const recentCountsTruncated =
-      !result.isDone && (result.page.at(-1)?.updatedAt ?? now) >= cutoff;
+      result.pageStatus === "SplitRequired" ||
+      (!result.isDone && (result.page.at(-1)?.updatedAt ?? now) >= cutoff);
     let validUntil: number | null = cacheCurrent
       ? (status?.statsValidUntil ?? null)
       : null;
@@ -764,7 +767,7 @@ export const metricsSummary = query({
       }
     } else {
       const periods = await loadStatsPeriods(ctx, project._id, result.page);
-      if (!result.isDone || periods === null) {
+      if (!pageComplete || periods === null) {
         const rebuilding = await ctx.db
           .query("subscriptionStatsRebuilds")
           .withIndex("by_project", (q) => q.eq("projectId", project._id))

@@ -722,8 +722,9 @@ function Releases() {
             Never put a secret key in the app. Self-hosted IAPKit also requires
             a shared private verification source credential and coordinated
             server rollout. Subscription metrics include freshness and
-            scan-limit flags, exposed by the JavaScript Kit API types. The
-            IAPKit changes this flow relies on are in the{' '}
+            scan-limit flags, exposed by the JavaScript Kit API types. Live
+            dashboard updates keep a stable query range as those metrics
+            refresh. The IAPKit changes this flow relies on are in the{' '}
             <a href="https://kit.openiap.dev/docs/release-notes#week-2026-10-12">
               hosted history
             </a>

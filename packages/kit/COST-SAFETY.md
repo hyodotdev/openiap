@@ -159,8 +159,9 @@ environment at a time.
   its fresh-ID restart five minutes. A busy project may remain incomplete;
   reads expose that state rather than claiming a current total. Expiries do not
   enqueue a full project scan each time. A fallback metrics read shares one
-  8 MiB subscription page between headline and 30-day counts, with the same
-  catalog bound and explicit incompleteness/truncation.
+  8 MiB / 10,000-row subscription page between headline and 30-day counts,
+  with a stable indexed range across reactive updates, the same catalog bound,
+  and explicit incompleteness/truncation, including required page splits.
 - **Cohorts.** At most once a day per project: one paginated pass over its
   `subscriptions` and a replace of at most 24 months × 2 environments ×
   currencies rows. It uses the same 250-row / 8 MiB subscription page budget.

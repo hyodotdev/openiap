@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { testableFunction } from "../test.setup";
-import { statsContributionFor } from "./stats";
+import { STATS_DEFINITIONS_VERSION, statsContributionFor } from "./stats";
 import { MemoryDb } from "../test.memoryDb";
 import { metricsSummary } from "./query";
 
@@ -567,6 +567,104 @@ describe("metricsSummary byte budgets", () => {
       args: { apiKey: "openiap-kit_sk_metrics_budget", refreshAt: Date.now() },
     };
   }
+  it("keeps the reactive page range stable across clock and cache changes", async () => {
+    const { db, projectId, args } = fixture();
+    db.seed("subscriptions", {
+      projectId,
+      productId: "premium",
+      platform: "Android",
+      state: "Active",
+      environment: "Production",
+      purchaseToken: "reactive-budget",
+      startedAt: 1,
+      updatedAt: Date.now(),
+      expiresAt: Date.now() + 100,
+    });
+    db.seed("subscriptionStats", {
+      projectId,
+      activeSubs: 1,
+      inGracePeriod: 0,
+      inBillingRetry: 0,
+      mrrMicros: 0,
+    });
+    db.seed("revenueMetricsRunStatus", {
+      projectId,
+      statsDefinitionsVersion: STATS_DEFINITIONS_VERSION,
+      statsUpdatedAt: Date.now(),
+      statsValidUntil: Date.now() + 100,
+    });
+    let journal: string | undefined;
+    const original = db.query.bind(db);
+    vi.spyOn(db, "query").mockImplementation((table) => {
+      const query = original(table);
+      if (table !== "subscriptions") return query;
+      const withIndex = query.withIndex.bind(query);
+      const paginate = query.paginate.bind(query);
+      const bounds: unknown[] = [];
+      query.withIndex = (name, range) =>
+        withIndex(name, (q) => {
+          type Range = typeof q;
+          const track =
+            (method: keyof Range) =>
+            (field: string, value: Parameters<Range["eq"]>[1]): Range => {
+              bounds.push([method, field, value]);
+              q[method](field, value);
+              return tracked;
+            };
+          const tracked: Range = {
+            eq: track("eq"),
+            gt: track("gt"),
+            gte: track("gte"),
+            lt: track("lt"),
+            lte: track("lte"),
+          };
+          bounds.push(name);
+          return range?.(tracked);
+        });
+      // Convex reuses its page journal when the same reactive query reruns.
+      query.paginate = async (options) => {
+        expect(options).toMatchObject({
+          maximumRowsRead: 10_000,
+          maximumBytesRead: 8 * 1024 * 1024,
+        });
+        const signature = JSON.stringify(bounds);
+        if (journal !== undefined && journal !== signature)
+          throw new Error("InvalidCursor: reactive query range changed");
+        journal = signature;
+        return paginate(options);
+      };
+      return query;
+    });
+    const read = () => testableFunction(metricsSummary)._handler({ db }, args);
+    expect((await read()).activeSubs).toBe(1);
+    vi.setSystemTime(100_050);
+    expect((await read()).activeSubs).toBe(1);
+    vi.setSystemTime(100_101);
+    expect((await read()).activeSubs).toBe(0);
+  });
+
+  it("marks a required reactive page split incomplete", async () => {
+    const { db, args } = fixture();
+    const original = db.query.bind(db);
+    vi.spyOn(db, "query").mockImplementation((table) => {
+      const query = original(table);
+      if (table === "subscriptions") {
+        const paginate = query.paginate.bind(query);
+        query.paginate = async (options) => ({
+          ...(await paginate(options)),
+          isDone: true,
+          pageStatus: "SplitRequired",
+        });
+      }
+      return query;
+    });
+    const result = await testableFunction(metricsSummary)._handler(
+      { db },
+      args,
+    );
+    expect(result.stats.state).toBe("incomplete");
+    expect(result.recentCountsTruncated).toBe(true);
+  });
   it("marks a byte-limited subscription page incomplete", async () => {
     const { db, projectId, args } = fixture();
     const description = "x".repeat(100_000);
