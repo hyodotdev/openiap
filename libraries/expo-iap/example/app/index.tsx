@@ -41,7 +41,7 @@ const MENU_ITEMS: MenuItem[] = [
     href: '/subscription-flow',
     icon: '🔄',
     title: 'Subscription Flow',
-    subtitle: 'Store billing and offers; no app-account access',
+    subtitle: 'Subscribe and follow its confirmation',
     accentColor: '#16A34A',
   },
   {
