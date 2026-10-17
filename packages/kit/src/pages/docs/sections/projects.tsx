@@ -35,6 +35,14 @@ export default function ProjectsPage() {
         one has its own store credentials, keys, purchase history, and
         entitlement state.
       </p>
+      <p>
+        Every organization member can read a project&apos;s purchases and
+        subscriptions. Raw store evidence — the request payload (JWS, purchase
+        token or receipt), the store response, and subscription purchase tokens
+        — reaches only admins and owners in the dashboard, because it can be
+        replayed against verify and bind. Members see a purchase&apos;s keyed
+        evidence fingerprint instead.
+      </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Creating a project</h2>
       <p>
@@ -93,8 +101,9 @@ export default function ProjectsPage() {
         When a project is created, IAPKit issues a default publishable key named{" "}
         <em>Default Production Key</em>. Publishable keys start with{" "}
         <code>openiap-kit_pk_</code> and may be embedded in a mobile app for
-        purchase verification, user-scoped entitlement helpers, and public
-        product or client-payload reads.
+        purchase verification and public product or client-payload reads.
+        Account lookup and ownership binding require your authenticated backend
+        and a secret admin key.
       </p>
       <p>
         Administrative automation uses a secret key beginning with{" "}
@@ -113,8 +122,9 @@ export default function ProjectsPage() {
         reads and writes the same purchase log, subscription state, user
         bindings, and entitlement results. If staging and production need
         isolated state, create separate projects and use the matching project
-        keys consistently from each app for verify, webhooks, bind-user, status,
-        and entitlement calls.
+        keys consistently: publishable keys for app verification and store
+        webhook ingress, secret keys on your authenticated backend for binding
+        and account reads.
       </p>
       <div className="my-4 overflow-x-auto rounded-lg border border-border">
         <table className="min-w-[46rem] w-full text-sm">
@@ -132,16 +142,15 @@ export default function ProjectsPage() {
               <td className="px-3 py-2 font-mono text-xs">openiap-kit_pk_…</td>
               <td className="px-3 py-2">Mobile app or public client</td>
               <td className="px-3 py-2">
-                Purchase verification, bind/status/entitlements, and public
-                product or client-payload reads
+                Purchase verification and public product or client-payload reads
               </td>
             </tr>
             <tr>
               <td className="px-3 py-2 font-mono text-xs">openiap-kit_sk_…</td>
               <td className="px-3 py-2">Secret manager, CI, or MCP</td>
               <td className="px-3 py-2">
-                Everything above plus catalog and payload writes, analytics, and
-                store sync
+                Everything above plus account reads, ownership binding, catalog
+                and payload writes, analytics, and store sync
               </td>
             </tr>
           </tbody>
@@ -169,10 +178,10 @@ export default function ProjectsPage() {
           Mobile apps should send a publishable key.
         </li>
         <li>
-          Sent as a Bearer token for administrative endpoints. App-facing SDK
-          helpers and inbound store webhooks retain publishable key path
-          segments where their transport requires it. Never place a secret key
-          in a URL.
+          Sent as a Bearer token for administrative endpoints. Mobile account
+          helper paths are retired with 410; migrate to authenticated backend
+          reads. Inbound store webhooks retain their publishable-key transport.
+          Never place a secret key in a URL.
         </li>
         <li>
           Hashed before logging — the server only retains the SHA-256 prefix in

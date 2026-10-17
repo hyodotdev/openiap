@@ -3,7 +3,7 @@ import { internal } from "../_generated/api";
 import { ActionCtx } from "../_generated/server";
 import { Id } from "../_generated/dataModel";
 import { InvalidApiKeyError } from "./errors";
-import { receiptEnvironmentValidator } from "../schema";
+import { receiptEnvironmentValidator } from "../utils/validation";
 import {
   harmonizedPurchaseStateValidator,
   HarmonizedPurchaseState,
@@ -73,7 +73,7 @@ export const appStoreReceiptDataValidator = v.object({
   type: v.optional(v.string()),
   price: v.optional(v.number()),
   currency: v.optional(v.string()),
-  environment: v.union(v.literal("Sandbox"), v.literal("Production")),
+  environment: receiptEnvironmentValidator,
   storefront: v.optional(v.string()),
   storefrontId: v.optional(v.string()),
   webOrderLineItemId: v.optional(v.string()),
@@ -122,12 +122,25 @@ export const receiptResponseValidator = v.object({
   state: harmonizedPurchaseStateValidator,
   productId: v.optional(v.string()),
   environment: v.optional(receiptEnvironmentValidator),
-  // Internal edge hint for ambiguous states. For example, Google maps
-  // an explicit 410 revoked-token verdict to UNKNOWN, but a successfully
-  // fetched future Play state can also map to UNKNOWN and must stay
-  // retryable. The HTTP route consumes this without returning it publicly.
+  // Internal hint that overrides whether a rejected state is settled; the HTTP
+  // route consumes it without returning it. True settles Google's revoked
+  // token, which maps to UNKNOWN; false keeps a subscription Play can still
+  // revive retryable even after its expiry maps it to EXPIRED.
   stableRejection: v.optional(v.boolean()),
+  // Store identifiers named as commerce events name them. /v1 returns them
+  // only when the request sets includeTransactionDetails.
+  transactionDetails: v.optional(
+    v.object({
+      transactionId: v.optional(v.string()),
+      originalTransactionId: v.optional(v.string()),
+      expiresAt: v.optional(v.number()),
+    }),
+  ),
 });
+
+export type TransactionDetails = NonNullable<
+  ReceiptResponse["transactionDetails"]
+>;
 
 // Amazon asks developers to revisit every active receipt within 72 hours.
 // Rows become due at 48 hours; this is a scheduling cadence, not a completion
@@ -240,19 +253,37 @@ export function mapToAppStoreReceiptResponse(
   };
 }
 
+// Play returns these to ACTIVE on the same token (a fixed payment, a resume, a
+// late renewal), so a rejection read in one of them is never final.
+const REVIVABLE_GOOGLE_SUBSCRIPTION_STATES = new Set([
+  "SUBSCRIPTION_STATE_ACTIVE",
+  "SUBSCRIPTION_STATE_IN_GRACE_PERIOD",
+  "SUBSCRIPTION_STATE_ON_HOLD",
+  "SUBSCRIPTION_STATE_PAUSED",
+  "SUBSCRIPTION_STATE_PENDING",
+]);
+
 export function mapToGooglePlayReceiptResponse(
   receiptData: GooglePlayReceiptData,
   catalogProductType?: CatalogProductType | null,
 ): ReceiptResponse {
   const state = mapGooglePlayPurchaseState(receiptData, catalogProductType);
+  const isValid = isValidState(state);
+  const revivable =
+    !isValid &&
+    receiptData.type === "Subscription" &&
+    REVIVABLE_GOOGLE_SUBSCRIPTION_STATES.has(
+      receiptData.subscriptionState?.toUpperCase() ?? "",
+    );
 
   return {
-    isValid: isValidState(state),
+    isValid,
     state,
     productId: receiptData.productId,
     ...(receiptData.environment
       ? { environment: receiptData.environment }
       : {}),
+    ...(revivable ? { stableRejection: false } : {}),
   };
 }
 
@@ -267,8 +298,10 @@ export function applyExpectedProductId(
     return receiptResponse;
   }
 
+  // A product mismatch is settled whatever the store state, so no hint stays.
+  const { stableRejection: _storeHint, ...verdict } = receiptResponse;
   return {
-    ...receiptResponse,
+    ...verdict,
     isValid: false,
     state: HarmonizedPurchaseState.INAUTHENTIC,
   };

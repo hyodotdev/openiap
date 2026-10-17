@@ -13,9 +13,12 @@ import { z } from "zod";
 import { INSUFFICIENT_API_KEY_SCOPE_MESSAGE, isSecretApiKey } from "./auth.js";
 import {
   fetchKit,
+  KIT_PURCHASE_ISSUE_CAUSES,
   kitClient,
   KitHttpError,
   normalizeKitBaseUrl,
+  type KitRevenueDay,
+  type KitRevenueMetricsResponse,
 } from "./kit-client.js";
 
 // MCP server for IAPKit. Every tool funnels through `withClient`, so key
@@ -55,6 +58,7 @@ const MAX_KIT_ID_LENGTH = 256;
 const MAX_CLIENT_PAYLOAD_BYTES = 16 * 1024;
 const MAX_PRODUCT_PAGE_SIZE = 50;
 const MAX_PRODUCT_CURSOR_LENGTH = 4096;
+const MAX_OPERATIONS_PAGE_SIZE = 100;
 const MAX_PRICE_AMOUNT_MICROS = Number.MAX_SAFE_INTEGER;
 const READ_ONLY_TOOL: ToolAnnotations = {
   readOnlyHint: true,
@@ -82,6 +86,7 @@ const TITLE_PARAM = kitTextParam("title");
 const ISO_DAY_PARAM = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD");
+const ISO_TIME_PARAM = z.string().datetime({ offset: true });
 const PRICE_AMOUNT_MICROS_PARAM = z
   .number()
   .int()
@@ -701,7 +706,7 @@ function registerIapKitTools(
   registerTool(
     server,
     "revenue_analytics",
-    "Summarize IAPKit subscription purchase and revenue analytics for a date range. Defaults to the current UTC month so an assistant can answer questions like 'how many purchases happened this month?'.",
+    "Summarize IAPKit daily subscription revenue analytics, verified from store notifications, for a UTC date range: paid charges, trials started and converted, direct paid starts, auto-renew turned off vs expirations, and refunds. Optionally return project-wide monthly cohorts with retention and realized LTV. Production only unless environment is sandbox. Revenue is the store list price in each currency, before store fees and refunds; IAPKit never converts currencies. Defaults to the current UTC month.",
     {
       period: z
         .enum(["this_month", "last_30_days", "last_90_days", "custom"])
@@ -718,6 +723,16 @@ function registerIapKitTools(
       productId: PRODUCT_ID_PARAM.optional(),
       platform: z.enum(["IOS", "Android"]).optional(),
       currency: z.string().optional(),
+      environment: z
+        .enum(["production", "sandbox"])
+        .optional()
+        .describe("Store environment to report. Defaults to production."),
+      includeCohorts: z
+        .boolean()
+        .optional()
+        .describe(
+          "Add project-wide monthly cohorts (retention, realized LTV) and trial-to-paid conversion. Environment and currency apply; date, product and platform filters apply only to daily totals.",
+        ),
       apiKey: OPTIONAL_API_KEY,
       baseUrl: OPTIONAL_BASE_URL,
     },
@@ -725,7 +740,12 @@ function registerIapKitTools(
     async (args, extra) => {
       try {
         const range = resolveRevenueRange(args);
-        const metrics = await withClient(args, extra).revenueMetrics(range);
+        const metrics = await withClient(args, extra).revenueMetrics({
+          fromDay: range.fromDay,
+          toDay: range.toDay,
+          ...(args.environment ? { environment: args.environment } : {}),
+          ...(args.includeCohorts ? { cohorts: true } : {}),
+        });
         return ok(
           summarizeRevenueMetrics(metrics, {
             ...range,
@@ -808,7 +828,7 @@ function registerIapKitTools(
   registerTool(
     server,
     "set_client_payload",
-    "Create or update a product's public app-readable TOML, JSON, or text payload. Requires a secret admin key; publishable mobile keys are rejected.",
+    "Publish a product's public app-readable TOML, JSON, or text payload immediately and record it in history. Requires a secret admin key; publishable mobile keys are rejected.",
     {
       productId: PRODUCT_ID_PARAM,
       platform: z.enum(["IOS", "Android"]),
@@ -876,7 +896,194 @@ function registerIapKitTools(
   );
 
   // ---------------------------------------------------------------------------
-  // 15. sync_products — enqueue App Store / Play Console sync.
+  // 15. get_client_payload_draft — read the unpublished draft.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "get_client_payload_draft",
+    "Read a product's unpublished client payload draft and its expectedDraftRevision. Apps never receive drafts.",
+    {
+      productId: PRODUCT_ID_PARAM,
+      platform: z.enum(["IOS", "Android"]),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    READ_ONLY_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).getClientPayloadDraft({
+            productId: args.productId,
+            platform: args.platform,
+          }),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 16. set_client_payload_draft — save a draft without publishing it.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "set_client_payload_draft",
+    "Save a client payload draft. Apps keep receiving the published version until you publish. A new draft is based on the current version and keeps that base when saved again.",
+    {
+      productId: PRODUCT_ID_PARAM,
+      platform: z.enum(["IOS", "Android"]),
+      format: kitTextParam("format").describe(
+        "Payload format, currently toml, json, or text. Forwarded as-is for IAPKit to validate.",
+      ),
+      body: z.string().max(MAX_CLIENT_PAYLOAD_BYTES),
+      expectedDraftRevision: z.number().int().nonnegative().optional(),
+      expectedVersion: z
+        .number()
+        .int()
+        .nonnegative()
+        .optional()
+        .describe(
+          "Rebase the draft onto this version, which must be the current one. Pass it after reviewing a version published since the draft was saved.",
+        ),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    WRITE_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).saveClientPayloadDraft({
+            productId: args.productId,
+            platform: args.platform,
+            format: args.format,
+            body: args.body,
+            expectedDraftRevision: args.expectedDraftRevision,
+            expectedVersion: args.expectedVersion,
+          }),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 17. publish_client_payload — make the draft the published version.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "publish_client_payload",
+    "Publish the saved draft as a new version that apps receive, and record it in history. Fails with CLIENT_PAYLOAD_VERSION_CONFLICT when another version was published after the draft's base; rebase with set_client_payload_draft expectedVersion first.",
+    {
+      productId: PRODUCT_ID_PARAM,
+      platform: z.enum(["IOS", "Android"]),
+      expectedVersion: z
+        .number()
+        .int()
+        .nonnegative()
+        .optional()
+        .describe(
+          "Current version you reviewed. Optional: the draft's base version must be current either way.",
+        ),
+      expectedDraftRevision: z.number().int().nonnegative().optional(),
+      note: z
+        .string()
+        .optional()
+        .describe("Optional audit note, up to 500 characters."),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    WRITE_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).publishClientPayload({
+            productId: args.productId,
+            platform: args.platform,
+            expectedVersion: args.expectedVersion,
+            expectedDraftRevision: args.expectedDraftRevision,
+            note: args.note,
+          }),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 18. get_client_payload_history — audit published versions.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "get_client_payload_history",
+    "List the newest 50 published client payload versions without bodies, or pass version to read that version's body. Authors appear by display name or API key name, never by email.",
+    {
+      productId: PRODUCT_ID_PARAM,
+      platform: z.enum(["IOS", "Android"]),
+      version: z.number().int().positive().optional(),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    READ_ONLY_TOOL,
+    async (args, extra) => {
+      try {
+        const client = withClient(args, extra);
+        const target = { productId: args.productId, platform: args.platform };
+        return ok(
+          args.version === undefined
+            ? await client.listClientPayloadHistory(target)
+            : await client.getClientPayloadVersion({
+                ...target,
+                version: args.version,
+              }),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 19. rollback_client_payload — republish an older version.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "rollback_client_payload",
+    "Republish a retained version's body as a new version. History stays append-only.",
+    {
+      productId: PRODUCT_ID_PARAM,
+      platform: z.enum(["IOS", "Android"]),
+      toVersion: z.number().int().positive(),
+      expectedVersion: z.number().int().nonnegative().optional(),
+      note: z
+        .string()
+        .optional()
+        .describe("Optional audit note, up to 500 characters."),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    WRITE_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).rollbackClientPayload({
+            productId: args.productId,
+            platform: args.platform,
+            toVersion: args.toVersion,
+            expectedVersion: args.expectedVersion,
+            note: args.note,
+          }),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 20. sync_products — enqueue App Store / Play Console sync.
   // ---------------------------------------------------------------------------
   registerTool(
     server,
@@ -914,7 +1121,7 @@ function registerIapKitTools(
   );
 
   // ---------------------------------------------------------------------------
-  // 15. sync_status — poll a product sync job.
+  // 21. sync_status — poll a product sync job.
   // ---------------------------------------------------------------------------
   registerTool(
     server,
@@ -929,6 +1136,204 @@ function registerIapKitTools(
     async (args, extra) => {
       try {
         return ok(await withClient(args, extra).syncJob(args.jobId));
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 22. list_deliveries — outbound webhook delivery history.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "list_deliveries",
+    "List outbound webhook deliveries with their recent attempts, newest first. Page with nextCursor.",
+    {
+      status: z
+        .enum(["pending", "delivering", "delivered", "failed"])
+        .optional(),
+      eventType: kitTextParam("eventType", MAX_KIT_ID_LENGTH).optional(),
+      destinationId: kitTextParam(
+        "destinationId",
+        MAX_KIT_ID_LENGTH,
+      ).optional(),
+      eventId: kitTextParam("eventId", MAX_KIT_ID_LENGTH).optional(),
+      limit: z.number().int().min(1).max(MAX_OPERATIONS_PAGE_SIZE).optional(),
+      cursor: kitTextParam("cursor", MAX_PRODUCT_CURSOR_LENGTH).optional(),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    READ_ONLY_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).listDeliveries({
+            status: args.status,
+            eventType: args.eventType,
+            destinationId: args.destinationId,
+            eventId: args.eventId,
+            limit: args.limit,
+            cursor: args.cursor,
+          }),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 23. resend_delivery — redeliver one event to one destination.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "resend_delivery",
+    "Re-send a delivered or failed webhook delivery with its original eventId, so receivers dedupe it. At most 30 per project per minute.",
+    {
+      deliveryId: kitTextParam("deliveryId", MAX_KIT_ID_LENGTH),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    WRITE_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).resendDelivery(args.deliveryId),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 24. list_inbound_notifications — store notifications IAPKit received.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "list_inbound_notifications",
+    "List store notifications IAPKit received, newest first, with applied state. Raw signed payloads are never returned.",
+    {
+      limit: z.number().int().min(1).max(MAX_OPERATIONS_PAGE_SIZE).optional(),
+      cursor: kitTextParam("cursor", MAX_PRODUCT_CURSOR_LENGTH).optional(),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    READ_ONLY_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).listInboundNotifications({
+            limit: args.limit,
+            cursor: args.cursor,
+          }),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 25. resync_from_store — refresh one Apple or Google record.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "resync_from_store",
+    "Re-read one Apple or Google purchase or subscription from the store and apply its current state. Pass exactly one id. Never changes the owner.",
+    {
+      purchaseId: kitTextParam("purchaseId", MAX_KIT_ID_LENGTH).optional(),
+      subscriptionId: kitTextParam(
+        "subscriptionId",
+        MAX_KIT_ID_LENGTH,
+      ).optional(),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    WRITE_TOOL,
+    async (args, extra) => {
+      try {
+        const target =
+          args.purchaseId !== undefined && args.subscriptionId === undefined
+            ? { purchaseId: args.purchaseId }
+            : args.subscriptionId !== undefined && args.purchaseId === undefined
+              ? { subscriptionId: args.subscriptionId }
+              : null;
+        if (!target) {
+          return err(
+            new Error("Pass exactly one of purchaseId or subscriptionId."),
+          );
+        }
+        return ok(await withClient(args, extra).resyncFromStore(target));
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 26. user_timeline — one app user's purchases, subscriptions and events.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "user_timeline",
+    "Look up one app user's purchases, subscriptions, commerce events and purchase issues, newest first.",
+    {
+      userId: USER_ID_PARAM,
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    READ_ONLY_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(await withClient(args, extra).userTimeline(args.userId));
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 27. list_purchase_issues — failed verifications and links.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "list_purchase_issues",
+    "List failed purchase verifications and links from the last 30 days, most recently seen first, with cause, count and correlationId. A row about one purchase (product mismatch, pending payment, bind conflict or limit) carries an evidence fingerprint; other causes share one row per store and cause, whose count is a lower bound. No row carries the token, JWS or receipt. Page with nextCursor.",
+    {
+      cause: z.enum(KIT_PURCHASE_ISSUE_CAUSES).optional(),
+      store: z.enum(["apple", "google", "horizon", "amazon"]).optional(),
+      productId: PRODUCT_ID_PARAM.optional().describe(
+        "Matches the store-verified or the claimed product id.",
+      ),
+      appUserId: USER_ID_PARAM.optional(),
+      from: ISO_TIME_PARAM.optional().describe(
+        "ISO 8601 date-time; lastSeenAt at or after it.",
+      ),
+      to: ISO_TIME_PARAM.optional().describe(
+        "ISO 8601 date-time; lastSeenAt at or before it.",
+      ),
+      limit: z.number().int().min(1).max(MAX_OPERATIONS_PAGE_SIZE).optional(),
+      cursor: kitTextParam("cursor", MAX_PRODUCT_CURSOR_LENGTH).optional(),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    READ_ONLY_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).listPurchaseIssues({
+            cause: args.cause,
+            store: args.store,
+            productId: args.productId,
+            appUserId: args.appUserId,
+            from: args.from === undefined ? undefined : Date.parse(args.from),
+            to: args.to === undefined ? undefined : Date.parse(args.to),
+            limit: args.limit,
+            cursor: args.cursor,
+          }),
+        );
       } catch (error) {
         return err(error, resolveApiKey(args, extra));
       }
@@ -1231,25 +1636,6 @@ function base64EncodeUtf8(value: string): string {
   return btoa(binary);
 }
 
-type RevenueMetricsResponse = {
-  days: Array<{
-    day: string;
-    currency: string;
-    productId: string;
-    platform: "IOS" | "Android";
-    activeSubs: number;
-    newSubs: number;
-    renewals: number;
-    cancellations: number;
-    refunds: number;
-    revenueMicros: number;
-  }>;
-  currencies: string[];
-  productIds: string[];
-  platforms: Array<"IOS" | "Android">;
-  truncated: boolean;
-};
-
 function resolveRevenueRange(args: {
   period?: "this_month" | "last_30_days" | "last_90_days" | "custom";
   fromDay?: string;
@@ -1300,8 +1686,113 @@ function addUtcDays(date: Date, days: number): Date {
   return next;
 }
 
+// The metric definitions an assistant needs to read the numbers correctly.
+const REVENUE_DEFINITIONS = {
+  timezone: "UTC days and months.",
+  revenue:
+    "revenueMicros: gross store list price of paid charges, before store fees and refunds; IAPKit never converts currencies. Free trials, free offer periods, refund reversals and Google plan changes Play did not charge at once add nothing; billing recoveries count. netRevenueMicros subtracts store-reported refunds. Refunded and net totals are null if any matching row omits refundedMicros. Google reports a base plan's recurring price, so a discounted introductory phase is booked at that list price.",
+  purchaseEvents:
+    "Paid charges: paid starts, trial conversions, renewals and billing recoveries. Free trials, free promotional periods and restores are not purchases. An Apple immediate upgrade adds nothing until the next charge. A Google plan change is a renewal only when Play charges it at once (a prepaid top-up, or the CHARGE_FULL_PRICE or CHARGE_PRORATED_PRICE mode), booked at the new plan's list price; otherwise its next renewal is the first charge counted.",
+  newSubs:
+    "newSubs: paid and free-trial starts. Not counted: Apple refund reversals, Apple resubscribes (reactivations, counted as renewals) other than the first charge after a lapsed trial, Google plan changes and free offer periods.",
+  renewals:
+    "renewals: paid renewals, billing recoveries, Apple resubscribes and Google plan changes Play charged at once. A trial's first paid charge is in trialConversions, not here.",
+  trials:
+    "trialStarts: free trials started; on Apple only introductory offers, not promotional, offer-code or win-back offers. trialConversions: the paid charge that ends a free trial; a purchase after a lapsed trial is a direct paid start.",
+  activeHistory:
+    "Daily activeSubs is a confirmed count only when activeHistoryComplete is true. An absent or false flag means historical access is incomplete; do not present it as an exact total or use it for churn. Missing historical cohort rates are null, not zero.",
+  churn:
+    "cancellations: auto-renew turned off (less turned back on); access continues until the paid period ends. expirations: paid access actually ended; a free trial or free offer period that ended unpaid, or a purchase Google replaced in a plan change, is not counted.",
+  refunds:
+    "refunds: store refunds less refund reversals, one per refund. Revocations are not refunds: Apple's are Family Sharing removals, and Play's accompany a voided purchase that is counted instead. Google refunds carry no amount.",
+  environment:
+    "Production only unless environment is sandbox. Rows from definitionsFromDay on follow these definitions; earlier rows mix sandbox into production and have no trial split.",
+  trialSplit:
+    "Trial counters and purchaseEvents sum only rows with explicit trial split fields on or after trialSplitFromDay. Each currency, product and platform group reports trialSplitCoverage: includedRows, excludedRows and the first/last included row dates (not a continuous calendar range). No included rows means null, not zero; exclusions mean a subtotal of the requested range. Days before trialSplitFromDay omit trialStarts, trialConversions, directPaidStarts, activeTrials and expirations; on those days Google free trials count as paid starts, and Apple free trials, free offers, refund reversals and resubscribes as new subscriptions. Unset when every day has the split.",
+  lateEvents:
+    "pendingLateEvents: notifications that arrived after their day's rollup; a catch-up recompute folds them in.",
+  cohorts:
+    "Project-wide cohorts for the selected environment and currency; date, product and platform filters apply only to daily totals. Paid cohort: UTC month of the first paid charge, as a direct paid start or a trial conversion; a subscription whose first observed charge is a renewal, or an Apple resubscribe with no trial before it, started before IAPKit saw it and is left out. retentionRates[k]: members with observed paid access at the end of month k (current month: as of the latest rebuild); null if any member lacks historical evidence. realizedLtvMicros: observed gross revenue per member through observedThrough, never projected. trialToPaidRate: conversions over resolved trials of that month.",
+} as const;
+
+type TrialSplitTotals = {
+  purchaseEvents: number | null;
+  trialStarts: number | null;
+  trialConversions: number | null;
+  directPaidStarts: number | null;
+  expirations: number | null;
+  trialSplitCoverage: {
+    includedRows: number;
+    excludedRows: number;
+    fromDay: string | null;
+    toDay: string | null;
+  };
+};
+
+function emptyTrialSplitTotals(): TrialSplitTotals {
+  return {
+    purchaseEvents: null,
+    trialStarts: null,
+    trialConversions: null,
+    directPaidStarts: null,
+    expirations: null,
+    trialSplitCoverage: {
+      includedRows: 0,
+      excludedRows: 0,
+      fromDay: null,
+      toDay: null,
+    },
+  };
+}
+
+function addTrialSplitTotals(
+  total: TrialSplitTotals,
+  row: KitRevenueDay,
+  trialSplitFromDay: string | undefined,
+): void {
+  const coverage = total.trialSplitCoverage;
+  if (
+    (trialSplitFromDay !== undefined && row.day < trialSplitFromDay) ||
+    row.trialStarts === undefined ||
+    row.trialConversions === undefined ||
+    row.directPaidStarts === undefined ||
+    row.expirations === undefined
+  ) {
+    coverage.excludedRows++;
+    return;
+  }
+  total.purchaseEvents =
+    (total.purchaseEvents ?? 0) +
+    row.directPaidStarts +
+    row.trialConversions +
+    row.renewals;
+  total.trialStarts = (total.trialStarts ?? 0) + row.trialStarts;
+  total.trialConversions = (total.trialConversions ?? 0) + row.trialConversions;
+  total.directPaidStarts = (total.directPaidStarts ?? 0) + row.directPaidStarts;
+  total.expirations = (total.expirations ?? 0) + row.expirations;
+  coverage.includedRows++;
+  if (coverage.fromDay === null || row.day < coverage.fromDay)
+    coverage.fromDay = row.day;
+  if (coverage.toDay === null || row.day > coverage.toDay)
+    coverage.toDay = row.day;
+}
+
+type RevenueTotals = TrialSplitTotals & {
+  revenueMicros: number;
+  refundedMicros: number | null;
+  netRevenueMicros: number | null;
+  newSubs: number;
+  renewals: number;
+  cancellations: number;
+  refunds: number;
+};
+
+type GroupRevenueTotals = TrialSplitTotals & {
+  revenueMicrosByCurrency: Record<string, number>;
+};
+
 function summarizeRevenueMetrics(
-  metrics: RevenueMetricsResponse,
+  metrics: KitRevenueMetricsResponse,
   filters: {
     fromDay: string;
     toDay: string;
@@ -1318,78 +1809,113 @@ function summarizeRevenueMetrics(
     return true;
   });
 
-  const totalsByCurrency = new Map<
-    string,
-    {
-      revenueMicros: number;
-      purchaseEvents: number;
-      newSubs: number;
-      renewals: number;
-      cancellations: number;
-      refunds: number;
-    }
-  >();
-  const totalsByProduct = new Map<
-    string,
-    { purchaseEvents: number; revenueMicrosByCurrency: Record<string, number> }
-  >();
-  const totalsByPlatform = new Map<
-    "IOS" | "Android",
-    { purchaseEvents: number; revenueMicrosByCurrency: Record<string, number> }
-  >();
+  const totalsByCurrency = new Map<string, RevenueTotals>();
+  const totalsByProduct = new Map<string, GroupRevenueTotals>();
+  const totalsByPlatform = new Map<"IOS" | "Android", GroupRevenueTotals>();
 
   for (const row of rows) {
-    const purchaseEvents = row.newSubs + row.renewals;
     const currencyTotal = totalsByCurrency.get(row.currency) ?? {
       revenueMicros: 0,
-      purchaseEvents: 0,
+      refundedMicros: 0,
+      netRevenueMicros: 0,
+      ...emptyTrialSplitTotals(),
       newSubs: 0,
       renewals: 0,
       cancellations: 0,
       refunds: 0,
     };
     currencyTotal.revenueMicros += row.revenueMicros;
-    currencyTotal.purchaseEvents += purchaseEvents;
+    if (row.refundedMicros === undefined) currencyTotal.refundedMicros = null;
+    else if (currencyTotal.refundedMicros !== null)
+      currencyTotal.refundedMicros += row.refundedMicros;
+    currencyTotal.netRevenueMicros =
+      currencyTotal.refundedMicros === null
+        ? null
+        : currencyTotal.revenueMicros - currencyTotal.refundedMicros;
     currencyTotal.newSubs += row.newSubs;
+    addTrialSplitTotals(currencyTotal, row, metrics.trialSplitFromDay);
     currencyTotal.renewals += row.renewals;
     currencyTotal.cancellations += row.cancellations;
     currencyTotal.refunds += row.refunds;
     totalsByCurrency.set(row.currency, currencyTotal);
 
     const productTotal = totalsByProduct.get(row.productId) ?? {
-      purchaseEvents: 0,
+      ...emptyTrialSplitTotals(),
       revenueMicrosByCurrency: {},
     };
-    productTotal.purchaseEvents += purchaseEvents;
+    addTrialSplitTotals(productTotal, row, metrics.trialSplitFromDay);
     productTotal.revenueMicrosByCurrency[row.currency] =
       (productTotal.revenueMicrosByCurrency[row.currency] ?? 0) +
       row.revenueMicros;
     totalsByProduct.set(row.productId, productTotal);
 
     const platformTotal = totalsByPlatform.get(row.platform) ?? {
-      purchaseEvents: 0,
+      ...emptyTrialSplitTotals(),
       revenueMicrosByCurrency: {},
     };
-    platformTotal.purchaseEvents += purchaseEvents;
+    addTrialSplitTotals(platformTotal, row, metrics.trialSplitFromDay);
     platformTotal.revenueMicrosByCurrency[row.currency] =
       (platformTotal.revenueMicrosByCurrency[row.currency] ?? 0) +
       row.revenueMicros;
     totalsByPlatform.set(row.platform, platformTotal);
   }
 
+  const cohorts = metrics.cohorts
+    ?.filter(
+      (cohort) => !filters.currency || cohort.currency === filters.currency,
+    )
+    .map((cohort) => {
+      const resolvedTrials = cohort.trialStarts - cohort.trialsPending;
+      return {
+        month: cohort.month,
+        currency: cohort.currency,
+        members: cohort.members,
+        realizedLtvMicros: cohort.realizedLtvMicros,
+        netRealizedLtvMicros:
+          cohort.members > 0
+            ? Math.round(
+                (cohort.revenueMicros - cohort.refundedMicros) / cohort.members,
+              )
+            : 0,
+        retentionRates: cohort.retained.map((count, k) =>
+          cohort.members > 0 && cohort.retentionObserved?.[k] === cohort.members
+            ? count / cohort.members
+            : null,
+        ),
+        trialStarts: cohort.trialStarts,
+        trialConversions: cohort.trialConversions,
+        trialsPending: cohort.trialsPending,
+        trialToPaidRate:
+          resolvedTrials > 0 && cohort.trialsUnobserved === 0
+            ? cohort.trialConversions / resolvedTrials
+            : null,
+        observedThrough: cohort.observedThrough,
+      };
+    });
+
   return {
     range: filters,
+    environment: metrics.environment,
+    dataState: metrics.dataState,
+    lastRunAt:
+      metrics.lastRunAt === undefined
+        ? null
+        : new Date(metrics.lastRunAt).toISOString(),
+    definitionsFromDay: metrics.definitionsFromDay ?? null,
+    trialSplitFromDay: metrics.trialSplitFromDay ?? null,
+    pendingLateEvents: metrics.pendingLateEvents,
     rowCount: rows.length,
     totalsByCurrency: Object.fromEntries(totalsByCurrency),
     totalsByProduct: Object.fromEntries(totalsByProduct),
     totalsByPlatform: Object.fromEntries(totalsByPlatform),
+    ...(cohorts ? { cohorts, cohortScope: "project" as const } : {}),
     availableFilters: {
       currencies: metrics.currencies,
       productIds: metrics.productIds,
       platforms: metrics.platforms,
     },
     truncated: metrics.truncated,
-    note: "purchaseEvents counts subscription starts plus renewals in IAPKit revenue rollups. Refunds and cancellations are reported separately.",
+    definitions: REVENUE_DEFINITIONS,
   };
 }
 

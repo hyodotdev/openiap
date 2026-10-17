@@ -46,6 +46,58 @@ status and entitlement reads use
 fails closed instead of returning a partial entitlement set. Typical users have
 only one or a few rows.
 
+## Purchase issues
+
+A failed verification adds one indexed query and, at most, one scheduled
+mutation off the response path. Only a product mismatch or a pending payment,
+which the store reports about a purchase it verified, and a secret-key bind's
+ownership conflict or link limit write a row per purchase. That row is keyed by
+the store and the purchase's store-verified id, so every encoding of one
+purchase's evidence lands on it. Every other cause shares one row per store and
+cause: configuration, credentials, rejected input, rate limits, outages, and
+evidence no store recognized, such as a forged JWS, an unknown Google token or
+Amazon receipt, or Meta's `success: false`. The query skips that write when the
+row was seen in the last minute, so a flood, even of distinct random evidence,
+costs a read per request, evicts no other row, and leaves `count` a lower bound.
+Bind issues are recorded only for secret-key callers. A project keeps at most
+1,024 rows in 16 shards of 64; a new row reads only its own shard and replaces
+that shard's least recently seen row. An hourly cron deletes rows older than 30
+days, 200 at a time. A `/v1` request passes the edge limiter first. Direct
+verification calls without valid source proof never reach issue recording;
+see [Edge protection](#edge-protection).
+
+## Operator re-send, re-sync, and delivery history
+
+Re-send and re-sync need a project owner or admin, or a secret key behind the
+edge limiter. Members can also read delivery history.
+
+- **Re-send.** One mutation: point reads of the delivery, its event and its
+  destination, an indexed read of at most 30 recent re-sends, and two writes,
+  the delivery and its project's queue row. A delivery can be re-sent once a
+  minute and a project 30 times a minute; each re-send is one more request from
+  the outbound worker.
+- **Re-sync.** One action that takes a token from the project's own
+  `storeResync` admission bucket (60 burst, 1 per second). It is separate from
+  the entitlement recheck bucket, so a scripted bulk re-sync cannot make
+  fail-closed entitlement reads refuse users. Apple makes one App Store Server
+  API request, two when the row does not record its environment. Google makes
+  one Play Developer API request for a subscription; a purchase row tries the
+  product lookup, then the subscription lookup, and repeats the pair up to three
+  times while Play reports the token unknown. Transient failures retry as on
+  verification. A purchase is saved through the verification save path, and a
+  changed subscription adds one mutation that records a `StoreResync`
+  notification, updates the row, and emits at most one entitlement event. A
+  verify that disagrees with a re-synced subscription but cannot prove it is
+  newer schedules one such re-sync of that subscription from the same bucket,
+  at most once an hour per subscription however often the app verifies, and is
+  dropped when the bucket is empty. An expired Apple transaction does not
+  disagree with billing retry or grace, nor a revoked one with a refund.
+- **Delivery history.** Every filter combination reads its own
+  `outboundDeliveries` index, so a page, and the dashboard's live view of it,
+  reads only the rows it returns plus a point read of each row's event and
+  destination. Only the event filter drops rows after reading them, and an
+  event has at most one delivery per destination.
+
 ## Outbound commerce worker
 
 Developer-backend delivery runs in Convex, outside the Fly request path. The
@@ -59,10 +111,71 @@ rotates projects, and each project can register at most 10 destinations. Retries
 back off to six hours, stop after 14 attempts, and a 20-failure circuit breaker
 disables a destination, bounding load when a receiver is unavailable.
 
+## Analytics rollups
+
+Analytics run only in scheduled Convex mutations; no public request computes
+them, and the dashboard reads the small rollup and cohort tables, one
+environment at a time.
+
+- **Daily rows.** The 10-minute cron picks at most 100 projects per tick. Each
+  run stamps its start in its own mutation, then pages the `webhookEvents`
+  received on the last 3 UTC days, then the project's subscriptions once in
+  creation order, and replaces those days' rows. State changes cannot move a
+  subscription across page boundaries or count it twice. An event page holds
+  400 rows: an Apple
+  notification keeps its signed payload, about 20 KB, so a page stays under
+  12.5 MiB of the 16 MiB a mutation may read even at 32 KB per event.
+  Subscription pages hold at most 250 rows, capped at 8 MiB per page. Each row keeps at most 24 month-end and 30 day-end access checkpoints plus its latest evidence (about 12 KB for the history). Smaller pages add scheduler calls, not additional scans or total subscription reads. Google expirations without
+  a trial flag, Play voided purchases, and Google subscription notifications
+  without a Play-reported environment each add an alias lookup and a
+  subscription read. Every page also reads the project's run status row, and
+  a run still going after 5 minutes stamps its progress there, at most once
+  every 5 minutes.
+- **Slices.** A wider run covers its window in 3-day slices, one after
+  another. Each slice reads the events received from its first day until the
+  run started, so it replaces its days with complete counts and a day is never
+  incremented. An event is read once per slice that starts on or before the
+  day it arrived: once in a regular run, up to 10 times and 5.5 on average in
+  the 30-day rebuild, which also reads the project's subscriptions ten
+  times. A catch-up from 7 days back reads its events about 1.7 times.
+- **Failed runs.** A run that stops committing pages is picked again an hour
+  after its last progress stamp, then after 2, 4, and so on up to 24 hours
+  while it keeps failing. A slow run that keeps committing pages is left to
+  finish. Each failed run in a row also halves both page sizes, down to 25
+  rows; a run replaced while still moving does not count. The retry covers
+  the unfinished run's window, and the older run's remaining pages stop when
+  they see the newer start, so two runs never write at once.
+- **Definitions rebuild.** When `ROLLUP_DEFINITIONS_VERSION` changes, each
+  project's next run covers the retained 30 days once instead of 3.
+- **Late-event catch-up.** Only when a run finds notifications that no
+  finished run covered. It recomputes from the oldest such day, at most every
+  6 hours per project.
+- **Stats rebuild.** A definitions upgrade or expired cache requests the existing
+  bounded rebuild at most every 6 hours through revenue maintenance. Pages read
+  at most 250 subscriptions / 8 MiB, plus only the needed product documents
+  under a 250-lookup / 2 MiB catalog budget (one document may cross the bound). Catalog-heavy
+  pages halve their row limit before committing any totals. Concurrent writes
+  update scanned rows; a passed expiry invalidates that checkpoint and delays
+  its fresh-ID restart five minutes. A busy project may remain incomplete;
+  reads expose that state rather than claiming a current total. Expiries do not
+  enqueue a full project scan each time. A fallback metrics read shares one
+  8 MiB / 10,000-row subscription page between headline and 30-day counts,
+  with a stable indexed range across reactive updates, the same catalog bound,
+  and explicit incompleteness/truncation, including required page splits.
+- **Cohorts.** At most once a day per project: one paginated pass over its
+  `subscriptions` and a replace of at most 24 months × 2 environments ×
+  currencies rows. It uses the same 250-row / 8 MiB subscription page budget.
+  Missing historical access stays unknown; neither rebuild queries event history
+  per subscription or invents access from the latest expiry.
+
+Each applied store event also patches its subscription's analytics facts and,
+when the first paid charge moves, at most two `webhookEvents` rows, inside the
+mutation that already applies the event.
+
 ## Edge protection
 
-Every publishable-key verification, product, payload, subscription-status,
-entitlement, user-binding, and store-webhook ingress request passes an
+Publishable-key verification, product, payload and store-webhook ingress, plus
+secret-key subscription account reads and ownership binding, pass an
 in-memory token bucket before calling Convex:
 
 - per API key: 600-request burst, 10 tokens/second;
@@ -102,16 +215,28 @@ that a public endpoint is immune to DDoS. Operators may still block abusive
 sources at the platform edge and should review Fly and Convex telemetry during
 an incident.
 
-The Convex deployment URL is public configuration, and the legacy public
-`subscriptionStatus` / `entitlements` functions remain callable with a
-publishable key for rolling-deploy and rollback compatibility. Such direct
-Convex calls bypass Fly's in-memory limiter. Their reads are still indexed and
-bounded, and the new evaluation snapshot exposes only stored-state entitlement
-candidates plus one latest status fallback rather than raw subscription
-history. This is a pre-existing, non-expanding residual risk; Convex usage
-limits are the current process-independent cost brake. Remove the legacy direct
-functions in a later coordinated major deployment after every old Fly binary
-has drained.
+The Convex deployment URL is public configuration. All four public verification
+actions and their legacy aliases require a short-lived HMAC from the admitted
+Bun request before issue recording, project lookup, quota or store work. The
+signature binds the store, customer API key, exact evidence, expected product,
+source IP and correlation ID. The runtime service credential is never returned
+to clients. A call without valid `sourceAuth` returns `UNKNOWN_ERROR` with
+`retryAfterSec: 5` before any query, mutation, issue record, or store request.
+A publishable customer key alone cannot call these actions directly.
+Subscription account reads and ownership binding require a secret admin key.
+Direct calls still reach the Convex function boundary, so deployment usage
+limits remain the process-independent cost brake.
+
+The deployment provisions the same stable source credential into Convex and
+staged Fly runtime secrets before publishing functions, then deploys Fly and
+checks every retained machine. This is a fail-closed cutover: an older Fly
+binary cannot call the guarded actions. During rollout, `/v1` returns retryable
+`503 UNKNOWN_ERROR` with `Retry-After: 5`; Commerce REST returns
+`502 VERIFICATION_FAILED`, and GraphQL returns its existing error envelope with
+HTTP 200. These unavailable attempts refund replay admission. If Fly deployment
+fails after Convex, verification can remain unavailable until repaired; never
+remove the source guard to make an old binary work. See the
+[coordinated deployment procedure](README.md#verification-source-cutover).
 
 Only the `Fly-Client-IP` header inserted by the current Fly ingress is trusted.
 Forwarding and CDN headers supplied by callers are ignored. Direct local
@@ -124,22 +249,16 @@ and payload version. A matching `If-None-Match` returns `304` without reading
 the payload body row. The scope prevents an ETag from one project/key being
 accepted for another.
 
-Subscription status and entitlement responses use a content ETag scoped by API
-key, route, and opaque user ID. A tag from another key, user, or route cannot
-produce a `304`. Convex returns a time-independent, bounded row snapshot and
-invalidates its cached query result whenever a dependent subscription row
-changes. Fly evaluates `expiresAt` against its own current clock on every HTTP
-request before comparing the tag. This prevents cached query results or
-caller-controlled timestamps from preserving expired access and detects a
-time-only expiration transition on the next refresh even when no webhook
-arrives. Therefore a subscription `304` still costs one query invocation; when
-Convex recomputes it, the indexed-read ceiling is the same as a `200`, while a
-valid Convex cache hit may avoid those reads. The `304` itself avoids
-response-body egress and unnecessary client state replacement.
+Subscription status and entitlement reads require a server-held secret admin
+key. Their responses use `Cache-Control: private, no-store` with no ETag or
+`304` path. Convex returns a bounded row snapshot and invalidates its cached
+query result whenever a dependent subscription row changes. Fly evaluates
+`expiresAt` against its own clock on every HTTP request, so a cached snapshot
+cannot preserve expired access when no webhook arrives. The indexed-read
+ceiling remains the same; a valid Convex query-cache hit may avoid those reads.
 
-The direct response sends `Cache-Control: private, no-cache` and
-`Vary: Authorization`. The subscription snapshots use the same private,
-revalidate-on-use policy. Catalog pages and every secret-admin response use
+Direct payload responses send `Cache-Control: private, no-cache` and
+`Vary: Authorization`. Catalog pages and every secret-admin response use
 `private, no-store`; shared caches must never retain them. React Native IAP and
 Expo IAP accept an AsyncStorage-compatible `clientPayloadCache`. They persist
 the body, version, and ETag, return a valid cache entry without polling, and
@@ -184,7 +303,7 @@ function calls. Database I/O depends on the number and size of that user's
 subscription rows: normal accounts read one or a few rows, while the bounded
 pathological ceiling is 201 million small row reads across those requests.
 Rate limiting is the primary protection against an app polling continuously;
-`304` responses do not make that request free.
+repeated account reads still use Convex function calls.
 
 One million requests spread evenly across one day average approximately 11.6
 requests/second, already above the hosted default per-key steady rate of 10

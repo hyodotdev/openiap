@@ -1,6 +1,7 @@
-import { ConvexError, v } from "convex/values";
+import { ConvexError, v, type Infer } from "convex/values";
 
 import { internalMutation } from "../_generated/server";
+import { admissionBucketValidator } from "../utils/validation";
 
 export const VERIFICATION_ADMISSION_CAPACITY = 600;
 export const VERIFICATION_ADMISSION_REFILL_PER_SECOND = 10;
@@ -9,14 +10,17 @@ export const VERIFICATION_ADMISSION_REFILL_PER_SECOND = 10;
 // sized to the foreground share the Amazon reconciler leaves free (5 TPS).
 export const ENTITLEMENT_RECHECK_CAPACITY = 300;
 export const ENTITLEMENT_RECHECK_REFILL_PER_SECOND = 5;
+// Operator re-syncs get their own small bucket, so a bulk re-sync from a script
+// or an agent cannot drain the one fail-closed entitlement reads depend on.
+export const STORE_RESYNC_CAPACITY = 60;
+export const STORE_RESYNC_REFILL_PER_SECOND = 1;
 
-export const admissionBucketValidator = v.union(
-  v.literal("verification"),
-  v.literal("entitlementRecheck"),
-);
-export type AdmissionBucket = "verification" | "entitlementRecheck";
+type AdmissionBucket = Infer<typeof admissionBucketValidator>;
 
-const BUCKETS = {
+const BUCKETS: Record<
+  AdmissionBucket,
+  { capacity: number; refillPerSecond: number; message: string }
+> = {
   verification: {
     capacity: VERIFICATION_ADMISSION_CAPACITY,
     refillPerSecond: VERIFICATION_ADMISSION_REFILL_PER_SECOND,
@@ -27,7 +31,12 @@ const BUCKETS = {
     refillPerSecond: ENTITLEMENT_RECHECK_REFILL_PER_SECOND,
     message: "Too many entitlement rechecks",
   },
-} as const;
+  storeResync: {
+    capacity: STORE_RESYNC_CAPACITY,
+    refillPerSecond: STORE_RESYNC_REFILL_PER_SECOND,
+    message: "Too many store re-syncs",
+  },
+};
 
 export function evaluateVerificationAdmission(args: {
   tokens: number | undefined;

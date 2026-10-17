@@ -33,6 +33,73 @@ const originalAllowUnauthenticatedPubSub =
   process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB;
 const originalAppEnv = process.env.APP_ENV;
 
+describe("Google fetched access evidence", () => {
+  it("keeps a delayed notification separate from the current Play observation", async () => {
+    const occurredAt = Date.parse("2026-01-01T00:00:00Z");
+    const snapshotObservedAt = Date.parse("2026-03-01T00:00:00Z");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(snapshotObservedAt);
+    playMocks.subscriptionsGet.mockResolvedValueOnce({
+      data: {
+        subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+        lineItems: [
+          {
+            productId: "premium_monthly",
+            expiryTime: "2026-04-01T00:00:00Z",
+            autoRenewingPlan: {
+              autoRenewEnabled: true,
+              recurringPrice: { currencyCode: "USD", units: "9" },
+            },
+          },
+        ],
+      },
+    });
+    const runQuery = vi
+      .fn()
+      .mockResolvedValueOnce({
+        _id: "project_observation",
+        androidPackageName: "dev.openiap.test",
+      })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ _id: "service_account_observation" })
+      .mockResolvedValue(null);
+    const runMutation = vi
+      .fn()
+      .mockResolvedValueOnce({ eventId: "event_observation", deduped: false })
+      .mockResolvedValueOnce({ transition: "Renewed", active: true });
+    try {
+      await ingestGoogleRtdn._handler(
+        {
+          runQuery,
+          runMutation,
+          runAction: vi
+            .fn()
+            .mockResolvedValue({ content: serviceAccountContent }),
+        },
+        {
+          apiKey: "fixture_key",
+          rawMessage: "fixture",
+          payload: {
+            messageId: "delayed_observation_fixture",
+            packageName: "dev.openiap.test",
+            eventTimeMillis: occurredAt,
+            subscriptionNotification: {
+              notificationType: 2,
+              purchaseToken: "fixture_token",
+            },
+          },
+        },
+      );
+      expect(runMutation.mock.calls[0]?.[1]?.event).toMatchObject({
+        occurredAt,
+        snapshotObservedAt,
+        expiresAt: Date.parse("2026-04-01T00:00:00Z"),
+      });
+    } finally {
+      clock.mockRestore();
+    }
+  });
+});
+
 beforeAll(() => {
   process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB = "1";
   process.env.APP_ENV = "test";
@@ -1336,5 +1403,198 @@ describe("ingestGoogleRtdn preflight", () => {
       projectId: "project_a",
       eventId: "event_existing",
     });
+  });
+});
+
+describe("ingestGoogleRtdn free trial facts", () => {
+  async function ingestPurchase(
+    lineItem: Record<string, unknown>,
+    catalogAnswer: boolean | null,
+  ) {
+    playMocks.subscriptionsGet.mockResolvedValueOnce({
+      data: {
+        subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+        lineItems: [
+          {
+            productId: "premium_monthly",
+            expiryTime: "2027-09-01T00:00:00Z",
+            autoRenewingPlan: {
+              autoRenewEnabled: true,
+              recurringPrice: {
+                currencyCode: "USD",
+                units: "9",
+                nanos: 990000000,
+              },
+            },
+            ...lineItem,
+          },
+        ],
+      },
+    });
+    const runQuery = vi
+      .fn()
+      .mockResolvedValueOnce({
+        _id: "project_trial",
+        androidPackageName: "dev.openiap.test",
+      })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ _id: "files_service_account" })
+      .mockResolvedValueOnce(catalogAnswer);
+    const runMutation = vi
+      .fn()
+      .mockResolvedValueOnce({ eventId: "event_trial", deduped: false })
+      .mockResolvedValueOnce({ transition: "Started", active: true });
+
+    await ingestGoogleRtdn._handler(
+      {
+        runAction: vi
+          .fn()
+          .mockResolvedValue({ content: serviceAccountContent }),
+        runMutation,
+        runQuery,
+      },
+      {
+        apiKey: "test_key",
+        rawMessage: "raw",
+        payload: {
+          messageId: `message_${JSON.stringify(lineItem)}`,
+          packageName: "dev.openiap.test",
+          eventTimeMillis: 1_000,
+          subscriptionNotification: {
+            notificationType: 4,
+            purchaseToken: "trial_token",
+          },
+        },
+      },
+    );
+    return { runQuery, event: runMutation.mock.calls[0]?.[1]?.event };
+  }
+
+  it("asks the synced catalog whether the purchased offer opens with a free trial", async () => {
+    const { runQuery, event } = await ingestPurchase(
+      { offerDetails: { basePlanId: "monthly", offerId: "trial-7d" } },
+      true,
+    );
+    expect(runQuery).toHaveBeenNthCalledWith(4, expect.anything(), {
+      projectId: "project_trial",
+      productId: "premium_monthly",
+      basePlanId: "monthly",
+      offerId: "trial-7d",
+    });
+    // The list price still drives subscription state; analytics book 0.
+    expect(event).toMatchObject({
+      freeTrial: true,
+      priceAmountMicros: 9_990_000,
+    });
+  });
+
+  it("treats a base-plan purchase as paid without a catalog read", async () => {
+    const { runQuery, event } = await ingestPurchase(
+      { offerDetails: { basePlanId: "monthly" } },
+      null,
+    );
+    expect(runQuery).toHaveBeenCalledTimes(3);
+    expect(event).toMatchObject({ freeTrial: false });
+  });
+
+  it("leaves the trial unknown when the catalog does not list the offer", async () => {
+    const { event } = await ingestPurchase(
+      { offerDetails: { basePlanId: "monthly", offerId: "retired" } },
+      null,
+    );
+    expect(event?.freeTrial).toBeUndefined();
+  });
+});
+
+describe("ingestGoogleRtdn replacement charges", () => {
+  async function ingestPurchase(
+    lineItem: Record<string, unknown>,
+    linkedPurchaseToken?: string,
+  ) {
+    playMocks.subscriptionsGet.mockResolvedValueOnce({
+      data: {
+        subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+        linkedPurchaseToken,
+        lineItems: [
+          {
+            productId: "premium_yearly",
+            expiryTime: "2027-09-01T00:00:00Z",
+            ...lineItem,
+          },
+        ],
+      },
+    });
+    const runQuery = vi
+      .fn()
+      .mockResolvedValueOnce({
+        _id: "project_replacement",
+        androidPackageName: "dev.openiap.test",
+      })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ _id: "files_service_account" })
+      // A prepaid plan's catalog price.
+      .mockResolvedValue({ currency: "USD", priceAmountMicros: 4_990_000 });
+    const runMutation = vi
+      .fn()
+      .mockResolvedValueOnce({ eventId: "event_replacement", deduped: false })
+      .mockResolvedValueOnce({ transition: "Started", active: true });
+
+    await ingestGoogleRtdn._handler(
+      {
+        runAction: vi
+          .fn()
+          .mockResolvedValue({ content: serviceAccountContent }),
+        runMutation,
+        runQuery,
+      },
+      {
+        apiKey: "test_key",
+        rawMessage: "raw",
+        payload: {
+          messageId: `message_${JSON.stringify(lineItem)}_${linkedPurchaseToken}`,
+          packageName: "dev.openiap.test",
+          eventTimeMillis: 1_000,
+          subscriptionNotification: {
+            notificationType: 4,
+            purchaseToken: "new_token",
+          },
+        },
+      },
+    );
+    return runMutation.mock.calls[0]?.[1]?.event;
+  }
+  const autoRenewingPlan = {
+    autoRenewEnabled: true,
+    recurringPrice: { currencyCode: "USD", units: "99", nanos: 0 },
+  };
+
+  it.each([
+    ["CHARGE_FULL_PRICE", true],
+    ["CHARGE_PRORATED_PRICE", true],
+    ["WITH_TIME_PRORATION", undefined],
+    ["WITHOUT_PRORATION", undefined],
+    ["DEFERRED", undefined],
+  ])("marks a %s replacement charged: %s", async (mode, expected) => {
+    const event = await ingestPurchase(
+      {
+        autoRenewingPlan,
+        itemReplacement: {
+          productId: "premium_monthly",
+          replacementMode: mode,
+        },
+      },
+      "old_token",
+    );
+    expect(event).toMatchObject({ linkedPurchaseToken: "old_token" });
+    expect(event?.replacementCharged).toBe(expected);
+  });
+
+  it("marks a prepaid top-up charged, but not a first prepaid purchase", async () => {
+    expect(
+      await ingestPurchase({ prepaidPlan: {} }, "old_token"),
+    ).toMatchObject({ replacementCharged: true, priceAmountMicros: 4_990_000 });
+    expect(
+      (await ingestPurchase({ prepaidPlan: {} }))?.replacementCharged,
+    ).toBeUndefined();
   });
 });

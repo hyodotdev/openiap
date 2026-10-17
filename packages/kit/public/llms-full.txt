@@ -32,7 +32,8 @@ Authorization: Bearer openiap-kit_pk_<your-publishable-key>
 
 Each project has publishable (`openiap-kit_pk_...`) keys for mobile
 verification and client-safe reads, plus secret (`openiap-kit_sk_...`) keys for
-MCP, CI, catalog/payload writes, analytics, and store sync.
+authenticated backend account reads and ownership binding, MCP, CI,
+catalog/payload writes, analytics, and store sync.
 Keys are stored in Convex and can be rotated from the dashboard. Existing
 unclassified keys are treated as publishable because older docs allowed them in
 apps.
@@ -219,8 +220,13 @@ last-access fields. Both v2 response shapes omit `purchaseToken` and
 
 Coalesce concurrent backend reads, honor `429 Retry-After`, use jittered
 backoff, and fail closed after a bounded stale window. Return only necessary
-product, state, and expiry fields to the app. Existing v1 status and entitlement
-routes remain available for shipped SDK compatibility.
+product, state, and expiry fields to the app. Account paths used by shipped
+mobile helpers now return `410 LEGACY_ACCOUNT_ROUTE_RETIRED`. Move those calls
+to your authenticated backend: use tokenless v2 routes for account reads and
+header-authenticated `POST /v1/subscriptions/bind-user` for ownership binding.
+Canonical v1 server responses remain available with a secret admin key;
+publishable keys receive `403 INSUFFICIENT_SCOPE`. Never put a secret key in an
+app.
 
 This raw HTTP contract replaces the removed outbound IAPKit-to-app event
 stream. IAPKit accepts Apple ASN v2 and Google RTDN, updates canonical state,
@@ -293,13 +299,44 @@ Apple ID, Issuer ID, Key ID, and `.p8` key. Google lookup requires the exact
 package name, service-account JSON, and View financial data permission. This
 operator tool is not exposed through `/v1`.
 
+### Operator routes
+
+Secret-key routes; publishable keys get 403. Lists page up to 100 rows with
+`hasMore` and `nextCursor`.
+
+- `GET /v1/webhooks/deliveries` — outbound deliveries with their last 20
+  attempts (status, latency, error class; never bodies). Filters: `status`,
+  `eventType`, `destinationId`, `eventId`.
+- `POST /v1/webhooks/deliveries/{deliveryId}/resend` — 202; re-sends a
+  delivered or failed delivery with the same `eventId`. 30 per project per
+  minute; `EVENT_PRUNED` after the event's 30-day retention.
+- `GET /v1/webhooks/notifications` — inbound store notifications with applied
+  state and a payload fingerprint; raw payloads are never returned.
+- `GET /v1/purchase/issues` — failed verifications and links from the last 30
+  days, most recently seen first, with cause, count, store-verified and
+  claimed product, and correlation ID; never the token, JWS, or receipt. Only
+  per-purchase causes (product mismatch, pending payment, bind conflict or
+  limit) carry a keyed evidence `fingerprint`. Other causes are counted per
+  store and cause, at most once a minute, so their count is a lower bound.
+  Filters: `cause`, `store`, `productId` (verified or claimed), `appUserId`,
+  `from`/`to` (epoch ms on `lastSeenAt`).
+- `POST /v1/subscriptions/resync` — body `{"purchaseId"}` or
+  `{"subscriptionId"}`; re-reads Apple or Google, applies current state, and
+  emits only an entitlement delta. Never moves ownership.
+- `GET /v1/subscriptions/timeline?userId=` — one app user's purchases,
+  subscriptions, commerce events, and purchase issues, newest first, 50 of
+  each kind.
+
 ### POST /mcp
 
 MCP Streamable HTTP endpoint for Codex, Claude Code, and other MCP clients.
 Requires a secret admin key and exposes tools with the `iapkit_` prefix: setup
 snippets, revenue analytics, status checks, diagnostics, product catalog and
 client-payload reads/writes, store-sync jobs, subscriber views, sandbox
-guidance, webhook simulation, and project inspection. Setup guides:
+guidance, webhook simulation, project inspection, delivery history and
+re-send, inbound notification history, purchase issues, store re-sync, and
+user timelines.
+Setup guides:
 `/docs/ai-assistants/codex-plugin` and
 `/docs/ai-assistants/claude-plugin`.
 
@@ -503,6 +540,7 @@ Domains under `convex/` follow a CQRS layout — each has `query.ts`,
 - [/docs/verification/google](https://kit.openiap.dev/docs/verification/google)
 - [/docs/verification/horizon](https://kit.openiap.dev/docs/verification/horizon)
 - [/docs/api](https://kit.openiap.dev/docs/api)
+- [/docs/purchase-flow](https://kit.openiap.dev/docs/purchase-flow) — backend-confirmed purchases and a reference backend
 - [/docs/operations](https://kit.openiap.dev/docs/operations)
 - [/docs/ai-assistants](https://kit.openiap.dev/docs/ai-assistants) — how to consume this file
 - [/docs/release-notes](https://kit.openiap.dev/docs/release-notes)

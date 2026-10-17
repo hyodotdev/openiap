@@ -97,7 +97,8 @@ Bindings cannot move between app accounts through this operation. Only evidence
 currently in state `ENTITLED` binds. Amazon consumables verify as
 `READY_TO_CONSUME` and answer `bound: false`, because the application’s own
 ledger fulfills them once; Horizon's `verify_entitlement` returns no product type. An app
-account holds at most 20 bound purchases per project. The 21st binding answers
+account holds at most 20 bound Amazon and Horizon purchases per project; Apple
+and Google one-time links are never rechecked and do not count. The 21st binding answers
 `bound: false`, as §4.4 requires for every non-binding outcome, and IAPKit logs
 the refusal; a new binding can never push an account past the read bound. Before
 refusing, IAPKit releases the caller's own bound purchases the store no longer
@@ -105,6 +106,12 @@ honours, so refunded and revoked receipts cannot hold the cap for good. A row
 keeps its binding until the cap is actually contended, so the entitlements read
 is unchanged until then; a released row needs a fresh `bindPurchase` before it
 is read again.
+
+A secret-key `/v1/subscriptions/bind-user` also links an Apple or Google
+one-time purchase row that verify called valid, including a Google purchase
+awaiting acknowledgment. Those links neither count toward the cap nor appear
+in `entitlements`: IAPKit cannot recheck them with the store, so
+`bindPurchase` stays subscription-only for Apple and Google.
 
 The read fails closed rather than answering partially, so a store it cannot
 reach fails the whole operation with `VERIFICATION_FAILED`. Disabling a store
@@ -235,13 +242,17 @@ here is reachable from a shipped app and no client-pullable stream exists.
   superseded result
 - delivered history expires after 30 days; failed rows and their event payloads
   remain as dead letters until an operator replays or removes the destination
+- each row keeps its last 20 attempts (time, outcome, status, latency, error
+  class), never a response body. An admin re-send requeues the same row, so the
+  body keeps its `eventId`; a project may re-send 30 rows a minute
 
 ### Registering a destination
 
 Open the project's **Webhooks** tab to create, disable, rotate, or remove a
 destination and to replay dead letters. All actions require organization admin:
 a destination holds a signing secret and names an endpoint IAPKit will POST to,
-so member access is not enough.
+so member access is not enough. Members can read delivery history, which shows
+only each destination's host, not its description.
 
 `create` returns the secret exactly once. No query ever returns it again —
 `list` projects a fixed allow-list of fields that excludes both the secret and
@@ -337,6 +348,17 @@ Apple and Google have no scheduled reconciliation pass. A notification lost past
 the store's retry window is not self-healing. Receipt verification bootstraps a
 token before its first store event, but never overwrites webhook-governed state
 because a client can replay an older valid transaction.
+
+An admin can re-sync one Apple or Google purchase or subscription from the
+store API instead (`subscriptions/action.ts`). The server-side read is
+authoritative, so it may update webhook-governed state. It is recorded as a
+`StoreResync` source event, emits only `entitlement.granted` or
+`entitlement.revoked` when the gate flips, and never moves an owner. Those
+events carry no `sourceStoreEventId`, because no store notification caused them.
+The gate flips against what the owner was last told: a store event or a re-sync
+that reached the owner reports it, a verify reports nothing. A notification
+older than the re-sync keeps the re-synced state and emits its lifecycle event
+only when the event names that state (Commerce Protocol SPEC §9.1).
 
 ## Integrating without touching IAPKit core
 

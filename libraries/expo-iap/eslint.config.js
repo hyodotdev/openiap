@@ -1,6 +1,7 @@
 const expoConfig = require('eslint-config-expo/flat');
 const prettierConfig = require('eslint-config-prettier/flat');
 const globals = require('globals');
+const path = require('node:path');
 
 module.exports = [
   {
@@ -52,6 +53,14 @@ module.exports = [
       globals: {
         ...globals.jest,
         ...globals.node,
+      },
+    },
+  },
+  {
+    files: ['example/**/*.{ts,tsx}'],
+    settings: {
+      'import/resolver': {
+        typescript: {project: path.join(__dirname, 'example/tsconfig.json')},
       },
     },
   },

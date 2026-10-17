@@ -3,7 +3,7 @@
 import { action, ActionCtx } from "../_generated/server";
 import { google } from "googleapis";
 import { androidpublisher_v3 } from "googleapis";
-import { v } from "convex/values";
+import { v, type Infer } from "convex/values";
 import { internal } from "../_generated/api";
 import { Id } from "../_generated/dataModel";
 import { moneyToMicros } from "../products/play";
@@ -16,7 +16,14 @@ import {
   receiptResponseValidator,
   isValidState,
   googlePlayEnvironment,
+  type ReceiptResponse,
+  type TransactionDetails,
 } from "./shared";
+import { verifyRecordingIssues } from "../purchaseIssues/shared";
+import {
+  assertVerificationSource,
+  verificationSourceValidator,
+} from "./verificationSource";
 import {
   PlayStoreServiceAccountNotFoundError,
   PlayStoreFileContentNotReadableError,
@@ -41,192 +48,210 @@ function describeError(error: unknown): string {
   return error instanceof Error ? error.name : typeof error;
 }
 
-// Google Play receipt verification action
+const googlePlayVerificationArgs = v.object({
+  apiKey: v.string(),
+  purchaseToken: v.string(),
+  expectedProductId: v.optional(v.string()),
+  requestIp: v.optional(v.string()),
+  correlationId: v.optional(v.string()),
+});
+
 export const verifyGooglePlayReceiptInternalV1 = action({
   args: {
-    apiKey: v.string(),
-    purchaseToken: v.string(),
-    expectedProductId: v.optional(v.string()),
-    requestIp: v.optional(v.string()),
+    ...googlePlayVerificationArgs.fields,
+    sourceAuth: verificationSourceValidator,
   },
   returns: receiptResponseValidator,
   handler: async (ctx, args) => {
-    const verificationStart = Date.now();
-    const project = await getProjectByApiKey(ctx, args.apiKey);
-    const packageName = project.androidPackageName;
-
-    if (!packageName) {
-      throw new ProjectAndroidPackageNameNotConfiguredError();
-    }
-
-    await assertVerificationAdmission(ctx, project._id);
-
-    const serviceAccountFile = await ctx.runQuery(
-      internal.files.internal.getGooglePlayFileByProjectInternal,
+    const { sourceAuth, ...request } = args;
+    assertVerificationSource("google", request, sourceAuth);
+    return verifyRecordingIssues(
+      ctx,
       {
-        projectId: project._id,
+        apiKey: request.apiKey,
+        evidence: { store: "google", purchaseToken: request.purchaseToken },
+        expectedProductId: request.expectedProductId,
+        correlationId: request.correlationId,
+      },
+      () => verifyGooglePlayReceipt(ctx, request),
+    );
+  },
+});
+
+async function verifyGooglePlayReceipt(
+  ctx: ActionCtx,
+  args: Infer<typeof googlePlayVerificationArgs>,
+): Promise<ReceiptResponse> {
+  const verificationStart = Date.now();
+  const project = await getProjectByApiKey(ctx, args.apiKey);
+  const packageName = project.androidPackageName;
+
+  if (!packageName) {
+    throw new ProjectAndroidPackageNameNotConfiguredError();
+  }
+
+  await assertVerificationAdmission(ctx, project._id);
+
+  const androidpublisher = await playPublisher(ctx, project._id);
+  if (androidpublisher === "no_key_file") {
+    throw new PlayStoreServiceAccountNotFoundError();
+  }
+  if (androidpublisher === "unreadable_key_file") {
+    throw new PlayStoreFileContentNotReadableError();
+  }
+
+  const requestData: {
+    store: "google";
+    purchaseToken: string;
+    expectedProductId?: string;
+  } = {
+    store: "google" as const,
+    purchaseToken: args.purchaseToken,
+    ...(args.expectedProductId !== undefined
+      ? { expectedProductId: args.expectedProductId }
+      : {}),
+  };
+
+  try {
+    const { receiptData, remoteResponse } = await verifyPurchaseWithGooglePlay(
+      androidpublisher,
+      {
+        packageName,
+        purchaseToken: args.purchaseToken,
+        expectedProductId: args.expectedProductId,
       },
     );
 
-    if (!serviceAccountFile) {
-      throw new PlayStoreServiceAccountNotFoundError();
-    }
+    // The Play API cannot mark an inapp purchase as consumable, so consult
+    // the project's synced catalog to map unconsumed consumables to
+    // READY_TO_CONSUME instead of a PENDING_ACKNOWLEDGMENT the standard
+    // verify-then-finish client flow can never clear.
+    const catalogProductType =
+      receiptData.type === "InApp"
+        ? await ctx.runQuery(internal.products.sync.getExistingProductType, {
+            projectId: project._id,
+            platform: "Android",
+            productId: receiptData.productId,
+          })
+        : null;
 
-    const fileContent = await ctx.runAction(
-      internal.files.internal.readFileAsText,
-      {
-        fileId: serviceAccountFile._id,
-      },
+    // Persist the store-verified purchase state; `expectedProductId`
+    // mismatch is caller-scoped and should not corrupt purchase logs.
+    const storeReceiptResponse = mapToGooglePlayReceiptResponse(
+      receiptData,
+      catalogProductType,
+    );
+    const receiptResponse = applyExpectedProductId(
+      storeReceiptResponse,
+      args.expectedProductId,
     );
 
-    if (!fileContent || !fileContent.content) {
-      throw new PlayStoreFileContentNotReadableError();
-    }
+    await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {
+      projectId: project._id,
+      store: "google",
+      applicationId: receiptData.packageName,
+      remoteId: receiptData.purchaseToken,
+      requestData,
+      remoteResponse,
+      state: storeReceiptResponse.state,
+      isValid: isValidState(storeReceiptResponse.state),
+      requestIp: args.requestIp,
+      verificationDurationMs: Date.now() - verificationStart,
+      correlationId: args.correlationId,
+    });
+    await recordGooglePlayVerifiedSubscription(ctx, {
+      projectId: project._id,
+      receiptData,
+      purchaseState: storeReceiptResponse.state,
+      readAt: verificationStart,
+    });
 
-    const keyData = parseAndValidateServiceAccountKey(fileContent.content);
-
-    const requestData: {
-      store: "google";
-      purchaseToken: string;
-      expectedProductId?: string;
-    } = {
-      store: "google" as const,
-      purchaseToken: args.purchaseToken,
-      ...(args.expectedProductId !== undefined
-        ? { expectedProductId: args.expectedProductId }
-        : {}),
+    return {
+      ...receiptResponse,
+      transactionDetails: googlePlayTransactionDetails(receiptData),
     };
+  } catch (error) {
+    const verificationDurationMs = Date.now() - verificationStart;
 
-    try {
-      const auth = new google.auth.GoogleAuth({
-        credentials: keyData,
-        scopes: ["https://www.googleapis.com/auth/androidpublisher"],
+    const buildFailedReceiptParams = (
+      receiptError: ReceiptVerificationError,
+    ) => ({
+      projectId: project._id,
+      packageName,
+      purchaseToken: args.purchaseToken,
+      remoteResponse: JSON.stringify(
+        receiptError.errorDetails ?? {
+          errorCode: receiptError.errorCode,
+          message: receiptError.errorMessage,
+          details: receiptError.errorDetails ?? null,
+        },
+      ),
+      requestData,
+      requestIp: args.requestIp,
+      correlationId: args.correlationId,
+      error: receiptError,
+      verificationDurationMs,
+    });
+
+    if (
+      error instanceof PlayStorePurchaseVerificationFailedError &&
+      isPlayStorePackageNameMismatchError(error)
+    ) {
+      const harmonizedState = HarmonizedPurchaseState.INAUTHENTIC;
+
+      await persistFailedGoogleReceipt(ctx, {
+        ...buildFailedReceiptParams(error),
+        state: harmonizedState,
       });
 
-      const androidpublisher = google.androidpublisher({
-        version: "v3",
-        auth,
-      });
+      return {
+        isValid: false,
+        state: harmonizedState,
+      };
+    }
 
-      const { receiptData, remoteResponse } =
-        await verifyPurchaseWithGooglePlay(androidpublisher, {
-          packageName,
-          purchaseToken: args.purchaseToken,
-          expectedProductId: args.expectedProductId,
-        });
+    if (
+      error instanceof PlayStorePurchaseVerificationFailedError &&
+      // Google's 410 means both "not found" and "expired over 60 days ago";
+      // the two cannot be told apart.
+      isPlayStoreTokenNoLongerValidError(error)
+    ) {
+      const receiptResponse = mapGoogleTokenNoLongerValidResponse();
 
-      // The Play API cannot mark an inapp purchase as consumable, so consult
-      // the project's synced catalog to map unconsumed consumables to
-      // READY_TO_CONSUME instead of a PENDING_ACKNOWLEDGMENT the standard
-      // verify-then-finish client flow can never clear.
-      const catalogProductType =
-        receiptData.type === "InApp"
-          ? await ctx.runQuery(internal.products.sync.getExistingProductType, {
-              projectId: project._id,
-              platform: "Android",
-              productId: receiptData.productId,
-            })
-          : null;
-
-      // Persist the store-verified purchase state; `expectedProductId`
-      // mismatch is caller-scoped and should not corrupt purchase logs.
-      const storeReceiptResponse = mapToGooglePlayReceiptResponse(
-        receiptData,
-        catalogProductType,
-      );
-      const receiptResponse = applyExpectedProductId(
-        storeReceiptResponse,
-        args.expectedProductId,
-      );
-
-      await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {
-        projectId: project._id,
-        store: "google",
-        applicationId: receiptData.packageName,
-        remoteId: receiptData.purchaseToken,
-        requestData,
-        remoteResponse,
-        state: storeReceiptResponse.state,
-        isValid: isValidState(storeReceiptResponse.state),
-        requestIp: args.requestIp,
-        verificationDurationMs: Date.now() - verificationStart,
-      });
-      await recordGooglePlayVerifiedSubscription(ctx, {
-        projectId: project._id,
-        receiptData,
-        purchaseState: storeReceiptResponse.state,
+      await persistFailedGoogleReceipt(ctx, {
+        ...buildFailedReceiptParams(error),
+        state: receiptResponse.state,
       });
 
       return receiptResponse;
-    } catch (error) {
-      const verificationDurationMs = Date.now() - verificationStart;
-
-      const buildFailedReceiptParams = (
-        receiptError: ReceiptVerificationError,
-      ) => ({
-        projectId: project._id,
-        packageName,
-        purchaseToken: args.purchaseToken,
-        remoteResponse: JSON.stringify(
-          receiptError.errorDetails ?? {
-            errorCode: receiptError.errorCode,
-            message: receiptError.errorMessage,
-            details: receiptError.errorDetails ?? null,
-          },
-        ),
-        requestData,
-        requestIp: args.requestIp,
-        error: receiptError,
-        verificationDurationMs,
-      });
-
-      if (
-        error instanceof PlayStorePurchaseVerificationFailedError &&
-        isPlayStorePackageNameMismatchError(error)
-      ) {
-        const harmonizedState = HarmonizedPurchaseState.INAUTHENTIC;
-
-        await persistFailedGoogleReceipt(ctx, {
-          ...buildFailedReceiptParams(error),
-          state: harmonizedState,
-        });
-
-        return {
-          isValid: false,
-          state: harmonizedState,
-        };
-      }
-
-      if (
-        error instanceof PlayStorePurchaseVerificationFailedError &&
-        // Google's 410 means both "not found" and "expired over 60 days ago";
-        // the two cannot be told apart.
-        isPlayStoreTokenNoLongerValidError(error)
-      ) {
-        const receiptResponse = mapGoogleTokenNoLongerValidResponse();
-
-        await persistFailedGoogleReceipt(ctx, {
-          ...buildFailedReceiptParams(error),
-          state: receiptResponse.state,
-        });
-
-        return receiptResponse;
-      }
-
-      if (
-        error instanceof ReceiptVerificationError &&
-        shouldPersistFailedGoogleReceipt(error)
-      ) {
-        await persistFailedGoogleReceipt(ctx, {
-          ...buildFailedReceiptParams(error),
-        });
-      }
-
-      console.error("Error verifying Android purchase:", describeError(error));
-      throw new PlayStoreVerificationError(error);
     }
-  },
-});
+
+    if (
+      error instanceof ReceiptVerificationError &&
+      shouldPersistFailedGoogleReceipt(error)
+    ) {
+      await persistFailedGoogleReceipt(ctx, {
+        ...buildFailedReceiptParams(error),
+      });
+    }
+
+    console.error("Error verifying Android purchase:", describeError(error));
+    throw new PlayStoreVerificationError(error);
+  }
+}
+
+// Events carry a Google order id as transactionId and never set
+// originalTransactionId, so a purchase token is never mislabeled as either.
+export function googlePlayTransactionDetails(
+  receipt: GooglePlayReceiptData,
+): TransactionDetails {
+  return {
+    ...(receipt.orderId ? { transactionId: receipt.orderId } : {}),
+    ...(receipt.type === "Subscription" && receipt.expiryTime !== undefined
+      ? { expiresAt: receipt.expiryTime }
+      : {}),
+  };
+}
 
 export function mapGoogleTokenNoLongerValidResponse() {
   return {
@@ -245,6 +270,8 @@ export async function recordGooglePlayVerifiedSubscription(
     projectId: Id<"projects">;
     receiptData: GooglePlayReceiptData;
     purchaseState: HarmonizedPurchaseState;
+    // When Play was asked; its answer is current state as of then.
+    readAt: number;
   },
 ): Promise<void> {
   if (params.receiptData.type !== "Subscription") return;
@@ -263,6 +290,8 @@ export async function recordGooglePlayVerifiedSubscription(
       willRenew: params.receiptData.willRenew,
       currency: params.receiptData.currency,
       priceAmountMicros: params.receiptData.priceAmountMicros,
+      evidenceAt: params.readAt,
+      environment: params.receiptData.environment,
     },
   );
 }
@@ -328,6 +357,32 @@ export function parseAndValidateServiceAccountKey(
     );
     throw new InvalidServiceAccountKeyFormatError();
   }
+}
+
+/**
+ * The Play Developer API client for the project's stored service-account key,
+ * or which part is missing. Each caller maps that to its own error.
+ */
+export async function playPublisher(
+  ctx: Pick<ActionCtx, "runQuery" | "runAction">,
+  projectId: Id<"projects">,
+): Promise<
+  androidpublisher_v3.Androidpublisher | "no_key_file" | "unreadable_key_file"
+> {
+  const file = await ctx.runQuery(
+    internal.files.internal.getGooglePlayFileByProjectInternal,
+    { projectId },
+  );
+  if (!file) return "no_key_file";
+  const content = await ctx.runAction(internal.files.internal.readFileAsText, {
+    fileId: file._id,
+  });
+  if (!content?.content) return "unreadable_key_file";
+  const auth = new google.auth.GoogleAuth({
+    credentials: parseAndValidateServiceAccountKey(content.content),
+    scopes: ["https://www.googleapis.com/auth/androidpublisher"],
+  });
+  return google.androidpublisher({ version: "v3", auth });
 }
 
 type GooglePlayVerificationResult = {
@@ -633,6 +688,7 @@ async function persistFailedGoogleReceipt(
       expectedProductId?: string;
     };
     requestIp?: string;
+    correlationId?: string;
     error: ReceiptVerificationError;
     verificationDurationMs?: number;
     state?: HarmonizedPurchaseState;
@@ -655,5 +711,6 @@ async function persistFailedGoogleReceipt(
     isValid: false,
     requestIp: params.requestIp,
     verificationDurationMs: params.verificationDurationMs,
+    correlationId: params.correlationId,
   });
 }

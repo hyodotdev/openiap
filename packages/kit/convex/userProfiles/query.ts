@@ -78,9 +78,15 @@ export const getUserStats = query({
       subscriptionTier: "developer" as "developer" | "pro" | "enterprise",
     };
 
-    if (profile.currentOrganizationId) {
-      const currentOrg = await ctx.db.get(profile.currentOrganizationId);
-      if (currentOrg) {
+    const organizationId = profile.currentOrganizationId;
+    if (
+      organizationId &&
+      memberships.some(
+        (membership) => membership.organizationId === organizationId,
+      )
+    ) {
+      const currentOrg = await ctx.db.get(organizationId);
+      if (currentOrg && !currentOrg.pendingDeletion) {
         organizationStats = {
           monthlyRequestCount: currentOrg.monthlyRequestCount || 0,
           // At least the sponsor CTA threshold, so a stale low value (the old
@@ -96,7 +102,7 @@ export const getUserStats = query({
         const projects = await ctx.db
           .query("projects")
           .withIndex("by_organization", (q) =>
-            q.eq("organizationId", profile.currentOrganizationId!),
+            q.eq("organizationId", organizationId),
           )
           .collect();
 

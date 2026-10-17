@@ -13,33 +13,18 @@ import {
   COMMERCE_EVENT_SCHEMA_VERSION,
   commerceEventTypeForTransition,
   commerceEventTypesToEmit,
+  normalizeEnvironment,
   sanitizeExtensions,
-  type CommerceEnvironment,
   type CommerceEventType,
   type LifecycleTransition,
 } from "./contract";
 
-type WebhookEnvironment = Doc<"webhookEvents">["environment"];
-
-/** Store notification environments use TitleCase; the contract uses lowercase. */
-function normalizeEnvironment(
-  environment: WebhookEnvironment,
-): CommerceEnvironment {
-  switch (environment) {
-    case "Sandbox":
-      return "sandbox";
-    case "Xcode":
-      return "xcode";
-    default:
-      return "production";
-  }
-}
-
-/** Inbound platform enum predates Horizon/Amazon lifecycle support. */
-function storeForPlatform(
-  platform: Doc<"webhookEvents">["platform"],
-): "apple" | "google" {
-  return platform === "IOS" ? "apple" : "google";
+/** A row's store; rows from before the `store` column are Apple or Google. */
+export function storeOf<Store extends string>(row: {
+  store?: Store;
+  platform: "IOS" | "Android";
+}): Store | "apple" | "google" {
+  return row.store ?? (row.platform === "IOS" ? "apple" : "google");
 }
 
 export type EmitCommerceEventArgs = {
@@ -62,9 +47,11 @@ export type EmitCommerceEventArgs = {
     | "currency"
     | "priceAmountMicros"
     | "amountProvenance"
-    | "sourceNotificationId"
     | "occurredAt"
-  >;
+  > & {
+    /** The store's own notification id; absent when no notification caused this. */
+    sourceNotificationId?: string;
+  };
   subscriptionId?: Id<"subscriptions">;
   previousProductId?: string;
   /** Subscription as it stands after the transition, snapshotted onto the event. */
@@ -117,7 +104,7 @@ export async function emitCommerceEvent(
       projectId: args.projectId,
       eventType,
       eventVersion: COMMERCE_EVENT_SCHEMA_VERSION,
-      store: source.store ?? storeForPlatform(source.platform),
+      store: storeOf(source),
       environment: normalizeEnvironment(source.environment),
       ...(args.subscription?.userId
         ? { userId: args.subscription.userId }
@@ -166,7 +153,9 @@ export async function emitCommerceEvent(
           }
         : {}),
       sourceEventId: source._id,
-      sourceStoreNotificationId: source.sourceNotificationId,
+      ...(source.sourceNotificationId
+        ? { sourceStoreNotificationId: source.sourceNotificationId }
+        : {}),
       ...(extensions ? { extensions } : {}),
       occurredAt: source.occurredAt,
       processedAt: now,
@@ -213,6 +202,7 @@ async function fanOutToDestinations(
       projectId,
       eventId,
       destinationId: destination._id,
+      eventType,
       status: "pending",
       attempts: 0,
       nextAttemptAt: now,

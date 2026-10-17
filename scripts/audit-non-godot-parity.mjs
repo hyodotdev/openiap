@@ -4478,7 +4478,7 @@ function checkFrameworkDependencyHygiene() {
       "- name: Test production Convex target guard",
       "- name: Validate deployment credentials",
       "- name: Deploy Convex functions",
-      "verify-production-convex-target.sh",
+      "provision-verification-source.sh",
       "--cmd-url-env-var-name VITE_KIT_CONVEX_URL",
       "- name: Deploy",
     ],
@@ -4507,10 +4507,20 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     "packages/kit/scripts/deploy-prod.sh",
     [
-      "verify-production-convex-target.sh",
+      "provision-verification-source.sh",
       "--cmd-url-env-var-name VITE_KIT_CONVEX_URL",
     ],
     "Kit manual deploy must run the shared production target guard",
+  );
+  expectIncludes(
+    "packages/kit/scripts/provision-verification-source.sh",
+    [
+      'bash "$SCRIPT_DIR/validate-deployment-credentials.sh"',
+      'bash "$SCRIPT_DIR/verify-production-convex-target.sh"',
+      "convex env set --prod IAPKIT_VERIFICATION_SOURCE_SECRET",
+      "flyctl secrets import --stage --app openiap-kit",
+    ],
+    "Kit coordinated provisioning must validate credentials and the shared target before configuring both runtimes",
   );
   expectIncludes(
     "packages/kit/package.json",

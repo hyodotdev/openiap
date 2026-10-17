@@ -1,15 +1,20 @@
+import { foldAccessHistory } from "./accessHistory";
 import {
   internalMutation,
   internalQuery,
   type MutationCtx,
   type QueryCtx,
 } from "../_generated/server";
-import { ConvexError, v } from "convex/values";
+import { ConvexError, v, type Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
-import { bindAmazonPurchaseOwner } from "../purchases/binding";
+import type { ReceiptEnvironment } from "../purchases/shared";
+import {
+  bindAmazonPurchaseOwner,
+  subscriptionPurchaseRemoteId,
+} from "../purchases/binding";
 import {
   applySubscriptionTransition,
   entitlementActive,
@@ -20,6 +25,16 @@ import { applyStatsTransition, statsContributionFor } from "./stats";
 import { assertProjectWritable } from "../projects/writable";
 import { isValidSubscriptionUserId } from "./limits";
 import { isUserErasureRequested } from "./erasure";
+import { emitCommerceEvent, storeOf } from "../commerce/internal";
+import {
+  mergeAnalyticsFacts,
+  reconcilePaidStart,
+  recordSubscriptionAnalyticsFacts,
+} from "./analyticsFacts";
+import {
+  receiptEnvironmentValidator,
+  type bindReasonValidator,
+} from "../utils/validation";
 
 export const USER_ERASURE_BATCH_SIZE = 100;
 export const USER_ERASURE_JOB_RETENTION_MS = 7 * 24 * 60 * 60 * 1_000;
@@ -101,6 +116,8 @@ type RecordVerifiedSubscriptionArgs = {
   revocationReasonIOS?: number;
   verifiedPurchaseDate?: number;
   verifiedSignedDate?: number;
+  evidenceAt?: number;
+  environment?: ReceiptEnvironment;
 };
 
 type BindSubscriptionToUserArgs = {
@@ -119,6 +136,9 @@ export interface PersistSubscriptionSnapshotArgs {
   now: number;
   verifiedPurchaseDate?: number;
   verifiedSignedDate?: number;
+  environment?: ReceiptEnvironment;
+  resyncedAt?: number;
+  verifiedEvidenceAt?: number;
   lastEvent?: Pick<
     Doc<"webhookEvents">,
     | "_id"
@@ -128,6 +148,7 @@ export interface PersistSubscriptionSnapshotArgs {
     | "occurredAt"
     | "sourceNotificationId"
     | "environment"
+    | "environmentDefaulted"
     | "productId"
     | "applicationId"
     | "transactionId"
@@ -152,8 +173,6 @@ interface ApplySubscriptionEventResult {
 // commits in the same transaction as the subscription and stats writes, so a
 // crash before this mutation can be repaired and a processed event is never
 // replayed after a newer lastEventId.
-import { emitCommerceEvent } from "../commerce/internal";
-
 export const applySubscriptionEvent = internalMutation({
   args: {
     projectId: v.id("projects"),
@@ -167,10 +186,30 @@ export const applySubscriptionEvent = internalMutation({
   handler: async (ctx, args) => applySubscriptionEventHandler(ctx, args),
 });
 
+// Analytics facts follow the lifecycle transition and only on the event's
+// first application, so a redelivery never counts its money twice.
 export async function applySubscriptionEventHandler(
   ctx: MutationCtx,
   args: ApplySubscriptionEventArgs,
 ): Promise<ApplySubscriptionEventResult> {
+  const event = await ctx.db.get(args.eventId);
+  const firstApplication = event !== null && event.appliedAt === undefined;
+  const { analyticsBefore, ...result } = await applyLifecycleEvent(ctx, args);
+  if (firstApplication && result.subscriptionId) {
+    await recordSubscriptionAnalyticsFacts(
+      ctx,
+      result.subscriptionId,
+      event,
+      analyticsBefore,
+    );
+  }
+  return result;
+}
+
+async function applyLifecycleEvent(
+  ctx: MutationCtx,
+  args: ApplySubscriptionEventArgs,
+): Promise<ApplySubscriptionEventResult & { analyticsBefore?: number | null }> {
   await assertProjectWritable(ctx, args.projectId);
   const storedEvent = await ctx.db.get(args.eventId);
   if (!storedEvent || storedEvent.projectId !== args.projectId) {
@@ -244,6 +283,7 @@ export async function applySubscriptionEventHandler(
       await ctx.db.patch(storedEvent._id, { appliedAt: now });
     }
     return {
+      analyticsBefore: supersedingResolution.analyticsReplacementAt ?? null,
       transition: firstApplication ? aliasedTransition : null,
       active,
       ...(supersedingSubscription
@@ -335,40 +375,72 @@ export async function applySubscriptionEventHandler(
       removed.platform,
       removed.productId,
     );
+    await ctx.db.delete(removed._id);
     await applyStatsTransition(
       ctx,
       args.projectId,
       statsContributionFor(removed, removedPeriod, now),
       null,
+      removed,
     );
-    await ctx.db.delete(removed._id);
+    const previousAnalytics = [survivor.analytics, removed.analytics];
     existing = {
       ...survivor,
       purchaseToken: storedEvent.purchaseToken,
       accountErased: accountErased || undefined,
       userId: boundUserId,
       startedAt: Math.min(survivor.startedAt, removed.startedAt),
+      analytics: mergeAnalyticsFacts(survivor.analytics, removed.analytics, {
+        at:
+          storedEvent.type === "SubscriptionStarted"
+            ? storedEvent.occurredAt
+            : undefined,
+        now,
+      }),
     };
     await ctx.db.patch(survivor._id, {
       purchaseToken: existing.purchaseToken,
       accountErased: existing.accountErased,
       userId: existing.userId,
       startedAt: existing.startedAt,
+      analytics: existing.analytics,
       updatedAt: now,
     });
+    await reconcilePaidStart(ctx, previousAnalytics, existing.analytics);
     await recordSubscriptionTokenAlias(ctx, {
       projectId: args.projectId,
       purchaseToken: removed.purchaseToken,
       successorPurchaseToken: existing.purchaseToken,
       predecessorProductId: removed.productId,
+      analyticsReplacementAt:
+        storedEvent.type === "SubscriptionStarted"
+          ? storedEvent.occurredAt
+          : undefined,
       now,
     });
   }
 
-  // Compare with the last persisted gate; today's clock may already have expired it.
-  const previouslyActive = priorStoreSnapshot
-    ? isActive(priorStoreSnapshot, priorStoreSnapshot.updatedAt)
-    : false;
+  if (
+    existing &&
+    !existingByCurrentToken &&
+    existing.purchaseToken !== storedEvent.purchaseToken
+  ) {
+    existing = {
+      ...existing,
+      analytics: mergeAnalyticsFacts(undefined, existing.analytics, {
+        at:
+          storedEvent.type === "SubscriptionStarted"
+            ? storedEvent.occurredAt
+            : undefined,
+        now,
+      }),
+    };
+  }
+
+  const previouslyActive =
+    reportedEntitlement(existingByCurrentToken) ??
+    reportedEntitlement(linkedExisting) ??
+    false;
   const noOpResult = (): ApplySubscriptionEventResult => ({
     transition: null,
     active: existing ? isActive(existing, now) : false,
@@ -539,7 +611,7 @@ export async function applySubscriptionEventHandler(
     storedEvent.type === "SubscriptionStarted" &&
     storedEvent.linkedPurchaseToken !== undefined &&
     priorStoreSnapshot !== null &&
-    previouslyActive;
+    isActive(priorStoreSnapshot, priorStoreSnapshot.updatedAt);
   const effectiveTransition = linkedStartedOnActivePredecessor
     ? transition.next?.productId !== priorStoreSnapshot.productId
       ? "ProductChanged"
@@ -578,13 +650,21 @@ export async function applySubscriptionEventHandler(
       ...(existing ? { subscriptionId: existing._id } : {}),
     };
   }
+  // A re-sync already read the store at or after this event, so its state
+  // stands. The event is reported only when it names that state (SPEC 9.1).
+  const next =
+    current &&
+    orderingExisting?.resyncedAt !== undefined &&
+    storedEvent.occurredAt <= orderingExisting.resyncedAt
+      ? current
+      : transition.next;
 
   const subscriptionId = await persistSubscriptionSnapshot(ctx, {
     projectId: args.projectId,
     platform: event.platform,
     purchaseToken: event.purchaseToken,
     existing,
-    next: transition.next,
+    next,
     now,
     lastEvent: storedEvent,
   });
@@ -593,6 +673,10 @@ export async function applySubscriptionEventHandler(
     purchaseToken: existing?.purchaseToken,
     successorPurchaseToken: storedEvent.purchaseToken,
     predecessorProductId: existing?.productId,
+    analyticsReplacementAt:
+      storedEvent.type === "SubscriptionStarted"
+        ? storedEvent.occurredAt
+        : undefined,
     now,
   });
   await recordSubscriptionTokenAlias(ctx, {
@@ -600,17 +684,24 @@ export async function applySubscriptionEventHandler(
     purchaseToken: storedEvent.linkedPurchaseToken,
     successorPurchaseToken: storedEvent.purchaseToken,
     predecessorProductId: priorStoreSnapshot?.productId ?? existing?.productId,
+    analyticsReplacementAt:
+      storedEvent.type === "SubscriptionStarted"
+        ? storedEvent.occurredAt
+        : undefined,
     now,
   });
   await ctx.db.patch(storedEvent._id, { appliedAt: now });
-  const active = entitlementActive(transition.next, now);
-  const commerceTransition = linkedStartedOnActivePredecessor
-    ? effectiveTransition
-    : firstStoreEventAfterVerification
-      ? "Started"
-      : priceOrDeferralWithoutBaseline
-        ? null
-        : effectiveTransition;
+  const active = entitlementActive(next, now);
+  const commerceTransition =
+    next.state !== transition.next.state
+      ? null
+      : linkedStartedOnActivePredecessor
+        ? effectiveTransition
+        : firstStoreEventAfterVerification
+          ? "Started"
+          : priceOrDeferralWithoutBaseline
+            ? null
+            : effectiveTransition;
   await emitCommerceEvent(ctx, {
     projectId: args.projectId,
     transition: commerceTransition ?? null,
@@ -618,23 +709,17 @@ export async function applySubscriptionEventHandler(
     previouslyActive,
     sourceEvent: storedEvent,
     subscriptionId,
-    ...(previousProductId && previousProductId !== transition.next.productId
+    ...(previousProductId && previousProductId !== next.productId
       ? { previousProductId }
       : {}),
     subscription: {
-      state: transition.next.state,
-      productId: transition.next.productId,
-      ...(transition.next.expiresAt !== undefined
-        ? { expiresAt: transition.next.expiresAt }
-        : {}),
-      ...(transition.next.renewsAt !== undefined
-        ? { renewsAt: transition.next.renewsAt }
-        : {}),
-      ...(transition.next.willRenew !== undefined
-        ? { willRenew: transition.next.willRenew }
-        : {}),
-      ...(transition.next.cancellationReason
-        ? { cancellationReason: transition.next.cancellationReason }
+      state: next.state,
+      productId: next.productId,
+      ...(next.expiresAt !== undefined ? { expiresAt: next.expiresAt } : {}),
+      ...(next.renewsAt !== undefined ? { renewsAt: next.renewsAt } : {}),
+      ...(next.willRenew !== undefined ? { willRenew: next.willRenew } : {}),
+      ...(next.cancellationReason
+        ? { cancellationReason: next.cancellationReason }
         : {}),
       ...(existing?.userId ? { userId: existing.userId } : {}),
     },
@@ -836,6 +921,9 @@ export const recordVerifiedSubscription = internalMutation({
     revocationReasonIOS: v.optional(v.number()),
     verifiedPurchaseDate: v.optional(v.number()),
     verifiedSignedDate: v.optional(v.number()),
+    // The newest fact the evidence reports; see predatesResync.
+    evidenceAt: v.optional(v.number()),
+    environment: v.optional(receiptEnvironmentValidator),
   },
   returns: v.union(v.id("subscriptions"), v.null()),
   handler: async (ctx, args) => recordVerifiedSubscriptionHandler(ctx, args),
@@ -882,6 +970,19 @@ export async function recordVerifiedSubscriptionHandler(
   if (existing && isOlderVerifiedSnapshot(existing, args)) return existing._id;
 
   const next = mergeVerifiedSubscriptionSnapshot(existing, snapshot);
+  if (existing && predatesResync(existing, args)) {
+    // Evidence the re-sync may already cover, yet it disagrees: an Apple
+    // refund reversal keeps its purchase date. Ask the store, never guess.
+    if (disputesResync(existing, next.state, now)) {
+      await ctx.db.patch(existing._id, { resyncDisputedAt: now });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.subscriptions.action.resyncDisputedSubscription,
+        { projectId: args.projectId, subscriptionId: existing._id },
+      );
+    }
+    return existing._id;
+  }
   return persistSubscriptionSnapshot(ctx, {
     projectId: args.projectId,
     platform: args.platform,
@@ -891,23 +992,30 @@ export async function recordVerifiedSubscriptionHandler(
     now,
     verifiedPurchaseDate: args.verifiedPurchaseDate,
     verifiedSignedDate: args.verifiedSignedDate,
+    verifiedEvidenceAt: args.evidenceAt,
+    environment: args.environment,
   });
 }
 
-// An Apple JWS describes one transaction, so verifies apply in (purchaseDate,
-// signedDate) order: an upgrade is newer yet may end sooner, and a refund keeps
-// its purchase date. A row stored without a date takes the verify as before; an
-// old replay there is fixed by the next newer verify.
+// Google snapshots follow store-read time; Apple transactions follow purchase
+// and signing dates because an upgrade may end sooner and a refund keeps its date.
 function isOlderVerifiedSnapshot(
   stored: Pick<
     Doc<"subscriptions">,
-    "verifiedPurchaseDate" | "verifiedSignedDate"
+    "verifiedPurchaseDate" | "verifiedSignedDate" | "verifiedEvidenceAt"
   >,
   incoming: Pick<
     RecordVerifiedSubscriptionArgs,
-    "verifiedPurchaseDate" | "verifiedSignedDate"
+    "verifiedPurchaseDate" | "verifiedSignedDate" | "platform" | "evidenceAt"
   >,
 ): boolean {
+  if (incoming.platform === "Android") {
+    return (
+      stored.verifiedEvidenceAt !== undefined &&
+      incoming.evidenceAt !== undefined &&
+      incoming.evidenceAt < stored.verifiedEvidenceAt
+    );
+  }
   if (
     stored.verifiedPurchaseDate === undefined ||
     incoming.verifiedPurchaseDate === undefined
@@ -923,6 +1031,58 @@ function isOlderVerifiedSnapshot(
     incoming.verifiedSignedDate === undefined ||
     incoming.verifiedSignedDate < stored.verifiedSignedDate
   );
+}
+
+// A re-sync read the store's current state at `resyncedAt`, so a verify only
+// replaces it with evidence of something later: Apple's transaction purchase
+// or revocation date (a replay is re-signed, so its signing date proves
+// nothing), or for Google, which reports current state, when Play was read.
+function predatesResync(
+  stored: Pick<Doc<"subscriptions">, "resyncedAt">,
+  incoming: Pick<RecordVerifiedSubscriptionArgs, "evidenceAt">,
+): boolean {
+  return (
+    stored.resyncedAt !== undefined &&
+    (incoming.evidenceAt === undefined ||
+      incoming.evidenceAt <= stored.resyncedAt)
+  );
+}
+
+export const RESYNC_DISPUTE_COOLDOWN_MS = 60 * 60 * 1_000;
+
+// A transaction cannot show billing retry or grace: there its period simply
+// ended, so Expired evidence agrees with both. An Apple refund verifies as
+// Revoked, which the re-sync stores as Refunded. A real dispute re-reads the
+// store at most once per cooldown, however often the app verifies.
+function disputesResync(
+  stored: Pick<Doc<"subscriptions">, "state" | "resyncDisputedAt">,
+  verifiedState: SubscriptionState,
+  now: number,
+): boolean {
+  if (verifiedState === stored.state) return false;
+  if (
+    verifiedState === "Expired" &&
+    (stored.state === "InBillingRetry" || stored.state === "InGracePeriod")
+  ) {
+    return false;
+  }
+  if (verifiedState === "Revoked" && stored.state === "Refunded") return false;
+  return (stored.resyncDisputedAt ?? 0) + RESYNC_DISPUTE_COOLDOWN_MS <= now;
+}
+
+/**
+ * The entitlement gate a row's owner was last told, or undefined when nothing
+ * was. A store event reports the row's state (a late bind repeats its grant),
+ * read at the row's own `updatedAt` since today's clock may already have
+ * closed it. Without one, only a re-sync that reached the owner told anything,
+ * and a verify since then may have moved the row silently.
+ */
+export function reportedEntitlement(
+  row: Doc<"subscriptions"> | null,
+): boolean | undefined {
+  if (!row) return undefined;
+  if (row.lastEventId === undefined) return row.resyncReportedActive;
+  return isActive(row, row.updatedAt);
 }
 
 export async function persistSubscriptionSnapshot(
@@ -956,8 +1116,81 @@ export async function persistSubscriptionSnapshot(
   const beforeContribution = args.existing
     ? statsContributionFor(args.existing, beforeBillingPeriod, args.now)
     : null;
+  // An event Play sent without an environment keeps the row's known one.
+  const environment = args.lastEvent?.environmentDefaulted
+    ? (args.existing?.environment ??
+      args.existing?.lastEventSource?.environment)
+    : (args.lastEvent?.environment ?? args.environment);
+
+  const resyncAdvanced =
+    args.resyncedAt !== undefined &&
+    args.resyncedAt > (args.existing?.resyncedAt ?? -Infinity);
+  const evidenceAdvanced =
+    args.verifiedEvidenceAt !== undefined &&
+    args.verifiedEvidenceAt > (args.existing?.verifiedEvidenceAt ?? -Infinity);
+  // An expired Apple receipt still proves its dated purchase-to-expiry period.
+  const expiredApplePeriod =
+    !resyncAdvanced &&
+    args.platform === "IOS" &&
+    args.next.state === "Expired" &&
+    args.verifiedPurchaseDate !== undefined &&
+    args.verifiedEvidenceAt === args.verifiedPurchaseDate &&
+    args.next.expiresAt !== undefined;
+  // A newer signed receipt can show a reversal without dating its access change.
+  const undatedAppleChange =
+    !resyncAdvanced &&
+    !evidenceAdvanced &&
+    args.platform === "IOS" &&
+    args.existing !== null &&
+    args.verifiedSignedDate !== undefined &&
+    args.verifiedSignedDate > (args.existing.verifiedSignedDate ?? -Infinity) &&
+    !(
+      expiredApplePeriod &&
+      args.existing.state === "Active" &&
+      args.existing.verifiedPurchaseDate === args.verifiedPurchaseDate &&
+      args.existing.expiresAt === args.next.expiresAt
+    ) &&
+    (args.next.state !== args.existing.state ||
+      args.next.expiresAt !== args.existing.expiresAt);
+  const observed = resyncAdvanced || evidenceAdvanced || undatedAppleChange;
+  // A delayed commit or receipt replay is not new store evidence.
+  const observedAt = undatedAppleChange
+    ? args.verifiedSignedDate!
+    : Math.max(
+        args.resyncedAt ?? -Infinity,
+        args.verifiedEvidenceAt ?? -Infinity,
+      );
+  const analytics = observed
+    ? {
+        ...(args.existing?.analytics ?? { paidMicros: 0, refundedMicros: 0 }),
+        accessHistory: foldAccessHistory(
+          args.existing?.analytics?.accessHistory,
+          [
+            {
+              effectiveAt: observedAt,
+              sourceAt:
+                args.resyncedAt ?? args.verifiedSignedDate ?? observedAt,
+              sourceCreatedAt: args.now,
+              ...(!undatedAppleChange && args.next.state !== "Unknown"
+                ? {
+                    active:
+                      args.next.state === "Active" ||
+                      args.next.state === "InGracePeriod" ||
+                      expiredApplePeriod,
+                  }
+                : {}),
+              ...(args.next.expiresAt !== undefined
+                ? { expiresAt: args.next.expiresAt }
+                : {}),
+            },
+          ],
+          args.now,
+        ),
+      }
+    : args.existing?.analytics;
 
   const row = {
+    ...(analytics ? { analytics } : {}),
     purchaseToken: args.purchaseToken,
     productKind: "subscription" as const,
     ...(args.existing?.userId ? { userId: args.existing.userId } : {}),
@@ -971,7 +1204,12 @@ export async function persistSubscriptionSnapshot(
     cancellationReason: args.next.cancellationReason,
     currency: args.next.currency,
     priceAmountMicros: args.next.priceAmountMicros,
+    ...(environment ? { environment } : {}),
     updatedAt: args.now,
+    ...(args.resyncedAt !== undefined ? { resyncedAt: args.resyncedAt } : {}),
+    ...(args.verifiedEvidenceAt !== undefined
+      ? { verifiedEvidenceAt: args.verifiedEvidenceAt }
+      : {}),
     // The pair is written together so a signing date never outlives its purchase date.
     ...(args.verifiedPurchaseDate !== undefined
       ? {
@@ -1023,6 +1261,7 @@ export async function persistSubscriptionSnapshot(
     args.projectId,
     beforeContribution,
     afterContribution,
+    updatedRow,
   );
 
   return subscriptionId;
@@ -1049,15 +1288,18 @@ type SupersedingSubscriptionResolution =
       aliased: true;
       subscription: Doc<"subscriptions"> | null;
       productId?: string;
+      analyticsReplacementAt?: number;
     };
 
-async function findSupersedingSubscription(
+// Follows a token Google replaced to the row that holds it now.
+export async function findSupersedingSubscription(
   ctx: Pick<QueryCtx, "db">,
   projectId: Id<"projects">,
   purchaseToken: string,
 ): Promise<SupersedingSubscriptionResolution> {
   let token = purchaseToken;
   let productId: string | undefined;
+  let analyticsReplacementAt: number | undefined;
   const seen = new Set<string>([token]);
   for (let hop = 0; hop <= MAX_SUBSCRIPTION_TOKEN_ALIAS_HOPS; hop += 1) {
     const alias = await ctx.db
@@ -1073,19 +1315,38 @@ async function findSupersedingSubscription(
             aliased: true,
             subscription: await findSubscriptionByToken(ctx, projectId, token),
             productId,
+            analyticsReplacementAt,
           };
     }
-    if (hop === 0) productId = alias.predecessorProductId;
+    if (hop === 0) {
+      productId = alias.predecessorProductId;
+      analyticsReplacementAt = alias.analyticsReplacementAt;
+    }
     if (hop === MAX_SUBSCRIPTION_TOKEN_ALIAS_HOPS) {
-      return { aliased: true, subscription: null, productId };
+      return {
+        aliased: true,
+        subscription: null,
+        productId,
+        analyticsReplacementAt,
+      };
     }
     if (seen.has(alias.successorPurchaseToken)) {
-      return { aliased: true, subscription: null, productId };
+      return {
+        aliased: true,
+        subscription: null,
+        productId,
+        analyticsReplacementAt,
+      };
     }
     token = alias.successorPurchaseToken;
     seen.add(token);
   }
-  return { aliased: true, subscription: null, productId };
+  return {
+    aliased: true,
+    subscription: null,
+    productId,
+    analyticsReplacementAt,
+  };
 }
 
 async function recordSubscriptionTokenAlias(
@@ -1095,6 +1356,7 @@ async function recordSubscriptionTokenAlias(
     purchaseToken?: string;
     successorPurchaseToken: string;
     predecessorProductId?: string;
+    analyticsReplacementAt?: number;
     now: number;
   },
 ): Promise<void> {
@@ -1113,9 +1375,17 @@ async function recordSubscriptionTokenAlias(
     )
     .unique();
   if (existing) {
-    if (existing.successorPurchaseToken !== args.successorPurchaseToken) {
+    if (
+      existing.successorPurchaseToken !== args.successorPurchaseToken ||
+      (existing.analyticsReplacementAt === undefined &&
+        args.analyticsReplacementAt !== undefined)
+    ) {
       await ctx.db.patch(existing._id, {
         successorPurchaseToken: args.successorPurchaseToken,
+        analyticsReplacementAt:
+          existing.successorPurchaseToken === args.successorPurchaseToken
+            ? (existing.analyticsReplacementAt ?? args.analyticsReplacementAt)
+            : args.analyticsReplacementAt,
         predecessorProductId:
           existing.predecessorProductId ?? args.predecessorProductId,
         updatedAt: args.now,
@@ -1128,6 +1398,7 @@ async function recordSubscriptionTokenAlias(
     purchaseToken: args.purchaseToken,
     successorPurchaseToken: args.successorPurchaseToken,
     predecessorProductId: args.predecessorProductId,
+    analyticsReplacementAt: args.analyticsReplacementAt,
     createdAt: args.now,
     updatedAt: args.now,
   });
@@ -1349,7 +1620,10 @@ export async function rebindSubscriptionToUserHandler(
     (await isUserErasureRequested(ctx, project, sub.userId))
   )
     return null;
-  if (!(await bindAmazonPurchaseOwner(ctx, project, sub, args.userId, true)))
+  if (
+    (await bindAmazonPurchaseOwner(ctx, project, sub, args.userId, true)) !==
+    "linked"
+  )
     return null;
   if (sub.userId === args.userId) {
     return { subscriptionId: sub._id, notified: true };
@@ -1361,16 +1635,24 @@ export async function rebindSubscriptionToUserHandler(
   // the purchase moved: without these it keeps the wrong user entitled and
   // never entitles the real one. Decide before writing, so the caller is never
   // told a rebind succeeded when the notification half of it could not.
+  // The old owner loses what it was told, which a silent verify may have
+  // already changed; the new owner gains what the row grants now.
   const entitled = isActive({ ...sub, userId: args.userId }, now);
-  const sourceEvent = entitled
-    ? await retainedSourceEventFor(ctx, args.projectId, sub)
-    : null;
+  const revokeFromPrevious =
+    previousUserId !== undefined && reportedEntitlement(sub) === true;
+  const sourceEvent =
+    entitled || revokeFromPrevious
+      ? await retainedSourceEventFor(ctx, args.projectId, sub)
+      : null;
   await ctx.db.patch(sub._id, {
     userId: args.userId,
     accountErased: undefined,
+    resyncReportedActive: undefined,
     updatedAt: now,
   });
-  if (!entitled) return { subscriptionId: sub._id, notified: true };
+  if (!entitled && !revokeFromPrevious) {
+    return { subscriptionId: sub._id, notified: true };
+  }
   if (!sourceEvent) {
     // Every retained trace of the originating notification is gone, so no
     // event can be attributed. The binding moved; the operator must reconcile
@@ -1392,10 +1674,10 @@ export async function rebindSubscriptionToUserHandler(
       : {}),
   };
   for (const [userId, active, previouslyActive] of [
-    ...(previousUserId
+    ...(revokeFromPrevious && previousUserId
       ? ([[previousUserId, false, true]] as const)
       : ([] as const)),
-    [args.userId, true, false] as const,
+    ...(entitled ? ([[args.userId, true, false]] as const) : ([] as const)),
   ]) {
     await emitCommerceEvent(ctx, {
       projectId: args.projectId,
@@ -1414,11 +1696,32 @@ export async function bindSubscriptionToUserHandler(
   ctx: MutationCtx,
   args: BindSubscriptionToUserArgs,
 ): Promise<Id<"subscriptions"> | null> {
+  return (
+    (await bindSubscriptionToUserOutcome(ctx, args)).subscriptionId ?? null
+  );
+}
+
+/** Why a bind did or did not link; see bindReasonValidator. */
+export type BindOutcome = {
+  reason: Infer<typeof bindReasonValidator>;
+  subscriptionId?: Id<"subscriptions">;
+  // The purchase the bind resolved to, for the issue log.
+  store?: Doc<"purchases">["store"];
+  productId?: string;
+  remoteId?: string;
+  limitReached?: boolean;
+};
+
+export async function bindSubscriptionToUserOutcome(
+  ctx: MutationCtx,
+  args: BindSubscriptionToUserArgs,
+): Promise<BindOutcome> {
   if (!isValidSubscriptionUserId(args.userId)) {
     throw new ConvexError("userId must be nonblank and at most 256 characters");
   }
   const project = await assertProjectWritable(ctx, args.projectId);
-  if (await isUserErasureRequested(ctx, project, args.userId)) return null;
+  if (await isUserErasureRequested(ctx, project, args.userId))
+    return { reason: "not_bindable" };
   const supersedingResolution = await findSupersedingSubscription(
     ctx,
     args.projectId,
@@ -1427,20 +1730,36 @@ export async function bindSubscriptionToUserHandler(
   const sub = supersedingResolution.aliased
     ? supersedingResolution.subscription
     : await findSubscriptionByToken(ctx, args.projectId, args.purchaseToken);
-  if (!sub) return null;
+  if (!sub) return { reason: "not_found" };
+  const target: Pick<BindOutcome, "store" | "productId" | "remoteId"> = {
+    store: storeOf(sub),
+    productId: sub.productId,
+    remoteId: subscriptionPurchaseRemoteId(sub),
+  };
   if (sub.userId && sub.userId !== args.userId) {
-    // Reported the same as an unknown token. A distinct error would tell any
-    // holder of the app-embedded publishable key whether a token exists and
-    // whether someone owns it. The operator still sees the collision.
+    // Publishable callers get the same answer as for an unknown token: a
+    // distinct one would tell any holder of the app-embedded key whether a
+    // token exists and whether someone owns it.
     console.warn(
       "[subscriptions/bind] rejected a bind for an already-bound subscription",
       { projectId: args.projectId, subscriptionId: sub._id },
     );
-    return null;
+    return { reason: "bound_to_other_user", ...target };
   }
-  if (!(await bindAmazonPurchaseOwner(ctx, project, sub, args.userId)))
-    return null;
-  if (sub.userId === args.userId) return sub._id;
+  const amazonOwner = await bindAmazonPurchaseOwner(
+    ctx,
+    project,
+    sub,
+    args.userId,
+  );
+  if (amazonOwner !== "linked")
+    return {
+      reason: "not_bindable",
+      ...(amazonOwner === "limit" ? { limitReached: true } : {}),
+      ...target,
+    };
+  if (sub.userId === args.userId)
+    return { reason: "already_bound", subscriptionId: sub._id, ...target };
   const now = Date.now();
   // Erasure only unlinked the previous owner; this is a new association, and
   // the pending-erasure gate above still refuses a user who is being erased.
@@ -1509,7 +1828,7 @@ export async function bindSubscriptionToUserHandler(
       });
     }
   }
-  return sub._id;
+  return { reason: "bound", subscriptionId: sub._id, ...target };
 }
 
 export async function drainSubscriptionUserErasurePage(
@@ -1531,7 +1850,7 @@ export async function drainSubscriptionUserErasurePage(
 
   const now = Date.now();
   await ctx.db.patch(jobId, { status: "running", updatedAt: now });
-  const [subscriptions, commerceEvents, purchases] = await Promise.all([
+  const [subscriptions, commerceEvents, purchases, issues] = await Promise.all([
     ctx.db
       .query("subscriptions")
       .withIndex("by_project_and_user", (q) =>
@@ -1550,12 +1869,19 @@ export async function drainSubscriptionUserErasurePage(
         q.eq("projectId", job.projectId).eq("appUserId", job.userId),
       )
       .take(USER_ERASURE_BATCH_SIZE),
+    ctx.db
+      .query("purchaseIssues")
+      .withIndex("by_project_and_appUserId_and_lastSeenAt", (q) =>
+        q.eq("projectId", job.projectId).eq("appUserId", job.userId),
+      )
+      .take(USER_ERASURE_BATCH_SIZE),
   ]);
 
   for (const subscription of subscriptions) {
     await ctx.db.patch(subscription._id, {
       userId: undefined,
       accountErased: true,
+      resyncReportedActive: undefined,
     });
   }
   for (const purchase of purchases) {
@@ -1563,6 +1889,9 @@ export async function drainSubscriptionUserErasurePage(
       appUserId: undefined,
       accountErased: true,
     });
+  }
+  for (const issue of issues) {
+    await ctx.db.patch(issue._id, { appUserId: undefined });
   }
   let commerceEventsErasedThisPage = 0;
   let waitingForClaimedDelivery = false;
@@ -1591,6 +1920,7 @@ export async function drainSubscriptionUserErasurePage(
     !waitingForClaimedDelivery &&
     subscriptions.length < USER_ERASURE_BATCH_SIZE &&
     purchases.length < USER_ERASURE_BATCH_SIZE &&
+    issues.length < USER_ERASURE_BATCH_SIZE &&
     commerceEvents.length < USER_ERASURE_BATCH_SIZE;
 
   if (done) {

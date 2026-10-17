@@ -10,7 +10,7 @@ import { verifyHorizonReceipt } from "./horizon";
 import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import { ConvexError, v } from "convex/values";
+import { v } from "convex/values";
 import {
   assertEntitlementRecheckAdmission,
   getProjectByApiKey,
@@ -22,9 +22,17 @@ export const readBoundPurchaseEntitlements = action({
   handler: async (ctx, args): Promise<{ productIds: string[] }> => {
     const project = await getProjectByApiKey(ctx, args.apiKey, "admin");
     const queryArgs = { projectId: project._id, userId: args.userId };
-    const purchases = await ctx.runQuery(
-      internal.purchases.internal.boundPurchasesForUser,
-      queryArgs,
+    // Amazon and Horizon rows only: Apple and Google one-time links are for
+    // attribution, and IAPKit cannot recheck them.
+    const purchases = (
+      await ctx.runQuery(
+        internal.purchases.internal.boundPurchasesForUser,
+        queryArgs,
+      )
+    ).flatMap(({ _id, requestData: evidence }) =>
+      evidence.store === "amazon" || evidence.store === "horizon"
+        ? [{ _id, evidence }]
+        : [],
     );
     // One store call per bound purchase, paid up front from the recheck bucket.
     if (purchases.length > 0)
@@ -39,8 +47,7 @@ export const readBoundPurchaseEntitlements = action({
     // forbids. Re-enabling the store is the way back: this throw happens before
     // anything can mark those rows invalid, so nothing else releases them.
     const rechecked = new Set<Id<"purchases">>();
-    for (const purchase of purchases) {
-      const evidence = purchase.requestData;
+    for (const { _id, evidence } of purchases) {
       if (evidence.store === "amazon") {
         await verifyAmazon(
           ctx,
@@ -52,21 +59,14 @@ export const readBoundPurchaseEntitlements = action({
           },
           { recheck: true },
         );
-      } else if (evidence.store === "horizon") {
+      } else {
         await verifyHorizonReceipt(
           ctx,
           { apiKey: args.apiKey, userId: evidence.userId, sku: evidence.sku },
           { recheck: true },
         );
-      } else {
-        // Bind admits amazon and horizon only, so this is stored state the read
-        // cannot classify. Fail-close forbids answering from the rest.
-        throw new ConvexError({
-          code: "INTERNAL_ERROR",
-          message: "Unsupported bound purchase",
-        });
       }
-      rechecked.add(purchase._id);
+      rechecked.add(_id);
     }
     // Re-read ownership after the network calls so erasure cannot return stale
     // access, then keep only rows this pass actually reconfirmed. A purchase

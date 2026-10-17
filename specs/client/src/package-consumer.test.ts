@@ -51,9 +51,11 @@ describe("published package", () => {
     expect(packedFiles).toContain("dist/generated/types.d.ts");
     expect(packedFiles).toContain("dist/kit-api.js");
     expect(packedFiles).toContain("dist/kit-api.d.ts");
+    expect(packedFiles).toContain("dist/purchase-flow.js");
+    expect(packedFiles).toContain("dist/purchase-flow.d.ts");
   });
 
-  test("loads both runtime exports in standard Node", () => {
+  test("loads every runtime export in standard Node", () => {
     const output = execFileSync(
       "node",
       [
@@ -62,24 +64,28 @@ describe("published package", () => {
         [
           'import { ErrorCode } from "@hyodotdev/openiap-client-protocol";',
           'import { kitApi } from "@hyodotdev/openiap-client-protocol/kit-api";',
-          "console.log(ErrorCode.Unknown, typeof kitApi);",
+          'import { createPurchaseFlow } from "@hyodotdev/openiap-client-protocol/purchase-flow";',
+          "console.log(ErrorCode.Unknown, typeof kitApi, typeof createPurchaseFlow);",
         ].join(" "),
       ],
       { cwd: consumerRoot, encoding: "utf8" },
     );
 
-    expect(output.trim()).toBe("unknown function");
+    expect(output.trim()).toBe("unknown function function");
   });
 
-  test("resolves both public subpaths in standard TypeScript", () => {
+  test("resolves every public subpath in standard TypeScript", () => {
     writeFileSync(
       join(consumerRoot, "consumer.ts"),
       [
         'import { ErrorCode } from "@hyodotdev/openiap-client-protocol";',
         'import { kitApi } from "@hyodotdev/openiap-client-protocol/kit-api";',
+        'import type { PurchaseConfirmation } from "@hyodotdev/openiap-client-protocol/purchase-flow";',
         "const code: ErrorCode = ErrorCode.Unknown;",
+        'const confirmation: PurchaseConfirmation = { status: "linked" };',
         "void code;",
         "void kitApi;",
+        "void confirmation;",
       ].join("\n"),
     );
 

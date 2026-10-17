@@ -12,17 +12,19 @@ vi.mock("../projects/helpers", () => ({
 }));
 
 import {
-  assertProductClientPayloadVersion,
-  MAX_PRODUCT_CLIENT_PAYLOAD_BYTES,
   nextStateForKitProductUpsert,
   removeProduct as registeredRemoveProduct,
   upsertProduct as registeredUpsertProduct,
   removeProductClientPayload as registeredRemoveProductClientPayload,
-  removeProductClientPayloadWithApiKey as registeredRemoveProductClientPayloadWithApiKey,
   upsertProductClientPayload as registeredUpsertProductClientPayload,
+  removeProductClientPayloadWithApiKey as registeredRemoveProductClientPayloadWithApiKey,
   upsertProductClientPayloadWithApiKey as registeredUpsertProductClientPayloadWithApiKey,
-  validateProductClientPayloadBody,
 } from "./mutation";
+import {
+  assertProductClientPayloadVersion,
+  MAX_PRODUCT_CLIENT_PAYLOAD_BYTES,
+  validateProductClientPayloadBody,
+} from "./clientPayloads";
 import { testableFunction } from "../test.setup";
 
 const removeProduct = testableFunction(registeredRemoveProduct);
@@ -33,11 +35,11 @@ const removeProductClientPayload = testableFunction(
 const removeProductClientPayloadWithApiKey = testableFunction(
   registeredRemoveProductClientPayloadWithApiKey,
 );
-const upsertProductClientPayload = testableFunction(
-  registeredUpsertProductClientPayload,
-);
 const upsertProductClientPayloadWithApiKey = testableFunction(
   registeredUpsertProductClientPayloadWithApiKey,
+);
+const upsertProductClientPayload = testableFunction(
+  registeredUpsertProductClientPayload,
 );
 
 type Row = Record<string, unknown> & { _id: string };
@@ -47,6 +49,11 @@ class QueryBuilder {
 
   eq(field: string, value: unknown) {
     this.predicates.push((row) => row[field] === value);
+    return this;
+  }
+
+  lte(field: string, value: number) {
+    this.predicates.push((row) => Number(row[field]) <= value);
     return this;
   }
 }
@@ -64,6 +71,10 @@ class TestQuery {
   async unique() {
     if (this.rows.length > 1) throw new Error("Expected unique row");
     return this.rows[0] ?? null;
+  }
+
+  async take(limit: number) {
+    return this.rows.slice(0, limit);
   }
 }
 
@@ -135,10 +146,12 @@ function makeCtx(db = new TestDb()) {
   return { db };
 }
 
+const ADMIN_KEY = "openiap-kit_sk_admin";
+
 async function runUpsert(
   ctx: ReturnType<typeof makeCtx>,
   overrides: Partial<{
-    projectId: Id<"projects">;
+    apiKey: string;
     platform: "IOS" | "Android";
     productId: string;
     format: "toml" | "json" | "text";
@@ -146,8 +159,8 @@ async function runUpsert(
     expectedVersion: number;
   }> = {},
 ) {
-  return await upsertProductClientPayload._handler(ctx, {
-    projectId: PROJECT_ID,
+  return await upsertProductClientPayloadWithApiKey._handler(ctx, {
+    apiKey: ADMIN_KEY,
     platform: "IOS",
     productId: "premium.monthly",
     format: "json",
@@ -254,19 +267,45 @@ describe("product client payload mutations", () => {
     projectMocks.byProjectId.mockImplementation(
       async (_ctx: unknown, projectId: string) =>
         projectId === PROJECT_ID
-          ? { project: { _id: PROJECT_ID }, role: "member", userId: "user_a" }
+          ? { project: { _id: PROJECT_ID }, role: "admin", userId: "user_a" }
           : null,
     );
-    projectMocks.byApiKey.mockResolvedValue({
-      project: { _id: PROJECT_ID },
-    });
+    projectMocks.byApiKey.mockImplementation(
+      async (_ctx: unknown, apiKey: string) =>
+        apiKey === ADMIN_KEY ? { project: { _id: PROJECT_ID } } : null,
+    );
   });
 
-  it("requires authenticated project access and an exact existing product", async () => {
+  it("still publishes from a dashboard bundle open across the deploy", async () => {
+    const ctx = makeCtx();
+    ctx.db.seed("products", {
+      _id: "product_ios",
+      projectId: PROJECT_ID,
+      platform: "IOS",
+      productId: "premium.monthly",
+    });
+    const publish = (expectedVersion: number) =>
+      upsertProductClientPayload._handler(ctx, {
+        projectId: PROJECT_ID,
+        platform: "IOS",
+        productId: "premium.monthly",
+        format: "json",
+        body: '{"tier":"premium"}',
+        expectedVersion,
+      });
+
+    await expect(publish(0)).resolves.toMatchObject({ version: 1 });
+    await expect(publish(0)).rejects.toSatisfy(
+      (error: unknown) =>
+        convexErrorData(error).code === "CLIENT_PAYLOAD_VERSION_CONFLICT",
+    );
+  });
+
+  it("requires project access and an exact existing product", async () => {
     const ctx = makeCtx();
 
     await expect(
-      runUpsert(ctx, { projectId: "projects_other" as Id<"projects"> }),
+      runUpsert(ctx, { apiKey: "openiap-kit_sk_other" }),
     ).rejects.toSatisfy(
       (error: unknown) =>
         convexErrorData(error).code === "PROJECT_ACCESS_DENIED",
@@ -298,29 +337,25 @@ describe("product client payload mutations", () => {
 
     await expect(
       upsertProductClientPayloadWithApiKey._handler(ctx, {
-        apiKey: "openiap-kit_sk_admin",
+        apiKey: ADMIN_KEY,
         platform: "IOS",
         productId: "premium.monthly",
         format: "toml",
         body: 'rule = "premium"',
       }),
     ).resolves.toMatchObject({ created: true, version: 1 });
-    expect(projectMocks.byApiKey).toHaveBeenCalledWith(
-      ctx,
-      "openiap-kit_sk_admin",
-      "admin",
-    );
+    expect(projectMocks.byApiKey).toHaveBeenCalledWith(ctx, ADMIN_KEY, "admin");
 
     await expect(
       removeProductClientPayloadWithApiKey._handler(ctx, {
-        apiKey: "openiap-kit_sk_admin",
+        apiKey: ADMIN_KEY,
         platform: "IOS",
         productId: "premium.monthly",
       }),
     ).resolves.toEqual({ ok: true });
     expect(projectMocks.byApiKey).toHaveBeenLastCalledWith(
       ctx,
-      "openiap-kit_sk_admin",
+      ADMIN_KEY,
       "admin",
     );
   });
@@ -573,7 +608,7 @@ describe("product client payload mutations", () => {
 
     await expect(
       removeProduct._handler(ctx, {
-        apiKey: "key",
+        apiKey: ADMIN_KEY,
         platform: "IOS",
         productId: "premium.monthly",
       }),

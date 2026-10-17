@@ -33,6 +33,20 @@ interface ReleaseChange extends ReleaseMetadata {
   description: React.ReactNode;
 }
 
+const PURCHASE_FLOW_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '1.1.0',
+    tag: 'openiap-client-protocol-1.1.0',
+  },
+  {
+    name: 'react-native-iap',
+    version: '17.1.0',
+    tag: 'react-native-iap-17.1.0',
+  },
+  { name: 'expo-iap', version: '6.1.0', tag: 'expo-iap-6.1.0' },
+];
+
 const APP_OWNERSHIP_RECOVERY_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: '@hyodotdev/openiap-client-protocol',
@@ -592,6 +606,155 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'backend-purchase-flow-2026-10-15',
+      date: new Date('2026-10-15'),
+      element: (
+        <div key="backend-purchase-flow-2026-10-15" style={noteCardStyle}>
+          {PURCHASE_FLOW_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="backend-purchase-flow-2026-10-15" level="h4">
+            October 15, 2026 - Backend-confirmed purchase flow
+          </AnchorLink>
+          <p>
+            A new purchase flow for App Store and Google Play purchases finishes
+            a transaction only after your backend grants access or rejects it
+            for good, resumes unfinished purchases at launch, and never moves a
+            purchase to another account.
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Protocols and native packages
+          </h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            <li>
+              <strong>Client Protocol 1.1.0</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Leaves multi-product Google Play carts and bulk quantities
+                  unfinished because the reference backend confirms one product
+                  and one unit.
+                </li>
+                <li>
+                  Adds the <code>/purchase-flow</code> export:{' '}
+                  <code>createPurchaseFlow</code>,{' '}
+                  <code>describePurchaseFlowStatus</code>,{' '}
+                  <code>toPurchaseConfirmationRequest</code> and the{' '}
+                  <code>PurchaseConfirmation</code> types for backend-confirmed
+                  purchases.
+                </li>
+                <li>
+                  Payment pending, delayed verification, another account&apos;s
+                  purchase and delayed access are separate states, and none of
+                  them asks the user to buy again.
+                </li>
+                <li>
+                  A purchase already granted to another account is finished
+                  without granting access to the signed-in account.
+                </li>
+                <li>
+                  A backend call that runs past <code>confirmTimeoutMs</code>{' '}
+                  (30 seconds by default) ends as failed, and iOS recovery falls
+                  back to <code>getAvailablePurchases</code> when{' '}
+                  <code>getPendingTransactionsIOS</code> fails.
+                </li>
+                <li>
+                  Client payload reads return the cached copy with{' '}
+                  <code>stale: true</code> on a network error, 429, 5xx or a
+                  response that isn&apos;t a payload.
+                </li>
+                <li>
+                  <code>localizedClientPayload</code> picks a locale or returns{' '}
+                  <code>null</code> so the app keeps its built-in text.
+                </li>
+              </ul>
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            <li>
+              <strong>react-native-iap 17.1.0</strong> exports{' '}
+              <code>createPurchaseFlow</code> and the client payload helpers;
+              its Vega entry point leaves the flow out because Vega purchases go
+              through Amazon.
+            </li>
+            <li>
+              <strong>expo-iap 6.1.0</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Exports the same purchase-flow and client payload helpers
+                  outside Vega.
+                </li>
+                <li>
+                  Adds backend confirmation for one-time products and
+                  subscriptions, keeping each account's pending results
+                  separate. Play subscription prices, billing periods, and
+                  renewal terms match the selected offer.
+                </li>
+                <li>
+                  Improves the example app UX with matching receipt-check and
+                  app-backend choices on Purchase and Subscription screens.
+                  Expandable purchase steps visualize live store, confirmation
+                  and transaction-finishing callbacks. With the panel open, a
+                  purchase brings progress into view and returns to the product
+                  after finishing; a closed panel leaves scrolling alone.
+                  Product cards separate prices from purchase and details
+                  buttons, and zero-valued offer fields render as text without
+                  native view warnings.
+                </li>
+              </ul>
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <p>
+            Your backend verifies with its secret key and{' '}
+            <code>includeTransactionDetails</code>, links the purchase with
+            bind-user, grants a one-time purchase once, and reads subscription
+            access from IAPKit, which follows renewals through store
+            notifications; the{' '}
+            <a href="https://kit.openiap.dev/docs/purchase-flow">
+              Purchase flow guide
+            </a>{' '}
+            includes a tested reference handler. Allow Sandbox for authenticated
+            App Review and approved test accounts on your production backend.
+            The same policy filters later access refresh. Mobile account helpers
+            now return 410; migrate them to authenticated backend v2 reads.
+            Never put a secret key in the app. Self-hosted IAPKit also requires
+            a shared private verification source credential and coordinated
+            server rollout. Subscription metrics include freshness and
+            scan-limit flags, exposed by the JavaScript Kit API types. Live
+            dashboard updates keep a stable query range as those metrics
+            refresh. The IAPKit changes this flow relies on are in the{' '}
+            <a href="https://kit.openiap.dev/docs/release-notes#week-2026-10-12">
+              hosted history
+            </a>
+            .
+          </p>
+          <div
+            style={{
+              borderTop: '1px solid var(--border-color)',
+              paddingTop: '1rem',
+              marginTop: '1rem',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+              {PURCHASE_FLOW_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <strong>{getReleaseLabel(release)}</strong>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
     {
       id: 'app-ownership-recovery-2026-10-15',
       date: new Date('2026-10-15'),

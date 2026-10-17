@@ -146,6 +146,8 @@ class MemDb {
     isValid?: boolean;
     statsCounted?: boolean;
     storeStatsCounted?: boolean;
+    appUserId?: string;
+    accountErased?: boolean;
   }): void {
     this.table("purchases").set(attrs.id, {
       _id: attrs.id,
@@ -158,6 +160,8 @@ class MemDb {
       state: "ENTITLED",
       statsCounted: attrs.statsCounted ?? true,
       storeStatsCounted: attrs.storeStatsCounted ?? true,
+      appUserId: attrs.appUserId,
+      accountErased: attrs.accountErased,
     });
   }
 
@@ -215,6 +219,68 @@ describe("collapseDuplicatePurchasesByOrderId — defensive store filter", () =>
     expect(result.rowsDeleted).toBe(1);
     expect(db.countPurchases()).toBe(1);
     expect(db.allPurchases()[0]?._id).toBe("p_google_new");
+  });
+
+  it("moves a deleted sibling's linked user onto the survivor", async () => {
+    db.seedPurchase({
+      id: "p_linked_old",
+      projectId: PROJECT,
+      store: "google",
+      applicationId: APP,
+      orderId: "GPA.order-L",
+      creationTime: 100,
+      appUserId: "user-1",
+    });
+    db.seedPurchase({
+      id: "p_erased_mid",
+      projectId: PROJECT,
+      store: "google",
+      applicationId: APP,
+      orderId: "GPA.order-L",
+      creationTime: 150,
+      accountErased: true,
+    });
+    db.seedPurchase({
+      id: "p_unlinked_new",
+      projectId: PROJECT,
+      store: "google",
+      applicationId: APP,
+      orderId: "GPA.order-L",
+      creationTime: 200,
+    });
+
+    const result = await handler(makeCtx(db), {});
+
+    expect(result.rowsDeleted).toBe(2);
+    expect(db.allPurchases()).toEqual([
+      expect.objectContaining({
+        _id: "p_unlinked_new",
+        appUserId: "user-1",
+        accountErased: undefined,
+      }),
+    ]);
+  });
+
+  it("keeps a group whose rows are linked to different users", async () => {
+    for (const [id, user, time] of [
+      ["p_user_a", "user-a", 100],
+      ["p_user_b", "user-b", 200],
+    ] as const) {
+      db.seedPurchase({
+        id,
+        projectId: PROJECT,
+        store: "google",
+        applicationId: APP,
+        orderId: "GPA.order-C",
+        creationTime: time,
+        appUserId: user,
+      });
+    }
+
+    const result = await handler(makeCtx(db), {});
+
+    expect(result.rowsDeleted).toBe(0);
+    expect(db.countPurchases()).toBe(2);
   });
 
   it("leaves non-Google siblings alone even when they share the group key", async () => {

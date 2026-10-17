@@ -1,4 +1,4 @@
-import mixpanel from "mixpanel-browser";
+import mixpanel from "mixpanel-browser/dist/mixpanel-core.cjs.js";
 import { MIXPANEL_TOKEN } from "../config/env";
 
 const MIXPANEL_API_HOST = "https://api-eu.mixpanel.com";
@@ -70,6 +70,34 @@ const isBrowser = typeof window !== "undefined";
 // in its own VITE_KIT_MIXPANEL_TOKEN AND extend this list.
 const ALLOWED_HOSTS = new Set(["kit.openiap.dev", "localhost", "127.0.0.1"]);
 
+// Dashboard URLs can carry app user IDs, IPs and cursors over them, so event
+// strings keep the route and the query parameter names only.
+export function redactUrls(text: string): string {
+  return text
+    .replace(/(\/purchases\/user\/)[^/?#\s"]+/gi, "$1:appUserId")
+    .replace(/([?&][^=&#\s"]+=)[^&#\s"]*/g, "$1");
+}
+
+function redactDeep(value: unknown): unknown {
+  if (typeof value === "string") return redactUrls(value);
+  if (Array.isArray(value)) return value.map(redactDeep);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, redactDeep(item)]),
+    );
+  }
+  return value;
+}
+
+export function redactEventUrls<
+  T extends { properties: Record<string, unknown> },
+>(event: T): T {
+  for (const [key, value] of Object.entries(event.properties)) {
+    event.properties[key] = redactDeep(value);
+  }
+  return event;
+}
+
 function initMixpanel() {
   if (!isBrowser) {
     return false;
@@ -100,13 +128,12 @@ function initMixpanel() {
     // read from these implicit events, so turning this off would
     // empty every chart on the board.
     autocapture: true,
-    // Session replay — we're on a paid plan that exposes it; capture
-    // 100% while the product is small so we can watch real flows and
-    // diagnose churn signals.
-    record_sessions_percent: 100,
+    // The core-only SDK cannot record or resume sessions with private URLs.
+    record_sessions_percent: 0,
     // Surface auto-pageviews (no-op with autocapture already on, but
     // keeps the intent explicit if someone tunes autocapture later).
     track_pageview: "url-with-path",
+    hooks: { before_send_events: redactEventUrls },
   });
   initialized = true;
 

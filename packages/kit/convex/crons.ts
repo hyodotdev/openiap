@@ -2,6 +2,7 @@ import { cronJobs } from "convex/server";
 import { internal } from "./_generated/api";
 import { WEBHOOK_RETENTION_MS } from "./webhooks/internal";
 import { COMMERCE_EVENT_RETENTION_MS } from "./commerce/signing";
+import { PURCHASE_ISSUE_RETENTION_MS } from "./purchaseIssues/internal";
 
 const crons = cronJobs();
 
@@ -67,6 +68,14 @@ crons.interval(
   { hours: 1 },
   internal.webhooks.internal.pruneWebhookEvents,
   { olderThanMs: WEBHOOK_RETENTION_MS },
+);
+
+// 30-day retention; the per-project cap bounds the table between runs.
+crons.interval(
+  "prune purchase issues past retention",
+  { hours: 1 },
+  internal.purchaseIssues.internal.prunePurchaseIssues,
+  { olderThanMs: PURCHASE_ISSUE_RETENTION_MS },
 );
 
 // Outbound delivery of normalized commerce events to developer-registered
@@ -143,14 +152,15 @@ crons.interval(
 
 // Rebuilds the `revenueMetricsDaily` rows behind the Analytics dashboard
 // from the last 3 days of `webhookEvents`. The window covers Apple ASN v2
-// and Google RTDN late retries (real-world p99 < 48h), so a webhook up to 3
-// days late still lands in its day's bucket.
+// and Google RTDN late retries (real-world p99 < 48h); later arrivals get a
+// rate-limited catch-up, and each run requests the daily cohort job.
 //
 // Every 10 minutes, not daily: daily at batchSize 50 took 10 days to cycle
-// 500 projects. The picker rotates through `revenueMetricsRunStatus.by_run`
-// at any cadence, and each project recomputes in its own scheduled mutation
-// (own 40k-read budget). 100 × 6/hour × 24h = 14,400 project-runs a day,
-// keeping a typical deployment current within minutes.
+// 500 projects. The picker rotates through
+// `revenueMetricsRunStatus.by_run_started` at any cadence, and each project
+// recomputes in its own scheduled mutation (own 40k-read budget). 100 ×
+// 6/hour × 24h = 14,400 project-runs a day, keeping a typical deployment
+// current within minutes.
 crons.interval(
   "recompute revenue metrics",
   { minutes: 10 },

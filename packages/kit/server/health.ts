@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import { verificationSourceConfigured } from "../convex/purchases/verificationSource";
 
 const DEPLOYMENT_ENVIRONMENTS = new Set([
   "development",
@@ -16,6 +17,8 @@ export interface HealthPayload {
   service: "iapkit";
   apiVersion: "v1";
   revision: string | null;
+  instanceId: string | null;
+  verificationSourceReady: boolean;
   environment: string;
   timestamp: string;
 }
@@ -36,12 +39,18 @@ export function createHealthPayload(
   environment: HealthEnvironment = process.env,
   now = new Date(),
 ): HealthPayload {
+  const instanceId = environment.FLY_MACHINE_ID;
   return {
     ok: true,
     status: "healthy",
     service: "iapkit",
     apiVersion: "v1",
     revision: deploymentRevision(environment),
+    instanceId:
+      instanceId && /^[a-f0-9]{8,32}$/.test(instanceId) ? instanceId : null,
+    verificationSourceReady: verificationSourceConfigured(
+      environment.IAPKIT_VERIFICATION_SOURCE_SECRET,
+    ),
     environment: deploymentEnvironment(environment),
     timestamp: now.toISOString(),
   };

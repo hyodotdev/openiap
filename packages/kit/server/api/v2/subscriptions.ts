@@ -6,6 +6,8 @@ import { client, handleConvexError } from "../../convex";
 import {
   isValidSubscriptionUserId,
   MAX_SUBSCRIPTION_USER_ID_LENGTH,
+  SUBSCRIPTION_ENVIRONMENT_SCOPES,
+  type SubscriptionEnvironmentScope,
 } from "../../../convex/subscriptions/limits";
 import {
   apiKeyMiddleware,
@@ -47,6 +49,39 @@ const userIdParameter = {
     maxLength: MAX_SUBSCRIPTION_USER_ID_LENGTH,
   },
 };
+const environmentParameter = {
+  in: "query" as const,
+  name: "environment",
+  required: false,
+  description:
+    "Server-selected scope. Production excludes verified test purchases; sandbox selects test purchases; all includes known environments. Explicit scopes exclude unknown legacy rows. Omission preserves legacy mixed reads.",
+  schema: {
+    type: "string" as const,
+    enum: [...SUBSCRIPTION_ENVIRONMENT_SCOPES],
+  },
+};
+
+function environmentScope(
+  c: Context,
+): SubscriptionEnvironmentScope | undefined | Response {
+  const scope = c.req.query("environment");
+  if (
+    scope === undefined ||
+    SUBSCRIPTION_ENVIRONMENT_SCOPES.some((value) => value === scope)
+  )
+    return scope as SubscriptionEnvironmentScope | undefined;
+  return c.json(
+    {
+      errors: [
+        {
+          code: "INVALID_INPUT",
+          message: "environment must be production, sandbox or all",
+        },
+      ],
+    },
+    400,
+  );
+}
 const rateLimitResponseHeaders = {
   "Retry-After": {
     description: "Seconds to wait before retrying.",
@@ -114,7 +149,7 @@ subscriptions.get(
     description:
       "Read one user's tokenless subscription status. This server-to-server endpoint requires a secret admin key.",
     security: secretAdminSecurity,
-    parameters: [userIdParameter],
+    parameters: [userIdParameter, environmentParameter],
     responses: {
       200: {
         description: "Tokenless subscription status",
@@ -130,11 +165,18 @@ subscriptions.get(
   async (c) => {
     const userId = validateUserId(c);
     if (typeof userId !== "string") return userId;
+    const environment = environmentScope(c);
+    if (environment instanceof Response) return environment;
 
     try {
       const result = await client.query(
         api.subscriptions.query.subscriptionStatusV2,
-        { apiKey: c.var.apiKey, userId, now: Date.now() },
+        {
+          apiKey: c.var.apiKey,
+          userId,
+          now: Date.now(),
+          ...(environment === undefined ? {} : { environment }),
+        },
       );
       c.header("Vary", "Authorization");
       return c.json(result);
@@ -156,7 +198,7 @@ subscriptions.get(
     description:
       "Read one user's active tokenless entitlements. This server-to-server endpoint requires a secret admin key.",
     security: secretAdminSecurity,
-    parameters: [userIdParameter],
+    parameters: [userIdParameter, environmentParameter],
     responses: {
       200: {
         description: "Tokenless active entitlements",
@@ -172,11 +214,18 @@ subscriptions.get(
   async (c) => {
     const userId = validateUserId(c);
     if (typeof userId !== "string") return userId;
+    const environment = environmentScope(c);
+    if (environment instanceof Response) return environment;
 
     try {
       const result = await client.query(
         api.subscriptions.query.entitlementsV2,
-        { apiKey: c.var.apiKey, userId, now: Date.now() },
+        {
+          apiKey: c.var.apiKey,
+          userId,
+          now: Date.now(),
+          ...(environment === undefined ? {} : { environment }),
+        },
       );
       c.header("Vary", "Authorization");
       return c.json(result);

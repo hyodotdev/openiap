@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-15T05:43:53.461Z
+> Last updated: 2026-10-16T02:10:48.247Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2371,9 +2371,11 @@ Follow the existing card pattern:
   `<div>`:
 
   ```tsx
-  {MY_RELEASES.map((release) => (
-    <span key={release.tag} id={release.tag} aria-hidden="true" />
-  ))}
+  <div>
+    {MY_RELEASES.map((release) => (
+      <span key={release.tag} id={release.tag} aria-hidden="true" />
+    ))}
+  </div>
   ```
 
   Release workflows link a version's own anchor
@@ -2439,7 +2441,7 @@ including RC metadata and release cards ahead of package publication.
 
 Do not use `openiap-versions.json` to derive React Native, Expo, Flutter,
 Godot, KMP, or MAUI versions; that manifest tracks only `clientProtocol`,
-`google`, and `apple`.
+`google`, `apple`, and `plugin`.
 
 
 ---
@@ -3071,6 +3073,8 @@ Version ownership is split:
 - Apple and Google release workflows update only their own native version.
 - Framework, Commerce Protocol, and CLI release workflows own their package
   version fields.
+- The plugin release workflow raises `plugin` in `openiap-versions.json` and
+  both `plugins/openiap` manifests.
 - The docs site has no version: it deploys whatever `main` holds.
 
 Record the intended next versions in the release card and select the matching
@@ -3079,7 +3083,7 @@ GitHub Actions release inputs. Release workflows refresh the lockfile and run
 `version=current` only to publish or retry a version already established by CI.
 Do not run a local bump as a substitute for a release dispatch.
 
-`openiap-versions.json` contains only `clientProtocol`, `google`, and `apple`.
+`openiap-versions.json` contains `clientProtocol`, `google`, `apple`, and `plugin`.
 The Client Protocol publishing manifest remains its version SSOT; the mirror
 must match it. Framework library versions stay in their own package metadata.
 Never add framework keys to the native/protocol mirror.
@@ -3626,9 +3630,11 @@ claude plugin install openiap@openiap
 
 `plugins/openiap` carries two manifests: `.codex-plugin/plugin.json` (MCP
 config in `.codex-plugin/mcp.json`) and `.claude-plugin/plugin.json` (inline
-MCP config). Both agents share `skills/`, so keep its wording agent-neutral and
-bump both manifests' `version` whenever it changes; installed plugins stay on
-their manifest version.
+MCP config). Both agents share `skills/`, so keep its wording agent-neutral.
+Installed plugins stay on their manifest version, and both manifests carry
+`openiap-versions.json`'s `plugin` version (`bun run audit:plugins`). Never bump
+them by hand: after a skills change lands, run the `P1. Release: OpenIAP plugin`
+workflow, which raises all three.
 
 ## Grok
 

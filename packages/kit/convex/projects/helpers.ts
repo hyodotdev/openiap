@@ -2,6 +2,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { ConvexError } from "convex/values";
 import {
   allowsLegacyProjectApiKeyFallback,
   assertApiKeyAccess,
@@ -11,6 +12,7 @@ import {
   type ApiKeyType,
 } from "../apiKeys/helpers";
 import { deleteFileAndStorageIfUnreferenced } from "../files/storage";
+import { deleteClientPayloadVersion } from "../products/clientPayloads";
 export {
   getWritableOrganization as getOrganizationById,
   getWritableProject as getProjectById,
@@ -84,6 +86,14 @@ export async function resolveProjectByApiKeyFromDb(
   };
 }
 
+// Signed JWS, purchase tokens, receipts and store responses can be replayed
+// against verify and bind, so only project admins and owners read them.
+export function canReadRawStoreEvidence(
+  role: "owner" | "admin" | "member",
+): boolean {
+  return role === "owner" || role === "admin";
+}
+
 export async function resolveProjectByIdForCurrentUserFromDb(
   ctx: QueryCtx | MutationCtx,
   projectId: Id<"projects">,
@@ -108,6 +118,71 @@ export async function resolveProjectByIdForCurrentUserFromDb(
     .first();
 
   return membership ? { project, userId, role: membership.role } : null;
+}
+
+export type OperatorProjectArgs = {
+  projectId?: Id<"projects">;
+  apiKey?: string;
+};
+
+/**
+ * Project for an operations read or write: a secret admin key, or a dashboard
+ * session where any member reads and only owners and admins write.
+ */
+export async function resolveOperatorProject(
+  ctx: QueryCtx | MutationCtx,
+  args: OperatorProjectArgs,
+  access: "read" | "write",
+): Promise<Doc<"projects">> {
+  return (await resolveOperatorAccess(ctx, args, access)).project;
+}
+
+/**
+ * `resolveOperatorProject`, plus `adminView`: a secret key, owner or admin,
+ * who may see raw store identifiers and receiver errors.
+ */
+export async function resolveOperatorAccess(
+  ctx: QueryCtx | MutationCtx,
+  args: OperatorProjectArgs,
+  access: "read" | "write",
+): Promise<{ project: Doc<"projects">; adminView: boolean }> {
+  if (args.apiKey !== undefined) {
+    const resolved = await resolveProjectByApiKeyFromDb(
+      ctx,
+      args.apiKey,
+      "admin",
+    );
+    if (!resolved) {
+      throw new ConvexError({
+        code: "INVALID_API_KEY",
+        message: "API key is invalid or inactive",
+      });
+    }
+    return { project: resolved.project, adminView: true };
+  }
+  if (!args.projectId) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "apiKey or projectId is required",
+    });
+  }
+  const resolved = await resolveProjectByIdForCurrentUserFromDb(
+    ctx,
+    args.projectId,
+  );
+  if (!resolved) {
+    throw new ConvexError({ code: "NOT_FOUND", message: "Project not found" });
+  }
+  if (access === "write" && resolved.role === "member") {
+    throw new ConvexError({
+      code: "INSUFFICIENT_PERMISSIONS",
+      message: "Only organization owners and admins can do this",
+    });
+  }
+  return {
+    project: resolved.project,
+    adminView: canReadRawStoreEvidence(resolved.role),
+  };
 }
 
 /**
@@ -149,6 +224,30 @@ export async function deleteProjectWithData(
     return false;
   }
 
+  const productClientPayloadDrafts = await ctx.db
+    .query("productClientPayloadDrafts")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const draft of productClientPayloadDrafts) {
+    await ctx.db.delete(draft._id);
+  }
+  if (productClientPayloadDrafts.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
+  const productClientPayloadVersions = await ctx.db
+    .query("productClientPayloadVersions")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const version of productClientPayloadVersions) {
+    await deleteClientPayloadVersion(ctx, version);
+  }
+  if (productClientPayloadVersions.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
   const apiKeys = await ctx.db
     .query("apiKeys")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))
@@ -169,6 +268,18 @@ export async function deleteProjectWithData(
     await ctx.db.delete(purchase._id);
   }
   if (purchases.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
+  const purchaseIssues = await ctx.db
+    .query("purchaseIssues")
+    .withIndex("by_project_and_lastSeenAt", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const issue of purchaseIssues) {
+    await ctx.db.delete(issue._id);
+  }
+  if (purchaseIssues.length > 0) {
     await scheduleProjectDeletionContinuation(ctx, projectId);
     return false;
   }
@@ -293,6 +404,18 @@ export async function deleteProjectWithData(
     return false;
   }
 
+  const subscriptionStatsRebuilds = await ctx.db
+    .query("subscriptionStatsRebuilds")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const rebuild of subscriptionStatsRebuilds) {
+    await ctx.db.delete(rebuild._id);
+  }
+  if (subscriptionStatsRebuilds.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
   const revenueMetricsDaily = await ctx.db
     .query("revenueMetricsDaily")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))
@@ -313,6 +436,18 @@ export async function deleteProjectWithData(
     await ctx.db.delete(status._id);
   }
   if (revenueMetricsRunStatus.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
+  const revenueCohorts = await ctx.db
+    .query("revenueCohortsMonthly")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const cohort of revenueCohorts) {
+    await ctx.db.delete(cohort._id);
+  }
+  if (revenueCohorts.length > 0) {
     await scheduleProjectDeletionContinuation(ctx, projectId);
     return false;
   }

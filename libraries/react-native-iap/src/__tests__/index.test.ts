@@ -135,6 +135,14 @@ describe('Public API (src/index.ts)', () => {
     IAP = require('../index');
   });
 
+  it('exports the backend purchase flow', () => {
+    expect(
+      IAP.describePurchaseFlowStatus({status: 'entitled', alreadyGranted: false}),
+    ).toEqual({key: 'access_granted', offerPurchase: false});
+    expect(typeof IAP.createPurchaseFlow).toBe('function');
+    expect(typeof IAP.toPurchaseConfirmationRequest).toBe('function');
+  });
+
   describe('platform detection helpers', () => {
     // platform-detection.test.ts covers the rest; it resets modules per case.
     it('isNitroReady returns true when Nitro is initialized', () => {

@@ -28,11 +28,7 @@ cp .env.example .env
 
 For hosted IAPKit, get an `openiap-kit_pk_` publishable key from the [IAPKit dashboard](https://kit.openiap.dev) and set it as `EXPO_PUBLIC_IAPKIT_API_KEY`. Expo embeds every `EXPO_PUBLIC_*` value in the app, so never use an `openiap-kit_sk_` secret admin key. For **Local (IAPKit)**, the publishable key and local server must target the same Convex deployment. Also set `EXPO_PUBLIC_IAPKIT_BASE_URL` to the device-reachable HTTP(S) origin only; do not append `/v1/purchase/verify`. Set `EXPO_PUBLIC_AMAZON_RVS_SANDBOX=true` only for Amazon App Tester receipts after enabling the matching sandbox option in the IAPKit project settings. A physical iPhone must use the Mac's LAN address. An Android device connected over USB can use `http://127.0.0.1:3100`: inspect `adb -s "$ANDROID_SERIAL" reverse --list`, reuse an exact `tcp:3100` mapping when present, or create it with `adb -s "$ANDROID_SERIAL" reverse --no-rebind tcp:3100 tcp:3100`. Record whether this run created the rule and remove only that rule during cleanup; if `--no-rebind` fails, use another port instead of overwriting an existing mapping.
 
-The Vega build scripts load the same Expo environment-file chain as the normal
-Expo CLI: Debug uses `.env.development.local`, `.env.local`,
-`.env.development`, then `.env`; Release uses the corresponding `production`
-files. Values already exported in the shell take precedence. Keep local keys in
-an ignored `.env.local` file and rebuild the VPK after changing them:
+The Vega build scripts load the same Expo environment-file chain as the normal Expo CLI: Debug uses `.env.development.local`, `.env.local`, `.env.development`, then `.env`; Release uses the corresponding `production` files. Values already exported in the shell take precedence. Keep local keys in an ignored `.env.local` file and rebuild the VPK after changing them:
 
 ```bash
 bun run build:vega:debug
@@ -41,12 +37,23 @@ VEGA_DEVICE_ID=<device-id> bun run run:vega:firetv
 
 The purchase and subscription screens list verification in this order:
 
-1. **Local (Device)** — direct Apple/Google verification on the device.
+1. **Local (Device)** — match an Apple purchase against StoreKit's verified pending transactions; unavailable for Google purchases.
 2. **Local (IAPKit)** — IAPKit provider routed to the configured local origin.
 3. **IAPKit** — hosted IAPKit; the local URL is deliberately omitted.
 4. **None (Skip)** — skip verification.
 
 With both values configured, the example defaults to **Local (IAPKit)**. With only the key, it defaults to hosted **IAPKit**; without a key, it defaults to **None (Skip)**.
+
+## Find the right example
+
+- **All Products** browses store metadata and offers without buying. Use **Open purchase screen** to continue.
+- **Purchase** shows one-time products; **Subscription Flow** shows subscriptions, offers and management. Both have the same **Purchase confirmation** setting. **Receipt checks** tests store verification and finishing. **Your app backend** also checks account ownership and decides app-account access.
+- Open **Purchase steps** with the **Show** button to follow store, confirmation and transaction-finishing callbacks. Starting a purchase with the panel open brings its progress into view; after a successful finish, the example returns to your previous product position. A closed panel stays closed. Closing it or scrolling manually cancels the automatic return. Pending, skipped and failed stages remain visible without claiming access or completion.
+- To use **Your app backend**, set `EXPO_PUBLIC_APP_BACKEND_URL` to a backend implementing the [purchase flow handler](https://kit.openiap.dev/docs/purchase-flow). Its IAPKit secret key stays on the server. The app account field stands in for your sign-in session; change accounts and restore to test ownership protection.
+
+Only the selected confirmation path mounts a purchase listener. Backend confirmation is unavailable on Vega. Finishing settles the transaction; it does not always grant access to the current account.
+
+Subscription cards in All Products and the backend confirmation path show the same selected offer's price, billing periods, and renewal terms. Trial and introductory phases include the price that follows them.
 
 ## 📱 Example Structure
 
@@ -54,7 +61,7 @@ This example provides two focused implementations, each demonstrating best pract
 
 ### 🛒 **Purchase Flow** (`/purchase-flow`)
 
-- **What**: Complete implementation for one-time in-app products
+- **What**: Direct one-time purchases or backend-confirmed products and subscriptions
 - **Why**: Demonstrates TypeScript-first approach for product purchases
 - **Features**:
   - Automatic TypeScript type inference - no manual casting required

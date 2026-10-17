@@ -9,6 +9,8 @@ describe("createHealthPayload", () => {
       createHealthPayload(
         {
           APP_ENV: "production",
+          FLY_MACHINE_ID: "7849e073a91568",
+          IAPKIT_VERIFICATION_SOURCE_SECRET: "a".repeat(64),
           IAPKIT_REVISION: "ABCDEF0123456789ABCDEF0123456789ABCDEF01",
         },
         new Date("2026-07-30T12:34:56.000Z"),
@@ -19,6 +21,8 @@ describe("createHealthPayload", () => {
       service: "iapkit",
       apiVersion: "v1",
       revision: "abcdef012345",
+      instanceId: "7849e073a91568",
+      verificationSourceReady: true,
       environment: "production",
       timestamp: "2026-07-30T12:34:56.000Z",
     });
@@ -30,11 +34,15 @@ describe("createHealthPayload", () => {
         {
           APP_ENV: "customer-private-environment",
           IAPKIT_REVISION: "not-a-git-revision",
+          FLY_MACHINE_ID: "private-value-with-arbitrary-content",
+          IAPKIT_VERIFICATION_SOURCE_SECRET: "not-a-secret",
         },
         new Date("2026-07-30T00:00:00.000Z"),
       ),
     ).toMatchObject({
       revision: null,
+      instanceId: null,
+      verificationSourceReady: false,
       environment: "development",
     });
   });

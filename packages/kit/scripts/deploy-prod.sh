@@ -40,6 +40,8 @@ if [ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]; then
   exit 1
 fi
 
+bash "$KIT_DIR/scripts/validate-deployment-credentials.sh"
+
 # Deploy Convex first and capture the canonical cloud URL selected by the same
 # credentials. `convex deploy` runs --cmd before pushing functions, so a target
 # mismatch stops both the Convex and Fly deployments.
@@ -47,7 +49,7 @@ CONVEX_URL_FILE="$(mktemp)"
 trap 'rm -f "$CONVEX_URL_FILE"' EXIT
 export IAPKIT_CONVEX_URL_FILE="$CONVEX_URL_FILE"
 bunx convex deploy --yes \
-  --cmd './scripts/verify-production-convex-target.sh && printf "%s\n" "$VITE_KIT_CONVEX_URL" > "$IAPKIT_CONVEX_URL_FILE"' \
+  --cmd 'bash ./scripts/provision-verification-source.sh && printf "%s\n" "$VITE_KIT_CONVEX_URL" > "$IAPKIT_CONVEX_URL_FILE"' \
   --cmd-url-env-var-name VITE_KIT_CONVEX_URL
 VITE_KIT_CONVEX_URL="$(tr -d '\r\n' < "$CONVEX_URL_FILE")"
 rm -f "$CONVEX_URL_FILE"
@@ -82,7 +84,9 @@ if [ -n "${VITE_KIT_MIXPANEL_TOKEN:-}" ]; then
 fi
 
 cd "$REPO_ROOT"
-exec flyctl deploy --app openiap-kit \
+flyctl deploy --app openiap-kit \
   --config packages/kit/fly.toml \
   --dockerfile packages/kit/Dockerfile \
   "${BUILD_FLAGS[@]}" "$@"
+
+bun "$KIT_DIR/scripts/verify-fly-deployment.ts" "$IAPKIT_REVISION"

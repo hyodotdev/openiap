@@ -1,3 +1,4 @@
+import { withVerificationSource } from "../../../convex/purchases/verificationSource";
 // Transport-independent handlers for the OpenIAP Commerce Protocol operation
 // surface. The REST routes and the GraphQL resolvers both call these and only
 // these; business logic stays below, in the same Convex functions the
@@ -11,6 +12,7 @@ import { isValidSubscriptionUserId } from "../../../convex/subscriptions/limits"
 import { normalizeBindUserPurchaseToken } from "../v1/subscriptions";
 import { ProtocolOperationError, protocolCodeForConvexError } from "./errors";
 import { admitVerification } from "./verificationAdmission";
+import { storeOf } from "../../../convex/commerce/internal";
 import {
   buildAmazonRemoteId,
   buildHorizonRemoteId,
@@ -113,10 +115,6 @@ function requireEvidence<T>(
   return member;
 }
 
-function storeOf(platform: SubscriptionRowV2["platform"]): string {
-  return platform === "IOS" ? "apple" : "google";
-}
-
 // The entitlement decision is not recomputed here: Convex already applied the
 // SPEC.md 2.3 predicate (subscriptions/query.ts isActive), returning the
 // active flag for status and only entitled rows for entitlements. Re-deriving
@@ -130,7 +128,7 @@ function toSnapshot(
     productId: row.productId,
     state: row.state,
     active,
-    store: row.store ?? storeOf(row.platform),
+    store: storeOf(row),
     ...(row.expiresAt === undefined ? {} : { expiresAt: row.expiresAt }),
     ...(row.renewsAt === undefined ? {} : { renewsAt: row.renewsAt }),
     ...(row.willRenew === undefined ? {} : { willRenew: row.willRenew }),
@@ -173,33 +171,40 @@ async function verifyPurchaseVerdict(
       const apple = requireEvidence(input, input.apple);
       return await client.action(
         api.purchases.ios.verifyAppStoreReceiptInternalV1,
-        { ...common, jws: apple.jws },
+        withVerificationSource("apple", { ...common, jws: apple.jws }),
       );
     }
     case "google": {
       const google = requireEvidence(input, input.google);
       return await client.action(
         api.purchases.android.verifyGooglePlayReceiptInternalV1,
-        { ...common, purchaseToken: google.purchaseToken },
+        withVerificationSource("google", {
+          ...common,
+          purchaseToken: google.purchaseToken,
+        }),
       );
     }
     case "horizon": {
       const horizon = requireEvidence(input, input.horizon);
       return await client.action(
         api.purchases.horizon.verifyMetaHorizonReceiptInternalV1,
-        { ...common, userId: horizon.userId, sku: horizon.sku },
+        withVerificationSource("horizon", {
+          ...common,
+          userId: horizon.userId,
+          sku: horizon.sku,
+        }),
       );
     }
     case "amazon": {
       const amazon = requireEvidence(input, input.amazon);
       return await client.action(
         api.purchases.amazon.verifyAmazonReceiptInternalV1,
-        {
+        withVerificationSource("amazon", {
           ...common,
           userId: amazon.userId,
           receiptId: amazon.receiptId,
           sandbox: amazon.sandbox,
-        },
+        }),
       );
     }
     default:
@@ -346,25 +351,21 @@ export async function bindPurchase(
 ): Promise<{ bound: boolean }> {
   const userId = requireUserId(input.userId);
   if (input.store === "amazon" || input.store === "horizon") {
-    const remoteId =
-      input.store === "amazon"
-        ? buildAmazonRemoteId({
-            ...requireEvidence(input, input.amazon),
-            sandbox: input.amazon?.sandbox === true,
-          })
-        : buildHorizonRemoteId(
-            requireEvidence(input, input.horizon).userId,
-            requireEvidence(input, input.horizon).sku,
-          );
+    let remoteId: string;
+    if (input.store === "amazon") {
+      const amazon = requireEvidence(input, input.amazon);
+      remoteId = buildAmazonRemoteId({
+        ...amazon,
+        sandbox: amazon.sandbox === true,
+      });
+    } else {
+      const horizon = requireEvidence(input, input.horizon);
+      remoteId = buildHorizonRemoteId(horizon.userId, horizon.sku);
+    }
     try {
       return await client.mutation(
         api.purchases.mutation.bindVerifiedPurchaseAsServer,
-        {
-          apiKey: context.apiKey,
-          userId,
-          store: input.store,
-          remoteId,
-        },
+        { apiKey: context.apiKey, userId, store: input.store, remoteId },
       );
     } catch (error) {
       rethrowAsProtocolError(error, "INTERNAL_ERROR");

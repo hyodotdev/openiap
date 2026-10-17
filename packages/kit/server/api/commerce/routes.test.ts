@@ -2,8 +2,9 @@
 // oversized bodies, GraphQL bounds, introspection agreement, and the
 // evidence-normalization paths of bindPurchase.
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
+import { ReceiptVerificationError } from "../../../convex/purchases/errors";
 import { buildSchema, getIntrospectionQuery, printSchema } from "graphql";
 import operationsSdl from "@hyodotdev/openiap-commerce-protocol/generated/bindings/operations-sdl.json";
 
@@ -887,6 +888,37 @@ describe("commerce verify admission on both bindings", () => {
       CLIENT_KEY,
     );
 
+  it("keeps source-cutover failures as errors and refunds replay on both bindings", async () => {
+    vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", undefined);
+    mocks.handleConvexError.mockImplementation((error: unknown) =>
+      error instanceof ReceiptVerificationError
+        ? {
+            code: error.errorCode,
+            message: error.errorMessage,
+            retryAfterSec: error.retryAfterSec,
+          }
+        : null,
+    );
+    const app = buildApp();
+    const token = uniqueToken();
+    for (let attempt = 0; attempt < 32; attempt++) {
+      const rest = await restVerify(app, token);
+      expect(rest.status).toBe(502);
+      expect(rest.headers.get("retry-after")).toBeNull();
+      expect((await rest.json()).error.code).toBe("VERIFICATION_FAILED");
+      const gql = await gqlVerify(app, token);
+      expect(gql.status).toBe(200);
+      expect((await gql.json()).errors[0].extensions.code).toBe(
+        "VERIFICATION_FAILED",
+      );
+    }
+    expect(mocks.action).not.toHaveBeenCalled();
+    vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "f".repeat(64));
+    expect((await restVerify(app, token)).status).toBe(200);
+    expect((await (await gqlVerify(app, token)).json()).errors).toBeUndefined();
+    expect(mocks.action).toHaveBeenCalledTimes(2);
+  });
+
   it("applies the per-payload replay burst cap to the GraphQL binding", async () => {
     const app = buildApp();
     const token = uniqueToken();
@@ -1124,3 +1156,9 @@ describe("commerce entitlement rechecks", () => {
     expect((await response.json()).error.code).toBe("RATE_LIMITED");
   });
 });
+
+// Synthetic service credential for this isolated verification transport fixture.
+beforeEach(() =>
+  vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "f".repeat(64)),
+);
+afterEach(() => vi.unstubAllEnvs());

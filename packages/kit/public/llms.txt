@@ -35,6 +35,9 @@ Bearer header and out of URLs.
 - [GET /v2/subscriptions/entitlements?userId=...](https://kit.openiap.dev/docs/api) — secret-only, tokenless active product snapshot; supports up to 200 indexed subscription rows and fails closed on overflow
 - [POST /v2/subscriptions/user-erasure](https://kit.openiap.dev/docs/api) — schedule durable removal of an app user ID from IAPKit subscription and commerce-event rows; erase downstream copies separately
 - [GET /v1/subscriptions/{list|metrics|revenue}](https://kit.openiap.dev/docs/api) — administrative subscription data with `Authorization: Bearer <secret-key>`
+- [GET /v1/webhooks/{deliveries|notifications}, POST /v1/webhooks/deliveries/{deliveryId}/resend](https://kit.openiap.dev/docs/webhooks) — secret-key outbound delivery history with attempts, re-send with the same `eventId` (30 per project per minute), and inbound store notification history without raw payloads
+- [POST /v1/subscriptions/resync, GET /v1/subscriptions/timeline?userId=...](https://kit.openiap.dev/docs/operations) — secret-key Apple/Google re-sync of one purchase or subscription, and one app user's purchases, subscriptions, commerce events, and purchase issues
+- [GET /v1/purchase/issues](https://kit.openiap.dev/docs/operations#purchase-issues) — secret-key log of failed verifications and links from the last 30 days, with cause, count, products, and correlation ID; filters `cause`, `store`, `productId`, `appUserId`, `from`/`to` (epoch ms). Only per-purchase causes (product mismatch, pending payment, bind conflict or limit) carry a keyed evidence fingerprint; other causes are counted per store and cause, at most once a minute, so their count is a lower bound. Never the token, JWS, or receipt
 - [POST /v1/webhooks/{apiKey}](https://kit.openiap.dev/docs/webhooks) — lifecycle webhook receiver. Paste this URL into App Store Connect (Production + Sandbox) AND Google Cloud Pub/Sub push subscription. Auto-detects ASN v2 vs Pub/Sub by payload shape. **POST-only**; opening in a browser returns 404 — that's expected.
 - [GET /v1/openapi](https://kit.openiap.dev/v1/openapi) — machine-readable OpenAPI spec
 - [GET /v2/openapi](https://kit.openiap.dev/v2/openapi) — secret-only account API OpenAPI spec
@@ -51,8 +54,12 @@ polling. The app authenticates to its developer backend; that backend resolves
 the opaque IAPKit user ID and calls v2 with a server-held secret key. It returns
 only the access decision or tokenless fields the app needs. Respect the
 `Retry-After` header on `429` and `503`, coalesce concurrent backend reads, and
-use a bounded project-and-user-scoped cache. Existing v1 SDK helpers remain
-available for shipped-client compatibility.
+use a bounded project-and-user-scoped cache. Account paths used by shipped
+mobile helpers now return `410 LEGACY_ACCOUNT_ROUTE_RETIRED`. Move those calls
+to your authenticated backend: use tokenless v2 routes for account reads and
+header-authenticated `POST /v1/subscriptions/bind-user` for ownership binding.
+Canonical v1 account routes require a secret admin key and reject publishable
+keys with `403 INSUFFICIENT_SCOPE`. Never ship a secret key in an app.
 
 ## Request shapes (discriminated on `store`)
 
@@ -186,9 +193,10 @@ assuming DAU implies safe request volume.
 - [/docs/verification/horizon](https://kit.openiap.dev/docs/verification/horizon) — App ID + App Secret (write-only)
 - [/docs/verification/amazon](https://kit.openiap.dev/docs/verification/amazon) — RVS shared secret, App Tester sandbox, and background rechecks
 - [/docs/api](https://kit.openiap.dev/docs/api) — request shapes, responses, errors, headers, and Amazon RVS payloads
+- [/docs/purchase-flow](https://kit.openiap.dev/docs/purchase-flow) — backend-confirmed purchases: responsibility split, status model, finish rules, recovery, ownership, and a reference backend
 - [/docs/compatibility](https://kit.openiap.dev/docs/compatibility) — additive `/v1` policy and older-SDK behavior
 - [/docs/webhooks](https://kit.openiap.dev/docs/webhooks) — inbound Apple ASN v2 and Google RTDN setup
-- [/docs/operations](https://kit.openiap.dev/docs/operations) — fair use, capacity, rate and concurrency limits, logs, `/health`, graceful shutdown
+- [/docs/operations](https://kit.openiap.dev/docs/operations) — fair use, capacity, rate and concurrency limits, purchase issues, store re-sync, logs, `/health`, graceful shutdown
 - [OpenIAP Commerce Protocol webhook contract](https://openiap.dev/commerce-protocol/webhooks) — vendor-neutral signed outbound delivery semantics; IAPKit setup remains in the local guide above
 - [/docs/ai-assistants](https://kit.openiap.dev/docs/ai-assistants) — how to point Codex / Claude / Cursor / etc. at this file
 - [/docs/ai-assistants/codex-plugin](https://kit.openiap.dev/docs/ai-assistants/codex-plugin) — Codex plugin setup and self-hosted IAPKit MCP server option

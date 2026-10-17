@@ -47,13 +47,16 @@ any file. Do not report those as passing.
 - Start by reviewing the app's current purchase flow and SDK usage before
   proposing code changes.
 - Use read-only tools first, including `iapkit_inspect_state`,
-  `iapkit_list_products`, `iapkit_revenue_analytics`, `iapkit_check_status`, and
+  `iapkit_list_products`, `iapkit_revenue_analytics`, `iapkit_check_status`,
+  `iapkit_user_timeline`, `iapkit_list_purchase_issues`,
+  `iapkit_list_deliveries`, `iapkit_list_inbound_notifications`, and
   `iapkit_setup`.
-- Treat product management and store sync tools as real writes.
+- Treat product management, store sync, delivery re-send, and store re-sync
+  tools as real writes.
 - Use `dryRun: true` for store sync previews first.
-- Do not create products, start non-dry-run sync jobs, simulate webhooks, or
-  edit app code unless the user explicitly asks for that action in the current
-  thread.
+- Do not create products, start non-dry-run sync jobs, simulate webhooks,
+  re-send deliveries, re-sync from the store, or edit app code unless the user
+  explicitly asks for that action in the current thread.
 - Keep IAPKit secret admin keys out of code snippets, app bundles, and final
   responses. Mobile code must use a separate `openiap-kit_pk_...` publishable
   key.

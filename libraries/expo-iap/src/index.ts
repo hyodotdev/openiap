@@ -1428,12 +1428,15 @@ export const verifyPurchaseWithProvider: MutationField<
 };
 
 export * from './useIAP';
-export {kitApi, KitApiError} from './kit-api';
+export {kitApi, KitApiError, resolveLocalizedPayload} from './kit-api';
 export type {
   KitApiOptions,
   KitClientPayloadCache,
   KitClientPayloadOptions,
   KitClientPayloadResponse,
+  KitLocalizedClientPayload,
+  KitLocalizedClientPayloadOptions,
+  KitLocalizedPayloadOptions,
   KitProduct,
   KitProductClientPayload,
   KitProductOffer,
@@ -1444,6 +1447,23 @@ export type {
   EntitlementsResponse,
   StatusResponse,
 } from './kit-api';
+export {
+  createPurchaseFlow,
+  describePurchaseFlowStatus,
+  toPurchaseConfirmationRequest,
+} from './purchase-flow';
+export type {
+  PurchaseConfirmation,
+  PurchaseConfirmationRequest,
+  PurchaseFlow,
+  PurchaseFlowGuidance,
+  PurchaseFlowGuidanceKey,
+  PurchaseFlowOptions,
+  PurchaseFlowOutcome,
+  PurchaseFlowPurchase,
+  PurchaseFlowStatus,
+  RecoverPurchasesOptions,
+} from './purchase-flow';
 export {
   ErrorCodeUtils,
   ErrorCodeMapping,

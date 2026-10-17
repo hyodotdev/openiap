@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
 import { Select } from "antd";
 import {
   BarChart3,
@@ -8,9 +9,14 @@ import {
   Users,
   RefreshCw,
   AlertCircle,
-  Activity,
   Webhook,
   ArrowRight,
+  Clock,
+  Hourglass,
+  UserPlus,
+  UserCheck,
+  LogOut,
+  Undo2,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -29,6 +35,11 @@ import type { Doc } from "@/convex";
 import { api } from "@/convex";
 import { PageLoading } from "@/components/LoadingSpinner";
 import { cn, formatMicros, normalizeCurrencyCode } from "@/lib/utils";
+import {
+  REVENUE_COUNTERS,
+  type RevenueCounters,
+  zeroRevenueCounters,
+} from "../../../../../convex/subscriptions/revenueCounters";
 
 type DashboardProject = Omit<
   Doc<"projects">,
@@ -38,24 +49,50 @@ type ProjectContext = { project: DashboardProject };
 
 type Platform = "IOS" | "Android";
 type PlatformFilter = "all" | Platform;
+type RevenueMetrics = FunctionReturnType<
+  typeof api.subscriptions.query.getRevenueMetrics
+>;
+type Environment = RevenueMetrics["environment"];
+type Cohort = NonNullable<RevenueMetrics["cohorts"]>[number];
 
 const DAY_MS = 86_400_000;
 
-// Shared empty defaults for renders before `metrics` loads, so memo deps
-// keep a stable identity instead of a new [] each render.
-const EMPTY_DAYS: ReadonlyArray<{
+type DailyRow = RevenueCounters & {
   day: string;
+  activeHistoryComplete: boolean;
+  trialHistoryComplete: boolean;
+  trialCountsComplete: boolean;
+  refundAmountComplete: boolean;
+};
+type MetricRow = DailyRow & {
   currency: string;
   productId: string;
   platform: Platform;
-  activeSubs: number;
-  newSubs: number;
-  renewals: number;
-  cancellations: number;
-  refunds: number;
-  revenueMicros: number;
-}> = [];
-const EMPTY_STRINGS: ReadonlyArray<string> = [];
+};
+
+// Rows written before the current definitions lack the newer counters, and
+// days before `trialSplitFromDay` lack the trial counters and expirations;
+// Coverage flags keep those missing values out of split-dependent charts.
+function withDefaults(row: RevenueMetrics["days"][number]): MetricRow {
+  const counters = zeroRevenueCounters();
+  for (const key of REVENUE_COUNTERS) counters[key] = row[key] ?? 0;
+  const trialCountsComplete =
+    row.trialStarts !== undefined &&
+    row.trialConversions !== undefined &&
+    row.directPaidStarts !== undefined &&
+    row.expirations !== undefined;
+  return {
+    ...counters,
+    day: row.day,
+    activeHistoryComplete: row.activeHistoryComplete === true,
+    trialHistoryComplete: row.activeTrials !== undefined && trialCountsComplete,
+    trialCountsComplete,
+    refundAmountComplete: row.refundedMicros !== undefined,
+    currency: row.currency,
+    productId: row.productId,
+    platform: row.platform,
+  };
+}
 
 const RANGES = [
   { id: "7d", label: "Last 7 days", days: 7 },
@@ -72,6 +109,11 @@ const PERIODS = [
 ] as const;
 
 type PeriodId = (typeof PERIODS)[number]["id"];
+
+const ENVIRONMENTS: Array<{ id: Environment; label: string }> = [
+  { id: "Production", label: "Production" },
+  { id: "Sandbox", label: "Sandbox" },
+];
 
 type PlatformCardKey = "all" | "ios" | "android";
 
@@ -113,6 +155,7 @@ export default function ProjectAnalytics() {
       : null;
   const [rangeId, setRangeId] = useState<RangeId>("30d");
   const [periodId, setPeriodId] = useState<PeriodId>("daily");
+  const [environment, setEnvironment] = useState<Environment>("Production");
   const [selectedCurrency, setSelectedCurrency] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   const [platformFilter, setPlatformFilter] = useState<PlatformFilter>("all");
@@ -131,9 +174,11 @@ export default function ProjectAnalytics() {
     return () => clearInterval(id);
   }, []);
 
+  // From the day before the longest range: its snapshot is the first day's
+  // starting paid count, the churn denominator.
   const { maxFromDay, toDay } = useMemo(() => {
     const today = utcDayKey(now);
-    const from = utcDayKey(now - (MAX_RANGE_DAYS - 1) * DAY_MS);
+    const from = utcDayKey(now - MAX_RANGE_DAYS * DAY_MS);
     return { maxFromDay: from, toDay: today };
   }, [now, MAX_RANGE_DAYS]);
 
@@ -142,12 +187,18 @@ export default function ProjectAnalytics() {
     [now, range],
   );
 
-  // Fetch the max range unfiltered and filter everything client-side: a
+  // Fetch daily rows unfiltered and filter them client-side: a
   // refetch per filter click rebuilt the whole subtree (a visible flicker),
   // and the platform cards need the unfiltered breakdown anyway.
   const queryArgs = useMemo(
-    () => ({ projectId: project._id, fromDay: maxFromDay, toDay }),
-    [project._id, maxFromDay, toDay],
+    () => ({
+      projectId: project._id,
+      fromDay: maxFromDay,
+      toDay,
+      environment,
+      includeCohorts: true,
+    }),
+    [project._id, maxFromDay, toDay, environment],
   );
   const metrics = useQuery(
     api.subscriptions.query.getRevenueMetrics,
@@ -156,8 +207,11 @@ export default function ProjectAnalytics() {
 
   // The loading return comes after every hook (rules of hooks), so until
   // data arrives the memos run on the empty defaults.
-  const metricsDays = metrics?.days ?? EMPTY_DAYS;
-  const metricsCurrencies = metrics?.currencies ?? EMPTY_STRINGS;
+  const metricsDays = useMemo(
+    () => (metrics?.days ?? []).map(withDefaults),
+    [metrics],
+  );
+  const metricsCurrencies = useMemo(() => metrics?.currencies ?? [], [metrics]);
   const reportingCurrency = normalizeCurrencyCode(project.reportingCurrency);
 
   // Chart revenue uses one currency: it can't be summed across currencies
@@ -189,152 +243,231 @@ export default function ProjectAnalytics() {
   // currency; pinning them would under-report "All platforms". Rows before
   // `fromDay` stay in: `aggregateByDay` seeds `activeSubs` from them, so a
   // range with no events doesn't dip to zero on its first day.
-  const revenueRows = useMemo(
-    () =>
-      metricsDays.filter((row) => {
-        if (currency && row.currency !== currency) return false;
-        if (selectedProduct && row.productId !== selectedProduct) return false;
-        if (platformFilter !== "all" && row.platform !== platformFilter) {
-          return false;
-        }
-        return true;
-      }),
-    [metricsDays, currency, selectedProduct, platformFilter],
+  const matchesFilters = useCallback(
+    (row: MetricRow) =>
+      (!selectedProduct || row.productId === selectedProduct) &&
+      (platformFilter === "all" || row.platform === platformFilter),
+    [selectedProduct, platformFilter],
   );
-  const reportingRevenueRows = useMemo(
-    () =>
-      metricsDays.filter((row) => {
-        if (row.currency !== reportingCurrency) return false;
-        if (selectedProduct && row.productId !== selectedProduct) return false;
-        if (platformFilter !== "all" && row.platform !== platformFilter) {
-          return false;
-        }
-        return true;
-      }),
-    [metricsDays, reportingCurrency, selectedProduct, platformFilter],
-  );
-  const lifecycleRows = useMemo(
-    () =>
-      metricsDays.filter((row) => {
-        if (selectedProduct && row.productId !== selectedProduct) return false;
-        if (platformFilter !== "all" && row.platform !== platformFilter) {
-          return false;
-        }
-        return true;
-      }),
-    [metricsDays, selectedProduct, platformFilter],
-  );
-
+  const trialSplitFromDay = metrics?.trialSplitFromDay;
   const revenueDaily = useMemo(
-    () => aggregateByDay(revenueRows, range.days, fromDay),
-    [revenueRows, range.days, fromDay],
+    () =>
+      aggregateByDay(
+        metricsDays.filter(
+          (row) => row.currency === currency && matchesFilters(row),
+        ),
+        range.days,
+        fromDay,
+        trialSplitFromDay,
+      ),
+    [
+      metricsDays,
+      currency,
+      matchesFilters,
+      range.days,
+      fromDay,
+      trialSplitFromDay,
+    ],
   );
   const reportingRevenueDaily = useMemo(
-    () => aggregateByDay(reportingRevenueRows, range.days, fromDay),
-    [reportingRevenueRows, range.days, fromDay],
+    () =>
+      aggregateByDay(
+        metricsDays.filter(
+          (row) => row.currency === reportingCurrency && matchesFilters(row),
+        ),
+        range.days,
+        fromDay,
+        trialSplitFromDay,
+      ),
+    [
+      metricsDays,
+      reportingCurrency,
+      matchesFilters,
+      range.days,
+      fromDay,
+      trialSplitFromDay,
+    ],
   );
   const lifecycleDaily = useMemo(
-    () => aggregateByDay(lifecycleRows, range.days, fromDay),
-    [lifecycleRows, range.days, fromDay],
+    () =>
+      aggregateByDay(
+        metricsDays.filter(matchesFilters),
+        range.days,
+        fromDay,
+        trialSplitFromDay,
+      ),
+    [metricsDays, matchesFilters, range.days, fromDay, trialSplitFromDay],
   );
   const revenueSeries = useMemo(
     () => bucketByPeriod(revenueDaily, periodId),
     [revenueDaily, periodId],
-  );
-  const reportingRevenueSeries = useMemo(
-    () => bucketByPeriod(reportingRevenueDaily, periodId),
-    [reportingRevenueDaily, periodId],
   );
   const lifecycleSeries = useMemo(
     () => bucketByPeriod(lifecycleDaily, periodId),
     [lifecycleDaily, periodId],
   );
 
-  const revenueByBucket = useMemo(
-    () => new Map(revenueSeries.map((row) => [row.dayKey, row.revenueMicros])),
-    [revenueSeries],
-  );
-  const reportingRevenueByBucket = useMemo(
-    () =>
-      new Map(
-        reportingRevenueSeries.map((row) => [row.dayKey, row.revenueMicros]),
-      ),
-    [reportingRevenueSeries],
-  );
-
   // Final chart series merges the lifecycle counters (cross-currency)
-  // with the revenue total (currency-pinned) by bucket key.
-  const series = useMemo(
-    () =>
-      lifecycleSeries.map((row) => ({
+  // with the revenue totals (currency-pinned) by bucket key.
+  const series = useMemo(() => {
+    const revenueByBucket = new Map(
+      revenueSeries.map((row) => [row.dayKey, row]),
+    );
+    return lifecycleSeries.map((row) => {
+      const revenue = revenueByBucket.get(row.dayKey);
+      return {
         ...row,
-        revenueMicros: revenueByBucket.get(row.dayKey) ?? 0,
-      })),
-    [lifecycleSeries, revenueByBucket],
-  );
+        revenueMicros: revenue?.revenueMicros ?? 0,
+        refundedMicros: revenue?.refundAmountComplete
+          ? revenue.refundedMicros
+          : null,
+        paidActiveSubs:
+          row.activeHistoryComplete && row.trialHistoryComplete
+            ? row.activeSubs - row.activeTrials
+            : null,
+        activeTrials:
+          row.activeHistoryComplete && row.trialHistoryComplete
+            ? row.activeTrials
+            : null,
+        trialStarts: row.trialCountsComplete ? row.trialStarts : null,
+        trialConversions: row.trialCountsComplete ? row.trialConversions : null,
+        directPaidStarts: row.trialCountsComplete ? row.directPaidStarts : null,
+        expirations: row.trialCountsComplete ? row.expirations : null,
+      };
+    });
+  }, [lifecycleSeries, revenueSeries]);
 
-  const totals = useMemo(
-    () =>
-      lifecycleSeries.reduce(
-        (acc, row) => {
-          acc.newSubs += row.newSubs;
-          acc.renewals += row.renewals;
-          acc.cancellations += row.cancellations;
-          acc.refunds += row.refunds;
-          acc.revenueMicros += reportingRevenueByBucket.get(row.dayKey) ?? 0;
-          acc.activeSubsLast = row.activeSubs;
-          return acc;
-        },
-        {
-          newSubs: 0,
-          renewals: 0,
-          cancellations: 0,
-          refunds: 0,
-          revenueMicros: 0,
-          activeSubsLast: 0,
-        },
-      ),
-    [lifecycleSeries, reportingRevenueByBucket],
-  );
+  const splitTotals = useMemo(() => {
+    const result = {
+      trialStarts: 0,
+      trialConversions: 0,
+      directPaidStarts: 0,
+      includedRows: 0,
+      totalRows: 0,
+    };
+    let firstDay: string | undefined;
+    let lastExcludedDay: string | undefined;
+    for (const row of metricsDays) {
+      if (row.day < fromDay || !matchesFilters(row)) continue;
+      result.totalRows++;
+      if (
+        !row.trialCountsComplete ||
+        (trialSplitFromDay !== undefined && row.day < trialSplitFromDay)
+      ) {
+        if (!lastExcludedDay || row.day > lastExcludedDay)
+          lastExcludedDay = row.day;
+        continue;
+      }
+      result.includedRows++;
+      result.trialStarts += row.trialStarts;
+      result.trialConversions += row.trialConversions;
+      result.directPaidStarts += row.directPaidStarts;
+      if (!firstDay || row.day < firstDay) firstDay = row.day;
+    }
+    return { ...result, firstDay, lastExcludedDay };
+  }, [metricsDays, fromDay, matchesFilters, trialSplitFromDay]);
 
-  // The churn definition Stripe and RevenueCat use in their dashboards.
-  const churnRate =
-    totals.activeSubsLast > 0
-      ? ((totals.cancellations + totals.refunds) / totals.activeSubsLast) * 100
-      : 0;
+  const totals = useMemo(() => {
+    const sum = zeroRevenueCounters();
+    for (const row of lifecycleDaily) {
+      for (const key of REVENUE_COUNTERS) sum[key] += row[key];
+    }
+    const revenue = reportingRevenueDaily.reduce(
+      (acc, row) => ({
+        gross: acc.gross + row.revenueMicros,
+        refunded: acc.refunded + row.refundedMicros,
+      }),
+      { gross: 0, refunded: 0 },
+    );
+    const last = lifecycleDaily[lifecycleDaily.length - 1];
+    return {
+      ...sum,
+      grossMicros: revenue.gross,
+      refundedMicros: reportingRevenueDaily.every(
+        (row) => row.refundAmountComplete,
+      )
+        ? revenue.refunded
+        : null,
+      activeHistoryComplete: last?.activeHistoryComplete ?? false,
+      trialHistoryComplete: last?.trialHistoryComplete ?? false,
+      activeSubsLast: last?.activeSubs ?? 0,
+      activeTrialsLast: last?.activeTrials ?? 0,
+    };
+  }, [lifecycleDaily, reportingRevenueDaily]);
+
+  // Churn counts paid access that actually ended, not auto-renew turned off
+  // or a free trial that ran out.
+  const churn = useMemo(() => churnOver(lifecycleDaily), [lifecycleDaily]);
 
   // Same split as above: counts span currencies, revenue is one currency.
   const platformTotals = useMemo(() => {
-    const lifecycleBaseRows = metricsDays.filter((row) => {
-      if (row.day < fromDay) return false;
-      if (selectedProduct && row.productId !== selectedProduct) return false;
-      return true;
-    });
-    const revenueBaseRows = metricsDays.filter((row) => {
-      if (row.day < fromDay) return false;
-      if (row.currency !== reportingCurrency) return false;
-      if (selectedProduct && row.productId !== selectedProduct) return false;
-      return true;
-    });
+    const inRange = metricsDays.filter(
+      (row) =>
+        row.day >= fromDay &&
+        (!selectedProduct || row.productId === selectedProduct),
+    );
     const byFilter = new Map<
       PlatformFilter,
-      { revenueMicros: number; activeSubs: number; newSubs: number }
+      {
+        revenueMicros: number;
+        activeSubs: number;
+        newSubs: number;
+        activeHistoryComplete: boolean;
+      }
     >();
     for (const card of PLATFORM_CARDS) {
-      const lifecycle = lifecycleForPlatform(lifecycleBaseRows, card.filter);
-      const revenue = revenueForPlatform(revenueBaseRows, card.filter);
+      const lifecycle = lifecycleForPlatform(inRange, card.filter);
+      const revenue = revenueForPlatform(
+        inRange.filter((row) => row.currency === reportingCurrency),
+        card.filter,
+      );
       byFilter.set(card.filter, {
         revenueMicros: revenue,
         activeSubs: lifecycle.activeSubs,
+        activeHistoryComplete: lifecycle.activeHistoryComplete,
         newSubs: lifecycle.newSubs,
       });
     }
     return byFilter;
   }, [metricsDays, fromDay, reportingCurrency, selectedProduct]);
 
+  const cohorts = useMemo(
+    () => (metrics?.cohorts ?? []).filter((row) => row.currency === currency),
+    [metrics, currency],
+  );
+
   if (metrics === undefined) {
     return <PageLoading />;
   }
+
+  const dataState = metrics.dataState;
+  const hasNumbers = dataState === "ready" || dataState === "zero";
+  const count = (value: number): string =>
+    hasNumbers ? value.toString() : "—";
+  const money = (value: number | null): string =>
+    hasNumbers && value !== null
+      ? formatMicros(value, { currency: reportingCurrency })
+      : "—";
+  const legacyDays =
+    metrics.definitionsFromDay !== undefined &&
+    fromDay < metrics.definitionsFromDay;
+  const unsplitDays =
+    trialSplitFromDay !== undefined && fromDay < trialSplitFromDay;
+  const hasSplitNumbers =
+    hasNumbers && (dataState === "zero" || splitTotals.includedRows > 0);
+  const splitCount = (value: number): string =>
+    hasSplitNumbers ? value.toString() : "—";
+  const splitDetail = (detail?: string): string | undefined => {
+    if (!hasSplitNumbers || !splitTotals.firstDay) return detail;
+    if (
+      splitTotals.lastExcludedDay &&
+      splitTotals.lastExcludedDay >= splitTotals.firstDay
+    )
+      return `Partial history · ${splitTotals.includedRows} of ${splitTotals.totalRows} rows`;
+    return unsplitDays || splitTotals.includedRows < splitTotals.totalRows
+      ? `From ${splitTotals.firstDay}`
+      : detail;
+  };
 
   return (
     <div className="space-y-6">
@@ -344,55 +477,99 @@ export default function ProjectAnalytics() {
           Analytics
         </h2>
         <p className="text-sm text-muted-foreground">
-          Revenue and subscription lifecycle metrics, rolled up from ingested
-          webhook events. Refreshed every ~10 minutes on a trailing 3-day window
-          — late Apple ASN v2 / Google RTDN notifications fold into their
-          correct day automatically.
+          Subscription revenue and lifecycle metrics from verified Apple ASN v2
+          and Google RTDN notifications, in UTC days. Revenue is the store list
+          price before store fees.{" "}
+          <Link to="/docs/analytics" className="text-primary hover:underline">
+            Metric definitions
+          </Link>
+        </p>
+        <p className="text-xs text-muted-foreground mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="inline-flex items-center gap-1">
+            <Clock className="w-3.5 h-3.5" />
+            {metrics.lastRunAt
+              ? `Updated ${formatAgo(now - metrics.lastRunAt)}`
+              : "Not rolled up yet"}
+          </span>
+          {legacyDays && (
+            <span>
+              Days before {metrics.definitionsFromDay} follow the previous
+              definitions: they include sandbox purchases and have no trial
+              split.
+            </span>
+          )}
         </p>
       </div>
 
-      {/* Only ASN v2 / RTDN report renewals, cancels, and refunds, so
-          without webhooks the chart stays empty. */}
-      <div className="border border-amber-500/30 bg-amber-500/5 rounded-lg p-4 flex items-start gap-3">
-        <Webhook className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-        <div className="flex-1 text-sm">
-          <p className="font-medium mb-1">
-            Analytics requires Apple ASN v2 / Google RTDN webhooks
-          </p>
-          <p className="text-muted-foreground">
-            Without webhook integration this page will stay empty —{" "}
-            <code className="text-xs">/v1/purchase/verify</code> alone doesn't
-            tell IAPKit when renewals, cancellations, or refunds happen.{" "}
-            {webhooksHref && (
+      {unsplitDays && (
+        <Notice icon={AlertCircle} title="Trial split starts mid-range">
+          Notifications before {trialSplitFromDay} were stored without the
+          free-trial and refund-reversal flags. Those days show no trial counts
+          or expirations, Google free trials count as paid starts, and Apple
+          refund reversals count as new subscriptions.
+        </Notice>
+      )}
+
+      {dataState === "not_collected" && (
+        // Only ASN v2 / RTDN report renewals, cancels, and refunds, so
+        // without webhooks the page stays empty.
+        <div className="border border-amber-500/30 bg-amber-500/5 rounded-lg p-4 flex items-start gap-3">
+          <Webhook className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="flex-1 text-sm">
+            <p className="font-medium mb-1">
+              No store notifications received yet
+            </p>
+            <p className="text-muted-foreground">
+              Analytics need Apple ASN v2 or Google RTDN.{" "}
+              <code className="text-xs">/v1/purchase/verify</code> alone
+              doesn&apos;t tell IAPKit when renewals, cancellations, or refunds
+              happen.{" "}
+              {webhooksHref && (
+                <Link
+                  to={webhooksHref}
+                  className="text-primary hover:underline inline-flex items-center gap-0.5"
+                >
+                  Open Webhooks tab <ArrowRight className="w-3 h-3" />
+                </Link>
+              )}{" "}
+              ·{" "}
               <Link
-                to={webhooksHref}
-                className="text-primary hover:underline inline-flex items-center gap-0.5"
+                to="/docs/analytics"
+                className="text-primary hover:underline"
               >
-                Open Webhooks tab <ArrowRight className="w-3 h-3" />
+                Read the setup guide
               </Link>
-            )}{" "}
-            ·{" "}
-            <Link to="/docs/analytics" className="text-primary hover:underline">
-              Read the setup guide
-            </Link>
-          </p>
+            </p>
+          </div>
         </div>
-      </div>
+      )}
+
+      {dataState === "processing" && (
+        <Notice icon={Hourglass} title="Rolling up notifications">
+          Store notifications have arrived, but this range has not been rolled
+          up yet. Numbers appear within about 10 minutes.
+        </Notice>
+      )}
+
+      {metrics.pendingLateEvents > 0 && (
+        <Notice icon={Clock} title="Late notifications pending">
+          {metrics.pendingLateEvents} notification
+          {metrics.pendingLateEvents === 1 ? "" : "s"} arrived after their day
+          was rolled up
+          {metrics.oldestPendingLateDay
+            ? ` (oldest ${metrics.oldestPendingLateDay})`
+            : ""}
+          . A catch-up recompute adds them; until then those days read low.
+        </Notice>
+      )}
 
       {metrics.truncated && (
         // The scan hit `REVENUE_SCAN_CAP`, so the chart is partial; flat
         // numbers here are truncation, not a revenue trough.
-        <div className="border border-amber-500/40 bg-amber-500/10 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-          <div className="flex-1 text-sm">
-            <p className="font-medium mb-1">Analytics partially loaded</p>
-            <p className="text-muted-foreground">
-              This range exceeded the per-query scan limit. Numbers below cover
-              the most-recent slice of the window; tighten the range (7d / 30d)
-              to load every row, or narrow by product / currency.
-            </p>
-          </div>
-        </div>
+        <Notice icon={AlertCircle} title="Analytics partially loaded">
+          This window has more rows than one read returns, so its oldest days
+          are missing.
+        </Notice>
       )}
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -401,6 +578,7 @@ export default function ProjectAnalytics() {
           const cardTotals = platformTotals.get(card.filter) ?? {
             revenueMicros: 0,
             activeSubs: 0,
+            activeHistoryComplete: false,
             newSubs: 0,
           };
           return (
@@ -433,12 +611,14 @@ export default function ProjectAnalytics() {
               <div className="relative">
                 <p className="text-sm text-muted-foreground">{card.label}</p>
                 <p className="text-3xl font-semibold mt-2 tabular-nums">
-                  {formatMicros(cardTotals.revenueMicros, {
-                    currency: reportingCurrency,
-                  })}
+                  {money(cardTotals.revenueMicros)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {cardTotals.activeSubs} active · {cardTotals.newSubs} new
+                  gross ·{" "}
+                  {cardTotals.activeHistoryComplete
+                    ? count(cardTotals.activeSubs)
+                    : "—"}{" "}
+                  active · {count(cardTotals.newSubs)} new
                 </p>
               </div>
             </div>
@@ -447,6 +627,11 @@ export default function ProjectAnalytics() {
       </div>
 
       <div className="flex flex-wrap gap-3 items-center">
+        <ChicletGroup
+          options={ENVIRONMENTS}
+          value={environment}
+          onChange={(v) => setEnvironment(v as Environment)}
+        />
         <ChicletGroup
           options={RANGES.map((r) => ({ id: r.id, label: r.label }))}
           value={rangeId}
@@ -496,7 +681,7 @@ export default function ProjectAnalytics() {
         <div className="border border-border bg-muted/20 rounded-lg p-4 text-sm text-muted-foreground">
           Headline revenue totals only include {reportingCurrency}.{" "}
           {currency !== reportingCurrency &&
-            `The revenue chart is showing ${currency}. `}
+            `Revenue charts and cohorts are showing ${currency}. `}
           {calloutExcludedCurrencies.length > 0
             ? `${calloutExcludedCurrencies.join(", ")} ${
                 calloutExcludedCurrencies.length === 1 ? "is" : "are"
@@ -506,43 +691,88 @@ export default function ProjectAnalytics() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <SummaryCard
           icon={TrendingUp}
-          label="Revenue"
-          value={formatMicros(totals.revenueMicros, {
-            currency: reportingCurrency,
-          })}
+          label="Net revenue"
+          value={money(
+            totals.refundedMicros === null
+              ? null
+              : totals.grossMicros - totals.refundedMicros,
+          )}
+          detail={
+            hasNumbers
+              ? `Gross ${formatMicros(totals.grossMicros, {
+                  currency: reportingCurrency,
+                })} · refunds ${money(totals.refundedMicros)}`
+              : undefined
+          }
         />
         <SummaryCard
           icon={Users}
-          label="Active subs"
-          value={totals.activeSubsLast.toString()}
+          label="Active subscriptions"
+          value={
+            totals.activeHistoryComplete ? count(totals.activeSubsLast) : "—"
+          }
+          detail={
+            hasSplitNumbers
+              ? totals.activeHistoryComplete && totals.trialHistoryComplete
+                ? `${totals.activeTrialsLast} in free trial`
+                : "Historical access is unverified"
+              : undefined
+          }
         />
         <SummaryCard
-          icon={Users}
-          label="New subs"
-          value={totals.newSubs.toString()}
+          icon={UserPlus}
+          label="Trials started"
+          value={splitCount(splitTotals.trialStarts)}
+          detail={splitDetail()}
+        />
+        <SummaryCard
+          icon={UserCheck}
+          label="Trial conversions"
+          value={splitCount(splitTotals.trialConversions)}
+          detail={splitDetail("Paid charge that ends a trial")}
+        />
+        <SummaryCard
+          icon={TrendingUp}
+          label="Direct paid starts"
+          value={splitCount(splitTotals.directPaidStarts)}
+          detail={splitDetail("Paid from day one, no trial")}
         />
         <SummaryCard
           icon={RefreshCw}
           label="Renewals"
-          value={totals.renewals.toString()}
+          value={count(totals.renewals)}
+          detail="Includes billing recoveries"
         />
         <SummaryCard
-          icon={Activity}
+          icon={Undo2}
+          label="Auto-renew off"
+          value={count(totals.cancellations)}
+          detail="Access continues until the period ends"
+        />
+        <SummaryCard
+          icon={LogOut}
           label="Churn"
-          value={`${churnRate.toFixed(1)}%`}
+          value={hasNumbers && churn ? `${churn.rate.toFixed(1)}%` : "—"}
+          detail={
+            hasNumbers && churn
+              ? `${churn.expirations} expired of ${churn.paidAtStart} paid at start${
+                  churn.fromDay > fromDay ? `, from ${churn.fromDay}` : ""
+                }`
+              : undefined
+          }
         />
       </div>
 
-      {metrics.days.length === 0 ? (
-        <EmptyState />
+      {dataState !== "ready" ? (
+        <EmptyState dataState={dataState} environment={environment} />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <ChartCard
             title="Revenue"
-            subtitle={`Initial purchases + renewals · ${currency}`}
+            subtitle={`Gross list price of paid charges and store refunds · ${currency}`}
           >
             <ResponsiveContainer width="100%" height={240}>
               <BarChart
@@ -568,10 +798,17 @@ export default function ProjectAnalytics() {
                   }
                   contentStyle={tooltipStyle}
                 />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar
                   dataKey="revenueMicros"
-                  name="Revenue"
+                  name="Gross"
                   fill="#3b82f6"
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  dataKey="refundedMicros"
+                  name="Refunded"
+                  fill="#ef4444"
                   radius={[4, 4, 0, 0]}
                 />
               </BarChart>
@@ -580,7 +817,7 @@ export default function ProjectAnalytics() {
 
           <ChartCard
             title="Active subscriptions"
-            subtitle="End-of-period snapshot"
+            subtitle="End-of-period snapshot · paid and in free trial"
           >
             <ResponsiveContainer width="100%" height={240}>
               <LineChart
@@ -598,11 +835,20 @@ export default function ProjectAnalytics() {
                   stroke="var(--muted-foreground)"
                 />
                 <Tooltip contentStyle={tooltipStyle} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Line
                   type="monotone"
-                  dataKey="activeSubs"
-                  name="Active"
+                  dataKey="paidActiveSubs"
+                  name="Paid"
                   stroke="#10b981"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="activeTrials"
+                  name="In trial"
+                  stroke="#8b5cf6"
                   strokeWidth={2}
                   dot={false}
                 />
@@ -611,8 +857,8 @@ export default function ProjectAnalytics() {
           </ChartCard>
 
           <ChartCard
-            title="New + renewed subs"
-            subtitle="Transaction count per period"
+            title="Starts and conversions"
+            subtitle="Trials started, trials converted, direct paid starts"
           >
             <ResponsiveContainer width="100%" height={240}>
               <BarChart
@@ -631,20 +877,24 @@ export default function ProjectAnalytics() {
                 />
                 <Tooltip contentStyle={tooltipStyle} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="newSubs" stackId="a" name="New" fill="#3b82f6" />
+                <Bar dataKey="trialStarts" name="Trials" fill="#a78bfa" />
                 <Bar
-                  dataKey="renewals"
-                  stackId="a"
-                  name="Renewals"
+                  dataKey="trialConversions"
+                  name="Converted"
                   fill="#8b5cf6"
+                />
+                <Bar
+                  dataKey="directPaidStarts"
+                  name="Direct paid"
+                  fill="#3b82f6"
                 />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
 
           <ChartCard
-            title="Cancellations + refunds"
-            subtitle="User-canceled + store-issued refunds"
+            title="Auto-renew off and expirations"
+            subtitle="Turning auto-renew off is not churn until access ends"
           >
             <ResponsiveContainer width="100%" height={240}>
               <BarChart
@@ -665,23 +915,18 @@ export default function ProjectAnalytics() {
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar
                   dataKey="cancellations"
-                  stackId="a"
-                  name="Canceled"
+                  name="Auto-renew off"
                   fill="#f59e0b"
                 />
-                <Bar
-                  dataKey="refunds"
-                  stackId="a"
-                  name="Refunded"
-                  fill="#ef4444"
-                />
+                <Bar dataKey="expirations" name="Expired" fill="#ef4444" />
+                <Bar dataKey="refunds" name="Refunded" fill="#b91c1c" />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
 
           <ChartCard
             title="Churn rate"
-            subtitle="(cancellations + refunds) / active, %"
+            subtitle="Paid expirations / paid subscriptions at period start, %"
           >
             <ResponsiveContainer width="100%" height={240}>
               <LineChart
@@ -715,6 +960,15 @@ export default function ProjectAnalytics() {
             </ResponsiveContainer>
           </ChartCard>
         </div>
+      )}
+
+      {cohorts.length > 0 && (
+        <CohortTable
+          cohorts={cohorts}
+          currency={currency}
+          computedAt={metrics.cohortsComputedAt}
+          now={now}
+        />
       )}
     </div>
   );
@@ -759,22 +1013,49 @@ function ChicletGroup({
   );
 }
 
+function Notice({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: typeof AlertCircle;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border border-amber-500/40 bg-amber-500/10 rounded-lg p-4 flex items-start gap-3">
+      <Icon className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+      <div className="flex-1 text-sm min-w-0">
+        <p className="font-medium mb-1">{title}</p>
+        <p className="text-muted-foreground">{children}</p>
+      </div>
+    </div>
+  );
+}
+
 function SummaryCard({
   icon: Icon,
   label,
   value,
+  detail,
 }: {
   icon: typeof TrendingUp;
   label: string;
   value: string;
+  detail?: string;
 }) {
   return (
-    <div className="border border-border rounded-lg bg-card p-4">
+    <div className="border border-border rounded-lg bg-card p-4 min-w-0">
       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-        <Icon className="w-3.5 h-3.5" />
+        <Icon className="w-3.5 h-3.5 shrink-0" />
         {label}
       </div>
       <div className="text-2xl font-semibold tabular-nums">{value}</div>
+      {detail && (
+        <p className="text-xs text-muted-foreground mt-1 break-words">
+          {detail}
+        </p>
+      )}
     </div>
   );
 }
@@ -801,177 +1082,303 @@ function ChartCard({
   );
 }
 
-function EmptyState() {
+function EmptyState({
+  dataState,
+  environment,
+}: {
+  dataState: RevenueMetrics["dataState"];
+  environment: Environment;
+}) {
+  const copy =
+    dataState === "zero"
+      ? {
+          title: "No subscription activity in this range",
+          body: `The ${environment.toLowerCase()} rollup ran and found no charges, starts, cancellations, or active subscriptions. These zeros are real.`,
+        }
+      : dataState === "processing"
+        ? {
+            title: "Not rolled up yet",
+            body: "Notifications are in. The next rollup tick, within about 10 minutes, fills this view.",
+          }
+        : {
+            title: "Nothing collected yet",
+            body: "Analytics roll up from Apple ASN v2 / Google RTDN notifications. Once your first notification arrives, the next tick fills this view.",
+          };
   return (
     <div className="border border-border rounded-lg bg-card p-12 text-center">
       <AlertCircle className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
-      <p className="text-sm font-medium mb-1">No data yet for this range</p>
+      <p className="text-sm font-medium mb-1">{copy.title}</p>
       <p className="text-xs text-muted-foreground max-w-md mx-auto">
-        Analytics roll up daily from ingested Apple ASN v2 / Google RTDN webhook
-        events. Once your first webhook arrives, the next cron tick (within 10
-        min) will populate this view.
+        {copy.body}
       </p>
     </div>
   );
 }
 
-type DailyRow = {
-  day: string;
-  activeSubs: number;
-  newSubs: number;
-  renewals: number;
-  cancellations: number;
-  refunds: number;
-  revenueMicros: number;
-};
+// Paid cohorts by month of first paid charge: retention per month and
+// realized (observed, never projected) revenue per member.
+function CohortTable({
+  cohorts,
+  currency,
+  computedAt,
+  now,
+}: {
+  cohorts: Cohort[];
+  currency: string;
+  computedAt?: number;
+  now: number;
+}) {
+  const offsets = Math.min(
+    12,
+    Math.max(0, ...cohorts.map((row) => row.retained.length)),
+  );
+  return (
+    <div className="border border-border rounded-lg bg-card p-4">
+      <div className="mb-3">
+        <h3 className="text-sm font-semibold">
+          Monthly project cohorts · {currency}
+        </h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          All products and platforms in the selected environment and currency.
+          Date, product and platform filters above apply only to daily charts.
+        </p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Cohort = UTC month of the first paid charge. M+k is the share still
+          paying at the end of month k (current month: as of the latest
+          rebuild); a canceled subscription counts until its paid period ends.
+          Realized LTV is gross revenue observed so far per member, before store
+          fees and refunds — never a projection. A dash means at least one
+          member lacks access evidence for that month.
+          {computedAt ? ` Rebuilt ${formatAgo(now - computedAt)}.` : ""}
+        </p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs tabular-nums">
+          <thead className="text-muted-foreground">
+            <tr className="text-left">
+              <th className="py-1 pr-3 font-medium">Month</th>
+              <th className="py-1 pr-3 font-medium">Members</th>
+              {Array.from({ length: offsets }, (_, k) => (
+                <th key={k} className="py-1 pr-3 font-medium">
+                  M+{k}
+                </th>
+              ))}
+              <th className="py-1 pr-3 font-medium">Realized LTV</th>
+              <th className="py-1 pr-3 font-medium">Trial → paid</th>
+            </tr>
+          </thead>
+          <tbody>
+            {cohorts.map((row) => {
+              const resolvedTrials = row.trialStarts - row.trialsPending;
+              return (
+                <tr key={row.month} className="border-t border-border">
+                  <td className="py-1 pr-3">{row.month}</td>
+                  <td className="py-1 pr-3">{row.members}</td>
+                  {Array.from({ length: offsets }, (_, k) => (
+                    <td key={k} className="py-1 pr-3">
+                      {row.members > 0 &&
+                      row.retained[k] !== undefined &&
+                      row.retentionObserved?.[k] === row.members
+                        ? `${Math.round((row.retained[k] / row.members) * 100)}%`
+                        : row.retained[k] !== undefined
+                          ? "—"
+                          : ""}
+                    </td>
+                  ))}
+                  <td className="py-1 pr-3">
+                    {row.members > 0
+                      ? formatMicros(row.realizedLtvMicros, { currency })
+                      : "—"}
+                  </td>
+                  <td className="py-1 pr-3">
+                    {resolvedTrials > 0 && row.trialsUnobserved === 0
+                      ? `${Math.round((row.trialConversions / resolvedTrials) * 100)}% of ${resolvedTrials}`
+                      : row.trialsPending > 0
+                        ? `${row.trialsPending} in trial`
+                        : "—"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+type DayPoint = DailyRow & { dayKey: string; paidAtStart: number | null };
 
 // Collapses rollup rows (one per currency, product, and platform) into one
-// row per day. Callers filter first, so summing here is safe.
+// row per day. Callers filter first, so summing here is safe. `paidAtStart`,
+// the churn denominator, is the previous day's paid (not in trial) snapshot;
+// null until a row has been seen, or while it predates the trial split and its
+// trials are unknown.
 function aggregateByDay(
-  rows: Array<DailyRow>,
+  rows: MetricRow[],
   rangeDays: number,
   fromDay: string,
-): Array<DailyRow & { dayKey: string }> {
+  trialSplitFromDay: string | undefined,
+): DayPoint[] {
   const byDay = new Map<string, DailyRow>();
   for (const row of rows) {
+    const trialCountsComplete =
+      row.trialCountsComplete &&
+      (trialSplitFromDay === undefined || row.day >= trialSplitFromDay);
     const existing = byDay.get(row.day);
     if (existing) {
-      existing.activeSubs += row.activeSubs;
-      existing.newSubs += row.newSubs;
-      existing.renewals += row.renewals;
-      existing.cancellations += row.cancellations;
-      existing.refunds += row.refunds;
-      existing.revenueMicros += row.revenueMicros;
+      for (const key of REVENUE_COUNTERS) existing[key] += row[key];
+      existing.activeHistoryComplete &&= row.activeHistoryComplete;
+      existing.trialHistoryComplete &&=
+        row.trialHistoryComplete && trialCountsComplete;
+      existing.trialCountsComplete &&= trialCountsComplete;
+      existing.refundAmountComplete &&= row.refundAmountComplete;
     } else {
-      byDay.set(row.day, { ...row });
+      const fresh: DailyRow = {
+        ...zeroRevenueCounters(),
+        day: row.day,
+        activeHistoryComplete: row.activeHistoryComplete,
+        trialHistoryComplete: row.trialHistoryComplete && trialCountsComplete,
+        trialCountsComplete,
+        refundAmountComplete: row.refundAmountComplete,
+      };
+      for (const key of REVENUE_COUNTERS) fresh[key] = row[key];
+      byDay.set(row.day, fresh);
     }
   }
   const fromTs = Date.parse(`${fromDay}T00:00:00.000Z`);
-  const result: Array<DailyRow & { dayKey: string }> = [];
+  const result: DayPoint[] = [];
 
   // Seed from the latest row before `fromDay` so the first day doesn't dip
   // to zero.
   let lastActive = 0;
-  let seedDay = "";
+  let lastTrials = 0;
+  let lastComplete = false;
+  let lastTrialComplete = false;
+  let snapshotDay = "";
   for (const [day, row] of byDay) {
     if (day >= fromDay) continue;
-    if (day > seedDay) {
-      seedDay = day;
+    if (day > snapshotDay) {
+      snapshotDay = day;
       lastActive = row.activeSubs;
+      lastTrials = row.activeTrials;
+      lastComplete = row.activeHistoryComplete;
+      lastTrialComplete = row.trialHistoryComplete;
     }
   }
 
   for (let i = 0; i < rangeDays; i++) {
     const dayKey = utcDayKey(fromTs + i * DAY_MS);
+    const paidAtStart =
+      lastComplete &&
+      lastTrialComplete &&
+      snapshotDay !== "" &&
+      (trialSplitFromDay === undefined || snapshotDay >= trialSplitFromDay)
+        ? lastActive - lastTrials
+        : null;
     const entry = byDay.get(dayKey);
     if (entry) {
       lastActive = entry.activeSubs;
-      result.push({ ...entry, dayKey });
+      lastTrials = entry.activeTrials;
+      lastComplete = entry.activeHistoryComplete;
+      lastTrialComplete = entry.trialHistoryComplete;
+      snapshotDay = dayKey;
+      result.push({ ...entry, dayKey, paidAtStart });
     } else {
-      // Carry the prior activeSubs forward (no event = no churn that
-      // period). For event-driven counters a no-event period is
-      // genuinely zero.
+      // Carry the snapshot forward (no event = no change that period). For
+      // event-driven counters a no-event period is genuinely zero.
       result.push({
+        ...zeroRevenueCounters(),
         day: dayKey,
         dayKey,
+        activeHistoryComplete: lastComplete,
+        trialHistoryComplete: lastTrialComplete,
+        trialCountsComplete:
+          trialSplitFromDay === undefined || dayKey >= trialSplitFromDay,
+        refundAmountComplete: true,
         activeSubs: lastActive,
-        newSubs: 0,
-        renewals: 0,
-        cancellations: 0,
-        refunds: 0,
-        revenueMicros: 0,
+        activeTrials: lastTrials,
+        paidAtStart,
       });
     }
   }
   return result;
 }
 
+// Churn over consecutive days: expirations from the first day with a known
+// paid base, over that base.
+function churnOver(days: DayPoint[]): {
+  rate: number;
+  expirations: number;
+  paidAtStart: number;
+  fromDay: string;
+} | null {
+  const first = days.findIndex((day) => day.paidAtStart !== null);
+  const paidAtStart = days[first]?.paidAtStart;
+  if (paidAtStart === undefined || paidAtStart === null) return null;
+  if (
+    days
+      .slice(first)
+      .some((day) => !day.activeHistoryComplete || !day.trialHistoryComplete)
+  )
+    return null;
+  let expirations = 0;
+  for (const day of days.slice(first)) expirations += day.expirations;
+  return {
+    rate: paidAtStart > 0 ? (expirations / paidAtStart) * 100 : 0,
+    expirations,
+    paidAtStart,
+    fromDay: days[first].dayKey,
+  };
+}
+
 // Weeks are ISO (Mon–Sun), months are calendar months. Counters and revenue
-// are summed; activeSubs takes the bucket's last day, since summing a
-// snapshot would multiply it by the number of days.
+// are summed; snapshots take the bucket's last day, since summing a snapshot
+// would multiply it by the number of days.
 function bucketByPeriod(
-  daily: Array<DailyRow & { dayKey: string }>,
+  daily: DayPoint[],
   period: PeriodId,
-): Array<DailyRow & { dayKey: string; label: string; churnPct: number }> {
-  if (period === "daily") {
-    return daily.map((row) => ({
-      ...row,
-      label: row.dayKey.slice(5), // MM-DD
-      churnPct:
-        row.activeSubs > 0
-          ? ((row.cancellations + row.refunds) / row.activeSubs) * 100
-          : 0,
-    }));
-  }
-
-  const buckets = new Map<
-    string,
-    {
-      label: string;
-      sortKey: string;
-      newSubs: number;
-      renewals: number;
-      cancellations: number;
-      refunds: number;
-      revenueMicros: number;
-      activeSubsLast: number;
-      activeSubsLastDay: string;
-    }
-  >();
-
+): Array<DayPoint & { label: string; churnPct: number | null }> {
+  const buckets = new Map<string, DayPoint & { label: string }>();
+  const daysByBucket = new Map<string, DayPoint[]>();
   for (const row of daily) {
-    const {
-      bucketKey: key,
-      label,
-      sortKey,
-    } = bucketLabelFor(row.dayKey, period);
-    const existing = buckets.get(key) ?? {
-      label,
-      sortKey,
-      newSubs: 0,
-      renewals: 0,
-      cancellations: 0,
-      refunds: 0,
-      revenueMicros: 0,
-      activeSubsLast: 0,
-      activeSubsLastDay: "",
-    };
-    existing.newSubs += row.newSubs;
-    existing.renewals += row.renewals;
-    existing.cancellations += row.cancellations;
-    existing.refunds += row.refunds;
-    existing.revenueMicros += row.revenueMicros;
-    if (row.dayKey >= existing.activeSubsLastDay) {
-      existing.activeSubsLast = row.activeSubs;
-      existing.activeSubsLastDay = row.dayKey;
+    const { bucketKey, label, sortKey } =
+      period === "daily"
+        ? {
+            bucketKey: row.dayKey,
+            label: row.dayKey.slice(5), // MM-DD
+            sortKey: row.dayKey,
+          }
+        : bucketLabelFor(row.dayKey, period);
+    const existing = buckets.get(bucketKey);
+    if (!existing) {
+      buckets.set(bucketKey, { ...row, day: label, dayKey: sortKey, label });
+      daysByBucket.set(bucketKey, [row]);
+      continue;
     }
-    buckets.set(key, existing);
+    daysByBucket.get(bucketKey)?.push(row);
+    for (const key of REVENUE_COUNTERS) {
+      if (key === "activeSubs" || key === "activeTrials") continue;
+      existing[key] += row[key];
+    }
+    existing.activeHistoryComplete = row.activeHistoryComplete;
+    existing.trialHistoryComplete = row.trialHistoryComplete;
+    existing.trialCountsComplete &&= row.trialCountsComplete;
+    existing.refundAmountComplete &&= row.refundAmountComplete;
+    existing.activeSubs = row.activeSubs;
+    existing.activeTrials = row.activeTrials;
   }
 
-  const sorted = Array.from(buckets.values()).sort((a, b) =>
-    a.sortKey.localeCompare(b.sortKey),
-  );
-  return sorted.map((b) => ({
-    day: b.label,
-    dayKey: b.sortKey,
-    label: b.label,
-    activeSubs: b.activeSubsLast,
-    newSubs: b.newSubs,
-    renewals: b.renewals,
-    cancellations: b.cancellations,
-    refunds: b.refunds,
-    revenueMicros: b.revenueMicros,
-    churnPct:
-      b.activeSubsLast > 0
-        ? ((b.cancellations + b.refunds) / b.activeSubsLast) * 100
-        : 0,
-  }));
+  return Array.from(buckets, ([bucketKey, bucket]) => ({
+    ...bucket,
+    churnPct: churnOver(daysByBucket.get(bucketKey) ?? [])?.rate ?? null,
+  })).sort((a, b) => a.dayKey.localeCompare(b.dayKey));
 }
 
 // `sortKey` keeps buckets in order across years; `label` is the x-axis text.
 function bucketLabelFor(
   dayKey: string,
-  period: PeriodId,
+  period: Exclude<PeriodId, "daily">,
 ): { bucketKey: string; label: string; sortKey: string } {
   const date = new Date(`${dayKey}T00:00:00.000Z`);
   if (period === "weekly") {
@@ -985,7 +1392,6 @@ function bucketLabelFor(
       sortKey: key,
     };
   }
-  // Monthly
   const month = dayKey.slice(0, 7); // YYYY-MM
   return {
     bucketKey: month,
@@ -998,17 +1404,15 @@ function bucketLabelFor(
 // (day, productId, currency, platform), so activeSubs sums the rows of each
 // platform's latest day, while newSubs sums every row.
 function lifecycleForPlatform(
-  rows: Array<{
-    platform: Platform;
-    activeSubs: number;
-    newSubs: number;
-    day: string;
-  }>,
+  rows: MetricRow[],
   filter: PlatformFilter,
-): { activeSubs: number; newSubs: number } {
+): { activeSubs: number; newSubs: number; activeHistoryComplete: boolean } {
   const matching =
     filter === "all" ? rows : rows.filter((r) => r.platform === filter);
-  const lastByPlatform = new Map<Platform, { day: string; active: number }>();
+  const lastByPlatform = new Map<
+    Platform,
+    { day: string; active: number; complete: boolean }
+  >();
   let newSubs = 0;
   for (const row of matching) {
     newSubs += row.newSubs;
@@ -1017,21 +1421,26 @@ function lifecycleForPlatform(
       lastByPlatform.set(row.platform, {
         day: row.day,
         active: row.activeSubs,
+        complete: row.activeHistoryComplete,
       });
     } else if (row.day === prior.day) {
       prior.active += row.activeSubs;
+      prior.complete &&= row.activeHistoryComplete;
     }
   }
   let activeSubs = 0;
   for (const v of lastByPlatform.values()) activeSubs += v.active;
-  return { activeSubs, newSubs };
+  return {
+    activeSubs,
+    newSubs,
+    activeHistoryComplete: [...lastByPlatform.values()].every(
+      (row) => row.complete,
+    ),
+  };
 }
 
 // Takes rows already pinned to one currency.
-function revenueForPlatform(
-  rows: Array<{ platform: Platform; revenueMicros: number }>,
-  filter: PlatformFilter,
-): number {
+function revenueForPlatform(rows: MetricRow[], filter: PlatformFilter): number {
   const matching =
     filter === "all" ? rows : rows.filter((r) => r.platform === filter);
   let revenueMicros = 0;
@@ -1041,4 +1450,13 @@ function revenueForPlatform(
 
 function utcDayKey(ts: number): string {
   return new Date(ts).toISOString().slice(0, 10);
+}
+
+function formatAgo(elapsedMs: number): string {
+  const minutes = Math.max(0, Math.round(elapsedMs / 60_000));
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return `${hours} h ago`;
+  return `${Math.round(hours / 24)} days ago`;
 }

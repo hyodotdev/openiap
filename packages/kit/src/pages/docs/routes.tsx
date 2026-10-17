@@ -10,6 +10,7 @@ import VerificationGooglePage from "./sections/verification-google";
 import VerificationHorizonPage from "./sections/verification-horizon";
 import VerificationAmazonPage from "./sections/verification-amazon";
 import ApiReferencePage from "./sections/api";
+import PurchaseFlowPage from "./sections/purchase-flow";
 import CompatibilityPage from "./sections/compatibility";
 import AnalyticsPage from "./sections/analytics";
 import WebhooksPage from "./sections/webhooks";
@@ -52,6 +53,7 @@ export const docsChildRoutes = (
       <Route path="amazon" element={<VerificationAmazonPage />} />
     </Route>
     <Route path="api" element={<ApiReferencePage />} />
+    <Route path="purchase-flow" element={<PurchaseFlowPage />} />
     <Route path="compatibility" element={<CompatibilityPage />} />
     <Route path="analytics" element={<AnalyticsPage />} />
     <Route path="webhooks" element={<WebhooksPage />} />

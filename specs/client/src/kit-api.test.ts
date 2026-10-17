@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { kitApi, KitApiError } from "./kit-api";
+import { kitApi, KitApiError, resolveLocalizedPayload } from "./kit-api";
 
 function fakeFetch(
   recipe: (
@@ -267,5 +267,234 @@ describe("kitApi", () => {
       other.clientPayload("premium", "IOS", { refresh: true }),
     ).rejects.toBeInstanceOf(KitApiError);
     expect(cache.removeItem).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("kitApi client payload fallback", () => {
+  const payload = {
+    clientPayload: {
+      format: "json",
+      body: JSON.stringify({
+        schemaVersion: 1,
+        default: { headline: "Go premium", cta: "Subscribe" },
+        locales: { ko: { headline: "프리미엄" } },
+      }),
+      version: 4,
+      updatedAt: 123,
+    },
+  };
+
+  function memoryCache() {
+    const values = new Map<string, string>();
+    return {
+      values,
+      getItem: vi.fn((key: string) => values.get(key) ?? null),
+      setItem: vi.fn((key: string, value: string) => {
+        values.set(key, value);
+      }),
+      removeItem: vi.fn((key: string) => {
+        values.delete(key);
+      }),
+    };
+  }
+
+  async function primedApi(refreshResult: () => Promise<Response>) {
+    const cache = memoryCache();
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json(payload, { headers: { etag: '"scoped-v4"' } }),
+      )
+      .mockImplementationOnce(refreshResult);
+    const api = kitApi({
+      apiKey: "openiap-kit_pk_mobile",
+      baseUrl: "https://kit.test",
+      fetchImpl,
+      clientPayloadCache: cache,
+    });
+    await api.clientPayload("premium", "IOS");
+    return { api, cache };
+  }
+
+  const captivePortal = async () =>
+    new Response("<html>Sign in to Wi-Fi</html>", {
+      headers: { "content-type": "text/html" },
+    });
+
+  it.each([
+    ["a network error", () => Promise.reject(new TypeError("Load failed"))],
+    ["a 503", async () => new Response("unavailable", { status: 503 })],
+    ["a 429", async () => Response.json({ errors: [] }, { status: 429 })],
+    ["a captive portal's 200 page", captivePortal],
+    ["a 200 without a payload", async () => Response.json({ ok: true })],
+  ])("returns the cached copy marked stale on %s", async (_label, result) => {
+    const { api, cache } = await primedApi(result);
+
+    await expect(
+      api.clientPayload("premium", "IOS", { refresh: true }),
+    ).resolves.toEqual({ ...payload, stale: true });
+    expect(cache.removeItem).not.toHaveBeenCalled();
+  });
+
+  it("still evicts and throws on a 404 refresh", async () => {
+    const { api, cache } = await primedApi(async () =>
+      Response.json({ errors: [] }, { status: 404 }),
+    );
+
+    await expect(
+      api.clientPayload("premium", "IOS", { refresh: true }),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(cache.values.size).toBe(0);
+  });
+
+  it("still throws a network error when nothing is cached", async () => {
+    const api = kitApi({
+      apiKey: "openiap-kit_pk_mobile",
+      baseUrl: "https://kit.test",
+      fetchImpl: vi.fn().mockRejectedValue(new TypeError("Load failed")),
+    });
+
+    await expect(api.clientPayload("premium", "IOS")).rejects.toThrow(
+      "Load failed",
+    );
+  });
+
+  it("throws on a 200 without a payload and caches nothing", async () => {
+    const cache = memoryCache();
+    const api = kitApi({
+      apiKey: "openiap-kit_pk_mobile",
+      baseUrl: "https://kit.test",
+      fetchImpl: vi.fn().mockResolvedValue(Response.json({ ok: true })),
+      clientPayloadCache: cache,
+    });
+
+    await expect(api.clientPayload("premium", "IOS")).rejects.toThrow(
+      "returned no client payload",
+    );
+    expect(cache.values.size).toBe(0);
+  });
+
+  it.each([
+    ["a 500", async () => Response.json({ errors: [] }, { status: 500 })],
+    ["a captive portal's 200 page", captivePortal],
+  ])(
+    "resolves localized UI copy from the cache on %s",
+    async (_label, result) => {
+      const { api } = await primedApi(result);
+
+      await expect(
+        api.localizedClientPayload("premium", "IOS", {
+          locale: "ko-KR",
+          refresh: true,
+        }),
+      ).resolves.toEqual({
+        values: { headline: "프리미엄", cta: "Subscribe" },
+        version: 4,
+        stale: true,
+      });
+    },
+  );
+
+  it("returns null instead of throwing from the localized helper", async () => {
+    const respond = (response: Promise<Response>) =>
+      kitApi({
+        apiKey: "openiap-kit_pk_mobile",
+        baseUrl: "https://kit.test",
+        fetchImpl: vi.fn().mockReturnValue(response),
+      });
+    const apis = [
+      respond(Promise.reject(new TypeError("offline"))),
+      respond(Promise.resolve(Response.json({ errors: [] }, { status: 404 }))),
+      respond(
+        Promise.resolve(
+          Response.json({
+            clientPayload: { ...payload.clientPayload, format: "toml" },
+          }),
+        ),
+      ),
+      respond(
+        Promise.resolve(
+          Response.json({
+            clientPayload: { ...payload.clientPayload, body: "{" },
+          }),
+        ),
+      ),
+    ];
+
+    for (const api of apis) {
+      await expect(
+        api.localizedClientPayload("premium", "IOS", { locale: "en" }),
+      ).resolves.toBeNull();
+    }
+  });
+});
+
+describe("resolveLocalizedPayload", () => {
+  const document = {
+    schemaVersion: 1,
+    default: { headline: "Go premium", cta: "Subscribe" },
+    locales: {
+      ko: { headline: "프리미엄" },
+      "en-US": { headline: "Go Premium (US)" },
+      "zh-Hant": { headline: "高級版" },
+      broken: "not an object",
+    },
+  };
+
+  it("prefers the exact locale, then shorter prefixes, then fallbacks", () => {
+    expect(
+      resolveLocalizedPayload(document, { locale: "en-US" })?.headline,
+    ).toBe("Go Premium (US)");
+    expect(
+      resolveLocalizedPayload(document, { locale: "ko_KR" })?.headline,
+    ).toBe("프리미엄");
+    expect(
+      resolveLocalizedPayload(document, { locale: "zh-Hant-TW" })?.headline,
+    ).toBe("高級版");
+    expect(
+      resolveLocalizedPayload(document, {
+        locale: "fr-CA",
+        fallbackLocales: ["en-US"],
+      }),
+    ).toEqual({ headline: "Go Premium (US)", cta: "Subscribe" });
+  });
+
+  it("does not widen a language to one of its regions", () => {
+    expect(resolveLocalizedPayload(document, { locale: "en" })).toEqual(
+      document.default,
+    );
+  });
+
+  it("falls back to default, then null", () => {
+    expect(resolveLocalizedPayload(document, { locale: "fr" })).toEqual(
+      document.default,
+    );
+    expect(
+      resolveLocalizedPayload(
+        { schemaVersion: 1, locales: { ko: { headline: "프리미엄" } } },
+        { locale: "fr" },
+      ),
+    ).toBeNull();
+  });
+
+  it("returns null for an unsupported or missing schemaVersion", () => {
+    expect(
+      resolveLocalizedPayload(
+        { ...document, schemaVersion: 2 },
+        { locale: "ko" },
+      ),
+    ).toBeNull();
+    expect(
+      resolveLocalizedPayload({ default: document.default }, { locale: "ko" }),
+    ).toBeNull();
+    expect(
+      resolveLocalizedPayload(
+        { ...document, schemaVersion: 2 },
+        { locale: "ko", supportedSchemaVersions: [1, 2] },
+      )?.headline,
+    ).toBe("프리미엄");
+    for (const value of [null, [], "text", 1]) {
+      expect(resolveLocalizedPayload(value, { locale: "ko" })).toBeNull();
+    }
   });
 });

@@ -444,6 +444,7 @@ export const ingestGoogleRtdn = action({
           sourceFull: normalized.source,
           platform: normalized.platform,
           environment: normalized.environment,
+          environmentDefaulted: normalized.environmentDefaulted,
           purchaseToken: normalized.purchaseToken,
           linkedPurchaseToken: normalized.linkedPurchaseToken,
           transactionId: normalized.transactionId,
@@ -459,6 +460,9 @@ export const ingestGoogleRtdn = action({
           currency: normalized.currency,
           priceAmountMicros: normalized.priceAmountMicros,
           amountProvenance: normalized.amountProvenance,
+          freeTrial: normalized.freeTrial,
+          replacementCharged: normalized.replacementCharged,
+          snapshotObservedAt: normalized.snapshotObservedAt,
           occurredAt: normalized.occurredAt,
           rawSignedPayload: args.rawMessage,
         },
@@ -572,6 +576,7 @@ async function maybeFetchSubscriptionInfo(
       { timeout: 10_000 },
     );
 
+    const snapshotObservedAt = Date.now();
     const data = response.data;
     // v2 has expiryTime per line item, not the legacy root expiryTimeMillis.
     //
@@ -699,8 +704,38 @@ async function maybeFetchSubscriptionInfo(
           })
         : null;
     const usesStorePrice = storePriceAmountMicros !== undefined;
+    // subscriptionsv2 names the line item's offer but not its current phase.
+    // A purchase starts in the offer's first phase, so the synced catalog says
+    // whether that is a free trial. No offerId means the base plan, a paid start.
+    const offerDetails = matched?.offerDetails;
+    const freeTrial =
+      payload.subscriptionNotification.notificationType !== 4 ||
+      !matched?.productId
+        ? undefined
+        : !offerDetails?.offerId || !offerDetails.basePlanId
+          ? false
+          : ((await ctx.runQuery(
+              internal.products.query.getCatalogOfferFreeTrialInternal,
+              {
+                projectId,
+                productId: matched.productId,
+                basePlanId: offerDetails.basePlanId,
+                offerId: offerDetails.offerId,
+              },
+            )) ?? undefined);
+
+    // A replacement is charged at once only as a prepaid top-up or in these
+    // modes; the others charge the new plan when it renews.
+    const replacementMode = replacementMetadata(matched).mode?.toUpperCase();
+    const replacementCharged =
+      payload.subscriptionNotification.notificationType === 4 &&
+      data.linkedPurchaseToken &&
+      (matched?.prepaidPlan ||
+        replacementMode === "CHARGE_FULL_PRICE" ||
+        replacementMode === "CHARGE_PRORATED_PRICE");
 
     return {
+      snapshotObservedAt,
       productId: matched?.productId ?? undefined,
       environment: googlePlayEnvironment(data.testPurchase),
       ...(ambiguousLineItems ? { ambiguousLineItems: true } : {}),
@@ -728,6 +763,8 @@ async function maybeFetchSubscriptionInfo(
           : usesStorePrice
             ? "store"
             : "catalog",
+      freeTrial,
+      ...(replacementCharged ? { replacementCharged: true } : {}),
     };
   } catch (error) {
     // Structured config errors pass through for the route to map to a 4xx;

@@ -33,6 +33,11 @@ import {
   type ReceiptResponse,
   type RecheckOptions,
 } from "./shared";
+import { verifyRecordingIssues } from "../purchaseIssues/shared";
+import {
+  assertVerificationSource,
+  verificationSourceValidator,
+} from "./verificationSource";
 
 const AMAZON_RVS_BASE_URL = "https://appstore-sdk.amazon.com";
 const AMAZON_RVS_VERSION = "1.0";
@@ -74,6 +79,7 @@ interface PersistAmazonVerdictArgs {
   requestIp?: string;
   verificationDurationMs?: number;
   amazonRvsSequence: number;
+  correlationId?: string;
 }
 
 function describeError(error: unknown): string {
@@ -267,6 +273,7 @@ async function persistAmazonVerdict(
     requestIp: args.requestIp,
     verificationDurationMs: args.verificationDurationMs,
     amazonRvsSequence: args.amazonRvsSequence,
+    correlationId: args.correlationId,
   });
 }
 
@@ -338,12 +345,34 @@ const amazonVerificationArgs = v.object({
   sandbox: v.optional(v.boolean()),
   expectedProductId: v.optional(v.string()),
   requestIp: v.optional(v.string()),
+  correlationId: v.optional(v.string()),
 });
 
 export const verifyAmazonReceiptInternalV1 = action({
-  args: amazonVerificationArgs.fields,
+  args: {
+    ...amazonVerificationArgs.fields,
+    sourceAuth: verificationSourceValidator,
+  },
   returns: receiptResponseValidator,
-  handler: verifyAmazonReceipt,
+  handler: async (ctx, args) => {
+    const { sourceAuth, ...request } = args;
+    assertVerificationSource("amazon", request, sourceAuth);
+    return verifyRecordingIssues(
+      ctx,
+      {
+        apiKey: request.apiKey,
+        evidence: {
+          store: "amazon",
+          userId: request.userId,
+          receiptId: request.receiptId,
+          sandbox: request.sandbox,
+        },
+        expectedProductId: request.expectedProductId,
+        correlationId: request.correlationId,
+      },
+      () => verifyAmazonReceipt(ctx, request),
+    );
+  },
 });
 
 export async function verifyAmazonReceipt(
@@ -408,6 +437,7 @@ export async function verifyAmazonReceipt(
         state,
         requestIp: args.requestIp,
         verificationDurationMs: Date.now() - verificationStart,
+        correlationId: args.correlationId,
       });
       return applyExpectedProductId(verdict, args.expectedProductId);
     }
@@ -416,7 +446,11 @@ export async function verifyAmazonReceipt(
     // not store verdicts. Never replace a previously valid snapshot with an
     // UNKNOWN row just because this attempt could not reach/parse RVS.
     if (error instanceof ReceiptVerificationError) throw error;
-    throw new AmazonReceiptVerificationError(describeError(error));
+    // `outage` only labels the purchase issue; /v1 still answers 400 here.
+    throw new AmazonReceiptVerificationError(
+      describeError(error),
+      isAmazonTransientError(error) ? { outage: true } : undefined,
+    );
   }
 
   const state = mapAmazonReceiptState(receiptData);
@@ -431,6 +465,7 @@ export async function verifyAmazonReceipt(
     amazonRvsSequence,
     requestIp: args.requestIp,
     verificationDurationMs: Date.now() - verificationStart,
+    correlationId: args.correlationId,
   });
   return applyExpectedProductId(verdict, args.expectedProductId);
 }

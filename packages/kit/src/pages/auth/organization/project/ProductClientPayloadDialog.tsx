@@ -1,4 +1,11 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
@@ -9,16 +16,26 @@ import {
   closeProductClientPayloadEditor,
   productClientPayloadEditorSignal,
 } from "@/lib/signals";
+import { ClientPayloadHistory } from "./ClientPayloadHistory";
+import { ClientPayloadPreview } from "./ClientPayloadPreview";
 import {
   MAX_CLIENT_PAYLOAD_BODY_BYTES,
   formatClientPayloadBytes,
   validateClientPayload,
+  type ClientPayloadDraft,
   type ClientPayloadFormat,
+  type ClientPayloadSdkPreview,
+  type ClientPayloadVersion,
+  type ClientPayloadVersionSummary,
   type ProductClientPayload,
 } from "./clientPayload";
 
+export type ClientPayloadTab = "preview" | "history";
+
 export type ClientPayloadProduct = {
   clientPayload?: ProductClientPayload;
+  draft?: ClientPayloadDraft;
+  expectedDraftRevision: number;
   expectedVersion: number;
   projectId?: Id<"projects">;
   platform: "IOS" | "Android";
@@ -26,28 +43,55 @@ export type ClientPayloadProduct = {
   title: string;
 };
 
-export interface SaveClientPayloadInput {
+type Target = { platform: "IOS" | "Android"; productId: string };
+export type SaveDraftInput = Target & {
   body: string;
-  expectedVersion: number;
+  expectedDraftRevision: number;
+  /** Bases the draft on this version; omitted, a saved draft keeps its base. */
+  expectedVersion?: number;
   format: ClientPayloadFormat;
-  platform: "IOS" | "Android";
-  productId: string;
-}
-
-export interface RemoveClientPayloadInput {
+};
+export type PublishInput = Target & {
+  expectedDraftRevision: number;
   expectedVersion: number;
-  platform: "IOS" | "Android";
-  productId: string;
-}
+  note?: string;
+};
+export type DiscardDraftInput = Target & { expectedDraftRevision: number };
+export type RemoveClientPayloadInput = Target & { expectedVersion: number };
+export type RollbackInput = Target & {
+  expectedVersion: number;
+  toVersion: number;
+};
 
 interface ProductClientPayloadDialogProps {
-  isOpen: boolean;
+  history: ClientPayloadVersionSummary[] | undefined;
   isLoading?: boolean;
+  isOpen: boolean;
   onClose: () => void;
+  onDiscardDraft: (input: DiscardDraftInput) => Promise<void>;
+  onPublish: (input: PublishInput) => Promise<void>;
   onRemove: (input: RemoveClientPayloadInput) => Promise<void>;
-  onSave: (input: SaveClientPayloadInput) => Promise<void>;
+  onRollback: (input: RollbackInput) => Promise<void>;
+  onSaveDraft: (
+    input: SaveDraftInput,
+  ) => Promise<{ revision: number; baseVersion: number }>;
+  onSelectVersion: (version: number) => void;
+  onTabChange: (tab: ClientPayloadTab) => void;
   product: ClientPayloadProduct | null;
+  sdkPreview: ClientPayloadSdkPreview | null | undefined;
+  selectedVersion?: number;
+  selectedVersionDetail: ClientPayloadVersion | null | undefined;
+  tab: ClientPayloadTab;
 }
+
+type Snapshot = {
+  draftRevision: number;
+  expectedVersion: number;
+  published?: ProductClientPayload;
+  savedDraft?: ClientPayloadDraft;
+};
+
+type BusyAction = "save" | "publish" | "discard" | "remove" | "rollback";
 
 const FORMAT_OPTIONS: Array<{
   label: string;
@@ -58,23 +102,43 @@ const FORMAT_OPTIONS: Array<{
   { value: "text", label: "Plain text" },
 ];
 
+const EMPTY_SNAPSHOT: Snapshot = { draftRevision: 0, expectedVersion: 0 };
+
+function snapshotOf(product: ClientPayloadProduct): Snapshot {
+  return {
+    draftRevision: product.expectedDraftRevision,
+    expectedVersion: product.expectedVersion,
+    published: product.clientPayload,
+    savedDraft: product.draft,
+  };
+}
+
 export function ProductClientPayloadDialog({
-  isOpen,
+  history,
   isLoading = false,
+  isOpen,
   onClose,
+  onDiscardDraft,
+  onPublish,
   onRemove,
-  onSave,
+  onRollback,
+  onSaveDraft,
+  onSelectVersion,
+  onTabChange,
   product,
+  sdkPreview,
+  selectedVersion,
+  selectedVersionDetail,
+  tab,
 }: ProductClientPayloadDialogProps) {
   const [format, setFormat] = useState<ClientPayloadFormat>("toml");
   const [body, setBody] = useState("");
-  const [initialPayload, setInitialPayload] = useState<ProductClientPayload>();
-  const [initialExpectedVersion, setInitialExpectedVersion] = useState(0);
+  const [note, setNote] = useState("");
+  const [snapshot, setSnapshot] = useState<Snapshot>(EMPTY_SNAPSHOT);
   const [bodyTouched, setBodyTouched] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [busyAction, setBusyAction] = useState<BusyAction | null>(null);
   const [isConfirmingRemove, setIsConfirmingRemove] = useState(false);
-  const activeTargetRef = useRef<string | null>(null);
   const initializedTargetRef = useRef<string | null>(null);
   const keepPayloadButtonRef = useRef<HTMLButtonElement>(null);
   const removePayloadButtonRef = useRef<HTMLButtonElement>(null);
@@ -83,38 +147,23 @@ export function ProductClientPayloadDialog({
 
   useEffect(() => {
     if (!isOpen || !product) {
-      if (!isOpen) {
-        activeTargetRef.current = null;
-        initializedTargetRef.current = null;
-      }
+      if (!isOpen) initializedTargetRef.current = null;
       return;
     }
     const targetKey = `${product.projectId ?? "unknown-project"}\u0000${product.platform}\u0000${product.productId}`;
-    if (activeTargetRef.current !== targetKey) {
-      activeTargetRef.current = targetKey;
-      initializedTargetRef.current = null;
-      setInitialPayload(undefined);
-      setInitialExpectedVersion(0);
-      setFormat("toml");
-      setBody("");
-      setBodyTouched(false);
-      setSubmitError(null);
-      setIsSaving(false);
-      setIsConfirmingRemove(false);
-    }
     if (isLoading || initializedTargetRef.current === targetKey) return;
 
-    // Snapshot exactly once per opened target. A reactive query update from
-    // another tab must not overwrite the operator's draft or silently advance
-    // expectedVersion; the mutation should surface an optimistic conflict.
+    // Snapshot once per opened target. A reactive update from another tab
+    // must not overwrite these edits or silently advance the OCC guards.
     initializedTargetRef.current = targetKey;
-    setInitialPayload(product.clientPayload);
-    setInitialExpectedVersion(product.expectedVersion);
-    setFormat(product.clientPayload?.format ?? "toml");
-    setBody(product.clientPayload?.body ?? "");
+    const start = product.draft ?? product.clientPayload;
+    setSnapshot(snapshotOf(product));
+    setFormat(start?.format ?? "toml");
+    setBody(start?.body ?? "");
+    setNote("");
     setBodyTouched(false);
     setSubmitError(null);
-    setIsSaving(false);
+    setBusyAction(null);
     setIsConfirmingRemove(false);
   }, [isLoading, isOpen, product]);
 
@@ -132,83 +181,164 @@ export function ProductClientPayloadDialog({
     [body, format],
   );
   if (!product) return null;
-  const selectedProduct = product;
+  const selected = product;
 
-  const platformLabel = selectedProduct.platform === "IOS" ? "iOS" : "Android";
-  const originalFormat = initialPayload?.format ?? "toml";
-  const originalBody = initialPayload?.body ?? "";
-  const hasChanges = format !== originalFormat || body !== originalBody;
-  const isBusy = isSaving;
-  const isInputDisabled = isSaving || isLoading;
+  const platformLabel = selected.platform === "IOS" ? "iOS" : "Android";
+  const { published, savedDraft } = snapshot;
+  const baseline = savedDraft ?? published;
+  const hasUnsavedEdits =
+    format !== (baseline?.format ?? "toml") || body !== (baseline?.body ?? "");
+  const differsFromPublished =
+    !published || published.format !== format || published.body !== body;
+  // Publish refuses a draft written against an older version until rebased.
+  const staleDraftBase =
+    savedDraft && savedDraft.baseVersion !== snapshot.expectedVersion
+      ? savedDraft.baseVersion
+      : undefined;
+  const isBusy = busyAction !== null;
+  const isInputDisabled = isBusy || isLoading;
+  const changedElsewhere =
+    !isLoading &&
+    (selected.expectedVersion !== snapshot.expectedVersion ||
+      selected.expectedDraftRevision !== snapshot.draftRevision);
   const validationErrorId = `${payloadFieldId}-validation`;
   const payloadHelpId = `${payloadFieldId}-help`;
   const payloadCountId = `${payloadFieldId}-count`;
   const showValidationError = bodyTouched && !validation.valid;
+  const target: Target = {
+    productId: selected.productId,
+    platform: selected.platform,
+  };
 
   function requestClose(): void {
     if (!isBusy) onClose();
   }
 
-  async function handleSave(): Promise<void> {
-    setBodyTouched(true);
+  async function run(
+    action: BusyAction,
+    fallback: string,
+    work: () => Promise<void>,
+  ): Promise<void> {
     setSubmitError(null);
-    if (!validation.valid || !hasChanges || isInputDisabled) return;
-
-    setIsSaving(true);
+    setBusyAction(action);
     try {
-      await onSave({
-        productId: selectedProduct.productId,
-        platform: selectedProduct.platform,
-        format,
-        body,
-        expectedVersion: initialExpectedVersion,
-      });
-      onClose();
+      await work();
     } catch (error) {
-      setSubmitError(getErrorMessage(error, "Could not save client payload."));
+      setSubmitError(getErrorMessage(error, fallback));
     } finally {
-      setIsSaving(false);
+      setBusyAction(null);
     }
   }
 
-  async function handleRemove(): Promise<void> {
-    if (!initialPayload || isBusy) return;
+  // A first save, or a rebase, bases the draft on the version shown here.
+  async function saveDraft(rebase = false): Promise<number> {
+    const saved = await onSaveDraft({
+      ...target,
+      format,
+      body,
+      expectedDraftRevision: snapshot.draftRevision,
+      ...(rebase || !savedDraft
+        ? { expectedVersion: snapshot.expectedVersion }
+        : {}),
+    });
+    setSnapshot((current) => ({
+      ...current,
+      draftRevision: saved.revision,
+      savedDraft: {
+        format,
+        body,
+        baseVersion: saved.baseVersion,
+        updatedAt: Date.now(),
+      },
+    }));
+    return saved.revision;
+  }
 
+  function handleSaveDraft(): Promise<void> {
+    setBodyTouched(true);
+    return run("save", "Could not save the draft.", async () => {
+      await saveDraft();
+    });
+  }
+
+  function handleRebase(): Promise<void> {
+    return run("save", "Could not rebase the draft.", async () => {
+      await saveDraft(true);
+    });
+  }
+
+  // Loads what changed elsewhere and keeps any unsaved edits.
+  function handleRefresh(): void {
+    setSnapshot(snapshotOf(selected));
+    if (!hasUnsavedEdits) {
+      const start = selected.draft ?? selected.clientPayload;
+      setFormat(start?.format ?? "toml");
+      setBody(start?.body ?? "");
+    }
     setSubmitError(null);
-    setIsSaving(true);
-    try {
-      await onRemove({
-        productId: selectedProduct.productId,
-        platform: selectedProduct.platform,
-        expectedVersion: initialExpectedVersion,
+  }
+
+  function handlePublish(): Promise<void> {
+    setBodyTouched(true);
+    return run("publish", "Could not publish the payload.", async () => {
+      const draftRevision = hasUnsavedEdits
+        ? await saveDraft()
+        : snapshot.draftRevision;
+      await onPublish({
+        ...target,
+        expectedVersion: snapshot.expectedVersion,
+        expectedDraftRevision: draftRevision,
+        ...(note.trim() ? { note: note.trim() } : {}),
       });
       onClose();
-    } catch (error) {
-      setSubmitError(
-        getErrorMessage(error, "Could not remove client payload."),
-      );
-    } finally {
-      setIsSaving(false);
-    }
+    });
+  }
+
+  function handleDiscardDraft(): Promise<void> {
+    return run("discard", "Could not discard the draft.", async () => {
+      await onDiscardDraft({
+        ...target,
+        expectedDraftRevision: snapshot.draftRevision,
+      });
+      onClose();
+    });
+  }
+
+  function handleRemove(): Promise<void> {
+    return run("remove", "Could not remove client payload.", async () => {
+      await onRemove({ ...target, expectedVersion: snapshot.expectedVersion });
+      onClose();
+    });
+  }
+
+  function handleRollback(toVersion: number): Promise<void> {
+    return run("rollback", "Could not roll back the payload.", async () => {
+      await onRollback({
+        ...target,
+        toVersion,
+        expectedVersion: snapshot.expectedVersion,
+      });
+      onClose();
+    });
   }
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={requestClose}
-      ariaLabel={`Edit client payload for ${selectedProduct.productId} on ${platformLabel}`}
+      ariaLabel={`Edit client payload for ${selected.productId} on ${platformLabel}`}
       showCloseButton={false}
-      className="max-w-2xl bg-card"
+      className="max-w-4xl bg-card"
       contentClassName="p-5"
     >
-      <div className="space-y-5" aria-busy={isInputDisabled}>
+      <div className="space-y-5" aria-busy={isBusy || isLoading}>
         <div className="pr-8">
           <h2 className="text-lg font-semibold">Client payload</h2>
           <p className="mt-1 min-w-0 break-words text-xs text-muted-foreground">
             <span className="break-all font-mono text-foreground">
-              {selectedProduct.productId}
+              {selected.productId}
             </span>{" "}
-            · {platformLabel} · {selectedProduct.title}
+            · {platformLabel} · {selected.title}
           </p>
         </div>
 
@@ -219,6 +349,7 @@ export function ProductClientPayloadDialog({
               This payload is public app data. Anyone who can call your
               project&apos;s client endpoints may receive it. Never put API
               secrets, signing keys, credentials, or private server rules here.
+              Show prices and trial terms from the store, not from this payload.
             </p>
           </div>
         </div>
@@ -245,9 +376,8 @@ export function ProductClientPayloadDialog({
             </select>
           </label>
           <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-            IAPKit stores this separately from App Store Connect and Play
-            Console metadata. Store Sync and Reset do not push, overwrite, or
-            delete it.
+            Edits go to a draft that apps never receive. Publish makes it the
+            next version; Store Sync and Reset never touch it.
           </div>
         </div>
 
@@ -273,7 +403,7 @@ export function ProductClientPayloadDialog({
             value={body}
             disabled={isInputDisabled}
             required
-            rows={14}
+            rows={12}
             spellCheck={false}
             aria-invalid={showValidationError ? "true" : undefined}
             aria-describedby={`${payloadHelpId} ${payloadCountId}${
@@ -323,12 +453,82 @@ export function ProductClientPayloadDialog({
           ) : null}
         </div>
 
-        {initialPayload ? (
-          <p className="text-[11px] text-muted-foreground">
-            Version {initialPayload.version} · last updated{" "}
-            {new Date(initialPayload.updatedAt).toLocaleString()}
-          </p>
+        <p className="text-[11px] text-muted-foreground">
+          {published
+            ? `Published v${published.version} · ${new Date(published.updatedAt).toLocaleString()}`
+            : "Nothing is published yet."}
+          {savedDraft
+            ? ` · Draft saved, based on v${savedDraft.baseVersion}`
+            : ""}
+          {hasUnsavedEdits ? " · Unsaved edits" : ""}
+        </p>
+
+        {changedElsewhere ? (
+          <PayloadNotice
+            action="Load latest"
+            disabled={isBusy}
+            onAction={handleRefresh}
+          >
+            This payload changed in another session. Load the latest version
+            before publishing; your unsaved edits stay.
+          </PayloadNotice>
+        ) : staleDraftBase !== undefined ? (
+          <PayloadNotice
+            action={`Rebase onto v${snapshot.expectedVersion}`}
+            disabled={isInputDisabled || !validation.valid}
+            onAction={() => void handleRebase()}
+          >
+            {`This draft is based on v${staleDraftBase}, but v${snapshot.expectedVersion} is the current version. Check the Preview diff, then rebase the draft to publish it.`}
+          </PayloadNotice>
         ) : null}
+
+        <div>
+          <div
+            role="tablist"
+            aria-label="Payload details"
+            className="mb-3 flex gap-1 border-b border-border text-xs"
+          >
+            {(["preview", "history"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={tab === value}
+                onClick={() => onTabChange(value)}
+                className={`-mb-px border-b-2 px-3 py-1.5 ${
+                  tab === value
+                    ? "border-primary font-medium text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {value === "preview" ? "Preview" : "History"}
+              </button>
+            ))}
+          </div>
+          <div role="tabpanel">
+            {tab === "preview" ? (
+              <ClientPayloadPreview
+                draft={{ format, body }}
+                draftValidation={validation}
+                nextVersion={snapshot.expectedVersion + 1}
+                platform={selected.platform}
+                productId={selected.productId}
+                published={published}
+                sdkPreview={sdkPreview}
+              />
+            ) : (
+              <ClientPayloadHistory
+                currentVersion={selected.clientPayload?.version}
+                history={history}
+                isBusy={isBusy}
+                onRollback={handleRollback}
+                onSelect={onSelectVersion}
+                selected={selectedVersionDetail}
+                selectedVersion={selectedVersion}
+              />
+            )}
+          </div>
+        </div>
 
         {submitError ? (
           <p
@@ -363,7 +563,7 @@ export function ProductClientPayloadDialog({
                 onClick={() => void handleRemove()}
                 className="inline-flex items-center gap-1.5 rounded border border-rose-500/40 bg-rose-500/20 px-3 py-1.5 text-rose-700 hover:bg-rose-500/30 disabled:opacity-60 dark:text-rose-200"
               >
-                {isBusy ? (
+                {busyAction === "remove" ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <Trash2 className="h-3.5 w-3.5" />
@@ -373,41 +573,84 @@ export function ProductClientPayloadDialog({
             </div>
           </div>
         ) : (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              {initialPayload ? (
+          <div className="space-y-3">
+            <label className="block text-xs" htmlFor="client-payload-note">
+              <span className="mb-1 block text-muted-foreground">
+                Publish note (optional)
+              </span>
+              <input
+                id="client-payload-note"
+                value={note}
+                maxLength={500}
+                disabled={isInputDisabled}
+                onChange={(event) => setNote(event.target.value)}
+                className="w-full rounded border border-border bg-background px-2 py-1.5"
+              />
+            </label>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap gap-1">
+                {published ? (
+                  <button
+                    ref={removePayloadButtonRef}
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => setIsConfirmingRemove(true)}
+                    className="inline-flex items-center gap-1.5 rounded px-2 py-1.5 text-xs text-rose-700 hover:bg-rose-500/10 disabled:opacity-60 dark:text-rose-300"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Remove payload
+                  </button>
+                ) : null}
+                {savedDraft ? (
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => void handleDiscardDraft()}
+                    className="rounded px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted/50 disabled:opacity-60"
+                  >
+                    Discard draft
+                  </button>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap gap-2">
                 <button
-                  ref={removePayloadButtonRef}
                   type="button"
                   disabled={isBusy}
-                  onClick={() => setIsConfirmingRemove(true)}
-                  className="inline-flex items-center gap-1.5 rounded px-2 py-1.5 text-xs text-rose-700 hover:bg-rose-500/10 disabled:opacity-60 dark:text-rose-300"
+                  onClick={requestClose}
+                  className="rounded border border-border px-3 py-1.5 text-xs hover:bg-muted/50 disabled:opacity-60"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Remove payload
+                  Cancel
                 </button>
-              ) : null}
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={isBusy}
-                onClick={requestClose}
-                className="rounded border border-border px-3 py-1.5 text-xs hover:bg-muted/50 disabled:opacity-60"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={isInputDisabled || !validation.valid || !hasChanges}
-                onClick={() => void handleSave()}
-                className="inline-flex items-center gap-1.5 rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSaving ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : null}
-                Save payload
-              </button>
+                <button
+                  type="button"
+                  disabled={
+                    isInputDisabled || !validation.valid || !hasUnsavedEdits
+                  }
+                  onClick={() => void handleSaveDraft()}
+                  className="inline-flex items-center gap-1.5 rounded border border-border px-3 py-1.5 text-xs hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {busyAction === "save" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : null}
+                  Save draft
+                </button>
+                <button
+                  type="button"
+                  disabled={
+                    isInputDisabled ||
+                    !validation.valid ||
+                    !differsFromPublished ||
+                    staleDraftBase !== undefined
+                  }
+                  onClick={() => void handlePublish()}
+                  className="inline-flex items-center gap-1.5 rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {busyAction === "publish" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : null}
+                  Publish
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -430,77 +673,164 @@ export function ProductClientPayloadDialogRoot() {
   );
 
   const target = editorState.target;
-  const payloadState = useQuery(
-    api.products.query.getProductClientPayloadEditorState,
+  const targetKey = target
+    ? `${editorState.instanceId}\u0000${target.projectId}\u0000${target.platform}\u0000${target.productId}`
+    : "closed";
+  // Tab and selected version reset whenever another product opens.
+  const [view, setView] = useState<{
+    targetKey: string;
+    tab: ClientPayloadTab;
+    selectedVersion?: number;
+  }>({ targetKey, tab: "preview" });
+  const currentView =
+    view.targetKey === targetKey
+      ? view
+      : { targetKey, tab: "preview" as const, selectedVersion: undefined };
+
+  const queryArgs =
     editorState.isOpen && target
       ? {
           projectId: target.projectId,
           platform: target.platform,
           productId: target.productId,
         }
+      : null;
+  const workspace = useQuery(
+    api.products.query.getProductClientPayloadWorkspace,
+    queryArgs ?? "skip",
+  );
+  const sdkPreview = useQuery(
+    api.products.query.getProductClientPayloadSdkPreview,
+    queryArgs && currentView.tab === "preview" ? queryArgs : "skip",
+  );
+  const history = useQuery(
+    api.products.query.listProductClientPayloadHistory,
+    queryArgs && currentView.tab === "history" ? queryArgs : "skip",
+  );
+  const selectedVersionDetail = useQuery(
+    api.products.query.getProductClientPayloadHistoryVersion,
+    queryArgs && currentView.selectedVersion !== undefined
+      ? { ...queryArgs, version: currentView.selectedVersion }
       : "skip",
   );
-  const upsert = useMutation(api.products.mutation.upsertProductClientPayload);
+  const saveDraft = useMutation(
+    api.products.mutation.saveProductClientPayloadDraft,
+  );
+  const publishDraft = useMutation(
+    api.products.mutation.publishProductClientPayloadDraft,
+  );
+  const discardDraft = useMutation(
+    api.products.mutation.discardProductClientPayloadDraft,
+  );
   const remove = useMutation(api.products.mutation.removeProductClientPayload);
+  const rollback = useMutation(
+    api.products.mutation.rollbackProductClientPayload,
+  );
+
   const product = useMemo<ClientPayloadProduct | null>(
     () =>
-      target && payloadState !== null
+      target && workspace !== null
         ? {
             projectId: target.projectId,
             platform: target.platform,
             productId: target.productId,
             title: target.title,
-            expectedVersion: payloadState?.expectedVersion ?? 0,
-            ...(payloadState?.clientPayload
-              ? { clientPayload: payloadState.clientPayload }
+            expectedVersion: workspace?.expectedVersion ?? 0,
+            expectedDraftRevision: workspace?.expectedDraftRevision ?? 0,
+            ...(workspace?.clientPayload
+              ? { clientPayload: workspace.clientPayload }
               : {}),
+            ...(workspace?.draft ? { draft: workspace.draft } : {}),
           }
         : null,
-    [payloadState, target],
+    [workspace, target],
   );
 
-  const handleSave = async (input: SaveClientPayloadInput): Promise<void> => {
-    if (!target) return;
-    await upsert({
-      projectId: target.projectId,
-      productId: input.productId,
-      platform: input.platform,
-      format: input.format,
-      body: input.body,
-      expectedVersion: input.expectedVersion,
-    });
-    toast.success(`Client payload saved for ${input.productId}`);
-  };
-
-  const handleRemove = async (
-    input: RemoveClientPayloadInput,
-  ): Promise<void> => {
-    if (!target) return;
-    await remove({
-      projectId: target.projectId,
-      productId: input.productId,
-      platform: input.platform,
-      expectedVersion: input.expectedVersion,
-    });
-    toast.success(`Client payload removed from ${input.productId}`);
+  const projectId = target?.projectId;
+  const withProject = <T extends object>(input: T) => {
+    if (!projectId) throw new Error("No client payload target is open");
+    return { projectId, ...input };
   };
 
   return (
     <ProductClientPayloadDialog
-      key={
-        target
-          ? `${editorState.instanceId}\u0000${target.projectId}\u0000${target.platform}\u0000${target.productId}`
-          : "closed"
-      }
+      key={targetKey}
       isOpen={editorState.isOpen}
       isLoading={
-        editorState.isOpen && target !== null && payloadState === undefined
+        editorState.isOpen && target !== null && workspace === undefined
       }
       product={product}
       onClose={closeProductClientPayloadEditor}
-      onSave={handleSave}
-      onRemove={handleRemove}
+      tab={currentView.tab}
+      onTabChange={(tab) => setView({ ...currentView, tab })}
+      sdkPreview={sdkPreview}
+      history={history}
+      selectedVersion={currentView.selectedVersion}
+      selectedVersionDetail={selectedVersionDetail}
+      onSelectVersion={(selectedVersion) =>
+        setView({ ...currentView, selectedVersion })
+      }
+      onSaveDraft={async (input) => {
+        const saved = await saveDraft(withProject(input));
+        toast.success(`Draft saved for ${input.productId}`);
+        return saved;
+      }}
+      onPublish={async (input) => {
+        const result = await publishDraft(withProject(input));
+        toast.success(
+          `Published v${result.version} of ${input.productId}'s payload`,
+        );
+      }}
+      onDiscardDraft={async (input) => {
+        await discardDraft(withProject(input));
+        toast.success(`Draft discarded for ${input.productId}`);
+      }}
+      onRemove={async (input) => {
+        await remove(withProject(input));
+        toast.success(`Client payload removed from ${input.productId}`);
+      }}
+      onRollback={async (input) => {
+        const result = await rollback(withProject(input));
+        toast.success(
+          result.changed
+            ? `Rolled ${input.productId} back to v${input.toVersion} as v${result.version}`
+            : `v${result.version} of ${input.productId} already matches v${input.toVersion}`,
+        );
+      }}
     />
+  );
+}
+
+function PayloadNotice({
+  action,
+  children,
+  disabled,
+  onAction,
+}: {
+  action: string;
+  children: ReactNode;
+  disabled: boolean;
+  onAction: () => void;
+}) {
+  return (
+    <div
+      role="status"
+      className="contained-action-card rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-200"
+    >
+      <div className="contained-action-card__content">
+        <p className="contained-action-card__text">{children}</p>
+      </div>
+      <div className="contained-action-card__actions">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onAction}
+          className="rounded border border-amber-500/40 px-3 py-1.5 hover:bg-amber-500/10 disabled:opacity-60"
+        >
+          {action}
+        </button>
+      </div>
+    </div>
   );
 }
 

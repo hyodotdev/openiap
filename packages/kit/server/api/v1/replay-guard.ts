@@ -56,9 +56,10 @@ export interface ReplayGuardConfig {
 
 export type ReplayRejectReason = "burst" | "repeated_failure";
 
-// Settled store verdicts. Anything else stays retryable unless the verifier
-// marks it stable: Google's UNKNOWN covers both an unrecognized state and the
-// explicit 410 revoked-token response, and only the latter is settled.
+// Settled store verdicts, unless the verifier says otherwise: Google's UNKNOWN
+// covers both an unrecognized state and the explicit 410 revoked-token response,
+// and only the latter is settled; an EXPIRED subscription Play holds on hold or
+// paused comes back when the user fixes payment or resumes.
 const STABLE_REJECTION_STATES = new Set([
   "INAUTHENTIC",
   "CANCELED",
@@ -68,14 +69,29 @@ const STABLE_REJECTION_STATES = new Set([
 
 /**
  * Whether a rejected verification arms the failure cooldown. Settled verdicts
- * (INAUTHENTIC, CANCELED, EXPIRED) don't change in seconds; others can.
+ * (INAUTHENTIC, CANCELED, EXPIRED) don't change in seconds; others can. The
+ * verifier's `stableRejection`, when set, decides instead.
  */
 export function isStableRejection(
   state: string,
-  explicitStableRejection = false,
+  stableRejection?: boolean,
+): boolean {
+  return stableRejection ?? STABLE_REJECTION_STATES.has(state.toUpperCase());
+}
+
+/**
+ * A rejection a retry of the same evidence will not change. Never Horizon's:
+ * Meta checks current ownership of (userId, sku), and the user can buy right
+ * after `success: false`.
+ */
+export function isSettledRejection(
+  store: string | undefined,
+  outcome: { isValid: boolean; state: string; stableRejection?: boolean },
 ): boolean {
   return (
-    explicitStableRejection || STABLE_REJECTION_STATES.has(state.toUpperCase())
+    store !== "horizon" &&
+    !outcome.isValid &&
+    isStableRejection(outcome.state, outcome.stableRejection)
   );
 }
 
@@ -402,16 +418,9 @@ export function replayGuardMiddleware(
           refundReplayToken(store, bucketKey, capacity);
         } else {
           // In `finally` so a handler exception can't skip marking a stable
-          // rejection. Horizon is exempt: it checks current ownership of
-          // (userId, sku), and the user can buy right after `success: false`.
-          // The token bucket still limits Horizon bursts.
+          // rejection. The token bucket still limits Horizon bursts.
           const outcome = c.get("verifyOutcome");
-          if (
-            body.store !== "horizon" &&
-            outcome &&
-            outcome.isValid === false &&
-            isStableRejection(outcome.state, outcome.stableRejection === true)
-          ) {
+          if (outcome && isSettledRejection(body.store, outcome)) {
             markPayloadFailure(
               store,
               bucketKey,

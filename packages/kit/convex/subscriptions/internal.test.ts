@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Id } from "../_generated/dataModel";
+import { compareValues } from "convex/values";
+import type { Doc, Id } from "../_generated/dataModel";
+import { accessAt } from "./accessHistory";
+import { addSubscriptionToCohorts, type CohortBucket } from "./revenueCohorts";
+import { normalizeAppleAsn } from "../webhooks/shared";
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
 import { hmacSha256Hex } from "../utils/sha256";
 import {
@@ -13,6 +17,7 @@ import {
   getSourceProductIdByTokenHandler,
   mergeVerifiedSubscriptionSnapshot,
   recordVerifiedSubscriptionHandler,
+  persistSubscriptionSnapshot,
 } from "./internal";
 
 type Row = Record<string, unknown> & { _id: string; _creationTime: number };
@@ -40,6 +45,26 @@ class MemQuery {
 
   async collect(): Promise<Row[]> {
     return [...this.rows];
+  }
+
+  async paginate(options: { numItems: number; cursor: string | null }) {
+    const key = (row: Row) => [row._creationTime, row._id];
+    const boundary =
+      options.cursor === null ? null : JSON.parse(options.cursor);
+    const ordered = [...this.rows].sort((a, b) =>
+      compareValues(key(a), key(b)),
+    );
+    const remaining = ordered.filter(
+      (row) => boundary === null || compareValues(key(row), boundary) > 0,
+    );
+    const page = remaining.slice(0, options.numItems);
+    return {
+      page: structuredClone(page),
+      isDone: page.length === remaining.length,
+      continueCursor: page.length
+        ? JSON.stringify(key(page[page.length - 1]))
+        : (options.cursor ?? ""),
+    };
   }
 
   async take(count: number): Promise<Row[]> {
@@ -142,9 +167,7 @@ class MemDb {
 }
 
 function makeCtx(db: MemDb) {
-  return { db } as unknown as Parameters<
-    typeof recordVerifiedSubscriptionHandler
-  >[0];
+  return { db, scheduler: { runAfter: async () => null } } as never;
 }
 
 const PROJECT_ID = "projects_seed_1";
@@ -228,6 +251,7 @@ async function seedWebhookEvent(
     occurredAt: number;
     platform?: "IOS" | "Android";
     productId?: string;
+    environment?: "Production" | "Sandbox";
   },
 ): Promise<string> {
   const platform = args.platform ?? "Android";
@@ -239,7 +263,7 @@ async function seedWebhookEvent(
         ? "AppleAppStoreServerNotificationsV2"
         : "GooglePlayRealTimeDeveloperNotifications",
     platform,
-    environment: "Sandbox",
+    environment: args.environment ?? "Production",
     purchaseToken: TOKEN,
     sourceNotificationId: args.notificationId,
     productId: args.productId ?? "premium_monthly",
@@ -3253,10 +3277,10 @@ describe("user binding authorization", () => {
       userId: "attacker",
     };
     await expect(
-      bindSubscriptionToUserHandler(makeCtx(owned) as never, attacker),
+      bindSubscriptionToUserHandler(makeCtx(owned), attacker),
     ).resolves.toBeNull();
     await expect(
-      bindSubscriptionToUserHandler(makeCtx(unknown) as never, attacker),
+      bindSubscriptionToUserHandler(makeCtx(unknown), attacker),
     ).resolves.toBeNull();
     expect(owned.rows("subscriptions")[0].userId).toBe("victim");
   });
@@ -3406,12 +3430,898 @@ describe("user binding authorization", () => {
     const db = new MemDb();
     await seedBound(db, "wrong-user");
     await expect(
-      rebindSubscriptionToUserHandler(makeCtx(db) as never, {
+      rebindSubscriptionToUserHandler(makeCtx(db), {
         projectId: PROJECT_ID as never,
         purchaseToken: TOKEN,
         userId: "real-owner",
       }),
     ).resolves.not.toBeNull();
     expect(db.rows("subscriptions")[0].userId).toBe("real-owner");
+  });
+});
+
+describe("subscription environment", () => {
+  async function apply(db: MemDb, eventId: string) {
+    return applySubscriptionEventHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      eventId: eventId as never,
+    });
+  }
+
+  it("keeps a known environment when Play sends none", async () => {
+    const db = new MemDb();
+    const started = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "tester-start",
+      occurredAt: 1_000,
+      environment: "Sandbox",
+    });
+    await apply(db, started);
+    // An expiry recorded without a service account.
+    const expired = await seedWebhookEvent(db, {
+      type: "SubscriptionExpired",
+      notificationId: "tester-expiry",
+      occurredAt: 2_000,
+    });
+    await db.patch(expired, { environmentDefaulted: true });
+    await apply(db, expired);
+
+    expect(db.rows("subscriptions")[0]).toMatchObject({
+      state: "Expired",
+      environment: "Sandbox",
+    });
+  });
+
+  it("keeps a legacy row's environment from its last store event", async () => {
+    const db = new MemDb();
+    await db.insert("subscriptions", {
+      projectId: PROJECT_ID,
+      purchaseToken: TOKEN,
+      productKind: "subscription",
+      productId: "premium_monthly",
+      platform: "Android",
+      state: "Active",
+      startedAt: 500,
+      updatedAt: 500,
+      lastEventSource: { environment: "Sandbox" },
+    });
+    const expired = await seedWebhookEvent(db, {
+      type: "SubscriptionExpired",
+      notificationId: "legacy-expiry",
+      occurredAt: 2_000,
+    });
+    await db.patch(expired, { environmentDefaulted: true });
+    await apply(db, expired);
+
+    expect(db.rows("subscriptions")[0]).toMatchObject({
+      state: "Expired",
+      environment: "Sandbox",
+    });
+  });
+});
+
+describe("subscription analytics facts", () => {
+  async function apply(db: MemDb, eventId: string) {
+    return applySubscriptionEventHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      eventId: eventId as never,
+    });
+  }
+
+  function eventRow(db: MemDb, id: string): Row | undefined {
+    return db.rows("webhookEvents").find((row) => row._id === id);
+  }
+
+  it("reconciles the first paid marker when a late Google link merges a trial", async () => {
+    const db = new MemDb();
+    const trial = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "linked-trial",
+      occurredAt: 1000,
+    });
+    await db.patch(trial, { freeTrial: true });
+    await apply(db, trial);
+    const paid = await seedWebhookEvent(db, {
+      type: "SubscriptionRenewed",
+      notificationId: "successor-paid",
+      occurredAt: 5000,
+    });
+    await db.patch(paid, { purchaseToken: "successor-token" });
+    await apply(db, paid);
+    expect(eventRow(db, paid)?.paidStart).toBeUndefined();
+
+    const linked = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "late-link",
+      occurredAt: 3000,
+    });
+    await db.patch(linked, {
+      purchaseToken: "successor-token",
+      linkedPurchaseToken: TOKEN,
+      replacementCharged: false,
+    });
+    await apply(db, linked);
+
+    expect(db.rows("subscriptions")).toHaveLength(1);
+    expect(db.rows("subscriptions")[0].analytics).toMatchObject({
+      trialStartedAt: 1000,
+      firstPaidAt: 5000,
+      firstPaidEventId: paid,
+    });
+    expect(eventRow(db, paid)?.paidStart).toBe("trial_conversion");
+    await apply(db, linked);
+    expect(eventRow(db, paid)?.paidStart).toBe("trial_conversion");
+  });
+
+  it("clears a removed row's paid-start marker when a late Google link merges rows", async () => {
+    const db = new MemDb();
+    const start = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "predecessor-paid",
+      occurredAt: 1000,
+    });
+    await apply(db, start);
+    const successor = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "successor-paid-start",
+      occurredAt: 5000,
+    });
+    await db.patch(successor, { purchaseToken: "successor-token" });
+    await apply(db, successor);
+    expect(eventRow(db, successor)?.paidStart).toBe("direct");
+    const linked = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "late-paid-link",
+      occurredAt: 3000,
+    });
+    await db.patch(linked, {
+      purchaseToken: "successor-token",
+      linkedPurchaseToken: TOKEN,
+      replacementCharged: false,
+    });
+    await apply(db, linked);
+    expect(eventRow(db, start)?.paidStart).toBe("direct");
+    expect(eventRow(db, successor)?.paidStart).toBeUndefined();
+  });
+
+  it("marks a trial's first paid charge and never counts a replay twice", async () => {
+    const db = new MemDb();
+    const trial = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "trial-start",
+      occurredAt: 1_000,
+    });
+    await db.patch(trial, { freeTrial: true });
+    const paid = await seedWebhookEvent(db, {
+      type: "SubscriptionRenewed",
+      notificationId: "first-charge",
+      occurredAt: 2_000,
+    });
+
+    await apply(db, trial);
+    await apply(db, paid);
+    await apply(db, paid);
+
+    expect(db.rows("subscriptions")[0].analytics).toMatchObject({
+      trialStartedAt: 1_000,
+      firstPaidAt: 2_000,
+      firstPaidEventId: paid,
+      firstPaidEventType: "SubscriptionRenewed",
+      currency: "USD",
+      paidMicros: 9_990_000,
+      refundedMicros: 0,
+    });
+    expect(eventRow(db, paid)?.paidStart).toBe("trial_conversion");
+    expect(eventRow(db, trial)?.paidStart).toBeUndefined();
+  });
+
+  it("converges when the trial and charges arrive out of order", async () => {
+    const db = new MemDb();
+    const trial = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "trial-start",
+      occurredAt: 1_000,
+    });
+    await db.patch(trial, { freeTrial: true });
+    const firstCharge = await seedWebhookEvent(db, {
+      type: "SubscriptionRenewed",
+      notificationId: "first-charge",
+      occurredAt: 2_000,
+    });
+    const secondCharge = await seedWebhookEvent(db, {
+      type: "SubscriptionRenewed",
+      notificationId: "second-charge",
+      occurredAt: 3_000,
+    });
+
+    await apply(db, secondCharge);
+    expect(eventRow(db, secondCharge)?.paidStart).toBeUndefined();
+    await apply(db, firstCharge);
+    await apply(db, trial);
+
+    expect(db.rows("subscriptions")[0].analytics).toMatchObject({
+      trialStartedAt: 1_000,
+      firstPaidAt: 2_000,
+      firstPaidEventId: firstCharge,
+      paidMicros: 2 * 9_990_000,
+    });
+    expect(eventRow(db, firstCharge)?.paidStart).toBe("trial_conversion");
+    expect(eventRow(db, secondCharge)?.paidStart).toBeUndefined();
+    // State still follows the newest store event.
+    expect(db.rows("subscriptions")[0].lastEventId).toBe(secondCharge);
+  });
+
+  it("marks a paid start without a trial as direct and moves the marker to an earlier charge", async () => {
+    const db = new MemDb();
+    const renewal = await seedWebhookEvent(db, {
+      type: "SubscriptionRenewed",
+      notificationId: "renewal",
+      occurredAt: 5_000,
+    });
+    const start = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "start",
+      occurredAt: 1_000,
+    });
+
+    await apply(db, renewal);
+    await apply(db, start);
+
+    expect(eventRow(db, start)?.paidStart).toBe("direct");
+    expect(eventRow(db, renewal)?.paidStart).toBeUndefined();
+  });
+
+  it("marks a resubscribe a paid start only after a trial IAPKit saw lapse", async () => {
+    async function seedResubscribe(db: MemDb): Promise<string> {
+      const id = await seedWebhookEvent(db, {
+        type: "SubscriptionStarted",
+        notificationId: "resubscribe",
+        occurredAt: 5_000,
+        platform: "IOS",
+      });
+      await db.patch(id, { resubscribe: true });
+      return id;
+    }
+
+    // Paid before IAPKit saw it: a reactivation with no known start, and the
+    // same lifecycle transition as a first purchase.
+    const returning = new MemDb();
+    const resubscribe = await seedResubscribe(returning);
+    await expect(apply(returning, resubscribe)).resolves.toMatchObject({
+      transition: "Started",
+      active: true,
+    });
+    expect(returning.rows("subscriptions")[0].analytics).toMatchObject({
+      firstPaidAt: 5_000,
+      firstPaidResubscribe: true,
+    });
+    expect(eventRow(returning, resubscribe)?.paidStart).toBeUndefined();
+
+    // A trial that lapsed before it, arriving late: the resubscribe is the
+    // subscription's first paid charge.
+    const db = new MemDb();
+    const paid = await seedResubscribe(db);
+    const trial = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "trial-start",
+      occurredAt: 1_000,
+      platform: "IOS",
+    });
+    await db.patch(trial, { freeTrial: true });
+    await apply(db, paid);
+    await apply(db, trial);
+    expect(eventRow(db, paid)?.paidStart).toBe("direct");
+  });
+
+  it("records the environment and keeps sandbox rows out of live stats", async () => {
+    const db = new MemDb();
+    db.seedProduct({
+      projectId: PROJECT_ID,
+      platform: "Android",
+      productId: "premium_monthly",
+      billingPeriod: "P1M",
+    });
+    const sandbox = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "sandbox-start",
+      occurredAt: 1_000,
+      environment: "Sandbox",
+    });
+    await apply(db, sandbox);
+    expect(db.rows("subscriptions")[0].environment).toBe("Sandbox");
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      { activeSubs: 0, inGracePeriod: 0, inBillingRetry: 0, mrrMicros: 0 },
+    ]);
+
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      platform: "Android",
+      purchaseToken: "verified_sandbox_token",
+      productId: "premium_monthly",
+      purchaseState: "ENTITLED",
+      subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+      currency: "USD",
+      priceAmountMicros: 9_990_000,
+      environment: "Sandbox",
+    });
+    expect(
+      db
+        .rows("subscriptions")
+        .find((row) => row.purchaseToken === "verified_sandbox_token")
+        ?.environment,
+    ).toBe("Sandbox");
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      { activeSubs: 0, inGracePeriod: 0, inBillingRetry: 0, mrrMicros: 0 },
+    ]);
+  });
+
+  it("never lets an analytics failure block the lifecycle transition", async () => {
+    const db = new MemDb();
+    const patch = db.patch.bind(db);
+    db.patch = async (id, fields) => {
+      if ("analytics" in fields) throw new Error("analytics write failed");
+      await patch(id, fields);
+    };
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const start = await seedWebhookEvent(db, {
+        type: "SubscriptionStarted",
+        notificationId: "start",
+        occurredAt: 1_000,
+      });
+
+      await expect(apply(db, start)).resolves.toMatchObject({
+        transition: "Started",
+        active: true,
+      });
+      expect(db.rows("subscriptions")).toMatchObject([
+        { state: "Active", lastEventId: start },
+      ]);
+      expect(db.rows("subscriptions")[0].analytics).toBeUndefined();
+      expect(errors).toHaveBeenCalledWith("[analyticsFacts] skipped", "Error");
+    } finally {
+      errors.mockRestore();
+    }
+  });
+});
+
+describe("observed subscription access history", () => {
+  const at = (iso: string): number => Date.parse(iso);
+  const janEnd = at("2026-01-31T23:59:59.999Z");
+  const febEnd = at("2026-02-28T23:59:59.999Z");
+  const asOf = at("2026-03-15T12:00:00Z");
+  beforeEach(() => vi.useFakeTimers({ toFake: ["Date"] }));
+  afterEach(() => vi.useRealTimers());
+  function current(db: MemDb): Doc<"subscriptions"> {
+    return db.rows("subscriptions")[0] as Doc<"subscriptions">;
+  }
+  async function apply(
+    db: MemDb,
+    fields: Partial<Doc<"webhookEvents">> &
+      Pick<Doc<"webhookEvents">, "type" | "occurredAt">,
+  ): Promise<void> {
+    const id = await db.insert("webhookEvents", {
+      projectId: PROJECT_ID,
+      purchaseToken: TOKEN,
+      productKind: "subscription",
+      productId: "premium_monthly",
+      platform: "IOS",
+      store: "apple",
+      source: "AppleAppStoreServerNotificationsV2",
+      environment: "Production",
+      sourceNotificationId: `history-${db.rows("webhookEvents").length}`,
+      currency: "USD",
+      priceAmountMicros: 9_990_000,
+      receivedAt: Date.now(),
+      ...fields,
+    });
+    await applySubscriptionEventHandler(makeCtx(db), {
+      projectId: PROJECT_ID as Id<"projects">,
+      eventId: id as Id<"webhookEvents">,
+    });
+  }
+  function january(db: MemDb): CohortBucket | undefined {
+    const buckets = new Map<string, CohortBucket>();
+    addSubscriptionToCohorts(buckets, current(db), asOf);
+    return buckets.get("Production|2026-01|USD");
+  }
+  it.each([false, true])(
+    "keeps the February lapse after resubscribing (late expiry: %s)",
+    async (late) => {
+      const db = new MemDb();
+      const start = {
+        type: "SubscriptionStarted",
+        occurredAt: at("2026-01-01"),
+        purchaseDate: at("2026-01-01"),
+        expiresAt: at("2026-02-01"),
+      } as const;
+      const expiry = {
+        type: "SubscriptionExpired",
+        occurredAt: at("2026-02-01"),
+        expiresAt: at("2026-02-01"),
+      } as const;
+      const returned = {
+        type: "SubscriptionStarted",
+        resubscribe: true,
+        occurredAt: at("2026-03-01"),
+        purchaseDate: at("2026-03-01"),
+        expiresAt: at("2026-04-01"),
+      } as const;
+      vi.setSystemTime(late ? asOf : start.occurredAt);
+      await apply(db, start);
+      if (!late) {
+        vi.setSystemTime(expiry.occurredAt);
+        await apply(db, expiry);
+      }
+      vi.setSystemTime(asOf);
+      await apply(db, returned);
+      if (late) await apply(db, expiry);
+      expect(january(db)).toMatchObject({
+        members: 1,
+        retained: [1, 0, 1],
+        retentionObserved: [1, 1, 1],
+      });
+      expect(current(db).state).toBe("Active");
+    },
+  );
+  it("keeps the refund gap through cancellation and reversal", async () => {
+    const db = new MemDb();
+    vi.setSystemTime(at("2026-01-01"));
+    await apply(db, {
+      type: "SubscriptionStarted",
+      occurredAt: Date.now(),
+      purchaseDate: Date.now(),
+      expiresAt: at("2026-06-01"),
+    });
+    vi.setSystemTime(at("2026-02-01"));
+    await apply(db, {
+      type: "PurchaseRefunded",
+      occurredAt: Date.now(),
+      revocationDate: Date.now(),
+      expiresAt: at("2026-06-01"),
+      cancellationReason: "Refunded",
+    });
+    vi.setSystemTime(at("2026-02-15"));
+    await apply(db, {
+      type: "SubscriptionCanceled",
+      occurredAt: Date.now(),
+      purchaseDate: at("2026-01-01"),
+      expiresAt: at("2026-06-01"),
+      willRenew: false,
+    });
+    vi.setSystemTime(at("2026-03-01"));
+    await apply(db, {
+      type: "SubscriptionStarted",
+      occurredAt: Date.now(),
+      purchaseDate: at("2026-01-01"),
+      expiresAt: at("2026-06-01"),
+      refundReversal: true,
+    });
+    expect(january(db)).toMatchObject({
+      retained: [1, 0, 1],
+      retentionObserved: [1, 1, 1],
+    });
+    expect(current(db).analytics).toMatchObject({
+      paidMicros: 9_990_000,
+      refundedMicros: 0,
+    });
+  });
+  it("uses Apple purchaseDate without changing notification ordering", async () => {
+    const db = new MemDb();
+    vi.setSystemTime(at("2026-02-01T01:00:00Z"));
+    const normalized = normalizeAppleAsn({
+      payload: {
+        notificationType: "SUBSCRIBED",
+        subtype: "INITIAL_BUY",
+        notificationUUID: "late-january",
+        signedDate: Date.now(),
+        data: { environment: "Production" },
+      },
+      transaction: {
+        originalTransactionId: TOKEN,
+        transactionId: "charge",
+        type: "Auto-Renewable Subscription",
+        productId: "premium_monthly",
+        purchaseDate: at("2026-01-31T12:00:00Z"),
+        expiresDate: at("2026-03-01"),
+        currency: "USD",
+        price: 9990,
+      },
+    });
+    await apply(db, normalized);
+    expect(current(db).lastEventOccurredAt).toBe(Date.now());
+    expect(current(db).analytics?.firstPaidAt).toBe(at("2026-01-31T12:00:00Z"));
+    expect(january(db)).toMatchObject({ members: 1, retained: [1, 1, 0] });
+  });
+  it("keeps successor authority across two links and a late predecessor expiry", async () => {
+    const db = new MemDb();
+    const google = {
+      platform: "Android",
+      store: "google",
+      source: "GooglePlayRealTimeDeveloperNotifications",
+    } as const;
+    vi.setSystemTime(at("2026-01-01"));
+    await apply(db, {
+      ...google,
+      type: "SubscriptionStarted",
+      occurredAt: Date.now(),
+      expiresAt: at("2026-05-01"),
+    });
+    vi.setSystemTime(at("2026-03-01"));
+    await apply(db, {
+      ...google,
+      type: "SubscriptionStarted",
+      purchaseToken: "second",
+      linkedPurchaseToken: TOKEN,
+      occurredAt: Date.now(),
+      expiresAt: at("2026-06-01"),
+    });
+    vi.setSystemTime(at("2026-04-01"));
+    await apply(db, {
+      ...google,
+      type: "SubscriptionStarted",
+      purchaseToken: "third",
+      linkedPurchaseToken: "second",
+      occurredAt: Date.now(),
+      expiresAt: at("2026-07-01"),
+    });
+    vi.setSystemTime(at("2026-06-01"));
+    await apply(db, {
+      ...google,
+      type: "SubscriptionExpired",
+      purchaseToken: TOKEN,
+      occurredAt: at("2026-05-01"),
+      expiresAt: at("2026-05-01"),
+    });
+    const history = current(db).analytics?.accessHistory;
+    expect(accessAt(history, janEnd)).toBe(true);
+    expect(accessAt(history, febEnd)).toBe(true);
+    expect(accessAt(history, at("2026-05-31T23:59:59.999Z"))).toBe(true);
+    expect(accessAt(history, Date.now())).toBe(true);
+    expect(current(db).purchaseToken).toBe("third");
+  });
+  it("observes accepted verification without inventing old history or a new charge", async () => {
+    const db = new MemDb();
+    vi.setSystemTime(asOf);
+    const args = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "Android" as const,
+      purchaseToken: TOKEN,
+      existing: null,
+      next: {
+        state: "Active" as const,
+        productId: "premium_monthly",
+        expiresAt: at("2026-06-01"),
+      },
+      now: Date.now(),
+      verifiedEvidenceAt: asOf - 1000,
+    };
+    await persistSubscriptionSnapshot(makeCtx(db), args);
+    const first = current(db);
+    expect(accessAt(first.analytics?.accessHistory, febEnd)).toBeNull();
+    expect(accessAt(first.analytics?.accessHistory, asOf)).toBe(true);
+    expect(first.analytics).toMatchObject({ paidMicros: 0, refundedMicros: 0 });
+    expect(first.analytics?.firstPaidAt).toBeUndefined();
+    vi.setSystemTime(asOf + 86_400_000);
+    await persistSubscriptionSnapshot(makeCtx(db), {
+      ...args,
+      existing: first,
+      now: Date.now(),
+    });
+    expect(current(db).analytics?.accessHistory?.latest?.effectiveAt).toBe(
+      asOf - 1000,
+    );
+  });
+  it("orders delayed Play commits by the store fetch time", async () => {
+    const db = new MemDb();
+    vi.setSystemTime(at("2026-01-03"));
+    const args = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "Android" as const,
+      purchaseToken: TOKEN,
+      existing: null,
+      next: {
+        state: "Active" as const,
+        productId: "premium_monthly",
+        expiresAt: at("2026-06-01"),
+      },
+      now: Date.now(),
+      verifiedEvidenceAt: at("2026-01-01"),
+    };
+    await persistSubscriptionSnapshot(makeCtx(db), args);
+    vi.setSystemTime(at("2026-01-04"));
+    await persistSubscriptionSnapshot(makeCtx(db), {
+      ...args,
+      existing: current(db),
+      next: { ...args.next, state: "Expired" },
+      now: Date.now(),
+      verifiedEvidenceAt: at("2026-01-02"),
+    });
+    expect(current(db).state).toBe("Expired");
+    expect(accessAt(current(db).analytics?.accessHistory, Date.now())).toBe(
+      false,
+    );
+  });
+  it("does not turn an old Apple receipt replay into a new grant", async () => {
+    const db = new MemDb();
+    vi.setSystemTime(at("2026-01-20"));
+    await persistSubscriptionSnapshot(makeCtx(db), {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS",
+      purchaseToken: TOKEN,
+      existing: null,
+      next: {
+        state: "Active",
+        productId: "premium_monthly",
+        expiresAt: at("2026-06-01"),
+      },
+      now: Date.now(),
+      verifiedEvidenceAt: at("2026-01-01"),
+      verifiedPurchaseDate: at("2026-01-01"),
+      verifiedSignedDate: at("2026-01-01"),
+    });
+    vi.setSystemTime(at("2026-01-21"));
+    await apply(db, {
+      type: "PurchaseRefunded",
+      occurredAt: at("2026-01-15"),
+      revocationDate: at("2026-01-15"),
+      cancellationReason: "Refunded",
+    });
+    expect(current(db).state).toBe("Refunded");
+    expect(accessAt(current(db).analytics?.accessHistory, janEnd)).toBe(false);
+    expect(
+      accessAt(
+        current(db).analytics?.accessHistory,
+        at("2026-01-14T23:59:59.999Z"),
+      ),
+    ).toBe(true);
+  });
+  it("keeps unknown verified state unverified, not confirmed inactive", async () => {
+    const db = new MemDb();
+    vi.setSystemTime(asOf);
+    await persistSubscriptionSnapshot(makeCtx(db), {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "Android",
+      purchaseToken: TOKEN,
+      existing: null,
+      next: { state: "Unknown", productId: "premium_monthly" },
+      now: Date.now(),
+      verifiedEvidenceAt: Date.now(),
+    });
+    expect(accessAt(current(db).analytics?.accessHistory, asOf)).toBeNull();
+  });
+  it("records Apple's immediate upgrade without applying a scheduled preference", async () => {
+    for (const immediate of [false, true]) {
+      const db = new MemDb();
+      vi.setSystemTime(at("2026-01-01"));
+      await apply(db, {
+        type: "SubscriptionStarted",
+        occurredAt: Date.now(),
+        purchaseDate: Date.now(),
+        expiresAt: at("2026-02-01"),
+      });
+      vi.setSystemTime(at("2026-01-15"));
+      await apply(db, {
+        type: "SubscriptionProductChanged",
+        productId: "premium_yearly",
+        occurredAt: Date.now(),
+        purchaseDate: Date.now(),
+        expiresAt: at("2027-01-15"),
+        effectiveImmediately: immediate,
+      });
+      expect(accessAt(current(db).analytics?.accessHistory, febEnd)).toBe(
+        immediate,
+      );
+    }
+  });
+  it("does not backdate the current Play status into an old notification", async () => {
+    const db = new MemDb();
+    vi.setSystemTime(asOf);
+    await apply(db, {
+      type: "SubscriptionStarted",
+      platform: "Android",
+      store: "google",
+      source: "GooglePlayRealTimeDeveloperNotifications",
+      occurredAt: at("2026-01-01"),
+      snapshotObservedAt: asOf,
+      subscriptionState: "Active",
+      expiresAt: at("2026-04-01"),
+    });
+    expect(january(db)).toMatchObject({
+      members: 1,
+      retained: [0, 0, 1],
+      retentionObserved: [0, 0, 1],
+    });
+  });
+  it("keeps the paid period of an Apple receipt first verified after expiry", async () => {
+    const db = new MemDb();
+    const purchaseDate = at("2026-09-01");
+    const expiresAt = at("2026-10-01");
+    vi.setSystemTime(at("2026-10-05"));
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS",
+      purchaseToken: TOKEN,
+      productId: "premium_monthly",
+      purchaseState: HarmonizedPurchaseState.EXPIRED,
+      expiresAt,
+      verifiedPurchaseDate: purchaseDate,
+      verifiedSignedDate: Date.now(),
+      evidenceAt: purchaseDate,
+    });
+    const row = current(db);
+    const history = row.analytics?.accessHistory;
+    expect(row.state).toBe("Expired");
+    expect(accessAt(history, at("2026-08-31T23:59:59.999Z"))).toBeNull();
+    expect(accessAt(history, at("2026-09-30T23:59:59.999Z"))).toBe(true);
+    expect(accessAt(history, expiresAt)).toBe(false);
+    expect(accessAt(history, Date.now())).toBe(false);
+    expect(row.analytics).toMatchObject({ paidMicros: 0, refundedMicros: 0 });
+    expect(row.analytics?.firstPaidAt).toBeUndefined();
+  });
+  it("keeps natural Apple expiry dated at expiry when a receipt is reverified", async () => {
+    const db = new MemDb();
+    const purchaseDate = at("2026-09-01");
+    const args = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS" as const,
+      purchaseToken: TOKEN,
+      productId: "premium_monthly",
+      expiresAt: at("2026-10-01"),
+      verifiedPurchaseDate: purchaseDate,
+      evidenceAt: purchaseDate,
+    };
+    vi.setSystemTime(at("2026-09-10"));
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...args,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      verifiedSignedDate: Date.now(),
+    });
+    vi.setSystemTime(at("2026-10-05"));
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...args,
+      purchaseState: HarmonizedPurchaseState.EXPIRED,
+      verifiedSignedDate: Date.now(),
+    });
+    const history = current(db).analytics?.accessHistory;
+    expect(current(db).state).toBe("Expired");
+    expect(accessAt(history, at("2026-09-30T23:59:59.999Z"))).toBe(true);
+    expect(accessAt(history, at("2026-10-04T23:59:59.999Z"))).toBe(false);
+    expect(accessAt(history, Date.now())).toBe(false);
+    expect(history?.latest?.effectiveAt).toBe(purchaseDate);
+  });
+  it("keeps a lapse before a later Apple period first verified after expiry", async () => {
+    const db = new MemDb();
+    const args = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS" as const,
+      purchaseToken: TOKEN,
+      productId: "premium_monthly",
+      purchaseState: HarmonizedPurchaseState.EXPIRED,
+    };
+    vi.setSystemTime(at("2026-03-05"));
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...args,
+      expiresAt: at("2026-02-01"),
+      verifiedPurchaseDate: at("2026-01-01"),
+      verifiedSignedDate: Date.now(),
+      evidenceAt: at("2026-01-01"),
+    });
+    vi.setSystemTime(at("2026-04-05"));
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...args,
+      expiresAt: at("2026-04-01"),
+      verifiedPurchaseDate: at("2026-03-01"),
+      verifiedSignedDate: Date.now(),
+      evidenceAt: at("2026-03-01"),
+    });
+    const history = current(db).analytics?.accessHistory;
+    expect(accessAt(history, janEnd)).toBe(true);
+    expect(accessAt(history, febEnd)).toBe(false);
+    expect(accessAt(history, at("2026-03-31T23:59:59.999Z"))).toBe(true);
+    expect(accessAt(history, Date.now())).toBe(false);
+    expect(current(db).analytics?.paidMicros).toBe(0);
+  });
+  it("keeps a re-signed change to the same Apple period's expiry undated", async () => {
+    const db = new MemDb();
+    const purchaseDate = at("2026-01-01");
+    const args = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS" as const,
+      purchaseToken: TOKEN,
+      productId: "premium_monthly",
+      verifiedPurchaseDate: purchaseDate,
+      evidenceAt: purchaseDate,
+    };
+    vi.setSystemTime(at("2026-01-10"));
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...args,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      expiresAt: at("2026-06-01"),
+      verifiedSignedDate: Date.now(),
+    });
+    vi.setSystemTime(at("2026-01-20"));
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...args,
+      purchaseState: HarmonizedPurchaseState.EXPIRED,
+      expiresAt: at("2026-01-15"),
+      verifiedSignedDate: Date.now(),
+    });
+    expect(
+      accessAt(current(db).analytics?.accessHistory, Date.now()),
+    ).toBeNull();
+    vi.setSystemTime(at("2026-01-21"));
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...args,
+      purchaseState: HarmonizedPurchaseState.EXPIRED,
+      expiresAt: at("2026-01-15"),
+      verifiedSignedDate: Date.now(),
+    });
+    expect(
+      accessAt(current(db).analytics?.accessHistory, Date.now()),
+    ).toBeNull();
+    expect(
+      accessAt(
+        current(db).analytics?.accessHistory,
+        at("2026-01-14T23:59:59.999Z"),
+      ),
+    ).toBe(true);
+  });
+  it.each([HarmonizedPurchaseState.ENTITLED, HarmonizedPurchaseState.EXPIRED])(
+    "keeps undated Apple %s history unknown",
+    async (purchaseState) => {
+      const db = new MemDb();
+      vi.setSystemTime(at("2026-10-05"));
+      await recordVerifiedSubscriptionHandler(makeCtx(db), {
+        projectId: PROJECT_ID as Id<"projects">,
+        platform: "IOS",
+        purchaseToken: TOKEN,
+        productId: "premium_monthly",
+        purchaseState,
+        expiresAt: at("2026-10-01"),
+        verifiedSignedDate: Date.now(),
+      });
+      const history = current(db).analytics?.accessHistory;
+      expect(accessAt(history, at("2026-09-30T23:59:59.999Z"))).toBeNull();
+      expect(accessAt(history, Date.now())).toBeNull();
+    },
+  );
+  it("keeps an undated receipt-only refund reversal unknown at signing time", async () => {
+    const db = new MemDb();
+    vi.setSystemTime(at("2026-01-16"));
+    const args = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS" as const,
+      purchaseToken: TOKEN,
+      productId: "premium_monthly",
+      purchaseState: HarmonizedPurchaseState.CANCELED,
+      expiresAt: at("2026-06-01"),
+      verifiedPurchaseDate: at("2026-01-01"),
+      verifiedSignedDate: at("2026-01-16"),
+      evidenceAt: at("2026-01-15"),
+    };
+    await recordVerifiedSubscriptionHandler(makeCtx(db), args);
+    expect(current(db).state).toBe("Revoked");
+    expect(accessAt(current(db).analytics?.accessHistory, Date.now())).toBe(
+      false,
+    );
+    vi.setSystemTime(at("2026-01-20"));
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...args,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      verifiedSignedDate: Date.now(),
+      evidenceAt: at("2026-01-01"),
+    });
+    expect(current(db).state).toBe("Active");
+    expect(
+      accessAt(current(db).analytics?.accessHistory, Date.now()),
+    ).toBeNull();
+    expect(
+      accessAt(
+        current(db).analytics?.accessHistory,
+        at("2026-01-16T23:59:59.999Z"),
+      ),
+    ).toBe(false);
+    expect(current(db).analytics?.paidMicros).toBe(0);
   });
 });

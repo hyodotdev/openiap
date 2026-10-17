@@ -7,10 +7,7 @@ export default function RootLayout() {
       <Stack>
         <Stack.Screen name="index" options={{title: 'Expo IAP Examples'}} />
         <Stack.Screen name="all-products" options={{title: 'All Products'}} />
-        <Stack.Screen
-          name="purchase-flow"
-          options={{title: 'In-App Purchase Flow'}}
-        />
+        <Stack.Screen name="purchase-flow" options={{title: 'Purchase'}} />
         <Stack.Screen
           name="subscription-flow"
           options={{title: 'Subscription Flow'}}

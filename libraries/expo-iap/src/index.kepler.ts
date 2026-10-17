@@ -18,13 +18,16 @@ import {createPurchaseError} from './utils/errorMapping';
 export * from './types';
 export * from './vega';
 export * from './useIAP';
-export {kitApi, KitApiError} from './kit-api';
+export {kitApi, KitApiError, resolveLocalizedPayload} from './kit-api';
 export type {
   EntitlementsResponse,
   KitApiOptions,
   KitClientPayloadCache,
   KitClientPayloadOptions,
   KitClientPayloadResponse,
+  KitLocalizedClientPayload,
+  KitLocalizedClientPayloadOptions,
+  KitLocalizedPayloadOptions,
   KitProduct,
   KitProductClientPayload,
   KitProductOffer,

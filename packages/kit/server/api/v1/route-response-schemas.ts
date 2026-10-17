@@ -91,6 +91,49 @@ export const environmentSchema = v.pipe(
   ),
 );
 
+// The fields below are returned only with `includeTransactionDetails: true`.
+export const transactionIdSchema = v.pipe(
+  v.string(),
+  v.description(
+    "Store transaction identity for this verification: the Apple transactionId or the Google Play order id. Same value commerce events carry as transactionId.",
+  ),
+);
+
+export const originalTransactionIdSchema = v.pipe(
+  v.string(),
+  v.description(
+    "Apple originalTransactionId: the first transaction of this purchase or subscription chain. Same value commerce events carry.",
+  ),
+);
+
+export const expiresAtSchema = v.pipe(
+  v.number(),
+  v.description(
+    "Epoch milliseconds when the verified subscription transaction's paid period ends: Apple expiresDate or the Google line item's expiryTime. Same unit as subscription.expiresAt on commerce events; during an Apple grace period an event can report the later grace deadline.",
+  ),
+);
+
+export const commerceEnvironmentSchema = v.pipe(
+  v.string(),
+  v.description(
+    "`environment` in the commerce event vocabulary: `production` or `sandbox`. The `environment` field keeps its `Production` / `Sandbox` spelling.",
+  ),
+);
+
+export const correlationIdSchema = v.pipe(
+  v.string(),
+  v.description(
+    "This request's X-Correlation-Id. Quote it to support with the purchase issue it matches.",
+  ),
+);
+
+export const finalVerdictSchema = v.pipe(
+  v.boolean(),
+  v.description(
+    "Present only when isValid is false. True when the rejection is settled and a retry of the same evidence returns the same answer: EXPIRED, CANCELED, INAUTHENTIC (including an expectedProductId mismatch), CONSUMED, or a Google token reported revoked. False when it may still change, such as a transient UNKNOWN or PENDING; a Google subscription on hold, paused or in grace, which returns on the same token when the user fixes payment or resumes; and every Horizon rejection: Meta checks current ownership, so the user can buy right after. Apple can still reverse a refund: the same transaction then verifies as valid, and a subscription also gets a commerce event.",
+  ),
+);
+
 const baseReceiptResponseSchema = v.object({
   store: verifyStoreSchema,
   isValid: v.boolean(),
@@ -105,6 +148,12 @@ const baseReceiptResponseSchema = v.object({
       ),
     ),
   ),
+  transactionId: v.optional(transactionIdSchema),
+  originalTransactionId: v.optional(originalTransactionIdSchema),
+  expiresAt: v.optional(expiresAtSchema),
+  commerceEnvironment: v.optional(commerceEnvironmentSchema),
+  correlationId: v.optional(correlationIdSchema),
+  finalVerdict: v.optional(finalVerdictSchema),
 });
 
 export const verifyPurchaseSuccessResponseSchema = v.pipe(

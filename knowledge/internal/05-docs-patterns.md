@@ -507,9 +507,11 @@ Follow the existing card pattern:
   `<div>`:
 
   ```tsx
-  {MY_RELEASES.map((release) => (
-    <span key={release.tag} id={release.tag} aria-hidden="true" />
-  ))}
+  <div>
+    {MY_RELEASES.map((release) => (
+      <span key={release.tag} id={release.tag} aria-hidden="true" />
+    ))}
+  </div>
   ```
 
   Release workflows link a version's own anchor
@@ -575,4 +577,4 @@ including RC metadata and release cards ahead of package publication.
 
 Do not use `openiap-versions.json` to derive React Native, Expo, Flutter,
 Godot, KMP, or MAUI versions; that manifest tracks only `clientProtocol`,
-`google`, and `apple`.
+`google`, `apple`, and `plugin`.

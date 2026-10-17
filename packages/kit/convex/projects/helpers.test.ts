@@ -118,8 +118,18 @@ describe("deleteProjectWithData", () => {
         body: "x".repeat(16 * 1024),
       }),
       productClientPayloadSummaries: rows("summary"),
+      productClientPayloadDrafts: rows("draft"),
+      productClientPayloadVersions: rows("version").map((row, index) => ({
+        ...row,
+        bodyId: `version_body_${index}`,
+      })),
+      // Bodies have no project index: each goes with its version row.
+      productClientPayloadVersionBodies: rows("version_body").map(
+        ({ _id }) => ({ _id, body: "x".repeat(16 * 1024) }),
+      ),
       apiKeys: rows("api_key"),
       purchases: rows("purchase", { rawSignedPayload: "signed" }),
+      purchaseIssues: rows("purchase_issue"),
       files: rows("file").map((row, index) => ({
         ...row,
         storageId: `storage_${index}`,
@@ -137,8 +147,10 @@ describe("deleteProjectWithData", () => {
       subscriptionTokenAliases: rows("subscription_alias"),
       subscriptions: rows("subscription"),
       subscriptionStats: rows("subscription_stats"),
+      subscriptionStatsRebuilds: rows("subscription_stats_rebuild"),
       revenueMetricsDaily: rows("revenue_daily"),
       revenueMetricsRunStatus: rows("revenue_run"),
+      revenueCohortsMonthly: rows("revenue_cohort"),
       products: rows("product"),
       productSyncJobs: rows("product_job", { result: "large" }),
       purchaseStats: rows("purchase_stats"),
@@ -156,7 +168,7 @@ describe("deleteProjectWithData", () => {
     }
 
     expect(complete).toBe(true);
-    expect(calls).toBe(41);
+    expect(calls).toBe(51);
     expect(scheduler.runAfter).toHaveBeenCalledTimes(calls - 1);
     expect(db.takeSizes.every((size) => size === 10)).toBe(true);
     for (const [table, tableRows] of Object.entries(db.tables)) {

@@ -10,5 +10,9 @@
     "strict": true,
     "target": "ES2022"
   },
-  "include": ["src/generated/types.ts", "src/kit-api.ts"]
+  "include": [
+    "src/generated/types.ts",
+    "src/kit-api.ts",
+    "src/purchase-flow.ts"
+  ]
 }

@@ -39,6 +39,9 @@ import {
   verifyPurchase,
   verifyPurchaseWithProvider,
   ErrorCode,
+  createPurchaseFlow,
+  describePurchaseFlowStatus,
+  toPurchaseConfirmationRequest,
 } from '../index';
 import * as iosMod from '../modules/ios';
 import * as androidMod from '../modules/android';
@@ -93,6 +96,14 @@ describe('Public API (index.ts)', () => {
     jest.clearAllMocks();
     Object.assign(Platform, {OS: 'ios'});
     (ExpoIapModule.getPromotedProductIOS as jest.Mock).mockResolvedValue(null);
+  });
+
+  it('exports the backend purchase flow', () => {
+    expect(
+      describePurchaseFlowStatus({status: 'entitled', alreadyGranted: false}),
+    ).toEqual({key: 'access_granted', offerPurchase: false});
+    expect(typeof createPurchaseFlow).toBe('function');
+    expect(typeof toPurchaseConfirmationRequest).toBe('function');
   });
 
   describe('listeners', () => {

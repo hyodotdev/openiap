@@ -1,4 +1,9 @@
-import {kitApi, KitApiError, type KitProductClientPayload} from '../kit-api';
+import {
+  kitApi,
+  KitApiError,
+  resolveLocalizedPayload,
+  type KitProductClientPayload,
+} from '../kit-api';
 
 const payload = {
   clientPayload: {
@@ -421,5 +426,141 @@ describe('kitApi cache resilience', () => {
     await expect(api.clientPayload('premium', 'IOS')).rejects.toMatchObject({
       status: 304,
     });
+  });
+});
+
+describe('kitApi client payload fallback', () => {
+  const localized = {
+    clientPayload: {
+      format: 'json',
+      body: JSON.stringify({
+        schemaVersion: 1,
+        default: {headline: 'Go premium', cta: 'Subscribe'},
+        locales: {ko: {headline: '프리미엄'}},
+      }),
+      version: 4,
+      updatedAt: 123,
+    },
+  };
+
+  async function primedApi(refreshResult: () => Promise<Response>) {
+    const cache = memoryCache();
+    const fetchImpl = jest
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json(localized, {headers: {etag: '"scoped-v4"'}}),
+      )
+      .mockImplementationOnce(refreshResult);
+    const api = kitApi({
+      apiKey: 'openiap-kit_pk_mobile',
+      baseUrl: 'https://kit.test',
+      fetchImpl,
+      clientPayloadCache: cache,
+    });
+    await api.clientPayload('premium', 'IOS');
+    return {api, cache};
+  }
+
+  it.each([
+    ['a network error', () => Promise.reject(new TypeError('Load failed'))],
+    ['a 503', async () => new Response('unavailable', {status: 503})],
+  ])('returns the cached copy marked stale on %s', async (_label, result) => {
+    const {api, cache} = await primedApi(result);
+
+    await expect(
+      api.clientPayload('premium', 'IOS', {refresh: true}),
+    ).resolves.toEqual({...localized, stale: true});
+    expect(cache.removeItem).not.toHaveBeenCalled();
+  });
+
+  it('resolves localized UI copy and never throws', async () => {
+    const {api} = await primedApi(async () =>
+      Response.json({errors: []}, {status: 500}),
+    );
+    await expect(
+      api.localizedClientPayload('premium', 'IOS', {
+        locale: 'ko-KR',
+        refresh: true,
+      }),
+    ).resolves.toEqual({
+      values: {headline: '프리미엄', cta: 'Subscribe'},
+      version: 4,
+      stale: true,
+    });
+
+    const offline = kitApi({
+      apiKey: 'openiap-kit_pk_mobile',
+      fetchImpl: jest.fn().mockRejectedValue(new TypeError('offline')),
+    });
+    await expect(
+      offline.localizedClientPayload('premium', 'IOS', {locale: 'en'}),
+    ).resolves.toBeNull();
+  });
+
+  it('falls back to the cache on a 2xx that is not a payload', async () => {
+    const notPayload = async () => Response.json({clientPayload: 'portal'});
+    const {api} = await primedApi(notPayload);
+    await expect(
+      api.clientPayload('premium', 'IOS', {refresh: true}),
+    ).resolves.toEqual({...localized, stale: true});
+
+    const uncached = kitApi({
+      apiKey: 'openiap-kit_pk_mobile',
+      fetchImpl: jest.fn().mockImplementation(notPayload),
+    });
+    await expect(
+      uncached.clientPayload('premium', 'IOS'),
+    ).rejects.toBeInstanceOf(KitApiError);
+
+    const {api: htmlApi} = await primedApi(
+      async () => new Response('<html></html>', {status: 200}),
+    );
+    await expect(
+      htmlApi.clientPayload('premium', 'IOS', {refresh: true}),
+    ).resolves.toEqual({...localized, stale: true});
+  });
+
+  it('localizes only JSON payloads with a supported schemaVersion', async () => {
+    const serving = (body: unknown) =>
+      kitApi({
+        apiKey: 'openiap-kit_pk_mobile',
+        fetchImpl: jest.fn().mockResolvedValue(Response.json(body)),
+      });
+    await expect(
+      serving(payload).localizedClientPayload('premium', 'IOS', {locale: 'en'}),
+    ).resolves.toBeNull();
+    await expect(
+      serving({
+        clientPayload: {
+          ...localized.clientPayload,
+          body: JSON.stringify({schemaVersion: 9}),
+        },
+      }).localizedClientPayload('premium', 'IOS', {locale: 'en'}),
+    ).resolves.toBeNull();
+  });
+
+  it('resolves custom schema versions and missing defaults', () => {
+    expect(resolveLocalizedPayload('copy', {locale: 'en'})).toBeNull();
+    expect(
+      resolveLocalizedPayload(
+        {schemaVersion: 2, locales: 'none'},
+        {locale: 'en', supportedSchemaVersions: [2]},
+      ),
+    ).toBeNull();
+    expect(
+      resolveLocalizedPayload(
+        {schemaVersion: 2, default: {cta: 'Buy'}},
+        {locale: 'fr', supportedSchemaVersions: [2]},
+      ),
+    ).toEqual({cta: 'Buy'});
+  });
+
+  it('returns null for an unsupported schemaVersion', () => {
+    expect(
+      resolveLocalizedPayload(
+        {schemaVersion: 2, default: {headline: 'x'}},
+        {locale: 'en'},
+      ),
+    ).toBeNull();
   });
 });

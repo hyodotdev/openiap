@@ -22,13 +22,15 @@ export async function readJsonBodyWithLimit(
   request: Request,
   limitBytes: number,
   errorMessage = "Request body is too large",
+  // For a route whose body fields are all optional: no body reads as `{}`.
+  { emptyAsObject = false }: { emptyAsObject?: boolean } = {},
 ): Promise<unknown> {
   const text = await readRequestTextWithLimit(
     request,
     limitBytes,
     errorMessage,
   );
-  return JSON.parse(text);
+  return emptyAsObject && !text.trim() ? {} : JSON.parse(text);
 }
 
 async function readRequestTextWithLimit(

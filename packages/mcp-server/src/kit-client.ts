@@ -4,7 +4,10 @@
 // same shape across every tool.
 
 import type {
+  KitClientPayloadDraftStateResponse,
+  KitClientPayloadHistoryResponse,
   KitClientPayloadStateResponse,
+  KitClientPayloadVersionResponse,
   KitMetricsResponse as SharedKitMetricsResponse,
   KitMrrCurrencyEntry as SharedKitMrrCurrencyEntry,
   KitProductsResponse as SharedKitProductsResponse,
@@ -13,7 +16,7 @@ import type {
   KitProductSyncResponse,
   KitProductUpsertResponse,
   KitRemoveClientPayloadResponse,
-  KitRevenueMetricsResponse,
+  KitSaveClientPayloadDraftResponse,
   KitSetClientPayloadResponse,
   KitSubscriptionsResponse,
   KitSubscription,
@@ -31,8 +34,71 @@ export interface KitProductListParams {
 }
 
 export type KitProductsResponse = SharedKitProductsResponse;
-export type KitMetricsResponse = SharedKitMetricsResponse;
+// Live counts and MRR are production only; the response says so.
+export interface KitMetricsResponse extends SharedKitMetricsResponse {
+  environment: "Production";
+}
 export type KitMrrCurrencyEntry = SharedKitMrrCurrencyEntry;
+
+// `/v1/subscriptions/revenue` with its additive analytics fields. App SDKs read
+// none of them, so the shape lives here rather than in the shared client
+// contract; kit's mcp-contract test holds it to the Convex validator.
+export type KitRevenueDay = {
+  day: string;
+  currency: string;
+  productId: string;
+  platform: "IOS" | "Android";
+  activeSubs: number;
+  activeHistoryComplete?: boolean;
+  activeTrials?: number;
+  newSubs: number;
+  trialStarts?: number;
+  trialConversions?: number;
+  directPaidStarts?: number;
+  renewals: number;
+  cancellations: number;
+  expirations?: number;
+  refunds: number;
+  revenueMicros: number;
+  refundedMicros?: number;
+};
+export type KitRevenueCohort = {
+  month: string;
+  currency: string;
+  members: number;
+  revenueMicros: number;
+  refundedMicros: number;
+  realizedLtvMicros: number;
+  retained: number[];
+  retentionObserved?: number[];
+  trialStarts: number;
+  trialConversions: number;
+  trialsPending: number;
+  trialsUnobserved?: number;
+  observedThrough: string;
+};
+export type KitRevenueMetricsResponse = {
+  days: KitRevenueDay[];
+  currencies: string[];
+  productIds: string[];
+  platforms: Array<"IOS" | "Android">;
+  truncated: boolean;
+  environment: "Production" | "Sandbox";
+  dataState: "not_collected" | "processing" | "zero" | "ready";
+  lastRunAt?: number;
+  definitionsFromDay?: string;
+  trialSplitFromDay?: string;
+  pendingLateEvents: number;
+  oldestPendingLateDay?: string;
+  cohorts?: KitRevenueCohort[];
+  cohortsComputedAt?: number;
+};
+export interface KitRevenueMetricsParams {
+  fromDay: string;
+  toDay: string;
+  environment?: "production" | "sandbox";
+  cohorts?: boolean;
+}
 
 export interface KitSubscriptionV2 extends Omit<
   KitSubscription,
@@ -44,11 +110,223 @@ export type EntitlementsResponseV2 = {
   userId: string;
   productIds: string[];
   subscriptions: KitSubscriptionV2[];
+  environmentScope?: "production" | "sandbox" | "all";
 };
 export type StatusResponseV2 = {
   active: boolean;
   subscription: KitSubscriptionV2 | null;
+  environmentScope?: "production" | "sandbox" | "all";
 };
+
+// Operations responses. Kit's mcp-contract test holds each to the Convex
+// return type it is served from.
+export type KitDeliveryStatus =
+  | "pending"
+  | "delivering"
+  | "delivered"
+  | "failed";
+
+export type KitDeliveryErrorClass =
+  | "timeout"
+  | "dns"
+  | "connection_refused"
+  | "connection_reset"
+  | "tls"
+  | "non_public_address"
+  | "destination_rejected"
+  | "network";
+
+export interface KitDeliveryAttempt {
+  at: number;
+  outcome: "delivered" | "retrying" | "failed";
+  statusCode?: number;
+  latencyMs?: number;
+  errorClass?: KitDeliveryErrorClass;
+}
+
+export interface KitDelivery {
+  _id: string;
+  eventId: string;
+  eventType: string;
+  eventAvailable: boolean;
+  destinationId: string;
+  destinationHost: string;
+  destinationDescription?: string;
+  status: KitDeliveryStatus;
+  resendable: boolean;
+  attempts: number;
+  nextAttemptAt: number;
+  lastStatusCode?: number;
+  // Secret keys always get it; the dashboard shows it to owners and admins.
+  lastError?: string;
+  lastErrorClass?: KitDeliveryErrorClass;
+  deliveredAt?: number;
+  lastResendAt?: number;
+  attemptHistory: KitDeliveryAttempt[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface KitDeliveriesResponse {
+  deliveries: KitDelivery[];
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
+export interface KitResendResponse {
+  deliveryId: string;
+  eventId: string;
+  status: "pending";
+}
+
+type KitStore = "apple" | "google" | "horizon" | "amazon";
+type KitSubscriptionState =
+  | "Active"
+  | "InGracePeriod"
+  | "InBillingRetry"
+  | "Expired"
+  | "Revoked"
+  | "Refunded"
+  | "Paused"
+  | "Unknown";
+
+export interface KitInboundNotification {
+  _id: string;
+  source: string;
+  store: KitStore;
+  type: string;
+  environment: string;
+  sourceNotificationId: string;
+  productId?: string;
+  transactionId?: string;
+  originalTransactionId?: string;
+  userId?: string;
+  payloadFingerprint?: string;
+  occurredAt: number;
+  receivedAt: number;
+  appliedAt?: number;
+  status: "applied" | "pending" | "test";
+}
+
+export interface KitInboundNotificationsResponse {
+  notifications: KitInboundNotification[];
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
+export interface KitResyncOutcome {
+  status: "updated" | "unchanged" | "superseded";
+  subscriptionId?: string;
+  state?: KitSubscriptionState;
+  productId?: string;
+  expiresAt?: number;
+  willRenew?: boolean;
+  emittedEvents: number;
+}
+
+export interface KitResyncResponse {
+  target: "purchase" | "subscription";
+  store: "apple" | "google";
+  purchase?: { id: string; state: string; isValid: boolean; changed: boolean };
+  subscription?: KitResyncOutcome;
+}
+
+export const KIT_PURCHASE_ISSUE_CAUSES = [
+  "STORE_PENDING",
+  "STORE_UNAVAILABLE",
+  "RATE_LIMITED",
+  "INAUTHENTIC",
+  "PRODUCT_MISMATCH",
+  "APP_MISMATCH",
+  "MALFORMED_EVIDENCE",
+  "SANDBOX_NOT_ALLOWED",
+  "STORE_NOT_CONFIGURED",
+  "CREDENTIALS_MISSING",
+  "CREDENTIALS_REJECTED",
+  "VERIFICATION_FAILED",
+  "OWNERSHIP_CONFLICT",
+  "BIND_LIMIT_REACHED",
+] as const;
+export type KitPurchaseIssueCause = (typeof KIT_PURCHASE_ISSUE_CAUSES)[number];
+
+export interface KitPurchaseIssue {
+  _id: string;
+  cause: KitPurchaseIssueCause;
+  store: KitStore;
+  /** Present only on a row about one purchase; a shared row matches none. */
+  fingerprint?: string;
+  productId?: string;
+  claimedProductId?: string;
+  appUserId?: string;
+  environment?: "Sandbox" | "Production";
+  retryAfterSec?: number;
+  correlationId?: string;
+  count: number;
+  firstSeenAt: number;
+  lastSeenAt: number;
+}
+
+export interface KitPurchaseIssuesResponse {
+  issues: KitPurchaseIssue[];
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
+export type KitPurchaseIssuesParams = {
+  cause?: KitPurchaseIssueCause;
+  store?: KitStore;
+  productId?: string;
+  appUserId?: string;
+  /** Epoch ms; bounds lastSeenAt, inclusive. */
+  from?: number;
+  to?: number;
+  limit?: number;
+  cursor?: string;
+};
+
+export type KitTimelineItem =
+  | {
+      kind: "purchase";
+      id: string;
+      at: number;
+      store: KitStore;
+      productId?: string;
+      state: string;
+      isValid: boolean;
+    }
+  | {
+      kind: "subscription";
+      id: string;
+      at: number;
+      store: KitStore;
+      productId: string;
+      state: KitSubscriptionState;
+      expiresAt?: number;
+      willRenew?: boolean;
+    }
+  | {
+      kind: "event";
+      id: string;
+      at: number;
+      store: KitStore;
+      eventType: string;
+      productId?: string;
+    }
+  | {
+      kind: "issue";
+      id: string;
+      at: number;
+      store: KitStore;
+      cause: KitPurchaseIssueCause;
+      productId?: string;
+      count: number;
+    };
+
+export interface KitUserTimelineResponse {
+  appUserId: string;
+  items: KitTimelineItem[];
+  truncated: boolean;
+}
 
 export interface KitHealthResponse {
   ok: true;
@@ -56,6 +334,8 @@ export interface KitHealthResponse {
   service: "iapkit";
   apiVersion: "v1";
   revision: string | null;
+  instanceId: string | null;
+  verificationSourceReady: boolean;
   environment: string;
   timestamp: string;
 }
@@ -184,6 +464,30 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
     return parsed as T;
   }
 
+  function clientPayloadPath(
+    params: { productId: string; platform: "IOS" | "Android" },
+    suffix = "",
+    extraQuery: Record<string, string> = {},
+  ): string {
+    const query = new URLSearchParams({
+      platform: params.platform,
+      ...extraQuery,
+    });
+    return `/v1/products/client-payload/${encodeURIComponent(params.productId)}${suffix}?${query.toString()}`;
+  }
+
+  function withQuery(
+    path: string,
+    params: Record<string, string | number | undefined>,
+  ): string {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined) query.set(key, String(value));
+    }
+    const qs = query.toString();
+    return qs ? `${path}?${qs}` : path;
+  }
+
   function adminCall<T>(path: string, init: RequestInit = {}): Promise<T> {
     return call<T>(path, {
       ...init,
@@ -222,11 +526,13 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       );
     },
     metrics: () => adminCall<KitMetricsResponse>("/v1/subscriptions/metrics"),
-    revenueMetrics: (params: { fromDay: string; toDay: string }) => {
+    revenueMetrics: (params: KitRevenueMetricsParams) => {
       const usp = new URLSearchParams({
         fromDay: params.fromDay,
         toDay: params.toDay,
       });
+      if (params.environment) usp.set("environment", params.environment);
+      if (params.cohorts) usp.set("cohorts", "true");
       return adminCall<KitRevenueMetricsResponse>(
         `/v1/subscriptions/revenue?${usp.toString()}`,
       );
@@ -275,10 +581,7 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
     getClientPayloadState: (params: {
       productId: string;
       platform: "IOS" | "Android";
-    }) =>
-      adminCall<KitClientPayloadStateResponse>(
-        `/v1/products/client-payload/${encodeURIComponent(params.productId)}?platform=${encodeURIComponent(params.platform)}`,
-      ),
+    }) => adminCall<KitClientPayloadStateResponse>(clientPayloadPath(params)),
     setClientPayload: (params: {
       productId: string;
       platform: "IOS" | "Android";
@@ -286,35 +589,113 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       body: string;
       expectedVersion?: number;
     }) =>
-      adminCall<KitSetClientPayloadResponse>(
-        `/v1/products/client-payload/${encodeURIComponent(params.productId)}?platform=${encodeURIComponent(params.platform)}`,
+      adminCall<KitSetClientPayloadResponse>(clientPayloadPath(params), {
+        method: "PUT",
+        body: JSON.stringify({
+          format: params.format,
+          body: params.body,
+          ...(params.expectedVersion !== undefined
+            ? { expectedVersion: params.expectedVersion }
+            : {}),
+        }),
+      }),
+    removeClientPayload: (params: {
+      productId: string;
+      platform: "IOS" | "Android";
+      expectedVersion?: number;
+    }) =>
+      adminCall<KitRemoveClientPayloadResponse>(
+        clientPayloadPath(
+          params,
+          "",
+          params.expectedVersion !== undefined
+            ? { expectedVersion: String(params.expectedVersion) }
+            : {},
+        ),
+        { method: "DELETE" },
+      ),
+    getClientPayloadDraft: (params: {
+      productId: string;
+      platform: "IOS" | "Android";
+    }) =>
+      adminCall<KitClientPayloadDraftStateResponse>(
+        clientPayloadPath(params, "/draft"),
+      ),
+    saveClientPayloadDraft: (params: {
+      productId: string;
+      platform: "IOS" | "Android";
+      format: string;
+      body: string;
+      expectedDraftRevision?: number;
+      expectedVersion?: number;
+    }) =>
+      adminCall<KitSaveClientPayloadDraftResponse>(
+        clientPayloadPath(params, "/draft"),
         {
           method: "PUT",
           body: JSON.stringify({
             format: params.format,
             body: params.body,
+            ...(params.expectedDraftRevision !== undefined
+              ? { expectedDraftRevision: params.expectedDraftRevision }
+              : {}),
             ...(params.expectedVersion !== undefined
               ? { expectedVersion: params.expectedVersion }
               : {}),
           }),
         },
       ),
-    removeClientPayload: (params: {
+    publishClientPayload: (params: {
       productId: string;
       platform: "IOS" | "Android";
       expectedVersion?: number;
-    }) => {
-      const query = new URLSearchParams({ platform: params.platform });
-      if (params.expectedVersion !== undefined) {
-        query.set("expectedVersion", String(params.expectedVersion));
-      }
-      return adminCall<KitRemoveClientPayloadResponse>(
-        `/v1/products/client-payload/${encodeURIComponent(params.productId)}?${query.toString()}`,
+      expectedDraftRevision?: number;
+      note?: string;
+    }) =>
+      adminCall<KitSetClientPayloadResponse>(
+        clientPayloadPath(params, "/publish"),
         {
-          method: "DELETE",
+          method: "POST",
+          body: JSON.stringify({
+            expectedVersion: params.expectedVersion,
+            expectedDraftRevision: params.expectedDraftRevision,
+            note: params.note,
+          }),
         },
-      );
-    },
+      ),
+    listClientPayloadHistory: (params: {
+      productId: string;
+      platform: "IOS" | "Android";
+    }) =>
+      adminCall<KitClientPayloadHistoryResponse>(
+        clientPayloadPath(params, "/history"),
+      ),
+    getClientPayloadVersion: (params: {
+      productId: string;
+      platform: "IOS" | "Android";
+      version: number;
+    }) =>
+      adminCall<KitClientPayloadVersionResponse>(
+        clientPayloadPath(params, `/history/${params.version}`),
+      ),
+    rollbackClientPayload: (params: {
+      productId: string;
+      platform: "IOS" | "Android";
+      toVersion: number;
+      expectedVersion?: number;
+      note?: string;
+    }) =>
+      adminCall<KitSetClientPayloadResponse>(
+        clientPayloadPath(params, "/rollback"),
+        {
+          method: "POST",
+          body: JSON.stringify({
+            toVersion: params.toVersion,
+            expectedVersion: params.expectedVersion,
+            note: params.note,
+          }),
+        },
+      ),
     syncProducts: (params: {
       platform: "IOS" | "Android";
       direction: "pull" | "push" | "both" | "purge-local";
@@ -333,6 +714,41 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
     syncJob: (jobId: string) =>
       adminCall<KitProductSyncJobResponse>(
         `/v1/products/sync/jobs/${encodeURIComponent(jobId)}`,
+      ),
+    listDeliveries: (params: {
+      status?: KitDeliveryStatus;
+      eventType?: string;
+      destinationId?: string;
+      eventId?: string;
+      limit?: number;
+      cursor?: string;
+    }) =>
+      adminCall<KitDeliveriesResponse>(
+        withQuery("/v1/webhooks/deliveries", params),
+      ),
+    resendDelivery: (deliveryId: string) =>
+      adminCall<KitResendResponse>(
+        `/v1/webhooks/deliveries/${encodeURIComponent(deliveryId)}/resend`,
+        { method: "POST" },
+      ),
+    listInboundNotifications: (params: { limit?: number; cursor?: string }) =>
+      adminCall<KitInboundNotificationsResponse>(
+        withQuery("/v1/webhooks/notifications", params),
+      ),
+    listPurchaseIssues: (params: KitPurchaseIssuesParams) =>
+      adminCall<KitPurchaseIssuesResponse>(
+        withQuery("/v1/purchase/issues", params),
+      ),
+    resyncFromStore: (
+      target: { purchaseId: string } | { subscriptionId: string },
+    ) =>
+      adminCall<KitResyncResponse>("/v1/subscriptions/resync", {
+        method: "POST",
+        body: JSON.stringify(target),
+      }),
+    userTimeline: (userId: string) =>
+      adminCall<KitUserTimelineResponse>(
+        `/v1/subscriptions/timeline?userId=${encodeURIComponent(userId)}`,
       ),
     health: () => call<KitHealthResponse>("/health"),
   };

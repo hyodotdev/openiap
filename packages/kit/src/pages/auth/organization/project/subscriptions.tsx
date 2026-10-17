@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useOutletContext, useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
 import {
   Activity,
@@ -14,6 +14,7 @@ import {
 import type { Doc } from "@/convex";
 import { api } from "@/convex";
 import { PageLoading } from "@/components/LoadingSpinner";
+import { ResyncFromStoreButton } from "@/components/ResyncFromStoreButton";
 import { Badge } from "../../../../components/Badge";
 import {
   DEFAULT_REPORTING_CURRENCY,
@@ -42,30 +43,72 @@ type StateFilter = (typeof STATE_FILTERS)[number]["id"];
 
 export default function ProjectSubscriptions() {
   const { project } = useOutletContext<ProjectContext>();
+  const { orgSlug = "", projectSlug = "" } = useParams<{
+    orgSlug: string;
+    projectSlug: string;
+  }>();
   const [filter, setFilter] = useState<StateFilter>("all");
+  const [userFilter, setUserFilter] = useState("");
 
+  const [refreshAt, setRefreshAt] = useState(Date.now);
   const metrics = useQuery(api.subscriptions.query.metricsSummary, {
     projectId: project._id,
+    refreshAt,
   });
   const subscriptions = useQuery(api.subscriptions.query.listSubscriptions, {
     projectId: project._id,
     state: filter === "all" ? undefined : filter,
+    userId: userFilter.trim() || undefined,
     limit: 200,
   });
+  const canManage = useQuery(api.commerce.destinations.canManage, {
+    projectId: project._id,
+  });
+
+  const lastImmediateRefreshAt = useRef<number | null>(null);
+  useEffect(() => {
+    const expiry = metrics?.stats?.validUntil;
+    const now = Date.now();
+    const expired =
+      metrics?.stats?.state === "current" &&
+      expiry !== undefined &&
+      expiry !== null &&
+      expiry <= now;
+    const canRefreshImmediately =
+      lastImmediateRefreshAt.current === null ||
+      now - lastImmediateRefreshAt.current >= 60_000;
+    const delay =
+      expired && canRefreshImmediately
+        ? 0
+        : expiry !== undefined && expiry !== null && expiry > now
+          ? Math.min(60_000, expiry - now)
+          : 60_000;
+    const timer = window.setTimeout(() => {
+      lastImmediateRefreshAt.current = Date.now();
+      setRefreshAt((previous) => Math.max(Date.now(), previous + 1));
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [metrics, refreshAt]);
 
   const reportingCurrency = normalizeCurrencyCode(
     metrics?.reportingCurrency ?? project.reportingCurrency,
     DEFAULT_REPORTING_CURRENCY,
   );
+  const validUntil = metrics?.stats?.validUntil;
+  const totalsCurrent =
+    metrics?.stats?.state === "current" &&
+    (validUntil === null ||
+      (validUntil !== undefined &&
+        validUntil > Math.max(refreshAt, Date.now())));
   const formattedMrr = useMemo(() => {
-    if (!metrics) return "—";
+    if (!metrics || !totalsCurrent) return "—";
     return formatMicros(metrics.mrrMicros, {
       currency: reportingCurrency,
       emptyWhenZero: metrics.mrrByCurrency.length === 0,
     });
-  }, [metrics, reportingCurrency]);
+  }, [metrics, reportingCurrency, totalsCurrent]);
 
-  if (subscriptions === undefined || metrics === undefined) {
+  if (subscriptions === undefined) {
     return <PageLoading />;
   }
 
@@ -79,25 +122,38 @@ export default function ProjectSubscriptions() {
         <p className="text-sm text-muted-foreground">
           Authoritative state derived from IAPKit&apos;s internal lifecycle
           events. Rows update when kit ingests an Apple ASN v2 or Google RTDN
-          notification.
+          notification. Counts and MRR cover production purchases only.
         </p>
       </div>
 
+      {!totalsCurrent && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {metrics === undefined || metrics.stats?.state === "rebuilding"
+            ? "Updating subscription totals…"
+            : "Subscription totals are not available yet."}{" "}
+          Individual subscriptions remain available below.
+        </p>
+      )}
+      {totalsCurrent && metrics && (
+        <p className="text-xs text-muted-foreground">
+          Totals evaluated {new Date(metrics.stats.asOf).toLocaleString()}.
+        </p>
+      )}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <MetricCard
           icon={CheckCircle2}
           label="Active"
-          value={metrics.activeSubs}
+          value={totalsCurrent && metrics ? metrics.activeSubs : "—"}
         />
         <MetricCard
           icon={AlertTriangle}
           label="In grace"
-          value={metrics.inGracePeriod}
+          value={totalsCurrent && metrics ? metrics.inGracePeriod : "—"}
         />
         <MetricCard
           icon={RefreshCw}
           label="Billing retry"
-          value={metrics.inBillingRetry}
+          value={totalsCurrent && metrics ? metrics.inBillingRetry : "—"}
         />
         <MetricCard
           icon={Calendar}
@@ -106,7 +162,7 @@ export default function ProjectSubscriptions() {
         />
       </div>
 
-      {metrics.excludedMrrByCurrency.length > 0 && (
+      {totalsCurrent && metrics.excludedMrrByCurrency.length > 0 && (
         <div className="border border-border rounded-lg bg-card p-4">
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
@@ -140,16 +196,21 @@ export default function ProjectSubscriptions() {
         </div>
       )}
 
+      {metrics?.recentCountsTruncated && (
+        <p className="text-sm text-muted-foreground">
+          The 30-day counts cover only the most recently updated subscriptions.
+        </p>
+      )}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <MetricCard
           icon={XCircle}
           label="Refunded (30d)"
-          value={metrics.refunded30d}
+          value={metrics?.refunded30d ?? "—"}
         />
         <MetricCard
           icon={PauseCircle}
-          label="Canceled (30d)"
-          value={metrics.canceled30d}
+          label="Auto-renew off (30d)"
+          value={metrics?.canceled30d ?? "—"}
         />
         <MetricCard
           icon={Activity}
@@ -173,6 +234,13 @@ export default function ProjectSubscriptions() {
               {option.label}
             </button>
           ))}
+          <input
+            aria-label="Filter by app user ID"
+            value={userFilter}
+            onChange={(event) => setUserFilter(event.target.value)}
+            placeholder="App user ID"
+            className="ml-auto w-full rounded border border-border bg-background px-2 py-1 text-xs sm:w-56"
+          />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
@@ -184,13 +252,14 @@ export default function ProjectSubscriptions() {
                 <th className="px-4 py-2 text-left">State</th>
                 <th className="px-4 py-2 text-left">Expires</th>
                 <th className="px-4 py-2 text-left">Updated</th>
+                {canManage ? <th className="px-4 py-2 text-left" /> : null}
               </tr>
             </thead>
             <tbody>
               {subscriptions.items.length === 0 && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={canManage ? 7 : 6}
                     className="px-4 py-8 text-center text-muted-foreground"
                   >
                     No subscriptions for this filter yet. Webhook events from
@@ -200,8 +269,17 @@ export default function ProjectSubscriptions() {
               )}
               {subscriptions.items.map((sub) => (
                 <tr key={sub.id} className="border-t border-border/50">
-                  <td className="px-4 py-2 font-mono text-xs">
-                    {sub.userId ?? <span className="opacity-50">unbound</span>}
+                  <td className="px-4 py-2 font-mono text-xs break-all">
+                    {sub.userId ? (
+                      <Link
+                        to={`/${orgSlug}/project/${projectSlug}/purchases/user/${encodeURIComponent(sub.userId)}`}
+                        className="text-primary hover:underline"
+                      >
+                        {sub.userId}
+                      </Link>
+                    ) : (
+                      <span className="opacity-50">unbound</span>
+                    )}
                   </td>
                   <td className="px-4 py-2">{sub.productId}</td>
                   <td className="px-4 py-2">
@@ -218,6 +296,15 @@ export default function ProjectSubscriptions() {
                   <td className="px-4 py-2 text-muted-foreground">
                     {formatDate(sub.updatedAt)}
                   </td>
+                  {canManage ? (
+                    <td className="px-4 py-2">
+                      <ResyncFromStoreButton
+                        projectId={project._id}
+                        target={{ subscriptionId: sub.id }}
+                        label="Re-sync"
+                      />
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

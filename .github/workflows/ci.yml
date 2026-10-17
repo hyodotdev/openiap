@@ -43,23 +43,10 @@ jobs:
       - name: Validate package version metadata
         run: node scripts/release-branch-policy.mjs audit
 
-      # A PR compares against its base (HEAD^1 of the merge commit); a push, which can
-      # carry several commits, against the main tip before it.
       - name: Audit plugin manifests
-        env:
-          PUSH_BASE: ${{ github.event_name == 'push' && !github.event.created && !github.event.forced && github.event.before || '' }}
         run: |
           node --test scripts/audit-plugin-manifests.test.mjs
-          BASE=HEAD^1
-          # A new or force-pushed branch has no comparable base; then HEAD^1 is used.
-          if [ -n "$PUSH_BASE" ]; then
-            if git fetch --no-tags --depth=1 origin "$PUSH_BASE"; then
-              BASE="$PUSH_BASE"
-            else
-              echo "::warning::Could not fetch $PUSH_BASE; auditing plugin manifests against HEAD^1 only."
-            fi
-          fi
-          node scripts/audit-plugin-manifests.mjs "$BASE"
+          node scripts/audit-plugin-manifests.mjs
 
       - name: Require a release note for published source changes
         if: github.event_name == 'pull_request' && github.base_ref == 'main'
@@ -284,6 +271,7 @@ jobs:
               - '.github/workflows/ci.yml'
             commerce:
               - 'specs/commerce-protocol/**'
+              - 'specs/client/**'
               - 'packages/kit/**'
               - 'packages/mcp-server/**'
               - 'package.json'
@@ -404,6 +392,8 @@ jobs:
             web:
               - 'packages/docs/**'
               - 'packages/kit/**'
+              # Kit's docs type-check against the client protocol package.
+              - 'specs/client/**'
               - 'packages/mcp-server/**'
               # The kit server embeds the generated protocol artifacts at build
               # time, so a spec change must rebuild and probe the binary.

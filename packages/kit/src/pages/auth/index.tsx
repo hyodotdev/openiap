@@ -17,6 +17,10 @@ import ProjectSubscriptions from "./organization/project/subscriptions";
 import ProjectAnalytics from "./organization/project/analytics";
 import ProjectProducts from "./organization/project/products";
 import ProjectWebhooks from "./organization/project/webhooks";
+import ProjectWebhookDeliveries from "./organization/project/webhook-deliveries";
+import ProjectWebhookNotifications from "./organization/project/webhook-notifications";
+import ProjectUserTimeline from "./organization/project/user-timeline";
+import ProjectPurchaseIssues from "./organization/project/purchase-issues";
 import ProjectSettings from "./organization/project/settings";
 import ProjectPurchaseDetail from "./organization/project/purchase-detail";
 import ProjectOrders from "./organization/project/orders";
@@ -245,6 +249,22 @@ export default function AuthenticatedPages() {
             }
           />
           <Route
+            path="purchases/issues"
+            element={
+              <PageWithTitle title="Purchase issues">
+                <ProjectPurchaseIssues />
+              </PageWithTitle>
+            }
+          />
+          <Route
+            path="purchases/user/:appUserId"
+            element={
+              <PageWithTitle title="User timeline">
+                <ProjectUserTimeline />
+              </PageWithTitle>
+            }
+          />
+          <Route
             path="subscriptions"
             element={
               <PageWithTitle title="Project subscriptions">
@@ -281,6 +301,22 @@ export default function AuthenticatedPages() {
             element={
               <PageWithTitle title="Project webhooks">
                 <ProjectWebhooks />
+              </PageWithTitle>
+            }
+          />
+          <Route
+            path="webhooks/deliveries"
+            element={
+              <PageWithTitle title="Webhook deliveries">
+                <ProjectWebhookDeliveries />
+              </PageWithTitle>
+            }
+          />
+          <Route
+            path="webhooks/notifications"
+            element={
+              <PageWithTitle title="Inbound notifications">
+                <ProjectWebhookNotifications />
               </PageWithTitle>
             }
           />

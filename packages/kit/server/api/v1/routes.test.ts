@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { assertVerificationSource } from "../../../convex/purchases/verificationSource";
+import { ReceiptVerificationError } from "../../../convex/purchases/errors";
 import { getFunctionName } from "convex/server";
 
 vi.mock("hono/bun", () => ({
@@ -269,7 +271,16 @@ describe("apiRoutes", () => {
       sandbox: true,
       expectedProductId: "amazon.premium.monthly",
       requestIp: undefined,
+      correlationId: response.headers.get("X-Correlation-Id"),
+      sourceAuth: {
+        issuedAt: expect.any(Number),
+        mac: expect.stringMatching(/^[a-f0-9]{64}$/),
+      },
     });
+    const { sourceAuth, ...authenticated } = args;
+    expect(() =>
+      assertVerificationSource("amazon", authenticated, sourceAuth),
+    ).not.toThrow();
   });
 
   it.each([
@@ -277,7 +288,7 @@ describe("apiRoutes", () => {
       label: "Apple",
       apiKey: "route-test-apple-forwarding",
       body: {
-        store: "apple",
+        store: "apple" as const,
         jws: `${"a".repeat(40)}.${"b".repeat(40)}.${"c".repeat(40)}`,
         expectedProductId: "apple.premium.monthly",
       },
@@ -293,7 +304,7 @@ describe("apiRoutes", () => {
       label: "Horizon",
       apiKey: "route-test-horizon-forwarding",
       body: {
-        store: "horizon",
+        store: "horizon" as const,
         userId: "123456789",
         sku: "horizon.premium.monthly",
       },
@@ -328,7 +339,63 @@ describe("apiRoutes", () => {
       expect(convexClientMock.action).toHaveBeenCalledOnce();
       const [functionReference, args] = convexClientMock.action.mock.calls[0];
       expect(getFunctionName(functionReference)).toBe(functionName);
-      expect(args).toEqual(expectedArgs);
+      // The persisted correlation id is the one the response header reports.
+      expect(args).toEqual({
+        ...expectedArgs,
+        correlationId: response.headers.get("X-Correlation-Id"),
+        sourceAuth: {
+          issuedAt: expect.any(Number),
+          mac: expect.stringMatching(/^[a-f0-9]{64}$/),
+        },
+      });
+      const { sourceAuth, ...authenticated } = args;
+      expect(() =>
+        assertVerificationSource(body.store, authenticated, sourceAuth),
+      ).not.toThrow();
+    },
+  );
+
+  it.each(["/purchase/verify", "/verify-purchase"])(
+    "%s refunds source-unavailable attempts and never calls Convex without a proof",
+    async (path) => {
+      vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", undefined);
+      convexClientMock.handleConvexError.mockImplementation((error: unknown) =>
+        error instanceof ReceiptVerificationError
+          ? {
+              code: error.errorCode,
+              message: error.errorMessage,
+              retryAfterSec: error.retryAfterSec,
+            }
+          : null,
+      );
+      const request = () =>
+        apiRoutes.request(path, {
+          method: "POST",
+          headers: {
+            authorization: `Bearer source-cutover-${path.slice(1)}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            store: "google",
+            purchaseToken: "source-fixture-purchase-token",
+          }),
+        });
+      for (let attempt = 0; attempt < 32; attempt++) {
+        const response = await request();
+        expect(response.status).toBe(503);
+        expect(response.headers.get("retry-after")).toBe("5");
+        expect(await response.json()).toMatchObject({
+          errors: [{ code: "UNKNOWN_ERROR", retryAfterSec: 5 }],
+        });
+      }
+      expect(convexClientMock.action).not.toHaveBeenCalled();
+      vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "e".repeat(64));
+      convexClientMock.action.mockResolvedValue({
+        isValid: true,
+        state: "ENTITLED",
+      });
+      expect((await request()).status).toBe(200);
+      expect(convexClientMock.action).toHaveBeenCalledOnce();
     },
   );
 
@@ -398,6 +465,40 @@ describe("apiRoutes", () => {
       errors: [{ code: "REPEATED_FAILURE" }],
     });
     expect(convexClientMock.action).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets an on-hold Google subscription retry without exposing the hint", async () => {
+    const onHold = {
+      isValid: false,
+      state: "EXPIRED",
+      stableRejection: false,
+    };
+    convexClientMock.action
+      .mockResolvedValueOnce(onHold)
+      .mockResolvedValueOnce(onHold);
+    const request = () =>
+      apiRoutes.request("/purchase/verify", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer route-test-on-hold",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          store: "google",
+          purchaseToken: "on-hold-token".repeat(4),
+        }),
+      });
+
+    const first = await request();
+    const second = await request();
+
+    expect(await first.json()).toEqual({
+      store: "google",
+      isValid: false,
+      state: "EXPIRED",
+    });
+    expect(second.status).toBe(200);
+    expect(convexClientMock.action).toHaveBeenCalledTimes(2);
   });
 
   it("enriches a valid Google receipt only when client payload is requested", async () => {
@@ -722,4 +823,177 @@ describe("apiRoutes", () => {
       environment: "Xcode",
     });
   });
+
+  describe("includeTransactionDetails", () => {
+    const appleVerdict = {
+      isValid: true,
+      state: "ENTITLED",
+      productId: "premium.monthly",
+      environment: "Sandbox",
+      transactionDetails: {
+        transactionId: "2000000000000002",
+        originalTransactionId: "2000000000000001",
+        expiresAt: 1_800_000_000_000,
+      },
+    };
+    const jws = `${"a".repeat(40)}.${"b".repeat(40)}.${"c".repeat(40)}`;
+    const verify = (apiKey: string, body: Record<string, unknown>) =>
+      apiRoutes.request("/purchase/verify", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ store: "apple", jws, ...body }),
+      });
+
+    it("leaves the default response byte-identical", async () => {
+      convexClientMock.action.mockResolvedValueOnce(appleVerdict);
+
+      const response = await verify("route-test-details-default", {});
+
+      expect(response.status).toBe(200);
+      // Golden: the exact body shipped SDKs decode today.
+      expect(await response.text()).toBe(
+        '{"store":"apple","isValid":true,"state":"ENTITLED","productId":"premium.monthly","environment":"Sandbox"}',
+      );
+      expect(response.headers.get("X-Correlation-Id")).toMatch(
+        /^[0-9a-f-]{36}$/,
+      );
+    });
+
+    it("adds the commerce-event identifiers and the correlation id on request", async () => {
+      convexClientMock.action.mockResolvedValueOnce(appleVerdict);
+
+      const response = await verify("route-test-details-on", {
+        includeTransactionDetails: true,
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        store: "apple",
+        isValid: true,
+        state: "ENTITLED",
+        productId: "premium.monthly",
+        environment: "Sandbox",
+        transactionId: "2000000000000002",
+        originalTransactionId: "2000000000000001",
+        expiresAt: 1_800_000_000_000,
+        commerceEnvironment: "sandbox",
+        correlationId: response.headers.get("X-Correlation-Id"),
+      });
+    });
+
+    it("tells a settled rejection from one a retry can change", async () => {
+      // Fresh evidence per call: the replay guard holds a settled rejection.
+      let call = 0;
+      const finalVerdict = async (
+        verdict: Record<string, unknown>,
+        body: Record<string, unknown> = {
+          store: "apple",
+          jws: `${jws}${(call += 1)}`,
+        },
+      ) => {
+        convexClientMock.action.mockResolvedValueOnce(verdict);
+        const response = await apiRoutes.request("/purchase/verify", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer route-test-details-final",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ ...body, includeTransactionDetails: true }),
+        });
+        return ((await response.json()) as { finalVerdict?: boolean })
+          .finalVerdict;
+      };
+
+      for (const state of ["EXPIRED", "CANCELED", "INAUTHENTIC", "CONSUMED"]) {
+        expect(await finalVerdict({ isValid: false, state })).toBe(true);
+      }
+      // Google's revoked token maps to UNKNOWN but is settled.
+      expect(
+        await finalVerdict(
+          { isValid: false, state: "UNKNOWN", stableRejection: true },
+          { store: "google", purchaseToken: "g".repeat(80) },
+        ),
+      ).toBe(true);
+      // Play revives an on-hold subscription on the same token.
+      expect(
+        await finalVerdict(
+          { isValid: false, state: "EXPIRED", stableRejection: false },
+          { store: "google", purchaseToken: "h".repeat(80) },
+        ),
+      ).toBe(false);
+      // Meta checks current ownership, so the user can buy right after.
+      expect(
+        await finalVerdict(
+          { isValid: false, state: "INAUTHENTIC" },
+          { store: "horizon", userId: "123456789", sku: "sku" },
+        ),
+      ).toBe(false);
+      expect(await finalVerdict({ isValid: false, state: "UNKNOWN" })).toBe(
+        false,
+      );
+      expect(await finalVerdict({ isValid: false, state: "PENDING" })).toBe(
+        false,
+      );
+      // A valid purchase carries no verdict to stop on.
+      expect(
+        await finalVerdict({ isValid: true, state: "ENTITLED" }),
+      ).toBeUndefined();
+    });
+
+    it("adds only what the store supplied", async () => {
+      convexClientMock.action.mockResolvedValueOnce({
+        isValid: true,
+        state: "ENTITLED",
+        productId: "sku",
+      });
+
+      const response = await apiRoutes.request("/purchase/verify", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer route-test-details-horizon",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          store: "horizon",
+          userId: "123456789",
+          sku: "sku",
+          includeTransactionDetails: true,
+        }),
+      });
+
+      expect(await response.json()).toEqual({
+        store: "horizon",
+        isValid: true,
+        state: "ENTITLED",
+        productId: "sku",
+        correlationId: response.headers.get("X-Correlation-Id"),
+      });
+    });
+
+    it("publishes the flag and the fields in the OpenAPI document", async () => {
+      const spec = JSON.stringify(
+        await (await apiRoutes.request("/openapi")).json(),
+      );
+      for (const name of [
+        "includeTransactionDetails",
+        "transactionId",
+        "originalTransactionId",
+        "expiresAt",
+        "commerceEnvironment",
+        "correlationId",
+        "finalVerdict",
+      ]) {
+        expect(spec).toContain(`"${name}"`);
+      }
+    });
+  });
 });
+
+// Synthetic service credential for this isolated verification transport fixture.
+beforeEach(() =>
+  vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "e".repeat(64)),
+);
+afterEach(() => vi.unstubAllEnvs());

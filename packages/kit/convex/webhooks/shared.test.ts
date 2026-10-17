@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  appleTransactionIsFreeTrial,
   isUnauthenticatedPubSubAllowed,
   mapAppleNotificationType,
   mapGoogleSubscriptionNotificationType,
@@ -728,6 +729,27 @@ describe("normalizeGoogleRtdn", () => {
     expect(event.cancellationReason).toBe("Refunded");
   });
 
+  it("flags an environment Play did not report", () => {
+    const unfetched = normalizeGoogleRtdn({ payload: baseRtdnSubscription });
+    expect(unfetched).toMatchObject({
+      environment: "Production",
+      environmentDefaulted: true,
+    });
+    const fetched = normalizeGoogleRtdn({
+      payload: baseRtdnSubscription,
+      subscriptionInfo: { environment: "Production" },
+    });
+    expect(fetched).not.toHaveProperty("environmentDefaulted");
+    const test = normalizeGoogleRtdn({
+      payload: {
+        messageId: "rtdn-test-flag",
+        eventTimeMillis: 1_711_000_000_000,
+        testNotification: { version: "1.0" },
+      },
+    });
+    expect(test).not.toHaveProperty("environmentDefaulted");
+  });
+
   it("normalizes a voidedPurchase to PurchaseRefunded", () => {
     const event = normalizeGoogleRtdn({
       payload: {
@@ -748,6 +770,7 @@ describe("normalizeGoogleRtdn", () => {
     expect(event.transactionId).toBe("GPA.1234-5678-9012-34567");
     expect(event.productKind).toBe("subscription");
     expect(event.cancellationReason).toBe("Refunded");
+    expect(event.environmentDefaulted).toBe(true);
   });
 
   it.each([undefined, 3])(
@@ -821,5 +844,99 @@ describe("normalizeGoogleRtdn", () => {
         },
       }),
     ).toThrow(WebhookNormalizationError);
+  });
+});
+
+describe("analytics facts on normalized events", () => {
+  it.each([
+    [{ offerDiscountType: "FREE_TRIAL", offerType: 1, price: 0 }, true],
+    [{ offerDiscountType: "PAY_UP_FRONT", offerType: 1, price: 2_990 }, false],
+    // Payloads from before offerDiscountType: a free intro period has price 0.
+    [{ offerType: 1, price: 0 }, true],
+    [{ offerType: 1, price: 2_990 }, false],
+    [{ offerType: 1, price: null }, undefined],
+    // Promotional, offer-code and win-back offers are never trials.
+    [{ offerDiscountType: "FREE_TRIAL", offerType: 2, price: 0 }, false],
+    [{ offerDiscountType: "FREE_TRIAL", offerType: 3, price: 0 }, false],
+    [{ offerDiscountType: "FREE_TRIAL", offerType: 4, price: 0 }, false],
+    [{ offerType: 3, price: 0 }, false],
+    // No offer on a signed transaction is a full-price charge.
+    [{}, false],
+  ])("Apple transaction %j → freeTrial %s", (offer, expected) => {
+    expect(appleTransactionIsFreeTrial({ ...baseTransaction, ...offer })).toBe(
+      expected,
+    );
+    expect(
+      normalizeAppleAsn({
+        payload: { ...baseApplePayload, notificationType: "SUBSCRIBED" },
+        transaction: { ...baseTransaction, ...offer },
+      }).freeTrial,
+    ).toBe(expected);
+  });
+
+  it("leaves freeTrial unknown without a transaction", () => {
+    expect(appleTransactionIsFreeTrial(null)).toBeUndefined();
+  });
+
+  it("marks REFUND_REVERSED for analytics without changing its lifecycle type", () => {
+    const event = normalizeAppleAsn({
+      payload: { ...baseApplePayload, notificationType: "REFUND_REVERSED" },
+      transaction: baseTransaction,
+    });
+    expect(event.type).toBe("SubscriptionStarted");
+    expect(event.subscriptionState).toBe("Active");
+    expect(event.refundReversal).toBe(true);
+    expect(
+      normalizeAppleAsn({
+        payload: { ...baseApplePayload, notificationType: "SUBSCRIBED" },
+        transaction: baseTransaction,
+      }).refundReversal,
+    ).toBeUndefined();
+  });
+
+  it("marks RESUBSCRIBE for analytics without changing its lifecycle type", () => {
+    const resubscribe = normalizeAppleAsn({
+      payload: {
+        ...baseApplePayload,
+        notificationType: "SUBSCRIBED",
+        subtype: "RESUBSCRIBE",
+      },
+      transaction: baseTransaction,
+    });
+    const initialBuy = normalizeAppleAsn({
+      payload: {
+        ...baseApplePayload,
+        notificationType: "SUBSCRIBED",
+        subtype: "INITIAL_BUY",
+      },
+      transaction: baseTransaction,
+    });
+    expect(resubscribe.resubscribe).toBe(true);
+    expect(initialBuy.resubscribe).toBeUndefined();
+    const { resubscribe: _flag, ...lifecycle } = resubscribe;
+    expect(lifecycle).toEqual(initialBuy);
+  });
+
+  it("carries Google's catalog-derived trial flag", () => {
+    const payload: GoogleRtdnPayload = {
+      messageId: "google-trial",
+      eventTimeMillis: 1_000,
+      subscriptionNotification: {
+        notificationType: 4,
+        purchaseToken: "token",
+      },
+    };
+    expect(
+      normalizeGoogleRtdn({
+        payload,
+        subscriptionInfo: { productId: "premium_monthly", freeTrial: true },
+      }).freeTrial,
+    ).toBe(true);
+    expect(
+      normalizeGoogleRtdn({
+        payload,
+        subscriptionInfo: { productId: "premium_monthly" },
+      }).freeTrial,
+    ).toBeUndefined();
   });
 });

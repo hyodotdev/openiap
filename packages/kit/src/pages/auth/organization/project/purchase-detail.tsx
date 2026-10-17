@@ -17,6 +17,7 @@ import {
   Copy,
   ClipboardCheck,
 } from "lucide-react";
+import { ResyncFromStoreButton } from "@/components/ResyncFromStoreButton";
 import { FALLBACK_VALUE, getPurchaseStateDisplay } from "./receipt-utils";
 
 interface ProjectData {
@@ -110,6 +111,10 @@ export default function PurchaseDetail() {
   const purchase = useQuery(
     api.purchases.query.getPurchaseById,
     purchaseId ? { purchaseId: purchaseId as Id<"purchases"> } : "skip",
+  );
+  const canManage = useQuery(
+    api.commerce.destinations.canManage,
+    project ? { projectId: project._id } : "skip",
   );
 
   const backToList = () => {
@@ -208,32 +213,39 @@ export default function PurchaseDetail() {
   const productId =
     (purchase as { productId?: string | null }).productId ?? null;
 
-  const remoteResponse = purchase.remoteResponse
-    ? parseJson(purchase.remoteResponse)
-    : undefined;
+  const formattedRemoteResponse: string | null =
+    purchase.rawEvidenceVisible && purchase.remoteResponse
+      ? formatJson(parseJson(purchase.remoteResponse))
+      : null;
 
-  const formattedRemoteResponse: string | null = (() => {
-    if (!purchase.remoteResponse) {
-      return null;
-    }
-    return formatJson(remoteResponse);
-  })();
+  const requestPayload = purchase.rawEvidenceVisible
+    ? formatJson(purchase.requestData)
+    : null;
 
-  const requestPayload = (() => {
-    return formatJson(purchase.requestData);
-  })();
-
-  const requestItems: DetailItem[] = [
-    {
-      label: "Request payload",
-      value: requestPayload ? (
-        <pre className="whitespace-pre-wrap break-words text-xs text-muted-foreground">
-          {requestPayload}
-        </pre>
-      ) : undefined,
-      monospace: Boolean(requestPayload),
-    },
-  ];
+  const requestItems: DetailItem[] = purchase.rawEvidenceVisible
+    ? [
+        {
+          label: "Request payload",
+          value: requestPayload ? (
+            <pre className="whitespace-pre-wrap break-words text-xs text-muted-foreground">
+              {requestPayload}
+            </pre>
+          ) : undefined,
+          monospace: Boolean(requestPayload),
+        },
+      ]
+    : [
+        {
+          label: "Store evidence",
+          value:
+            "Hidden. Only project admins and owners can view the request payload and store response.",
+        },
+        {
+          label: "Evidence fingerprint",
+          value: purchase.evidenceFingerprint,
+          monospace: true,
+        },
+      ];
 
   const remoteResponseItems: DetailItem[] | null = formattedRemoteResponse
     ? [
@@ -269,13 +281,24 @@ export default function PurchaseDetail() {
         {"Back to purchases"}
       </button>
 
-      <div>
-        <h2 className="text-2xl font-bold mb-1">{"Receipt details"}</h2>
-        <p className="text-muted-foreground">
-          {
-            "Inspect the latest store verification snapshot. Subscription lifecycle state is tracked separately."
-          }
-        </p>
+      <div className="contained-action-card">
+        <div className="contained-action-card__text">
+          <h2 className="text-2xl font-bold mb-1">{"Receipt details"}</h2>
+          <p className="text-muted-foreground">
+            {
+              "Inspect the latest store verification snapshot. Subscription lifecycle state is tracked separately."
+            }
+          </p>
+        </div>
+        {canManage &&
+        (purchase.store === "apple" || purchase.store === "google") ? (
+          <div className="contained-action-card__actions">
+            <ResyncFromStoreButton
+              projectId={project._id}
+              target={{ purchaseId: purchase._id }}
+            />
+          </div>
+        ) : null}
       </div>
 
       <div className="bg-card border border-border rounded-xl shadow-sm p-6 space-y-6">

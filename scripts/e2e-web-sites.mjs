@@ -188,8 +188,21 @@ async function checkHttpRoute(request, site, route, expectedStatuses = [200]) {
   }
 }
 
-async function collectPageErrors(page) {
+function collectPageErrors(page) {
   const errors = [];
+  const pendingRequests = new Map();
+
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    const address = /^https?:$/.test(url.protocol)
+      ? `${url.origin}${url.pathname}`
+      : url.protocol;
+    pendingRequests.set(
+      request,
+      `${request.resourceType()}: ${address.slice(0, 200)}`,
+    );
+  });
+  page.on("requestfinished", (request) => pendingRequests.delete(request));
 
   page.on("pageerror", (error) => {
     if (!isIgnoredConsole(error.message)) {
@@ -227,6 +240,7 @@ async function collectPageErrors(page) {
   });
 
   page.on("requestfailed", (request) => {
+    pendingRequests.delete(request);
     const url = request.url();
     const resourceType = request.resourceType();
     const failure = request.failure();
@@ -237,7 +251,7 @@ async function collectPageErrors(page) {
     }
   });
 
-  return errors;
+  return { errors, pendingRequests };
 }
 
 async function waitForAppReady(page) {
@@ -668,7 +682,7 @@ async function checkSite(browser, request, site) {
         deviceScaleFactor: viewport.isMobile ? 2 : 1,
       });
       const page = await context.newPage();
-      const pageErrors = await collectPageErrors(page);
+      const { errors: pageErrors, pendingRequests } = collectPageErrors(page);
       const url = absoluteUrl(site.baseUrl, route);
 
       try {
@@ -714,14 +728,18 @@ async function checkSite(browser, request, site) {
         }
 
         if (pageErrors.length > 0) {
-          throw new Error(
-            `${site.name} ${route} ${viewport.name} runtime errors:\n${summarizeErrors(
-              pageErrors,
-            )}`,
-          );
+          throw new Error("runtime errors");
         }
       } catch (error) {
-        failures.push(error.message);
+        const details = [error.message, ...pageErrors];
+        if (pendingRequests.size > 0) {
+          details.push(
+            `pending requests: ${[...pendingRequests.values()].slice(0, 8).join("; ")}`,
+          );
+        }
+        failures.push(
+          `${site.name} ${route} ${viewport.name}:\n${summarizeErrors(details)}`,
+        );
       } finally {
         await context.close();
       }

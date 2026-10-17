@@ -18,7 +18,7 @@
     "audit:overrides": "node --test scripts/audit-npm-overrides.test.mjs && node scripts/audit-npm-overrides.mjs",
     "audit:ci-paths": "node --test scripts/audit-ci-path-filters.test.mjs && node scripts/audit-ci-path-filters.mjs",
     "audit:agents": "node --test scripts/audit-agent-surfaces.test.mjs && node scripts/audit-agent-surfaces.mjs",
-    "audit:plugins": "node --test scripts/audit-plugin-manifests.test.mjs && node scripts/audit-plugin-manifests.mjs origin/main",
+    "audit:plugins": "node --test scripts/audit-plugin-manifests.test.mjs && node scripts/audit-plugin-manifests.mjs",
     "audit:sponsors": "node --test scripts/sync-sponsors.test.mjs && node scripts/sync-sponsors.mjs",
     "audit:parity": "node scripts/audit-non-godot-parity.mjs",
     "audit:kit-contract": "node --test scripts/audit-kit-spec-contract.test.mjs && node scripts/audit-kit-spec-contract.mjs",

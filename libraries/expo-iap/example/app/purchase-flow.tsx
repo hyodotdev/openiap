@@ -30,6 +30,13 @@ import {
 } from 'expo-iap';
 import Loading from '../src/components/Loading';
 import AppOwnershipCard from '../src/components/AppOwnershipCard';
+import PurchaseConfirmationScreen from '../src/components/PurchaseConfirmationScreen';
+import usePurchaseFlowScroll from '../src/components/usePurchaseFlowScroll';
+import ExampleButton from '../src/components/ExampleButton';
+import StoreProductCard from '../src/components/StoreProductCard';
+import PurchaseFlowDiagram, {
+  usePurchaseFlowActivity,
+} from '../src/components/PurchaseFlowDiagram';
 import {
   CONSUMABLE_PRODUCT_IDS,
   NON_CONSUMABLE_PRODUCT_IDS,
@@ -111,6 +118,7 @@ type PurchaseFlowProps = {
   onRefreshStorefront: () => Promise<void>;
   verificationMethod: VerificationMethod;
   onChangeVerificationMethod: () => void;
+  activity: ReturnType<typeof usePurchaseFlowActivity>['activity'];
 };
 
 /**
@@ -134,7 +142,20 @@ function PurchaseFlow({
   onRefreshStorefront,
   verificationMethod,
   onChangeVerificationMethod,
+  activity,
 }: PurchaseFlowProps) {
+  const {
+    setScrollView,
+    expanded,
+    changeExpanded,
+    beginPurchase,
+    onScroll,
+    onScrollBeginDrag,
+    onContentLayout,
+    onDiagramLayout,
+    onDiagramBodyLayout,
+    onStepLayout,
+  } = usePurchaseFlowScroll(activity);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [purchaseDetailsVisible, setPurchaseDetailsVisible] = useState(false);
@@ -183,9 +204,10 @@ function PurchaseFlow({
   // Load products when component mounts (guard against dev double-invoke)
   const handlePurchase = useCallback(
     (itemId: string) => {
+      beginPurchase(itemId);
       onPurchase(itemId);
     },
-    [onPurchase],
+    [onPurchase, beginPurchase],
   );
 
   const {
@@ -217,18 +239,32 @@ function PurchaseFlow({
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      ref={setScrollView}
+      style={styles.container}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
+      onScrollBeginDrag={onScrollBeginDrag}
+    >
       <View style={styles.header}>
-        <Text style={styles.title}>In-App Purchase Flow</Text>
+        <Text style={styles.title}>Pay, verify, finish</Text>
         <Text style={styles.subtitle}>
-          Testing consumable and non-consumable products
+          Buy a one-time product, verify the payment, then finish the
+          transaction.
         </Text>
       </View>
 
-      <View style={styles.content}>
+      <View style={styles.content} onLayout={onContentLayout}>
+        <PurchaseFlowDiagram
+          activity={activity}
+          expanded={expanded}
+          onExpandedChange={changeExpanded}
+          onLayout={onDiagramLayout}
+          onBodyLayout={onDiagramBodyLayout}
+          onStepLayout={onStepLayout}
+        />
         {/* Connection Status */}
         <View style={styles.statusContainer}>
-          <Text style={styles.statusLabel}>Store Connection:</Text>
           <Text
             style={[
               styles.statusValue,
@@ -237,6 +273,98 @@ function PurchaseFlow({
           >
             {connected ? '✅ Connected' : '❌ Disconnected'}
           </Text>
+        </View>
+
+        {/* Verification Method Selector */}
+        <View style={styles.verificationContainer}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={styles.verificationButton}
+            onPress={onChangeVerificationMethod}
+          >
+            <View>
+              <Text style={styles.verificationButtonHint}>
+                Receipt verification
+              </Text>
+              <Text style={styles.verificationButtonText}>
+                {verificationMethod === 'ignore'
+                  ? 'None (Skip)'
+                  : verificationMethod === 'local'
+                    ? 'Local (Device)'
+                    : verificationMethod === 'iapkit-localhost'
+                      ? 'Local (IAPKit)'
+                      : 'IAPKit'}
+              </Text>
+            </View>
+            <Text style={styles.changeLabel}>Change ›</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Products List */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Available Products</Text>
+          <Text style={styles.sectionSubtitle}>
+            {visibleProducts.length > 0
+              ? `${visibleProducts.length} product(s) available`
+              : hasHiddenNonConsumables
+                ? 'All non-consumable products already purchased'
+                : 'Loading products...'}
+          </Text>
+
+          {visibleProducts.map((product, index) => (
+            <StoreProductCard
+              key={product.id}
+              product={product}
+              kind={
+                CONSUMABLE_PRODUCT_ID_SET.has(product.id)
+                  ? 'Consumable product'
+                  : NON_CONSUMABLE_PRODUCT_ID_SET.has(product.id)
+                    ? 'Non-consumable product'
+                    : 'In-app product'
+              }
+            >
+              <ExampleButton
+                title={isProcessing ? 'Processing...' : 'Purchase'}
+                accessibilityLabel={`Purchase ${
+                  product.displayName || product.title
+                }`}
+                focusable={true}
+                hasTVPreferredFocus={
+                  (Platform.isTV || String(Platform.OS) === 'kepler') &&
+                  index === tvSelectedProductIndex
+                }
+                style={[
+                  styles.productAction,
+                  (Platform.isTV || String(Platform.OS) === 'kepler') &&
+                    index === tvSelectedProductIndex &&
+                    styles.tvFocusedButton,
+                  isProcessing && {opacity: 0.5},
+                ]}
+                onPress={() => handlePurchase(product.id)}
+                onFocus={() => setTvSelectedProductIndex(index)}
+                disabled={isProcessing}
+              />
+              <ExampleButton
+                title="Details"
+                variant="secondary"
+                accessibilityLabel={`Details for ${
+                  product.displayName || product.title
+                }`}
+                focusable={true}
+                onPress={() => handleShowDetails(product)}
+              />
+            </StoreProductCard>
+          ))}
+
+          {visibleProducts.length === 0 && connected && (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>
+                {hasHiddenNonConsumables
+                  ? 'All available non-consumable products have already been purchased.'
+                  : 'No products available. Please check your app store configuration.'}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.storefrontContainer}>
@@ -276,101 +404,6 @@ function PurchaseFlow({
                 : 'Refresh storefront'}
             </Text>
           </TouchableOpacity>
-        </View>
-
-        {/* Verification Method Selector */}
-        <View style={styles.verificationContainer}>
-          <Text style={styles.statusLabel}>Purchase Verification:</Text>
-          <TouchableOpacity
-            style={styles.verificationButton}
-            onPress={onChangeVerificationMethod}
-          >
-            <Text style={styles.verificationButtonText}>
-              {verificationMethod === 'ignore'
-                ? 'None (Skip)'
-                : verificationMethod === 'local'
-                  ? 'Local (Device)'
-                  : verificationMethod === 'iapkit-localhost'
-                    ? 'Local (IAPKit)'
-                    : 'IAPKit'}
-            </Text>
-            <Text style={styles.verificationButtonHint}>Tap to change</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Products List */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Available Products</Text>
-          <Text style={styles.sectionSubtitle}>
-            {visibleProducts.length > 0
-              ? `${visibleProducts.length} product(s) available`
-              : hasHiddenNonConsumables
-                ? 'All non-consumable products already purchased'
-                : 'Loading products...'}
-          </Text>
-
-          {visibleProducts.map((product, index) => (
-            <View key={product.id} style={styles.productCard}>
-              <View style={styles.productHeader}>
-                <Text style={styles.productTitle}>{product.title}</Text>
-                <Text style={styles.productPrice}>{product.displayPrice}</Text>
-              </View>
-              <Text style={styles.productDescription}>
-                {product.description}
-              </Text>
-              <Text
-                style={[
-                  styles.productBadgeText,
-                  CONSUMABLE_PRODUCT_ID_SET.has(product.id)
-                    ? styles.productBadgeConsumable
-                    : NON_CONSUMABLE_PRODUCT_ID_SET.has(product.id)
-                      ? styles.productBadgeNonConsumable
-                      : null,
-                ]}
-              >
-                {CONSUMABLE_PRODUCT_ID_SET.has(product.id)
-                  ? 'Consumable product'
-                  : NON_CONSUMABLE_PRODUCT_ID_SET.has(product.id)
-                    ? 'Non-consumable product'
-                    : 'In-app product'}
-              </Text>
-              <View style={styles.productActions}>
-                <TouchableOpacity
-                  focusable={true}
-                  hasTVPreferredFocus={index === tvSelectedProductIndex}
-                  style={[
-                    styles.purchaseButton,
-                    index === tvSelectedProductIndex && styles.tvFocusedButton,
-                    isProcessing && {opacity: 0.5},
-                  ]}
-                  onPress={() => handlePurchase(product.id)}
-                  onFocus={() => setTvSelectedProductIndex(index)}
-                  disabled={isProcessing}
-                >
-                  <Text style={styles.purchaseButtonText}>
-                    {isProcessing ? 'Processing...' : `Purchase`}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  focusable={true}
-                  style={styles.detailsButton}
-                  onPress={() => handleShowDetails(product)}
-                >
-                  <Text style={styles.detailsButtonText}>Details</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
-
-          {visibleProducts.length === 0 && connected && (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>
-                {hasHiddenNonConsumables
-                  ? 'All available non-consumable products have already been purchased.'
-                  : 'No products available. Please check your app store configuration.'}
-              </Text>
-            </View>
-          )}
         </View>
 
         {/* Available Purchases */}
@@ -542,13 +575,13 @@ function PurchaseFlow({
                             <Text style={styles.offerDetail}>
                               Price: {offer.displayPrice}
                             </Text>
-                            {offer.fullPriceMicrosAndroid && (
+                            {offer.fullPriceMicrosAndroid != null && (
                               <Text style={styles.offerDetail}>
                                 Full Price (micros):{' '}
                                 {offer.fullPriceMicrosAndroid}
                               </Text>
                             )}
-                            {offer.percentageDiscountAndroid && (
+                            {(offer.percentageDiscountAndroid ?? 0) > 0 && (
                               <Text style={styles.offerDetail}>
                                 {offer.percentageDiscountAndroid}% off
                               </Text>
@@ -683,10 +716,13 @@ function PurchaseFlow({
  * 2. subscribeEvent     - Event subscription (onPurchaseSuccess/onPurchaseError)
  * 3. requestPurchase    - 3 options: Apple, Google, Google with offers
  * 4. verify purchase    - local device | local IAPKit | hosted IAPKit | skip
- * 5. grant entitlement  - Update availablePurchases state
- * 6. finish transaction - Call finishTransaction to complete
+ * 5. finish transaction - Settle the verified store purchase
+ * 6. refresh purchases  - Read store purchases, not app-account access
  */
 function PurchaseFlowContainer() {
+  const {activity, startStore, startPurchase, update, storeError} =
+    usePurchaseFlowActivity();
+  const purchaseRequestTrace = useRef('');
   // ============================================================
   // State Management
   // ============================================================
@@ -797,6 +833,7 @@ function PurchaseFlowContainer() {
     inFlightPurchaseTasks.set(purchaseCleanupKey, task);
 
     retainedPurchaseRef.current = purchase;
+    startPurchase(purchase);
     setLastPurchase(purchase);
     setIsProcessing(false);
 
@@ -821,6 +858,12 @@ function PurchaseFlowContainer() {
     // ------------------------------------------------------------
     const currentVerificationMethod = verificationMethodRef.current;
     if (currentVerificationMethod === 'ignore') {
+      update(
+        purchase.id,
+        'confirmation',
+        'skipped',
+        'Receipt checks skipped — transaction unfinished.',
+      );
       setIsProcessing(false);
       setPurchaseResult(
         'Receipt retained. Choose verification to retry this receipt.',
@@ -836,6 +879,12 @@ function PurchaseFlowContainer() {
     });
 
     if (productId) {
+      update(
+        purchase.id,
+        'confirmation',
+        'running',
+        'Checking the receipt with the selected provider.',
+      );
       setIsProcessing(true);
       try {
         if (currentVerificationMethod === 'local') {
@@ -915,6 +964,12 @@ function PurchaseFlowContainer() {
           }
         }
       } catch (error) {
+        update(
+          purchase.id,
+          'confirmation',
+          'failed',
+          'Receipt verification failed — transaction unfinished.',
+        );
         if (__DEV__) {
           console.log('[PurchaseFlow] Verification failed:', error);
         }
@@ -948,22 +1003,48 @@ function PurchaseFlowContainer() {
     // Step 6: finish transaction
     // Finish verified purchases unless an Android non-consumable is acknowledged.
     // ------------------------------------------------------------
+    const needsFinishing =
+      isConsumablePurchase ||
+      !(
+        'isAcknowledgedAndroid' in purchase &&
+        purchase.isAcknowledgedAndroid === true
+      );
     try {
-      if (
-        isConsumablePurchase ||
-        !(
-          'isAcknowledgedAndroid' in purchase &&
-          purchase.isAcknowledgedAndroid === true
-        )
-      ) {
+      update(
+        purchase.id,
+        'confirmation',
+        'done',
+        'Receipt verified. App-account access is not decided by this example.',
+      );
+      if (needsFinishing) {
+        update(
+          purchase.id,
+          'finish',
+          'running',
+          'Finishing the verified store transaction.',
+        );
         await finishTransaction({
           purchase,
           isConsumable: isConsumablePurchase,
         });
       }
+      update(
+        purchase.id,
+        'finish',
+        'done',
+        needsFinishing
+          ? 'Transaction settled. Your app still owns the access decision.'
+          : 'Already acknowledged by Google. No new finish call was needed.',
+      );
       rememberCompletedPurchaseKey(completedPurchaseKeys, purchaseCleanupKey);
       releasePurchaseTask('finished');
     } catch (error) {
+      update(
+        purchase.id,
+        'finish',
+        'failed',
+        'Receipt verified, but finishing needs retry.',
+      );
       const message = formatErrorForDisplay(
         error,
         ErrorCode.PurchaseVerificationFinishFailed,
@@ -986,7 +1067,7 @@ function PurchaseFlowContainer() {
     );
 
     // ------------------------------------------------------------
-    // Step 5: grant entitlement
+    // Refresh store purchases; this does not grant app-account access.
     // Refresh available purchases to update UI state
     // ------------------------------------------------------------
     try {
@@ -1041,10 +1122,15 @@ function PurchaseFlowContainer() {
     // Step 2: subscribeEvent - onPurchaseError callback
     // ------------------------------------------------------------
     onPurchaseError: (error: PurchaseError) => {
+      storeError(purchaseRequestTrace.current, error.code);
       console.log('Purchase failed:', error.message);
       setIsProcessing(false);
       if (error.code === ErrorCode.UserCancelled) {
         setPurchaseResult('Purchase cancelled by user');
+        return;
+      }
+      if (error.code === ErrorCode.DeferredPayment) {
+        setPurchaseResult('Payment is pending at the store.');
         return;
       }
 
@@ -1199,6 +1285,8 @@ function PurchaseFlowContainer() {
     (itemId: string) => {
       if (purchaseRequestPendingRef.current) return;
       purchaseRequestPendingRef.current = true;
+      purchaseRequestTrace.current = startStore(itemId);
+      const requestTrace = purchaseRequestTrace.current;
       setIsProcessing(true);
       setPurchaseResult('Processing purchase...');
 
@@ -1222,6 +1310,7 @@ function PurchaseFlowContainer() {
         type: 'in-app',
       })
         .catch((error: PurchaseError) => {
+          storeError(requestTrace, error.code);
           console.log('requestPurchase failed:', {
             code: error.code,
             message: error.message,
@@ -1229,6 +1318,10 @@ function PurchaseFlowContainer() {
           setIsProcessing(false);
           if (error.code === ErrorCode.UserCancelled) {
             setPurchaseResult('Purchase cancelled by user');
+            return;
+          }
+          if (error.code === ErrorCode.DeferredPayment) {
+            setPurchaseResult('Payment is pending at the store.');
             return;
           }
 
@@ -1243,38 +1336,30 @@ function PurchaseFlowContainer() {
           purchaseRequestPendingRef.current = false;
         });
     },
-    [setIsProcessing, setPurchaseResult],
+    [setIsProcessing, setPurchaseResult, startStore, storeError],
   );
 
   const handleChangeVerificationMethod = useCallback(() => {
-    const options = [
-      'Local (Device)',
-      'Local (IAPKit)',
-      'IAPKit',
-      'None (Skip)',
-      'Cancel',
+    const method = (value: VerificationMethod) => () => {
+      setVerificationSelection((selection) => selection + 1);
+      setVerificationMethod(value);
+    };
+    const choices: {label: string; select: () => void}[] = [
+      {label: 'Local (Device)', select: method('local')},
+      {label: 'Local (IAPKit)', select: method('iapkit-localhost')},
+      {label: 'IAPKit', select: method('iapkit')},
+      {label: 'None (Skip)', select: method('ignore')},
     ];
-    const cancelButtonIndex = 4;
 
     showActionSheetWithOptions(
       {
-        options,
-        cancelButtonIndex,
+        options: [...choices.map(({label}) => label), 'Cancel'],
+        cancelButtonIndex: choices.length,
         title: 'Select Verification Method',
         message: 'Verify purchases before completing the transaction',
       },
       (buttonIndex) => {
-        if (buttonIndex == null || buttonIndex > 3) return;
-        setVerificationSelection((selection) => selection + 1);
-        if (buttonIndex === 0) {
-          setVerificationMethod('local');
-        } else if (buttonIndex === 1) {
-          setVerificationMethod('iapkit-localhost');
-        } else if (buttonIndex === 2) {
-          setVerificationMethod('iapkit');
-        } else if (buttonIndex === 3) {
-          setVerificationMethod('ignore');
-        }
+        if (buttonIndex != null) choices[buttonIndex]?.select();
       },
     );
   }, [showActionSheetWithOptions]);
@@ -1326,42 +1411,49 @@ function PurchaseFlowContainer() {
       onRefreshStorefront={handleRefreshStorefront}
       verificationMethod={verificationMethod}
       onChangeVerificationMethod={handleChangeVerificationMethod}
+      activity={activity}
     />
   );
 }
 
-// Note: This is the default export required by Expo Router
-export default PurchaseFlowContainer;
+// Only the selected confirmation path owns a purchase listener.
+export default function PurchaseFlowScreen() {
+  return (
+    <PurchaseConfirmationScreen productType="in-app">
+      <PurchaseFlowContainer />
+    </PurchaseConfirmationScreen>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F8FAFC',
   },
+  productAction: {flex: 1},
   header: {
-    backgroundColor: '#007AFF',
-    padding: 20,
-    paddingTop: 40,
+    paddingHorizontal: 20,
+    paddingTop: 16,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: 'white',
+    color: '#0F172A',
     marginBottom: 5,
   },
   subtitle: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#475569',
+    lineHeight: 21,
   },
   content: {
-    padding: 15,
+    padding: 20,
+    paddingBottom: 64,
+    gap: 16,
   },
   statusContainer: {
     flexDirection: 'row',
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 15,
+    marginBottom: 8,
     alignItems: 'center',
   },
   statusLabel: {
@@ -1374,9 +1466,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   storefrontContainer: {
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    paddingBottom: 12,
     marginBottom: 15,
     gap: 8,
   },
@@ -1399,41 +1491,44 @@ const styles = StyleSheet.create({
   },
   storefrontRefreshButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#1976D2',
+    minHeight: 44,
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 6,
   },
   storefrontRefreshButtonText: {
-    color: 'white',
+    color: '#1E40AF',
     fontWeight: '600',
     fontSize: 13,
   },
   verificationContainer: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 15,
     marginBottom: 15,
   },
   verificationButton: {
-    backgroundColor: '#f0f0f0',
-    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
     padding: 12,
-    marginTop: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#CBD5E1',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
   },
   verificationButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 4,
   },
   verificationButtonHint: {
     fontSize: 12,
     color: '#666',
-    fontStyle: 'italic',
   },
+  changeLabel: {fontSize: 14, fontWeight: '600', color: '#1E40AF'},
   section: {
     marginBottom: 20,
   },
@@ -1447,83 +1542,9 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 10,
   },
-  productCard: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  productHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  productTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    flex: 1,
-  },
-  productPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#007AFF',
-  },
-  productDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
-  },
-  productBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    marginBottom: 12,
-    textTransform: 'uppercase',
-  },
-  productBadgeConsumable: {
-    color: '#43A047',
-  },
-  productBadgeNonConsumable: {
-    color: '#6A1B9A',
-  },
-  productActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  purchaseButton: {
-    flex: 1,
-    backgroundColor: '#007AFF',
-    paddingVertical: 10,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  purchaseButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 14,
-  },
   tvFocusedButton: {
     borderColor: '#0F172A',
     borderWidth: 3,
-  },
-  detailsButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    alignItems: 'center',
-  },
-  detailsButtonText: {
-    color: '#007AFF',
-    fontWeight: '600',
-    fontSize: 14,
   },
   emptyState: {
     backgroundColor: 'white',
@@ -1557,12 +1578,6 @@ const styles = StyleSheet.create({
     color: '#333',
     fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
-  resultActionsRow: {
-    marginTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   copyButton: {
     paddingVertical: 10,
     paddingHorizontal: 20,
@@ -1577,10 +1592,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
-  },
-  resultDetailsButton: {
-    minHeight: 44,
-    justifyContent: 'center',
   },
   refreshButton: {
     marginTop: 8,
@@ -1709,13 +1720,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#007AFF',
     marginBottom: 6,
-  },
-  offerSubtitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#495057',
-    marginTop: 8,
-    marginBottom: 4,
   },
   offerDetail: {
     fontSize: 12,

@@ -46,14 +46,14 @@ if staged '^(packages/docs/(sponsor-registry|community-touchpoints)\.json$|packa
   node scripts/sync-sponsors.mjs --staged
 fi
 
-if staged '^(packages/kit/convex/(schema|products/(mutation|query)|purchases/purchaseState)\.ts|packages/kit/server/api/v1/(products|route-response-schemas)\.ts|specs/client/src/type\.graphql|scripts/audit-kit-spec-contract(\.test)?\.mjs)$'; then
+if staged '^(packages/kit/convex/(schema|products/(mutation|query|clientPayloads)|purchases/purchaseState)\.ts|packages/kit/server/api/v1/(products|route-response-schemas)\.ts|specs/client/src/type\.graphql|scripts/audit-kit-spec-contract(\.test)?\.mjs)$'; then
   echo "🔎 IAPKit spec contract audit…"
   node --test scripts/audit-kit-spec-contract.test.mjs
   node scripts/audit-kit-spec-contract.mjs
 fi
 
-# A skills edit must bump both plugin manifests, or installs never see it.
-if staged '^(plugins/openiap/|scripts/audit-plugin-manifests(\.test)?\.mjs$)'; then
+# Both plugin manifests must carry openiap-versions.json's plugin version.
+if staged '^(plugins/openiap/|openiap-versions\.json$|scripts/audit-plugin-manifests(\.test)?\.mjs$)'; then
   echo "🧩 plugin manifest audit…"
   bun run audit:plugins
 fi

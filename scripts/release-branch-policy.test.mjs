@@ -2638,6 +2638,25 @@ test("the release gates know every native publication input", () => {
   );
 });
 
+test("the client protocol's purchase-flow helper and its mirrors need a release card", () => {
+  const published = [
+    ["client-protocol", "specs/client/src/purchase-flow.ts"],
+    ["react-native", "libraries/react-native-iap/src/purchase-flow.ts"],
+    ["expo", "libraries/expo-iap/src/purchase-flow.ts"],
+  ];
+  for (const [packageId, file] of published) {
+    assert.equal(shipsIn(packageId, file), true, file);
+  }
+  assert.deepEqual(
+    findUnnotedSourceChanges(published.map(([, file]) => file)),
+    published.map(([, file]) => file),
+  );
+  assert.equal(
+    shipsInAnyPackage("specs/client/src/purchase-flow.test.ts"),
+    false,
+  );
+});
+
 test("the native gate flags core and conformance-only changes", () => {
   const seenRoots = {};
   const git = (args) => {

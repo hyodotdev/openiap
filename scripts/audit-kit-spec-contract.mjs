@@ -29,7 +29,7 @@ export const RESPONSE_SCHEMA_FILE =
 export const WRITE_PATH_FORMAT_FILES = [
   "packages/kit/convex/schema.ts",
   "packages/kit/convex/products/query.ts",
-  "packages/kit/convex/products/mutation.ts",
+  "packages/kit/convex/products/clientPayloads.ts",
   "packages/kit/server/api/v1/products.ts",
 ];
 

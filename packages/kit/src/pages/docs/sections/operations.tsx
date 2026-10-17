@@ -1,3 +1,4 @@
+import { PURCHASE_ISSUE_CAUSES } from "@/lib/purchaseIssues";
 import { Callout } from "../components/Callout";
 import { CodeBlock } from "../components/CodeBlock";
 import { DocsPage } from "../components/DocsPage";
@@ -7,7 +8,7 @@ export default function OperationsPage() {
     <DocsPage
       slug="operations"
       title="Operations"
-      description="Fair use, capacity, rate limits, correlation IDs, /health, structured logs, and graceful shutdown."
+      description="Fair use, capacity, rate limits, purchase issues, store re-sync, the operator API, correlation IDs, /health, structured logs, and graceful shutdown."
     >
       <h2 className="mt-8 text-2xl font-semibold">Rate limits</h2>
       <p>
@@ -24,7 +25,8 @@ export default function OperationsPage() {
         also has a per-(API key, payload) replay guard; it returns{" "}
         <code>429 DUPLICATE_PAYLOAD</code> when the same receipt is retried too
         aggressively, or <code>429 REPEATED_FAILURE</code> during the short
-        cooldown after the upstream store rejects that exact payload.
+        cooldown after the upstream store settles that exact payload as invalid
+        (<code>finalVerdict: true</code>).
       </p>
       <p>
         Authenticated responses after the auth layer — successful responses,
@@ -122,12 +124,13 @@ export default function OperationsPage() {
 
       <h2 className="mt-10 text-2xl font-semibold">Correlation IDs</h2>
       <p>
-        Every verify response after the auth-header shape check carries an{" "}
-        <code>X-Correlation-Id</code> header — a UUIDv4 IAPKit generates at the
-        logger middleware level. The same id appears in the structured log line
-        for that request, so support can pivot from a customer report straight
-        to the exact log entry. Missing or malformed Authorization headers
-        return before the logger runs.
+        Verify and bind-user responses carry an <code>X-Correlation-Id</code>{" "}
+        header — a UUIDv4 IAPKit generates for the request. The same id appears
+        in the verify log line, on the purchase row the request wrote, and on
+        any purchase issue it recorded, so support can pivot from a customer
+        report straight to the exact entry. A request rejected before it is
+        handled — a missing or malformed Authorization header, or a bind-user
+        rate limit — carries none.
       </p>
       <CodeBlock title="Sample response headers" language="http">
         {`HTTP/1.1 200 OK
@@ -167,11 +170,12 @@ X-RateLimit-Remaining: 599`}
       <h2 className="mt-10 text-2xl font-semibold">/health endpoint</h2>
       <p>
         <code>GET /health</code> returns public service, API contract version,
-        deployment revision, environment, and a response timestamp without
-        hitting Convex or any external store. Point Fly.io readiness / liveness
-        probes at it; point your own uptime monitors at it too. The response
-        uses <code>Cache-Control: no-store</code> and remains intentionally
-        cheap so probe load doesn't inflate database or trace quota.
+        deployment revision, machine identifier, source-credential readiness,
+        environment, and a response timestamp without hitting Convex or any
+        external store. Point Fly.io readiness / liveness probes at it; point
+        your own uptime monitors at it too. The response uses{" "}
+        <code>Cache-Control: no-store</code> and remains intentionally cheap so
+        probe load doesn't inflate database or trace quota.
       </p>
       <CodeBlock language="json">
         {`{
@@ -180,6 +184,8 @@ X-RateLimit-Remaining: 599`}
   "service": "iapkit",
   "apiVersion": "v1",
   "revision": "a1b2c3d4e5f6",
+  "instanceId": "a1b2c3d4e5f67",
+  "verificationSourceReady": true,
   "environment": "production",
   "timestamp": "2026-07-30T12:34:56.000Z"
 }`}
@@ -190,8 +196,171 @@ X-RateLimit-Remaining: 599`}
         service, not an installable semantic-versioned package. Production
         deploys expose the first 12 characters of their public Git revision;
         local builds return <code>null</code> when no valid revision is
-        injected. No machine identifier, credential, or private environment
-        value is exposed.
+        injected. <code>instanceId</code> identifies the responding Fly machine
+        and is <code>null</code> outside Fly.{" "}
+        <code>verificationSourceReady</code> reports valid runtime
+        source-credential configuration; it does not prove a successful Convex
+        handshake. No credential or private environment value is exposed.
+      </p>
+
+      <h2 id="purchase-issues" className="mt-10 text-2xl font-semibold">
+        Purchase issues
+      </h2>
+      <p>
+        IAPKit records why a verification failed or returned a pending,
+        unrecognized, or mismatched purchase, and why a secret-key bind-user
+        call found another owner or the link limit. Find them under Purchases →
+        Purchase issues, on a user&apos;s timeline, through the API, or through
+        MCP. Any organization member can read them.
+      </p>
+      <ul className="my-3 list-disc space-y-1 pl-6">
+        <li>
+          A repeat of the same failure raises its <code>count</code> and{" "}
+          <code>lastSeenAt</code> instead of adding a row. Only{" "}
+          <code>PRODUCT_MISMATCH</code>, <code>STORE_PENDING</code>,{" "}
+          <code>OWNERSHIP_CONFLICT</code>, and <code>BIND_LIMIT_REACHED</code>{" "}
+          get a row per purchase. Every other cause, including evidence no store
+          recognized, shares one row per store and cause, rewritten at most once
+          a minute, so its <code>count</code> is a lower bound.
+        </li>
+        <li>
+          A per-purchase row holds a <code>fingerprint</code> of the store and
+          the purchase&apos;s store-verified id: Apple&apos;s original
+          transaction id, the Play token, the Amazon receipt, or the Horizon
+          user and SKU. It is keyed with a per-project secret so short
+          identifiers cannot be guessed back, and never holds the token, JWS, or
+          receipt. Every encoding of one purchase&apos;s evidence lands on the
+          same row, and it equals the fingerprint on the purchase&apos;s detail
+          page. A bind issue fingerprints the purchase it matched. A shared row
+          has no <code>fingerprint</code>.
+        </li>
+        <li>
+          <code>correlationId</code> is the <code>X-Correlation-Id</code> of the
+          latest <code>/v1</code> request the row recorded. A shared row records
+          at most one failure a minute.
+        </li>
+        <li>
+          <code>productId</code> is store-verified;{" "}
+          <code>claimedProductId</code> is what the app asserted and is not
+          verified.
+        </li>
+        <li>
+          Rows are kept for 30 days, up to 1,024 per project in 16 shards of 64.
+          A new row replaces the least recently seen row of its own shard, so
+          eviction is per shard, not project-wide.
+        </li>
+      </ul>
+      <div className="my-4 overflow-x-auto rounded-lg border border-border">
+        <table className="min-w-[42rem] w-full text-sm">
+          <thead className="bg-muted/40">
+            <tr>
+              <th className="px-3 py-2 text-left font-medium">cause</th>
+              <th className="px-3 py-2 text-left font-medium">Meaning</th>
+              <th className="px-3 py-2 text-left font-medium">Next step</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {Object.entries(PURCHASE_ISSUE_CAUSES).map(
+              ([cause, { meaning, nextStep }]) => (
+                <tr key={cause}>
+                  <td className="px-3 py-2 font-mono text-xs">{cause}</td>
+                  <td className="px-3 py-2">{meaning}</td>
+                  <td className="px-3 py-2">{nextStep}</td>
+                </tr>
+              ),
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="store-resync" className="mt-10 text-2xl font-semibold">
+        Re-sync from store
+      </h2>
+      <p>
+        Owners and admins can re-read one Apple or Google purchase or
+        subscription from the store, from its detail page, the Subscriptions
+        tab, the API, or MCP. Use it when a store notification never arrived.
+      </p>
+      <ul className="my-3 list-disc space-y-1 pl-6">
+        <li>
+          Apple reads the App Store Server API subscription status or
+          transaction; Google reads the Play Developer API. Each re-sync draws
+          one token from the project&apos;s own re-sync bucket (a burst of 60,
+          then one per second), so re-syncs never hold up entitlement reads,
+          though one re-sync may make several store calls.
+        </li>
+        <li>
+          The purchase row is saved through the verification path, unless a
+          verify saved it while the store was being read. A changed subscription
+          is recorded as a <code>StoreResync</code> inbound notification and
+          applied in one transaction; its commerce events carry no{" "}
+          <code>sourceStoreEventId</code>, since no store notification caused
+          them.
+        </li>
+        <li>
+          A re-sync sees current state, not the events in between, so it emits{" "}
+          <code>entitlement.granted</code> or <code>entitlement.revoked</code>{" "}
+          only when access flips from what the owner was last told. A verify
+          tells nobody, so re-syncing a verify-only subscription grants access
+          once; the next store notification does not grant it again. It never
+          invents a lifecycle event.
+        </li>
+        <li>
+          Repeating it is a no-op until the store changes. It never binds,
+          unbinds, or moves a purchase or subscription owner. A store
+          notification signed after the read still applies. One signed before it
+          keeps the re-synced state and emits its lifecycle event only when the
+          event names that state, so a late renewal is reported while the
+          subscription is still active and dropped once it has expired. A later
+          verify replaces that state only with newer evidence: an Apple
+          transaction bought or refunded after the read, or a Google read made
+          after it. A verify that disagrees but cannot prove it is newer, such
+          as an Apple refund reversal, triggers one more store read from the
+          same bucket, at most once an hour per subscription. An expired Apple
+          transaction agrees with billing retry and grace, so it triggers none.
+        </li>
+        <li>
+          Amazon is rechecked automatically through RVS; Horizon has no
+          lifecycle API.
+        </li>
+      </ul>
+
+      <h2 className="mt-10 text-2xl font-semibold">Operator API</h2>
+      <p>
+        These routes take a secret admin key in{" "}
+        <code>Authorization: Bearer</code>; publishable keys get{" "}
+        <code>403 INSUFFICIENT_SCOPE</code>. Lists return{" "}
+        <code>{"{ …, hasMore, nextCursor }"}</code> pages of up to 100 rows. The
+        same operations are MCP tools.
+      </p>
+      <CodeBlock language="text">{`GET  /v1/webhooks/deliveries?status=&eventType=&destinationId=&eventId=&limit=&cursor=
+POST /v1/webhooks/deliveries/{deliveryId}/resend      → 202
+GET  /v1/webhooks/notifications?limit=&cursor=
+GET  /v1/purchase/issues?cause=&store=&productId=&appUserId=&from=&to=&limit=&cursor=
+POST /v1/subscriptions/resync  {"purchaseId"} or {"subscriptionId"}
+GET  /v1/subscriptions/timeline?userId=`}</CodeBlock>
+      <p>
+        Errors use <code>{"{ errors: [{ code, message }] }"}</code>:{" "}
+        <code>404 NOT_FOUND</code>; <code>409</code> for a delivery that cannot
+        be re-sent now: <code>NOT_RESENDABLE</code> (already queued),{" "}
+        <code>EVENT_PRUNED</code>, <code>DESTINATION_DISABLED</code>, or{" "}
+        <code>EVENT_TYPE_FILTERED</code>; <code>429 RATE_LIMITED</code> with{" "}
+        <code>Retry-After</code>, and <code>502 STORE_REQUEST_FAILED</code> when
+        the store call fails; retry it later. A notification&apos;s{" "}
+        <code>status</code> is <code>applied</code>, <code>pending</code>, or{" "}
+        <code>test</code> for a store test notification, which applies to
+        nothing.
+      </p>
+      <p>
+        Purchase issues come most recently seen first. <code>from</code> and{" "}
+        <code>to</code> are epoch milliseconds that bound{" "}
+        <code>lastSeenAt</code>; <code>productId</code> matches the verified or
+        the claimed product.
+      </p>
+      <p>
+        The timeline returns one app user&apos;s purchases, subscriptions,
+        commerce events, and purchase issues, newest first, capped at 50 of each
+        kind. It carries no receipt evidence, purchase token, or request IP.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Graceful shutdown</h2>
@@ -229,8 +398,10 @@ X-RateLimit-Remaining: 599`}
         <li>receipt verification body ≤ 32 KB before JSON parsing</li>
         <li>product management body ≤ 64 KB before JSON parsing</li>
         <li>
-          <code>clientPayload.body</code> ≤ 16 KiB measured as UTF-8 bytes
+          <code>clientPayload.body</code> ≤ 16 KiB measured as UTF-8 bytes,
+          drafts included
         </li>
+        <li>client payload publish or rollback note ≤ 500 chars</li>
         <li>subscription user-binding body ≤ 32 KB before JSON parsing</li>
         <li>webhook push body ≤ 256 KB before JSON parsing</li>
         <li>

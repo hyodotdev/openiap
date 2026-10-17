@@ -70,9 +70,11 @@ claude plugin install openiap@openiap
 
 `plugins/openiap` carries two manifests: `.codex-plugin/plugin.json` (MCP
 config in `.codex-plugin/mcp.json`) and `.claude-plugin/plugin.json` (inline
-MCP config). Both agents share `skills/`, so keep its wording agent-neutral and
-bump both manifests' `version` whenever it changes; installed plugins stay on
-their manifest version.
+MCP config). Both agents share `skills/`, so keep its wording agent-neutral.
+Installed plugins stay on their manifest version, and both manifests carry
+`openiap-versions.json`'s `plugin` version (`bun run audit:plugins`). Never bump
+them by hand: after a skills change lands, run the `P1. Release: OpenIAP plugin`
+workflow, which raises all three.
 
 ## Grok
 

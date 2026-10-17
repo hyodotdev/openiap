@@ -2,9 +2,15 @@ import * as v from "valibot";
 
 import {
   clientPayloadSchema,
+  commerceEnvironmentSchema,
+  correlationIdSchema,
   environmentSchema,
+  expiresAtSchema,
   FALLBACK_PURCHASE_STATE,
+  finalVerdictSchema,
+  originalTransactionIdSchema,
   productIdSchema,
+  transactionIdSchema,
   unifiedPurchaseStateSchema,
   verifyPurchaseSuccessResponseSchema,
 } from "./route-response-schemas";
@@ -22,15 +28,11 @@ const fits = (schema: v.GenericSchema, value: unknown): boolean =>
 
 /**
  * Holds `/v1/purchase/verify` responses to the schema the OpenAPI document
- * publishes and every SDK decodes.
+ * publishes, because shipped apps decode this body with parsers they cannot
+ * update.
  *
- * `verifyPurchaseSuccessResponseSchema` previously only fed `describeRoute`,
- * so the documented shape and the emitted body could drift apart silently —
- * and shipped apps decode this body with fixed parsers they cannot update.
- *
- * Metadata that falls outside the contract is degraded, not passed through.
- * `isValid` is never rewritten — the verdict is authoritative, and drifting
- * metadata must not revoke a real entitlement.
+ * Metadata outside the contract is dropped, not passed through. `isValid` is
+ * never rewritten: drifting metadata must not revoke a real entitlement.
  */
 export const enforceVerifyResponseContract = (
   candidate: Record<string, unknown>,
@@ -51,6 +53,12 @@ export const enforceVerifyResponseContract = (
     ["productId", productIdSchema],
     ["environment", environmentSchema],
     ["clientPayload", clientPayloadSchema],
+    ["transactionId", transactionIdSchema],
+    ["originalTransactionId", originalTransactionIdSchema],
+    ["expiresAt", expiresAtSchema],
+    ["commerceEnvironment", commerceEnvironmentSchema],
+    ["correlationId", correlationIdSchema],
+    ["finalVerdict", finalVerdictSchema],
   ] as const) {
     if (degraded[field] !== undefined && !fits(schema, degraded[field])) {
       violations.push(field);

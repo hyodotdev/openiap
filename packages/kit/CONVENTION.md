@@ -52,6 +52,10 @@ Modal components themselves use `createPortal` into `document.body`,
 lock `document.body.style.overflow` while open, and handle
 escape/backdrop dismissal.
 
+One exception: a detail dialog opened from a URL parameter (for example
+`?issue=` on the purchase issues page) renders on its page, so the link stays
+shareable and the browser's back button closes it.
+
 ## Component Organization
 
 ```

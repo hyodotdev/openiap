@@ -1,3 +1,4 @@
+import { withVerificationSource } from "../../../convex/purchases/verificationSource";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { html, raw } from "hono/html";
@@ -15,9 +16,12 @@ import {
   verifyPurchaseSuccessResponseSchema,
 } from "./route-response-schemas";
 import { enforceVerifyResponseContract } from "./response-contract";
+import { normalizeEnvironment } from "../../../convex/commerce/contract";
+import type { TransactionDetails } from "../../../convex/purchases/shared";
 import { apiKeyMiddleware } from "./middleware";
 import { getRequestIp, multiAxisRateLimitMiddleware } from "./rate-limit";
 import {
+  isSettledRejection,
   isStableRejection,
   isStoreOutageError,
   replayGuardMiddleware,
@@ -28,6 +32,7 @@ import { validator } from "./validator";
 import { webhooksRoutes } from "./webhooks";
 import { subscriptionsRoutes } from "./subscriptions";
 import { productsRoutes } from "./products";
+import { operationsRoutes } from "./operations";
 
 // Context variables the middleware chain sets, typed so handlers need no casts.
 type V1AppVariables = {
@@ -234,6 +239,14 @@ const verifyPurchaseRouteDescription = describeRoute({
     "products on app-facing publishable keys, " +
     "and Horizon or Amazon requests. Client payloads are public app data, " +
     "not secrets or server-authoritative entitlement rules.\n\n" +
+    "Set `includeTransactionDetails: true` to add `transactionId`, " +
+    "`originalTransactionId`, `expiresAt`, `commerceEnvironment` and " +
+    "`correlationId`, to match a verification with commerce events. A rejection " +
+    "also carries `finalVerdict`: true when retrying the same evidence " +
+    "will not change it. Apple returns " +
+    "the transaction ids; Google returns its order id as `transactionId`; " +
+    "`expiresAt` is set for subscriptions only. Without the flag the body " +
+    "is unchanged. Raw JWS, tokens and receipts are never returned.\n\n" +
     "Rate limit: each Fly process enforces bounded, in-memory token buckets " +
     "for API key (600-request burst, 600 req/min sustained), source IP " +
     "(600-request burst, 300 req/min sustained), and the whole process " +
@@ -384,33 +397,21 @@ const verifyPurchaseRouteDescription = describeRoute({
   },
 });
 
-type VerifyPurchaseJson =
-  | {
-      store: "apple";
-      jws: string;
-      expectedProductId?: string;
-      includeClientPayload?: boolean;
-    }
-  | {
-      store: "google";
-      purchaseToken: string;
-      expectedProductId?: string;
-      includeClientPayload?: boolean;
-    }
-  | {
-      store: "horizon";
-      userId: string;
-      sku: string;
-      includeClientPayload?: boolean;
-    }
+type VerifyPurchaseJson = {
+  includeClientPayload?: boolean;
+  includeTransactionDetails?: boolean;
+} & (
+  | { store: "apple"; jws: string; expectedProductId?: string }
+  | { store: "google"; purchaseToken: string; expectedProductId?: string }
+  | { store: "horizon"; userId: string; sku: string }
   | {
       store: "amazon";
       userId: string;
       receiptId: string;
       sandbox?: boolean;
       expectedProductId?: string;
-      includeClientPayload?: boolean;
-    };
+    }
+);
 
 type ProductClientPayload = {
   format: "toml" | "json" | "text";
@@ -432,6 +433,7 @@ const verifyPurchaseHandler = async (
   const json = c.req.valid("json");
   const apiKey = c.var.apiKey;
   const requestIp = getRequestIp(c);
+  const correlationId = c.var.corrId;
 
   const setOutcome = (outcome: V1AppVariables["verifyOutcome"]) => {
     c.set("verifyOutcome", outcome);
@@ -444,13 +446,14 @@ const verifyPurchaseHandler = async (
       productId?: string;
       environment?: "Sandbox" | "Production";
       stableRejection?: boolean;
+      transactionDetails?: TransactionDetails;
     },
   ) => {
-    const { stableRejection, ...publicReceipt } = receipt;
+    const { stableRejection, transactionDetails, ...publicReceipt } = receipt;
     const outcome = {
       isValid: receipt.isValid,
       state: receipt.state,
-      ...(stableRejection === true ? { stableRejection: true } : {}),
+      ...(stableRejection !== undefined ? { stableRejection } : {}),
     };
     setOutcome(outcome);
 
@@ -487,6 +490,22 @@ const verifyPurchaseHandler = async (
       store,
       ...publicReceipt,
       ...(clientPayload ? { clientPayload } : {}),
+      ...(json.includeTransactionDetails === true
+        ? {
+            ...transactionDetails,
+            ...(receipt.environment
+              ? {
+                  commerceEnvironment: normalizeEnvironment(
+                    receipt.environment,
+                  ),
+                }
+              : {}),
+            correlationId,
+            ...(receipt.isValid
+              ? {}
+              : { finalVerdict: isSettledRejection(store, receipt) }),
+          }
+        : {}),
     });
     if (contract.violations.length > 0) {
       // Field names only — never values.
@@ -503,9 +522,10 @@ const verifyPurchaseHandler = async (
       setOutcome({
         isValid: false,
         state: FALLBACK_PURCHASE_STATE,
-        ...(isStableRejection(outcome.state, outcome.stableRejection === true)
-          ? { stableRejection: true }
-          : {}),
+        stableRejection: isStableRejection(
+          outcome.state,
+          outcome.stableRejection,
+        ),
       });
       const errorId = crypto.randomUUID();
       console.error(
@@ -533,12 +553,13 @@ const verifyPurchaseHandler = async (
       case "apple": {
         const apple = await client.action(
           api.purchases.ios.verifyAppStoreReceiptInternalV1,
-          {
+          withVerificationSource("apple", {
             apiKey,
             jws: json.jws,
             expectedProductId: json.expectedProductId,
             requestIp,
-          },
+            correlationId,
+          }),
         );
 
         return await sendReceiptResponse("apple", apple);
@@ -546,12 +567,13 @@ const verifyPurchaseHandler = async (
       case "google": {
         const google = await client.action(
           api.purchases.android.verifyGooglePlayReceiptInternalV1,
-          {
+          withVerificationSource("google", {
             apiKey,
             purchaseToken: json.purchaseToken,
             expectedProductId: json.expectedProductId,
             requestIp,
-          },
+            correlationId,
+          }),
         );
 
         return await sendReceiptResponse("google", google);
@@ -562,12 +584,13 @@ const verifyPurchaseHandler = async (
         // from stored credentials; the client never sees the secret.
         const horizon = await client.action(
           api.purchases.horizon.verifyMetaHorizonReceiptInternalV1,
-          {
+          withVerificationSource("horizon", {
             apiKey,
             userId: json.userId,
             sku: json.sku,
             requestIp,
-          },
+            correlationId,
+          }),
         );
 
         return await sendReceiptResponse("horizon", horizon);
@@ -575,14 +598,15 @@ const verifyPurchaseHandler = async (
       case "amazon": {
         const amazon = await client.action(
           api.purchases.amazon.verifyAmazonReceiptInternalV1,
-          {
+          withVerificationSource("amazon", {
             apiKey,
             userId: json.userId,
             receiptId: json.receiptId,
             sandbox: json.sandbox,
             expectedProductId: json.expectedProductId,
             requestIp,
-          },
+            correlationId,
+          }),
         );
 
         return await sendReceiptResponse("amazon", amazon);
@@ -679,5 +703,9 @@ app.route("/subscriptions", subscriptionsRoutes);
 // Product catalog: kit's cache shared by the dashboard, MCP server, and SDK
 // helpers.
 app.route("/products", productsRoutes);
+
+// Secret-key operations: delivery history and re-send, inbound history, store
+// re-sync, and one user's timeline (see operations.ts).
+app.route("/", operationsRoutes);
 
 export { app as apiRoutes };

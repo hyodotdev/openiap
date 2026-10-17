@@ -1,9 +1,18 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { accessHistoryValidator } from "./subscriptions/accessHistory";
 import { authTables } from "@convex-dev/auth/server";
 import { harmonizedPurchaseStateValidator } from "./purchases/purchaseState";
 import {
+  admissionBucketValidator,
+  cancellationReasonValidator,
   dataProvenanceValidator,
+  deliveryAttemptValidator,
+  deliveryStatusValidator,
+  paidStartValidator,
+  purchaseIssueCauseValidator,
+  receiptEnvironmentValidator,
+  storeEnvironmentValidator,
   subscriptionStateValidator,
 } from "./utils/validation";
 
@@ -26,11 +35,6 @@ export const purchaseStoreValidator = v.union(
   v.literal("google"),
   v.literal("horizon"),
   v.literal("amazon"),
-);
-
-export const receiptEnvironmentValidator = v.union(
-  v.literal("Sandbox"),
-  v.literal("Production"),
 );
 
 export const purchaseRequestDataValidator = v.union(
@@ -191,6 +195,8 @@ const schema = defineSchema({
     entitlementRecheckRefilledAt: v.optional(v.number()),
     // Keyed user-erasure lookup without retaining a dictionary-testable hash.
     userErasureHashKey: v.optional(v.string()),
+    // Keys the evidence fingerprints members see. Never returned by a query.
+    fingerprintSalt: v.optional(v.string()),
 
     // Platform
     platform: v.optional(
@@ -449,6 +455,9 @@ const schema = defineSchema({
     // start marked; the migration marks each legacy row atomically with its delta.
     storeStatsCounted: v.optional(v.boolean()),
     updatedAt: v.optional(v.number()),
+    // X-Correlation-Id of the latest /v1 verify that wrote this row. Writes
+    // without one (rechecks, Commerce verify, webhooks) leave it unchanged.
+    correlationId: v.optional(v.string()),
   })
     .index("by_project", ["projectId"])
     .index("by_project_and_store", ["projectId", "store"])
@@ -462,6 +471,17 @@ const schema = defineSchema({
     .index("by_application", ["applicationId"])
     .index("by_project_and_remote", ["projectId", "remoteId"])
     .index("by_project_and_app_user", ["projectId", "appUserId"])
+    .index("by_project_and_app_user_and_updated", [
+      "projectId",
+      "appUserId",
+      "updatedAt",
+    ])
+    .index("by_project_and_app_user_and_store", [
+      "projectId",
+      "appUserId",
+      "store",
+    ])
+    .index("by_project_and_productId", ["projectId", "productId"])
     .index("by_project_app_orderId", ["projectId", "applicationId", "orderId"])
     .index("by_store_isValid_nextAmazonReconcileAt", [
       "store",
@@ -499,12 +519,54 @@ const schema = defineSchema({
     .index("by_project", ["projectId"])
     .index("by_organization", ["organizationId"]),
 
-  // Persistent per-project admission backstop for public verification and
-  // entitlement rechecks. Off the `projects` row so every verification does
-  // not rewrite the document its own mutations and the dashboard read.
+  // Verification and linking failures, for support. One row per (project,
+  // fingerprint, cause) counts repeats; rows are capped per project shard and
+  // expire after 30 days. Holds a hash of the evidence, never the evidence.
+  purchaseIssues: defineTable({
+    projectId: v.id("projects"),
+    cause: purchaseIssueCauseValidator,
+    store: purchaseStoreValidator,
+    fingerprint: v.string(),
+    // First hex digit of the fingerprint, 0-15; the cap applies per shard.
+    shard: v.number(),
+    // Store-verified product id.
+    productId: v.optional(v.string()),
+    // Product id the caller asserted; not verified by the store.
+    claimedProductId: v.optional(v.string()),
+    // App user a failed link named.
+    appUserId: v.optional(v.string()),
+    environment: v.optional(receiptEnvironmentValidator),
+    retryAfterSec: v.optional(v.number()),
+    correlationId: v.optional(v.string()),
+    count: v.number(),
+    firstSeenAt: v.number(),
+    lastSeenAt: v.number(),
+  })
+    .index("by_project_and_fingerprint_and_cause", [
+      "projectId",
+      "fingerprint",
+      "cause",
+    ])
+    .index("by_project_and_lastSeenAt", ["projectId", "lastSeenAt"])
+    .index("by_project_and_shard_and_lastSeenAt", [
+      "projectId",
+      "shard",
+      "lastSeenAt",
+    ])
+    .index("by_project_and_appUserId_and_lastSeenAt", [
+      "projectId",
+      "appUserId",
+      "lastSeenAt",
+    ])
+    .index("by_lastSeenAt", ["lastSeenAt"]),
+
+  // Persistent per-project admission backstop for public verification,
+  // entitlement rechecks and store re-syncs. Off the `projects` row so every
+  // verification does not rewrite the document its own mutations and the
+  // dashboard read.
   verificationAdmissionBuckets: defineTable({
     projectId: v.id("projects"),
-    bucket: v.union(v.literal("verification"), v.literal("entitlementRecheck")),
+    bucket: admissionBucketValidator,
     tokens: v.number(),
     refilledAt: v.number(),
   }).index("by_project_and_bucket", ["projectId", "bucket"]),
@@ -580,17 +642,18 @@ const schema = defineSchema({
       v.literal("GooglePlayRealTimeDeveloperNotifications"),
       v.literal("AmazonRealTimeNotifications"),
       v.literal("AmazonRvsReconciliation"),
+      // An admin "Re-sync from store" read of Apple or Google state.
+      v.literal("StoreResync"),
       // Legacy source, kept until its synthetic rows age out. Ingestion and
       // analytics never create or count these rows.
       v.literal("MetaHorizonReconciler"),
     ),
     platform: v.union(v.literal("IOS"), v.literal("Android")),
     store: v.optional(purchaseStoreValidator),
-    environment: v.union(
-      v.literal("Production"),
-      v.literal("Sandbox"),
-      v.literal("Xcode"),
-    ),
+    environment: storeEnvironmentValidator,
+    // Play sent no environment, so `environment` is the Production default.
+    // Such an event never changes a subscription's environment.
+    environmentDefaulted: v.optional(v.boolean()),
     // Absent only on TestNotification, which carries no transaction; every
     // lifecycle event sets it (see webhooks/internal.ts).
     purchaseToken: v.optional(v.string()),
@@ -611,19 +674,27 @@ const schema = defineSchema({
     expiresAt: v.optional(v.number()),
     renewsAt: v.optional(v.number()),
     willRenew: v.optional(v.boolean()),
-    cancellationReason: v.optional(
-      v.union(
-        v.literal("UserCanceled"),
-        v.literal("BillingError"),
-        v.literal("PriceIncreaseDeclined"),
-        v.literal("ProductUnavailable"),
-        v.literal("Refunded"),
-        v.literal("Other"),
-      ),
-    ),
+    cancellationReason: v.optional(cancellationReasonValidator),
     currency: v.optional(v.string()),
     priceAmountMicros: v.optional(v.number()),
     amountProvenance: v.optional(dataProvenanceValidator),
+    // Analytics-only facts; lifecycle state and commerce events ignore them.
+    // `freeTrial` is unset when the store gave no offer data to decide.
+    freeTrial: v.optional(v.boolean()),
+    // Apple REFUND_REVERSED, which state handling treats as a fresh start.
+    refundReversal: v.optional(v.boolean()),
+    // Apple SUBSCRIBED/RESUBSCRIBE: a reactivation of an earlier subscription,
+    // which state handling also treats as a start.
+    resubscribe: v.optional(v.boolean()),
+    // Set on the subscription's first paid charge by `analyticsFacts.ts`.
+    paidStart: v.optional(paidStartValidator),
+    // A Google replacement Play charged at once: a prepaid top-up or an
+    // immediate-charge replacement mode. Other replacements charge nothing
+    // until they renew.
+    replacementCharged: v.optional(v.boolean()),
+    purchaseDate: v.optional(v.number()),
+    revocationDate: v.optional(v.number()),
+    snapshotObservedAt: v.optional(v.number()),
     rawSignedPayload: v.optional(v.string()),
     occurredAt: v.number(),
     receivedAt: v.number(),
@@ -670,39 +741,70 @@ const schema = defineSchema({
     expiresAt: v.optional(v.number()),
     renewsAt: v.optional(v.number()),
     willRenew: v.optional(v.boolean()),
-    cancellationReason: v.optional(
-      v.union(
-        v.literal("UserCanceled"),
-        v.literal("BillingError"),
-        v.literal("PriceIncreaseDeclined"),
-        v.literal("ProductUnavailable"),
-        v.literal("Refunded"),
-        v.literal("Other"),
-      ),
-    ),
+    cancellationReason: v.optional(cancellationReasonValidator),
     currency: v.optional(v.string()),
     priceAmountMicros: v.optional(v.number()),
+    // Store environment of the governing event or verified transaction.
+    // Unset on rows written before it existed; metrics treat those as
+    // production.
+    environment: v.optional(storeEnvironmentValidator),
+    // Analytics facts accumulated from verified store events. Order
+    // independent (earliest timestamps, summed money), and never read by
+    // entitlement or verification paths.
+    analytics: v.optional(
+      v.object({
+        accessHistory: v.optional(accessHistoryValidator),
+        trialAnchorKnown: v.optional(v.boolean()),
+        firstPaidAnchorKnown: v.optional(v.boolean()),
+        trialStartedAt: v.optional(v.number()),
+        firstPaidAt: v.optional(v.number()),
+        firstPaidEventId: v.optional(v.id("webhookEvents")),
+        firstPaidEventType: v.optional(
+          v.union(
+            v.literal("SubscriptionStarted"),
+            v.literal("SubscriptionRenewed"),
+            v.literal("SubscriptionRecovered"),
+          ),
+        ),
+        // The first paid charge was an Apple resubscribe.
+        firstPaidResubscribe: v.optional(v.boolean()),
+        // Currency of `paidMicros` / `refundedMicros`: the first priced
+        // charge's. Charges in another currency are left out, never converted.
+        currency: v.optional(v.string()),
+        paidMicros: v.number(),
+        refundedMicros: v.number(),
+      }),
+    ),
     startedAt: v.number(),
     updatedAt: v.number(),
     // Apple purchaseDate and signedDate of the transaction a verify last
     // applied; order verifies for rows no store event governs yet.
     verifiedPurchaseDate: v.optional(v.number()),
     verifiedSignedDate: v.optional(v.number()),
+    // Source time of the last accepted receipt snapshot, independent of binding.
+    verifiedEvidenceAt: v.optional(v.number()),
     lastEventId: v.optional(v.id("webhookEvents")),
     lastEventOccurredAt: v.optional(v.number()),
     lastEventCreationTime: v.optional(v.number()),
     lastEventSourceNotificationId: v.optional(v.string()),
+    // When an operator re-sync last read the store. It does not move the
+    // lastEvent* ordering stamp; it keeps an older notification, or a verify
+    // of older evidence, from rolling the state back.
+    resyncedAt: v.optional(v.number()),
+    // The entitlement a re-sync told the current owner. A row with no store
+    // event compares later deltas with it, since a verify can move the row
+    // without telling anyone. Cleared when the owner changes.
+    resyncReportedActive: v.optional(v.boolean()),
+    // When a verify last asked the store to settle a dispute with the
+    // re-synced state; it may ask again an hour later.
+    resyncDisputedAt: v.optional(v.number()),
     // Snapshot of the source event, so a late user binding can still emit its
     // entitlement grant after the webhook event is pruned.
     lastEventSource: v.optional(
       v.object({
         type: v.optional(v.string()),
         store: v.optional(purchaseStoreValidator),
-        environment: v.union(
-          v.literal("Production"),
-          v.literal("Sandbox"),
-          v.literal("Xcode"),
-        ),
+        environment: storeEnvironmentValidator,
         productId: v.optional(v.string()),
         applicationId: v.optional(v.string()),
         transactionId: v.optional(v.string()),
@@ -730,12 +832,6 @@ const schema = defineSchema({
       "projectId",
       "state",
       "productId",
-    ])
-    // Revenue rollups scan each counted state in update order.
-    .index("by_project_and_state_and_updated", [
-      "projectId",
-      "state",
-      "updatedAt",
     ]),
 
   // Google replacement tokens form a successor chain. Keeping the chain
@@ -746,6 +842,7 @@ const schema = defineSchema({
     purchaseToken: v.string(),
     successorPurchaseToken: v.string(),
     predecessorProductId: v.optional(v.string()),
+    analyticsReplacementAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -793,14 +890,42 @@ const schema = defineSchema({
     // `pickRevenueMetricsProjects` finds recently active projects.
     .index("by_updated_at", ["updatedAt"]),
 
-  // Daily revenue rollup per (projectId, day, productId, currency), so the
-  // dashboard never scans the event log. The `recomputeRevenueMetrics` cron
-  // rebuilds the trailing window from `subscriptions` to pick up late webhooks.
+  // A `subscriptionStats` rebuild in progress, at most one per project.
+  // Subscription writes during it also update `totals` for rows the scan has
+  // passed, so its commit is current however busy the project is.
+  subscriptionStatsRebuilds: defineTable({
+    projectId: v.id("projects"),
+    // Legacy queued pages identify their checkpoint by timestamp.
+    startedAt: v.optional(v.number()),
+    // Complete creation-order key of the last subscription the scan read.
+    scannedThrough: v.optional(v.number()),
+    scannedThroughId: v.optional(v.id("subscriptions")),
+    // Earliest counted expiry; null has no bound, undefined is a legacy page.
+    validUntil: v.optional(v.union(v.number(), v.null())),
+    restartAt: v.optional(v.number()),
+    totals: v.array(
+      v.object({
+        currency: v.string(),
+        activeSubs: v.number(),
+        inGracePeriod: v.number(),
+        inBillingRetry: v.number(),
+        mrrMicros: v.number(),
+      }),
+    ),
+  }).index("by_project", ["projectId"]),
+
+  // Daily revenue rollup per (projectId, day, productId, currency, platform,
+  // environment), so the dashboard never scans the event log. The
+  // `recomputeRevenueMetrics` cron rebuilds the trailing window to pick up
+  // late webhooks. Metric definitions live in `revenueMetrics.ts`.
   //
   // Currency is in the key because one SKU can sell in several currencies on
   // the same UTC day; without it, totals would mix or overwrite each other.
   // IAPKit never converts currencies; accounting-grade conversion belongs
   // outside the dashboard.
+  //
+  // Rows written before the current definitions have no `environment` and
+  // none of the optional counters: they mix sandbox into production.
   revenueMetricsDaily: defineTable({
     projectId: v.id("projects"),
     day: v.string(), // ISO date (YYYY-MM-DD), UTC
@@ -809,39 +934,127 @@ const schema = defineSchema({
     // Also part of the key, so the dashboard can chart revenue per store.
     // Strict because `webhookEvents` and `subscriptions` allow only these two.
     platform: v.union(v.literal("IOS"), v.literal("Android")),
+    environment: v.optional(receiptEnvironmentValidator),
     activeSubs: v.number(),
+    activeHistoryUnknown: v.optional(v.number()),
+    activeTrials: v.optional(v.number()),
     newSubs: v.number(),
+    trialStarts: v.optional(v.number()),
+    trialConversions: v.optional(v.number()),
+    directPaidStarts: v.optional(v.number()),
     renewals: v.number(),
     cancellations: v.number(),
+    expirations: v.optional(v.number()),
     refunds: v.number(),
     revenueMicros: v.number(),
+    refundedMicros: v.optional(v.number()),
     updatedAt: v.number(),
   })
     .index("by_project", ["projectId"])
-    // Dashboard read path: `getRevenueMetrics` range-scans a project's window
-    // by day, then filters product, platform and currency in memory (the
-    // window is typically tens of rows).
+    // The rollup commit replaces a project's rows one day at a time.
     .index("by_project_and_day_and_currency", ["projectId", "day", "currency"])
-    .index("by_project_and_product_and_day_and_currency", [
+    // Dashboard read path: `getRevenueMetrics` range-scans one environment's
+    // days, so sandbox rows never use production's scan budget.
+    .index("by_project_and_environment_and_day", [
       "projectId",
-      "productId",
+      "environment",
       "day",
-      "currency",
     ]),
 
   // Rotation state for the `recomputeAllRevenueMetrics` cron, which picks the
-  // oldest `lastRunAt` first. Separate from the subscription-stats rotation so
-  // the two crons rotate independently.
+  // oldest `runStartedAt` first. Separate from the subscription-stats rotation
+  // so the two crons rotate independently.
   //
   // At most one row per project. Convex has no unique constraint, so upsert
   // through `by_project` as `markRevenueMetricsRun` does; a duplicate gets its
   // project picked twice.
   revenueMetricsRunStatus: defineTable({
     projectId: v.id("projects"),
-    lastRunAt: v.number(),
+    // Start of the latest run that finished: its rows are current as of then.
+    lastRunAt: v.optional(v.number()),
+    // Start of the latest run. Past `lastRunAt` while a run is in flight or
+    // after it failed; the picker leaves such a project alone for a while.
+    // Each page of a run checks it, so a newer run stops an older one.
+    runStartedAt: v.optional(v.number()),
+    // When the latest run last committed a page (its start counts), stamped
+    // at most every few minutes. The picker's retry wait runs from here, so a
+    // slow run is not taken for a failed one.
+    runProgressAt: v.optional(v.number()),
+    // First day of the latest run's window. A retry of a run that did not
+    // finish starts there too, so a failed catch-up is not narrowed.
+    runFirstDay: v.optional(v.string()),
+    // Rows from `definitionsFromDay` on follow definitions version
+    // `definitionsVersion`; a run that finds an older version rebuilds the
+    // retained event window first.
+    definitionsVersion: v.optional(v.number()),
+    definitionsFromDay: v.optional(v.string()),
+    // Notifications before this day were stored without the free-trial,
+    // refund-reversal and resubscribe flags, so the counters that need them
+    // are not reported for earlier days. Unset when every computed day has
+    // them.
+    trialSplitFromDay: v.optional(v.string()),
+    // Latest real Apple, Google or Amazon notification a run has seen, per
+    // environment. Unset means none reached that environment: its counters
+    // are not collected.
+    lastNotificationAt: v.optional(
+      v.object({
+        Production: v.optional(v.number()),
+        Sandbox: v.optional(v.number()),
+      }),
+    ),
+    // Failed runs in a row before the latest start: runs that stopped making
+    // progress. Each halves the page sizes and doubles the picker's wait
+    // before retrying.
+    failedRuns: v.optional(v.number()),
+    // Notifications that arrived after their day left the trailing window and
+    // no finished run has folded in yet. A catch-up recomputes from the oldest
+    // such day.
+    pendingLateEvents: v.optional(v.number()),
+    oldestPendingLateDay: v.optional(v.string()),
+    catchUpRequestedAt: v.optional(v.number()),
+    // What finished runs recomputed: every event received by `at` for a day
+    // from `fromDay` on. Only entries no later run supersedes are kept.
+    coverage: v.optional(
+      v.array(v.object({ at: v.number(), fromDay: v.string() })),
+    ),
+    // Cohort job cadence: requested at most once a day.
+    cohortsRequestedAt: v.optional(v.number()),
+    cohortsComputedAt: v.optional(v.number()),
+    // `subscriptionStats` was last rebuilt under this version of
+    // `statsContributionFor`; a run requests a rebuild while it lags.
+    statsDefinitionsVersion: v.optional(v.number()),
+    statsRequestedAt: v.optional(v.number()),
+    statsUpdatedAt: v.optional(v.number()),
+    statsValidUntil: v.optional(v.union(v.number(), v.null())),
   })
     .index("by_project", ["projectId"])
-    .index("by_run", ["lastRunAt"]),
+    .index("by_run_started", ["runStartedAt"]),
+
+  // Monthly paid cohorts and trial cohorts per (projectId, environment,
+  // month, currency), rebuilt daily from `subscriptions.analytics`. A paid
+  // cohort is the UTC month of the first paid charge; a trial cohort is the
+  // UTC month the free trial started.
+  revenueCohortsMonthly: defineTable({
+    projectId: v.id("projects"),
+    environment: receiptEnvironmentValidator,
+    month: v.string(), // YYYY-MM, UTC
+    currency: v.string(),
+    members: v.number(),
+    // Gross list price of members' paid charges and the store-reported
+    // refunds, in `currency`, observed through `observedThrough`.
+    revenueMicros: v.number(),
+    refundedMicros: v.number(),
+    // retained[k]: members with paid access at the end of month + k (or at
+    // `observedThrough` for the current month).
+    retained: v.array(v.number()),
+    retentionObserved: v.optional(v.array(v.number())),
+    trialStarts: v.number(),
+    trialConversions: v.number(),
+    trialsPending: v.number(),
+    trialsUnobserved: v.optional(v.number()),
+    observedThrough: v.string(), // YYYY-MM-DD, UTC
+    updatedAt: v.number(),
+  }).index("by_project", ["projectId"]),
 
   // Cached metadata for the App Store Connect / Play Console products kit can
   // read, create and update (what onesub holds in @onesub/providers). Store
@@ -1009,6 +1222,70 @@ const schema = defineSchema({
       "productId",
     ]),
 
+  // Unpublished client payload edits; app-facing reads never touch this
+  // table. Publish and discard clear the body but keep the row, so `revision`
+  // never resets and a stale publish cannot match a newer draft.
+  productClientPayloadDrafts: defineTable({
+    projectId: v.id("projects"),
+    platform: v.union(v.literal("IOS"), v.literal("Android")),
+    productId: v.string(),
+    format: v.optional(
+      v.union(v.literal("toml"), v.literal("json"), v.literal("text")),
+    ),
+    body: v.optional(v.string()),
+    // Published version when the draft was last saved.
+    baseVersion: v.optional(v.number()),
+    revision: v.number(),
+    updatedBy: v.optional(v.id("users")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_and_platform_and_product", [
+      "projectId",
+      "platform",
+      "productId",
+    ]),
+
+  // Append-only log of published client payload versions, newest 50 per
+  // product. A remove entry has no body; rollback republishes an entry's body
+  // as a new version. Bodies live in productClientPayloadVersionBodies so
+  // listing history reads metadata only.
+  productClientPayloadVersions: defineTable({
+    projectId: v.id("projects"),
+    platform: v.union(v.literal("IOS"), v.literal("Android")),
+    productId: v.string(),
+    version: v.number(),
+    action: v.union(
+      v.literal("publish"),
+      v.literal("rollback"),
+      v.literal("remove"),
+    ),
+    format: v.optional(
+      v.union(v.literal("toml"), v.literal("json"), v.literal("text")),
+    ),
+    byteLength: v.optional(v.number()),
+    bodyId: v.optional(v.id("productClientPayloadVersionBodies")),
+    rolledBackFrom: v.optional(v.number()),
+    note: v.optional(v.string()),
+    // Neither is set for a version published before history existed.
+    authorUserId: v.optional(v.id("users")),
+    authorApiKeyId: v.optional(v.id("apiKeys")),
+    createdAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_and_platform_and_product_and_version", [
+      "projectId",
+      "platform",
+      "productId",
+      "version",
+    ]),
+
+  // One per version that has a body; deleted with its version row.
+  productClientPayloadVersionBodies: defineTable({
+    body: v.string(),
+  }),
+
   // Jobs for the `runProductSyncIOS` / `runProductSyncAndroid` workers. A sync
   // can take minutes, and iOS Safari aborts a pending fetch when the tab
   // backgrounds or the network changes, so the dashboard enqueues a job and
@@ -1159,6 +1436,11 @@ const schema = defineSchema({
   })
     .index("by_project", ["projectId"])
     .index("by_project_and_user", ["projectId", "userId"])
+    .index("by_project_and_user_and_occurred", [
+      "projectId",
+      "userId",
+      "occurredAt",
+    ])
     .index("by_prunable_at", ["prunableAt"]),
 
   // Developer-registered endpoints for outbound commerce events, server to
@@ -1210,17 +1492,20 @@ const schema = defineSchema({
     projectId: v.id("projects"),
     eventId: v.id("commerceEvents"),
     destinationId: v.id("outboundDestinations"),
-    status: v.union(
-      v.literal("pending"),
-      v.literal("delivering"),
-      v.literal("delivered"),
-      v.literal("failed"),
-    ),
+    status: deliveryStatusValidator,
+    // Copied from the event at fan-out for the type filter. Absent on rows
+    // created before the column existed.
+    eventType: v.optional(v.string()),
     attempts: v.number(),
     // Exponential backoff target. The worker claims rows at or past this.
     nextAttemptAt: v.number(),
     lastStatusCode: v.optional(v.number()),
     lastError: v.optional(v.string()),
+    // Most recent attempts, oldest first, capped at DELIVERY_HISTORY_LIMIT.
+    // Status, latency and an error class only: never bodies or secrets.
+    attemptHistory: v.optional(v.array(deliveryAttemptValidator)),
+    // Set by an admin re-send; also the per-project re-send rate window.
+    lastResendAt: v.optional(v.number()),
     // Lease held while an attempt is in flight, so overlapping cron ticks
     // cannot double-deliver the same row.
     leaseExpiresAt: v.optional(v.number()),
@@ -1249,6 +1534,21 @@ const schema = defineSchema({
       "status",
       "updatedAt",
     ])
+    .index("by_project_and_event_type", ["projectId", "eventType"])
+    // History filters: each combination reads only its own rows, newest first.
+    .index("by_project_and_event_type_and_status", [
+      "projectId",
+      "eventType",
+      "status",
+    ])
+    .index("by_destination_and_status", ["destinationId", "status"])
+    .index("by_destination_and_event_type", ["destinationId", "eventType"])
+    .index("by_destination_and_event_type_and_status", [
+      "destinationId",
+      "eventType",
+      "status",
+    ])
+    .index("by_project_and_last_resend", ["projectId", "lastResendAt"])
     .index("by_status_and_updated", ["status", "updatedAt"])
     // Worker claim scan.
     .index("by_status_and_next_attempt", ["status", "nextAttemptAt"])

@@ -314,6 +314,24 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
         version: 1,
       });
     }
+    await ctx.db.insert("productClientPayloadDrafts", {
+      projectId,
+      platform: "IOS",
+      productId: "premium_0",
+      revision: 1,
+    });
+    await ctx.db.insert("productClientPayloadVersions", {
+      projectId,
+      platform: "IOS",
+      productId: "premium_0",
+      version: 1,
+      action: "publish",
+      format: "text",
+      byteLength: 4,
+      bodyId: await ctx.db.insert("productClientPayloadVersionBodies", {
+        body: "rule",
+      }),
+    });
     // A row from each domain an account-local cascade missed: the production
     // handler must delegate to the shared project cascade.
     await ctx.db.insert("webhookEvents", { projectId });
@@ -333,11 +351,14 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     await ctx.db.insert("subscriptionTokenAliases", { projectId });
     await ctx.db.insert("subscriptions", { projectId });
     await ctx.db.insert("subscriptionStats", { projectId });
+    await ctx.db.insert("subscriptionStatsRebuilds", { projectId });
     await ctx.db.insert("revenueMetricsDaily", { projectId });
     await ctx.db.insert("revenueMetricsRunStatus", { projectId });
+    await ctx.db.insert("revenueCohortsMonthly", { projectId });
     await ctx.db.insert("products", { projectId });
     await ctx.db.insert("productSyncJobs", { projectId });
     await ctx.db.insert("purchaseStats", { projectId });
+    await ctx.db.insert("purchaseIssues", { projectId });
 
     // User-deletion path completes immediately, leaving the org flagged
     // `pendingDeletion: true` for the global cron to clean up later.
@@ -363,6 +384,9 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     expect(ctx.db.countRows("files")).toBe(0);
     expect(ctx.db.countRows("productClientPayloads")).toBe(0);
     expect(ctx.db.countRows("productClientPayloadSummaries")).toBe(0);
+    expect(ctx.db.countRows("productClientPayloadDrafts")).toBe(0);
+    expect(ctx.db.countRows("productClientPayloadVersions")).toBe(0);
+    expect(ctx.db.countRows("productClientPayloadVersionBodies")).toBe(0);
     expect(ctx.db.countRows("webhookEvents")).toBe(0);
     expect(ctx.db.countRows("commerceEvents")).toBe(0);
     expect(ctx.db.countRows("outboundDestinations")).toBe(0);
@@ -372,11 +396,14 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     expect(ctx.db.countRows("subscriptionTokenAliases")).toBe(0);
     expect(ctx.db.countRows("subscriptions")).toBe(0);
     expect(ctx.db.countRows("subscriptionStats")).toBe(0);
+    expect(ctx.db.countRows("subscriptionStatsRebuilds")).toBe(0);
     expect(ctx.db.countRows("revenueMetricsDaily")).toBe(0);
     expect(ctx.db.countRows("revenueMetricsRunStatus")).toBe(0);
+    expect(ctx.db.countRows("revenueCohortsMonthly")).toBe(0);
     expect(ctx.db.countRows("products")).toBe(0);
     expect(ctx.db.countRows("productSyncJobs")).toBe(0);
     expect(ctx.db.countRows("purchaseStats")).toBe(0);
+    expect(ctx.db.countRows("purchaseIssues")).toBe(0);
     expect(ctx.db.countRows("projects")).toBe(0);
     expect(ctx.db.countRows("organizations")).toBe(0);
     expect(ctx.storage.deleted).toContain("storage_1");

@@ -23,6 +23,11 @@ import {
   type ReceiptResponse,
   type RecheckOptions,
 } from "./shared";
+import { verifyRecordingIssues } from "../purchaseIssues/shared";
+import {
+  assertVerificationSource,
+  verificationSourceValidator,
+} from "./verificationSource";
 import {
   extractHttpStatus,
   isTransientHttpError,
@@ -158,12 +163,32 @@ const horizonVerificationArgs = v.object({
   userId: v.string(),
   sku: v.string(),
   requestIp: v.optional(v.string()),
+  correlationId: v.optional(v.string()),
 });
 
 export const verifyMetaHorizonReceiptInternalV1 = action({
-  args: horizonVerificationArgs.fields,
+  args: {
+    ...horizonVerificationArgs.fields,
+    sourceAuth: verificationSourceValidator,
+  },
   returns: receiptResponseValidator,
-  handler: verifyHorizonReceipt,
+  handler: async (ctx, args) => {
+    const { sourceAuth, ...request } = args;
+    assertVerificationSource("horizon", request, sourceAuth);
+    return verifyRecordingIssues(
+      ctx,
+      {
+        apiKey: request.apiKey,
+        evidence: {
+          store: "horizon",
+          userId: request.userId,
+          sku: request.sku,
+        },
+        correlationId: request.correlationId,
+      },
+      () => verifyHorizonReceipt(ctx, request),
+    );
+  },
 });
 
 export async function verifyHorizonReceipt(
@@ -214,6 +239,7 @@ export async function verifyHorizonReceipt(
     throw new MetaHorizonVerificationError(
       describeError(error),
       shouldRetryHorizonError(error) ? STORE_OUTAGE_RETRY_AFTER_SEC : undefined,
+      extractHttpStatus(error),
     );
   }
 
@@ -243,6 +269,7 @@ export async function verifyHorizonReceipt(
     requestIp: args.requestIp,
     verificationDurationMs: Date.now() - verificationStart,
     persistIfChanged: options.recheck,
+    correlationId: args.correlationId,
   });
 
   return { isValid: isValidState(state), state, productId: args.sku };

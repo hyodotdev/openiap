@@ -2,10 +2,41 @@ import { describe, expect, it } from "vitest";
 
 import {
   MAX_CLIENT_PAYLOAD_BODY_BYTES,
+  diffLines,
   formatClientPayloadBytes,
   getClientPayloadByteLength,
   validateClientPayload,
 } from "./clientPayload";
+
+describe("diffLines", () => {
+  it("marks changed lines between unchanged context", () => {
+    expect(diffLines("a\nb\nc", "a\nB\nc\nd")).toEqual([
+      { type: "same", text: "a" },
+      { type: "remove", text: "b" },
+      { type: "add", text: "B" },
+      { type: "same", text: "c" },
+      { type: "add", text: "d" },
+    ]);
+  });
+
+  it("treats an empty side as all additions or removals", () => {
+    expect(diffLines("", "x\ny")).toEqual([
+      { type: "add", text: "x" },
+      { type: "add", text: "y" },
+    ]);
+    expect(diffLines("x", "")).toEqual([{ type: "remove", text: "x" }]);
+    expect(diffLines("same", "same")).toEqual([{ type: "same", text: "same" }]);
+  });
+
+  it("falls back to remove-then-add when the table would be too large", () => {
+    const before = Array.from({ length: 1200 }, (_, i) => `a${i}`).join("\n");
+    const after = Array.from({ length: 1200 }, (_, i) => `b${i}`).join("\n");
+    const lines = diffLines(before, after);
+    expect(lines).toHaveLength(2400);
+    expect(lines[0]).toEqual({ type: "remove", text: "a0" });
+    expect(lines[1200]).toEqual({ type: "add", text: "b0" });
+  });
+});
 
 describe("validateClientPayload", () => {
   it("rejects blank bodies for every format", () => {

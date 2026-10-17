@@ -498,28 +498,17 @@ await mutate.RequestPurchaseAsync(new RequestPurchaseProps
           >
             Purchase Verification with IAPKit
           </a>
-          ). The MAUI package ships the same app-facing helper as the other
-          OpenIAP SDKs: create a kit client with your publishable key to read
-          purchase status and entitlements and to bind a purchase to a user.
-          Store lifecycle events (App Store Server Notifications, Google Play
-          RTDN) are delivered to IAPKit's backend, not to your app — the client
-          reads current state through these bounded calls rather than
-          subscribing to a webhook stream.
+          ). Use a publishable key for verification and public catalog or
+          payload reads. Account helpers <code>StatusAsync</code>,{' '}
+          <code>EntitlementsAsync</code> and <code>BindUserAsync</code> retain
+          their signatures, but their mobile routes now return{' '}
+          <code>410 LEGACY_ACCOUNT_ROUTE_RETIRED</code>. Move account lookup and
+          ownership binding to your authenticated app backend with a secret
+          admin key and tokenless v2 reads. Never embed a secret in the app. See
+          the{' '}
+          <a href="https://kit.openiap.dev/docs/api">account migration guide</a>
+          . Store lifecycle webhooks remain server-to-server.
         </p>
-        <CodeBlock language="csharp">
-          {`using OpenIap;
-using OpenIap.Maui;
-
-var kit = OpenIapClient.KitApi(new KitApiOptions
-{
-    ApiKey = "openiap-kit_pk_<your-publishable-key>",
-    BaseUrl = "https://kit.openiap.dev",
-});
-
-StatusResponse status = await kit.StatusAsync("user_123");
-EntitlementsResponse entitlements = await kit.EntitlementsAsync("user_123");
-BindUserResponse bind = await kit.BindUserAsync(purchase.PurchaseToken!, "user_123");`}
-        </CodeBlock>
 
         <h3 id="cleanup" className="anchor-heading">
           Cleanup

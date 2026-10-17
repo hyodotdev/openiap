@@ -6,7 +6,6 @@ import * as ExpoIap from 'expo-iap';
 
 // Mock expo-router
 jest.mock('expo-router', () => ({
-  Link: ({children}: any) => children,
   useRouter: () => ({
     push: jest.fn(),
   }),
@@ -33,7 +32,7 @@ describe('Home Component', () => {
 
   it('should render without crashing', async () => {
     const {getByText} = await render(<Home />);
-    expect(getByText('expo-iap Examples')).toBeDefined();
+    expect(getByText('Choose a flow')).toBeDefined();
 
     await waitFor(() => {
       expect(ExpoIap.getStorefront).toHaveBeenCalled();
@@ -44,7 +43,7 @@ describe('Home Component', () => {
     const {getByText} = await render(<Home />);
 
     expect(getByText('All Products')).toBeDefined();
-    expect(getByText('In-App Purchase Flow')).toBeDefined();
+    expect(getByText('Purchase')).toBeDefined();
     expect(getByText('Subscription Flow')).toBeDefined();
     expect(getByText('Available Purchases')).toBeDefined();
     expect(getByText('Offer Code Redemption')).toBeDefined();
@@ -63,7 +62,7 @@ describe('Home Component', () => {
     });
 
     const {getByText} = await render(<Home />);
-    expect(getByText('expo-iap Examples')).toBeDefined();
+    expect(getByText('Choose a flow')).toBeDefined();
 
     // Wait for async operations to complete
     await waitFor(() => {
@@ -81,7 +80,7 @@ describe('Home Component', () => {
     const consoleLog = jest.spyOn(console, 'log').mockImplementation();
 
     const {getByText} = await render(<Home />);
-    expect(getByText('expo-iap Examples')).toBeDefined();
+    expect(getByText('Choose a flow')).toBeDefined();
 
     // getStorefront is called but resolves to empty string on unsupported platforms
     await waitFor(() => {
@@ -98,7 +97,7 @@ describe('Home Component', () => {
     });
 
     const {getByText} = await render(<Home />);
-    expect(getByText('expo-iap Examples')).toBeDefined();
+    expect(getByText('Choose a flow')).toBeDefined();
     expect(ExpoIap.getStorefront).not.toHaveBeenCalled();
   });
 });

@@ -104,8 +104,6 @@ var kit = OpenIapClient.KitApi(new KitApiOptions
     BaseUrl = "https://kit.openiap.dev",
 });
 
-var status = await kit.StatusAsync("user-123");
-var entitlements = await kit.EntitlementsAsync("user-123");
 string? cursor = null;
 do
 {
@@ -125,8 +123,14 @@ do
 var payload = await kit.ClientPayloadAsync(
     "premium.monthly",
     KitProductPlatform.IOS);
-await kit.BindUserAsync(purchaseToken: "token", userId: "user-123");
 ```
+
+Account helpers `StatusAsync`, `EntitlementsAsync` and `BindUserAsync` retain
+signatures for source compatibility, but their mobile routes now return
+`410 LEGACY_ACCOUNT_ROUTE_RETIRED`. Move account access and binding to your
+authenticated app backend using a secret admin key and tokenless v2 reads.
+Never place that secret in the app. See the
+[account migration guide](https://kit.openiap.dev/docs/api).
 
 Publishable keys are intentionally app-readable. Never embed an
 `openiap-kit_sk_` secret key in a shipped app; reserve it for trusted backends,

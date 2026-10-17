@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ErrorCode, createError } from "../../convex/utils/errors";
-import { appErrorCode } from "./appError";
+import { appErrorCode, convexErrorMessage } from "./appError";
 
 describe("appErrorCode", () => {
   it("reads the code an AppError actually puts on the wire", () => {
@@ -26,5 +26,20 @@ describe("appErrorCode", () => {
     expect(appErrorCode(null)).toBeUndefined();
     expect(appErrorCode(undefined)).toBeUndefined();
     expect(appErrorCode({})).toBeUndefined();
+  });
+});
+
+describe("convexErrorMessage", () => {
+  it("prefers the message a Convex function wrote", () => {
+    expect(
+      convexErrorMessage({ data: { code: "RATE_LIMITED", message: "Wait" } }),
+    ).toBe("Wait");
+    expect(
+      convexErrorMessage({
+        data: JSON.stringify({ error: "X", message: "From JSON" }),
+      }),
+    ).toBe("From JSON");
+    expect(convexErrorMessage({ data: "plain" })).toBe("plain");
+    expect(convexErrorMessage(new Error("wrapped"))).toBe("wrapped");
   });
 });

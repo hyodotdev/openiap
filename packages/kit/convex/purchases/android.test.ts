@@ -1,5 +1,5 @@
 import { google, type Common } from "googleapis";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   isProductNotFoundError,
   mapProductResponseToReceiptData,
@@ -545,21 +545,11 @@ describe("Google Play v2 mappings", () => {
 });
 
 describe("recordGooglePlayVerifiedSubscription", () => {
-  function makeRunMutationRecorder(): {
-    ctx: Parameters<typeof recordGooglePlayVerifiedSubscription>[0];
-    calls: Record<string, unknown>[];
-  } {
-    const calls: Record<string, unknown>[] = [];
-    const ctx = {
-      runMutation: async (
-        _mutation: unknown,
-        args: Record<string, unknown>,
-      ) => {
-        calls.push(args);
-        return null;
-      },
-    } as unknown as Parameters<typeof recordGooglePlayVerifiedSubscription>[0];
-    return { ctx, calls };
+  function makeRunMutationRecorder() {
+    const runMutation = vi.fn();
+    const calls = (): Record<string, unknown>[] =>
+      runMutation.mock.calls.map((call) => call[1] as Record<string, unknown>);
+    return { ctx: { runMutation }, calls };
   }
 
   it("uses the store-verified state for canonical subscription persistence", async () => {
@@ -568,6 +558,7 @@ describe("recordGooglePlayVerifiedSubscription", () => {
     await recordGooglePlayVerifiedSubscription(ctx, {
       projectId: "projects_1" as never,
       purchaseState: HarmonizedPurchaseState.ENTITLED,
+      readAt: 1_700_000_000_500,
       receiptData: {
         transactionId: "GPA.1234-5678-9012-34567",
         packageName,
@@ -585,8 +576,8 @@ describe("recordGooglePlayVerifiedSubscription", () => {
       },
     });
 
-    expect(calls).toHaveLength(1);
-    expect(calls[0]).toMatchObject({
+    expect(calls()).toHaveLength(1);
+    expect(calls()[0]).toMatchObject({
       projectId: "projects_1",
       platform: "Android",
       purchaseToken: "sub-token",
@@ -598,6 +589,8 @@ describe("recordGooglePlayVerifiedSubscription", () => {
       willRenew: true,
       currency: "USD",
       priceAmountMicros: 9_990_000,
+      // Play reports current state, so the read time dates the evidence.
+      evidenceAt: 1_700_000_000_500,
     });
   });
 
@@ -607,6 +600,7 @@ describe("recordGooglePlayVerifiedSubscription", () => {
     await recordGooglePlayVerifiedSubscription(ctx, {
       projectId: "projects_1" as never,
       purchaseState: HarmonizedPurchaseState.ENTITLED,
+      readAt: 1_700_000_000_500,
       receiptData: {
         transactionId: "GPA.prepaid",
         packageName,
@@ -621,7 +615,7 @@ describe("recordGooglePlayVerifiedSubscription", () => {
       },
     });
 
-    expect(calls).toEqual([
+    expect(calls()).toEqual([
       expect.objectContaining({
         purchaseToken: "prepaid-token",
         willRenew: false,
@@ -636,6 +630,7 @@ describe("recordGooglePlayVerifiedSubscription", () => {
     await recordGooglePlayVerifiedSubscription(ctx, {
       projectId: "projects_1" as never,
       purchaseState: HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT,
+      readAt: 1_700_000_000_500,
       receiptData: {
         transactionId: "GPA.1234-5678-9012-34567",
         packageName,
@@ -653,8 +648,8 @@ describe("recordGooglePlayVerifiedSubscription", () => {
       },
     });
 
-    expect(calls).toHaveLength(1);
-    expect(calls[0]).toMatchObject({
+    expect(calls()).toHaveLength(1);
+    expect(calls()[0]).toMatchObject({
       projectId: "projects_1",
       platform: "Android",
       purchaseToken: "pending-sub-token",
@@ -674,6 +669,7 @@ describe("recordGooglePlayVerifiedSubscription", () => {
     await recordGooglePlayVerifiedSubscription(ctx, {
       projectId: "projects_1" as never,
       purchaseState: HarmonizedPurchaseState.ENTITLED,
+      readAt: 1_700_000_000_500,
       receiptData: {
         transactionId: "GPA.1234-5678-9012-34567",
         packageName,
@@ -685,7 +681,7 @@ describe("recordGooglePlayVerifiedSubscription", () => {
       },
     });
 
-    expect(calls).toHaveLength(0);
+    expect(calls()).toHaveLength(0);
   });
 });
 

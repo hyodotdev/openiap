@@ -47,7 +47,11 @@ export default function WebhooksPage() {
       <p>
         Delivery runs in a bounded Convex worker outside the Fly request path.
         Retries use exponential backoff, permanent failures remain visible as
-        dead letters, and project admins can replay them from the same tab.
+        dead letters, and project admins can replay them from the same tab. See{" "}
+        <a href="#delivery-history" className="text-primary underline">
+          Delivery history and re-send
+        </a>{" "}
+        for attempts and manual redelivery.
       </p>
       <CodeBlock language="text">{`content-type: application/json
 openiap-signature: v1=<hmac-sha256>
@@ -101,6 +105,37 @@ subscription.resumed, entitlement.granted, entitlement.revoked`}</CodeBlock>
         </a>
         .
       </p>
+
+      <h2 id="delivery-history" className="mt-10 text-2xl font-semibold">
+        Delivery history and re-send
+      </h2>
+      <p>
+        <strong>Webhooks → Delivery history</strong> lists every delivery,
+        newest first, filtered by status, event type, destination, or event.
+        Each row keeps its last 20 attempts: time, outcome, HTTP status,
+        latency, and an error class such as <code>timeout</code> or{" "}
+        <code>tls</code>. Response bodies and secrets are never stored. Members
+        can read it and see only each destination&apos;s host. Destination
+        descriptions and the last error text, which can name hosts and
+        addresses, reach only owners, admins and secret keys.
+      </p>
+      <ul className="my-3 list-disc space-y-1 pl-6">
+        <li>
+          Owners and admins can re-send a delivered or failed delivery. The
+          request reuses its <code>eventId</code> and delivery id, so a receiver
+          that deduplicates on <code>eventId</code> treats it as a duplicate.
+        </li>
+        <li>
+          A project can re-send 30 deliveries per minute, and the same delivery
+          once per minute. Excess calls return <code>RATE_LIMITED</code> with a
+          retry delay.
+        </li>
+        <li>
+          Delivered rows and their events are kept for 30 days. After that,
+          re-send returns <code>NOT_FOUND</code>; a missing event returns{" "}
+          <code>EVENT_PRUNED</code>.
+        </li>
+      </ul>
 
       <h2 className="mt-10 text-2xl font-semibold">Lifecycle URL</h2>
       <Callout kind="note" title="Google subscription enrichment required">
@@ -198,6 +233,16 @@ subscription.resumed, entitlement.granted, entitlement.revoked`}</CodeBlock>
           event to enabled backend destinations.
         </li>
       </ul>
+      <p>
+        <strong>Webhooks → Inbound notifications</strong> lists what IAPKit
+        accepted in the last 30 days, newest first: store, type, environment,
+        product, bound app user, received and applied times, and a SHA-256
+        fingerprint of the signed payload. The payload itself is never shown,
+        and store transaction ids, which bind accepts as a purchase token, reach
+        only owners, admins and secret keys. A store retry shares the first
+        row&apos;s deduplication key, so it never adds a row. Rejected requests
+        are not recorded.
+      </p>
       <p>
         Use the store console&apos;s test-delivery result to confirm that the
         endpoint accepts the notification, then see{" "}

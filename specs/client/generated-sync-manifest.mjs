@@ -81,6 +81,15 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
       expo: target('libraries/expo-iap/src/kit-api.ts', 'kit-api → expo-iap'),
     },
   }),
+  purchaseFlow: group({
+    source: 'specs/client/src/purchase-flow.ts',
+    generated: false,
+    exportKey: './purchase-flow',
+    targets: {
+      reactNative: target('libraries/react-native-iap/src/purchase-flow.ts', 'purchase-flow → react-native-iap'),
+      expo: target('libraries/expo-iap/src/purchase-flow.ts', 'purchase-flow → expo-iap'),
+    },
+  }),
   errorMapping: group({
     source: 'libraries/react-native-iap/src/utils/errorMapping.ts',
     generated: false,

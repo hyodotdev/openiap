@@ -20,8 +20,26 @@ export type KitClientPayloadCache = {
 
 export type KitClientPayloadOptions = {
   /** Revalidate a cached payload with its scoped ETag. Without this flag,
-   * a valid persistent entry is returned without a network request. */
+   * a valid persistent entry is returned without a network request. A
+   * network error, 429, or 5xx returns the cached copy marked `stale`. */
   refresh?: boolean;
+};
+
+export type KitLocalizedPayloadOptions = {
+  /** BCP 47 tag such as `ko-KR`. */
+  locale: string;
+  fallbackLocales?: string[];
+  /** Defaults to `[1]`. Any other `schemaVersion` resolves to null. */
+  supportedSchemaVersions?: number[];
+};
+
+export type KitLocalizedClientPayloadOptions = KitLocalizedPayloadOptions &
+  KitClientPayloadOptions;
+
+export type KitLocalizedClientPayload = {
+  values: Record<string, unknown>;
+  version: number;
+  stale: boolean;
 };
 
 export type KitSubscription = {
@@ -138,6 +156,16 @@ export type KitMrrCurrencyEntry = {
 };
 
 export type KitMetricsResponse = {
+  /** Headline counts and MRR are usable only when current; absent on older servers. */
+  stats?: {
+    state: "current" | "rebuilding" | "incomplete";
+    /** Last evaluation time in Unix milliseconds. */
+    asOf: number;
+    /** Earliest counted expiry in Unix milliseconds; null means no known expiry. */
+    validUntil: number | null;
+  };
+  /** The bounded 30-day scan omitted older matching rows. */
+  recentCountsTruncated?: boolean;
   activeSubs: number;
   inGracePeriod: number;
   inBillingRetry: number;
@@ -186,6 +214,44 @@ export type KitSetClientPayloadResponse = {
   updatedAt: number;
 };
 export type KitRemoveClientPayloadResponse = { ok: boolean };
+export type KitClientPayloadDraftStateResponse = {
+  expectedDraftRevision: number;
+  draft?: {
+    format: string;
+    body: string;
+    baseVersion: number;
+    updatedAt: number;
+  };
+};
+export type KitSaveClientPayloadDraftResponse = {
+  changed: boolean;
+  revision: number;
+  baseVersion: number;
+  updatedAt: number;
+};
+export type KitClientPayloadVersion = {
+  version: number;
+  action: "publish" | "rollback" | "remove";
+  format?: string;
+  byteLength?: number;
+  rolledBackFrom?: number;
+  note?: string;
+  /** `name` is a display or API key name, never an email. */
+  author?: { type: "user" | "apiKey"; name?: string };
+  createdAt: number;
+  /** Absent for a `remove` entry and in history listings. */
+  body?: string;
+};
+export type KitClientPayloadVersionSummary = Omit<
+  KitClientPayloadVersion,
+  "body"
+>;
+export type KitClientPayloadHistoryResponse = {
+  versions: KitClientPayloadVersionSummary[];
+};
+export type KitClientPayloadVersionResponse = {
+  version: KitClientPayloadVersion;
+};
 export type KitProductSyncResponse = { jobId: string; deduped: boolean };
 export type KitProductSyncJobResponse = {
   _id: string;
@@ -231,6 +297,8 @@ export type KitProductSyncJobResponse = {
 
 export type KitClientPayloadResponse = {
   clientPayload: KitProductClientPayload;
+  /** Set when a refresh failed and the cached copy was returned. */
+  stale?: true;
 };
 
 type CachedClientPayload = KitClientPayloadResponse & {
@@ -376,16 +444,8 @@ export function kitApi(options: KitApiOptions) {
       const raw = await options.clientPayloadCache.getItem(cacheKey);
       if (!raw) return null;
       const candidate = JSON.parse(raw) as Partial<CachedClientPayload>;
-      const payload = candidate.clientPayload;
-      // Only the invariants the cache depends on. `format` is opaque: evicting
-      // on an unknown one would kill ETag revalidation and offline reads.
       if (
-        !payload ||
-        typeof payload.format !== "string" ||
-        typeof payload.body !== "string" ||
-        !Number.isSafeInteger(payload.version) ||
-        payload.version < 1 ||
-        typeof payload.updatedAt !== "number" ||
+        !isClientPayload(candidate.clientPayload) ||
         (candidate.etag !== undefined && typeof candidate.etag !== "string")
       ) {
         await options.clientPayloadCache.removeItem?.(cacheKey);
@@ -420,24 +480,19 @@ export function kitApi(options: KitApiOptions) {
     }
   }
 
-  return {
+  const api = {
     apiKey: options.apiKey,
     baseUrl,
 
-    /** GET /v1/subscriptions/status compatibility read.
-     * @deprecated New account reads must authenticate the user on a developer
-     * backend and call the secret-only, tokenless `/v2/subscriptions/status`.
-     */
+    /** @deprecated Mobile account paths return 410. Use your authenticated
+     * backend and secret-only v2 reads: https://kit.openiap.dev/docs/api. */
     status: (userId: string) =>
       call<StatusResponse>(
         `/v1/subscriptions/status/${encodeURIComponent(options.apiKey)}?userId=${encodeURIComponent(userId)}`,
       ),
 
-    /** GET /v1/subscriptions/entitlements compatibility read.
-     * @deprecated New account reads must authenticate the user on a developer
-     * backend and call the secret-only, tokenless
-     * `/v2/subscriptions/entitlements`.
-     */
+    /** @deprecated Mobile account paths return 410. Use your authenticated
+     * backend and secret-only v2 reads: https://kit.openiap.dev/docs/api. */
     entitlements: (userId: string) =>
       call<EntitlementsResponse>(
         `/v1/subscriptions/entitlements/${encodeURIComponent(options.apiKey)}?userId=${encodeURIComponent(userId)}`,
@@ -484,42 +539,87 @@ export function kitApi(options: KitApiOptions) {
       productId: string,
       platform: KitProductPlatform,
       payloadOptions: KitClientPayloadOptions = {},
-    ) => {
+    ): Promise<KitClientPayloadResponse> => {
       const path = `/v1/products/${encodeURIComponent(options.apiKey)}/${encodeURIComponent(productId)}/client-payload?platform=${encodeURIComponent(platform)}`;
       const cacheKey = clientPayloadCacheKey(productId, platform);
       const cached = await readCachedClientPayload(cacheKey);
       if (cached && payloadOptions.refresh !== true) {
         return { clientPayload: cached.clientPayload };
       }
-      const response = await request(path, {
-        ...(cached?.etag ? { headers: { "If-None-Match": cached.etag } } : {}),
-      });
+      let response: Response;
+      try {
+        response = await request(path, {
+          ...(cached?.etag
+            ? { headers: { "If-None-Match": cached.etag } }
+            : {}),
+        });
+      } catch (error) {
+        if (cached) return { clientPayload: cached.clientPayload, stale: true };
+        throw error;
+      }
       if (response.status === 304 && cached) {
         return { clientPayload: cached.clientPayload };
       }
+      if (cached && (response.status === 429 || response.status >= 500)) {
+        return { clientPayload: cached.clientPayload, stale: true };
+      }
+      let body: unknown = null;
       try {
-        const result = await parseResponse<KitClientPayloadResponse>(
-          response,
-          path,
-        );
-        await writeCachedClientPayload(cacheKey, {
-          ...result,
-          ...(response.headers.get("etag")
-            ? { etag: response.headers.get("etag")! }
-            : {}),
-        });
-        return result;
+        body = await parseResponse<unknown>(response, path);
       } catch (error) {
         if (error instanceof KitApiError && error.status === 404) {
           await removeCachedClientPayload(cacheKey);
         }
-        throw error;
+        if (!response.ok || !cached) throw error;
+      }
+      const clientPayload = isPlainObject(body) ? body.clientPayload : null;
+      if (!isClientPayload(clientPayload)) {
+        // A 2xx that is not a payload, such as a captive portal's HTML page.
+        if (cached) return { clientPayload: cached.clientPayload, stale: true };
+        throw new KitApiError(
+          response.status,
+          body,
+          `kit ${path} returned no client payload`,
+        );
+      }
+      const etag = response.headers.get("etag");
+      await writeCachedClientPayload(cacheKey, {
+        clientPayload,
+        ...(etag ? { etag } : {}),
+      });
+      return { clientPayload };
+    },
+
+    /** Read a JSON payload that follows the localization convention and
+     * resolve it for `locale`. Never throws: any failure, a non-JSON format,
+     * or an unsupported `schemaVersion` returns null so the app can use its
+     * built-in copy. */
+    localizedClientPayload: async (
+      productId: string,
+      platform: KitProductPlatform,
+      localizedOptions: KitLocalizedClientPayloadOptions,
+    ): Promise<KitLocalizedClientPayload | null> => {
+      try {
+        const { clientPayload, stale } = await api.clientPayload(
+          productId,
+          platform,
+          { refresh: localizedOptions.refresh },
+        );
+        if (clientPayload.format !== "json") return null;
+        const values = resolveLocalizedPayload(
+          JSON.parse(clientPayload.body),
+          localizedOptions,
+        );
+        return values
+          ? { values, version: clientPayload.version, stale: stale === true }
+          : null;
+      } catch {
+        return null;
       }
     },
 
-    /** POST /v1/subscriptions/bind-user — call after a successful
-     * verifyReceipt so kit knows which userId owns the verified
-     * `purchaseToken`. Idempotent. */
+    /** @deprecated Mobile binding paths return 410. Bind on your authenticated
+     * backend with a secret key: https://kit.openiap.dev/docs/api. */
     bindUser: (purchaseToken: string, userId: string) =>
       call<{ ok: boolean; bound: boolean }>(
         `/v1/subscriptions/bind-user/${encodeURIComponent(options.apiKey)}`,
@@ -529,4 +629,67 @@ export function kitApi(options: KitApiOptions) {
         },
       ),
   };
+  return api;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// Only the invariants the cache depends on. `format` is opaque: rejecting an
+// unknown one would kill ETag revalidation and offline reads.
+function isClientPayload(value: unknown): value is KitProductClientPayload {
+  if (!isPlainObject(value)) return false;
+  const { format, body, version, updatedAt } = value;
+  return (
+    typeof format === "string" &&
+    typeof body === "string" &&
+    typeof version === "number" &&
+    Number.isSafeInteger(version) &&
+    version >= 1 &&
+    typeof updatedAt === "number"
+  );
+}
+
+const normalizeLocaleTag = (tag: string): string =>
+  tag.trim().replace(/_/g, "-").toLowerCase();
+
+/**
+ * Resolve the OpenIAP payload localization convention:
+ * `{ schemaVersion: 1, default: {...}, locales: { "ko": {...}, "en-US": {...} } }`.
+ * Tries each requested tag and its shorter prefixes (`zh-Hant-TW`, `zh-Hant`,
+ * `zh`), then `fallbackLocales` the same way, and shallow-merges the first
+ * match over `default`. Returns null for an unsupported or missing
+ * `schemaVersion`, or when nothing matches and there is no `default`.
+ */
+export function resolveLocalizedPayload(
+  payload: unknown,
+  options: KitLocalizedPayloadOptions,
+): Record<string, unknown> | null {
+  if (!isPlainObject(payload)) return null;
+  const supported = options.supportedSchemaVersions ?? [1];
+  if (
+    typeof payload.schemaVersion !== "number" ||
+    !supported.includes(payload.schemaVersion)
+  ) {
+    return null;
+  }
+  const base = isPlainObject(payload.default) ? payload.default : null;
+  const locales = new Map<string, Record<string, unknown>>();
+  if (isPlainObject(payload.locales)) {
+    for (const [tag, values] of Object.entries(payload.locales)) {
+      if (isPlainObject(values)) locales.set(normalizeLocaleTag(tag), values);
+    }
+  }
+  for (const requested of [
+    options.locale,
+    ...(options.fallbackLocales ?? []),
+  ]) {
+    const subtags = normalizeLocaleTag(requested).split("-").filter(Boolean);
+    for (let length = subtags.length; length > 0; length -= 1) {
+      const match = locales.get(subtags.slice(0, length).join("-"));
+      if (match) return { ...base, ...match };
+    }
+  }
+  return base ? { ...base } : null;
 }

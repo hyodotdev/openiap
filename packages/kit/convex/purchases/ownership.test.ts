@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { testableFunction } from "../test.setup";
-import { hmacSha256Hex } from "../utils/sha256";
+import { hmacSha256Hex, sha256Hex } from "../utils/sha256";
 import { HarmonizedPurchaseState } from "./purchaseState";
 
 const stubs = vi.hoisted(() => ({
@@ -58,6 +58,9 @@ function database(rows: Record<string, Row[]>) {
           if (current.length > 1) throw Error("Ambiguous rows");
           return current[0] ?? null;
         },
+        async first() {
+          return current[0] ?? null;
+        },
         async take(count: number) {
           return current.slice(0, count);
         },
@@ -101,6 +104,10 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
       projectId: "p1",
       store,
       remoteId: "store-proof",
+      requestData:
+        store === "amazon"
+          ? { store, userId: "store-alice", receiptId: "receipt-proof" }
+          : { store, userId: "store-alice", sku: "premium" },
       productId: "premium",
       state: HarmonizedPurchaseState.ENTITLED,
       isValid: true,
@@ -110,8 +117,14 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
       purchases: [purchase],
       subscriptionUserErasureJobs: [],
     };
-    return { rows, purchase, ctx: { db: database(rows) } };
+    const ctx = { db: database(rows), scheduler: { runAfter: vi.fn() } };
+    return { rows, purchase, ctx };
   }
+  const scheduledCauses = (ctx: { scheduler: { runAfter: Mock } }) =>
+    ctx.scheduler.runAfter.mock.calls.map(
+      ([, , scheduled]) =>
+        (scheduled as { issue: { cause: string } }).issue.cause,
+    );
   it("binds once, preserves ownership and refuses another account", async () => {
     const { ctx, purchase } = setup();
     expect(await bind(ctx, args)).toEqual({ bound: true });
@@ -121,6 +134,7 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
     });
     expect(purchase.appUserId).toBe("alice");
     expect(stubs.resolve).toHaveBeenCalledWith(ctx, "server-key", "admin");
+    expect(scheduledCauses(ctx)).toEqual(["OWNERSHIP_CONFLICT"]);
   });
   it.each([
     { state: HarmonizedPurchaseState.CANCELED },
@@ -170,8 +184,16 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
       bound: false,
     });
     expect(purchase.appUserId).toBeUndefined();
-    // Known and unknown evidence take the same path and log the same line.
+    // Known and unknown evidence take the same path and log the same line,
+    // but only a purchase IAPKit knows reaches the issue log, keyed as its
+    // purchase page is.
     expect(warn).toHaveBeenCalledTimes(2);
+    expect(scheduledCauses(ctx)).toEqual(["BIND_LIMIT_REACHED"]);
+    const digests = ctx.scheduler.runAfter.mock.calls.map(
+      ([, , scheduled]) =>
+        (scheduled as { issue: { digest: string } }).issue.digest,
+    );
+    expect(digests).toEqual([await sha256Hex(`${store}:store-proof`)]);
     expect(warn.mock.calls[0]).toEqual([
       expect.stringContaining("bound purchase limit"),
       { projectId: "p1", store },
@@ -240,6 +262,7 @@ it("refuses partial ownership reads above the bounded limit", async () => {
         _id: `r${i}`,
         projectId: "p1",
         appUserId: "alice",
+        store: "amazon",
       })),
     }),
   };
@@ -312,6 +335,39 @@ it("refreshes both stores and returns only current, still-bound products", async
     },
     { recheck: true },
   );
+});
+
+it("neither rechecks nor grants an Apple or Google one-time link", async () => {
+  const rows = [
+    {
+      _id: "g",
+      isValid: true,
+      productId: "lifetime",
+      requestData: { store: "google", purchaseToken: "play-token" },
+    },
+    {
+      _id: "h",
+      isValid: true,
+      productId: "quest-premium",
+      requestData: { store: "horizon", userId: "meta-alice", sku: "q" },
+    },
+  ];
+  const runQuery = vi.fn().mockResolvedValue(rows);
+  const runMutation = vi.fn();
+  expect(
+    await refresh(
+      { runQuery, runMutation },
+      { apiKey: "server", userId: "alice" },
+    ),
+  ).toEqual({ productIds: ["quest-premium"] });
+  // Only the Horizon row is rechecked, so only it is charged.
+  expect(runMutation).toHaveBeenCalledWith(expect.anything(), {
+    projectId: "p1",
+    bucket: "entitlementRecheck",
+    cost: 1,
+  });
+  expect(stubs.horizon).toHaveBeenCalledTimes(1);
+  expect(stubs.amazon).not.toHaveBeenCalled();
 });
 
 it("fails the entire read on upstream failure, preserving the saved verdict", async () => {

@@ -275,7 +275,18 @@ gradle.projectsEvaluated {
       join(root, "verify-prefab.gradle"),
       "verifyCompatibility",
     ],
-    { stdio: "inherit" },
+    {
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        GRADLE_NETWORK_RETRY_NDK_VERSION:
+          process.env.GITHUB_ACTIONS === "true" &&
+          process.env.RUNNER_ENVIRONMENT === "github-hosted" &&
+          process.env.RUNNER_OS === "Linux"
+            ? defaults.NitroIap_ndkVersion
+            : "",
+      },
+    },
   );
   if (result.error) throw result.error;
   assert.equal(result.status, 0, `AGP ${agp} (${mode}) compatibility failed`);

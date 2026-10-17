@@ -9,13 +9,16 @@ import {
   Check,
   AlertTriangle,
   ArrowRight,
+  Inbox,
   RefreshCw,
+  Send,
   Trash2,
 } from "lucide-react";
 
 import type { Doc } from "@/convex";
 import { api } from "@/convex";
 import { PageLoading } from "@/components/LoadingSpinner";
+import { convexErrorMessage } from "@/lib/appError";
 import { COMMERCE_EVENT_TYPES } from "../../../../../convex/commerce/contract";
 
 type ProjectContext = {
@@ -193,6 +196,35 @@ export default function ProjectWebhooks() {
             />
           </div>
         </details>
+      ) : null}
+
+      {orgSlug && projectSlug ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Link
+            to={`/${orgSlug}/project/${projectSlug}/webhooks/notifications`}
+            className="border border-border rounded-lg bg-card p-4 hover:border-primary/50"
+          >
+            <div className="font-medium flex items-center gap-2">
+              <Inbox className="w-4 h-4" />
+              Inbound notifications
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              What the stores sent and whether IAPKit applied it.
+            </p>
+          </Link>
+          <Link
+            to={`/${orgSlug}/project/${projectSlug}/webhooks/deliveries`}
+            className="border border-border rounded-lg bg-card p-4 hover:border-primary/50"
+          >
+            <div className="font-medium flex items-center gap-2">
+              <Send className="w-4 h-4" />
+              Delivery history
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Each signed event sent to your backend, its attempts, and re-send.
+            </p>
+          </Link>
+        </div>
       ) : null}
 
       <CommerceDestinations projectId={project._id} />
@@ -618,10 +650,7 @@ function CommerceDestinations({
                 type="button"
                 onClick={() =>
                   void replayDelivery({ deliveryId: delivery._id }).catch(
-                    (error) =>
-                      toast.error(
-                        error instanceof Error ? error.message : String(error),
-                      ),
+                    (error) => toast.error(convexErrorMessage(error)),
                   )
                 }
                 className="rounded border border-border px-2 py-1"

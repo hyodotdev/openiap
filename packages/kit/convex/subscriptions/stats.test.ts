@@ -1,14 +1,24 @@
+import { upsertFromStore, deletePlatformCatalog } from "../products/sync";
+import { SUBSCRIPTION_SCAN_PAGE_SIZE } from "./accessHistory";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { compareValues, type Value } from "convex/values";
 
-import type { Id, TableNames } from "../_generated/dataModel";
+import type { Doc, Id, TableNames } from "../_generated/dataModel";
 import schema from "../schema";
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
+import type { ReceiptEnvironment } from "../purchases/shared";
+import { MemoryDb } from "../test.memoryDb";
 import { testableFunction } from "../test.setup";
-import { recordVerifiedSubscription } from "./internal";
+import {
+  applySubscriptionEvent,
+  findSubscriptionByToken,
+  persistSubscriptionSnapshot,
+  recordVerifiedSubscription,
+} from "./internal";
 import {
   recomputeAllSubscriptionStats,
   recomputeSubscriptionStats,
+  runRecomputePage,
 } from "./stats";
 
 type Row = Record<string, Value | undefined> & {
@@ -25,7 +35,7 @@ function indexFields(table: TableNames, name: string): string[] {
 }
 
 // Orders and ranges rows the way Convex does: by the schema's index fields in
-// Convex's value order, then `_creationTime`.
+// Convex's value order, then `_creationTime` and `_id`.
 class IndexedQuery {
   private fields: string[] = [];
   private filters: Array<(row: Row) => boolean> = [];
@@ -61,7 +71,7 @@ class IndexedQuery {
     const rows = this.source
       .filter((row) => this.filters.every((matches) => matches(row)))
       .sort((a, b) => {
-        for (const field of [...this.fields, "_creationTime"]) {
+        for (const field of [...this.fields, "_creationTime", "_id"]) {
           const order = compareValues(a[field], b[field]);
           if (order !== 0) return order;
         }
@@ -166,11 +176,11 @@ function makeCtx(db: FakeDb, scheduled: string[]) {
     db,
     scheduler: {
       runAfter: async (
-        _delayMs: number,
+        delayMs: number,
         _fn: unknown,
         args: { projectId: string },
       ) => {
-        scheduled.push(args.projectId);
+        if (delayMs === 0) scheduled.push(args.projectId);
       },
     },
   };
@@ -277,5 +287,574 @@ describe("recomputeAllSubscriptionStats", () => {
     expect(db.rows("subscriptionStats")).toContainEqual(
       expect.objectContaining({ projectId: PROJECT_A, activeSubs: 2 }),
     );
+  });
+});
+
+describe("recomputeSubscriptionStats under concurrent writes", () => {
+  const PROJECT = "projects_busy" as Id<"projects">;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(DAY);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  type PageArgs = {
+    projectId: Id<"projects">;
+    rebuildId?: Id<"subscriptionStatsRebuilds">;
+    startedAt?: number;
+    cursor: string | null;
+    scheduledAt?: number;
+    pageSize?: number;
+  };
+
+  // Records each chained page instead of running it, so writes can land
+  // between pages.
+  function memoryCtx(db: MemoryDb, pages: PageArgs[]) {
+    return {
+      db,
+      scheduler: {
+        runAfter: async (delayMs: number, _fn: unknown, args: PageArgs) => {
+          pages.push({
+            ...args,
+            cursor: args.cursor ?? null,
+            ...(delayMs > 0 ? { scheduledAt: Date.now() + delayMs } : {}),
+          });
+        },
+      },
+    };
+  }
+
+  // A store event moving `token` to `state`, as the webhook path writes it.
+  async function write(
+    ctx: ReturnType<typeof memoryCtx>,
+    token: string,
+    state: Doc<"subscriptions">["state"],
+    changes: {
+      currency?: string;
+      environment?: ReceiptEnvironment;
+      expiresAt?: number;
+    } = {},
+  ): Promise<void> {
+    const { environment, ...nextChanges } = changes;
+    await persistSubscriptionSnapshot(ctx as never, {
+      projectId: PROJECT,
+      platform: "Android",
+      purchaseToken: token,
+      existing: await findSubscriptionByToken(ctx as never, PROJECT, token),
+      environment,
+      next: {
+        state,
+        productId: "premium",
+        expiresAt: 40 * DAY,
+        currency: "USD",
+        priceAmountMicros: 1_000_000,
+        ...nextChanges,
+      },
+      now: Date.now(),
+    });
+  }
+
+  async function rebuild(ctx: ReturnType<typeof memoryCtx>): Promise<void> {
+    await testableFunction(recomputeSubscriptionStats)._handler(ctx, {
+      projectId: PROJECT,
+    });
+  }
+
+  async function tiedRows() {
+    const db = new MemoryDb();
+    db.seed("organizations", { _id: "organizations_busy" });
+    db.seed("projects", {
+      _id: PROJECT,
+      organizationId: "organizations_busy",
+    });
+    db.seed("products", {
+      projectId: PROJECT,
+      platform: "Android",
+      productId: "premium",
+      type: "Subscription",
+      billingPeriod: "P1M",
+    });
+    // Reverse insertion order makes the ID tiebreak observable, not incidental.
+    for (let i = SUBSCRIPTION_SCAN_PAGE_SIZE; i >= 0; i--) {
+      const id = db.seed("subscriptions", {
+        _id: `subscriptions_${String(i).padStart(4, "0")}`,
+        projectId: PROJECT,
+        productKind: "subscription",
+        productId: "premium",
+        platform: "Android",
+        state: "Active",
+        purchaseToken: `token-${i}`,
+        expiresAt: 40 * DAY,
+        currency: "USD",
+        priceAmountMicros: 1_000_000,
+        environment: "Production",
+        startedAt: 0,
+        updatedAt: 0,
+      });
+      await db.patch(id, { _creationTime: 1 });
+    }
+    const pages: PageArgs[] = [];
+    return { db, pages, ctx: memoryCtx(db, pages) };
+  }
+
+  async function finishPages(
+    ctx: ReturnType<typeof memoryCtx>,
+    pages: PageArgs[],
+  ): Promise<void> {
+    for (let i = 0; i < pages.length; i++) {
+      if (i > 300) throw new Error("rebuild did not settle");
+      const { scheduledAt, ...args } = pages[i];
+      if (scheduledAt !== undefined && scheduledAt > Date.now())
+        vi.setSystemTime(scheduledAt);
+      await testableFunction(runRecomputePage)._handler(ctx, args);
+    }
+  }
+
+  it.each(["renewal", "expiry", "clock-only", "linked-merge"] as const)(
+    "reconciles a counted expiry between pages: %s",
+    async (kind) => {
+      const { db, pages, ctx } = await tiedRows();
+      const first = db
+        .rows("subscriptions")
+        .find((row) => row.purchaseToken === "token-0")!;
+      await db.patch(first._id, { expiresAt: DAY + 5 });
+      await rebuild(ctx);
+      vi.setSystemTime(DAY + 10);
+      if (kind === "renewal") await write(ctx, "token-0", "Active");
+      if (kind === "expiry")
+        await write(ctx, "token-0", "Expired", { expiresAt: DAY + 5 });
+      if (kind === "linked-merge") await merge(db, ctx, 0);
+      await finishPages(ctx, pages);
+      const expected =
+        SUBSCRIPTION_SCAN_PAGE_SIZE + (kind === "renewal" ? 1 : 0);
+      expect(db.rows("subscriptionStats")).toMatchObject([
+        { activeSubs: expected, mrrMicros: expected * 1_000_000 },
+      ]);
+    },
+  );
+
+  it("rebuilds legacy coverage instead of creating a partial delta cache", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    await write(ctx, "token-0", "Expired");
+    await finishPages(ctx, pages);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      { activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE },
+    ]);
+  });
+
+  it("removes an expired completed-cache contribution before a renewal", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    const first = db
+      .rows("subscriptions")
+      .find((row) => row.purchaseToken === "token-0")!;
+    await db.patch(first._id, { expiresAt: DAY + 5 });
+    await rebuild(ctx);
+    await finishPages(ctx, pages);
+    pages.length = 0;
+    vi.setSystemTime(DAY + 10);
+    await write(ctx, "token-0", "Active");
+    await rebuild(ctx);
+    await finishPages(ctx, pages);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      { activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE + 1 },
+    ]);
+  });
+
+  it("tracks a shortened expiry even when the counts do not change", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    await rebuild(ctx);
+    await finishPages(ctx, pages);
+    pages.length = 0;
+    await write(ctx, "token-0", "Active", { expiresAt: DAY + 5 });
+    vi.setSystemTime(DAY + 10);
+    await write(ctx, "token-0", "Expired", { expiresAt: DAY + 5 });
+    await rebuild(ctx);
+    await finishPages(ctx, pages);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      { activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE },
+    ]);
+  });
+
+  it.each(["completed", "in-progress"] as const)(
+    "rebuilds MRR after catalog changes: %s",
+    async (phase) => {
+      const { db, pages, ctx } = await tiedRows();
+      const product = db.rows("products")[0];
+      await db.patch(product._id, { billingPeriod: undefined });
+      await rebuild(ctx);
+      if (phase === "completed") {
+        await finishPages(ctx, pages);
+        pages.length = 0;
+      }
+      await testableFunction(upsertFromStore)._handler(ctx, {
+        projectId: PROJECT,
+        platform: "Android",
+        productId: "premium",
+        type: "Subscription",
+        title: "Premium",
+        storeRef: "synthetic-premium",
+        state: "Active",
+        billingPeriod: "P1M",
+      });
+      await finishPages(ctx, pages);
+      expect(db.rows("subscriptionStats")).toMatchObject([
+        { activeSubs: 251, mrrMicros: 251_000_000 },
+      ]);
+      pages.length = 0;
+      await testableFunction(deletePlatformCatalog)._handler(ctx, {
+        projectId: PROJECT,
+        platform: "Android",
+        limit: 10,
+      });
+      await finishPages(ctx, pages);
+      expect(db.rows("subscriptionStats")).toMatchObject([
+        { activeSubs: 251, mrrMicros: 0 },
+      ]);
+    },
+  );
+
+  it("does not start a whole-project scan on each expired-cache write", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    const first = db
+      .rows("subscriptions")
+      .find((row) => row.purchaseToken === "token-0")!;
+    await db.patch(first._id, { expiresAt: DAY + 5 });
+    await rebuild(ctx);
+    await finishPages(ctx, pages);
+    pages.length = 0;
+    vi.setSystemTime(DAY + 10);
+    await write(ctx, "token-0", "Expired");
+    await write(ctx, "token-0", "Expired");
+    expect(pages).toEqual([]);
+    await rebuild(ctx);
+    await finishPages(ctx, pages);
+    expect(db.rows("subscriptionStats")).toMatchObject([{ activeSubs: 250 }]);
+  });
+
+  it("shrinks a page when needed product documents exceed the read budget", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    const large = "x".repeat(900_000);
+    for (let i = 0; i < 8; i++) {
+      const productId = `large-${i}`;
+      db.seed("products", {
+        projectId: PROJECT,
+        platform: "Android",
+        productId,
+        billingPeriod: "P1M",
+        description: large,
+      });
+      await db.patch(db.rows("subscriptions")[i]._id, { productId });
+    }
+    await rebuild(ctx);
+    expect(db.rows("subscriptionStats")).toEqual([]);
+    expect(pages[0].pageSize).toBeLessThan(SUBSCRIPTION_SCAN_PAGE_SIZE);
+    await finishPages(ctx, pages);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      { activeSubs: 251, mrrMicros: 251_000_000 },
+    ]);
+  });
+
+  it.each([SUBSCRIPTION_SCAN_PAGE_SIZE - 1, SUBSCRIPTION_SCAN_PAGE_SIZE])(
+    "counts a transition at tied boundary row %i exactly once",
+    async (index) => {
+      const { db, pages, ctx } = await tiedRows();
+      await rebuild(ctx);
+      await write(ctx, `token-${index}`, "InGracePeriod");
+      await testableFunction(runRecomputePage)._handler(ctx, pages[0]);
+      expect(db.rows("subscriptionStats")).toMatchObject([
+        {
+          activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE,
+          inGracePeriod: 1,
+          mrrMicros: SUBSCRIPTION_SCAN_PAGE_SIZE * 1_000_000,
+        },
+      ]);
+    },
+  );
+
+  it("keeps currency and environment changes on both sides of the boundary", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    await rebuild(ctx);
+    await write(ctx, `token-${SUBSCRIPTION_SCAN_PAGE_SIZE - 1}`, "Active", {
+      currency: "EUR",
+    });
+    await write(ctx, `token-${SUBSCRIPTION_SCAN_PAGE_SIZE}`, "Active", {
+      environment: "Sandbox",
+    });
+    await testableFunction(runRecomputePage)._handler(ctx, pages[0]);
+    expect(db.rows("subscriptionStats")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          currency: "USD",
+          activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE - 1,
+          mrrMicros: (SUBSCRIPTION_SCAN_PAGE_SIZE - 1) * 1_000_000,
+        }),
+        expect.objectContaining({
+          currency: "EUR",
+          activeSubs: 1,
+          mrrMicros: 1_000_000,
+        }),
+      ]),
+    );
+  });
+
+  async function merge(
+    db: MemoryDb,
+    ctx: ReturnType<typeof memoryCtx>,
+    removedIndex: number,
+  ): Promise<void> {
+    const survivor = db
+      .rows("subscriptions")
+      .find((row) => row.purchaseToken === "token-1")!;
+    await db.patch(survivor._id, { lastEventOccurredAt: DAY / 2 });
+    const eventId = db.seed("webhookEvents", {
+      projectId: PROJECT,
+      platform: "Android",
+      store: "google",
+      source: "GooglePlayRealTimeDeveloperNotifications",
+      type: "SubscriptionRenewed",
+      environment: "Production",
+      purchaseToken: "token-1",
+      linkedPurchaseToken: `token-${removedIndex}`,
+      productId: "premium",
+      occurredAt: DAY,
+      expiresAt: 40 * DAY,
+      currency: "USD",
+      priceAmountMicros: 1_000_000,
+    });
+    await testableFunction(applySubscriptionEvent)._handler(ctx, {
+      projectId: PROJECT,
+      eventId: eventId as Id<"webhookEvents">,
+    });
+  }
+
+  it.each([0, SUBSCRIPTION_SCAN_PAGE_SIZE])(
+    "removes a linked duplicate at tied boundary row %i once",
+    async (removedIndex) => {
+      const { db, pages, ctx } = await tiedRows();
+      await rebuild(ctx);
+      await merge(db, ctx, removedIndex);
+      expect(db.rows("subscriptions")).toHaveLength(
+        SUBSCRIPTION_SCAN_PAGE_SIZE,
+      );
+      await testableFunction(runRecomputePage)._handler(ctx, pages[0]);
+      expect(db.rows("subscriptionStats")).toMatchObject([
+        {
+          activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE,
+          mrrMicros: SUBSCRIPTION_SCAN_PAGE_SIZE * 1_000_000,
+        },
+      ]);
+    },
+  );
+
+  it("ignores a retired page after a completed rebuild and a changed scan boundary", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    await rebuild(ctx);
+    const retiredPage = pages[0];
+    await rebuild(ctx);
+    await testableFunction(runRecomputePage)._handler(ctx, pages[1]);
+    await merge(db, ctx, 0);
+    await write(ctx, "new-token", "Active");
+    await rebuild(ctx);
+    await testableFunction(runRecomputePage)._handler(ctx, retiredPage);
+    await testableFunction(runRecomputePage)._handler(ctx, pages[2]);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      {
+        activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE + 1,
+        mrrMicros: (SUBSCRIPTION_SCAN_PAGE_SIZE + 1) * 1_000_000,
+      },
+    ]);
+  });
+
+  it("restarts a legacy checkpoint and rejects its stale continuation", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    await rebuild(ctx);
+    const checkpoint = db.rows("subscriptionStatsRebuilds")[0];
+    const stalePage: PageArgs = {
+      projectId: PROJECT,
+      cursor: pages[0].cursor,
+      startedAt: Date.now(),
+    };
+    await db.patch(checkpoint._id, {
+      startedAt: stalePage.startedAt,
+      scannedThroughId: undefined,
+      totals: [
+        {
+          currency: "USD",
+          activeSubs: 999,
+          inGracePeriod: 4,
+          inBillingRetry: 2,
+          mrrMicros: 999_000_000,
+        },
+      ],
+    });
+    await write(ctx, `token-${SUBSCRIPTION_SCAN_PAGE_SIZE}`, "InGracePeriod");
+    await testableFunction(runRecomputePage)._handler(ctx, stalePage);
+    expect(pages).toHaveLength(2);
+    expect(pages[1].rebuildId).not.toBe(checkpoint._id);
+    expect(db.rows("subscriptionStatsRebuilds")[0].startedAt).toBeUndefined();
+    const restarted = structuredClone(db.rows("subscriptionStatsRebuilds"));
+    await testableFunction(runRecomputePage)._handler(ctx, stalePage);
+    expect(db.rows("subscriptionStatsRebuilds")).toEqual(restarted);
+    expect(pages).toHaveLength(2);
+    await testableFunction(runRecomputePage)._handler(ctx, pages[1]);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      {
+        activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE,
+        inGracePeriod: 1,
+        inBillingRetry: 0,
+        mrrMicros: SUBSCRIPTION_SCAN_PAGE_SIZE * 1_000_000,
+      },
+    ]);
+  });
+
+  it("restarts a second kickoff in the same millisecond with a fresh checkpoint", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    await rebuild(ctx);
+    const stalePage = pages[0];
+    await rebuild(ctx);
+    expect(pages[1].rebuildId).not.toBe(stalePage.rebuildId);
+    const restarted = structuredClone(db.rows("subscriptionStatsRebuilds"));
+    await testableFunction(runRecomputePage)._handler(ctx, stalePage);
+    expect(db.rows("subscriptionStatsRebuilds")).toEqual(restarted);
+    await testableFunction(runRecomputePage)._handler(ctx, pages[1]);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      {
+        activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE + 1,
+        mrrMicros: (SUBSCRIPTION_SCAN_PAGE_SIZE + 1) * 1_000_000,
+      },
+    ]);
+  });
+
+  it("rejects a continuation without a checkpoint owner", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    await rebuild(ctx);
+    const checkpoint = structuredClone(db.rows("subscriptionStatsRebuilds"));
+    await testableFunction(runRecomputePage)._handler(ctx, {
+      projectId: PROJECT,
+      cursor: pages[0].cursor,
+    });
+    expect(db.rows("subscriptionStatsRebuilds")).toEqual(checkpoint);
+    expect(db.rows("subscriptionStats")).toEqual([]);
+    await testableFunction(runRecomputePage)._handler(ctx, pages[0]);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      { activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE + 1 },
+    ]);
+  });
+
+  it("retains the full boundary across an empty continuation page", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    await rebuild(ctx);
+    const query = db.query.bind(db);
+    let emptyPage = true;
+    vi.spyOn(db, "query").mockImplementation((table) => {
+      const result = query(table);
+      if (table === "subscriptions" && emptyPage) {
+        emptyPage = false;
+        vi.spyOn(result, "paginate").mockImplementationOnce(
+          async (options) => ({
+            page: [],
+            isDone: false,
+            continueCursor: options.cursor!,
+          }),
+        );
+      }
+      return result;
+    });
+    await testableFunction(runRecomputePage)._handler(ctx, pages[0]);
+    await write(
+      ctx,
+      `token-${SUBSCRIPTION_SCAN_PAGE_SIZE - 1}`,
+      "InGracePeriod",
+    );
+    await testableFunction(runRecomputePage)._handler(ctx, pages[1]);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      {
+        activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE,
+        inGracePeriod: 1,
+        mrrMicros: SUBSCRIPTION_SCAN_PAGE_SIZE * 1_000_000,
+      },
+    ]);
+  });
+
+  it("commits totals that include writes made while it ran", async () => {
+    const db = new MemoryDb();
+    db.seed("organizations", { _id: "organizations_busy" });
+    db.seed("projects", {
+      _id: PROJECT,
+      organizationId: "organizations_busy",
+    });
+    db.seed("products", {
+      projectId: PROJECT,
+      platform: "Android",
+      productId: "premium",
+      type: "Subscription",
+      billingPeriod: "P1M",
+    });
+    const sub = {
+      projectId: PROJECT,
+      productKind: "subscription",
+      productId: "premium",
+      platform: "Android",
+      state: "Active",
+      expiresAt: 40 * DAY,
+      currency: "USD",
+      priceAmountMicros: 1_000_000,
+      environment: "Production",
+      startedAt: 0,
+      updatedAt: 0,
+    };
+    // Two pages of production subscriptions and a sandbox tester that an
+    // earlier release counted.
+    for (let i = 0; i < SUBSCRIPTION_SCAN_PAGE_SIZE + 1; i++) {
+      db.seed("subscriptions", { ...sub, purchaseToken: `token-${i}` });
+    }
+    db.seed("subscriptions", {
+      ...sub,
+      purchaseToken: "tester",
+      environment: "Sandbox",
+    });
+    db.seed("subscriptionStats", {
+      projectId: PROJECT,
+      currency: "USD",
+      activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE + 2,
+      inGracePeriod: 0,
+      inBillingRetry: 0,
+      mrrMicros: (SUBSCRIPTION_SCAN_PAGE_SIZE + 2) * 1_000_000,
+      updatedAt: 0,
+    });
+    const pages: PageArgs[] = [];
+    const ctx = memoryCtx(db, pages);
+
+    await rebuild(ctx);
+    expect(pages).toHaveLength(1);
+    // Between pages: a scanned row expires, an unscanned one enters grace,
+    // and a new subscription starts.
+    await write(ctx, "token-0", "Expired");
+    await write(ctx, `token-${SUBSCRIPTION_SCAN_PAGE_SIZE}`, "InGracePeriod");
+    await write(ctx, "token-new", "Active");
+    await testableFunction(runRecomputePage)._handler(ctx, pages[0]);
+
+    const committed = db.rows("subscriptionStats");
+    expect(committed).toMatchObject([
+      {
+        currency: "USD",
+        activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE,
+        inGracePeriod: 1,
+        mrrMicros: SUBSCRIPTION_SCAN_PAGE_SIZE * 1_000_000,
+      },
+    ]);
+    expect(db.rows("subscriptionStatsRebuilds")).toEqual([]);
+
+    // A quiet rebuild agrees.
+    await rebuild(ctx);
+    await testableFunction(runRecomputePage)._handler(ctx, pages[1]);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      {
+        activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE,
+        inGracePeriod: 1,
+        mrrMicros: SUBSCRIPTION_SCAN_PAGE_SIZE * 1_000_000,
+      },
+    ]);
   });
 });

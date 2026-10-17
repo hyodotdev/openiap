@@ -177,7 +177,10 @@ describe("generated sync manifest", () => {
     }
     expect(packageJson.types).toBe("dist/generated/types.d.ts");
     expect(packageJson.typesVersions).toEqual({
-      "*": { "kit-api": ["./dist/kit-api.d.ts"] },
+      "*": {
+        "kit-api": ["./dist/kit-api.d.ts"],
+        "purchase-flow": ["./dist/purchase-flow.d.ts"],
+      },
     });
   });
 

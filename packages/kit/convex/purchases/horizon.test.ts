@@ -1,3 +1,4 @@
+import { withVerificationSource } from "./verificationSource";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import {
@@ -88,7 +89,10 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     const ctx = makeContext();
 
     await expect(
-      verifyMetaHorizonReceipt._handler(ctx, VERIFY_ARGS),
+      verifyMetaHorizonReceipt._handler(
+        ctx,
+        withVerificationSource("horizon", VERIFY_ARGS),
+      ),
     ).resolves.toEqual({
       isValid: true,
       state: "ENTITLED",
@@ -148,7 +152,10 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     const ctx = makeContext();
 
     await expect(
-      verifyMetaHorizonReceipt._handler(ctx, VERIFY_ARGS),
+      verifyMetaHorizonReceipt._handler(
+        ctx,
+        withVerificationSource("horizon", VERIFY_ARGS),
+      ),
     ).resolves.toEqual({
       isValid: false,
       state: "INAUTHENTIC",
@@ -177,7 +184,10 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
       const ctx = makeContext();
 
       const result = await capture(
-        verifyMetaHorizonReceipt._handler(ctx, VERIFY_ARGS),
+        verifyMetaHorizonReceipt._handler(
+          ctx,
+          withVerificationSource("horizon", VERIFY_ARGS),
+        ),
       );
 
       const error = expectHorizonError(result.error);
@@ -192,7 +202,10 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     const ctx = makeContext();
 
     const result = await capture(
-      verifyMetaHorizonReceipt._handler(ctx, VERIFY_ARGS),
+      verifyMetaHorizonReceipt._handler(
+        ctx,
+        withVerificationSource("horizon", VERIFY_ARGS),
+      ),
     );
 
     const error = expectHorizonError(result.error);
@@ -206,7 +219,10 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     const ctx = makeContext();
 
     const result = await capture(
-      verifyMetaHorizonReceipt._handler(ctx, VERIFY_ARGS),
+      verifyMetaHorizonReceipt._handler(
+        ctx,
+        withVerificationSource("horizon", VERIFY_ARGS),
+      ),
     );
 
     const error = expectHorizonError(result.error);
@@ -226,7 +242,10 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     const ctx = makeContext();
 
     const resultPromise = capture(
-      verifyMetaHorizonReceipt._handler(ctx, VERIFY_ARGS),
+      verifyMetaHorizonReceipt._handler(
+        ctx,
+        withVerificationSource("horizon", VERIFY_ARGS),
+      ),
     );
     await vi.runAllTimersAsync();
     const result = await resultPromise;
@@ -252,7 +271,10 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     const ctx = makeContext();
 
     const resultPromise = capture(
-      verifyMetaHorizonReceipt._handler(ctx, VERIFY_ARGS),
+      verifyMetaHorizonReceipt._handler(
+        ctx,
+        withVerificationSource("horizon", VERIFY_ARGS),
+      ),
     );
     await vi.runAllTimersAsync();
     const result = await resultPromise;
@@ -274,7 +296,10 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     const ctx = makeContext();
 
     const resultPromise = capture(
-      verifyMetaHorizonReceipt._handler(ctx, VERIFY_ARGS),
+      verifyMetaHorizonReceipt._handler(
+        ctx,
+        withVerificationSource("horizon", VERIFY_ARGS),
+      ),
     );
     await vi.runAllTimersAsync();
     const result = await resultPromise;
@@ -302,7 +327,10 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     const ctx = makeContext();
 
     const resultPromise = capture(
-      verifyMetaHorizonReceipt._handler(ctx, VERIFY_ARGS),
+      verifyMetaHorizonReceipt._handler(
+        ctx,
+        withVerificationSource("horizon", VERIFY_ARGS),
+      ),
     );
     await vi.runAllTimersAsync();
     const result = await resultPromise;
@@ -332,7 +360,10 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     const ctx = makeContext();
 
     const resultPromise = capture(
-      verifyMetaHorizonReceipt._handler(ctx, VERIFY_ARGS),
+      verifyMetaHorizonReceipt._handler(
+        ctx,
+        withVerificationSource("horizon", VERIFY_ARGS),
+      ),
     );
     await vi.runAllTimersAsync();
     const result = await resultPromise;
@@ -367,7 +398,10 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     const ctx = makeContext();
 
     const resultPromise = capture(
-      verifyMetaHorizonReceipt._handler(ctx, VERIFY_ARGS),
+      verifyMetaHorizonReceipt._handler(
+        ctx,
+        withVerificationSource("horizon", VERIFY_ARGS),
+      ),
     );
     await vi.runAllTimersAsync();
     const result = await resultPromise;
@@ -384,7 +418,10 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     const ctx = makeContext();
 
     const resultPromise = capture(
-      verifyMetaHorizonReceipt._handler(ctx, VERIFY_ARGS),
+      verifyMetaHorizonReceipt._handler(
+        ctx,
+        withVerificationSource("horizon", VERIFY_ARGS),
+      ),
     );
     await vi.runAllTimersAsync();
     const result = await resultPromise;
@@ -468,3 +505,9 @@ describe("entitlement rechecks", () => {
     expect(savedReceipts(ctx)[0]).toMatchObject({ persistIfChanged: true });
   });
 });
+
+// Synthetic service credential for this isolated verification transport fixture.
+beforeEach(() =>
+  vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "b".repeat(64)),
+);
+afterEach(() => vi.unstubAllEnvs());

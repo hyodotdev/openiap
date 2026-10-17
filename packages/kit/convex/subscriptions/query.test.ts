@@ -1,22 +1,32 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { testableFunction } from "../test.setup";
-import { statsContributionFor } from "./stats";
+import { STATS_DEFINITIONS_VERSION, statsContributionFor } from "./stats";
+import { MemoryDb } from "../test.memoryDb";
+import { metricsSummary } from "./query";
 
 import {
   assertUserSubscriptionRowLimit,
   entitlementsV2 as registeredEntitlementsV2,
+  entitlements as registeredEntitlements,
   MAX_USER_SUBSCRIPTION_ROWS,
   selectReportingMrr,
   shapeSubscriptionEvaluationSnapshot,
   shapeSubscriptionRow,
   shapeSubscriptionV2Row,
   subscriptionStatusV2 as registeredSubscriptionStatusV2,
+  subscriptionStatus as registeredSubscriptionStatus,
+  subscriptionEvaluationSnapshot as registeredSubscriptionEvaluationSnapshot,
 } from "./query";
 
 const subscriptionStatusV2 = testableFunction(registeredSubscriptionStatusV2);
 const entitlementsV2 = testableFunction(registeredEntitlementsV2);
+const legacyAccountReads = [
+  testableFunction(registeredSubscriptionStatus),
+  testableFunction(registeredEntitlements),
+  testableFunction(registeredSubscriptionEvaluationSnapshot),
+];
 
 function subscriptionDoc(
   overrides: Partial<Doc<"subscriptions">>,
@@ -105,9 +115,7 @@ describe("shapeSubscriptionRow", () => {
     expect(row.originalTransactionId).toBe("2000001177054625");
   });
 
-  // Security debt, pinned so a removal is a deliberate decision: MAUI declares
-  // purchaseToken `required` and drops the row when it is missing, so removing
-  // it silently strips entitlement from every installed MAUI app.
+  // Legacy server responses preserve the required MAUI field; mobile keys cannot read them.
   it("still carries the Play purchaseToken an installed MAUI app requires", () => {
     const row = shapeSubscriptionRow(
       subscriptionDoc({
@@ -151,7 +159,7 @@ describe("shapeSubscriptionV2Row", () => {
   });
 });
 
-describe("v2 account-read authorization", () => {
+describe("account-read authorization", () => {
   const db = {
     rows: {
       apiKeys: [
@@ -238,7 +246,11 @@ describe("v2 account-read authorization", () => {
 
   it("rejects publishable keys inside Convex", async () => {
     const ctx = { db } as never;
-    for (const query of [subscriptionStatusV2, entitlementsV2]) {
+    for (const query of [
+      subscriptionStatusV2,
+      entitlementsV2,
+      ...legacyAccountReads,
+    ]) {
       await expect(
         query._handler(ctx, {
           apiKey: "openiap-kit_pk_mobile",
@@ -255,7 +267,11 @@ describe("v2 account-read authorization", () => {
 
   it("rejects an unknown secret-shaped key instead of returning empty data", async () => {
     const ctx = { db } as never;
-    for (const query of [subscriptionStatusV2, entitlementsV2]) {
+    for (const query of [
+      subscriptionStatusV2,
+      entitlementsV2,
+      ...legacyAccountReads,
+    ]) {
       await expect(
         query._handler(ctx, {
           apiKey: "openiap-kit_sk_unknown",
@@ -269,6 +285,100 @@ describe("v2 account-read authorization", () => {
       );
     }
   });
+
+  it.each([
+    ["production", ["shared", "event-derived"], "prod"],
+    ["sandbox", ["shared", "test", "local-test"], "sandbox-only"],
+    ["all", ["shared", "test", "local-test", "event-derived"], "sandbox-only"],
+  ] as const)(
+    "filters %s before status selection and product deduplication",
+    async (environment, products, statusId) => {
+      const previous = db.rows.subscriptions;
+      db.rows.subscriptions = [
+        subscriptionDoc({
+          _id: "prod" as Id<"subscriptions">,
+          userId: "mixed",
+          productId: "shared",
+          updatedAt: 10,
+          environment: "Production",
+        }),
+        subscriptionDoc({
+          _id: "sandbox" as Id<"subscriptions">,
+          userId: "mixed",
+          productId: "shared",
+          updatedAt: 20,
+          environment: "Sandbox",
+        }),
+        subscriptionDoc({
+          _id: "sandbox-only" as Id<"subscriptions">,
+          userId: "mixed",
+          productId: "test",
+          updatedAt: 30,
+          environment: "Sandbox",
+        }),
+        subscriptionDoc({
+          _id: "legacy" as Id<"subscriptions">,
+          userId: "mixed",
+          productId: "unknown",
+          updatedAt: 50,
+        }),
+        subscriptionDoc({
+          _id: "xcode" as Id<"subscriptions">,
+          userId: "mixed",
+          productId: "local-test",
+          updatedAt: 15,
+          environment: "Xcode",
+        }),
+        subscriptionDoc({
+          _id: "event" as Id<"subscriptions">,
+          userId: "mixed",
+          productId: "event-derived",
+          updatedAt: 5,
+          lastEventSource: { environment: "Production" },
+        }),
+        subscriptionDoc({
+          _id: "expired" as Id<"subscriptions">,
+          userId: "mixed",
+          productId: "expired",
+          updatedAt: 99,
+          expiresAt: 1,
+          environment: "Production",
+        }),
+      ].map((row) => ({ ...row, expiresAt: row.expiresAt ?? 10 }));
+      try {
+        const args = {
+          apiKey: "openiap-kit_sk_backend",
+          userId: "mixed",
+          now: 2,
+          environment,
+        };
+        expect(await entitlementsV2._handler({ db }, args)).toMatchObject({
+          environmentScope: environment,
+          productIds: [...products],
+        });
+        expect(await subscriptionStatusV2._handler({ db }, args)).toMatchObject(
+          {
+            environmentScope: environment,
+            active: true,
+            subscription: { id: statusId },
+          },
+        );
+        const legacyArgs = {
+          apiKey: args.apiKey,
+          userId: args.userId,
+          now: args.now,
+        };
+        expect(
+          await subscriptionStatusV2._handler({ db }, legacyArgs),
+        ).toMatchObject({ active: true, subscription: { id: "legacy" } });
+        expect(
+          await entitlementsV2._handler({ db }, legacyArgs),
+        ).not.toHaveProperty("environmentScope");
+      } finally {
+        db.rows.subscriptions = previous;
+      }
+    },
+  );
 
   it("uses the caller-supplied time so cache keys advance past expiry", async () => {
     const ctx = { db } as never;
@@ -429,5 +539,211 @@ describe("shapeSubscriptionEvaluationSnapshot", () => {
     expect(snapshot.candidates.map((row) => row.id)).toEqual([
       "subscriptions_recovered",
     ]);
+  });
+});
+
+describe("metricsSummary byte budgets", () => {
+  afterEach(() => vi.useRealTimers());
+  function fixture() {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(100_000);
+    const db = new MemoryDb();
+    const projectId = "projects_metrics";
+    db.seed("organizations", { _id: "organizations_metrics" });
+    db.seed("projects", {
+      _id: projectId,
+      organizationId: "organizations_metrics",
+    });
+    db.seed("apiKeys", {
+      key: "openiap-kit_sk_metrics_budget",
+      keyType: "secret",
+      isActive: true,
+      projectId,
+      organizationId: "organizations_metrics",
+    });
+    return {
+      db,
+      projectId,
+      args: { apiKey: "openiap-kit_sk_metrics_budget", refreshAt: Date.now() },
+    };
+  }
+  it("keeps the reactive page range stable across clock and cache changes", async () => {
+    const { db, projectId, args } = fixture();
+    db.seed("subscriptions", {
+      projectId,
+      productId: "premium",
+      platform: "Android",
+      state: "Active",
+      environment: "Production",
+      purchaseToken: "reactive-budget",
+      startedAt: 1,
+      updatedAt: Date.now(),
+      expiresAt: Date.now() + 100,
+    });
+    db.seed("subscriptionStats", {
+      projectId,
+      activeSubs: 1,
+      inGracePeriod: 0,
+      inBillingRetry: 0,
+      mrrMicros: 0,
+    });
+    db.seed("revenueMetricsRunStatus", {
+      projectId,
+      statsDefinitionsVersion: STATS_DEFINITIONS_VERSION,
+      statsUpdatedAt: Date.now(),
+      statsValidUntil: Date.now() + 100,
+    });
+    let journal: string | undefined;
+    const original = db.query.bind(db);
+    vi.spyOn(db, "query").mockImplementation((table) => {
+      const query = original(table);
+      if (table !== "subscriptions") return query;
+      const withIndex = query.withIndex.bind(query);
+      const paginate = query.paginate.bind(query);
+      const bounds: unknown[] = [];
+      query.withIndex = (name, range) =>
+        withIndex(name, (q) => {
+          type Range = typeof q;
+          const track =
+            (method: keyof Range) =>
+            (field: string, value: Parameters<Range["eq"]>[1]): Range => {
+              bounds.push([method, field, value]);
+              q[method](field, value);
+              return tracked;
+            };
+          const tracked: Range = {
+            eq: track("eq"),
+            gt: track("gt"),
+            gte: track("gte"),
+            lt: track("lt"),
+            lte: track("lte"),
+          };
+          bounds.push(name);
+          return range?.(tracked);
+        });
+      // Convex reuses its page journal when the same reactive query reruns.
+      query.paginate = async (options) => {
+        expect(options).toMatchObject({
+          maximumRowsRead: 10_000,
+          maximumBytesRead: 8 * 1024 * 1024,
+        });
+        const signature = JSON.stringify(bounds);
+        if (journal !== undefined && journal !== signature)
+          throw new Error("InvalidCursor: reactive query range changed");
+        journal = signature;
+        return paginate(options);
+      };
+      return query;
+    });
+    const read = () => testableFunction(metricsSummary)._handler({ db }, args);
+    expect((await read()).activeSubs).toBe(1);
+    vi.setSystemTime(100_050);
+    expect((await read()).activeSubs).toBe(1);
+    vi.setSystemTime(100_101);
+    expect((await read()).activeSubs).toBe(0);
+  });
+
+  it("marks a required reactive page split incomplete", async () => {
+    const { db, args } = fixture();
+    const original = db.query.bind(db);
+    vi.spyOn(db, "query").mockImplementation((table) => {
+      const query = original(table);
+      if (table === "subscriptions") {
+        const paginate = query.paginate.bind(query);
+        query.paginate = async (options) => ({
+          ...(await paginate(options)),
+          isDone: true,
+          pageStatus: "SplitRequired",
+        });
+      }
+      return query;
+    });
+    const result = await testableFunction(metricsSummary)._handler(
+      { db },
+      args,
+    );
+    expect(result.stats.state).toBe("incomplete");
+    expect(result.recentCountsTruncated).toBe(true);
+  });
+  it("marks a byte-limited subscription page incomplete", async () => {
+    const { db, projectId, args } = fixture();
+    const description = "x".repeat(100_000);
+    for (let i = 0; i < 100; i++)
+      db.seed("subscriptions", {
+        projectId,
+        productId: "premium",
+        platform: "Android",
+        state: "Active",
+        purchaseToken: `budget-${i}`,
+        environment: "Production",
+        startedAt: 1,
+        updatedAt: Date.now(),
+        cancellationReason: description,
+      });
+    const result = await testableFunction(metricsSummary)._handler(
+      { db },
+      args,
+    );
+    expect(result.stats.state).toBe("incomplete");
+    expect(result.activeSubs).toBeLessThan(100);
+    expect(result.recentCountsTruncated).toBe(true);
+  });
+  it("bounds distinct catalog lookups even when every product is missing", async () => {
+    const { db, projectId, args } = fixture();
+    for (let i = 0; i < 300; i++)
+      db.seed("subscriptions", {
+        projectId,
+        productId: `missing-${i}`,
+        platform: "Android",
+        state: "Active",
+        purchaseToken: `missing-${i}`,
+        environment: "Production",
+        startedAt: 1,
+        updatedAt: Date.now(),
+      });
+    const reads = vi.spyOn(db, "query");
+    const result = await testableFunction(metricsSummary)._handler(
+      { db },
+      args,
+    );
+    expect(result.stats.state).toBe("incomplete");
+    expect(
+      reads.mock.calls.filter(([table]) => table === "products"),
+    ).toHaveLength(250);
+    expect(result.recentCountsTruncated).toBe(false);
+  });
+
+  it("bounds catalog reads even when all subscriptions fit", async () => {
+    const { db, projectId, args } = fixture();
+    for (let i = 0; i < 8; i++) {
+      const productId = `premium-${i}`;
+      db.seed("products", {
+        projectId,
+        platform: "Android",
+        productId,
+        billingPeriod: "P1M",
+        description: "x".repeat(900_000),
+      });
+      db.seed("subscriptions", {
+        projectId,
+        productId,
+        platform: "Android",
+        state: "Active",
+        purchaseToken: `catalog-${i}`,
+        environment: "Production",
+        startedAt: 1,
+        updatedAt: Date.now(),
+      });
+    }
+    const reads = vi.spyOn(db, "query");
+    const result = await testableFunction(metricsSummary)._handler(
+      { db },
+      args,
+    );
+    expect(result.stats.state).toBe("incomplete");
+    expect(
+      reads.mock.calls.filter(([table]) => table === "products"),
+    ).toHaveLength(3);
+    expect(result.recentCountsTruncated).toBe(false);
   });
 });

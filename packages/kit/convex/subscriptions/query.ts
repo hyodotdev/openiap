@@ -1,20 +1,41 @@
+import { SUBSCRIPTION_SCAN_BYTES } from "./accessHistory";
+import { REVENUE_COUNTERS } from "./revenueCounters";
 import { query, type QueryCtx } from "../_generated/server";
 import { ConvexError, v, type Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 
 import {
+  canReadRawStoreEvidence,
+  resolveOperatorProject,
   resolveProjectByApiKeyFromDb,
   resolveProjectByIdForCurrentUserFromDb,
 } from "../projects/helpers";
-import { monthlyMicrosForSub } from "./monthlyMicros";
+import {
+  isValidSubscriptionUserId,
+  MAX_SUBSCRIPTION_USER_ID_LENGTH,
+  SUBSCRIPTION_ENVIRONMENT_SCOPES,
+  type SubscriptionEnvironmentScope,
+} from "./limits";
+import {
+  loadStatsPeriods,
+  statsAreCurrent,
+  statsContributionFor,
+} from "./stats";
+import { subscriptionEnvironment } from "./analyticsFacts";
+import { ROLLUP_DEFINITIONS_VERSION } from "./revenueMetrics";
 import { entitlementActive, isMisrecordedApplePass } from "./stateMachine";
 import { selectMostRecentlyUpdatedSubscription } from "./selectLatest";
 import {
   DEFAULT_REPORTING_CURRENCY,
   normalizeReportingCurrencyOrDefault,
 } from "../utils/currency";
+import { storeOf } from "../commerce/internal";
 import { purchaseStoreValidator } from "../schema";
-import { subscriptionStateValidator } from "../utils/validation";
+import {
+  purchaseIssueCauseValidator,
+  receiptEnvironmentValidator,
+  subscriptionStateValidator,
+} from "../utils/validation";
 
 const subscriptionFields = {
   id: v.id("subscriptions"),
@@ -29,12 +50,7 @@ const subscriptionFields = {
   priceAmountMicros: v.optional(v.number()),
   startedAt: v.number(),
   updatedAt: v.number(),
-  // SECURITY DEBT: on Android this is the credential a server accepts as proof
-  // of purchase, and these rows reach routes that answer to a publishable key
-  // shipped inside the app. It cannot be removed additively: MAUI declares it
-  // `required`, and its tolerant deserializer turns a missing field into a null
-  // subscription and silently drops entitlement rows — every installed MAUI app
-  // would lose entitlement. Removal needs an explicit version transition.
+  // Legacy server responses preserve this required MAUI field; v2 omits it.
   purchaseToken: v.string(),
   originalTransactionId: v.optional(v.string()),
   userId: v.optional(v.string()),
@@ -64,6 +80,25 @@ type SubscriptionRow = Infer<typeof subscriptionShape>;
 type SubscriptionV2Row = Infer<typeof subscriptionV2Shape>;
 type SubscriptionEvaluationRow = Infer<typeof subscriptionEvaluationRowShape>;
 export const MAX_USER_SUBSCRIPTION_ROWS = 200;
+
+const environmentScopeValidator = v.union(
+  ...SUBSCRIPTION_ENVIRONMENT_SCOPES.map((scope) => v.literal(scope)),
+);
+
+function subscriptionInEnvironment(
+  sub: Doc<"subscriptions">,
+  scope: SubscriptionEnvironmentScope | undefined,
+): boolean {
+  if (scope === undefined) return true;
+  const environment = sub.environment ?? sub.lastEventSource?.environment;
+  if (environment === undefined) return false;
+  return (
+    scope === "all" ||
+    (scope === "production"
+      ? environment === "Production"
+      : environment !== "Production")
+  );
+}
 
 function isActive(sub: Doc<"subscriptions">, now: number): boolean {
   return entitlementActive(sub, now);
@@ -232,6 +267,34 @@ async function projectForReadArgs(
   throw new Error("apiKey or projectId is required.");
 }
 
+// A dashboard member reads the list without store tokens; secret API keys
+// keep them for reconciliation.
+async function listReadAccess(
+  ctx: QueryCtx,
+  args: { apiKey?: string; projectId?: Id<"projects"> },
+): Promise<{ project: Doc<"projects">; storeTokens: boolean } | null> {
+  if (args.projectId) {
+    const access = await resolveProjectByIdForCurrentUserFromDb(
+      ctx,
+      args.projectId,
+    );
+    return access
+      ? {
+          project: access.project,
+          storeTokens: canReadRawStoreEvidence(access.role),
+        }
+      : null;
+  }
+  const project = await projectForReadArgs(ctx, args, "admin");
+  return project ? { project, storeTokens: true } : null;
+}
+
+// purchaseToken stays present but empty: the field is required (see above).
+function withoutStoreToken(row: SubscriptionRow): SubscriptionRow {
+  const { originalTransactionId: _originalTransactionId, ...rest } = row;
+  return { ...rest, purchaseToken: "" };
+}
+
 export interface MrrCurrencyEntry {
   currency: string;
   mrrMicros: number;
@@ -287,8 +350,7 @@ export const subscriptionEvaluationSnapshot = query({
     fallback: v.union(subscriptionEvaluationRowShape, v.null()),
   }),
   handler: async (ctx, args) => {
-    const project = await projectByApiKey(ctx, args.apiKey);
-    if (!project) return { projectId: null, candidates: [], fallback: null };
+    const project = await requireAdminProjectByApiKey(ctx, args.apiKey);
 
     const rows = await userSubscriptionRows(ctx, project._id, args.userId);
     return {
@@ -302,15 +364,23 @@ export const subscriptionEvaluationSnapshot = query({
 // shapes the response without store credentials before it crosses the HTTP
 // boundary.
 export const subscriptionStatusV2 = query({
-  args: { apiKey: v.string(), userId: v.string(), now: v.number() },
+  args: {
+    apiKey: v.string(),
+    userId: v.string(),
+    now: v.number(),
+    environment: v.optional(environmentScopeValidator),
+  },
   returns: v.object({
     active: v.boolean(),
     subscription: v.union(subscriptionV2Shape, v.null()),
+    environmentScope: v.optional(environmentScopeValidator),
   }),
   handler: async (ctx, args) => {
     const project = await requireAdminProjectByApiKey(ctx, args.apiKey);
 
-    const subs = await userSubscriptionRows(ctx, project._id, args.userId);
+    const subs = (
+      await userSubscriptionRows(ctx, project._id, args.userId)
+    ).filter((sub) => subscriptionInEnvironment(sub, args.environment));
     const activeSubs = subs.filter((candidate) =>
       isActive(candidate, args.now),
     );
@@ -321,26 +391,42 @@ export const subscriptionStatusV2 = query({
     return {
       active: activeSubs.length > 0,
       subscription: selected ? shapeSubscriptionV2Row(selected) : null,
+      ...(args.environment === undefined
+        ? {}
+        : { environmentScope: args.environment }),
     };
   },
 });
 
 export const entitlementsV2 = query({
-  args: { apiKey: v.string(), userId: v.string(), now: v.number() },
+  args: {
+    apiKey: v.string(),
+    userId: v.string(),
+    now: v.number(),
+    environment: v.optional(environmentScopeValidator),
+  },
   returns: v.object({
     userId: v.string(),
     productIds: v.array(v.string()),
     subscriptions: v.array(subscriptionV2Shape),
+    environmentScope: v.optional(environmentScopeValidator),
   }),
   handler: async (ctx, args) => {
     const project = await requireAdminProjectByApiKey(ctx, args.apiKey);
 
     const all = await userSubscriptionRows(ctx, project._id, args.userId);
-    const active = all.filter((sub) => isActive(sub, args.now));
+    const active = all.filter(
+      (sub) =>
+        subscriptionInEnvironment(sub, args.environment) &&
+        isActive(sub, args.now),
+    );
     return {
       userId: args.userId,
       productIds: Array.from(new Set(active.map((sub) => sub.productId))),
       subscriptions: active.map(shapeSubscriptionV2Row),
+      ...(args.environment === undefined
+        ? {}
+        : { environmentScope: args.environment }),
     };
   },
 });
@@ -410,8 +496,7 @@ export const subscriptionStatus = query({
     subscription: v.union(subscriptionShape, v.null()),
   }),
   handler: async (ctx, args) => {
-    const project = await projectByApiKey(ctx, args.apiKey);
-    if (!project) return { active: false, subscription: null };
+    const project = await requireAdminProjectByApiKey(ctx, args.apiKey);
 
     const subs = await userSubscriptionRows(ctx, project._id, args.userId);
 
@@ -441,10 +526,7 @@ export const entitlements = query({
     subscriptions: v.array(subscriptionShape),
   }),
   handler: async (ctx, args) => {
-    const project = await projectByApiKey(ctx, args.apiKey);
-    if (!project) {
-      return { userId: args.userId, productIds: [], subscriptions: [] };
-    }
+    const project = await requireAdminProjectByApiKey(ctx, args.apiKey);
 
     const all = await userSubscriptionRows(ctx, project._id, args.userId);
 
@@ -474,8 +556,13 @@ export const listSubscriptions = query({
     total: v.number(),
   }),
   handler: async (ctx, args) => {
-    const project = await projectForReadArgs(ctx, args, "admin");
-    if (!project) return { items: [], total: 0 };
+    const access = await listReadAccess(ctx, args);
+    if (!access) return { items: [], total: 0 };
+    const { project } = access;
+    const shape = access.storeTokens
+      ? shapeSubscriptionRow
+      : (sub: Doc<"subscriptions">) =>
+          withoutStoreToken(shapeSubscriptionRow(sub));
 
     const limit = Math.min(Math.max(args.limit ?? 50, 1), 200);
 
@@ -495,7 +582,7 @@ export const listSubscriptions = query({
         return true;
       });
       return {
-        items: filtered.slice(0, limit).map(shapeSubscriptionRow),
+        items: filtered.slice(0, limit).map(shape),
         total: filtered.length,
       };
     }
@@ -543,21 +630,43 @@ export const listSubscriptions = query({
     // `total` counts the rows loaded, not every match; a true count would need
     // an unbounded scan.
     return {
-      items: rows.slice(0, limit).map(shapeSubscriptionRow),
+      items: rows.slice(0, limit).map(shape),
       total: rows.length,
     };
   },
 });
 
-// Live counts and MRR come from `subscriptionStats` (one row per currency), the
-// 30-day counters from a bounded indexed scan. A project with no stats rows yet
-// is computed on the fly until `recomputeSubscriptionStats` fills them.
+// Admin reads fail on an unknown key rather than answer with an empty project.
+async function projectForAdminRead(
+  ctx: QueryCtx,
+  args: { apiKey?: string; projectId?: Id<"projects"> },
+): Promise<Doc<"projects"> | null> {
+  if (!args.projectId && args.apiKey !== undefined) {
+    return requireAdminProjectByApiKey(ctx, args.apiKey);
+  }
+  return projectForReadArgs(ctx, args, "admin");
+}
+
+// Current caches avoid a subscription scan. Legacy or expired caches use a
+// bounded fallback; an incomplete result is explicit, never a current total.
 export const metricsSummary = query({
   args: {
     apiKey: v.optional(v.string()),
     projectId: v.optional(v.id("projects")),
+    refreshAt: v.optional(v.number()),
   },
   returns: v.object({
+    environment: v.literal("Production"),
+    stats: v.object({
+      state: v.union(
+        v.literal("current"),
+        v.literal("rebuilding"),
+        v.literal("incomplete"),
+      ),
+      asOf: v.number(),
+      validUntil: v.union(v.number(), v.null()),
+    }),
+    recentCountsTruncated: v.boolean(),
     activeSubs: v.number(),
     inGracePeriod: v.number(),
     inBillingRetry: v.number(),
@@ -578,9 +687,16 @@ export const metricsSummary = query({
     ),
   }),
   handler: async (ctx, args) => {
-    const project = await projectForReadArgs(ctx, args, "admin");
+    const project = await projectForAdminRead(ctx, args);
     if (!project) {
       return {
+        environment: "Production" as const,
+        stats: {
+          state: "incomplete" as const,
+          asOf: Date.now(),
+          validUntil: null,
+        },
+        recentCountsTruncated: false,
         activeSubs: 0,
         inGracePeriod: 0,
         inBillingRetry: 0,
@@ -603,12 +719,41 @@ export const metricsSummary = query({
       .withIndex("by_project", (q) => q.eq("projectId", project._id))
       .collect();
 
+    const status = await ctx.db
+      .query("revenueMetricsRunStatus")
+      .withIndex("by_project", (q) => q.eq("projectId", project._id))
+      .unique();
+    const cacheCurrent = statsRows.length > 0 && statsAreCurrent(status, now);
+    // Reactive pagination retains a journal, so its indexed range stays fixed.
+    const result = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_project_and_updated", (q) =>
+        q.eq("projectId", project._id),
+      )
+      .order("desc")
+      .paginate({
+        cursor: null,
+        numItems: 10_000,
+        maximumRowsRead: 10_000,
+        maximumBytesRead: SUBSCRIPTION_SCAN_BYTES,
+      });
+    const pageComplete = result.isDone && result.pageStatus !== "SplitRequired";
+    const recentlyChanged = result.page.filter(
+      (sub) => sub.updatedAt >= cutoff,
+    );
+    const recentCountsTruncated =
+      result.pageStatus === "SplitRequired" ||
+      (!result.isDone && (result.page.at(-1)?.updatedAt ?? now) >= cutoff);
+    let validUntil: number | null = cacheCurrent
+      ? (status?.statsValidUntil ?? null)
+      : null;
+    let statsState: "current" | "rebuilding" | "incomplete" = "current";
     let activeSubs = 0;
     let inGracePeriod = 0;
     let inBillingRetry = 0;
     const mrrAccumulators = new Map<string, number>();
 
-    if (statsRows.length > 0) {
+    if (cacheCurrent) {
       for (const row of statsRows) {
         activeSubs += row.activeSubs;
         inGracePeriod += row.inGracePeriod;
@@ -621,50 +766,42 @@ export const metricsSummary = query({
         }
       }
     } else {
-      // No stats rows yet: compute on the fly, capped so a huge project cannot
-      // break the render, until the drift-correction cron backfills
-      // `subscriptionStats`.
-      const FALLBACK_SCAN_CAP = 10_000;
-      const periodByProductId = await loadPeriodByProductId(ctx, project._id);
-      const allSubs = await ctx.db
-        .query("subscriptions")
-        .withIndex("by_project_and_updated", (q) =>
-          q.eq("projectId", project._id),
-        )
-        .order("desc")
-        .take(FALLBACK_SCAN_CAP);
-      for (const sub of allSubs) {
-        if (sub.state === "Active" && isActive(sub, now)) {
+      const periods = await loadStatsPeriods(ctx, project._id, result.page);
+      if (!pageComplete || periods === null) {
+        const rebuilding = await ctx.db
+          .query("subscriptionStatsRebuilds")
+          .withIndex("by_project", (q) => q.eq("projectId", project._id))
+          .unique();
+        statsState = rebuilding ? "rebuilding" : "incomplete";
+      }
+      for (const sub of result.page) {
+        const contribution = statsContributionFor(
+          sub,
+          periods?.get(`${sub.platform}:${sub.productId}`),
+          now,
+        );
+        if (contribution?.expiresAt !== undefined)
+          validUntil =
+            validUntil === null
+              ? contribution.expiresAt
+              : Math.min(validUntil, contribution.expiresAt);
+        if (contribution?.state === "Active") {
           activeSubs += 1;
-          if (typeof sub.priceAmountMicros === "number" && sub.currency) {
-            const monthly = monthlyMicrosForSub(
-              sub,
-              periodByProductId.get(sub.productId),
-            );
+          if (contribution.mrrMicros > 0) {
             mrrAccumulators.set(
-              sub.currency,
-              (mrrAccumulators.get(sub.currency) ?? 0) + monthly,
+              contribution.currency,
+              (mrrAccumulators.get(contribution.currency) ?? 0) +
+                contribution.mrrMicros,
             );
           }
-        } else if (sub.state === "InGracePeriod") {
+        } else if (contribution?.state === "InGracePeriod") {
           inGracePeriod += 1;
-        } else if (sub.state === "InBillingRetry") {
+        } else if (contribution?.state === "InBillingRetry") {
           inBillingRetry += 1;
         }
       }
     }
 
-    // 30-day counters from one `by_project_and_updated` scan since the cutoff,
-    // so the cost follows recent churn, not history. The cap keeps a project
-    // with over 10k changes in 30 days under Convex's 40k read limit; past it
-    // the counts are approximate.
-    const ROLLING_SCAN_CAP = 10_000;
-    const recentlyChanged = await ctx.db
-      .query("subscriptions")
-      .withIndex("by_project_and_updated", (q) =>
-        q.eq("projectId", project._id).gte("updatedAt", cutoff),
-      )
-      .take(ROLLING_SCAN_CAP);
     let refunded30d = 0;
     let canceled30d = 0;
     const CANCELED_STATES = new Set([
@@ -674,6 +811,7 @@ export const metricsSummary = query({
       "Expired",
     ]);
     for (const sub of recentlyChanged) {
+      if (subscriptionEnvironment(sub) !== "Production") continue;
       if (sub.state === "Refunded") {
         refunded30d += 1;
       }
@@ -702,6 +840,13 @@ export const metricsSummary = query({
     );
 
     return {
+      environment: "Production" as const,
+      stats: {
+        state: statsState,
+        asOf: cacheCurrent ? status!.statsUpdatedAt! : now,
+        validUntil,
+      },
+      recentCountsTruncated,
       activeSubs,
       inGracePeriod,
       inBillingRetry,
@@ -719,9 +864,90 @@ export const metricsSummary = query({
 // Daily metrics for the Analytics dashboard from the `revenueMetricsDaily`
 // rollups, so a render never scans `webhookEvents`. `fromDay` and `toDay` are
 // inclusive UTC YYYY-MM-DD, compared as strings on the index. Returns one entry
-// per (day, currency, productId, platform) for the dashboard to aggregate; rows
-// in different currencies need an FX rate to add.
+// per (day, currency, productId, platform) of one environment, production by
+// default; rows in different currencies need an FX rate to add. Definitions
+// are in `revenueMetrics.ts`; the optional counters are absent on rows written
+// before `definitionsFromDay`, and the trial split before `trialSplitFromDay`.
 const platformValidator = v.union(v.literal("IOS"), v.literal("Android"));
+
+// not_collected: no store notification has reached the environment.
+// processing: notifications exist but the window is not rolled up yet.
+// zero: the window was rolled up and nothing happened.
+// ready: the window has rows.
+const analyticsDataStateValidator = v.union(
+  v.literal("not_collected"),
+  v.literal("processing"),
+  v.literal("zero"),
+  v.literal("ready"),
+);
+
+const revenueCohortShape = v.object({
+  month: v.string(),
+  currency: v.string(),
+  members: v.number(),
+  revenueMicros: v.number(),
+  refundedMicros: v.number(),
+  // Gross revenue per member observed through `observedThrough`; never projected.
+  realizedLtvMicros: v.number(),
+  retained: v.array(v.number()),
+  retentionObserved: v.optional(v.array(v.number())),
+  trialStarts: v.number(),
+  trialConversions: v.number(),
+  trialsPending: v.number(),
+  trialsUnobserved: v.optional(v.number()),
+  observedThrough: v.string(),
+});
+
+const revenueMetricsResponse = v.object({
+  days: v.array(
+    v.object({
+      day: v.string(),
+      currency: v.string(),
+      productId: v.string(),
+      platform: platformValidator,
+      activeSubs: v.number(),
+      activeHistoryComplete: v.optional(v.boolean()),
+      activeTrials: v.optional(v.number()),
+      newSubs: v.number(),
+      trialStarts: v.optional(v.number()),
+      trialConversions: v.optional(v.number()),
+      directPaidStarts: v.optional(v.number()),
+      renewals: v.number(),
+      cancellations: v.number(),
+      expirations: v.optional(v.number()),
+      refunds: v.number(),
+      revenueMicros: v.number(),
+      refundedMicros: v.optional(v.number()),
+    }),
+  ),
+  // Every value in the window, for the dashboard's filter dropdowns.
+  currencies: v.array(v.string()),
+  productIds: v.array(v.string()),
+  platforms: v.array(platformValidator),
+  // The scan hit REVENUE_SCAN_CAP; the dashboard shows a banner.
+  truncated: v.boolean(),
+  environment: receiptEnvironmentValidator,
+  dataState: analyticsDataStateValidator,
+  lastRunAt: v.optional(v.number()),
+  // Days from here on follow the current definitions; earlier rows mix
+  // sandbox into production and have no trial split.
+  definitionsFromDay: v.optional(v.string()),
+  // Days from here on separate free trials, trial conversions, unpaid trial
+  // expirations, refund reversals and Apple resubscribes. Earlier days omit
+  // the counters that need them; unset when every day has them.
+  trialSplitFromDay: v.optional(v.string()),
+  // Notifications that arrived after their day's rollup and are waiting for
+  // a catch-up recompute.
+  pendingLateEvents: v.number(),
+  oldestPendingLateDay: v.optional(v.string()),
+  cohorts: v.optional(v.array(revenueCohortShape)),
+  cohortsComputedAt: v.optional(v.number()),
+});
+
+// `days` returns every row, and a Convex array holds at most 8,192 items: about
+// 92 days of 30 SKUs × 3 currencies on one platform. Hitting it sets
+// `truncated`.
+const REVENUE_SCAN_CAP = 8_192;
 
 export const getRevenueMetrics = query({
   args: {
@@ -732,31 +958,13 @@ export const getRevenueMetrics = query({
     // No product, currency or platform args: the dashboard filters client-side
     // and fills its dropdowns from the unfiltered rows. Add a separate query if
     // another caller needs narrowing.
+    environment: v.optional(receiptEnvironmentValidator),
+    includeCohorts: v.optional(v.boolean()),
   },
-  returns: v.object({
-    days: v.array(
-      v.object({
-        day: v.string(),
-        currency: v.string(),
-        productId: v.string(),
-        platform: platformValidator,
-        activeSubs: v.number(),
-        newSubs: v.number(),
-        renewals: v.number(),
-        cancellations: v.number(),
-        refunds: v.number(),
-        revenueMicros: v.number(),
-      }),
-    ),
-    // Every value in the window, for the dashboard's filter dropdowns.
-    currencies: v.array(v.string()),
-    productIds: v.array(v.string()),
-    platforms: v.array(platformValidator),
-    // The scan hit REVENUE_SCAN_CAP; the dashboard shows a banner.
-    truncated: v.boolean(),
-  }),
-  handler: async (ctx, args) => {
-    const project = await projectForReadArgs(ctx, args, "admin");
+  returns: revenueMetricsResponse,
+  handler: async (ctx, args): Promise<Infer<typeof revenueMetricsResponse>> => {
+    const project = await projectForAdminRead(ctx, args);
+    const environment = args.environment ?? "Production";
     if (!project) {
       return {
         days: [],
@@ -764,11 +972,15 @@ export const getRevenueMetrics = query({
         productIds: [],
         platforms: [],
         truncated: false,
+        environment,
+        dataState: "not_collected" as const,
+        pendingLateEvents: 0,
       };
     }
 
-    // Cap at the dashboard's longest preset (`RANGES` in analytics.tsx; change
-    // both together) so a client cannot load every rollup row.
+    // Cap at the dashboard's longest preset plus the day before it (`RANGES`
+    // in analytics.tsx; change both together) so a client cannot load every
+    // rollup row.
     const MAX_RANGE_DAYS = 92;
     if (args.fromDay > args.toDay) {
       throw new Error(
@@ -789,76 +1001,367 @@ export const getRevenueMetrics = query({
       );
     }
 
-    // Below Convex's 32k per-query scan limit, and above 92 days of 30 SKUs
-    // × 3 currencies × 2 platforms (~16.5k rows). Hitting it sets `truncated`.
-    const REVENUE_SCAN_CAP = 20_000;
-    const allRows = await ctx.db
-      .query("revenueMetricsDaily")
-      .withIndex("by_project_and_day_and_currency", (q) =>
-        q
-          .eq("projectId", project._id)
-          .gte("day", args.fromDay)
-          .lte("day", args.toDay),
-      )
-      .take(REVENUE_SCAN_CAP);
-    const truncated = allRows.length === REVENUE_SCAN_CAP;
+    // Rows from before the environment split have none and count as
+    // production.
+    const environmentKeys =
+      environment === "Production"
+        ? (["Production", undefined] as const)
+        : (["Sandbox"] as const);
+    // Newest first, so a full window drops its oldest days, and legacy rows,
+    // the oldest of all, go before any current one.
+    const rows: Doc<"revenueMetricsDaily">[] = [];
+    for (const key of environmentKeys) {
+      rows.push(
+        ...(await ctx.db
+          .query("revenueMetricsDaily")
+          .withIndex("by_project_and_environment_and_day", (q) =>
+            q
+              .eq("projectId", project._id)
+              .eq("environment", key)
+              .gte("day", args.fromDay)
+              .lte("day", args.toDay),
+          )
+          .order("desc")
+          .take(REVENUE_SCAN_CAP + 1 - rows.length)),
+      );
+    }
+    const truncated = rows.length > REVENUE_SCAN_CAP;
+    if (truncated) {
+      // The day the cap cut into is partial, which would skew its totals and
+      // churn base, so it goes whole unless it is the only day left.
+      const cutDay = rows[REVENUE_SCAN_CAP].day;
+      const keep = rows.findIndex((row) => row.day <= cutDay);
+      rows.splice(keep > 0 ? keep : REVENUE_SCAN_CAP);
+    }
+    // Return main's day order.
+    rows.sort(
+      (a, b) =>
+        a.day.localeCompare(b.day) ||
+        a.currency.localeCompare(b.currency) ||
+        a._creationTime - b._creationTime,
+    );
     if (truncated) {
       console.warn(
-        `[getRevenueMetrics] revenueMetricsDaily scan hit REVENUE_SCAN_CAP=${REVENUE_SCAN_CAP} for project=${project._id} range=${args.fromDay}..${args.toDay}; chart will undercount the tail.`,
+        `[getRevenueMetrics] revenueMetricsDaily scan hit REVENUE_SCAN_CAP=${REVENUE_SCAN_CAP} for project=${project._id} environment=${environment} range=${args.fromDay}..${args.toDay}; the oldest days are missing.`,
       );
     }
 
     const currencies = new Set<string>();
     const productIds = new Set<string>();
     const platforms = new Set<"IOS" | "Android">();
-    for (const row of allRows) {
+    for (const row of rows) {
       if (row.currency) currencies.add(row.currency);
       productIds.add(row.productId);
       platforms.add(row.platform);
     }
 
+    const status = await ctx.db
+      .query("revenueMetricsRunStatus")
+      .withIndex("by_project", (q) => q.eq("projectId", project._id))
+      .unique();
+    const dataState = await revenueDataState(ctx, {
+      projectId: project._id,
+      environment,
+      hasRows: rows.some(
+        (row) =>
+          row.activeHistoryUnknown !== 0 ||
+          REVENUE_COUNTERS.some((key) => (row[key] ?? 0) !== 0),
+      ),
+      toDay: args.toDay,
+      status,
+    });
+    const cohorts = args.includeCohorts
+      ? await revenueCohorts(ctx, project._id, environment)
+      : undefined;
+    const trialSplitFromDay = status?.trialSplitFromDay;
+
     return {
-      days: allRows.map((row) => ({
+      days: rows.map((row) => ({
         day: row.day,
         currency: row.currency,
         productId: row.productId,
         platform: row.platform,
         activeSubs: row.activeSubs,
+        activeHistoryComplete: row.activeHistoryUnknown === 0,
         newSubs: row.newSubs,
         renewals: row.renewals,
         cancellations: row.cancellations,
         refunds: row.refunds,
         revenueMicros: row.revenueMicros,
+        refundedMicros: row.refundedMicros,
+        // These need the free-trial flags notifications carry from
+        // `trialSplitFromDay` on, so earlier days omit them.
+        ...(trialSplitFromDay === undefined || row.day >= trialSplitFromDay
+          ? {
+              activeTrials: row.activeTrials,
+              trialStarts: row.trialStarts,
+              trialConversions: row.trialConversions,
+              directPaidStarts: row.directPaidStarts,
+              expirations: row.expirations,
+            }
+          : {}),
       })),
       currencies: Array.from(currencies).sort(),
       productIds: Array.from(productIds).sort(),
       platforms: Array.from(platforms).sort(),
       truncated,
+      environment,
+      dataState,
+      lastRunAt: status?.lastRunAt,
+      definitionsFromDay: status?.definitionsFromDay,
+      trialSplitFromDay,
+      pendingLateEvents: status?.pendingLateEvents ?? 0,
+      oldestPendingLateDay: status?.oldestPendingLateDay,
+      ...(cohorts
+        ? { cohorts, cohortsComputedAt: status?.cohortsComputedAt }
+        : {}),
     };
   },
 });
 
-async function loadPeriodByProductId(
+// Rows alone never mean collected: a project that only calls verify still gets
+// activeSubs rows, but its event counters would read as real zeros.
+async function revenueDataState(
+  ctx: QueryCtx,
+  args: {
+    projectId: Id<"projects">;
+    environment: Infer<typeof receiptEnvironmentValidator>;
+    hasRows: boolean;
+    toDay: string;
+    status: Doc<"revenueMetricsRunStatus"> | null;
+  },
+): Promise<Infer<typeof analyticsDataStateValidator>> {
+  const status = args.status;
+  if (
+    status?.lastRunAt === undefined ||
+    status.definitionsVersion !== ROLLUP_DEFINITIONS_VERSION
+  ) {
+    // No finished run has looked for store notifications yet. Oldest rows
+    // only, so new notifications never invalidate this query.
+    const anyEvent = await ctx.db
+      .query("webhookEvents")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .first();
+    return anyEvent ? "processing" : "not_collected";
+  }
+  if (status.lastNotificationAt?.[args.environment] === undefined) {
+    return "not_collected";
+  }
+  if (args.hasRows) return "ready";
+  if (args.toDay > new Date(status.lastRunAt).toISOString().slice(0, 10)) {
+    return "processing";
+  }
+  return "zero";
+}
+
+async function revenueCohorts(
   ctx: QueryCtx,
   projectId: Id<"projects">,
-): Promise<Map<string, string | undefined>> {
-  const periodByProductId = new Map<string, string | undefined>();
-  for (const platform of ["IOS", "Android"] as const) {
-    const productRows = await ctx.db
-      .query("products")
-      .withIndex("by_project_and_platform", (q) =>
-        q.eq("projectId", projectId).eq("platform", platform),
-      )
-      .collect();
-    for (const product of productRows) {
-      if (
-        !periodByProductId.has(product.productId) ||
-        (periodByProductId.get(product.productId) === undefined &&
-          product.billingPeriod !== undefined)
-      ) {
-        periodByProductId.set(product.productId, product.billingPeriod);
-      }
-    }
-  }
-  return periodByProductId;
+  environment: Infer<typeof receiptEnvironmentValidator>,
+): Promise<Array<Infer<typeof revenueCohortShape>>> {
+  // Rebuilt as a whole each day: at most COHORT_MONTHS × 2 × currencies rows.
+  const rows = await ctx.db
+    .query("revenueCohortsMonthly")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .collect();
+  return rows
+    .filter((row) => row.environment === environment)
+    .sort((a, b) =>
+      a.month !== b.month
+        ? a.month.localeCompare(b.month)
+        : a.currency.localeCompare(b.currency),
+    )
+    .map((row) => ({
+      month: row.month,
+      currency: row.currency,
+      members: row.members,
+      revenueMicros: row.revenueMicros,
+      refundedMicros: row.refundedMicros,
+      realizedLtvMicros:
+        row.members > 0 ? Math.round(row.revenueMicros / row.members) : 0,
+      retained: row.retained,
+      retentionObserved: row.retentionObserved,
+      trialStarts: row.trialStarts,
+      trialConversions: row.trialConversions,
+      trialsPending: row.trialsPending,
+      trialsUnobserved: row.trialsUnobserved,
+      observedThrough: row.observedThrough,
+    }));
 }
+
+const TIMELINE_ROWS_PER_KIND = 50;
+
+const timelineItemValidator = v.union(
+  v.object({
+    kind: v.literal("purchase"),
+    id: v.id("purchases"),
+    at: v.number(),
+    store: purchaseStoreValidator,
+    productId: v.optional(v.string()),
+    state: v.string(),
+    isValid: v.boolean(),
+  }),
+  v.object({
+    kind: v.literal("subscription"),
+    id: v.id("subscriptions"),
+    at: v.number(),
+    store: purchaseStoreValidator,
+    productId: v.string(),
+    state: subscriptionStateValidator,
+    expiresAt: v.optional(v.number()),
+    willRenew: v.optional(v.boolean()),
+  }),
+  v.object({
+    kind: v.literal("event"),
+    id: v.id("commerceEvents"),
+    at: v.number(),
+    store: purchaseStoreValidator,
+    eventType: v.string(),
+    productId: v.optional(v.string()),
+  }),
+  v.object({
+    kind: v.literal("issue"),
+    id: v.id("purchaseIssues"),
+    at: v.number(),
+    store: purchaseStoreValidator,
+    cause: purchaseIssueCauseValidator,
+    productId: v.optional(v.string()),
+    count: v.number(),
+  }),
+);
+export type TimelineItem = Infer<typeof timelineItemValidator>;
+
+/**
+ * One app user's purchases, subscriptions, commerce events and purchase
+ * issues, newest first. Each kind is capped at 50 rows; `truncated` says a cap
+ * was reached.
+ */
+export const userTimeline = query({
+  args: {
+    projectId: v.optional(v.id("projects")),
+    apiKey: v.optional(v.string()),
+    appUserId: v.string(),
+  },
+  returns: v.object({
+    appUserId: v.string(),
+    items: v.array(timelineItemValidator),
+    truncated: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const project = await resolveOperatorProject(ctx, args, "read");
+    if (!isValidSubscriptionUserId(args.appUserId)) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: `appUserId must be 1 to ${MAX_SUBSCRIPTION_USER_ID_LENGTH} characters`,
+      });
+    }
+    const take = TIMELINE_ROWS_PER_KIND + 1;
+    const [updatedPurchases, legacyPurchases, subscriptions, events, issues] =
+      await Promise.all([
+        ctx.db
+          .query("purchases")
+          .withIndex("by_project_and_app_user_and_updated", (q) =>
+            q
+              .eq("projectId", project._id)
+              .eq("appUserId", args.appUserId)
+              .gt("updatedAt", undefined),
+          )
+          .order("desc")
+          .take(take),
+        ctx.db
+          .query("purchases")
+          .withIndex("by_project_and_app_user_and_updated", (q) =>
+            q
+              .eq("projectId", project._id)
+              .eq("appUserId", args.appUserId)
+              .eq("updatedAt", undefined),
+          )
+          .order("desc")
+          .take(take),
+        ctx.db
+          .query("subscriptions")
+          .withIndex("by_project_and_user_and_updated", (q) =>
+            q.eq("projectId", project._id).eq("userId", args.appUserId),
+          )
+          .order("desc")
+          .take(take),
+        ctx.db
+          .query("commerceEvents")
+          .withIndex("by_project_and_user_and_occurred", (q) =>
+            q.eq("projectId", project._id).eq("userId", args.appUserId),
+          )
+          .order("desc")
+          .take(take),
+        ctx.db
+          .query("purchaseIssues")
+          .withIndex("by_project_and_appUserId_and_lastSeenAt", (q) =>
+            q.eq("projectId", project._id).eq("appUserId", args.appUserId),
+          )
+          .order("desc")
+          .take(take),
+      ]);
+    const purchases = [...updatedPurchases, ...legacyPurchases]
+      .sort(
+        (a, b) =>
+          (b.updatedAt ?? b._creationTime) - (a.updatedAt ?? a._creationTime),
+      )
+      .slice(0, take);
+    const items: TimelineItem[] = [
+      ...purchases.slice(0, TIMELINE_ROWS_PER_KIND).map(
+        (purchase): TimelineItem => ({
+          kind: "purchase",
+          id: purchase._id,
+          at: purchase.updatedAt ?? purchase._creationTime,
+          store: purchase.store,
+          ...(purchase.productId ? { productId: purchase.productId } : {}),
+          state: purchase.state,
+          isValid: purchase.isValid ?? false,
+        }),
+      ),
+      ...subscriptions.slice(0, TIMELINE_ROWS_PER_KIND).map(
+        (subscription): TimelineItem => ({
+          kind: "subscription",
+          id: subscription._id,
+          at: subscription.updatedAt,
+          store: storeOf(subscription),
+          productId: subscription.productId,
+          state: subscription.state,
+          ...(subscription.expiresAt !== undefined
+            ? { expiresAt: subscription.expiresAt }
+            : {}),
+          ...(subscription.willRenew !== undefined
+            ? { willRenew: subscription.willRenew }
+            : {}),
+        }),
+      ),
+      ...events.slice(0, TIMELINE_ROWS_PER_KIND).map(
+        (event): TimelineItem => ({
+          kind: "event",
+          id: event._id,
+          at: event.occurredAt,
+          store: event.store,
+          eventType: event.eventType,
+          ...(event.productId ? { productId: event.productId } : {}),
+        }),
+      ),
+      ...issues.slice(0, TIMELINE_ROWS_PER_KIND).map(
+        (issue): TimelineItem => ({
+          kind: "issue",
+          id: issue._id,
+          at: issue.lastSeenAt,
+          store: issue.store,
+          cause: issue.cause,
+          ...(issue.productId ? { productId: issue.productId } : {}),
+          count: issue.count,
+        }),
+      ),
+    ].sort((a, b) => b.at - a.at);
+    return {
+      appUserId: args.appUserId,
+      items,
+      truncated: [purchases, subscriptions, events, issues].some(
+        (rows) => rows.length > TIMELINE_ROWS_PER_KIND,
+      ),
+    };
+  },
+});

@@ -313,6 +313,75 @@ describe("kitClient", () => {
     );
   });
 
+  it("drives the client-payload draft, publish, history, and rollback routes", async () => {
+    const fetchMock = vi.fn(
+      async (_url: string, _init: RequestInit) =>
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const client = kitClient({
+      apiKey: "openiap-kit_sk_admin",
+      baseUrl: "https://kit.example",
+    });
+    const target = { productId: "premium/monthly", platform: "IOS" as const };
+
+    await client.getClientPayloadDraft(target);
+    await client.saveClientPayloadDraft({
+      ...target,
+      format: "json",
+      body: "{}",
+      expectedDraftRevision: 0,
+      expectedVersion: 3,
+    });
+    await client.publishClientPayload({
+      ...target,
+      expectedVersion: 3,
+      note: "Spring copy",
+    });
+    await client.listClientPayloadHistory(target);
+    await client.getClientPayloadVersion({ ...target, version: 2 });
+    await client.rollbackClientPayload({ ...target, toVersion: 2 });
+
+    const base =
+      "https://kit.example/v1/products/client-payload/premium%2Fmonthly";
+    const calls = fetchMock.mock.calls;
+    expect(
+      calls.map(([url, init]) => [url, init.method ?? "GET", init.body]),
+    ).toEqual([
+      [`${base}/draft?platform=IOS`, "GET", undefined],
+      [
+        `${base}/draft?platform=IOS`,
+        "PUT",
+        JSON.stringify({
+          format: "json",
+          body: "{}",
+          expectedDraftRevision: 0,
+          expectedVersion: 3,
+        }),
+      ],
+      [
+        `${base}/publish?platform=IOS`,
+        "POST",
+        JSON.stringify({ expectedVersion: 3, note: "Spring copy" }),
+      ],
+      [`${base}/history?platform=IOS`, "GET", undefined],
+      [`${base}/history/2?platform=IOS`, "GET", undefined],
+      [
+        `${base}/rollback?platform=IOS`,
+        "POST",
+        JSON.stringify({ toVersion: 2 }),
+      ],
+    ]);
+    for (const [, init] of calls) {
+      expect(init.headers).toMatchObject({
+        authorization: "Bearer openiap-kit_sk_admin",
+      });
+    }
+  });
+
   it("reads the durable client-payload editor revision", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(JSON.stringify({ expectedVersion: 4 }), {

@@ -74,6 +74,12 @@ export const DOCS_NAV: DocsNavEntry[] = [
       "Purchase verification, user-scoped subscription snapshots, responses, and errors.",
   },
   {
+    slug: "purchase-flow",
+    title: "Purchase flow",
+    summary:
+      "Backend-confirmed purchases: verify, link, grant once, then finish.",
+  },
+  {
     slug: "compatibility",
     title: "Version compatibility",
     summary: "How hosted /v1 responses remain safe for older app builds.",

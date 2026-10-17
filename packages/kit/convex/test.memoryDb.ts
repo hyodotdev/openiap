@@ -1,0 +1,269 @@
+// In-memory ctx.db for unit tests. Orders and ranges rows the way Convex does,
+// by the schema's index fields, _creationTime and _id, and reads return
+// snapshots. Not a convex-test substitute: it has no transactions, validators
+// or read limits. Two dots in the name keep it out of the Convex bundle.
+
+import { compareValues, getConvexSize, type Value } from "convex/values";
+
+import type { TableNames } from "./_generated/dataModel";
+import schema from "./schema";
+
+export type Row = Record<string, Value | undefined> & {
+  _id: string;
+  _creationTime: number;
+};
+
+type Operand = Value | undefined | ((row: Row) => Value | undefined);
+type Predicate = (row: Row) => boolean;
+
+const read = (operand: Operand, row: Row): Value | undefined =>
+  typeof operand === "function" ? operand(row) : operand;
+
+const compare = (
+  test: (order: number) => boolean,
+): ((left: Operand, right: Operand) => Predicate) => {
+  return (left, right) => (row) =>
+    test(compareValues(read(left, row), read(right, row)));
+};
+
+const filterBuilder = {
+  field: (name: string) => (row: Row) => row[name],
+  eq: compare((order) => order === 0),
+  gte: compare((order) => order >= 0),
+  lte: compare((order) => order <= 0),
+  and:
+    (...operands: Operand[]): Predicate =>
+    (row) =>
+      operands.every((operand) => read(operand, row) === true),
+  or:
+    (...operands: Operand[]): Predicate =>
+    (row) =>
+      operands.some((operand) => read(operand, row) === true),
+};
+
+function indexFields(table: TableNames, name: string): string[] {
+  if (name === "by_creation_time") return [];
+  const index = schema.tables[table][" indexes"]().find(
+    (candidate) => candidate.indexDescriptor === name,
+  );
+  if (!index) throw new Error(`${table} has no index ${name}`);
+  return index.fields;
+}
+
+type RangeBuilder = Record<
+  "eq" | "gt" | "gte" | "lt" | "lte",
+  (field: string, value: Value | undefined) => RangeBuilder
+>;
+
+class MemoryQuery {
+  private fields: string[] = [];
+  private predicates: Predicate[] = [];
+  private descending = false;
+
+  constructor(
+    private table: TableNames,
+    private source: Row[],
+  ) {}
+
+  withIndex(name: string, range?: (q: RangeBuilder) => unknown): this {
+    this.fields = indexFields(this.table, name);
+    const bound =
+      (test: (order: number) => boolean) =>
+      (field: string, value: Value | undefined) => {
+        this.predicates.push((row) => test(compareValues(row[field], value)));
+        return q;
+      };
+    const q: RangeBuilder = {
+      eq: bound((order) => order === 0),
+      gt: bound((order) => order > 0),
+      gte: bound((order) => order >= 0),
+      lt: bound((order) => order < 0),
+      lte: bound((order) => order <= 0),
+    };
+    range?.(q);
+    return this;
+  }
+
+  filter(build: (q: typeof filterBuilder) => Operand): this {
+    const operand = build(filterBuilder);
+    this.predicates.push((row) => read(operand, row) === true);
+    return this;
+  }
+
+  order(direction: "asc" | "desc"): this {
+    this.descending = direction === "desc";
+    return this;
+  }
+
+  private results(): Row[] {
+    const rows = this.source
+      .filter((row) => this.predicates.every((matches) => matches(row)))
+      .sort((a, b) => this.compareRows(a, b));
+    return this.descending ? rows.reverse() : rows;
+  }
+
+  private compareRows(a: Row, b: Row): number {
+    for (const field of [...this.fields, "_creationTime", "_id"]) {
+      const order = compareValues(a[field], b[field]);
+      if (order !== 0) return order;
+    }
+    return 0;
+  }
+
+  async take(count: number): Promise<Row[]> {
+    return this.results().slice(0, count).map(snapshot);
+  }
+
+  async first(): Promise<Row | null> {
+    const [row] = this.results();
+    return row ? snapshot(row) : null;
+  }
+
+  async unique(): Promise<Row | null> {
+    const rows = this.results();
+    if (rows.length > 1) throw new Error(`${this.table}: not unique`);
+    return rows[0] ? snapshot(rows[0]) : null;
+  }
+
+  async collect(): Promise<Row[]> {
+    return this.results().map(snapshot);
+  }
+
+  async paginate(options: {
+    numItems: number;
+    cursor: string | null;
+    maximumBytesRead?: number;
+  }) {
+    const boundary: Row | null =
+      options.cursor === null ? null : JSON.parse(options.cursor);
+    const rows = this.results().filter((row) => {
+      if (!boundary) return true;
+      const order = this.compareRows(row, boundary);
+      return this.descending ? order < 0 : order > 0;
+    });
+    const page: Row[] = [];
+    let bytes = 0;
+    for (const row of rows.slice(0, options.numItems)) {
+      page.push(row);
+      bytes += getConvexSize(row);
+      if (bytes >= (options.maximumBytesRead ?? Infinity)) break;
+    }
+    const last = page.at(-1);
+    return {
+      page: page.map(snapshot),
+      isDone: page.length >= rows.length,
+      continueCursor: last
+        ? JSON.stringify(
+            Object.fromEntries(
+              [...this.fields, "_creationTime", "_id"].map((field) => [
+                field,
+                last[field],
+              ]),
+            ),
+          )
+        : (options.cursor ?? "null"),
+    };
+  }
+}
+
+const snapshot = (row: Row): Row => structuredClone(row);
+
+// Ids here are `<table>_<suffix>`; table names have no underscore.
+const tableOf = (id: string): string => id.slice(0, id.indexOf("_"));
+
+export class MemoryDb {
+  readonly tables = new Map<string, Row[]>();
+  private clock = 0;
+
+  rows(table: TableNames): Row[] {
+    let rows = this.tables.get(table);
+    if (!rows) {
+      rows = [];
+      this.tables.set(table, rows);
+    }
+    return rows;
+  }
+
+  seed(table: TableNames, fields: Record<string, Value | undefined>): string {
+    const _id =
+      typeof fields._id === "string"
+        ? fields._id
+        : `${table}_${this.rows(table).length + 1}_${++this.clock}`;
+    this.rows(table).push({ ...fields, _id, _creationTime: ++this.clock });
+    return _id;
+  }
+
+  query(table: TableNames): MemoryQuery {
+    return new MemoryQuery(table, this.rows(table));
+  }
+
+  private locate(id: string): { rows: Row[]; index: number } | null {
+    for (const rows of this.tables.values()) {
+      const index = rows.findIndex((row) => row._id === id);
+      if (index >= 0) return { rows, index };
+    }
+    return null;
+  }
+
+  async get(id: string): Promise<Row | null> {
+    // Convex rejects a string that is no document id at all.
+    if (!(tableOf(id) in schema.tables)) throw new Error(`Invalid id: ${id}`);
+    const found = this.locate(id);
+    return found ? snapshot(found.rows[found.index]) : null;
+  }
+
+  normalizeId(table: TableNames, id: string): string | null {
+    return tableOf(id) === table ? id : null;
+  }
+
+  async insert(
+    table: TableNames,
+    fields: Record<string, Value | undefined>,
+  ): Promise<string> {
+    return this.seed(table, fields);
+  }
+
+  async patch(id: string, fields: Record<string, Value | undefined>) {
+    const found = this.locate(id);
+    if (!found) throw new Error(`missing row ${id}`);
+    const row = found.rows[found.index];
+    for (const [key, value] of Object.entries(fields)) {
+      if (value === undefined) delete row[key];
+      else row[key] = value;
+    }
+  }
+
+  async delete(id: string) {
+    const found = this.locate(id);
+    if (!found) throw new Error(`missing row ${id}`);
+    found.rows.splice(found.index, 1);
+  }
+}
+
+/** A mutation/query ctx over `db`, signed in as `userId` when given. */
+export function memoryCtx(db: MemoryDb, userId?: string) {
+  return {
+    db,
+    scheduler: { runAfter: async () => null },
+    auth: {
+      getUserIdentity: async () =>
+        userId
+          ? { subject: `${userId}|session`, tokenIdentifier: userId }
+          : null,
+    },
+  };
+}
+
+/** A project in an organization where `users_1` holds `role`. */
+export function seedProject(
+  db: MemoryDb,
+  role: "owner" | "admin" | "member",
+): void {
+  db.seed("organizations", { _id: "organizations_1" });
+  db.seed("projects", { _id: "projects_1", organizationId: "organizations_1" });
+  db.seed("organizationMembers", {
+    organizationId: "organizations_1",
+    userId: "users_1",
+    role,
+  });
+}

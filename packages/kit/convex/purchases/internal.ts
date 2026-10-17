@@ -30,16 +30,18 @@ import {
   MAX_BOUND_PURCHASES_PER_USER,
 } from "../subscriptions/limits";
 import { isUserErasureRequested } from "../subscriptions/erasure";
+import { recheckedBoundPurchases } from "./binding";
 import {
   purchaseRequestDataValidator,
   purchaseStoreValidator,
-  receiptEnvironmentValidator,
 } from "../schema";
+import { receiptEnvironmentValidator } from "../utils/validation";
 import {
   harmonizedPurchaseStateValidator,
   HarmonizedPurchaseState,
 } from "./purchaseState";
 import { recordVerificationUsageForOrganization } from "../organizations/internal";
+import { correlationIdOrUndefined } from "../utils/correlationId";
 import {
   applyPurchaseStatsDelta,
   deltaForCountedPurchaseRemoval,
@@ -79,6 +81,7 @@ export type SavePurchaseArgs = {
   persistIfChanged?: boolean;
   amazonRvsSequence?: number;
   amazonNotice?: AmazonLifecycleNotice;
+  correlationId?: string;
 };
 
 export async function savePurchaseInternal({
@@ -97,6 +100,7 @@ export async function savePurchaseInternal({
   persistIfChanged,
   amazonRvsSequence,
   amazonNotice,
+  correlationId: requestCorrelationId,
 }: SavePurchaseArgs) {
   // Verification can outlive the request that resolved its API key. Recheck
   // deletion here so a late write cannot recreate purchases the project or
@@ -111,6 +115,7 @@ export async function savePurchaseInternal({
   }
 
   const now = Date.now();
+  const correlationId = correlationIdOrUndefined(requestCorrelationId);
   const nextAmazonReconcileAt =
     store === "amazon" && isValid
       ? now + AMAZON_RECONCILE_INTERVAL_MS
@@ -160,6 +165,7 @@ export async function savePurchaseInternal({
       // orderId, Google reissues it as T2 and that call inserts a row with O1,
       // then a T1 replay also resolves to O1.
       let conflictDelta: PurchaseStatsDelta = {};
+      let savedOrderId = orderId;
       if (
         store === "google" &&
         orderId !== null &&
@@ -175,7 +181,21 @@ export async function savePurchaseInternal({
           )
           .first();
         if (conflict && conflict._id !== existing._id) {
-          conflictDelta = await collapseConflictingOrderIdRow(ctx, conflict);
+          if (
+            conflict.appUserId &&
+            existing.appUserId &&
+            conflict.appUserId !== existing.appUserId
+          ) {
+            // Two owners: deleting either row would drop a link, so the
+            // order stays on the row that holds it.
+            savedOrderId = null;
+          } else {
+            conflictDelta = await collapseConflictingOrderIdRow(
+              ctx,
+              conflict,
+              existing,
+            );
+          }
         }
       }
 
@@ -199,9 +219,10 @@ export async function savePurchaseInternal({
           nextAmazonReconcileAt,
           amazonRvsSequence,
           productId,
-          orderId,
+          orderId: savedOrderId,
           verificationDurationMs,
           requestIp,
+          correlationId,
         },
         conflictDelta,
       );
@@ -252,6 +273,7 @@ export async function savePurchaseInternal({
           orderId,
           verificationDurationMs,
           requestIp,
+          correlationId,
         },
       );
       await maybeEmitFirstReceiptEvent(ctx, projectId, store, result);
@@ -285,6 +307,7 @@ export async function savePurchaseInternal({
     ...(orderId !== null ? { orderId } : {}),
     ...(verificationDurationMs !== undefined ? { verificationDurationMs } : {}),
     ...(requestIp !== undefined ? { requestIp } : {}),
+    ...(correlationId !== undefined ? { correlationId } : {}),
   });
 
   const result = await applyPurchaseStatsDelta(
@@ -319,6 +342,7 @@ type PurchasePatchArgs = {
   orderId: string | null;
   verificationDurationMs?: number;
   requestIp?: string;
+  correlationId?: string;
 };
 
 /** Stats rollback for the row collapseConflictingOrderIdRow deletes. */
@@ -340,15 +364,38 @@ function deltaForConflictingRowRemoval(
 
 /**
  * Delete the row that already owns the orderId being patched onto the
- * primary-dedup hit, which always survives. Returns the stats delta to merge
- * into that patch, so `purchaseStats` is written once.
+ * primary-dedup hit, which always survives and inherits the deleted row's
+ * owner. Returns the stats delta to merge into that patch, so `purchaseStats`
+ * is written once.
  */
 async function collapseConflictingOrderIdRow(
   ctx: MutationCtx,
   row: Doc<"purchases">,
+  survivor: Doc<"purchases">,
 ): Promise<PurchaseStatsDelta> {
+  await inheritPurchaseOwner(ctx, survivor, row);
   await ctx.db.delete(row._id);
   return deltaForConflictingRowRemoval(row);
+}
+
+/**
+ * Moves a row's owner onto the row that replaces it. As in the subscription
+ * merge, a live owner wins and the erasure marker carries only when neither
+ * row has one. Callers must not merge rows owned by two different users.
+ */
+export async function inheritPurchaseOwner(
+  ctx: MutationCtx,
+  survivor: Doc<"purchases">,
+  row: Doc<"purchases">,
+): Promise<void> {
+  if (!survivor.appUserId && row.appUserId) {
+    await ctx.db.patch(survivor._id, {
+      appUserId: row.appUserId,
+      accountErased: undefined,
+    });
+  } else if (!survivor.appUserId && row.accountErased) {
+    await ctx.db.patch(survivor._id, { accountErased: true });
+  }
 }
 
 async function patchExistingPurchase(
@@ -412,6 +459,9 @@ async function patchExistingPurchase(
       ? { verificationDurationMs: args.verificationDurationMs }
       : {}),
     ...(args.requestIp !== undefined ? { requestIp: args.requestIp } : {}),
+    ...(args.correlationId !== undefined
+      ? { correlationId: args.correlationId }
+      : {}),
   });
   // Merge every delta so purchaseStats is read and written once per save.
   const patchDelta = deltaForUpdate(
@@ -496,6 +546,7 @@ const amazonVerdictArgs = v.object({
   amazonNotice: v.optional(amazonLifecycleNoticeValidator),
   requestIp: v.optional(v.string()),
   verificationDurationMs: v.optional(v.number()),
+  correlationId: v.optional(v.string()),
 });
 
 export async function saveAmazonVerdictHandler(
@@ -660,6 +711,7 @@ export const saveReceiptInternal = internalMutation({
     requestIp: v.optional(v.string()),
     verificationDurationMs: v.optional(v.number()),
     persistIfChanged: v.optional(v.boolean()),
+    correlationId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     assertStoreMatchesRequest(args.store, args.requestData);
@@ -678,6 +730,7 @@ export const saveReceiptInternal = internalMutation({
       requestIp: args.requestIp,
       verificationDurationMs: args.verificationDurationMs,
       persistIfChanged: args.persistIfChanged,
+      correlationId: args.correlationId,
     });
   },
 });
@@ -850,12 +903,12 @@ export const boundPurchasesForUser = internalQuery({
         message: "Project unavailable",
       });
     if (await isUserErasureRequested(ctx, project, args.userId)) return [];
-    const rows = await ctx.db
-      .query("purchases")
-      .withIndex("by_project_and_app_user", (q) =>
-        q.eq("projectId", args.projectId).eq("appUserId", args.userId),
-      )
-      .take(MAX_BOUND_PURCHASES_PER_USER + 1);
+    const rows = await recheckedBoundPurchases(
+      ctx,
+      args.projectId,
+      args.userId,
+      MAX_BOUND_PURCHASES_PER_USER + 1,
+    );
     // Binding enforces the cap, so passing it here means the stored rows drifted.
     // That is ours, not the caller's: never answer INVALID_REQUEST for it.
     if (rows.length > MAX_BOUND_PURCHASES_PER_USER)

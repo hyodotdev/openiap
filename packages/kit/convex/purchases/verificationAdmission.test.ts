@@ -1,11 +1,13 @@
+import { withVerificationSource } from "./verificationSource";
 import { Buffer } from "node:buffer";
 import { getFunctionName, type FunctionReference } from "convex/server";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   consume,
   ENTITLEMENT_RECHECK_CAPACITY,
   evaluateVerificationAdmission,
+  STORE_RESYNC_CAPACITY,
   VERIFICATION_ADMISSION_CAPACITY,
 } from "./verificationAdmission";
 import { verifyAmazonReceiptInternalV1 } from "./amazon";
@@ -175,6 +177,28 @@ describe("entitlement recheck admission", () => {
     );
   });
 
+  it("is never drained by a burst of store re-syncs", async () => {
+    vi.useFakeTimers({ now: 5_000 });
+    const { ctx, buckets } = admissionCtx([
+      { bucket: "entitlementRecheck", tokens: 30, refilledAt: 5_000 },
+    ]);
+    const resync = () =>
+      testableFunction(consume)._handler(ctx, {
+        projectId: PROJECT_ID,
+        bucket: "storeResync",
+      });
+    for (let index = 0; index < STORE_RESYNC_CAPACITY; index += 1) {
+      await resync();
+    }
+    await expect(resync()).rejects.toMatchObject({
+      data: { code: "RATE_LIMITED" },
+    });
+    expect(buckets).toEqual([
+      expect.objectContaining({ bucket: "entitlementRecheck", tokens: 30 }),
+      expect.objectContaining({ bucket: "storeResync", tokens: 0 }),
+    ]);
+  });
+
   it("creates a project's bucket on first use without writing the project", async () => {
     vi.useFakeTimers({ now: 5_000 });
     const { ctx, buckets } = admissionCtx([]);
@@ -262,28 +286,40 @@ function appleJws(bundleId: string): string {
 }
 
 const verifyApple = (jws: string) => (ctx: unknown) =>
-  testableFunction(verifyAppStoreReceiptInternalV1)._handler(ctx, {
-    apiKey: API_KEY,
-    jws,
-  });
+  testableFunction(verifyAppStoreReceiptInternalV1)._handler(
+    ctx,
+    withVerificationSource("apple", {
+      apiKey: API_KEY,
+      jws,
+    }),
+  );
 const verifyGoogle = (ctx: unknown) =>
-  testableFunction(verifyGooglePlayReceiptInternalV1)._handler(ctx, {
-    apiKey: API_KEY,
-    purchaseToken: "token",
-  });
+  testableFunction(verifyGooglePlayReceiptInternalV1)._handler(
+    ctx,
+    withVerificationSource("google", {
+      apiKey: API_KEY,
+      purchaseToken: "token",
+    }),
+  );
 const verifyHorizon = (ctx: unknown) =>
-  testableFunction(verifyMetaHorizonReceiptInternalV1)._handler(ctx, {
-    apiKey: API_KEY,
-    userId: "meta-user",
-    sku: "premium",
-  });
+  testableFunction(verifyMetaHorizonReceiptInternalV1)._handler(
+    ctx,
+    withVerificationSource("horizon", {
+      apiKey: API_KEY,
+      userId: "meta-user",
+      sku: "premium",
+    }),
+  );
 const verifyAmazon = (sandbox: boolean) => (ctx: unknown) =>
-  testableFunction(verifyAmazonReceiptInternalV1)._handler(ctx, {
-    apiKey: API_KEY,
-    userId: "amzn-user",
-    receiptId: "amzn-receipt",
-    sandbox,
-  });
+  testableFunction(verifyAmazonReceiptInternalV1)._handler(
+    ctx,
+    withVerificationSource("amazon", {
+      apiKey: API_KEY,
+      userId: "amzn-user",
+      receiptId: "amzn-receipt",
+      sandbox,
+    }),
+  );
 
 type StoreCase = {
   name: string;
@@ -291,7 +327,8 @@ type StoreCase = {
   verify: (ctx: unknown) => Promise<unknown>;
 };
 
-// A store context whose only reachable calls are the key lookup and admission.
+// A store context whose only reachable calls are the key lookups, admission,
+// and the purchase-issue record a rejection schedules.
 function storeContext(project: Record<string, unknown>) {
   vi.useFakeTimers({ now: 1_000 });
   const { ctx: admission } = admissionCtx([
@@ -300,68 +337,102 @@ function storeContext(project: Record<string, unknown>) {
   const unexpected = (reference: FunctionReference<"query" | "mutation">) => {
     throw new Error(`unexpected call: ${getFunctionName(reference)}`);
   };
+  const issues: Array<{ cause: string }> = [];
+  let admissionCalls = 0;
   return {
-    runQuery: vi.fn(async (reference: FunctionReference<"query">) =>
-      getFunctionName(reference) === "projects/internal:getProjectByApiKey"
-        ? { _id: PROJECT_ID, ...project }
-        : unexpected(reference),
-    ),
+    issues,
+    admissionCalls: () => admissionCalls,
+    runQuery: vi.fn(async (reference: FunctionReference<"query">) => {
+      switch (getFunctionName(reference)) {
+        case "projects/internal:getProjectByApiKey":
+          return { _id: PROJECT_ID, ...project };
+        case "purchaseIssues/internal:issueRecordTarget":
+          return PROJECT_ID;
+        default:
+          return unexpected(reference);
+      }
+    }),
     runMutation: vi.fn(
       async (
         reference: FunctionReference<"mutation">,
         args: { projectId: Id<"projects"> },
-      ) =>
-        getFunctionName(reference) === "purchases/verificationAdmission:consume"
-          ? await testableFunction(consume)._handler(admission, args)
-          : unexpected(reference),
+      ) => {
+        if (
+          getFunctionName(reference) !==
+          "purchases/verificationAdmission:consume"
+        ) {
+          return unexpected(reference);
+        }
+        admissionCalls += 1;
+        return await testableFunction(consume)._handler(admission, args);
+      },
     ),
+    scheduler: {
+      runAfter: vi.fn(
+        async (
+          _delay: number,
+          reference: FunctionReference<"mutation">,
+          args: { issue: { cause: string } },
+        ) => {
+          if (getFunctionName(reference) !== "purchaseIssues/internal:record")
+            return unexpected(reference);
+          issues.push(args.issue);
+        },
+      ),
+    },
   };
 }
 
 describe("verification admission order", () => {
-  const rejected: Array<StoreCase & { errorCode: string }> = [
+  const rejected: Array<StoreCase & { errorCode: string; cause: string }> = [
     {
       name: "a malformed Apple JWS",
       project: APPLE_PROJECT,
       verify: verifyApple("not-a-jws"),
       errorCode: "APP_STORE_INVALID_JWS_FORMAT",
+      cause: "MALFORMED_EVIDENCE",
     },
     {
       name: "an Apple JWS for another app",
       project: APPLE_PROJECT,
       verify: verifyApple(appleJws("com.example.other")),
       errorCode: "APP_STORE_BUNDLE_ID_MISMATCH",
+      cause: "APP_MISMATCH",
     },
     {
       name: "a Google request to a project without an Android app",
       project: {},
       verify: verifyGoogle,
       errorCode: "PROJECT_ANDROID_PACKAGE_NAME_NOT_CONFIGURED",
+      cause: "STORE_NOT_CONFIGURED",
     },
     {
       name: "a Horizon request to a project without Horizon",
       project: {},
       verify: verifyHorizon,
       errorCode: "META_HORIZON_NOT_ENABLED",
+      cause: "STORE_NOT_CONFIGURED",
     },
     {
       name: "an Amazon sandbox request without the opt-in",
       project: { amazonSharedSecret: "secret" },
       verify: verifyAmazon(true),
       errorCode: "AMAZON_SANDBOX_NOT_ENABLED",
+      cause: "SANDBOX_NOT_ALLOWED",
     },
   ];
 
   it.each(rejected)(
     "rejects $name without charging the bucket",
-    async ({ project, verify, errorCode }) => {
+    async ({ project, verify, errorCode, cause }) => {
       const fetch = vi.fn();
       vi.stubGlobal("fetch", fetch);
       const ctx = storeContext(project);
 
       // An empty bucket would answer RATE_LIMITED if it were charged first.
       await expect(verify(ctx)).rejects.toMatchObject({ errorCode });
-      expect(ctx.runMutation).not.toHaveBeenCalled();
+      expect(ctx.admissionCalls()).toBe(0);
+      expect(ctx.issues.map((issue) => issue.cause)).toEqual([cause]);
       expect(fetch).not.toHaveBeenCalled();
     },
   );
@@ -403,8 +474,15 @@ describe("verification admission order", () => {
       await expect(verify(ctx)).rejects.toMatchObject({
         data: { code: "RATE_LIMITED" },
       });
-      expect(ctx.runMutation).toHaveBeenCalledTimes(1);
+      expect(ctx.admissionCalls()).toBe(1);
+      expect(ctx.issues.map((issue) => issue.cause)).toEqual(["RATE_LIMITED"]);
       expect(fetch).not.toHaveBeenCalled();
     },
   );
 });
+
+// Synthetic service credential for this isolated verification transport fixture.
+beforeEach(() =>
+  vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "d".repeat(64)),
+);
+afterEach(() => vi.unstubAllEnvs());

@@ -1,3 +1,4 @@
+import { withVerificationSource } from "./verificationSource";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { testableFunction } from "../test.setup";
@@ -18,6 +19,7 @@ import {
   AmazonSandboxNotEnabledError,
   AmazonSharedSecretNotConfiguredError,
 } from "./errors";
+import { purchaseDigest } from "../purchaseIssues/evidence";
 import { HarmonizedPurchaseState } from "./purchaseState";
 import {
   isValidState,
@@ -70,9 +72,11 @@ function actionContext(projectRow = project()) {
     }
     return 1;
   });
+  const runAfter = vi.fn().mockResolvedValue(null);
   return {
-    ctx: { runQuery, runMutation } as never,
+    ctx: { runQuery, runMutation, scheduler: { runAfter } } as never,
     runMutation,
+    runAfter,
   };
 }
 
@@ -89,12 +93,15 @@ function savedReceipts(runMutation: ReturnType<typeof vi.fn>) {
 }
 
 async function runVerify(ctx: never, overrides: Record<string, unknown> = {}) {
-  return await testableFunction(verifyAmazonReceiptInternalV1)._handler(ctx, {
-    apiKey: "iapkit_test_key",
-    userId: USER_ID,
-    receiptId: RECEIPT_ID,
-    ...overrides,
-  });
+  return await testableFunction(verifyAmazonReceiptInternalV1)._handler(
+    ctx,
+    withVerificationSource("amazon", {
+      apiKey: "iapkit_test_key",
+      userId: USER_ID,
+      receiptId: RECEIPT_ID,
+      ...overrides,
+    }),
+  );
 }
 
 describe("buildAmazonRemoteId", () => {
@@ -346,6 +353,41 @@ describe("verifyAmazonReceiptInternalV1", () => {
         state: HarmonizedPurchaseState.ENTITLED,
       }),
     );
+  });
+
+  test("records a sandbox mismatch under the fingerprint of the purchase it saved", async () => {
+    const { ctx, runMutation, runAfter } = actionContext(
+      project({ amazonSandboxEnabled: true }),
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify(validReceipt()))),
+    );
+
+    await runVerify(ctx, {
+      sandbox: true,
+      expectedProductId: "different.product",
+    });
+
+    const [saved] = savedReceipts(runMutation);
+    expect(saved.remoteId).toBe(
+      buildAmazonRemoteId({
+        userId: USER_ID,
+        receiptId: RECEIPT_ID,
+        sandbox: true,
+      }),
+    );
+    expect(runAfter).toHaveBeenCalledWith(0, expect.anything(), {
+      projectId: expect.anything(),
+      issue: {
+        cause: "PRODUCT_MISMATCH",
+        store: "amazon",
+        digest: await purchaseDigest("amazon", String(saved.remoteId)),
+        productId: PRODUCT_ID,
+        claimedProductId: "different.product",
+        environment: "Sandbox",
+      },
+    });
   });
 
   test.each([
@@ -832,3 +874,9 @@ describe("entitlement rechecks of a rejected receipt", () => {
     });
   });
 });
+
+// Synthetic service credential for this isolated verification transport fixture.
+beforeEach(() =>
+  vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "c".repeat(64)),
+);
+afterEach(() => vi.unstubAllEnvs());

@@ -52,13 +52,14 @@ describe("selectActiveWebhookPublishableKey", () => {
 });
 
 describe("projectForDashboard", () => {
-  it("removes verification and erasure secrets with the store secrets", () => {
+  it("removes verification, erasure and fingerprint secrets with the store secrets", () => {
     const result = projectForDashboard({
       _id: "projects_1",
       apiKey: "legacy-secret",
       horizonAppSecret: "horizon-secret",
       amazonSharedSecret: "amazon-secret",
       userErasureHashKey: "erasure-secret",
+      fingerprintSalt: "fingerprint-secret",
       verificationAdmissionTokens: 10,
       verificationAdmissionRefilledAt: 1_000,
       entitlementRecheckTokens: 7,
@@ -69,6 +70,7 @@ describe("projectForDashboard", () => {
     expect(result).not.toHaveProperty("horizonAppSecret");
     expect(result).not.toHaveProperty("amazonSharedSecret");
     expect(result).not.toHaveProperty("userErasureHashKey");
+    expect(result).not.toHaveProperty("fingerprintSalt");
     expect(result).not.toHaveProperty("verificationAdmissionTokens");
     expect(result).not.toHaveProperty("verificationAdmissionRefilledAt");
     expect(result).not.toHaveProperty("entitlementRecheckTokens");

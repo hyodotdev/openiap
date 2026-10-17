@@ -286,10 +286,8 @@ public sealed class KitApiClient
     public string BaseUrl { get; }
 
     /// <summary>
-    /// GET /v1/subscriptions/status/{apiKey}?userId=... — compatibility read.
-    /// Deprecated, advisory only: new account reads must authenticate the
-    /// user on a developer backend and call the secret-only, tokenless
-    /// /v2/subscriptions/status.
+    /// Retired mobile account path (410). Use an authenticated app backend
+    /// with secret-only v2 reads. https://kit.openiap.dev/docs/api
     /// </summary>
     public Task<StatusResponse> StatusAsync(string userId, CancellationToken cancellationToken = default)
         => CallAsync<StatusResponse>(
@@ -298,10 +296,8 @@ public sealed class KitApiClient
             cancellationToken);
 
     /// <summary>
-    /// GET /v1/subscriptions/entitlements/{apiKey}?userId=... — compatibility
-    /// read. Deprecated like the TypeScript kit clients, advisory only: new
-    /// account reads must authenticate the user on a developer backend and
-    /// call the secret-only, tokenless /v2/subscriptions/entitlements.
+    /// Retired mobile account path (410). Use an authenticated app backend
+    /// with secret-only v2 reads. https://kit.openiap.dev/docs/api
     /// </summary>
     public Task<EntitlementsResponse> EntitlementsAsync(string userId, CancellationToken cancellationToken = default)
         => CallAsync<EntitlementsResponse>(
@@ -359,7 +355,8 @@ public sealed class KitApiClient
             cancellationToken);
 
     /// <summary>
-    /// POST /v1/subscriptions/bind-user/{apiKey}
+    /// Retired mobile binding path (410). Bind on your authenticated backend
+    /// with a secret key. https://kit.openiap.dev/docs/api
     /// </summary>
     public Task<BindUserResponse> BindUserAsync(
         string purchaseToken,

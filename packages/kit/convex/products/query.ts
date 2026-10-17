@@ -1,13 +1,30 @@
 import { productLocalizationsValidator } from "./localizations";
 import { productRegionsValidator } from "./regions";
+import { playOfferPhaseId } from "./sync";
 import { internalQuery, query, type QueryCtx } from "../_generated/server";
 import { ConvexError, v, type Infer } from "convex/values";
-import type { Doc, Id } from "../_generated/dataModel";
+import type { Doc } from "../_generated/dataModel";
 
+import { apiKeyPreview } from "../apiKeys/helpers";
 import {
   resolveProjectByApiKeyFromDb,
   resolveProjectByIdForCurrentUserFromDb,
 } from "../projects/helpers";
+import { getActivePublishableApiKey } from "../projects/query";
+import {
+  buildPublicClientPayloadResponse,
+  clientPayloadEtagScope,
+} from "./clientPayloadHttp";
+import {
+  clientPayloadDraftStateValidator,
+  clientPayloadVersionSummaryValidator,
+  clientPayloadVersionValidator,
+  getClientPayloadVersion,
+  listClientPayloadVersions,
+  loadClientPayloadDraftState,
+  loadClientPayloadEditorState,
+  type ClientPayloadKey,
+} from "./clientPayloads";
 
 const offerShape = v.object({
   id: v.string(),
@@ -53,7 +70,6 @@ const conditionalClientPayloadShape = v.union(
   }),
   v.object({ status: v.literal("not_found") }),
 );
-type ClientPayloadEditorState = Infer<typeof clientPayloadEditorStateShape>;
 
 export const DEFAULT_CLIENT_PAYLOAD_PAGE_SIZE = 25;
 export const MAX_CLIENT_PAYLOAD_PAGE_SIZE = 50;
@@ -94,6 +110,34 @@ export const getCatalogPriceInternal = internalQuery({
       currency: product.currency,
       priceAmountMicros: product.priceAmountMicros,
     };
+  },
+});
+
+// Whether a Play offer opens with a free trial phase, from the synced catalog.
+// Null when the catalog does not list the offer.
+export const getCatalogOfferFreeTrialInternal = internalQuery({
+  args: {
+    projectId: v.id("projects"),
+    productId: v.string(),
+    basePlanId: v.string(),
+    offerId: v.string(),
+  },
+  returns: v.union(v.boolean(), v.null()),
+  handler: async (ctx, args) => {
+    const product = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", args.projectId)
+          .eq("platform", "Android")
+          .eq("productId", args.productId),
+      )
+      .unique();
+    const firstPhase = product?.offers?.find(
+      (offer) =>
+        offer.id === playOfferPhaseId(args.basePlanId, args.offerId, 0),
+    );
+    return firstPhase ? firstPhase.kind === "FreeTrial" : null;
   },
 });
 
@@ -246,11 +290,80 @@ export const getProductClientPayload = query({
   },
 });
 
+type PublicClientPayloadReader = {
+  project: Doc<"projects">;
+  keyType: "publishable" | "secret";
+};
+
+/** Whether the public GET serves any payload for this catalog product. */
+async function servesClientPayload(
+  ctx: QueryCtx,
+  reader: PublicClientPayloadReader,
+  platform: "IOS" | "Android",
+  productId: string,
+): Promise<boolean> {
+  const product = await ctx.db
+    .query("products")
+    .withIndex("by_project_and_platform_and_product", (q) =>
+      q
+        .eq("projectId", reader.project._id)
+        .eq("platform", platform)
+        .eq("productId", productId),
+    )
+    .unique();
+  return (
+    product !== null &&
+    isCatalogRowVisibleTo(reader.keyType, product) &&
+    product.state !== "Removed"
+  );
+}
+
 /**
- * App-facing conditional payload read. The body-free summary is checked before
- * the 16 KiB payload row, so a matching ETag still authenticates and verifies
- * catalog visibility but avoids reading or returning the body document.
+ * The app-facing payload read for a served product. The body-free summary is
+ * checked before the 16 KiB payload row, so a matching ETag avoids reading the
+ * body.
  */
+async function loadServedClientPayload(
+  ctx: QueryCtx,
+  reader: PublicClientPayloadReader,
+  platform: "IOS" | "Android",
+  productId: string,
+  knownVersion: number | undefined,
+): Promise<Infer<typeof conditionalClientPayloadShape>> {
+  const summary = await ctx.db
+    .query("productClientPayloadSummaries")
+    .withIndex("by_project_and_platform_and_product", (q) =>
+      q
+        .eq("projectId", reader.project._id)
+        .eq("platform", platform)
+        .eq("productId", productId),
+    )
+    .unique();
+  if (summary?.deleted === true) {
+    return { status: "not_found" };
+  }
+  if (
+    summary &&
+    knownVersion !== undefined &&
+    summary.version === knownVersion
+  ) {
+    return { status: "not_modified", version: summary.version };
+  }
+
+  const payload = await ctx.db
+    .query("productClientPayloads")
+    .withIndex("by_project_and_platform_and_product", (q) =>
+      q
+        .eq("projectId", reader.project._id)
+        .eq("platform", platform)
+        .eq("productId", productId),
+    )
+    .unique();
+  return payload
+    ? { status: "found", clientPayload: shapeClientPayload(payload) }
+    : { status: "not_found" };
+}
+
 export const getProductClientPayloadIfChanged = query({
   args: {
     apiKey: v.string(),
@@ -261,75 +374,57 @@ export const getProductClientPayloadIfChanged = query({
   returns: conditionalClientPayloadShape,
   handler: async (ctx, args) => {
     const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
-    if (!resolved) return { status: "not_found" } as const;
-
-    const product = await ctx.db
-      .query("products")
-      .withIndex("by_project_and_platform_and_product", (q) =>
-        q
-          .eq("projectId", resolved.project._id)
-          .eq("platform", args.platform)
-          .eq("productId", args.productId),
-      )
-      .unique();
     if (
-      !product ||
-      !isCatalogRowVisibleTo(resolved.keyType, product) ||
-      product.state === "Removed"
+      !resolved ||
+      !(await servesClientPayload(ctx, resolved, args.platform, args.productId))
     ) {
       return { status: "not_found" } as const;
     }
-
-    const summary = await ctx.db
-      .query("productClientPayloadSummaries")
-      .withIndex("by_project_and_platform_and_product", (q) =>
-        q
-          .eq("projectId", resolved.project._id)
-          .eq("platform", args.platform)
-          .eq("productId", args.productId),
-      )
-      .unique();
-    if (summary?.deleted === true) {
-      return { status: "not_found" } as const;
-    }
-    if (
-      summary &&
-      args.knownVersion !== undefined &&
-      summary.version === args.knownVersion
-    ) {
-      return { status: "not_modified", version: summary.version } as const;
-    }
-
-    const payload = await ctx.db
-      .query("productClientPayloads")
-      .withIndex("by_project_and_platform_and_product", (q) =>
-        q
-          .eq("projectId", resolved.project._id)
-          .eq("platform", args.platform)
-          .eq("productId", args.productId),
-      )
-      .unique();
-    return payload
-      ? ({
-          status: "found",
-          clientPayload: shapeClientPayload(payload),
-        } as const)
-      : ({ status: "not_found" } as const);
+    return await loadServedClientPayload(
+      ctx,
+      resolved,
+      args.platform,
+      args.productId,
+      args.knownVersion,
+    );
   },
 });
 
-/**
- * Authenticated editor read that exposes the durable OCC revision without
- * exposing tombstone metadata or bodies to API-key clients. A deleted payload
- * returns no `clientPayload`, but its monotonic `expectedVersion` lets the next
- * editor save create revision N+1 instead of resetting to 1.
- */
-export const getProductClientPayloadEditorState = query({
-  args: {
-    projectId: v.id("projects"),
-    platform: platformValidator,
-    productId: v.string(),
+const clientPayloadKeyArgs = {
+  platform: platformValidator,
+  productId: v.string(),
+};
+
+/** Everything the dashboard editor needs. */
+export const getProductClientPayloadWorkspace = query({
+  args: { projectId: v.id("projects"), ...clientPayloadKeyArgs },
+  returns: v.union(
+    v.object({
+      expectedVersion: v.number(),
+      clientPayload: v.optional(clientPayloadShape),
+      expectedDraftRevision: v.number(),
+      draft: clientPayloadDraftStateValidator.fields.draft,
+    }),
+    v.null(),
+  ),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByIdForCurrentUserFromDb(
+      ctx,
+      args.projectId,
+    );
+    if (!resolved) return null;
+    const key = clientPayloadKey(resolved.project, args);
+    const [published, draft] = await Promise.all([
+      loadClientPayloadEditorState(ctx, key),
+      loadClientPayloadDraftState(ctx, key),
+    ]);
+    return { ...published, ...draft };
   },
+});
+
+// The pre-draft dashboard's editor read; see upsertProductClientPayload.
+export const getProductClientPayloadEditorState = query({
+  args: { projectId: v.id("projects"), ...clientPayloadKeyArgs },
   returns: v.union(clientPayloadEditorStateShape, v.null()),
   handler: async (ctx, args) => {
     const resolved = await resolveProjectByIdForCurrentUserFromDb(
@@ -337,26 +432,16 @@ export const getProductClientPayloadEditorState = query({
       args.projectId,
     );
     if (!resolved) return null;
-
-    return loadProductClientPayloadEditorState(
+    return await loadClientPayloadEditorState(
       ctx,
-      resolved.project._id,
-      args.platform,
-      args.productId,
+      clientPayloadKey(resolved.project, args),
     );
   },
 });
 
-/**
- * Secret-key equivalent of the dashboard editor read. This lets MCP, CI, and
- * other trusted automation recover the durable OCC revision after deletion.
- */
+/** Secret-key editor read: the durable revision survives deletion. */
 export const getProductClientPayloadEditorStateWithApiKey = query({
-  args: {
-    apiKey: v.string(),
-    platform: platformValidator,
-    productId: v.string(),
-  },
+  args: { apiKey: v.string(), ...clientPayloadKeyArgs },
   returns: v.union(clientPayloadEditorStateShape, v.null()),
   handler: async (ctx, args) => {
     const resolved = await resolveProjectByApiKeyFromDb(
@@ -365,50 +450,169 @@ export const getProductClientPayloadEditorStateWithApiKey = query({
       "admin",
     );
     if (!resolved) return null;
-    return loadProductClientPayloadEditorState(
+    return await loadClientPayloadEditorState(
       ctx,
-      resolved.project._id,
-      args.platform,
-      args.productId,
+      clientPayloadKey(resolved.project, args),
     );
   },
 });
 
-async function loadProductClientPayloadEditorState(
-  ctx: QueryCtx,
-  projectId: Id<"projects">,
-  platform: "IOS" | "Android",
-  productId: string,
-): Promise<ClientPayloadEditorState> {
-  const [payload, summary] = await Promise.all([
-    ctx.db
-      .query("productClientPayloads")
-      .withIndex("by_project_and_platform_and_product", (q) =>
-        q
-          .eq("projectId", projectId)
-          .eq("platform", platform)
-          .eq("productId", productId),
-      )
-      .unique(),
-    ctx.db
-      .query("productClientPayloadSummaries")
-      .withIndex("by_project_and_platform_and_product", (q) =>
-        q
-          .eq("projectId", projectId)
-          .eq("platform", platform)
-          .eq("productId", productId),
-      )
-      .unique(),
-  ]);
-  const expectedVersion = Math.max(
-    payload?.version ?? 0,
-    summary?.version ?? 0,
-  );
+export const getProductClientPayloadDraftWithApiKey = query({
+  args: { apiKey: v.string(), ...clientPayloadKeyArgs },
+  returns: v.union(clientPayloadDraftStateValidator, v.null()),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByApiKeyFromDb(
+      ctx,
+      args.apiKey,
+      "admin",
+    );
+    if (!resolved) return null;
+    return await loadClientPayloadDraftState(
+      ctx,
+      clientPayloadKey(resolved.project, args),
+    );
+  },
+});
+
+export const listProductClientPayloadHistory = query({
+  args: { projectId: v.id("projects"), ...clientPayloadKeyArgs },
+  returns: v.array(clientPayloadVersionSummaryValidator),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByIdForCurrentUserFromDb(
+      ctx,
+      args.projectId,
+    );
+    if (!resolved) return [];
+    return await listClientPayloadVersions(
+      ctx,
+      clientPayloadKey(resolved.project, args),
+      "member",
+    );
+  },
+});
+
+export const listProductClientPayloadHistoryWithApiKey = query({
+  args: { apiKey: v.string(), ...clientPayloadKeyArgs },
+  returns: v.union(v.array(clientPayloadVersionSummaryValidator), v.null()),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByApiKeyFromDb(
+      ctx,
+      args.apiKey,
+      "admin",
+    );
+    if (!resolved) return null;
+    return await listClientPayloadVersions(
+      ctx,
+      clientPayloadKey(resolved.project, args),
+      "apiKey",
+    );
+  },
+});
+
+export const getProductClientPayloadHistoryVersion = query({
+  args: {
+    projectId: v.id("projects"),
+    ...clientPayloadKeyArgs,
+    version: v.number(),
+  },
+  returns: v.union(clientPayloadVersionValidator, v.null()),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByIdForCurrentUserFromDb(
+      ctx,
+      args.projectId,
+    );
+    if (!resolved) return null;
+    return await getClientPayloadVersion(
+      ctx,
+      clientPayloadKey(resolved.project, args),
+      args.version,
+      "member",
+    );
+  },
+});
+
+export const getProductClientPayloadHistoryVersionWithApiKey = query({
+  args: { apiKey: v.string(), ...clientPayloadKeyArgs, version: v.number() },
+  returns: v.union(clientPayloadVersionValidator, v.null()),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByApiKeyFromDb(
+      ctx,
+      args.apiKey,
+      "admin",
+    );
+    if (!resolved) return null;
+    return await getClientPayloadVersion(
+      ctx,
+      clientPayloadKey(resolved.project, args),
+      args.version,
+      "apiKey",
+    );
+  },
+});
+
+/**
+ * The exact response an app gets from the public GET right now, for the
+ * project's active publishable key, and whether publishing changes it: a
+ * Draft, Removed, or missing product answers 404 either way. Null when the
+ * project has no publishable key.
+ */
+export const getProductClientPayloadSdkPreview = query({
+  args: { projectId: v.id("projects"), ...clientPayloadKeyArgs },
+  returns: v.union(
+    v.object({
+      keyPreview: v.string(),
+      etagScope: v.string(),
+      productServed: v.boolean(),
+      response: v.object({
+        status: v.number(),
+        headers: v.record(v.string(), v.string()),
+        body: v.string(),
+      }),
+    }),
+    v.null(),
+  ),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByIdForCurrentUserFromDb(
+      ctx,
+      args.projectId,
+    );
+    if (!resolved) return null;
+    const apiKey = await getActivePublishableApiKey(ctx, resolved.project);
+    if (!apiKey) return null;
+    const app: PublicClientPayloadReader = {
+      project: resolved.project,
+      keyType: "publishable",
+    };
+    const [productServed, etagScope] = await Promise.all([
+      servesClientPayload(ctx, app, args.platform, args.productId),
+      clientPayloadEtagScope(apiKey, args.platform, args.productId),
+    ]);
+    const result = productServed
+      ? await loadServedClientPayload(
+          ctx,
+          app,
+          args.platform,
+          args.productId,
+          undefined,
+        )
+      : ({ status: "not_found" } as const);
+    return {
+      keyPreview: apiKeyPreview(apiKey),
+      etagScope,
+      productServed,
+      response: buildPublicClientPayloadResponse(result, etagScope),
+    };
+  },
+});
+
+function clientPayloadKey(
+  project: Doc<"projects">,
+  args: { platform: "IOS" | "Android"; productId: string },
+): ClientPayloadKey {
   return {
-    expectedVersion,
-    ...(payload && summary?.deleted !== true
-      ? { clientPayload: shapeClientPayload(payload) }
-      : {}),
+    projectId: project._id,
+    platform: args.platform,
+    productId: args.productId,
   };
 }
 

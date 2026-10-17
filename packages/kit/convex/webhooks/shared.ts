@@ -74,6 +74,8 @@ export type NormalizedWebhookEvent = {
   source: WebhookEventSource;
   platform: IapPlatform;
   environment: WebhookEventEnvironment;
+  /** The store sent no environment; `environment` is the Production default. */
+  environmentDefaulted?: boolean;
   // TestNotification carries no transaction; all other event types
   // populate this. The purchaseToken-or-throw guard lives in the
   // platform-specific normalizers (normalizeAppleEvent /
@@ -95,6 +97,17 @@ export type NormalizedWebhookEvent = {
   currency?: string;
   priceAmountMicros?: number;
   amountProvenance?: DataProvenance;
+  /** The transaction's period is a free trial; unset when the store did not say. */
+  freeTrial?: boolean;
+  /** Apple REFUND_REVERSED. State handling treats it as a start; analytics must not. */
+  refundReversal?: boolean;
+  /** Apple SUBSCRIBED/RESUBSCRIBE: a start for state handling, a reactivation for analytics. */
+  resubscribe?: boolean;
+  /** A Google replacement Play charged at once; analytics only. */
+  replacementCharged?: boolean;
+  purchaseDate?: number;
+  revocationDate?: number;
+  snapshotObservedAt?: number;
   occurredAt: number;
   // Stable per-notification identifier used for idempotency. ASN v2
   // `notificationUUID` or RTDN `messageId`.
@@ -179,12 +192,20 @@ export type AppleDecodedTransaction = {
   type?: string | null;
   productId?: string | null;
   expiresDate?: number | null;
+  purchaseDate?: number | null;
+  revocationDate?: number | null;
   revocationReason?: number | null;
   currency?: string | null;
   // Milliunits (1/1000 of a unit; Apple says milliunits, not millicents): $9.99
   // is 9990, and ×1000 gives micros.
   // https://developer.apple.com/documentation/appstoreserverapi/jwstransactiondecodedpayload/price
   price?: number | null;
+  // 1 introductory, 2 promotional, 3 offer code, 4 win-back.
+  // https://developer.apple.com/documentation/appstoreserverapi/offertype
+  offerType?: number | null;
+  // FREE_TRIAL, PAY_AS_YOU_GO or PAY_UP_FRONT.
+  // https://developer.apple.com/documentation/appstoreserverapi/offerdiscounttype
+  offerDiscountType?: string | null;
 };
 
 export type AppleDecodedRenewalInfo = {
@@ -230,7 +251,8 @@ export function mapAppleNotificationType(
 ): WebhookEventType | null {
   switch (notificationType) {
     case "SUBSCRIBED":
-      // INITIAL_BUY and RESUBSCRIBE both surface as SubscriptionStarted.
+      // INITIAL_BUY and RESUBSCRIBE both surface as SubscriptionStarted;
+      // analytics read `resubscribe` instead.
       return "SubscriptionStarted";
     case "DID_RENEW":
       // BILLING_RECOVERY subtype indicates the subscription is back from
@@ -266,8 +288,8 @@ export function mapAppleNotificationType(
       return "PurchaseRefunded";
     case "REFUND_REVERSED":
       // Refund reversed means the user retains their purchase — surface
-      // as a fresh "Started" so consumers re-grant entitlement. The raw
-      // payload still describes the reversal for consumers that need it.
+      // as a fresh "Started" so consumers re-grant entitlement. Analytics
+      // read `refundReversal` instead and count no new subscription.
       return "SubscriptionStarted";
     case "CONSUMPTION_REQUEST":
       return "PurchaseConsumptionRequest";
@@ -298,24 +320,30 @@ function mapAppleCancellationReason(
   ) {
     return "UserCanceled";
   }
-  // Apple `expirationIntent`:
-  //   1: customer canceled, 2: billing error, 3: price increase
-  //   declined, 4: product unavailable at renewal time, 5: unknown
-  if (renewalInfo?.expirationIntent != null) {
-    switch (renewalInfo.expirationIntent) {
-      case 1:
-        return "UserCanceled";
-      case 2:
-        return "BillingError";
-      case 3:
-        return "PriceIncreaseDeclined";
-      case 4:
-        return "ProductUnavailable";
-      case 5:
-        return "Other";
-    }
+  return appleExpirationIntentReason(renewalInfo?.expirationIntent);
+}
+
+/**
+ * Apple `expirationIntent`: 1 customer canceled, 2 billing error, 3 price
+ * increase declined, 4 product unavailable at renewal, 5 unknown.
+ */
+export function appleExpirationIntentReason(
+  expirationIntent: number | null | undefined,
+): WebhookCancellationReason | undefined {
+  switch (expirationIntent) {
+    case 1:
+      return "UserCanceled";
+    case 2:
+      return "BillingError";
+    case 3:
+      return "PriceIncreaseDeclined";
+    case 4:
+      return "ProductUnavailable";
+    case 5:
+      return "Other";
+    default:
+      return undefined;
   }
-  return undefined;
 }
 
 function deriveAppleSubscriptionState(
@@ -349,6 +377,22 @@ function deriveAppleSubscriptionState(
     default:
       return undefined;
   }
+}
+
+// Only an introductory offer (`offerType` 1) is a free trial: a free
+// promotional, offer-code or win-back period is not. Payloads that predate
+// `offerDiscountType` mark a free intro period with price 0.
+export function appleTransactionIsFreeTrial(
+  transaction: AppleDecodedTransaction | null | undefined,
+): boolean | undefined {
+  if (!transaction) return undefined;
+  if (transaction.offerType !== 1) return false;
+  if (transaction.offerDiscountType != null) {
+    return transaction.offerDiscountType === "FREE_TRIAL";
+  }
+  return typeof transaction.price === "number"
+    ? transaction.price === 0
+    : undefined;
 }
 
 export type NormalizeAppleInput = {
@@ -478,6 +522,16 @@ export function normalizeAppleAsn(
     priceAmountMicros,
     amountProvenance:
       priceAmountMicros === undefined ? undefined : ("store" as const),
+    freeTrial: appleTransactionIsFreeTrial(transaction),
+    ...(payload.notificationType === "REFUND_REVERSED"
+      ? { refundReversal: true }
+      : {}),
+    ...(payload.notificationType === "SUBSCRIBED" &&
+    payload.subtype === "RESUBSCRIBE"
+      ? { resubscribe: true }
+      : {}),
+    purchaseDate: transaction?.purchaseDate ?? undefined,
+    revocationDate: transaction?.revocationDate ?? undefined,
     occurredAt: payload.signedDate,
     sourceNotificationId: payload.notificationUUID,
   };
@@ -537,6 +591,7 @@ export type GoogleTestNotification = {
 // `androidpublisher.purchases.subscriptionsv2.get` because RTDN does
 // not embed expiry / price information.
 export type GoogleSubscriptionInfo = {
+  snapshotObservedAt?: number;
   productId?: string;
   environment?: ReceiptEnvironment;
   /** subscriptionsv2 returned a bundle that the singular canonical model cannot split. */
@@ -552,6 +607,10 @@ export type GoogleSubscriptionInfo = {
   currency?: string;
   priceAmountMicros?: number;
   amountProvenance?: DataProvenance;
+  /** From the line item's offer and the synced Play catalog; see google.ts. */
+  freeTrial?: boolean;
+  /** A replacement Play charged at once; see google.ts. */
+  replacementCharged?: boolean;
 };
 
 // RTDN numeric codes per
@@ -757,6 +816,9 @@ export function normalizeGoogleRtdn(
   }
 
   // RTDN omits test-purchase metadata; the verified store fetch supplies it.
+  // Without one (a voided purchase, or no service account) it is unknown.
+  const environmentDefaulted =
+    !payload.testNotification && subscriptionInfo?.environment === undefined;
   const environment: WebhookEventEnvironment = payload.testNotification
     ? "Sandbox"
     : (subscriptionInfo?.environment ?? "Production");
@@ -766,6 +828,7 @@ export function normalizeGoogleRtdn(
     source: "GooglePlayRealTimeDeveloperNotifications",
     platform: "Android",
     environment,
+    ...(environmentDefaulted ? { environmentDefaulted } : {}),
     purchaseToken: purchaseToken ?? undefined,
     linkedPurchaseToken: subscriptionInfo?.linkedPurchaseToken,
     transactionId,
@@ -788,6 +851,9 @@ export function normalizeGoogleRtdn(
     currency: subscriptionInfo?.currency,
     priceAmountMicros: subscriptionInfo?.priceAmountMicros,
     amountProvenance: subscriptionInfo?.amountProvenance,
+    freeTrial: subscriptionInfo?.freeTrial,
+    replacementCharged: subscriptionInfo?.replacementCharged,
+    snapshotObservedAt: subscriptionInfo?.snapshotObservedAt,
     occurredAt: payload.eventTimeMillis,
     sourceNotificationId: payload.messageId,
   };

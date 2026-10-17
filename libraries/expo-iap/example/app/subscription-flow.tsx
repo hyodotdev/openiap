@@ -1,3 +1,8 @@
+import PurchaseConfirmationScreen from '../src/components/PurchaseConfirmationScreen';
+import PurchaseFlowDiagram, {
+  usePurchaseFlowActivity,
+} from '../src/components/PurchaseFlowDiagram';
+import usePurchaseFlowScroll from '../src/components/usePurchaseFlowScroll';
 import React, {
   useCallback,
   useEffect,
@@ -130,6 +135,8 @@ type SubscriptionFlowProps = {
   onManageSubscriptions: () => void;
   verificationMethod: VerificationMethod;
   onChangeVerificationMethod: () => void;
+  activity: ReturnType<typeof usePurchaseFlowActivity>['activity'];
+  flowScroll: ReturnType<typeof usePurchaseFlowScroll>;
 };
 
 function SubscriptionFlow({
@@ -146,7 +153,20 @@ function SubscriptionFlow({
   onManageSubscriptions,
   verificationMethod,
   onChangeVerificationMethod,
+  activity,
+  flowScroll,
 }: SubscriptionFlowProps) {
+  const {
+    setScrollView,
+    expanded,
+    changeExpanded,
+    onScroll,
+    onScrollBeginDrag,
+    onContentLayout,
+    onDiagramLayout,
+    onDiagramBodyLayout,
+    onStepLayout,
+  } = flowScroll;
   const [selectedSubscription, setSelectedSubscription] =
     useState<ProductSubscription | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -285,8 +305,8 @@ function SubscriptionFlow({
         message: canUpgrade
           ? 'Upgrade available'
           : isDowngrade
-          ? 'Downgrade option'
-          : undefined,
+            ? 'Downgrade option'
+            : undefined,
       };
     },
     [getCurrentSubscription, isCancelled],
@@ -681,13 +701,20 @@ function SubscriptionFlow({
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      ref={setScrollView}
+      style={styles.container}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
+      onScrollBeginDrag={onScrollBeginDrag}
+    >
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.headerLeft}>
             <Text style={styles.title}>Subscription Flow</Text>
             <Text style={styles.subtitle}>
-              TypeScript-first approach for subscriptions
+              Store billing and offers. App-account access is handled by your
+              backend.
             </Text>
           </View>
           <TouchableOpacity
@@ -713,7 +740,7 @@ function SubscriptionFlow({
 
         {/* Verification Method Selector */}
         <View style={styles.verificationContainer}>
-          <Text style={styles.statusLabel}>Purchase Verification:</Text>
+          <Text style={styles.statusLabel}>Receipt verification</Text>
           <TouchableOpacity
             style={styles.verificationButton}
             onPress={onChangeVerificationMethod}
@@ -722,14 +749,25 @@ function SubscriptionFlow({
               {verificationMethod === 'ignore'
                 ? 'None (Skip)'
                 : verificationMethod === 'local'
-                ? 'Local (Device)'
-                : verificationMethod === 'iapkit-localhost'
-                ? 'Local (IAPKit)'
-                : 'IAPKit'}
+                  ? 'Local (Device)'
+                  : verificationMethod === 'iapkit-localhost'
+                    ? 'Local (IAPKit)'
+                    : 'IAPKit'}
             </Text>
             <Text style={styles.verificationButtonIcon}>▼</Text>
           </TouchableOpacity>
         </View>
+      </View>
+
+      <View style={styles.section} onLayout={onContentLayout}>
+        <PurchaseFlowDiagram
+          activity={activity}
+          expanded={expanded}
+          onExpandedChange={changeExpanded}
+          onLayout={onDiagramLayout}
+          onBodyLayout={onDiagramBodyLayout}
+          onStepLayout={onStepLayout}
+        />
       </View>
 
       {/* Subscription Status Section - Using library's activeSubscriptions */}
@@ -797,15 +835,15 @@ function SubscriptionFlow({
                         sub.autoRenewingAndroid === true
                           ? styles.activeStatus
                           : sub.autoRenewingAndroid === false
-                          ? styles.cancelledStatus
-                          : undefined,
+                            ? styles.cancelledStatus
+                            : undefined,
                       ]}
                     >
                       {sub.autoRenewingAndroid === true
                         ? '✅ Enabled'
                         : sub.autoRenewingAndroid === false
-                        ? '⚠️ Cancelled'
-                        : 'Unknown; check your backend'}
+                          ? '⚠️ Cancelled'
+                          : 'Unknown; check your backend'}
                     </Text>
                   </View>
                 ) : null}
@@ -1389,6 +1427,11 @@ function SubscriptionFlow({
  * periodically (refunds and cancellations), and on app launch (state sync).
  */
 function SubscriptionFlowContainer() {
+  const {activity, startStore, startPurchase, update, storeError} =
+    usePurchaseFlowActivity();
+  const flowScroll = usePurchaseFlowScroll(activity);
+  const {beginPurchase} = flowScroll;
+  const purchaseRequestTrace = useRef('');
   // ============================================================
   // State Management
   // ============================================================
@@ -1421,6 +1464,27 @@ function SubscriptionFlowContainer() {
   const purchaseQueueTailRef = useRef<Promise<void>>(Promise.resolve());
   const taskOwnerRef = useRef({});
   const mountedRef = useRef(true);
+
+  const reportStoreError = useCallback(
+    (error: PurchaseError, requestTrace: string): void => {
+      if (!mountedRef.current || purchaseRequestTrace.current !== requestTrace)
+        return;
+      storeError(requestTrace, error.code);
+      setIsProcessing(false);
+      if (error.code === ErrorCode.UserCancelled) {
+        setPurchaseResult('Subscription cancelled by user');
+        return;
+      }
+      if (error.code === ErrorCode.DeferredPayment) {
+        setPurchaseResult('Payment is pending at the store.');
+        return;
+      }
+      setPurchaseResult(
+        `Subscription failed: ${formatErrorForDisplay(error, ErrorCode.PurchaseError)}`,
+      );
+    },
+    [storeError],
+  );
 
   // ============================================================
   // Step 1: initConnection (automatic)
@@ -1514,6 +1578,7 @@ function SubscriptionFlowContainer() {
     inFlightSubscriptionTasks.set(purchaseCleanupKey, task);
 
     retainedPurchaseRef.current = purchase;
+    startPurchase(purchase);
     setLastPurchase(purchase);
 
     let isPurchased = false;
@@ -1521,9 +1586,9 @@ function SubscriptionFlowContainer() {
     const normalizedPurchaseStore = purchase.store.toLowerCase();
     const hasAndroidPurchaseIdentity = Boolean(
       purchase.purchaseToken ||
-        purchase.id ||
-        purchase.transactionId ||
-        purchase.productId,
+      purchase.id ||
+      purchase.transactionId ||
+      purchase.productId,
     );
 
     if (Platform.OS === 'ios' && normalizedPurchaseStore === 'apple') {
@@ -1537,11 +1602,11 @@ function SubscriptionFlowContainer() {
       isPurchased = hasValidToken || hasValidTransactionId;
       isRestoration = Boolean(
         'originalTransactionIdentifierIOS' in purchase &&
-          purchase.originalTransactionIdentifierIOS &&
-          purchase.originalTransactionIdentifierIOS !== purchase.id &&
-          'transactionReasonIOS' in purchase &&
-          purchase.transactionReasonIOS &&
-          purchase.transactionReasonIOS !== 'PURCHASE',
+        purchase.originalTransactionIdentifierIOS &&
+        purchase.originalTransactionIdentifierIOS !== purchase.id &&
+        'transactionReasonIOS' in purchase &&
+        purchase.transactionReasonIOS &&
+        purchase.transactionReasonIOS !== 'PURCHASE',
       );
 
       console.log('iOS Purchase Analysis:');
@@ -1625,6 +1690,12 @@ function SubscriptionFlowContainer() {
     // ------------------------------------------------------------
     const currentVerificationMethod = verificationMethodRef.current;
     if (currentVerificationMethod === 'ignore') {
+      update(
+        purchase.id,
+        'confirmation',
+        'skipped',
+        'Receipt retained without verification or finishing.',
+      );
       setIsProcessing(false);
       setPurchaseResult(
         'Receipt retained. Choose verification to retry this receipt.',
@@ -1641,6 +1712,12 @@ function SubscriptionFlowContainer() {
     });
 
     if (productId) {
+      update(
+        purchase.id,
+        'confirmation',
+        'running',
+        'Verifying the subscription receipt.',
+      );
       setIsProcessing(true);
       try {
         if (currentVerificationMethod === 'local') {
@@ -1733,6 +1810,12 @@ function SubscriptionFlowContainer() {
           ErrorCode.PurchaseVerificationFailed,
         );
         if (mountedRef.current) {
+          update(
+            purchase.id,
+            'confirmation',
+            'failed',
+            'The receipt could not be verified. The transaction remains unfinished.',
+          );
           setPurchaseResult(`Subscription verification failed: ${message}`);
           showNativeAlert(
             'Verification Failed',
@@ -1760,23 +1843,47 @@ function SubscriptionFlowContainer() {
     // Subscriptions are NOT consumable (isConsumable: false)
     // ------------------------------------------------------------
     try {
+      update(
+        purchase.id,
+        'confirmation',
+        'done',
+        'Receipt verified. Your backend still decides app-account access.',
+      );
       if (
         !(
           'isAcknowledgedAndroid' in purchase &&
           purchase.isAcknowledgedAndroid === true
         )
       ) {
+        update(
+          purchase.id,
+          'finish',
+          'running',
+          'Finishing the verified subscription transaction.',
+        );
         await finishTransaction({
           purchase,
           isConsumable: false,
         });
       }
+      update(
+        purchase.id,
+        'finish',
+        'done',
+        'Store transaction settled. Your backend owns the access decision.',
+      );
       rememberCompletedPurchaseKey(
         completedSubscriptionKeys,
         purchaseCleanupKey,
       );
       releasePurchaseTask('finished');
     } catch (error) {
+      update(
+        purchase.id,
+        'finish',
+        'failed',
+        'Receipt verified, but finishing needs retry.',
+      );
       console.log('finishTransaction failed:', error);
       releasePurchaseTask(mountedRef.current ? 'failed' : 'abandoned');
       if (mountedRef.current) {
@@ -1805,9 +1912,8 @@ function SubscriptionFlowContainer() {
 
     if (Platform.OS === 'android' && iapkitVerifyRequest) {
       try {
-        const refreshedResult = await verifyPurchaseWithProvider(
-          iapkitVerifyRequest,
-        );
+        const refreshedResult =
+          await verifyPurchaseWithProvider(iapkitVerifyRequest);
         console.log(
           '[SubscriptionFlow] IAPKit state after finishTransaction:',
           refreshedResult,
@@ -1889,21 +1995,8 @@ function SubscriptionFlowContainer() {
     // Step 2: onPurchaseError callback
     // Handle purchase failures (user cancelled, payment failed, etc.)
     // ------------------------------------------------------------
-    onPurchaseError: (error: PurchaseError) => {
-      console.log('Subscription failed:', error.message);
-      setIsProcessing(false);
-      if (error.code === ErrorCode.UserCancelled) {
-        setPurchaseResult('Subscription cancelled by user');
-        return;
-      }
-
-      setPurchaseResult(
-        `Subscription failed: ${formatErrorForDisplay(
-          error,
-          ErrorCode.PurchaseError,
-        )}`,
-      );
-    },
+    onPurchaseError: (error: PurchaseError) =>
+      reportStoreError(error, purchaseRequestTrace.current),
   });
 
   const activeSubscriptions = useMemo(
@@ -2121,6 +2214,9 @@ function SubscriptionFlowContainer() {
 
       const purchaseWithOffer = (offerToken?: string | null): void => {
         if (!mountedRef.current) return;
+        beginPurchase(itemId);
+        const requestTrace = startStore(itemId);
+        purchaseRequestTrace.current = requestTrace;
         void requestPurchase({
           request: {
             // Apple subscription request
@@ -2136,24 +2232,9 @@ function SubscriptionFlowContainer() {
             },
           },
           type: 'subs',
-        }).catch((error: PurchaseError) => {
-          console.log('requestPurchase failed:', {
-            code: error.code,
-            message: error.message,
-          });
-          setIsProcessing(false);
-          if (error.code === ErrorCode.UserCancelled) {
-            setPurchaseResult('Subscription cancelled by user');
-            return;
-          }
-
-          setPurchaseResult(
-            `Subscription failed: ${formatErrorForDisplay(
-              error,
-              ErrorCode.PurchaseError,
-            )}`,
-          );
-        });
+        }).catch((error: PurchaseError) =>
+          reportStoreError(error, requestTrace),
+        );
       };
 
       if (androidOffers.length > 1) {
@@ -2166,10 +2247,10 @@ function SubscriptionFlowContainer() {
           const planType = offer.installmentPlanDetailsAndroid
             ? 'Installments'
             : recurring
-            ? 'Auto-renewing'
-            : prepaid
-            ? 'Prepaid'
-            : 'Subscription';
+              ? 'Auto-renewing'
+              : prepaid
+                ? 'Prepaid'
+                : 'Subscription';
           const pricing = phases
             .map((phase) => `${phase.formattedPrice} / ${phase.billingPeriod}`)
             .join(' → ');
@@ -2199,7 +2280,14 @@ function SubscriptionFlowContainer() {
         purchaseWithOffer(androidOffers[0]?.offerTokenAndroid);
       }
     },
-    [activeSubscriptions, showActionSheetWithOptions, subscriptions],
+    [
+      activeSubscriptions,
+      showActionSheetWithOptions,
+      subscriptions,
+      beginPurchase,
+      startStore,
+      reportStoreError,
+    ],
   );
 
   const handleRetryLoadSubscriptions = useCallback(() => {
@@ -2310,12 +2398,20 @@ function SubscriptionFlowContainer() {
       onManageSubscriptions={handleManageSubscriptions}
       verificationMethod={verificationMethod}
       onChangeVerificationMethod={handleChangeVerificationMethod}
+      activity={activity}
+      flowScroll={flowScroll}
     />
   );
 }
 
 // Note: This is the default export required by Expo Router
-export default SubscriptionFlowContainer;
+export default function SubscriptionFlowScreen() {
+  return (
+    <PurchaseConfirmationScreen productType="subs">
+      <SubscriptionFlowContainer />
+    </PurchaseConfirmationScreen>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {

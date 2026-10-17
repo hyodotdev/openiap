@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Link,
   useNavigate,
   useOutletContext,
   useParams,
@@ -8,8 +9,8 @@ import {
 import { useQuery } from "convex/react";
 import { api, HarmonizedPurchaseState, Id } from "@/convex";
 import { PageLoading } from "@/components/LoadingSpinner";
-import { cn } from "@/lib/utils";
-import { Search } from "lucide-react";
+import { cn, utcDayEnd, utcDayStart } from "@/lib/utils";
+import { AlertTriangle, History, Search } from "lucide-react";
 import { getPurchaseStateDisplay } from "./receipt-utils";
 import { PurchasesTable } from "./PurchasesTable";
 import { Select, Input } from "antd";
@@ -97,6 +98,12 @@ export default function ProjectPurchases() {
         : undefined;
 
   const requestIpQuery = searchParams.get("ip") ?? "";
+  const appUserIdFilter = searchParams.get("user")?.trim() || undefined;
+  const productIdFilter = searchParams.get("product")?.trim() || undefined;
+  const createdFromDay = searchParams.get("from") ?? "";
+  const createdToDay = searchParams.get("to") ?? "";
+  const createdFrom = utcDayStart(createdFromDay);
+  const createdTo = utcDayEnd(createdToDay);
   const storeParam = searchParams.get("store");
   const storeFilter =
     storeParam === "apple" ||
@@ -142,6 +149,10 @@ export default function ProjectPurchases() {
           state: stateFilter,
           isValid: isValidFilter,
           requestIpQuery: requestIpQuery || undefined,
+          appUserId: appUserIdFilter,
+          productId: productIdFilter,
+          createdFrom,
+          createdTo,
         }
       : "skip",
   );
@@ -317,13 +328,22 @@ export default function ProjectPurchases() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold mb-1">{"Purchases"}</h2>
-        <p className="text-muted-foreground">
-          {
-            "View each purchase's latest store state. Apple and Google subscriptions also appear in Subscriptions; Amazon lifecycle stays here through RVS rechecks."
-          }
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-bold mb-1">{"Purchases"}</h2>
+          <p className="text-muted-foreground">
+            {
+              "View each purchase's latest store state. Apple and Google subscriptions also appear in Subscriptions; Amazon lifecycle stays here through RVS rechecks."
+            }
+          </p>
+        </div>
+        <Link
+          to={`/${orgSlug}/project/${projectSlug}/purchases/issues`}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+        >
+          <AlertTriangle className="h-4 w-4" />
+          {"Purchase issues"}
+        </Link>
       </div>
 
       <p className="text-xs text-muted-foreground -mt-4">
@@ -506,6 +526,57 @@ export default function ProjectPurchases() {
               allowClear
             />
           </div>
+        </div>
+
+        <div className="px-6 py-4 border-b border-border flex flex-wrap items-center gap-3">
+          <Input
+            aria-label="Filter by app user ID"
+            className="w-full sm:w-56"
+            value={searchParams.get("user") ?? ""}
+            onChange={(event) => setFilters({ user: event.target.value })}
+            placeholder={"App user ID"}
+            allowClear
+          />
+          <Input
+            aria-label="Filter by product ID"
+            className="w-full sm:w-56"
+            value={searchParams.get("product") ?? ""}
+            onChange={(event) => setFilters({ product: event.target.value })}
+            placeholder={"Product ID"}
+            allowClear
+          />
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            {"From"}
+            <input
+              type="date"
+              value={createdFromDay}
+              onChange={(event) => setFilters({ from: event.target.value })}
+              className="rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
+            />
+          </label>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            {"To"}
+            <input
+              type="date"
+              value={createdToDay}
+              onChange={(event) => setFilters({ to: event.target.value })}
+              className="rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
+            />
+          </label>
+          {appUserIdFilter ? (
+            <button
+              type="button"
+              onClick={() =>
+                void navigate(
+                  `/${orgSlug}/project/${projectSlug}/purchases/user/${encodeURIComponent(appUserIdFilter)}`,
+                )
+              }
+              className="inline-flex items-center gap-1.5 rounded border border-border px-2 py-1 text-xs font-medium hover:bg-muted"
+            >
+              <History className="h-3.5 w-3.5" />
+              {"User timeline"}
+            </button>
+          ) : null}
         </div>
 
         <PurchasesTable

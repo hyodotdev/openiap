@@ -17,7 +17,7 @@
     "lint": "bun run lint:tsc && bun run lint:convex && bun run lint:eslint",
     "lint:tsc": "tsc -p . --noEmit --pretty false",
     "lint:convex": "convex typecheck",
-    "lint:eslint": "env NODE_OPTIONS=--max-old-space-size=6144 eslint ./src ./server ./convex --ext ts,tsx --report-unused-disable-directives --no-warn-ignored",
+    "lint:eslint": "env NODE_OPTIONS=--max-old-space-size=6144 eslint ./src ./server ./convex --ext ts,tsx --report-unused-disable-directives --no-warn-ignored ./scripts/verify-fly-deployment.ts ./scripts/verify-fly-deployment.test.ts ./scripts/verification-provisioning.test.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage --coverage.include='server/**/*.ts' --coverage.include='convex/**/*.ts' --coverage.exclude='**/*.test.ts' --coverage.exclude='convex/_generated/**' --coverage.exclude='convex/test.setup.ts' --coverage.reporter=text --coverage.reporter=lcov",
     "test:watch": "vitest",
@@ -73,6 +73,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@hyodotdev/openiap-client-protocol": "workspace:*",
     "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4.2.4",
     "@testing-library/jest-dom": "^7",

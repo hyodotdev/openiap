@@ -8,7 +8,10 @@ import {
   ScrollView,
 } from 'react-native';
 import {useIAP, type Product, type ProductSubscription} from 'expo-iap';
+import {useRouter} from 'expo-router';
 import Loading from '../src/components/Loading';
+import ExampleButton from '../src/components/ExampleButton';
+import StoreProductCard from '../src/components/StoreProductCard';
 import {
   PRODUCT_IDS,
   SUBSCRIPTION_PRODUCT_IDS,
@@ -16,6 +19,7 @@ import {
   NON_CONSUMABLE_PRODUCT_IDS,
 } from '../src/utils/constants';
 import {extractErrorMessage} from '../src/utils/errorUtils';
+import {subscriptionDisplay} from '../src/utils/subscriptionDisplay';
 
 /**
  * All Products example: fetches in-app products and subscriptions separately
@@ -29,6 +33,7 @@ import {extractErrorMessage} from '../src/utils/errorUtils';
  */
 
 function AllProducts() {
+  const router = useRouter();
   const [selectedProduct, setSelectedProduct] = useState<
     Product | ProductSubscription | null
   >(null);
@@ -41,7 +46,6 @@ function AllProducts() {
     console.log('[AllProducts] useEffect - connected:', connected);
     if (connected) {
       console.log('[AllProducts] Fetching product groups');
-      setLoadError(null);
 
       const fetchProductGroup = async (
         label: string,
@@ -65,11 +69,11 @@ function AllProducts() {
         const messages = errors.filter(
           (message): message is string => message != null,
         );
+        setLoadError(messages.length ? messages.join('\n') : null);
         if (messages.length === 0) {
           console.log('[AllProducts] fetchProducts completed');
           return;
         }
-        setLoadError(messages.join('\n'));
       });
     }
   }, [connected, fetchProducts]);
@@ -138,16 +142,6 @@ function AllProducts() {
     return 'IN-APP';
   };
 
-  const getProductTypeStyle = (product: Product | ProductSubscription) => {
-    if (CONSUMABLE_PRODUCT_IDS.includes(product.id)) {
-      return styles.typeBadgeConsumable;
-    }
-    if (NON_CONSUMABLE_PRODUCT_IDS.includes(product.id)) {
-      return styles.typeBadgeNonConsumable;
-    }
-    return styles.typeBadgeInApp;
-  };
-
   // Show loading screen while disconnected
   if (!connected) {
     return <Loading message="Connecting to Store..." />;
@@ -156,12 +150,19 @@ function AllProducts() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>All Products</Text>
-        <Text style={styles.subtitle}>In-App Purchases and Subscriptions</Text>
+        <Text style={styles.title}>Browse the store</Text>
+        <Text style={styles.subtitle}>
+          Inspect products, prices and offers. To buy, open the purchase demo.
+        </Text>
       </View>
 
       <View style={styles.content}>
-        {/* Connection Status */}
+        <View style={styles.purchaseEntry}>
+          <ExampleButton
+            title="Open purchase screen"
+            onPress={() => router.push('/purchase-flow')}
+          />
+        </View>
         <View style={styles.statusContainer}>
           <Text style={styles.statusLabel}>Store Connection:</Text>
           <Text
@@ -191,28 +192,20 @@ function AllProducts() {
           </Text>
 
           {products.map((product) => (
-            <View key={product.id} style={styles.productCard}>
-              <View style={styles.productHeader}>
-                <View style={styles.productTitleContainer}>
-                  <Text style={styles.productTitle}>{product.title}</Text>
-                  <Text
-                    style={[styles.typeBadge, getProductTypeStyle(product)]}
-                  >
-                    {getProductTypeLabel(product)}
-                  </Text>
-                </View>
-                <Text style={styles.productPrice}>{product.displayPrice}</Text>
-              </View>
-              <Text style={styles.productDescription}>
-                {product.description}
-              </Text>
-              <TouchableOpacity
-                style={styles.detailsButton}
+            <StoreProductCard
+              key={product.id}
+              product={product}
+              kind={getProductTypeLabel(product)}
+            >
+              <ExampleButton
+                title="Details"
+                variant="secondary"
+                accessibilityLabel={`Details for ${
+                  product.displayName || product.title
+                }`}
                 onPress={() => handleShowDetails(product)}
-              >
-                <Text style={styles.detailsButtonText}>Details</Text>
-              </TouchableOpacity>
-            </View>
+              />
+            </StoreProductCard>
           ))}
         </View>
 
@@ -225,32 +218,27 @@ function AllProducts() {
               : 'No subscriptions'}
           </Text>
 
-          {subscriptions.map((subscription) => (
-            <View key={subscription.id} style={styles.productCard}>
-              <View style={styles.productHeader}>
-                <View style={styles.productTitleContainer}>
-                  <Text style={styles.productTitle}>{subscription.title}</Text>
-                  <Text
-                    style={[styles.typeBadge, styles.typeBadgeSubscription]}
-                  >
-                    SUBS
-                  </Text>
-                </View>
-                <Text style={styles.productPrice}>
-                  {subscription.displayPrice}
-                </Text>
-              </View>
-              <Text style={styles.productDescription}>
-                {subscription.description}
-              </Text>
-              <TouchableOpacity
-                style={styles.detailsButton}
-                onPress={() => handleShowDetails(subscription)}
+          {subscriptions.map((subscription) => {
+            const {price, terms} = subscriptionDisplay(subscription);
+            return (
+              <StoreProductCard
+                key={subscription.id}
+                product={subscription}
+                kind="Subscription"
+                price={price}
+                terms={terms}
               >
-                <Text style={styles.detailsButtonText}>Details</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
+                <ExampleButton
+                  title="Details"
+                  variant="secondary"
+                  accessibilityLabel={`Details for ${
+                    subscription.displayName || subscription.title
+                  }`}
+                  onPress={() => handleShowDetails(subscription)}
+                />
+              </StoreProductCard>
+            );
+          })}
         </View>
       </View>
 
@@ -321,13 +309,13 @@ function AllProducts() {
                             <Text style={styles.offerDetail}>
                               Price: {offer.displayPrice}
                             </Text>
-                            {offer.fullPriceMicrosAndroid && (
+                            {offer.fullPriceMicrosAndroid != null && (
                               <Text style={styles.offerDetail}>
                                 Full Price (micros):{' '}
                                 {offer.fullPriceMicrosAndroid}
                               </Text>
                             )}
-                            {offer.percentageDiscountAndroid && (
+                            {(offer.percentageDiscountAndroid ?? 0) > 0 && (
                               <Text style={styles.offerDetail}>
                                 {offer.percentageDiscountAndroid}% off
                               </Text>
@@ -433,7 +421,7 @@ function AllProducts() {
                                   {offer.period.unit}
                                 </Text>
                               )}
-                              {offer.periodCount && (
+                              {offer.periodCount != null && (
                                 <Text style={styles.offerDetail}>
                                   Period Count: {offer.periodCount}
                                 </Text>
@@ -491,31 +479,31 @@ export default AllProducts;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F8FAFC',
   },
   header: {
-    backgroundColor: '#FF6B6B',
     padding: 20,
-    paddingTop: 40,
+    paddingBottom: 0,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: 'white',
+    color: '#0F172A',
     marginBottom: 5,
   },
   subtitle: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#475569',
+    lineHeight: 21,
   },
   content: {
-    padding: 15,
+    padding: 20,
+    paddingBottom: 64,
   },
+  purchaseEntry: {marginBottom: 16},
   statusContainer: {
     flexDirection: 'row',
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 8,
+    paddingBottom: 8,
     marginBottom: 15,
     alignItems: 'center',
   },
@@ -540,92 +528,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginBottom: 10,
-  },
-  productCard: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  productHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  productTitleContainer: {
-    flex: 1,
-    marginRight: 10,
-  },
-  productTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  productPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#007AFF',
-  },
-  productDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
-  },
-  typeBadge: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-  },
-  typeBadgeInApp: {
-    backgroundColor: '#E3F2FD',
-    color: '#1565C0',
-  },
-  typeBadgeConsumable: {
-    backgroundColor: '#E8F5E9',
-    color: '#2E7D32',
-  },
-  typeBadgeNonConsumable: {
-    backgroundColor: '#F3E5F5',
-    color: '#6A1B9A',
-  },
-  typeBadgeSubscription: {
-    backgroundColor: '#FFF8E1',
-    color: '#F57C00',
-  },
-  detailsButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-  },
-  detailsButtonText: {
-    color: '#007AFF',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  emptyState: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 20,
-    alignItems: 'center',
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
   },
   errorBox: {
     backgroundColor: '#FFF3E0',
@@ -721,13 +623,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#007AFF',
     marginBottom: 6,
-  },
-  offerSubtitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#495057',
-    marginTop: 8,
-    marginBottom: 4,
   },
   offerDetail: {
     fontSize: 12,

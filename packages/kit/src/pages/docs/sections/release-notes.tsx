@@ -25,11 +25,86 @@ const RELEASES: ReleaseEntry[] = [
   {
     id: "week-2026-10-12",
     weekStart: "2026-10-12",
-    date: "2026-10-12",
-    pullRequests: [523, 528, 532, 533],
+    date: "2026-10-15",
+    pullRequests: [523, 528, 532, 533, 537],
     tagline:
-      "Amazon subscription lifecycle beta and a security hardening pass.",
+      "Amazon subscription lifecycle beta, purchase recovery tools, verified analytics and a security hardening pass.",
     items: [
+      {
+        kind: "feature",
+        topic: "Verification",
+        text: "Verify accepts includeTransactionDetails and returns the transaction ID, original transaction ID, expiry, environment, a correlation ID and whether a rejection is final (never for Meta Horizon or a Google subscription the store can still revive), to match a verification with commerce events. Responses without the flag are unchanged.",
+      },
+      {
+        kind: "fix",
+        topic: "Organization access",
+        text: "Removing an organization member immediately stops that user's statistics query from reading the former organization's plan, usage and project count. A saved organization selection is checked against current membership, including profiles that already contain a stale selection. Organizations pending deletion no longer supply these statistics.",
+      },
+      {
+        kind: "fix",
+        topic: "Verification boundary",
+        text: "Direct Convex verification actions and legacy aliases now require a short-lived proof from the admitted IAPKit server request. Public receipt verification still uses the same customer API keys and wire contract; service-source failures stay retryable. Self-hosted deployments must configure the private source credential in both services and use the coordinated rollout procedure.",
+      },
+      {
+        kind: "feature",
+        topic: "Linking",
+        text: "Secret-key bind-user links Apple and Google one-time purchases, including Google purchases awaiting acknowledgment, and returns a reason for each outcome. It never moves a purchase that another app user owns, and these links do not count toward the per-user link cap. An operator's secret-key rebind can move a one-time link; it reports notified: false, since one-time purchases send no commerce events.",
+      },
+      {
+        kind: "security",
+        topic: "Account access",
+        text: "All subscription account reads and ownership binding now require a secret admin key, including legacy v1 and direct Convex calls. Publishable keys receive 403 INSUFFICIENT_SCOPE; legacy account paths containing a key return 410 LEGACY_ACCOUNT_ROUTE_RETIRED. Move shipped mobile helpers to an authenticated app backend using tokenless v2 reads. Never embed a secret key in the app. Authorized v1 server response fields are preserved and use no-store.",
+      },
+      {
+        kind: "security",
+        topic: "Test access",
+        text: "V2 account reads accept an explicit production, sandbox or all environment filter and acknowledge it as environmentScope. Explicit filters exclude unknown historical environments; omission retains legacy mixed reads. The reference backend defaults to production-only access and applies its server-owned App Review/test-account allow-list during confirmation and later entitlement refresh. Missing verified environment or missing scope acknowledgement fails closed for retry instead of granting access.",
+      },
+      {
+        kind: "feature",
+        topic: "Purchase issues",
+        text: "Verification and linking failures are recorded with a cause and correlation ID, viewable in the dashboard, secret-key routes and MCP. Product mismatches, pending payments and bind conflicts are kept per store-verified purchase and match its purchase page; other failures, including forged or unknown evidence, are counted per store and cause, so random input cannot flood the log.",
+      },
+      {
+        kind: "feature",
+        topic: "Operations",
+        text: "Webhook deliveries keep their last 20 attempts and can be re-sent with the original event ID. Inbound store notifications are listed, and admins can re-sync an Apple or Google purchase or subscription from the store, using a rate limit separate from entitlement reads. A re-sync never repeats an access grant, and a store notification older than a re-sync keeps the re-synced state. Operator routes return 502 for store failures and 409 for deliveries that cannot be re-sent.",
+      },
+      {
+        kind: "security",
+        topic: "Dashboard",
+        text: "Raw store evidence, subscription purchase tokens, inbound transaction IDs, raw delivery errors and destination descriptions are shown only to project owners and admins; members see a salted fingerprint, an error class or the destination host.",
+      },
+      {
+        kind: "security",
+        topic: "Privacy",
+        text: "Session replay is disabled; event analytics remain enabled with identifying URL values redacted.",
+      },
+      {
+        kind: "fix",
+        topic: "Analytics",
+        text: "Analytics, /v1/subscriptions/revenue and /v1/subscriptions/metrics now report production only by default, with a sandbox view on the dashboard and revenue route. Active totals no longer count a subscription twice when its state changes during a rollup. Stats rebuilds preserve active and grace-period totals through concurrent changes, linked-token merges and expiries; billing-period sync refreshes MRR. Free trials and refund reversals no longer count as revenue, billing recoveries count as renewals, refunds count once with store-reported amounts subtracted, churn counts only paid access that ended, Google plan changes are not new subscriptions or churn (immediate-charge changes count as renewals at list price), Apple promotional, offer-code and win-back offers are not trials, and an Apple resubscribe counts as a renewal unless it is the first charge after a lapsed trial.",
+      },
+      {
+        kind: "ops",
+        topic: "Analytics API",
+        text: "/v1/subscriptions/revenue returns production data unless environment=sandbox is passed. newSubs, renewals, refunds, revenueMicros and activeSubs follow the corrected definitions, and the new expirations field counts paid access that ended; the Analytics page lists each change. Subscription metrics expose freshness and capped-scan flags; the dashboard hides incomplete headline totals and keeps its query range stable through live refreshes. Dashboard trial totals label partial recorded coverage and leave unknown values blank. MCP trial and paid-charge totals exclude rows without trial splits, report null when no rows qualify, and describe partial coverage per group. Missing refund amounts leave refunded and net totals unavailable in both views; recorded zeroes stay zero. An unknown API key on /v1/subscriptions/revenue or /v1/subscriptions/metrics now gets 400 INVALID_API_KEY, as documented, instead of empty results.",
+      },
+      {
+        kind: "feature",
+        topic: "Analytics",
+        text: "Trial starts, trial conversions and direct paid starts are counted separately, with monthly retention and realized LTV cohorts. Bounded month-end and day-end access evidence preserves lapses, refunds and token replacements. Apple receipts first verified after expiry preserve their dated purchase-to-expiry period without granting current access; missing history shows as unavailable instead of a fabricated zero or retention rate. The dashboard and MCP label cohorts as project-wide within the selected environment and currency; date, product and platform filters apply only to daily metrics. Each metric shows, per environment, whether data is not collected, still processing or a real zero.",
+      },
+      {
+        kind: "feature",
+        topic: "Client payloads",
+        text: "Client payloads have drafts, a preview of the exact app response, version history and rollback. A draft saved against an older version must be rebased before it can be published, API keys never see author emails, and history shows payloads published before it existed.",
+      },
+      {
+        kind: "docs",
+        topic: "Purchase flow",
+        text: "A new Purchase flow guide splits the work between the SDK, IAPKit and your backend, with a tested reference handler.",
+      },
       {
         kind: "fix",
         topic: "Google verification",

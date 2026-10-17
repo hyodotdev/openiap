@@ -82,6 +82,15 @@ const includeClientPayloadSchema = v.optional(
   ),
 );
 
+const includeTransactionDetailsSchema = v.optional(
+  v.pipe(
+    v.boolean(),
+    v.description(
+      "Add transactionId, originalTransactionId, expiresAt, commerceEnvironment and correlationId to the response, to match a verification with commerce events. A rejection also carries finalVerdict, true when retrying the same evidence will not change it. Fields the store does not supply stay absent.",
+    ),
+  ),
+);
+
 export const verifyPurchaseInputSchema = v.variant("store", [
   v.pipe(
     v.object({
@@ -105,6 +114,7 @@ export const verifyPurchaseInputSchema = v.variant("store", [
       ),
       expectedProductId: expectedProductIdSchema,
       includeClientPayload: includeClientPayloadSchema,
+      includeTransactionDetails: includeTransactionDetailsSchema,
     }),
     v.title("Apple App Store"),
   ),
@@ -132,6 +142,7 @@ export const verifyPurchaseInputSchema = v.variant("store", [
       ),
       expectedProductId: expectedProductIdSchema,
       includeClientPayload: includeClientPayloadSchema,
+      includeTransactionDetails: includeTransactionDetailsSchema,
     }),
     v.title("Google Play Store"),
   ),
@@ -171,6 +182,7 @@ export const verifyPurchaseInputSchema = v.variant("store", [
         ),
       ),
       includeClientPayload: includeClientPayloadSchema,
+      includeTransactionDetails: includeTransactionDetailsSchema,
     }),
     v.title("Meta Horizon (Quest)"),
   ),
@@ -225,6 +237,7 @@ export const verifyPurchaseInputSchema = v.variant("store", [
       ),
       expectedProductId: expectedProductIdSchema,
       includeClientPayload: includeClientPayloadSchema,
+      includeTransactionDetails: includeTransactionDetailsSchema,
     }),
     v.title("Amazon Appstore"),
   ),

@@ -10,8 +10,12 @@ import {
 } from "vitest";
 
 import type { KitProductsResponse as SdkProductsResponse } from "../../../../../specs/client/src/kit-api";
-import { kitClient } from "../../../../mcp-server/src/kit-client";
+import {
+  KIT_PURCHASE_ISSUE_CAUSES,
+  kitClient,
+} from "../../../../mcp-server/src/kit-client";
 import type { api } from "../../../convex/_generated/api";
+import { purchaseIssueCauseValidator } from "../../../convex/utils/validation";
 import type { HealthPayload } from "../../health";
 
 const mocks = vi.hoisted(() => ({
@@ -54,9 +58,37 @@ type McpSetClientPayloadResponse = Awaited<
 type McpRemoveClientPayloadResponse = Awaited<
   ReturnType<McpClient["removeClientPayload"]>
 >;
+type McpClientPayloadDraftResponse = Awaited<
+  ReturnType<McpClient["getClientPayloadDraft"]>
+>;
+type McpSaveClientPayloadDraftResponse = Awaited<
+  ReturnType<McpClient["saveClientPayloadDraft"]>
+>;
+type McpPublishClientPayloadResponse = Awaited<
+  ReturnType<McpClient["publishClientPayload"]>
+>;
+type McpClientPayloadHistoryResponse = Awaited<
+  ReturnType<McpClient["listClientPayloadHistory"]>
+>;
+type McpClientPayloadVersionResponse = Awaited<
+  ReturnType<McpClient["getClientPayloadVersion"]>
+>;
+type McpRollbackClientPayloadResponse = Awaited<
+  ReturnType<McpClient["rollbackClientPayload"]>
+>;
 type McpSyncResponse = Awaited<ReturnType<McpClient["syncProducts"]>>;
 type McpSyncJobResponse = Awaited<ReturnType<McpClient["syncJob"]>>;
 type McpHealthResponse = Awaited<ReturnType<McpClient["health"]>>;
+type McpDeliveriesResponse = Awaited<ReturnType<McpClient["listDeliveries"]>>;
+type McpResendResponse = Awaited<ReturnType<McpClient["resendDelivery"]>>;
+type McpNotificationsResponse = Awaited<
+  ReturnType<McpClient["listInboundNotifications"]>
+>;
+type McpResyncResponse = Awaited<ReturnType<McpClient["resyncFromStore"]>>;
+type McpTimelineResponse = Awaited<ReturnType<McpClient["userTimeline"]>>;
+type McpPurchaseIssuesResponse = Awaited<
+  ReturnType<McpClient["listPurchaseIssues"]>
+>;
 
 type ServerProductsResponse = FunctionReturnType<
   typeof api.products.query.listProductsPage
@@ -93,31 +125,72 @@ type ServerSetClientPayloadResponse = FunctionReturnType<
 type ServerRemoveClientPayloadResponse = FunctionReturnType<
   typeof api.products.mutation.removeProductClientPayloadWithApiKey
 >;
+type ServerClientPayloadDraftResponse = NonNullable<
+  FunctionReturnType<
+    typeof api.products.query.getProductClientPayloadDraftWithApiKey
+  >
+>;
+type ServerSaveClientPayloadDraftResponse = FunctionReturnType<
+  typeof api.products.mutation.saveProductClientPayloadDraftWithApiKey
+>;
+type ServerPublishClientPayloadResponse = FunctionReturnType<
+  typeof api.products.mutation.publishProductClientPayloadDraftWithApiKey
+>;
+type ServerClientPayloadHistoryResponse = {
+  versions: NonNullable<
+    FunctionReturnType<
+      typeof api.products.query.listProductClientPayloadHistoryWithApiKey
+    >
+  >;
+};
+type ServerClientPayloadVersionResponse = {
+  version: NonNullable<
+    FunctionReturnType<
+      typeof api.products.query.getProductClientPayloadHistoryVersionWithApiKey
+    >
+  >;
+};
+type ServerRollbackClientPayloadResponse = FunctionReturnType<
+  typeof api.products.mutation.rollbackProductClientPayloadWithApiKey
+>;
 type ServerSyncResponse = FunctionReturnType<
   typeof api.products.jobs.enqueueProductSync
 >;
 type ServerSyncJobResponse = NonNullable<
   FunctionReturnType<typeof api.products.jobs.getSyncJobById>
 >;
+type ServerDeliveriesPage = FunctionReturnType<
+  typeof api.commerce.deliveryState.listDeliveries
+>;
+type ServerResendResponse = FunctionReturnType<
+  typeof api.commerce.deliveryState.resend
+>;
+type ServerNotificationsPage = FunctionReturnType<
+  typeof api.webhooks.inbound.listInboundNotifications
+>;
+type ServerResyncResponse = FunctionReturnType<
+  typeof api.subscriptions.action.resyncFromStore
+>;
+type ServerTimelineResponse = FunctionReturnType<
+  typeof api.subscriptions.query.userTimeline
+>;
+type ServerPurchaseIssuesPage = FunctionReturnType<
+  typeof api.purchaseIssues.query.listPurchaseIssues
+>;
 
+// Kit's Convex layer returns payload `format` as its enum; the shared client
+// types keep it an opaque string so SDKs survive a new format.
 type NormalizeContract<T> = T extends { __tableName: string }
   ? string
   : T extends readonly (infer Item)[]
     ? NormalizeContract<Item>[]
-    : T extends {
-          format: string;
-          body: string;
-          version: number;
-          updatedAt: number;
-        }
+    : T extends object
       ? {
           [Key in keyof T]: Key extends "format"
             ? string
             : NormalizeContract<T[Key]>;
         }
-      : T extends object
-        ? { [Key in keyof T]: NormalizeContract<T[Key]> }
-        : T;
+      : T;
 
 describe("MCP Kit response contracts", () => {
   beforeEach(() => {
@@ -206,13 +279,25 @@ describe("MCP Kit response contracts", () => {
   });
 
   it("keeps administrative read response types aligned", () => {
-    expectTypeOf<McpMetricsResponse>().toEqualTypeOf<ServerMetricsResponse>();
+    expectTypeOf<ServerMetricsResponse>().toMatchTypeOf<McpMetricsResponse>();
+    expectTypeOf<NonNullable<McpMetricsResponse["stats"]>>().toEqualTypeOf<
+      ServerMetricsResponse["stats"]
+    >();
     expectTypeOf<McpSubscriptionsResponse>().toEqualTypeOf<
       NormalizeContract<ServerSubscriptionsResponse>
     >();
     expectTypeOf<McpRevenueResponse>().toEqualTypeOf<ServerRevenueResponse>();
     expectTypeOf<McpClientPayloadStateResponse>().toEqualTypeOf<
       NormalizeContract<ServerClientPayloadStateResponse>
+    >();
+    expectTypeOf<McpClientPayloadDraftResponse>().toEqualTypeOf<
+      NormalizeContract<ServerClientPayloadDraftResponse>
+    >();
+    expectTypeOf<McpClientPayloadHistoryResponse>().toEqualTypeOf<
+      NormalizeContract<ServerClientPayloadHistoryResponse>
+    >();
+    expectTypeOf<McpClientPayloadVersionResponse>().toEqualTypeOf<
+      NormalizeContract<ServerClientPayloadVersionResponse>
     >();
     expectTypeOf<McpSyncJobResponse>().toEqualTypeOf<
       NormalizeContract<ServerSyncJobResponse>
@@ -230,6 +315,13 @@ describe("MCP Kit response contracts", () => {
       NormalizeContract<ServerSetClientPayloadResponse>
     >();
     expectTypeOf<McpRemoveClientPayloadResponse>().toEqualTypeOf<ServerRemoveClientPayloadResponse>();
+    expectTypeOf<McpSaveClientPayloadDraftResponse>().toEqualTypeOf<ServerSaveClientPayloadDraftResponse>();
+    expectTypeOf<McpPublishClientPayloadResponse>().toEqualTypeOf<
+      NormalizeContract<ServerPublishClientPayloadResponse>
+    >();
+    expectTypeOf<McpRollbackClientPayloadResponse>().toEqualTypeOf<
+      NormalizeContract<ServerRollbackClientPayloadResponse>
+    >();
     expectTypeOf<McpSyncResponse>().toEqualTypeOf<
       NormalizeContract<ServerSyncResponse>
     >();
@@ -237,6 +329,105 @@ describe("MCP Kit response contracts", () => {
 
   it("keeps the health response aligned", () => {
     expectTypeOf<McpHealthResponse>().toEqualTypeOf<HealthPayload>();
+  });
+
+  it("wraps payload history from the real handlers", async () => {
+    const entry = { version: 2, action: "publish", createdAt: 1 };
+    mocks.query.mockResolvedValueOnce([entry]).mockResolvedValueOnce(entry);
+    const client = kitClient({
+      apiKey: "openiap-kit_sk_contract",
+      baseUrl: "http://kit.test",
+    });
+    const target = { productId: "premium", platform: "IOS" as const };
+
+    await expect(client.listClientPayloadHistory(target)).resolves.toEqual({
+      versions: [entry],
+    });
+    await expect(
+      client.getClientPayloadVersion({ ...target, version: 2 }),
+    ).resolves.toEqual({ version: entry });
+  });
+
+  it("keeps operations response types aligned", () => {
+    expectTypeOf<McpDeliveriesResponse["deliveries"][number]>().toEqualTypeOf<
+      NormalizeContract<ServerDeliveriesPage["page"][number]>
+    >();
+    expectTypeOf<
+      McpNotificationsResponse["notifications"][number]
+    >().toEqualTypeOf<
+      NormalizeContract<ServerNotificationsPage["page"][number]>
+    >();
+    expectTypeOf<McpResendResponse>().toEqualTypeOf<
+      NormalizeContract<ServerResendResponse>
+    >();
+    expectTypeOf<McpResyncResponse>().toEqualTypeOf<
+      NormalizeContract<ServerResyncResponse>
+    >();
+    expectTypeOf<McpTimelineResponse>().toEqualTypeOf<
+      NormalizeContract<ServerTimelineResponse>
+    >();
+    expectTypeOf<McpPurchaseIssuesResponse["issues"][number]>().toEqualTypeOf<
+      NormalizeContract<ServerPurchaseIssuesPage["page"][number]>
+    >();
+  });
+
+  it("calls the operations handlers through the real routes", async () => {
+    const client = kitClient({
+      apiKey: "openiap-kit_sk_contract",
+      baseUrl: "http://kit.test",
+    });
+    const emptyPage = { page: [], isDone: true, continueCursor: "" };
+    mocks.query
+      .mockResolvedValueOnce(emptyPage)
+      .mockResolvedValueOnce(emptyPage)
+      .mockResolvedValueOnce({ appUserId: "u1", items: [], truncated: false })
+      .mockResolvedValueOnce(emptyPage);
+    mocks.mutation.mockResolvedValueOnce({
+      deliveryId: "outboundDeliveries_1",
+      eventId: "commerceEvents_1",
+      status: "pending",
+    });
+    mocks.action.mockResolvedValueOnce({ target: "purchase", store: "apple" });
+
+    await expect(client.listDeliveries({ status: "failed" })).resolves.toEqual({
+      deliveries: [],
+      hasMore: false,
+      nextCursor: null,
+    });
+    await expect(client.listInboundNotifications({})).resolves.toEqual({
+      notifications: [],
+      hasMore: false,
+      nextCursor: null,
+    });
+    await client.userTimeline("u1");
+    await expect(
+      client.listPurchaseIssues({ cause: "STORE_PENDING", from: 1, to: 2 }),
+    ).resolves.toEqual({ issues: [], hasMore: false, nextCursor: null });
+    await client.resendDelivery("outboundDeliveries_1");
+    await client.resyncFromStore({ purchaseId: "purchases_1" });
+
+    const apiKey = "openiap-kit_sk_contract";
+    const firstPage = { numItems: 25, cursor: null };
+    expect(mocks.query.mock.calls.map(([, args]) => args)).toEqual([
+      { apiKey, status: "failed", paginationOpts: firstPage },
+      { apiKey, paginationOpts: firstPage },
+      { apiKey, appUserId: "u1" },
+      {
+        apiKey,
+        cause: "STORE_PENDING",
+        from: 1,
+        to: 2,
+        paginationOpts: firstPage,
+      },
+    ]);
+    expect(mocks.mutation).toHaveBeenCalledWith(expect.anything(), {
+      apiKey,
+      deliveryId: "outboundDeliveries_1",
+    });
+    expect(mocks.action).toHaveBeenCalledWith(expect.anything(), {
+      apiKey,
+      purchaseId: "purchases_1",
+    });
   });
 
   it("calls the real catalog handler with pagination", async () => {
@@ -264,5 +455,13 @@ describe("MCP Kit response contracts", () => {
       limit: 50,
       cursor: "opaque/start=1",
     });
+  });
+});
+
+describe("MCP purchase issue causes", () => {
+  it("lists exactly the causes Convex records", () => {
+    expect([...KIT_PURCHASE_ISSUE_CAUSES]).toEqual(
+      purchaseIssueCauseValidator.members.map((member) => member.value),
+    );
   });
 });
