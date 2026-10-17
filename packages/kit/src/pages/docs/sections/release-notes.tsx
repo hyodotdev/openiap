@@ -33,7 +33,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "security",
         topic: "Organization consent",
-        text: "Team invitations now wait for the invited account to accept before creating membership. Managers can withdraw pending invitations. Invitations can be declined, expire after seven days, and are checked again against the inviter's current permissions. Members can leave their organization in Settings; the last owner remains protected.",
+        text: "Team invitations now wait for the invited account to accept before creating membership. Managers can withdraw pending invitations. Invitations can be declined, expire after seven days, and are checked again against the inviter's current permissions. Members can leave their organization in Settings; the last owner remains protected. Dashboard buttons and surfaces use the shared theme colors correctly.",
       },
       {
         kind: "feature",
