@@ -785,12 +785,17 @@ npx convex run --prod --component migrations lib:getStatus \
 
 ### Automated (CI on push to `main`)
 
+Use the locked Convex CLI version. [Convex 1.46](https://ship.convex.dev/changelog/convex-v1-46-0)
+fixed an index-change check that incorrectly required `deployment:data:view`
+during deployment. Older CLIs can reject a scoped deploy key before pushing
+functions.
+
 [`.github/workflows/deploy-kit.yml`](../../.github/workflows/deploy-kit.yml)
 runs verify, deploys Convex, and then deploys Fly on every push to `main` that
 matches the workflow's `push.paths` (kit, the MCP server, the Commerce
 Protocol, the workflow itself, the security-tool installer, and the workspace
-manifests). Required repo secrets (all `KIT_`-prefixed to namespace them away
-from other monorepo secrets):
+manifests). Required `kit-production` environment secrets (all `KIT_`-prefixed to
+namespace them away from other monorepo secrets):
 
 Manual workflow dispatches from non-`main` refs run verification only. Select
 `main` explicitly when a production redeploy is intended.
@@ -810,6 +815,12 @@ secrets for injection convenience.
 | `VITE_KIT_SENTRY_DSN`            | ⚠️ public    | Build arg for SPA (optional — SPA skips init if absent)             |
 | `VITE_KIT_MIXPANEL_TOKEN`        | ⚠️ public    | BuildKit secret for SPA (optional — analytics opt-in)               |
 
+Use a production-scoped Convex deploy key with `deployment:deploy` and
+`deployment:env:write`. The deployment provisions the shared verification
+credential before pushing functions, so a code-deploy-only key cannot complete
+it. See [Convex role actions](https://docs.convex.dev/team-management/role-actions#data-plane-and-runtime)
+for these permissions.
+
 The workflow checks deployment-credential presence, source-credential format
 and the canonical Convex target before changing either surface. Missing credentials
 or a Convex URL mismatch fail before function deployment. Later provider
@@ -818,7 +829,7 @@ in the cutover procedure. Set the Convex key with:
 
 ```bash
 # Value from Convex dashboard → Settings → Deploy Keys
-gh secret set KIT_CONVEX_DEPLOY_KEY --repo hyodotdev/openiap
+gh secret set KIT_CONVEX_DEPLOY_KEY --env kit-production --repo hyodotdev/openiap
 ```
 
 ### Convex-dashboard-managed secrets

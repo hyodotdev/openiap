@@ -22,6 +22,9 @@ process.env.IAPKIT_VERIFICATION_SOURCE_SECRET = randomBytes(32).toString("hex");
 
 const kit = resolve(import.meta.dir, "../..");
 const repo = resolve(kit, "../..");
+const convexVersion = JSON.parse(
+  readFileSync(join(kit, "node_modules/convex/package.json"), "utf8"),
+).version;
 const example = resolve(
   process.argv[2] ?? join(repo, "../openiap-commerce-protocol-example"),
 );
@@ -115,7 +118,7 @@ writeFileSync(
   JSON.stringify({
     name: "commerce-interop-local",
     type: "module",
-    dependencies: { convex: "1.44.0" },
+    dependencies: { convex: convexVersion },
   }),
 );
 const env = { ...process.env };
@@ -909,9 +912,7 @@ try {
     },
     runtime: {
       bun: Bun.version,
-      convex: JSON.parse(
-        readFileSync(join(kit, "node_modules/convex/package.json"), "utf8"),
-      ).version,
+      convex: convexVersion,
     },
     // Reconstructed from what actually ran, not a fixed string: the fresh
     // example is a third argument and the report must not omit it.

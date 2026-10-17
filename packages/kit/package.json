@@ -46,7 +46,7 @@
     "ajv": "^8.17.1",
     "antd": "^6.1.0",
     "clsx": "^2.1.1",
-    "convex": "^1.44.0",
+    "convex": "^1.47.0",
     "google-auth-library": "^10.9.1",
     "googleapis": "^157.0.0",
     "graphql": "^16.11.0",
