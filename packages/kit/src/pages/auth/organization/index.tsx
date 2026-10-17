@@ -7,6 +7,7 @@ import { SiGithub } from "@icons-pack/react-simple-icons";
 import { KIT_REPO_URL } from "@/lib/constants";
 import { ThemeDropdown } from "../../../components/ThemeDropdown";
 import { SignOutButton } from "../../../components/SignOutButton";
+import { OrganizationInvitations } from "@/components/OrganizationInvitations";
 import { FreeTransitionNotice } from "../../../components/FreeTransitionNotice";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex";
@@ -209,6 +210,7 @@ export default function OrganizationLayout() {
               organization.stripeSubscriptionId,
             )}
           />
+          <OrganizationInvitations />
           <Outlet />
         </main>
       </div>

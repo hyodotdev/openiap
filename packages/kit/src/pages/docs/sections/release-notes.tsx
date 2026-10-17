@@ -25,11 +25,16 @@ const RELEASES: ReleaseEntry[] = [
   {
     id: "week-2026-10-12",
     weekStart: "2026-10-12",
-    date: "2026-10-15",
-    pullRequests: [523, 528, 532, 533, 537],
+    date: "2026-10-18",
+    pullRequests: [523, 528, 532, 533, 537, 542],
     tagline:
       "Amazon subscription lifecycle beta, purchase recovery tools, verified analytics and a security hardening pass.",
     items: [
+      {
+        kind: "security",
+        topic: "Organization consent",
+        text: "Team invitations now wait for the invited account to accept before creating membership. Managers can withdraw pending invitations. Invitations can be declined, expire after seven days, and are checked again against the inviter's current permissions. Members can leave their organization in Settings; the last owner remains protected. Dashboard buttons and surfaces use the shared theme colors correctly.",
+      },
       {
         kind: "feature",
         topic: "Verification",

@@ -1,5 +1,7 @@
 import { query } from "../_generated/server";
+import { createError, ErrorCode } from "../utils/errors";
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const getUserOrganizations = query({
@@ -183,3 +185,68 @@ export const getOrganizationMembers = query({
 
 // Alias for compatibility
 export const listOrganizationMembers = getOrganizationMembers;
+
+export const getMyInvitations = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return { page: [], isDone: true, continueCursor: "" };
+    const result = await ctx.db
+      .query("organizationInvitations")
+      .withIndex("by_user_and_expiry", (q) =>
+        q.eq("userId", userId).gt("expiresAt", Date.now()),
+      )
+      .paginate(args.paginationOpts);
+    const page = await Promise.all(
+      result.page.map(async (invitation) => {
+        const organization = await ctx.db.get(invitation.organizationId);
+        if (!organization || organization.pendingDeletion) return null;
+        return {
+          _id: invitation._id,
+          organizationName: organization.name,
+          role: invitation.role,
+          expiresAt: invitation.expiresAt,
+        };
+      }),
+    );
+    return { ...result, page: page.filter((row) => row !== null) };
+  },
+});
+
+export const getPendingInvitations = query({
+  args: {
+    organizationId: v.id("organizations"),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw createError(ErrorCode.NOT_AUTHENTICATED);
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_org_and_user", (q) =>
+        q.eq("organizationId", args.organizationId).eq("userId", userId),
+      )
+      .first();
+    if (!membership || !["owner", "admin"].includes(membership.role))
+      throw createError(ErrorCode.INSUFFICIENT_PERMISSIONS);
+    const result = await ctx.db
+      .query("organizationInvitations")
+      .withIndex("by_organization", (q) =>
+        q.eq("organizationId", args.organizationId),
+      )
+      .paginate(args.paginationOpts);
+    const page = await Promise.all(
+      result.page
+        .filter((invitation) => invitation.expiresAt > Date.now())
+        .map(async (invitation) => {
+          const user = await ctx.db.get(invitation.userId);
+          return {
+            _id: invitation._id,
+            email: user?.email ?? "Invited account",
+            role: invitation.role,
+          };
+        }),
+    );
+    return { ...result, page };
+  },
+});

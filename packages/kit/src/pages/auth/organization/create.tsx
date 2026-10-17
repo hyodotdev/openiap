@@ -1,3 +1,4 @@
+import { OrganizationInvitations } from "@/components/OrganizationInvitations";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "convex/react";
@@ -85,6 +86,7 @@ export default function CreateOrganization() {
       </button>
 
       <div className="w-full max-w-md px-4">
+        <OrganizationInvitations />
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Building2 className="w-8 h-8 text-primary" />

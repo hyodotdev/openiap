@@ -185,4 +185,11 @@ crons.interval(
   internal.products.jobs.pruneProductSyncJobs,
 );
 
+crons.interval(
+  "prune expired organization invitations",
+  { hours: 1 },
+  internal.organizations.internal.pruneExpiredInvitations,
+  {},
+);
+
 export default crons;

@@ -64,6 +64,10 @@ vi.mock("../../../components/FreeTransitionNotice", () => ({
   FreeTransitionNotice: () => null,
 }));
 
+vi.mock("@/components/OrganizationInvitations", () => ({
+  OrganizationInvitations: () => null,
+}));
+
 import OrganizationLayout from "./index";
 
 describe("OrganizationLayout responsive sizing", () => {

@@ -10,6 +10,7 @@ import {
   deliveryAttemptValidator,
   deliveryStatusValidator,
   paidStartValidator,
+  organizationInviteRoleValidator,
   purchaseIssueCauseValidator,
   receiptEnvironmentValidator,
   storeEnvironmentValidator,
@@ -143,6 +144,20 @@ const schema = defineSchema({
     .index("by_organization_and_role", ["organizationId", "role"])
     .index("by_user", ["userId"])
     .index("by_org_and_user", ["organizationId", "userId"]),
+
+  organizationInvitations: defineTable({
+    organizationId: v.id("organizations"),
+    userId: v.id("users"),
+    invitedBy: v.id("users"),
+    role: organizationInviteRoleValidator,
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_org_and_user", ["organizationId", "userId"])
+    .index("by_user_and_expiry", ["userId", "expiresAt"])
+    .index("by_inviter", ["invitedBy"])
+    .index("by_expiry", ["expiresAt"]),
 
   // User profiles table - extends auth users with app-specific data
   userProfiles: defineTable({

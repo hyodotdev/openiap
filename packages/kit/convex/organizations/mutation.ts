@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { SPONSOR_CTA_THRESHOLD } from "../plans";
 import { createError, ErrorCode } from "../utils/errors";
+import { organizationInviteRoleValidator } from "../utils/validation";
 
 // Helper to generate URL-friendly slug
 function generateSlug(name: string): string {
@@ -166,40 +167,27 @@ export const inviteMember = mutation({
   args: {
     organizationId: v.id("organizations"),
     email: v.string(),
-    role: v.union(v.literal("admin"), v.literal("member")),
+    role: organizationInviteRoleValidator,
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw createError(ErrorCode.NOT_AUTHENTICATED);
-    }
-
-    // Check if user is owner or admin
+    if (!userId) throw createError(ErrorCode.NOT_AUTHENTICATED);
     const membership = await ctx.db
       .query("organizationMembers")
       .withIndex("by_org_and_user", (q) =>
         q.eq("organizationId", args.organizationId).eq("userId", userId),
       )
       .first();
-
-    if (
-      !membership ||
-      (membership.role !== "owner" && membership.role !== "admin")
-    ) {
+    if (!membership || !["owner", "admin"].includes(membership.role))
       throw createError(ErrorCode.INSUFFICIENT_PERMISSIONS);
-    }
-
-    // Indexed: a full scan would exceed the read budget as users grow.
+    const organization = await ctx.db.get(args.organizationId);
+    if (!organization || organization.pendingDeletion)
+      throw createError(ErrorCode.ORGANIZATION_NOT_FOUND);
     const invitedUser = await ctx.db
       .query("users")
-      .withIndex("email", (q) => q.eq("email", args.email))
+      .withIndex("email", (q) => q.eq("email", args.email.trim()))
       .first();
-
-    if (!invitedUser) {
-      throw createError(ErrorCode.USER_NOT_REGISTERED);
-    }
-
-    // Check if already a member
+    if (!invitedUser) throw createError(ErrorCode.USER_NOT_REGISTERED);
     const existingMembership = await ctx.db
       .query("organizationMembers")
       .withIndex("by_org_and_user", (q) =>
@@ -208,21 +196,111 @@ export const inviteMember = mutation({
           .eq("userId", invitedUser._id),
       )
       .first();
-
-    if (existingMembership) {
-      throw createError(ErrorCode.USER_ALREADY_MEMBER);
-    }
-
+    if (existingMembership) throw createError(ErrorCode.USER_ALREADY_MEMBER);
+    const pending = await ctx.db
+      .query("organizationInvitations")
+      .withIndex("by_org_and_user", (q) =>
+        q
+          .eq("organizationId", args.organizationId)
+          .eq("userId", invitedUser._id),
+      )
+      .first();
     const now = Date.now();
-
-    // Add member
-    await ctx.db.insert("organizationMembers", {
+    const invitation = {
       organizationId: args.organizationId,
       userId: invitedUser._id,
+      invitedBy: userId,
       role: args.role,
-      joinedAt: now,
-      updatedAt: now,
-    });
+      expiresAt: now + 7 * 24 * 60 * 60 * 1000,
+      createdAt: now,
+    };
+    if (pending) await ctx.db.delete(pending._id);
+    await ctx.db.insert("organizationInvitations", invitation);
+  },
+});
+
+export const respondToInvitation = mutation({
+  args: {
+    invitationId: v.id("organizationInvitations"),
+    accept: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw createError(ErrorCode.NOT_AUTHENTICATED);
+    const invitation = await ctx.db.get(args.invitationId);
+    if (!invitation || invitation.userId !== userId)
+      throw createError(ErrorCode.NOT_AUTHORIZED);
+    if (!args.accept) {
+      await ctx.db.delete(invitation._id);
+      return null;
+    }
+    if (invitation.expiresAt <= Date.now())
+      throw createError(
+        ErrorCode.INVALID_INPUT,
+        "This invitation has expired.",
+      );
+    const organization = await ctx.db.get(invitation.organizationId);
+    const inviter = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_org_and_user", (q) =>
+        q
+          .eq("organizationId", invitation.organizationId)
+          .eq("userId", invitation.invitedBy),
+      )
+      .first();
+    if (
+      !organization ||
+      organization.pendingDeletion ||
+      !inviter ||
+      !["owner", "admin"].includes(inviter.role)
+    )
+      throw createError(ErrorCode.NOT_AUTHORIZED);
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_org_and_user", (q) =>
+        q.eq("organizationId", invitation.organizationId).eq("userId", userId),
+      )
+      .first();
+    if (!membership) {
+      const now = Date.now();
+      await ctx.db.insert("organizationMembers", {
+        organizationId: invitation.organizationId,
+        userId,
+        role: invitation.role,
+        joinedAt: now,
+        updatedAt: now,
+      });
+    }
+    await ctx.db.delete(invitation._id);
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+    if (profile)
+      await ctx.db.patch(profile._id, {
+        currentOrganizationId: organization._id,
+        updatedAt: Date.now(),
+      });
+    return { organizationId: organization._id, slug: organization.slug };
+  },
+});
+
+export const cancelInvitation = mutation({
+  args: { invitationId: v.id("organizationInvitations") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw createError(ErrorCode.NOT_AUTHENTICATED);
+    const invitation = await ctx.db.get(args.invitationId);
+    if (!invitation) throw createError(ErrorCode.NOT_AUTHORIZED);
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_org_and_user", (q) =>
+        q.eq("organizationId", invitation.organizationId).eq("userId", userId),
+      )
+      .first();
+    if (!membership || !["owner", "admin"].includes(membership.role))
+      throw createError(ErrorCode.INSUFFICIENT_PERMISSIONS);
+    await ctx.db.delete(invitation._id);
   },
 });
 
@@ -237,7 +315,7 @@ export const removeMember = mutation({
       throw createError(ErrorCode.NOT_AUTHENTICATED);
     }
 
-    // Check if current user is owner or admin
+    // Members may leave; removing someone else requires an owner or admin.
     const currentUserMembership = await ctx.db
       .query("organizationMembers")
       .withIndex("by_org_and_user", (q) =>
@@ -247,7 +325,8 @@ export const removeMember = mutation({
 
     if (
       !currentUserMembership ||
-      (currentUserMembership.role !== "owner" &&
+      (currentUserId !== args.userId &&
+        currentUserMembership.role !== "owner" &&
         currentUserMembership.role !== "admin")
     ) {
       throw createError(ErrorCode.INSUFFICIENT_PERMISSIONS);
@@ -284,6 +363,22 @@ export const removeMember = mutation({
     }
 
     await ctx.db.delete(membershipToRemove._id);
+    if (currentUserId === args.userId) {
+      const profile = await ctx.db
+        .query("userProfiles")
+        .withIndex("by_user", (q) => q.eq("userId", currentUserId))
+        .first();
+      if (profile?.currentOrganizationId === args.organizationId) {
+        const next = await ctx.db
+          .query("organizationMembers")
+          .withIndex("by_user", (q) => q.eq("userId", currentUserId))
+          .first();
+        await ctx.db.patch(profile._id, {
+          currentOrganizationId: next?.organizationId,
+          updatedAt: Date.now(),
+        });
+      }
+    }
   },
 });
 

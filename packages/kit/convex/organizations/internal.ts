@@ -1,5 +1,6 @@
 import { internalMutation, internalQuery } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
+import { internal } from "../_generated/api";
 import { Doc } from "../_generated/dataModel";
 import { v } from "convex/values";
 import type { SubscriptionPlanId } from "../plans";
@@ -149,3 +150,21 @@ export async function recordVerificationUsageForOrganization(
     subscriptionTier: tier,
   };
 }
+
+export const pruneExpiredInvitations = internalMutation({
+  args: {},
+  handler: async (ctx): Promise<number> => {
+    const rows = await ctx.db
+      .query("organizationInvitations")
+      .withIndex("by_expiry", (q) => q.lte("expiresAt", Date.now()))
+      .take(100);
+    for (const row of rows) await ctx.db.delete(row._id);
+    if (rows.length === 100)
+      await ctx.scheduler.runAfter(
+        0,
+        internal.organizations.internal.pruneExpiredInvitations,
+        {},
+      );
+    return rows.length;
+  },
+});

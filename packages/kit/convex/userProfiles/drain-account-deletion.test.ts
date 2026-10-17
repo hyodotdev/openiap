@@ -270,6 +270,53 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     expect(ctx.db.countRows("authAccounts")).toBe(0);
   });
 
+  it("pages received and sent invitations before deleting the account", async (): Promise<void> => {
+    const profileId = await ctx.db.insert("userProfiles", { userId: USER_ID });
+    for (let i = 0; i < 25; i++) {
+      await ctx.db.insert("organizationInvitations", {
+        userId: USER_ID,
+        invitedBy: "users_other",
+        organizationId: "org_other",
+      });
+      await ctx.db.insert("organizationInvitations", {
+        userId: "users_other",
+        invitedBy: USER_ID,
+        organizationId: "org_other",
+      });
+    }
+    const unrelated = await ctx.db.insert("organizationInvitations", {
+      userId: "users_other",
+      invitedBy: "users_other",
+      organizationId: "org_other",
+    });
+    await drainAccountDeletionBatch(ctx, USER_ID);
+    expect(ctx.db.countRows("organizationInvitations")).toBe(41);
+    expect(await ctx.db.get(profileId)).not.toBeNull();
+    await runDrainToCompletion(ctx);
+    expect(ctx.db.countRows("organizationInvitations")).toBe(1);
+    expect(await ctx.db.get(unrelated)).not.toBeNull();
+  });
+
+  it("pages invitations before deleting their organization", async (): Promise<void> => {
+    const orgId = await ctx.db.insert("organizations", {
+      name: "deleting",
+      pendingDeletion: true,
+    });
+    for (let i = 0; i < 25; i++) {
+      await ctx.db.insert("organizationInvitations", {
+        userId: "users_other",
+        invitedBy: "users_inviter",
+        organizationId: orgId,
+      });
+    }
+    await drainPendingDeletionOrganizations(ctx);
+    expect(ctx.db.countRows("organizationInvitations")).toBe(15);
+    expect(await ctx.db.get(orgId)).not.toBeNull();
+    for (let i = 0; i < 10; i++) await drainPendingDeletionOrganizations(ctx);
+    expect(ctx.db.countRows("organizationInvitations")).toBe(0);
+    expect(await ctx.db.get(orgId)).toBeNull();
+  });
+
   it("flags orphaned orgs in the membership phase and the separate cron drains them", async () => {
     const orgId = await ctx.db.insert("organizations", {
       name: "acme",
