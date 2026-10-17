@@ -270,7 +270,7 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     expect(ctx.db.countRows("authAccounts")).toBe(0);
   });
 
-  it("pages received and sent invitations before deleting the account", async () => {
+  it("pages received and sent invitations before deleting the account", async (): Promise<void> => {
     const profileId = await ctx.db.insert("userProfiles", { userId: USER_ID });
     for (let i = 0; i < 25; i++) {
       await ctx.db.insert("organizationInvitations", {
@@ -297,7 +297,7 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     expect(await ctx.db.get(unrelated)).not.toBeNull();
   });
 
-  it("pages invitations before deleting their organization", async () => {
+  it("pages invitations before deleting their organization", async (): Promise<void> => {
     const orgId = await ctx.db.insert("organizations", {
       name: "deleting",
       pendingDeletion: true,

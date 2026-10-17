@@ -118,7 +118,7 @@ function fixture() {
   });
   return {
     db,
-    ctx: { db },
+    ctx: { db, scheduler: { runAfter: vi.fn() } },
     rows,
     invitationId: () =>
       rows("organizationInvitations")[0]._id as Id<"organizationInvitations">,
@@ -378,6 +378,22 @@ describe("organization invitation consent", () => {
     ).toEqual([]);
     await prune._handler(f.ctx, {});
     expect(f.rows("organizationInvitations")).toEqual([]);
+  });
+  it("drains an expired backlog in bounded scheduled batches", async () => {
+    const f = fixture();
+    for (let i = 0; i < 251; i++)
+      await f.db.insert("organizationInvitations", { expiresAt: Date.now() });
+    await f.db.insert("organizationInvitations", { expiresAt: Date.now() + 1 });
+    for (const remaining of [152, 52, 1]) {
+      await prune._handler(f.ctx, {});
+      expect(f.rows("organizationInvitations")).toHaveLength(remaining);
+    }
+    expect(f.ctx.scheduler.runAfter).toHaveBeenCalledTimes(2);
+    expect(f.ctx.scheduler.runAfter).toHaveBeenCalledWith(
+      0,
+      expect.anything(),
+      {},
+    );
   });
   it("lets a member leave and clears its current organization", async () => {
     const f = fixture();
