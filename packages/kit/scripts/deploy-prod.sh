@@ -40,6 +40,8 @@ if [ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]; then
   exit 1
 fi
 
+(cd "$REPO_ROOT" && bun install --frozen-lockfile --filter @hyodotdev/openiap-kit)
+
 bash "$KIT_DIR/scripts/validate-deployment-credentials.sh"
 
 # Deploy Convex first and capture the canonical cloud URL selected by the same
