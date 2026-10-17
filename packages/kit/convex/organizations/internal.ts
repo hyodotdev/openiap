@@ -149,3 +149,15 @@ export async function recordVerificationUsageForOrganization(
     subscriptionTier: tier,
   };
 }
+
+export const pruneExpiredInvitations = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const rows = await ctx.db
+      .query("organizationInvitations")
+      .withIndex("by_expiry", (q) => q.lte("expiresAt", Date.now()))
+      .take(100);
+    for (const row of rows) await ctx.db.delete(row._id);
+    return rows.length;
+  },
+});

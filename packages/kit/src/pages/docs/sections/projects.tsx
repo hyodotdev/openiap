@@ -44,6 +44,18 @@ export default function ProjectsPage() {
         evidence fingerprint instead.
       </p>
 
+      <h2 className="mt-10 text-2xl font-semibold">Team membership</h2>
+      <p>
+        Owners and admins invite existing IAPKit accounts from organization
+        Settings. The invited account chooses Accept or Decline in its
+        dashboard, including during organization onboarding. An invitation
+        grants no access and expires after seven days. Acceptance also checks
+        that the inviter can still manage the organization; if their access
+        changes, a current manager must send a new invitation. Managers can
+        withdraw pending invitations from Settings. Members can leave from
+        Settings; the last owner must keep another owner before leaving.
+      </p>
+
       <h2 className="mt-10 text-2xl font-semibold">Creating a project</h2>
       <p>
         From the organization dashboard, open the <strong>Projects</strong> tab

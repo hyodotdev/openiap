@@ -1,5 +1,10 @@
 import { v } from "convex/values";
 
+export const organizationInviteRoleValidator = v.union(
+  v.literal("admin"),
+  v.literal("member"),
+);
+
 export const subscriptionStateValidator = v.union(
   v.literal("Active"),
   v.literal("InGracePeriod"),

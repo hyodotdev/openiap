@@ -31,6 +31,11 @@ const RELEASES: ReleaseEntry[] = [
       "Amazon subscription lifecycle beta, purchase recovery tools, verified analytics and a security hardening pass.",
     items: [
       {
+        kind: "security",
+        topic: "Organization consent",
+        text: "Team invitations now wait for the invited account to accept before creating membership. Managers can withdraw pending invitations. Invitations can be declined, expire after seven days, and are checked again against the inviter's current permissions. Members can leave their organization in Settings; the last owner remains protected.",
+      },
+      {
         kind: "feature",
         topic: "Verification",
         text: "Verify accepts includeTransactionDetails and returns the transaction ID, original transaction ID, expiry, environment, a correlation ID and whether a rejection is final (never for Meta Horizon or a Google subscription the store can still revive), to match a verification with commerce events. Responses without the flag are unchanged.",

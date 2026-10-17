@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { api } from "@/convex";
 import type { Id } from "@/convex";
 import { toast } from "sonner";
 import { CustomDropdown } from "../../../components/CustomDropdown";
 import { ButtonPrimary } from "@/components/ButtonPrimary";
+import { OrganizationPendingInvitations } from "@/components/OrganizationPendingInvitations";
 import { ErrorCode } from "../../../../convex/utils/errors";
 import { appErrorCode } from "@/lib/appError";
 import {
@@ -29,6 +30,8 @@ type OrganizationMember = {
 
 export default function OrganizationSettings() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
+  const navigate = useNavigate();
+  const loggedInUser = useQuery(api.auth.loggedInUser);
   const currentOrg = useQuery(
     api.organizations.query.getOrganizationBySlug,
     orgSlug ? { slug: orgSlug } : "skip",
@@ -103,7 +106,7 @@ export default function OrganizationSettings() {
         email: inviteEmail.trim(),
         role: inviteRole,
       });
-      toast.success("Member invited successfully");
+      toast.success("Invitation sent. They must accept before joining.");
       setInviteEmail("");
       setInviteRole("member");
     } catch (error: unknown) {
@@ -130,9 +133,12 @@ export default function OrganizationSettings() {
   const handleRemoveMember = async (userId: Id<"users">, userName: string) => {
     if (!currentOrg) return;
 
+    const leaving = userId === loggedInUser?._id;
     if (
       !confirm(
-        `Are you sure you want to remove ${userName} from the organization?`,
+        leaving
+          ? `Leave ${currentOrg.name}?`
+          : `Are you sure you want to remove ${userName} from the organization?`,
       )
     ) {
       return;
@@ -143,7 +149,10 @@ export default function OrganizationSettings() {
         organizationId: currentOrg._id,
         userId,
       });
-      toast.success("Member removed successfully");
+      toast.success(
+        leaving ? "You left the organization" : "Member removed successfully",
+      );
+      if (leaving) void navigate("/", { replace: true });
     } catch (error: unknown) {
       switch (appErrorCode(error)) {
         case ErrorCode.INSUFFICIENT_PERMISSIONS:
@@ -169,6 +178,9 @@ export default function OrganizationSettings() {
   }
 
   const canEdit = currentOrg.role === "owner" || currentOrg.role === "admin";
+  const lastOwner =
+    currentOrg.role === "owner" &&
+    members.filter((member) => member.role === "owner").length <= 1;
 
   return (
     <div className="container max-w-4xl mx-auto py-8">
@@ -240,7 +252,7 @@ export default function OrganizationSettings() {
                 {"Shown on invoices and sent to Stripe."}
               </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <ButtonPrimary
                 type="button"
                 onClick={() => {
@@ -339,6 +351,30 @@ export default function OrganizationSettings() {
           </div>
         </div>
 
+        {loggedInUser ? (
+          <div className="mb-6 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={lastOwner}
+              onClick={() =>
+                void handleRemoveMember(loggedInUser._id, "yourself")
+              }
+            >
+              Leave organization
+            </button>
+            {lastOwner ? (
+              <p className="text-sm text-muted-foreground">
+                Another owner must remain before you can leave.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {canEdit ? (
+          <OrganizationPendingInvitations organizationId={currentOrg._id} />
+        ) : null}
+
         {/* Invite Form */}
         {canEdit && (
           <form
@@ -351,15 +387,15 @@ export default function OrganizationSettings() {
             <h3 className="font-medium mb-1">{"Invite New Member"}</h3>
             <p className="text-sm text-muted-foreground mb-3">
               {
-                "The person needs an IAPKit account first. Ask them to sign up at kit.openiap.dev, then invite them with that email."
+                "Invite an existing IAPKit account by email. They choose Accept or Decline in their dashboard; access starts only after acceptance. Invitations expire after seven days."
               }
             </p>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <input
                 type="email"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
-                className="flex-1 px-3 py-2 bg-background border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="min-w-0 flex-1 px-3 py-2 bg-background border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder={"member@example.com"}
                 required
               />

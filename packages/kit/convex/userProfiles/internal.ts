@@ -145,6 +145,19 @@ export const drainAccountDeletionBatch = internalMutation({
       return { done: false };
     }
 
+    for (const index of ["by_user_and_expiry", "by_inviter"] as const) {
+      const invitations = await ctx.db
+        .query("organizationInvitations")
+        .withIndex(index, (q) =>
+          index === "by_inviter"
+            ? q.eq("invitedBy", userId)
+            : q.eq("userId", userId),
+        )
+        .take(ACCOUNT_DELETION_PAGE);
+      for (const invitation of invitations) await ctx.db.delete(invitation._id);
+      if (invitations.length > 0) return { done: false };
+    }
+
     // Phase: user profile (at most one row).
     const profile = await ctx.db
       .query("userProfiles")
@@ -282,6 +295,13 @@ async function drainOrganizationPage(
   }
 
   // Project-less org — drain org-scoped side tables.
+  const invitations = await ctx.db
+    .query("organizationInvitations")
+    .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+    .take(ACCOUNT_DELETION_PAGE);
+  for (const invitation of invitations) await ctx.db.delete(invitation._id);
+  if (invitations.length > 0) return true;
+
   const orgApiKeys = await ctx.db
     .query("apiKeys")
     .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
