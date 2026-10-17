@@ -5,13 +5,14 @@ import {
   Text,
   TouchableOpacity,
   View,
+  type LayoutChangeEvent,
 } from 'react-native';
 import {ErrorCode, type Purchase} from 'expo-iap';
 
 type Stage = 'store' | 'confirmation' | 'finish';
 type StepState = 'idle' | 'running' | 'done' | 'waiting' | 'failed' | 'skipped';
 
-interface Activity {
+export interface PurchaseFlowActivity {
   key: string;
   productId: string;
   steps: Record<Stage, StepState>;
@@ -20,7 +21,7 @@ interface Activity {
 
 type ObservedPurchase = Pick<Purchase, 'id' | 'productId' | 'purchaseState'>;
 
-function receivedPurchase(purchase: ObservedPurchase): Activity {
+function receivedPurchase(purchase: ObservedPurchase): PurchaseFlowActivity {
   return {
     key: purchase.id,
     productId: purchase.productId,
@@ -47,7 +48,7 @@ const STEP_LABELS: Record<StepState, string> = {
 
 /** One visible attempt; late events from another purchase cannot advance it. */
 export function usePurchaseFlowActivity() {
-  const [activity, setActivity] = useState<Activity | null>(null);
+  const [activity, setActivity] = useState<PurchaseFlowActivity | null>(null);
   const requestNumber = useRef(0);
   const activityVersion = useRef(0);
   const startStore = useCallback((productId: string): string => {
@@ -85,13 +86,13 @@ export function usePurchaseFlowActivity() {
         code === ErrorCode.UserCancelled
           ? 'skipped'
           : code === ErrorCode.DeferredPayment
-          ? 'waiting'
-          : 'failed',
+            ? 'waiting'
+            : 'failed',
         code === ErrorCode.UserCancelled
           ? 'Purchase cancelled. No new payment was confirmed.'
           : code === ErrorCode.DeferredPayment
-          ? 'Payment is pending at the store.'
-          : 'The store reported a purchase error.',
+            ? 'Payment is pending at the store.'
+            : 'The store reported a purchase error.',
       );
     },
     [update],
@@ -130,14 +131,23 @@ export function usePurchaseFlowActivity() {
 
 interface Props {
   backend?: boolean;
-  activity: Activity | null;
+  activity: PurchaseFlowActivity | null;
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
+  onLayout: (event: LayoutChangeEvent) => void;
+  onBodyLayout: (event: LayoutChangeEvent) => void;
+  onStepLayout: (stage: Stage, event: LayoutChangeEvent) => void;
 }
 
 export default function PurchaseFlowDiagram({
   backend = false,
   activity,
+  expanded,
+  onExpandedChange,
+  onLayout,
+  onBodyLayout,
+  onStepLayout,
 }: Props) {
-  const [expanded, setExpanded] = useState(false);
   const stages: {id: Stage; owner: string; title: string; detail: string}[] = [
     {
       id: 'store',
@@ -168,17 +178,10 @@ export default function PurchaseFlowDiagram({
     : undefined;
 
   return (
-    <View style={styles.card}>
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityState={{expanded}}
-        onPress={() => setExpanded(!expanded)}
-        style={styles.toggle}
-      >
+    <View testID="purchase-steps" style={styles.card} onLayout={onLayout}>
+      <View style={styles.toggle}>
         <View style={styles.heading}>
-          <Text style={styles.title}>
-            {expanded ? 'Hide purchase steps' : 'Show purchase steps'}
-          </Text>
+          <Text style={styles.title}>Purchase steps</Text>
           <Text style={styles.summary} accessibilityLiveRegion="polite">
             {activity && latestStage
               ? `${latestStage.title} · ${
@@ -187,10 +190,24 @@ export default function PurchaseFlowDiagram({
               : 'See who handles each step before you buy.'}
           </Text>
         </View>
-        <Text style={styles.chevron}>{expanded ? '−' : '+'}</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={
+            expanded ? 'Hide purchase steps' : 'Show purchase steps'
+          }
+          accessibilityState={{expanded}}
+          onPress={() => onExpandedChange(!expanded)}
+          style={styles.toggleButton}
+        >
+          <Text style={styles.toggleText}>{expanded ? 'Hide' : 'Show'}</Text>
+        </TouchableOpacity>
+      </View>
       {expanded ? (
-        <View style={styles.diagram}>
+        <View
+          testID="purchase-steps-body"
+          style={styles.diagram}
+          onLayout={onBodyLayout}
+        >
           {activity ? (
             <Text style={styles.summary}>{activity.note}</Text>
           ) : null}
@@ -205,17 +222,18 @@ export default function PurchaseFlowDiagram({
               state === 'done'
                 ? '#166534'
                 : state === 'running'
-                ? '#1D4ED8'
-                : state === 'failed'
-                ? '#B91C1C'
-                : state === 'waiting' || state === 'skipped'
-                ? '#92400E'
-                : '#64748B';
+                  ? '#1D4ED8'
+                  : state === 'failed'
+                    ? '#B91C1C'
+                    : state === 'waiting' || state === 'skipped'
+                      ? '#92400E'
+                      : '#64748B';
             return (
               <View
                 key={stage.id}
                 testID={`purchase-step-${stage.id}`}
                 style={styles.step}
+                onLayout={(event) => onStepLayout(stage.id, event)}
               >
                 <View style={styles.rail}>
                   <View style={[styles.node, {borderColor: color}]}>
@@ -263,7 +281,15 @@ const styles = StyleSheet.create({
   heading: {flex: 1},
   title: {fontSize: 15, fontWeight: '600', color: '#0F172A', lineHeight: 22},
   summary: {fontSize: 13, lineHeight: 19, color: '#475569', marginTop: 4},
-  chevron: {fontSize: 24, color: '#1D4ED8'},
+  toggleButton: {
+    minHeight: 44,
+    minWidth: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: '#EFF6FF',
+  },
+  toggleText: {fontSize: 13, fontWeight: '600', color: '#1D4ED8'},
   diagram: {paddingHorizontal: 16, paddingBottom: 16, gap: 16},
   caption: {fontSize: 12, lineHeight: 18, color: '#64748B'},
   step: {flexDirection: 'row', gap: 12},

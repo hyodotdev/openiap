@@ -178,11 +178,15 @@ const outcomes = await flow.recoverPurchases();`}
         >
           Expo IAP example
         </a>{" "}
-        shows the backend flow: open <strong>Purchase</strong>, select{" "}
+        shows the backend flow: open <strong>Purchase</strong> for one-time
+        products or <strong>Subscription Flow</strong> for subscriptions. Select{" "}
         <strong>Change</strong> beside <strong>Purchase confirmation</strong>,
         then choose <strong>Your app backend</strong>. Select{" "}
-        <strong>Show purchase steps</strong> to follow stages updated by actual
-        callbacks. Choose <strong>Receipt checks</strong> for one-time purchase
+        <strong>Show</strong> beside <strong>Purchase steps</strong> to follow
+        actual callbacks. An open panel brings purchase progress into view and
+        returns to your product position after finishing; a closed panel leaves
+        scrolling alone. Closing the panel or scrolling manually cancels the
+        automatic return. Choose <strong>Receipt checks</strong> to test
         verification and finishing without deciding app-account access.
       </p>
 

@@ -33,6 +33,7 @@ import {extractErrorCode, extractErrorMessage} from '../utils/errorUtils';
 import {subscriptionDisplay} from '../utils/subscriptionDisplay';
 import ExampleButton from './ExampleButton';
 import StoreProductCard from './StoreProductCard';
+import usePurchaseFlowScroll from './usePurchaseFlowScroll';
 import PurchaseFlowDiagram, {
   usePurchaseFlowActivity,
 } from './PurchaseFlowDiagram';
@@ -62,8 +63,14 @@ function appBackendUrl(): string | undefined {
   );
 }
 
+interface Props {
+  productType?: 'in-app' | 'subs';
+}
+
 /** Backend confirmation for the captured app account; the helper owns settlement. */
-export default function BackendEntitlementFlow() {
+export default function BackendEntitlementFlow({
+  productType = 'in-app',
+}: Props) {
   const {
     activity,
     startStore,
@@ -74,6 +81,18 @@ export default function BackendEntitlementFlow() {
     observeRecoveredPending,
     storeError,
   } = usePurchaseFlowActivity();
+  const {
+    setScrollView,
+    expanded,
+    changeExpanded,
+    beginPurchase,
+    onScroll,
+    onScrollBeginDrag,
+    onContentLayout,
+    onDiagramLayout,
+    onDiagramBodyLayout,
+    onStepLayout,
+  } = usePurchaseFlowScroll(activity);
   const purchaseRequestTrace = useRef('');
   const backendUrl = appBackendUrl();
   const [account, setAccount] = useState('demo-user-1');
@@ -280,6 +299,7 @@ export default function BackendEntitlementFlow() {
   ) => {
     const owner = activeFlow.current;
     if (!owner) return;
+    beginPurchase(productId);
     purchaseRequestTrace.current = startStore(productId);
     const requestTrace = purchaseRequestTrace.current;
     setMessage(null);
@@ -313,16 +333,15 @@ export default function BackendEntitlementFlow() {
     if (!connected || !backendUrl) return;
     if (!didStartRef.current) {
       didStartRef.current = true;
-      fetchProducts({skus: PRODUCT_IDS, type: 'in-app'})
-        .then(() =>
-          fetchProducts({skus: SUBSCRIPTION_PRODUCT_IDS, type: 'subs'}),
-        )
-        .catch((error) =>
-          setMessage(`Product loading failed: ${extractErrorMessage(error)}`),
-        );
+      fetchProducts({
+        skus: productType === 'subs' ? SUBSCRIPTION_PRODUCT_IDS : PRODUCT_IDS,
+        type: productType,
+      }).catch((error) =>
+        setMessage(`Product loading failed: ${extractErrorMessage(error)}`),
+      );
     }
     void recover(false);
-  }, [backendUrl, connected, fetchProducts, recover]);
+  }, [backendUrl, connected, fetchProducts, productType, recover]);
 
   useEffect(() => {
     if (!backendUrl) return;
@@ -339,7 +358,15 @@ export default function BackendEntitlementFlow() {
     return (
       <ScrollView style={styles.container}>
         <View style={styles.content}>
-          <PurchaseFlowDiagram backend activity={activity} />
+          <PurchaseFlowDiagram
+            backend
+            activity={activity}
+            expanded={expanded}
+            onExpandedChange={changeExpanded}
+            onLayout={onDiagramLayout}
+            onBodyLayout={onDiagramBodyLayout}
+            onStepLayout={onStepLayout}
+          />
           <Text style={styles.text}>
             Your backend verifies the purchase, checks account ownership and
             decides access. The app finishes only a settled decision.
@@ -356,13 +383,27 @@ export default function BackendEntitlementFlow() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.content}>
+    <ScrollView
+      ref={setScrollView}
+      style={styles.container}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
+      onScrollBeginDrag={onScrollBeginDrag}
+    >
+      <View style={styles.content} onLayout={onContentLayout}>
         <Text style={styles.text}>
           Your backend verifies the purchase, checks account ownership and
           decides access. The app finishes only a settled decision.
         </Text>
-        <PurchaseFlowDiagram backend activity={activity} />
+        <PurchaseFlowDiagram
+          backend
+          activity={activity}
+          expanded={expanded}
+          onExpandedChange={changeExpanded}
+          onLayout={onDiagramLayout}
+          onBodyLayout={onDiagramBodyLayout}
+          onStepLayout={onStepLayout}
+        />
         <Text style={styles.text}>
           {connected ? 'Connected to the store' : 'Connecting to the store...'}
         </Text>
@@ -392,69 +433,6 @@ export default function BackendEntitlementFlow() {
           />
         </View>
 
-        <View>
-          <Text style={styles.cardTitle}>Products</Text>
-          {products.map((product) => (
-            <StoreProductCard
-              key={product.id}
-              product={product}
-              kind={
-                CONSUMABLES.has(product.id) ? 'Consumable' : 'One-time purchase'
-              }
-            >
-              <ExampleButton
-                title="Buy"
-                accessibilityLabel={`Buy ${
-                  product.displayName || product.title
-                }`}
-                disabled={!connected}
-                style={styles.productAction}
-                onPress={() =>
-                  void buy(
-                    {
-                      request: {
-                        apple: {sku: product.id},
-                        google: {skus: [product.id]},
-                      },
-                      type: 'in-app',
-                    },
-                    product.id,
-                  )
-                }
-              />
-            </StoreProductCard>
-          ))}
-        </View>
-        <View>
-          <Text style={styles.cardTitle}>Subscriptions</Text>
-          {subscriptions.map((subscription) => {
-            const {offer, price, terms} = subscriptionDisplay(subscription);
-            return (
-              <StoreProductCard
-                key={subscription.id}
-                product={subscription}
-                kind="Subscription"
-                price={price}
-                terms={terms}
-              >
-                <ExampleButton
-                  title="Subscribe"
-                  accessibilityLabel={`Subscribe to ${
-                    subscription.displayName || subscription.title
-                  }`}
-                  disabled={!connected}
-                  style={styles.productAction}
-                  onPress={() =>
-                    void subscribe(
-                      subscription,
-                      offer?.offerTokenAndroid ?? undefined,
-                    )
-                  }
-                />
-              </StoreProductCard>
-            );
-          })}
-        </View>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Already purchased?</Text>
           <Text style={styles.text}>
@@ -470,6 +448,75 @@ export default function BackendEntitlementFlow() {
             }}
           />
         </View>
+
+        {productType === 'in-app' ? (
+          <View>
+            <Text style={styles.cardTitle}>Products</Text>
+            {products.map((product) => (
+              <StoreProductCard
+                key={product.id}
+                product={product}
+                kind={
+                  CONSUMABLES.has(product.id)
+                    ? 'Consumable'
+                    : 'One-time purchase'
+                }
+              >
+                <ExampleButton
+                  title="Buy"
+                  accessibilityLabel={`Buy ${
+                    product.displayName || product.title
+                  }`}
+                  disabled={!connected}
+                  style={styles.productAction}
+                  onPress={() =>
+                    void buy(
+                      {
+                        request: {
+                          apple: {sku: product.id},
+                          google: {skus: [product.id]},
+                        },
+                        type: 'in-app',
+                      },
+                      product.id,
+                    )
+                  }
+                />
+              </StoreProductCard>
+            ))}
+          </View>
+        ) : (
+          <View>
+            <Text style={styles.cardTitle}>Subscriptions</Text>
+            {subscriptions.map((subscription) => {
+              const {offer, price, terms} = subscriptionDisplay(subscription);
+              return (
+                <StoreProductCard
+                  key={subscription.id}
+                  product={subscription}
+                  kind="Subscription"
+                  price={price}
+                  terms={terms}
+                >
+                  <ExampleButton
+                    title="Subscribe"
+                    accessibilityLabel={`Subscribe to ${
+                      subscription.displayName || subscription.title
+                    }`}
+                    disabled={!connected}
+                    style={styles.productAction}
+                    onPress={() =>
+                      void subscribe(
+                        subscription,
+                        offer?.offerTokenAndroid ?? undefined,
+                      )
+                    }
+                  />
+                </StoreProductCard>
+              );
+            })}
+          </View>
+        )}
 
         {message ? <Text style={styles.message}>{message}</Text> : null}
 

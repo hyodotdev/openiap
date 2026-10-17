@@ -689,11 +689,18 @@ function Releases() {
                   Adds backend confirmation for one-time products and
                   subscriptions, keeping each account's pending results
                   separate. Play subscription prices, billing periods, and
-                  renewal terms match the selected offer. One Purchase screen
-                  explains each confirmation method and shows live callback
-                  progress in expandable purchase steps. Product cards keep
-                  prices apart from purchase and details buttons. Zero-valued
-                  offer fields render as text without native view warnings.
+                  renewal terms match the selected offer.
+                </li>
+                <li>
+                  Improves the example app UX with matching receipt-check and
+                  app-backend choices on Purchase and Subscription screens.
+                  Expandable purchase steps visualize live store, confirmation
+                  and transaction-finishing callbacks. With the panel open, a
+                  purchase brings progress into view and returns to the product
+                  after finishing; a closed panel leaves scrolling alone.
+                  Product cards separate prices from purchase and details
+                  buttons, and zero-valued offer fields render as text without
+                  native view warnings.
                 </li>
               </ul>
             </li>

@@ -47,10 +47,9 @@ With both values configured, the example defaults to **Local (IAPKit)**. With on
 ## Find the right example
 
 - **All Products** browses store metadata and offers without buying. Use **Open purchase screen** to continue.
-- **Purchase** has one **Purchase confirmation** setting. **Receipt checks** tests one-time purchase verification and finishing without deciding app-account access. **Your app backend** also checks account ownership and decides access for products and subscriptions.
-- Choose **Show purchase steps** to see the store, confirmation and transaction-finishing stages. Real callbacks highlight the latest observed attempt; recovery can start from an existing purchase. Pending, skipped and failed steps remain visible without claiming access or completion.
+- **Purchase** shows one-time products; **Subscription Flow** shows subscriptions, offers and management. Both have the same **Purchase confirmation** setting. **Receipt checks** tests store verification and finishing. **Your app backend** also checks account ownership and decides app-account access.
+- Open **Purchase steps** with the **Show** button to follow store, confirmation and transaction-finishing callbacks. Starting a purchase with the panel open brings its progress into view; after a successful finish, the example returns to your previous product position. A closed panel stays closed. Closing it or scrolling manually cancels the automatic return. Pending, skipped and failed stages remain visible without claiming access or completion.
 - To use **Your app backend**, set `EXPO_PUBLIC_APP_BACKEND_URL` to a backend implementing the [purchase flow handler](https://kit.openiap.dev/docs/purchase-flow). Its IAPKit secret key stays on the server. The app account field stands in for your sign-in session; change accounts and restore to test ownership protection.
-- **Subscription Flow** demonstrates subscription offers and management directly.
 
 Only the selected confirmation path mounts a purchase listener. Backend confirmation is unavailable on Vega. Finishing settles the transaction; it does not always grant access to the current account.
 

@@ -1,5 +1,13 @@
 import React from 'react';
-import {act, render, fireEvent, waitFor} from '@testing-library/react-native';
+import {
+  act,
+  render,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react-native';
+import {ErrorCode} from '../../src/types';
+import type {ExpoPurchaseError} from '../../src';
 import {Alert, Platform} from 'react-native';
 
 const mockShowActionSheetWithOptions = jest.fn();
@@ -48,6 +56,8 @@ const mockVerifyPurchaseWithProvider = jest
 let mockOnPurchaseSuccess:
   | ((purchase: Record<string, unknown>) => Promise<void> | void)
   | undefined;
+
+let mockOnPurchaseError: ((error: ExpoPurchaseError) => void) | undefined;
 
 const createMockSubscription = (overrides = {}) => ({
   id: 'dev.hyo.martie.premium',
@@ -103,12 +113,19 @@ const createMockAndroidSubscription = () => ({
 
 const mockUseIAP = jest.fn();
 jest.mock('../../src', () => ({
+  ...jest.requireActual('../../src/purchase-flow'),
+  getAvailablePurchases: mockGetAvailablePurchases,
+  finishTransaction: mockFinishTransaction,
   getPendingTransactionsIOS: mockGetPendingTransactionsIOS,
   ErrorCode: jest.requireActual('../../src/types').ErrorCode,
   initConnection: mockInitConnection,
   requestPurchase: mockRequestPurchase,
-  useIAP: (options?: {onPurchaseSuccess?: typeof mockOnPurchaseSuccess}) => {
+  useIAP: (options?: {
+    onPurchaseSuccess?: typeof mockOnPurchaseSuccess;
+    onPurchaseError?: typeof mockOnPurchaseError;
+  }) => {
     mockOnPurchaseSuccess = options?.onPurchaseSuccess;
+    mockOnPurchaseError = options?.onPurchaseError;
     return mockUseIAP();
   },
 }));
@@ -142,6 +159,7 @@ describe('SubscriptionFlow Component', () => {
       },
     });
     mockOnPurchaseSuccess = undefined;
+    mockOnPurchaseError = undefined;
 
     // Default mock implementation
     mockUseIAP.mockReturnValue({
@@ -157,6 +175,56 @@ describe('SubscriptionFlow Component', () => {
       verifyPurchaseWithProvider: mockVerifyPurchaseWithProvider,
     });
   });
+
+  it('offers the same backend confirmation path for subscription products', async () => {
+    process.env.EXPO_PUBLIC_APP_BACKEND_URL = 'https://backend.example';
+    try {
+      const screen = await renderConnectedSubscriptionFlow();
+      await fireEvent.press(
+        screen.getByRole('button', {name: 'Change purchase confirmation'}),
+      );
+      const callback = mockShowActionSheetWithOptions.mock.calls.at(-1)?.[1];
+      await act(() => callback(1));
+      expect(await screen.findByText('Restore purchases')).toBeDefined();
+      expect(screen.getByText('Subscriptions')).toBeDefined();
+      expect(screen.queryByText('Products')).toBeNull();
+      expect(screen.queryByText('Subscription Flow')).toBeNull();
+      expect(mockFetchProducts).toHaveBeenLastCalledWith({
+        skus: ['dev.hyo.martie.premium', 'dev.hyo.martie.premium_year'],
+        type: 'subs',
+      });
+    } finally {
+      delete process.env.EXPO_PUBLIC_APP_BACKEND_URL;
+    }
+  });
+
+  it.each(['listener', 'promise'] as const)(
+    'keeps a deferred subscription pending from the %s path',
+    async (path) => {
+      const error: ExpoPurchaseError = {
+        name: 'PurchaseError',
+        code: ErrorCode.DeferredPayment,
+        message: 'Awaiting approval',
+        productId: 'dev.hyo.martie.premium',
+      };
+      if (path === 'promise') mockRequestPurchase.mockRejectedValueOnce(error);
+      const screen = await renderConnectedSubscriptionFlow();
+      await fireEvent.press(
+        screen.getByRole('button', {name: 'Show purchase steps'}),
+      );
+      await fireEvent.press(screen.getByText('Subscribe'));
+      if (path === 'listener') await act(() => mockOnPurchaseError?.(error));
+      expect(
+        (await screen.findAllByText('Payment is pending at the store.')).length,
+      ).toBeGreaterThan(0);
+      expect(
+        within(screen.getByTestId('purchase-step-store')).getByText('Waiting'),
+      ).toBeDefined();
+      expect(screen.queryByText(/Subscription failed:/)).toBeNull();
+      expect(mockFinishTransaction).not.toHaveBeenCalled();
+      expect(mockVerifyPurchaseWithProvider).not.toHaveBeenCalled();
+    },
+  );
 
   it('should render without crashing', async () => {
     const {getByText} = await renderConnectedSubscriptionFlow();

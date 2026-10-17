@@ -30,7 +30,8 @@ import {
 } from 'expo-iap';
 import Loading from '../src/components/Loading';
 import AppOwnershipCard from '../src/components/AppOwnershipCard';
-import BackendEntitlementFlow from '../src/components/BackendEntitlementFlow';
+import PurchaseConfirmationScreen from '../src/components/PurchaseConfirmationScreen';
+import usePurchaseFlowScroll from '../src/components/usePurchaseFlowScroll';
 import ExampleButton from '../src/components/ExampleButton';
 import StoreProductCard from '../src/components/StoreProductCard';
 import PurchaseFlowDiagram, {
@@ -143,6 +144,18 @@ function PurchaseFlow({
   onChangeVerificationMethod,
   activity,
 }: PurchaseFlowProps) {
+  const {
+    setScrollView,
+    expanded,
+    changeExpanded,
+    beginPurchase,
+    onScroll,
+    onScrollBeginDrag,
+    onContentLayout,
+    onDiagramLayout,
+    onDiagramBodyLayout,
+    onStepLayout,
+  } = usePurchaseFlowScroll(activity);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [purchaseDetailsVisible, setPurchaseDetailsVisible] = useState(false);
@@ -191,9 +204,10 @@ function PurchaseFlow({
   // Load products when component mounts (guard against dev double-invoke)
   const handlePurchase = useCallback(
     (itemId: string) => {
+      beginPurchase(itemId);
       onPurchase(itemId);
     },
-    [onPurchase],
+    [onPurchase, beginPurchase],
   );
 
   const {
@@ -225,7 +239,13 @@ function PurchaseFlow({
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      ref={setScrollView}
+      style={styles.container}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
+      onScrollBeginDrag={onScrollBeginDrag}
+    >
       <View style={styles.header}>
         <Text style={styles.title}>Pay, verify, finish</Text>
         <Text style={styles.subtitle}>
@@ -234,8 +254,15 @@ function PurchaseFlow({
         </Text>
       </View>
 
-      <View style={styles.content}>
-        <PurchaseFlowDiagram activity={activity} />
+      <View style={styles.content} onLayout={onContentLayout}>
+        <PurchaseFlowDiagram
+          activity={activity}
+          expanded={expanded}
+          onExpandedChange={changeExpanded}
+          onLayout={onDiagramLayout}
+          onBodyLayout={onDiagramBodyLayout}
+          onStepLayout={onStepLayout}
+        />
         {/* Connection Status */}
         <View style={styles.statusContainer}>
           <Text
@@ -263,10 +290,10 @@ function PurchaseFlow({
                 {verificationMethod === 'ignore'
                   ? 'None (Skip)'
                   : verificationMethod === 'local'
-                  ? 'Local (Device)'
-                  : verificationMethod === 'iapkit-localhost'
-                  ? 'Local (IAPKit)'
-                  : 'IAPKit'}
+                    ? 'Local (Device)'
+                    : verificationMethod === 'iapkit-localhost'
+                      ? 'Local (IAPKit)'
+                      : 'IAPKit'}
               </Text>
             </View>
             <Text style={styles.changeLabel}>Change ›</Text>
@@ -280,8 +307,8 @@ function PurchaseFlow({
             {visibleProducts.length > 0
               ? `${visibleProducts.length} product(s) available`
               : hasHiddenNonConsumables
-              ? 'All non-consumable products already purchased'
-              : 'Loading products...'}
+                ? 'All non-consumable products already purchased'
+                : 'Loading products...'}
           </Text>
 
           {visibleProducts.map((product, index) => (
@@ -292,8 +319,8 @@ function PurchaseFlow({
                 CONSUMABLE_PRODUCT_ID_SET.has(product.id)
                   ? 'Consumable product'
                   : NON_CONSUMABLE_PRODUCT_ID_SET.has(product.id)
-                  ? 'Non-consumable product'
-                  : 'In-app product'
+                    ? 'Non-consumable product'
+                    : 'In-app product'
               }
             >
               <ExampleButton
@@ -352,10 +379,10 @@ function PurchaseFlow({
               {storefrontLoading
                 ? 'Fetching…'
                 : storefront
-                ? storefront
-                : storefrontError
-                ? 'Unavailable'
-                : 'Not available'}
+                  ? storefront
+                  : storefrontError
+                    ? 'Unavailable'
+                    : 'Not available'}
             </Text>
           </View>
           {storefrontError ? (
@@ -1391,51 +1418,10 @@ function PurchaseFlowContainer() {
 
 // Only the selected confirmation path owns a purchase listener.
 export default function PurchaseFlowScreen() {
-  const [appBackend, setAppBackend] = useState(false);
-  const {showActionSheetWithOptions} = useActionSheet();
-  const changeConfirmation = (): void => {
-    showActionSheetWithOptions(
-      {
-        title: 'Purchase confirmation',
-        message:
-          'Receipt checks test store verification. Your app backend also checks account ownership and decides app access.',
-        options: ['Receipt checks', 'Your app backend', 'Cancel'],
-        cancelButtonIndex: 2,
-      },
-      (index) => {
-        if (index === 0 || index === 1) setAppBackend(index === 1);
-      },
-    );
-  };
   return (
-    <View style={styles.container}>
-      {String(Platform.OS) !== 'kepler' ? (
-        <View style={styles.modeSelector}>
-          <View style={styles.confirmationRow}>
-            <View style={styles.confirmationLabel}>
-              <Text style={styles.verificationButtonHint}>
-                Purchase confirmation
-              </Text>
-              <Text style={styles.confirmationValue}>
-                {appBackend ? 'Your app backend' : 'Receipt checks'}
-              </Text>
-            </View>
-            <ExampleButton
-              title="Change"
-              accessibilityLabel="Change purchase confirmation"
-              variant="secondary"
-              onPress={changeConfirmation}
-            />
-          </View>
-          <Text style={styles.confirmationHint}>
-            {appBackend
-              ? 'Your backend checks the purchase and account ownership, then decides app access.'
-              : 'Test receipt verification and transaction finishing. Your app still decides what to unlock.'}
-          </Text>
-        </View>
-      ) : null}
-      {appBackend ? <BackendEntitlementFlow /> : <PurchaseFlowContainer />}
-    </View>
+    <PurchaseConfirmationScreen productType="in-app">
+      <PurchaseFlowContainer />
+    </PurchaseConfirmationScreen>
   );
 }
 
@@ -1444,23 +1430,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  modeSelector: {
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
-  },
-  confirmationRow: {flexDirection: 'row', alignItems: 'center', gap: 12},
-  confirmationLabel: {flex: 1},
-  confirmationValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0F172A',
-    lineHeight: 24,
-  },
-  confirmationHint: {fontSize: 13, lineHeight: 19, color: '#475569'},
   productAction: {flex: 1},
   header: {
     paddingHorizontal: 20,

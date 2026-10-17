@@ -63,8 +63,10 @@ function replyWith(body: object): jest.SpyInstance {
 }
 
 // Waits for the launch recovery so no update lands after the test.
-async function renderReady() {
-  const screen = await render(<BackendEntitlementFlow />);
+async function renderReady(productType: 'in-app' | 'subs' = 'in-app') {
+  const screen = await render(
+    <BackendEntitlementFlow productType={productType} />,
+  );
   await screen.findByText('Restore purchases');
   return screen;
 }
@@ -399,7 +401,7 @@ describe('BackendEntitlementFlow', () => {
       isConsumable: true,
     });
     expect(mockIap.fetchProducts.mock.calls.map(([args]) => args.type)).toEqual(
-      ['in-app', 'subs'],
+      ['in-app'],
     );
   });
 
@@ -606,7 +608,7 @@ describe('BackendEntitlementFlow', () => {
         ],
       },
     ];
-    const {getByText} = await renderReady();
+    const {getByText} = await renderReady('subs');
 
     await act(async () => {
       expect(getByText('$5')).toBeDefined();
@@ -644,7 +646,7 @@ describe('BackendEntitlementFlow', () => {
         ],
       },
     ];
-    const {getByText, queryByText} = await renderReady();
+    const {getByText, queryByText} = await renderReady('subs');
 
     await act(async () => {
       expect(getByText('$5')).toBeDefined();
@@ -679,7 +681,7 @@ describe('BackendEntitlementFlow', () => {
         subscriptionOffers: [{displayPrice: '$5'}],
       },
     ];
-    const {getByText} = await renderReady();
+    const {getByText} = await renderReady('subs');
 
     await act(async () => {
       expect(getByText('$50')).toBeDefined();
@@ -724,7 +726,7 @@ describe('BackendEntitlementFlow', () => {
         ],
       },
     ];
-    const {getByText, queryByText} = await renderReady();
+    const {getByText, queryByText} = await renderReady('subs');
     expect(
       getByText('$0 for 1 week, then $5 every 1 month · Auto-renews'),
     ).toBeDefined();
@@ -785,7 +787,7 @@ describe('BackendEntitlementFlow', () => {
       expect(ExpoIap.finishTransaction).toHaveBeenCalledTimes(
         hasPurchase ? 1 : 0,
       );
-      expect(mockIap.fetchProducts).toHaveBeenCalledTimes(2);
+      expect(mockIap.fetchProducts).toHaveBeenCalledTimes(1);
     },
   );
 
