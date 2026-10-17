@@ -46,6 +46,11 @@ const RELEASES: ReleaseEntry[] = [
         text: "Direct Convex verification actions and legacy aliases now require a short-lived proof from the admitted IAPKit server request. Public receipt verification still uses the same customer API keys and wire contract; service-source failures stay retryable. Self-hosted deployments must configure the private source credential in both services and use the coordinated rollout procedure.",
       },
       {
+        kind: "ops",
+        topic: "Deployment",
+        text: "The locked Convex CLI fixes index checks that incorrectly required database-read permission during deployment. Scoped CI keys retain the documented code-deploy and environment-write permissions.",
+      },
+      {
         kind: "feature",
         topic: "Linking",
         text: "Secret-key bind-user links Apple and Google one-time purchases, including Google purchases awaiting acknowledgment, and returns a reason for each outcome. It never moves a purchase that another app user owns, and these links do not count toward the per-user link cap. An operator's secret-key rebind can move a one-time link; it reports notified: false, since one-time purchases send no commerce events.",
