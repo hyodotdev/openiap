@@ -690,7 +690,7 @@ npx convex run --prod --inline-query '
     scanned: keys.length,
     partial: keys.length > 1000,
     secretWithRawStorage: keys.filter(k => k.keyType === "secret" && !!k.key).length,
-    secretWithoutDigest: keys.filter(k => k.keyType === "secret" && !k.keyHash).length
+    secretNeedingDigest: keys.filter(k => k.keyType === "secret" && !!k.key && !k.keyHash).length
   };'
 npx convex run --prod migrations:run \
   '{"fn":"migrations:hashStoredSecretApiKeys"}'
