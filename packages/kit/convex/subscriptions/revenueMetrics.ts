@@ -74,6 +74,11 @@ import {
   SUBSCRIPTION_SCAN_BYTES,
 } from "./accessHistory";
 import { statsAreCurrent } from "./stats";
+import {
+  discoverLegacyRevenueProjects,
+  getRevenueRunStatus as getRunStatus,
+  seedRevenueProject,
+} from "./revenueDiscovery";
 import { receiptEnvironmentValidator } from "../utils/validation";
 
 // Raising this past ~7 days reads more events for almost no gain: later events
@@ -168,11 +173,7 @@ const bucketValidator = v.object({
 });
 export type RollupBucket = Infer<typeof bucketValidator>;
 
-// Cron picker. Projects without a `revenueMetricsRunStatus` row come first,
-// found through recent webhook events (the strongest sign someone expects
-// Analytics soon) and then subscriptionStats; the stalest run starts fill the
-// rest of the batch. Filling from stale rows first would rotate the same cohort
-// forever once it reached `batchSize`, leaving new projects' Analytics empty.
+// New writers seed run status; legacy discovery advances one bounded page.
 export const recomputeAllRevenueMetrics = internalMutation({
   args: {
     batchSize: v.optional(v.number()),
@@ -180,7 +181,9 @@ export const recomputeAllRevenueMetrics = internalMutation({
   returns: v.object({ scheduled: v.number() }),
   handler: async (ctx, args) => {
     const limit = args.batchSize ?? 100;
-    const projects = await pickRevenueMetricsProjects(ctx, limit, Date.now());
+    const now = Date.now();
+    await discoverLegacyRevenueProjects(ctx, now);
+    const projects = await pickRevenueMetricsProjects(ctx, limit, now);
 
     let scheduled = 0;
     for (const projectId of projects) {
@@ -195,20 +198,36 @@ export const recomputeAllRevenueMetrics = internalMutation({
   },
 });
 
+// Each historical project's owner documents get their own read budget.
+export const seedRevenueMetricsProject = internalMutation({
+  args: { projectId: v.id("projects") },
+  returns: v.null(),
+  handler: async (ctx, { projectId }) => {
+    if (await getWritableProject(ctx, projectId)) {
+      await seedRevenueProject(ctx, projectId);
+    }
+    return null;
+  },
+});
+
+// Bootstrap pages continue separately from the ten-minute rollup picker.
+export const continueRevenueDiscovery = internalMutation({
+  args: {
+    phase: v.union(v.literal("events"), v.literal("stats")),
+    cursor: v.union(v.string(), v.null()),
+    through: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, expected) => {
+    await discoverLegacyRevenueProjects(ctx, Date.now(), expected);
+    return null;
+  },
+});
+
 type RevenueMetricsPickerCtx = Pick<MutationCtx, "db">;
 
 function pickerScanCap(limit: number): number {
   return Math.max(limit * 3, 300);
-}
-
-async function getRunStatus(
-  ctx: Pick<MutationCtx, "db">,
-  projectId: Id<"projects">,
-): Promise<Doc<"revenueMetricsRunStatus"> | null> {
-  return ctx.db
-    .query("revenueMetricsRunStatus")
-    .withIndex("by_project", (q) => q.eq("projectId", projectId))
-    .unique();
 }
 
 // The start of a run that has not finished: in flight, or failed.
@@ -247,22 +266,6 @@ function addProjectOnce(
   projects.push(projectId);
 }
 
-async function addUnseededProjectOnce(
-  ctx: RevenueMetricsPickerCtx,
-  projects: Id<"projects">[],
-  seen: Set<string>,
-  checkedUnseeded: Set<string>,
-  projectId: Id<"projects">,
-  limit: number,
-): Promise<void> {
-  if (projects.length >= limit) return;
-  if (seen.has(projectId)) return;
-  if (checkedUnseeded.has(projectId)) return;
-  checkedUnseeded.add(projectId);
-  if (await getRunStatus(ctx, projectId)) return;
-  addProjectOnce(projects, seen, projectId, limit);
-}
-
 async function pickRevenueMetricsProjects(
   ctx: RevenueMetricsPickerCtx,
   limit: number,
@@ -272,46 +275,7 @@ async function pickRevenueMetricsProjects(
 
   const scanCap = pickerScanCap(limit);
   const seen = new Set<string>();
-  const checkedUnseeded = new Set<string>();
   const projects: Id<"projects">[] = [];
-
-  const recentEvents = await ctx.db
-    .query("webhookEvents")
-    .withIndex("by_received_at")
-    .order("desc")
-    .take(scanCap);
-  for (const row of recentEvents) {
-    // Quarantine events synthesized by the removed experimental Horizon
-    // reconciler. They were not store notifications and had no authoritative
-    // product-type, term, or price data, so they must not seed revenue work.
-    if (row.source === "MetaHorizonReconciler") continue;
-    await addUnseededProjectOnce(
-      ctx,
-      projects,
-      seen,
-      checkedUnseeded,
-      row.projectId,
-      limit,
-    );
-    if (projects.length >= limit) return projects;
-  }
-
-  const recentStats = await ctx.db
-    .query("subscriptionStats")
-    .withIndex("by_updated_at")
-    .order("desc")
-    .take(scanCap);
-  for (const row of recentStats) {
-    await addUnseededProjectOnce(
-      ctx,
-      projects,
-      seen,
-      checkedUnseeded,
-      row.projectId,
-      limit,
-    );
-    if (projects.length >= limit) return projects;
-  }
 
   // Ordered by the latest start, so a failed run moves to the back like a
   // finished one instead of being picked again on every tick.

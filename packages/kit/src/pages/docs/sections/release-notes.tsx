@@ -26,10 +26,15 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-10-12",
     weekStart: "2026-10-12",
     date: "2026-10-18",
-    pullRequests: [523, 528, 532, 533, 537, 542],
+    pullRequests: [523, 528, 532, 533, 537, 542, 544],
     tagline:
       "Amazon subscription lifecycle beta, purchase recovery tools, verified analytics and a security hardening pass.",
     items: [
+      {
+        kind: "ops",
+        topic: "Analytics reads",
+        text: "Revenue discovery now pages through historical inputs once and uses the existing run status for later ticks. New store events register their project atomically, avoiding repeated reads of signed webhook payloads. Rollup cadence, subscription expiry and late-event catch-up are unchanged. Edge budget guidance now accounts for every running or standby machine.",
+      },
       {
         kind: "security",
         topic: "Organization consent",

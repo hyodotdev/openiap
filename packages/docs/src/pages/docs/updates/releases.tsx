@@ -33,6 +33,10 @@ interface ReleaseChange extends ReleaseMetadata {
   description: React.ReactNode;
 }
 
+const EXPO_REFRESH_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'expo-iap', version: '6.1.1', tag: 'expo-iap-6.1.1' },
+];
+
 const PURCHASE_FLOW_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: '@hyodotdev/openiap-client-protocol',
@@ -606,6 +610,46 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'expo-subscription-refresh-2026-10-18',
+      date: new Date('2026-10-18'),
+      element: (
+        <div key="expo-subscription-refresh-2026-10-18" style={noteCardStyle}>
+          {EXPO_REFRESH_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="expo-subscription-refresh-2026-10-18" level="h4">
+            October 18, 2026 - Expo subscription refresh recovery
+          </AnchorLink>
+          <p>
+            Expo IAP keeps post-purchase ownership queries running when another
+            store query fails. Background refresh stops when its hook unmounts,
+            while purchase delivery and transaction settlement stay independent.
+            The Expo example also lets you reload a failed product catalog
+            without another purchase or restore.
+          </p>
+          <p>
+            Hosted changes in this train are recorded in the{' '}
+            <a href="https://kit.openiap.dev/docs/release-notes#week-2026-10-12">
+              IAPKit weekly history
+            </a>
+            .
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            {EXPO_REFRESH_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                >
+                  {getReleaseLabel(release)}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
     {
       id: 'backend-purchase-flow-2026-10-15',
       date: new Date('2026-10-15'),

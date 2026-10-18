@@ -976,6 +976,14 @@ const schema = defineSchema({
       "day",
     ]),
 
+  // One durable cursor bounds discovery of pre-deploy analytics inputs.
+  revenueMetricsDiscovery: defineTable({
+    phase: v.union(v.literal("events"), v.literal("stats"), v.literal("done")),
+    cursor: v.union(v.string(), v.null()),
+    since: v.number(),
+    through: v.number(),
+  }),
+
   // Rotation state for the `recomputeAllRevenueMetrics` cron, which picks the
   // oldest `runStartedAt` first. Separate from the subscription-stats rotation
   // so the two crons rotate independently.

@@ -84,7 +84,7 @@ export default function IntroductionPage() {
 
       <h2 className="mt-10 text-2xl font-semibold">Architecture</h2>
       <p>
-        One Fly.io machine serves the dashboard, REST API, and the SPA under the
+        The Fly.io app serves the dashboard, REST API, and the SPA under the
         same origin. Convex holds organizations, projects, API keys, store
         credentials, and persisted purchase rows; the Bun server front-ends{" "}
         <code>/v1/*</code> plus the <code>/api/v1/*</code> compatibility alias

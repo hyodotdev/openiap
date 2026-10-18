@@ -117,6 +117,13 @@ func get_active_subscriptions_result(subscription_ids: Array[String] = []) -> Di
         its existing entitlement state unchanged when <code>success</code> is{' '}
         <code>false</code>.
       </p>
+      <p>
+        After a known subscription purchase, Expo&apos;s <code>useIAP</code>{' '}
+        hook refreshes the catalog, available purchases and active subscriptions
+        independently. One failed read preserves its previous result and does
+        not skip the other reads. Unmounting the hook stops further background
+        reads; explicit query calls still reject on failure.
+      </p>
 
       <AnchorLink id="returns" level="h2">
         Returns

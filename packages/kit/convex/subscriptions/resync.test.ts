@@ -175,6 +175,48 @@ describe("appleStatusSnapshot", () => {
 });
 
 describe("applyStoreResync", () => {
+  it.each(["IOS", "Android"] as const)(
+    "discovers a first verify-only %s project after historical discovery has finished",
+    async (platform) => {
+      const db = new MemoryDb();
+      seedProject(db, "admin");
+      const now = Date.now();
+      await db.insert("revenueMetricsDiscovery", {
+        phase: "done",
+        cursor: null,
+        since: 0,
+        through: now,
+      });
+      const { ctx, runAfter } = schedulingCtx(db);
+      await recordVerifiedSubscriptionHandler(ctx, {
+        projectId: "projects_1" as never,
+        platform,
+        purchaseToken: TOKEN,
+        productId: "premium_monthly",
+        purchaseState: HarmonizedPurchaseState.ENTITLED,
+        expiresAt: now + DAY,
+        evidenceAt: now,
+        ...(platform === "IOS"
+          ? { verifiedPurchaseDate: now, verifiedSignedDate: now }
+          : { subscriptionState: "SUBSCRIPTION_STATE_ACTIVE" }),
+      });
+      expect(db.rows("webhookEvents")).toHaveLength(0);
+      expect(db.rows("revenueMetricsRunStatus")).toHaveLength(1);
+      const { recomputeAllRevenueMetrics } = await import("./revenueMetrics");
+      await testableFunction(recomputeAllRevenueMetrics)._handler(ctx, {
+        batchSize: 100,
+      });
+      expect(
+        runAfter.mock.calls.some(
+          ([, reference, args]) =>
+            getFunctionName(reference).endsWith(
+              ":recomputeRevenueMetricsForProject",
+            ) && args.projectId === "projects_1",
+        ),
+      ).toBe(true);
+    },
+  );
+
   async function seed(db: Db, overrides: Record<string, unknown> = {}) {
     seedProject(db, "admin");
     await db.insert("outboundDestinations", {

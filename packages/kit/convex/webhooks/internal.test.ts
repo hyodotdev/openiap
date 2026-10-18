@@ -277,7 +277,27 @@ describe("webhook event-first dedup migration", () => {
     expect(first.deduped).toBe(false);
     expect(replay).toEqual({ eventId: first.eventId, deduped: true });
     expect(db.rows("webhookEvents")).toHaveLength(1);
+    expect(db.rows("revenueMetricsRunStatus")).toEqual([
+      expect.objectContaining({ projectId: "project_a" }),
+    ]);
   });
+
+  it.each([
+    {},
+    { runStartedAt: 20 },
+    { lastRunAt: 10, runStartedAt: 10 },
+    { runStartedAt: 20, failedRuns: 2 },
+  ])(
+    "keeps existing analytics progress intact on new and repeated events: %j",
+    async (fields) => {
+      const existing = { _id: "run_a", projectId: "project_a", ...fields };
+      const db = createWritableDb({ revenueMetricsRunStatus: [existing] });
+      const args = webhookArgs("project_a", "apple", "analytics_seed");
+      await recordWebhookEvent._handler({ db }, args);
+      await recordWebhookEvent._handler({ db }, args);
+      expect(db.rows("revenueMetricsRunStatus")).toEqual([existing]);
+    },
+  );
 
   it("keeps equal notification ids from Apple and Google separate", async () => {
     const db = createWritableDb();

@@ -260,7 +260,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   );
 
   const invokeOnError = useCallback((error: unknown) => {
-    if (optionsRef.current?.onError) {
+    if (isMountedRef.current && optionsRef.current?.onError) {
       optionsRef.current.onError(
         error instanceof Error ? error : new Error(String(error)),
       );
@@ -478,14 +478,29 @@ export function useIAP(options?: UseIAPOptions): UseIap {
 
   const refreshSubscriptionStatus = useCallback(
     async (productId: string) => {
-      try {
-        if (subscriptionsRefState.current.some((sub) => sub.id === productId)) {
-          await fetchProductsInternal({skus: [productId], type: 'subs'});
-          await getAvailablePurchasesInternal();
-          await getActiveSubscriptionsInternal();
+      if (!subscriptionsRefState.current.some((sub) => sub.id === productId)) {
+        return;
+      }
+      const generation = initializationGenerationRef.current;
+      const isCurrent = (): boolean =>
+        isMountedRef.current &&
+        initializationGenerationRef.current === generation;
+      for (const refresh of [
+        () => fetchProductsInternal({skus: [productId], type: 'subs'}),
+        getAvailablePurchasesInternal,
+        getActiveSubscriptionsInternal,
+      ]) {
+        if (!isCurrent()) return;
+        try {
+          await refresh();
+        } catch (error) {
+          if (isCurrent()) {
+            ExpoIapConsole.warn(
+              'Failed to refresh subscription status:',
+              error,
+            );
+          }
         }
-      } catch (error) {
-        ExpoIapConsole.warn('Failed to refresh subscription status:', error);
       }
     },
     [
