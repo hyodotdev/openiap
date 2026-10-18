@@ -281,12 +281,22 @@ Key/IP bucket stores have a 15-minute idle TTL and are bounded (default
 addresses past the parse-only middleware cannot grow the maps without bound.
 Rate checks do not write a Convex counter on every request.
 
-The buckets are per-machine; Fly.io currently runs
-`min_machines_running = 1`, so the process axis is effectively global. With
-multiple machines the allowances multiply. Use Convex deployment usage limits
-as the cross-machine hard brake. See
-[`COST-SAFETY.md`](COST-SAFETY.md) for the call graph, worst-case cost model,
-recommended warning/disable limits, and this limitation.
+The buckets are per-machine. `min_machines_running = 1` is a minimum, not
+an inventory: running and standby machines each have their own allowance.
+Use the actual machine count when estimating the edge ceiling. Convex's
+per-project admission bucket is shared across those machines. Deployment
+usage limits provide a separate hard brake only when configured; a triggered
+limit stops verification. See [`COST-SAFETY.md`](COST-SAFETY.md).
+
+### Analytics discovery
+
+The revenue cron discovers historical projects once through checkpointed,
+byte-bounded pages. New store events seed the existing per-project run status
+in the same transaction. Bootstrap pages schedule their own continuation; the
+cron starts or resumes failed discovery without accelerating actual rollups.
+After discovery finishes, cron ticks read that small
+status table instead of rereading recent signed webhook payloads. The ten-minute
+rollup cadence, expiry evaluation and late-event catch-up remain unchanged.
 
 ### Request logging
 

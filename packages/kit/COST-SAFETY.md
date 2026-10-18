@@ -200,14 +200,20 @@ bound. Rejections return `429 RATE_LIMITED`, `Retry-After`,
 `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and the limiting
 `X-RateLimit-Scope`.
 
-The limiter intentionally stays in Fly memory. Recording a Convex mutation for
-every request would add a paid function call/write and create a hot counter.
-The current deployment runs one always-on Fly machine. If it scales to multiple
-machines, each machine has an independent allowance, so the effective ceiling
-multiplies by machine count. Convex deployment usage limits are the
-cross-machine hard brake; a distributed globally consistent edge limit would
-require additional infrastructure and is not justified for the current
-single-machine deployment.
+Edge rate counters stay in Fly memory. Each running or standby process has
+its own allowance; `min_machines_running` is a minimum and does not report the
+fleet size. Use the actual Fly inventory to estimate the combined edge ceiling.
+The separate Convex per-project admission bucket applies across the fleet.
+Deployment usage limits can stop runaway resource use when configured, but a
+hard stop also makes purchase verification unavailable. Team dollar spending
+limits are separate and can disable every project on the team.
+
+Revenue discovery reads retained webhook history and subscription stats once,
+using a durable pagination checkpoint and a byte limit per event page. New
+inputs seed the existing run status atomically. Completed discovery stops
+repeated raw-payload reads; the existing rollup cadence and time-based expiry
+checks continue. This removes discovery overhead without claiming that all
+analytics database reads are avoidable.
 
 These controls reduce the blast radius of buggy clients, traffic spikes, and
 common resource-exhaustion attempts. They are defense in depth, not a guarantee

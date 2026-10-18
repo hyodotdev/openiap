@@ -31,6 +31,11 @@ const RELEASES: ReleaseEntry[] = [
       "Amazon subscription lifecycle beta, purchase recovery tools, verified analytics and a security hardening pass.",
     items: [
       {
+        kind: "ops",
+        topic: "Analytics reads",
+        text: "Revenue discovery now pages through historical inputs once and uses the existing run status for later ticks. New store events register their project atomically, avoiding repeated reads of signed webhook payloads. Rollup cadence, subscription expiry and late-event catch-up are unchanged. Edge budget guidance now accounts for every running or standby machine.",
+      },
+      {
         kind: "security",
         topic: "Organization consent",
         text: "Team invitations now wait for the invited account to accept before creating membership. Managers can withdraw pending invitations. Invitations can be declined, expire after seven days, and are checked again against the inviter's current permissions. Members can leave their organization in Settings; the last owner remains protected. Dashboard buttons and surfaces use the shared theme colors correctly.",

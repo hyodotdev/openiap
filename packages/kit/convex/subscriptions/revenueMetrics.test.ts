@@ -15,6 +15,7 @@ import {
   recomputeAllRevenueMetrics,
   recomputeRevenueMetricsForProject,
   recomputeRevenueMetricsPage,
+  seedRevenueMetricsProject,
   startOfUtcDay,
   utcDayKey,
   type RecomputeRevenueMetricsPageArgs,
@@ -27,6 +28,7 @@ import {
 import { recomputeRevenueCohortsPage } from "./revenueCohorts";
 import { STATS_DEFINITIONS_VERSION, recomputeSubscriptionStats } from "./stats";
 import { testableFunction } from "../test.setup";
+import { getConvexSize, type Value } from "convex/values";
 
 // Every chain reads `Date.now()` for its run start; tests pin it per run.
 beforeEach(() => {
@@ -698,9 +700,16 @@ class MemQuery {
   async paginate(opts: {
     numItems: number;
     cursor: string | null;
+    maximumBytesRead?: number;
   }): Promise<{ page: Row[]; isDone: boolean; continueCursor: string }> {
     const start = opts.cursor === null ? 0 : Number.parseInt(opts.cursor, 10);
-    const end = start + opts.numItems;
+    let end = start;
+    let bytes = 0;
+    while (end < this.rows.length && end - start < opts.numItems) {
+      bytes += getConvexSize(this.rows[end] as Value);
+      end++;
+      if (bytes >= (opts.maximumBytesRead ?? Infinity)) break;
+    }
     const page = this.rows.slice(start, end);
     this.onPage?.(opts.numItems, page);
     const isDone = end >= this.rows.length;
@@ -715,6 +724,14 @@ class MemDb {
   onPage?: (table: string, numItems: number, page: Row[]) => void;
 
   constructor() {
+    // Rollup tests isolate recomputation after legacy discovery has finished.
+    this.table("revenueMetricsDiscovery").set("discovery", {
+      _id: "discovery",
+      _creationTime: 0,
+      phase: "done",
+      cursor: null,
+      since: 0,
+    });
     this.table("organizations").set("organizations_test", {
       _id: "organizations_test",
       _creationTime: Date.now(),
@@ -805,6 +822,7 @@ const chainedPage = testableFunction(recomputeRevenueMetricsPage);
 const chainedCommit = testableFunction(commitRevenueMetricsDays);
 const kickoff = testableFunction(recomputeRevenueMetricsForProject);
 const picker = testableFunction(recomputeAllRevenueMetrics);
+const seedProject = testableFunction(seedRevenueMetricsProject);
 
 // Convex rejects a scheduled call whose arguments hold an array over 8,192
 // items; the fake scheduler enforces the same limit.
@@ -830,7 +848,12 @@ function makeCtx(db: MemDb, scheduled: ScheduledCall[] = []) {
       ) => {
         assertArrayLimit(args);
         const name = getFunctionName(fn);
-        if (name.endsWith(":recomputeRevenueMetricsPage")) {
+        if (name.endsWith(":seedRevenueMetricsProject")) {
+          await seedProject._handler(
+            ctx,
+            args as Parameters<typeof seedProject._handler>[1],
+          );
+        } else if (name.endsWith(":recomputeRevenueMetricsPage")) {
           await chainedPage._handler(
             ctx,
             args as RecomputeRevenueMetricsPageArgs,
@@ -873,7 +896,9 @@ async function pickProjects(
   const scheduled: ScheduledCall[] = [];
   vi.setSystemTime(at);
   await picker._handler(makeCtx(db, scheduled), { batchSize });
-  return scheduled.map((call) => call.args.projectId);
+  return scheduled
+    .filter((call) => call.name.endsWith(":recomputeRevenueMetricsForProject"))
+    .map((call) => call.args.projectId);
 }
 
 async function seedEvent(
@@ -961,16 +986,20 @@ describe("recomputeAllRevenueMetrics picker", () => {
   let db: MemDb;
 
   beforeEach(() => {
+    vi.setSystemTime(NOW - 1000);
     db = new MemDb();
+    db.tables.get("revenueMetricsDiscovery")?.clear();
   });
 
   it("discovers projects with recent webhooks even when stale status rows fill the batch", async () => {
     await db.insert("revenueMetricsRunStatus", {
       projectId: "p_old_1",
+      runStartedAt: 1,
       lastRunAt: 1,
     });
     await db.insert("revenueMetricsRunStatus", {
       projectId: "p_old_2",
+      runStartedAt: 2,
       lastRunAt: 2,
     });
     await seedEvent(db, {
@@ -1009,6 +1038,7 @@ describe("recomputeAllRevenueMetrics picker", () => {
       updatedAt: NOW,
     });
 
+    await pickProjects(db, 2); // Empty event page advances discovery to stats.
     const projects = await pickProjects(db, 2);
 
     expect(projects).toContain(PROJECT_ID);
@@ -1036,6 +1066,58 @@ describe("recomputeAllRevenueMetrics picker", () => {
     expect(
       projects.filter((projectId) => projectId === PROJECT_ID),
     ).toHaveLength(1);
+  });
+
+  it("finishes a checkpointed bootstrap past 300 equal-time events and never rereads them", async () => {
+    for (let i = 0; i < 351; i++) {
+      await seedEvent(db, {
+        type: "SubscriptionRenewed",
+        receivedAt: NOW,
+        rawSignedPayload: "synthetic".repeat(256),
+      });
+    }
+    const readSizes: number[] = [];
+    db.onPage = (table, _limit, page) => {
+      if (table === "webhookEvents") readSizes.push(page.length);
+    };
+    for (let i = 0; i < 5; i++) await pickProjects(db, 10);
+    expect(readSizes).toEqual([100, 100, 100, 51]);
+    expect(await db.query("revenueMetricsDiscovery").unique()).toMatchObject({
+      phase: "done",
+      cursor: null,
+    });
+    expect(await db.query("revenueMetricsRunStatus").collect()).toHaveLength(1);
+    for (let i = 0; i < 3; i++) await pickProjects(db, 10);
+    expect(readSizes).toEqual([100, 100, 100, 51]);
+  });
+
+  it("finishes a fixed historical window even while new raw events keep arriving", async () => {
+    for (let i = 0; i < 251; i++)
+      await seedEvent(db, { type: "SubscriptionRenewed", receivedAt: NOW });
+    const reads: number[] = [];
+    db.onPage = (table, _limit, page) => {
+      if (table === "webhookEvents") reads.push(page.length);
+    };
+    for (let tick = 0; tick < 5; tick++) {
+      await pickProjects(db, 10, NOW + tick * 60_000);
+      for (let i = 0; i < 120; i++)
+        await seedEvent(db, {
+          type: "SubscriptionRenewed",
+          receivedAt: NOW + tick * 60_000 + 1,
+        });
+    }
+    expect(reads).toEqual([100, 100, 51]);
+    expect(await db.query("revenueMetricsDiscovery").unique()).toMatchObject({
+      phase: "done",
+      through: NOW,
+    });
+  });
+
+  it("does not seed projects undergoing deletion during legacy discovery", async () => {
+    await db.patch(PROJECT_ID, { pendingDeletion: true });
+    await seedEvent(db, { type: "SubscriptionRenewed" });
+    expect(await pickProjects(db, 10)).toEqual([]);
+    expect(await db.query("revenueMetricsRunStatus").collect()).toEqual([]);
   });
 
   it("does not seed work from legacy Meta Horizon reconciler events", async () => {
@@ -3176,7 +3258,8 @@ describe("getRevenueMetrics — data state", () => {
       { apiKey: API_KEY },
     );
     expect(summary.stats.state).toBe("incomplete");
-    expect(summary.activeSubs).toBe(10_000);
+    expect(summary.activeSubs).toBeGreaterThan(0);
+    expect(summary.activeSubs).toBeLessThan(10_000);
     expect(summary.recentCountsTruncated).toBe(true);
     expect(summary.refunded30d).toBe(0);
   });

@@ -5,6 +5,7 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 import schema, { purchaseStoreValidator } from "../schema";
 import { resolveProjectByApiKeyFromDb } from "../projects/helpers";
 import { assertProjectWritable } from "../projects/writable";
+import { seedRevenueProject } from "../subscriptions/revenueDiscovery";
 import {
   cancellationReasonValidator,
   dataProvenanceValidator,
@@ -226,6 +227,7 @@ export async function recordWebhookEventHandler(
     source: storedSource,
     sourceNotificationId: args.sourceNotificationId,
   });
+  await seedRevenueProject(ctx, args.projectId);
   if (existingEvent) {
     return { eventId: existingEvent._id, deduped: true };
   }
