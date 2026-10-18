@@ -98,6 +98,7 @@ export default function BackendEntitlementFlow({
   const [account, setAccount] = useState('demo-user-1');
   const [outcomes, setOutcomes] = useState<PurchaseFlowOutcome<Purchase>[]>([]);
   const [message, setMessage] = useState<string | null>(null);
+  const [productError, setProductError] = useState<string | null>(null);
   const [recovering, setRecovering] = useState(Boolean(backendUrl));
   const didStartRef = useRef(false);
   const activeFlow = useRef<PurchaseFlow<Purchase> | null>(null);
@@ -329,19 +330,26 @@ export default function BackendEntitlementFlow({
     );
   };
 
+  const loadProducts = useCallback(async (): Promise<void> => {
+    setProductError(null);
+    try {
+      await fetchProducts({
+        skus: productType === 'subs' ? SUBSCRIPTION_PRODUCT_IDS : PRODUCT_IDS,
+        type: productType,
+      });
+    } catch (error) {
+      setProductError(`Product loading failed: ${extractErrorMessage(error)}`);
+    }
+  }, [fetchProducts, productType]);
+
   useEffect(() => {
     if (!connected || !backendUrl) return;
     if (!didStartRef.current) {
       didStartRef.current = true;
-      fetchProducts({
-        skus: productType === 'subs' ? SUBSCRIPTION_PRODUCT_IDS : PRODUCT_IDS,
-        type: productType,
-      }).catch((error) =>
-        setMessage(`Product loading failed: ${extractErrorMessage(error)}`),
-      );
+      void loadProducts();
     }
     void recover(false);
-  }, [backendUrl, connected, fetchProducts, productType, recover]);
+  }, [backendUrl, connected, loadProducts, recover]);
 
   useEffect(() => {
     if (!backendUrl) return;
@@ -451,6 +459,18 @@ export default function BackendEntitlementFlow({
             }}
           />
         </View>
+
+        {productError ? (
+          <View style={styles.card}>
+            <Text style={styles.text}>{productError}</Text>
+            <ExampleButton
+              title="Reload products"
+              variant="secondary"
+              disabled={!connected}
+              onPress={() => void loadProducts()}
+            />
+          </View>
+        ) : null}
 
         {productType === 'in-app' ? (
           <View>

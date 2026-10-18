@@ -97,6 +97,44 @@ describe('BackendEntitlementFlow', () => {
     expect(ExpoIap.getPendingTransactionsIOS).not.toHaveBeenCalled();
   });
 
+  it.each(['in-app', 'subs'] as const)(
+    'retries a failed %s catalog without a purchase or duplicate launch recovery',
+    async (productType) => {
+      mockIap.fetchProducts.mockRejectedValueOnce(
+        new Error('Store unavailable'),
+      );
+      const screen = await renderReady(productType);
+      const recoveryCalls = jest.mocked(ExpoIap.getPendingTransactionsIOS).mock
+        .calls.length;
+
+      expect(
+        await screen.findByText('Product loading failed: Store unavailable'),
+      ).toBeTruthy();
+      await fireEvent.press(
+        screen.getByRole('button', {name: 'Reload products'}),
+      );
+
+      await waitFor(() =>
+        expect(mockIap.fetchProducts).toHaveBeenCalledTimes(2),
+      );
+      expect(mockIap.fetchProducts).toHaveBeenLastCalledWith(
+        expect.objectContaining({type: productType}),
+      );
+      expect(
+        screen.queryByText('Product loading failed: Store unavailable'),
+      ).toBeNull();
+      expect(ExpoIap.getPendingTransactionsIOS).toHaveBeenCalledTimes(
+        recoveryCalls,
+      );
+      expect(mockIap.requestPurchase).not.toHaveBeenCalled();
+      await fireEvent.changeText(
+        screen.getByLabelText('App account'),
+        'demo-user-2',
+      );
+      expect(mockIap.fetchProducts).toHaveBeenCalledTimes(2);
+    },
+  );
+
   it('shows only observed purchase, backend and finish milestones', async () => {
     let confirm!: (response: Response) => void;
     let finish!: () => void;

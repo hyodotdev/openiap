@@ -351,6 +351,12 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
           </a>
           .
         </p>
+        <p>
+          In the Expo example, <strong>Your app backend</strong> offers{' '}
+          <strong>Reload products</strong> when the initial catalog query fails.
+          Reloading the catalog does not start a purchase or restore
+          transactions.
+        </p>
       </section>
 
       <section>

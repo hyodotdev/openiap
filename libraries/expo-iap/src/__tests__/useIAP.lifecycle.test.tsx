@@ -35,6 +35,7 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 const purchase = (overrides: Partial<Purchase> = {}): Purchase =>
   ({
     id: '2000000000000001',
+    transactionId: '2000000000000001',
     productId: 'premium_monthly',
     transactionDate: 1720000000000,
     store: 'apple',
@@ -44,7 +45,7 @@ const purchase = (overrides: Partial<Purchase> = {}): Purchase =>
     isAutoRenewing: true,
     platform: 'ios',
     ...overrides,
-  } as Purchase);
+  }) as Purchase;
 
 const roots: Root[] = [];
 
@@ -177,6 +178,125 @@ describe('useIAP lifecycle', () => {
         '[useIAP] onPurchaseSuccess failed:',
         expect.objectContaining({message: 'host callback failed'}),
       );
+    },
+  );
+
+  it.each(['catalog', 'available purchases'])(
+    'refreshes independent ownership state when %s fails after purchase delivery',
+    async (failedRead) => {
+      jest
+        .mocked(ExpoIapModule.fetchProducts)
+        .mockResolvedValue([
+          {id: 'premium_monthly', platform: 'ios', type: 'subs'},
+        ]);
+      const onPurchaseSuccess = jest.fn();
+      let hook: Hook | undefined;
+      await mount(
+        <Harness options={{onPurchaseSuccess}} onHook={(h) => (hook = h)} />,
+      );
+      await React.act(async () => {
+        await hook!.fetchProducts({skus: ['premium_monthly'], type: 'subs'});
+      });
+      jest.mocked(ExpoIapModule.getAvailableItems).mockClear();
+      jest.mocked(ExpoIapModule.getActiveSubscriptions).mockClear();
+      jest
+        .mocked(ExpoIapModule.getAvailableItems)
+        .mockResolvedValue([purchase()]);
+      jest.mocked(ExpoIapModule.getActiveSubscriptions).mockResolvedValue([
+        {
+          productId: 'premium_monthly',
+          isActive: true,
+          transactionId: 'active-transaction',
+          transactionDate: 1720000000000,
+        },
+      ]);
+      const storeFailure = new Error('Temporary store query failure');
+      if (failedRead === 'catalog') {
+        jest
+          .mocked(ExpoIapModule.fetchProducts)
+          .mockRejectedValueOnce(storeFailure);
+      } else {
+        jest
+          .mocked(ExpoIapModule.getAvailableItems)
+          .mockRejectedValueOnce(storeFailure);
+      }
+
+      await React.act(async () => {
+        await purchaseHandler!(purchase());
+      });
+
+      expect(onPurchaseSuccess).toHaveBeenCalledTimes(1);
+      expect(ExpoIapModule.getAvailableItems).toHaveBeenCalledTimes(1);
+      expect(ExpoIapModule.getActiveSubscriptions).toHaveBeenCalledTimes(1);
+      expect(hook!.activeSubscriptions).toEqual([
+        expect.objectContaining({productId: 'premium_monthly', isActive: true}),
+      ]);
+      if (failedRead === 'catalog') {
+        expect(hook!.availablePurchases).toEqual([purchase()]);
+        expect(hook!.subscriptions).toHaveLength(1);
+      }
+    },
+  );
+
+  it.each(['resolves', 'rejects'])(
+    'stops an old hook refresh that %s after switching purchase flows',
+    async (completion) => {
+      const catalog = [{id: 'premium_monthly', platform: 'ios', type: 'subs'}];
+      jest.mocked(ExpoIapModule.fetchProducts).mockResolvedValue(catalog);
+      const oldPurchase = jest.fn();
+      const oldError = jest.fn();
+      let oldHook: Hook | undefined;
+      let newHook: Hook | undefined;
+      const root = await mount(
+        <Harness
+          key="receipt"
+          options={{onPurchaseSuccess: oldPurchase, onError: oldError}}
+          onHook={(hook) => (oldHook = hook)}
+        />,
+      );
+      await React.act(async () => {
+        await oldHook!.fetchProducts({skus: ['premium_monthly'], type: 'subs'});
+      });
+      let settleOld: () => void = () => {};
+      jest.mocked(ExpoIapModule.fetchProducts).mockImplementationOnce(
+        () =>
+          new Promise((resolve, reject) => {
+            settleOld = () =>
+              completion === 'resolves'
+                ? resolve(catalog)
+                : reject(new Error('Old catalog query ended'));
+          }),
+      );
+      let oldRefresh: Promise<void> | undefined;
+      await React.act(async () => {
+        oldRefresh = purchaseHandler!(purchase());
+        await flush();
+      });
+      expect(oldPurchase).toHaveBeenCalledTimes(1);
+      await React.act(async () => {
+        root.render(
+          <Harness key="backend" onHook={(hook) => (newHook = hook)} />,
+        );
+        await flush();
+      });
+      expect(newHook!.connected).toBe(true);
+      jest.mocked(ExpoIapModule.getAvailableItems).mockClear();
+      jest.mocked(ExpoIapModule.getActiveSubscriptions).mockClear();
+
+      await React.act(async () => {
+        settleOld();
+        await oldRefresh;
+      });
+
+      expect(oldPurchase).toHaveBeenCalledTimes(1);
+      expect(oldError).not.toHaveBeenCalled();
+      expect(ExpoIapModule.getAvailableItems).not.toHaveBeenCalled();
+      expect(ExpoIapModule.getActiveSubscriptions).not.toHaveBeenCalled();
+      await React.act(async () => {
+        await newHook!.fetchProducts({skus: ['premium_monthly'], type: 'subs'});
+      });
+      expect(newHook!.subscriptions).toHaveLength(1);
+      expect(newHook!.connected).toBe(true);
     },
   );
 
