@@ -135,6 +135,34 @@ describe('BackendEntitlementFlow', () => {
     },
   );
 
+  it('ignores an older catalog error after a newer reload succeeds', async () => {
+    let rejectOlder!: (error: Error) => void;
+    mockIap.fetchProducts
+      .mockRejectedValueOnce(new Error('Initial query failed'))
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((_resolve, reject) => {
+            rejectOlder = reject;
+          }),
+      )
+      .mockResolvedValueOnce(undefined);
+    const screen = await renderReady();
+    const reload = await screen.findByRole('button', {name: 'Reload products'});
+
+    await act(async () => {
+      await Promise.all([fireEvent.press(reload), fireEvent.press(reload)]);
+    });
+    expect(mockIap.fetchProducts).toHaveBeenCalledTimes(3);
+
+    await act(async () => rejectOlder(new Error('Older query failed')));
+
+    expect(
+      screen.queryByText('Product loading failed: Older query failed'),
+    ).toBeNull();
+    expect(screen.queryByRole('button', {name: 'Reload products'})).toBeNull();
+    expect(mockIap.requestPurchase).not.toHaveBeenCalled();
+  });
+
   it('shows only observed purchase, backend and finish milestones', async () => {
     let confirm!: (response: Response) => void;
     let finish!: () => void;

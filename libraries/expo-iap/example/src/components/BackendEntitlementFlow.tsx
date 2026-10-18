@@ -101,6 +101,7 @@ export default function BackendEntitlementFlow({
   const [productError, setProductError] = useState<string | null>(null);
   const [recovering, setRecovering] = useState(Boolean(backendUrl));
   const didStartRef = useRef(false);
+  const productLoadSequenceRef = useRef(0);
   const activeFlow = useRef<PurchaseFlow<Purchase> | null>(null);
   useEffect(() => {
     const owner: PurchaseFlow<Purchase> = createPurchaseFlow<Purchase>({
@@ -331,6 +332,7 @@ export default function BackendEntitlementFlow({
   };
 
   const loadProducts = useCallback(async (): Promise<void> => {
+    const request = ++productLoadSequenceRef.current;
     setProductError(null);
     try {
       await fetchProducts({
@@ -338,6 +340,7 @@ export default function BackendEntitlementFlow({
         type: productType,
       });
     } catch (error) {
+      if (request !== productLoadSequenceRef.current) return;
       setProductError(`Product loading failed: ${extractErrorMessage(error)}`);
     }
   }, [fetchProducts, productType]);
