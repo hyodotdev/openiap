@@ -253,8 +253,8 @@ export default function ProjectIndex() {
         {/* Keep wide project navigation in its own horizontal scroller.
             Otherwise `<main>` becomes the scroller and shifts the page body
             underneath the fixed-width organization sidebar. Compact tabs fit
-            beside the sidebar from 1280px; below that the thin scrollbar
-            shows the overflow. */}
+            beside the sidebar from 1280px; below that the bar scrolls, with a
+            thin scrollbar where the platform shows one. */}
         <div
           ref={tabScrollerRef}
           className="container max-w-7xl mx-auto px-4 overflow-x-auto overscroll-x-contain [scrollbar-width:thin]"

@@ -558,8 +558,9 @@
     user-select: none;
   }
 
-  .icon-button-destructive {
-    @apply text-destructive hover:bg-destructive/10;
+  /* Destructive actions; plain --destructive text fails 4.5:1 in light mode. */
+  .destructive-action {
+    @apply text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30;
   }
 
   /* Input styles */

@@ -38,7 +38,12 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "fix",
         topic: "Dashboard",
-        text: "Regenerate and Revoke now stay in view at every width: API Keys uses a fixed-column table from 1280px and one compact list below it, the chosen key type is highlighted when creating a key, and project tabs fit from 1280px.",
+        text: "Fixes the API Keys table scrolling sideways on laptop screens: Regenerate and Revoke stay in view, with a fixed-column table from 1280px and one compact list replacing the narrow-screen cards.",
+      },
+      {
+        kind: "fix",
+        topic: "Dashboard",
+        text: "Project tabs fit beside the sidebar from 1280px and show a focus ring for keyboard users.",
       },
       {
         kind: "fix",

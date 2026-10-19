@@ -108,44 +108,52 @@ describe("API Keys page", () => {
     expect(list.className).toContain("xl:hidden");
   });
 
-  it("revokes only the confirmed key from the table", async () => {
-    const confirm = vi.fn(() => true);
-    vi.stubGlobal("confirm", confirm);
-    render(<ApiKeys />);
-    fireEvent.click(
-      within(screen.getByRole("table")).getByRole("button", {
-        name: "Revoke iOS app",
-      }),
-    );
-    await waitFor(() =>
-      expect(mocks.revoke).toHaveBeenCalledWith({ keyId: "key_active" }),
-    );
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("revoke"));
-    expect(mocks.regenerate).not.toHaveBeenCalled();
-  });
+  it.each(["table", "list"] as const)(
+    "revokes only the confirmed key from the %s",
+    async (layout) => {
+      const confirm = vi.fn(() => true);
+      vi.stubGlobal("confirm", confirm);
+      render(<ApiKeys />);
+      fireEvent.click(
+        within(screen.getByRole(layout)).getByRole("button", {
+          name: "Revoke iOS app",
+        }),
+      );
+      await waitFor(() =>
+        expect(mocks.revoke).toHaveBeenCalledWith({ keyId: "key_active" }),
+      );
+      expect(confirm).toHaveBeenCalledWith(expect.stringContaining("revoke"));
+      expect(mocks.regenerate).not.toHaveBeenCalled();
+    },
+  );
 
-  it("regenerates only the confirmed key and shows the new key once", async () => {
-    const confirm = vi.fn(() => true);
-    vi.stubGlobal("confirm", confirm);
-    mocks.regenerate.mockResolvedValue({
-      name: "iOS app",
-      key: "pk_live_new",
-      keyType: "publishable",
-    });
-    render(<ApiKeys />);
-    fireEvent.click(
-      within(screen.getByRole("list")).getByRole("button", {
-        name: "Regenerate iOS app",
-      }),
-    );
-    expect(await screen.findByText("pk_live_new")).toBeTruthy();
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("regenerate"));
-    expect(mocks.regenerate).toHaveBeenCalledWith({ keyId: "key_active" });
-    expect(mocks.revoke).not.toHaveBeenCalled();
+  it.each(["table", "list"] as const)(
+    "regenerates only the confirmed key from the %s and shows it once",
+    async (layout) => {
+      const confirm = vi.fn(() => true);
+      vi.stubGlobal("confirm", confirm);
+      mocks.regenerate.mockResolvedValue({
+        name: "iOS app",
+        key: "pk_live_new",
+        keyType: "publishable",
+      });
+      render(<ApiKeys />);
+      fireEvent.click(
+        within(screen.getByRole(layout)).getByRole("button", {
+          name: "Regenerate iOS app",
+        }),
+      );
+      expect(await screen.findByText("pk_live_new")).toBeTruthy();
+      expect(confirm).toHaveBeenCalledWith(
+        expect.stringContaining("regenerate"),
+      );
+      expect(mocks.regenerate).toHaveBeenCalledWith({ keyId: "key_active" });
+      expect(mocks.revoke).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Dismiss API key" }));
-    expect(screen.queryByText("pk_live_new")).toBeNull();
-  });
+      fireEvent.click(screen.getByRole("button", { name: "Dismiss API key" }));
+      expect(screen.queryByText("pk_live_new")).toBeNull();
+    },
+  );
 
   it("changes nothing when the confirmation is cancelled", () => {
     vi.stubGlobal("confirm", () => false);

@@ -25,9 +25,8 @@ export const ButtonSecondary = forwardRef<
       "inline-flex items-center justify-center",
       "rounded-lg border border-border",
       "bg-transparent",
-      // Danger Badge text colors; --destructive text fails 4.5:1 on cards.
       variant === "destructive"
-        ? "text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+        ? "destructive-action"
         : "text-foreground hover:bg-muted",
       "text-sm font-medium",
       "transition-colors",

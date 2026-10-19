@@ -202,7 +202,7 @@ function ApiKeyTable({
                   <button
                     type="button"
                     onClick={() => onRevoke(apiKey)}
-                    className="icon-button icon-button-destructive"
+                    className="icon-button destructive-action"
                     title={`Revoke ${apiKey.name}`}
                     aria-label={`Revoke ${apiKey.name}`}
                   >
