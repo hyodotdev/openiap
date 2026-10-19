@@ -252,15 +252,14 @@ export default function ProjectIndex() {
 
         {/* Keep wide project navigation in its own horizontal scroller.
             Otherwise `<main>` becomes the scroller and shifts the page body
-            underneath the fixed-width organization sidebar. */}
+            underneath the fixed-width organization sidebar. The bar hides its
+            scrollbar (the active tab is scrolled into view), and px-2 plus each
+            tab's px-2 lines labels up with the header above. */}
         <div
           ref={tabScrollerRef}
-          className="container max-w-7xl mx-auto px-4 overflow-x-auto overscroll-x-contain"
+          className="no-scrollbar container max-w-7xl mx-auto px-2 overflow-x-auto overscroll-x-contain"
         >
-          <nav
-            aria-label="Project sections"
-            className="flex w-max min-w-full gap-1"
-          >
+          <nav aria-label="Project sections" className="flex w-max min-w-full">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -270,7 +269,7 @@ export default function ProjectIndex() {
                   ref={isActive ? activeTabButtonRef : undefined}
                   onClick={() => handleTabChange(tab.id)}
                   aria-current={isActive ? "page" : undefined}
-                  className={`flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-3 border-b-2 transition-colors ${
+                  className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2 py-3 border-b-2 transition-colors ${
                     isActive
                       ? "border-primary text-primary"
                       : "border-transparent text-muted-foreground hover:text-foreground"
