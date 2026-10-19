@@ -27,12 +27,18 @@ const RELEASES: ReleaseEntry[] = [
     weekStart: "2026-10-19",
     date: "2026-10-19",
     pullRequests: [548],
-    tagline: "API Keys dashboard readability and narrow-screen layout.",
+    tagline:
+      "API Keys dashboard readability, narrow-screen layout and an analytics error fix.",
     items: [
       {
         kind: "feature",
         topic: "Dashboard",
         text: "The API Keys list keeps each masked key on one line, uses consistent badges with aligned status, date and actions, and shows labeled cards with full actions on narrow screens. Long names and descriptions wrap readably, keyboard focus stays visible, and loading, empty and revoked states are unchanged.",
+      },
+      {
+        kind: "fix",
+        topic: "Analytics",
+        text: "Browsers that still held session replays recorded before replay was turned off no longer raise a Mixpanel loading error on every page. The dashboard deletes those leftover replays from the browser; product analytics events are unchanged.",
       },
     ],
   },

@@ -63,6 +63,20 @@ let initialized = false;
 
 const isBrowser = typeof window !== "undefined";
 
+// The full SDK stored session replays here before replay was turned off. The
+// core SDK cannot load the recorder that would flush them, so it throws on
+// every page load until they are gone.
+const LEGACY_REPLAY_DB = "mixpanelBrowserDb";
+
+function dropLegacyReplays() {
+  try {
+    // Queued ahead of the SDK's own open, so init sees an empty registry.
+    window.indexedDB?.deleteDatabase(LEGACY_REPLAY_DB);
+  } catch {
+    // Storage can be blocked (private mode, sandboxed frames); nothing to drop.
+  }
+}
+
 // Hostnames whitelisted for Mixpanel init. Forks self-hosting IAPKit
 // must NOT pipe their users' events into the OpenIAP-managed Mixpanel
 // project — otherwise their analytics, costs, and PII land on someone
@@ -117,6 +131,7 @@ function initMixpanel() {
     return false;
   }
 
+  dropLegacyReplays();
   mixpanel.init(MIXPANEL_TOKEN, {
     api_host: MIXPANEL_API_HOST,
     // Persist the distinct_id in localStorage so a returning user on
