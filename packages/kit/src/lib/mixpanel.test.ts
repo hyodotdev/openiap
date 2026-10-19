@@ -73,12 +73,12 @@ describe("legacy session replays", () => {
     );
   });
 
-  it("still initializes when IndexedDB is missing or blocked", async () => {
+  it("still initializes when IndexedDB is missing or denies access", async () => {
     for (const indexedDB of [
       undefined,
       {
         deleteDatabase: () => {
-          throw new DOMException("blocked", "SecurityError");
+          throw new DOMException("denied", "SecurityError");
         },
       },
     ]) {
