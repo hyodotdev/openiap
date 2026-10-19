@@ -79,10 +79,7 @@ import ApiKeys from "./apikeys";
 afterEach(() => {
   mocks.keys = mocks.initialKeys;
   cleanup();
-  vi.clearAllMocks();
-  for (const mutation of [mocks.create, mocks.revoke, mocks.regenerate]) {
-    mutation.mockReset();
-  }
+  vi.resetAllMocks();
   vi.unstubAllGlobals();
 });
 
