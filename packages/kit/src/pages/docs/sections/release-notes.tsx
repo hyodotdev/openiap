@@ -23,6 +23,20 @@ const CHANGE_GROUPS = [
 
 const RELEASES: ReleaseEntry[] = [
   {
+    id: "week-2026-10-19",
+    weekStart: "2026-10-19",
+    date: "2026-10-19",
+    pullRequests: [548],
+    tagline: "API Keys dashboard readability and narrow-screen layout.",
+    items: [
+      {
+        kind: "feature",
+        topic: "Dashboard",
+        text: "The API Keys list keeps each masked key on one line, uses consistent badges with aligned status, date and actions, and shows labeled cards with full actions on narrow screens. Long names and descriptions wrap readably, keyboard focus stays visible, and loading, empty and revoked states are unchanged.",
+      },
+    ],
+  },
+  {
     id: "week-2026-10-12",
     weekStart: "2026-10-12",
     date: "2026-10-18",
