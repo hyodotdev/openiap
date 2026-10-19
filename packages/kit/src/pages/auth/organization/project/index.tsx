@@ -252,15 +252,14 @@ export default function ProjectIndex() {
 
         {/* Keep wide project navigation in its own horizontal scroller.
             Otherwise `<main>` becomes the scroller and shifts the page body
-            underneath the fixed-width organization sidebar. */}
+            underneath the fixed-width organization sidebar. Compact tabs fit
+            beside the sidebar from 1280px; below that the bar scrolls, with a
+            thin scrollbar where the platform shows one. */}
         <div
           ref={tabScrollerRef}
-          className="container max-w-7xl mx-auto px-4 overflow-x-auto overscroll-x-contain"
+          className="container max-w-7xl mx-auto px-4 overflow-x-auto overscroll-x-contain [scrollbar-width:thin]"
         >
-          <nav
-            aria-label="Project sections"
-            className="flex w-max min-w-full gap-1"
-          >
+          <nav aria-label="Project sections" className="flex w-max min-w-full">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -270,7 +269,7 @@ export default function ProjectIndex() {
                   ref={isActive ? activeTabButtonRef : undefined}
                   onClick={() => handleTabChange(tab.id)}
                   aria-current={isActive ? "page" : undefined}
-                  className={`flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-3 border-b-2 transition-colors ${
+                  className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2 py-3 border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
                     isActive
                       ? "border-primary text-primary"
                       : "border-transparent text-muted-foreground hover:text-foreground"
@@ -279,7 +278,7 @@ export default function ProjectIndex() {
                   <Icon className="w-4 h-4" />
                   <span className="text-sm font-medium">{tab.label}</span>
                   {tab.badge && (
-                    <Badge variant="new" size="xs">
+                    <Badge variant="new" size="xs" className="px-1.5">
                       {tab.badge}
                     </Badge>
                   )}

@@ -239,6 +239,12 @@
   }
 }
 
+/* Destructive actions; plain --destructive text fails 4.5:1 in light mode. A
+   utility so its hover beats ButtonSecondary's bg-transparent. */
+@utility destructive-action {
+  @apply text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30;
+}
+
 @layer components {
   /* Reusable inline-link style. Tailwind's default `<a>` has no
      affordance at all — in a dark UI with light text, that makes links
@@ -548,6 +554,14 @@
     & * {
       color: white !important;
     }
+  }
+
+  /* Icon actions need a row-specific aria-label. */
+  .icon-button {
+    @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
   }
 
   /* Input styles */
