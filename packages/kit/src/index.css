@@ -550,6 +550,18 @@
     }
   }
 
+  /* Icon actions need a row-specific aria-label. */
+  .icon-button {
+    @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+  }
+
+  .icon-button-destructive {
+    @apply text-destructive hover:bg-destructive/10;
+  }
+
   /* Input styles */
   .input {
     @apply flex h-10 w-full rounded-lg bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50;
