@@ -55,6 +55,47 @@ describe("session replay privacy", () => {
   });
 });
 
+describe("legacy session replays", () => {
+  it("deletes the replay database before the core SDK opens it", async () => {
+    vi.resetModules();
+    const deleteDatabase = vi.fn();
+    vi.stubGlobal("window", {
+      location: new URL("http://localhost/docs"),
+      indexedDB: { deleteDatabase },
+    });
+    const { trackEvent, MixpanelEvent } = await import("./mixpanel");
+    trackEvent(MixpanelEvent.ViewedDocs);
+    trackEvent(MixpanelEvent.ViewedDocs);
+    expect(deleteDatabase).toHaveBeenCalledOnce();
+    expect(deleteDatabase).toHaveBeenCalledWith("mixpanelBrowserDb");
+    expect(deleteDatabase.mock.invocationCallOrder[0]).toBeLessThan(
+      mixpanel.init.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("still initializes when IndexedDB is missing or denies access", async () => {
+    for (const indexedDB of [
+      undefined,
+      {
+        deleteDatabase: () => {
+          throw new DOMException("denied", "SecurityError");
+        },
+      },
+    ]) {
+      vi.resetModules();
+      vi.clearAllMocks();
+      vi.stubGlobal("window", {
+        location: new URL("http://localhost/docs"),
+        indexedDB,
+      });
+      const { trackEvent, MixpanelEvent } = await import("./mixpanel");
+      trackEvent(MixpanelEvent.ViewedDocs);
+      expect(mixpanel.init).toHaveBeenCalledOnce();
+      expect(mixpanel.track).toHaveBeenCalledOnce();
+    }
+  });
+});
+
 describe("Mixpanel URL redaction", () => {
   it("keeps the route and parameter names but drops identifying values", () => {
     expect(
