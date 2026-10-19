@@ -80,6 +80,9 @@ afterEach(() => {
   mocks.keys = mocks.initialKeys;
   cleanup();
   vi.clearAllMocks();
+  for (const mutation of [mocks.create, mocks.revoke, mocks.regenerate]) {
+    mutation.mockReset();
+  }
   vi.unstubAllGlobals();
 });
 
@@ -179,7 +182,9 @@ describe("API Keys page", () => {
     const secret = screen.getByRole("radio", { name: /Secret admin/ });
     const publishable = screen.getByRole("radio", { name: /Publishable/ });
     const highlighted = (radio: HTMLElement) =>
-      radio.closest("label")?.className.includes("border-primary");
+      /(?:^|\s)border-primary(?:\s|$)/.test(
+        radio.closest("label")?.className ?? "",
+      );
     expect([highlighted(publishable), highlighted(secret)]).toEqual([
       true,
       false,

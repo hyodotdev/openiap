@@ -33,7 +33,12 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "feature",
         topic: "Dashboard",
-        text: "The API Keys page keeps Regenerate and Revoke in view at every width: a fixed-column table from 1280px, one compact list below that, wrapped long names, a highlighted key type when creating a key, and project tabs that fit from 1280px.",
+        text: "The API Keys list keeps each masked key on one line, uses consistent badges with aligned status, date and actions, and shows labeled cards with full actions on narrow screens. Long names and descriptions wrap readably, keyboard focus stays visible, and loading, empty and revoked states are unchanged.",
+      },
+      {
+        kind: "fix",
+        topic: "Dashboard",
+        text: "Regenerate and Revoke now stay in view at every width: API Keys uses a fixed-column table from 1280px and one compact list below it, the chosen key type is highlighted when creating a key, and project tabs fit from 1280px.",
       },
       {
         kind: "fix",
