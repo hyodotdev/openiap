@@ -26,6 +26,7 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-10-19",
     weekStart: "2026-10-19",
     date: "2026-10-19",
+    pullRequests: [548],
     tagline: "API Keys dashboard readability and narrow-screen layout.",
     items: [
       {
