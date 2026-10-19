@@ -20,7 +20,7 @@ export const ButtonSecondary = forwardRef<
       ...props
     },
     ref,
-  ) => {
+  ): React.JSX.Element => {
     const baseStyles = [
       "inline-flex items-center justify-center",
       "rounded-lg border border-border",
