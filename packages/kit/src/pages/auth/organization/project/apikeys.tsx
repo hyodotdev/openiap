@@ -52,7 +52,11 @@ interface ApiKeyActionProps {
   onRevoke: (key: ApiKeyRow) => void;
 }
 
-function KeyTypeBadge({ keyType }: { keyType: ApiKeyRow["keyType"] }) {
+function KeyTypeBadge({
+  keyType,
+}: {
+  keyType: ApiKeyRow["keyType"];
+}): React.JSX.Element {
   return keyType === "publishable" ? (
     <Badge variant="default" size="sm">
       {"Publishable"}
@@ -64,7 +68,11 @@ function KeyTypeBadge({ keyType }: { keyType: ApiKeyRow["keyType"] }) {
   );
 }
 
-function KeyStatusBadge({ isActive }: { isActive: boolean }) {
+function KeyStatusBadge({
+  isActive,
+}: {
+  isActive: boolean;
+}): React.JSX.Element {
   return isActive ? (
     <Badge
       variant="success"
@@ -85,7 +93,7 @@ function KeyStatusBadge({ isActive }: { isActive: boolean }) {
 }
 
 // Masked previews are already abbreviated server-side, so one line is enough.
-function KeyPreviewCode({ preview }: { preview: string }) {
+function KeyPreviewCode({ preview }: { preview: string }): React.JSX.Element {
   return (
     <code className="inline-block max-w-full whitespace-nowrap rounded bg-muted px-2 py-1 font-mono text-xs text-muted-foreground">
       {preview}
@@ -93,7 +101,11 @@ function KeyPreviewCode({ preview }: { preview: string }) {
   );
 }
 
-function KeyCreatedDate({ createdAt }: { createdAt: number }) {
+function KeyCreatedDate({
+  createdAt,
+}: {
+  createdAt: number;
+}): React.JSX.Element {
   const date = new Date(createdAt);
   return (
     <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground">
@@ -107,7 +119,7 @@ function ApiKeyIconActions({
   apiKey,
   onRegenerate,
   onRevoke,
-}: ApiKeyActionProps) {
+}: ApiKeyActionProps): React.JSX.Element {
   return (
     <div className="flex justify-end gap-1">
       <button
@@ -132,7 +144,7 @@ function ApiKeyIconActions({
   );
 }
 
-function ApiKeyNoActions() {
+function ApiKeyNoActions(): React.JSX.Element {
   return (
     <span className="text-xs text-muted-foreground">
       <span aria-hidden="true">{"—"}</span>
@@ -149,7 +161,7 @@ function ApiKeyTable({
   apiKeys: ApiKeyRow[];
   onRegenerate: (key: ApiKeyRow) => void;
   onRevoke: (key: ApiKeyRow) => void;
-}) {
+}): React.JSX.Element {
   return (
     <div className="hidden lg:block">
       <div className="overflow-x-auto">
@@ -262,16 +274,18 @@ function ApiKeyCards({
   apiKeys: ApiKeyRow[];
   onRegenerate: (key: ApiKeyRow) => void;
   onRevoke: (key: ApiKeyRow) => void;
-}) {
+}): React.JSX.Element {
   return (
     <ul className="space-y-3 lg:hidden">
       {apiKeys.map((apiKey) => (
         <li key={apiKey.id} className="rounded-lg border-thin bg-card p-4">
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="min-w-0 flex-1 font-semibold break-words text-foreground">
-              {apiKey.name}
-            </h3>
-            <KeyStatusBadge isActive={apiKey.isActive} />
+          <div className="contained-action-card items-start">
+            <div className="contained-action-card__text">
+              <h3 className="font-semibold text-foreground">{apiKey.name}</h3>
+            </div>
+            <div className="contained-action-card__actions">
+              <KeyStatusBadge isActive={apiKey.isActive} />
+            </div>
           </div>
           {apiKey.description ? (
             <p className="mt-2 text-sm leading-relaxed break-words text-muted-foreground">
@@ -299,7 +313,7 @@ function ApiKeyCards({
             </div>
           </dl>
           {apiKey.isActive ? (
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <div className="contained-action-card__actions mt-3 flex-col gap-2 sm:flex-row sm:justify-start">
               <ButtonSecondary
                 type="button"
                 size="sm"
@@ -339,7 +353,7 @@ export function ApiKeysContent({
   onRegenerate,
   onRevoke,
   initialShowCreateForm = false,
-}: ApiKeysContentProps) {
+}: ApiKeysContentProps): React.JSX.Element {
   const [showCreateForm, setShowCreateForm] = useState(initialShowCreateForm);
   const [keyName, setKeyName] = useState("");
   const [keyDescription, setKeyDescription] = useState("");
@@ -545,7 +559,7 @@ export function ApiKeysContent({
   );
 }
 
-export default function ApiKeys() {
+export default function ApiKeys(): React.JSX.Element {
   const { orgSlug, projectSlug } = useParams<{
     orgSlug: string;
     projectSlug: string;
