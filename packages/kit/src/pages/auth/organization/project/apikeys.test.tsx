@@ -105,8 +105,25 @@ describe("API Keys page", () => {
     expect(list.className).toContain("xl:hidden");
   });
 
-  it("revokes and regenerates the confirmed key, then shows the new key", async () => {
-    vi.stubGlobal("confirm", () => true);
+  it("revokes only the confirmed key from the table", async () => {
+    const confirm = vi.fn(() => true);
+    vi.stubGlobal("confirm", confirm);
+    render(<ApiKeys />);
+    fireEvent.click(
+      within(screen.getByRole("table")).getByRole("button", {
+        name: "Revoke iOS app",
+      }),
+    );
+    await waitFor(() =>
+      expect(mocks.revoke).toHaveBeenCalledWith({ keyId: "key_active" }),
+    );
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("revoke"));
+    expect(mocks.regenerate).not.toHaveBeenCalled();
+  });
+
+  it("regenerates only the confirmed key and shows the new key once", async () => {
+    const confirm = vi.fn(() => true);
+    vi.stubGlobal("confirm", confirm);
     mocks.regenerate.mockResolvedValue({
       name: "iOS app",
       key: "pk_live_new",
@@ -114,18 +131,14 @@ describe("API Keys page", () => {
     });
     render(<ApiKeys />);
     fireEvent.click(
-      within(screen.getByRole("table")).getByRole("button", {
-        name: "Revoke iOS app",
-      }),
-    );
-    fireEvent.click(
       within(screen.getByRole("list")).getByRole("button", {
         name: "Regenerate iOS app",
       }),
     );
     expect(await screen.findByText("pk_live_new")).toBeTruthy();
-    expect(mocks.revoke).toHaveBeenCalledWith({ keyId: "key_active" });
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("regenerate"));
     expect(mocks.regenerate).toHaveBeenCalledWith({ keyId: "key_active" });
+    expect(mocks.revoke).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Dismiss API key" }));
     expect(screen.queryByText("pk_live_new")).toBeNull();
@@ -164,12 +177,18 @@ describe("API Keys page", () => {
       screen.getAllByRole("button", { name: "Create API Key" })[0],
     );
     const secret = screen.getByRole("radio", { name: /Secret admin/ });
-    fireEvent.click(secret);
     const publishable = screen.getByRole("radio", { name: /Publishable/ });
-    expect(secret.closest("label")?.className).toContain("border-primary");
-    expect(publishable.closest("label")?.className).not.toContain(
-      "border-primary",
-    );
+    const highlighted = (radio: HTMLElement) =>
+      radio.closest("label")?.className.includes("border-primary");
+    expect([highlighted(publishable), highlighted(secret)]).toEqual([
+      true,
+      false,
+    ]);
+    fireEvent.click(secret);
+    expect([highlighted(publishable), highlighted(secret)]).toEqual([
+      false,
+      true,
+    ]);
 
     fireEvent.change(screen.getByLabelText(/Key Name/), {
       target: { value: "  Staging  " },

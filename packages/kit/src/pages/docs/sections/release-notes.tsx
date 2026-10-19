@@ -25,15 +25,15 @@ const RELEASES: ReleaseEntry[] = [
   {
     id: "week-2026-10-19",
     weekStart: "2026-10-19",
-    date: "2026-10-19",
-    pullRequests: [548],
+    date: "2026-10-20",
+    pullRequests: [548, 550],
     tagline:
       "API Keys dashboard readability, narrow-screen layout and an analytics error fix.",
     items: [
       {
         kind: "feature",
         topic: "Dashboard",
-        text: "The API Keys page fits every screen: from 1280px a fixed-column table keeps each masked key on one line with Regenerate and Revoke in view, and narrower screens list keys in one card with matching actions. Long names and descriptions wrap, keyboard focus stays visible, the chosen key type is highlighted when creating a key, and project tabs fit from 1280px.",
+        text: "The API Keys page keeps Regenerate and Revoke in view at every width: a fixed-column table from 1280px, one compact list below that, wrapped long names, a highlighted key type when creating a key, and project tabs that fit from 1280px.",
       },
       {
         kind: "fix",

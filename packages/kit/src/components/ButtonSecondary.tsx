@@ -25,8 +25,9 @@ export const ButtonSecondary = forwardRef<
       "inline-flex items-center justify-center",
       "rounded-lg border border-border",
       "bg-transparent",
+      // Matches the danger Badge palette; --destructive text fails 4.5:1.
       variant === "destructive"
-        ? "text-destructive hover:bg-destructive/10"
+        ? "text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
         : "text-foreground hover:bg-muted",
       "text-sm font-medium",
       "transition-colors",

@@ -38,8 +38,6 @@ interface ApiKeyCreateInput {
   keyType: "publishable" | "secret";
 }
 
-// Selection styling comes from state: Chromium can leave :has(:checked) stale
-// on the radio that was just unchecked.
 const KEY_TYPE_OPTIONS = [
   {
     value: "publishable",
