@@ -612,7 +612,12 @@ function Home() {
                 <small>Products shipping across app stores</small>
                 <span className="home-community-app-icons" aria-hidden="true">
                   {apps.slice(0, 4).map((app) => (
-                    <img key={showcaseIdentity(app)} src={app.logo} alt="" />
+                    <img
+                      key={showcaseIdentity(app)}
+                      src={app.logo}
+                      alt=""
+                      loading="lazy"
+                    />
                   ))}
                 </span>
               </div>

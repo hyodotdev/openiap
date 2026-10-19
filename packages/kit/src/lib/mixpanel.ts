@@ -63,6 +63,10 @@ let initialized = false;
 
 const isBrowser = typeof window !== "undefined";
 
+// Mixpanel's MIXPANEL_BROWSER_DB_NAME (2.82-2.84): replays only, which the core
+// build cannot flush, so leftovers throw on every load. Recheck on upgrades.
+const LEGACY_REPLAY_DB = "mixpanelBrowserDb";
+
 // Hostnames whitelisted for Mixpanel init. Forks self-hosting IAPKit
 // must NOT pipe their users' events into the OpenIAP-managed Mixpanel
 // project — otherwise their analytics, costs, and PII land on someone
@@ -115,6 +119,13 @@ function initMixpanel() {
   // events to the official Mixpanel project.
   if (!ALLOWED_HOSTS.has(window.location.hostname)) {
     return false;
+  }
+
+  try {
+    // Queued ahead of the SDK's own open; a blocked delete only delays it.
+    window.indexedDB.deleteDatabase(LEGACY_REPLAY_DB);
+  } catch {
+    // IndexedDB can be missing or denied (private mode, sandboxed frames).
   }
 
   mixpanel.init(MIXPANEL_TOKEN, {
