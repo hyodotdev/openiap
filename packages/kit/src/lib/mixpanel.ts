@@ -123,9 +123,9 @@ function initMixpanel() {
 
   try {
     // Queued ahead of the SDK's own open; a blocked delete only delays it.
-    window.indexedDB?.deleteDatabase(LEGACY_REPLAY_DB);
+    window.indexedDB.deleteDatabase(LEGACY_REPLAY_DB);
   } catch {
-    // Storage access can be denied (private mode, sandboxed frames).
+    // IndexedDB can be missing or denied (private mode, sandboxed frames).
   }
 
   mixpanel.init(MIXPANEL_TOKEN, {

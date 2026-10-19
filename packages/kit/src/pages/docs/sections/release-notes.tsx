@@ -37,8 +37,8 @@ const RELEASES: ReleaseEntry[] = [
       },
       {
         kind: "fix",
-        topic: "Analytics",
-        text: "Browsers that still held session replays recorded before replay was turned off no longer raise a Mixpanel loading error on every page load. The dashboard deletes those leftover replays from the browser; product analytics events are unchanged.",
+        topic: "Privacy",
+        text: "Fixes a Mixpanel loading error on every page load in browsers that kept session replays from before replay was turned off; the dashboard now deletes those leftover replays from the browser.",
       },
     ],
   },
