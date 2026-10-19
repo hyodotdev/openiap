@@ -9,8 +9,8 @@ import {
   within,
 } from "@testing-library/react";
 
-const mocks = vi.hoisted(() => ({
-  keys: [
+const mocks = vi.hoisted(() => {
+  const keys = [
     {
       _id: "key_active",
       name: "iOS app",
@@ -28,11 +28,15 @@ const mocks = vi.hoisted(() => ({
       isActive: false,
       createdAt: Date.UTC(2026, 8, 1),
     },
-  ],
-  create: vi.fn(),
-  revoke: vi.fn(),
-  regenerate: vi.fn(),
-}));
+  ];
+  return {
+    initialKeys: keys,
+    keys,
+    create: vi.fn(),
+    revoke: vi.fn(),
+    regenerate: vi.fn(),
+  };
+});
 vi.mock("convex/react", () => ({
   useQuery: (ref: string) =>
     ref === "org"
@@ -73,6 +77,7 @@ vi.mock("@/convex", () => ({
 import ApiKeys from "./apikeys";
 
 afterEach(() => {
+  mocks.keys = mocks.initialKeys;
   cleanup();
   vi.clearAllMocks();
   vi.unstubAllGlobals();
@@ -94,15 +99,40 @@ describe("API Keys page", () => {
       ).toBeNull();
     }
     expect(within(table).getByText("No actions available")).toBeTruthy();
+    expect(within(list).getByText("No actions available")).toBeTruthy();
+    // jsdom ignores breakpoints, so pin the switch between the two layouts.
+    expect(table.className).toMatch(/\bhidden\b.*\bxl:table\b/);
+    expect(list.className).toContain("xl:hidden");
   });
 
-  it("revokes and regenerates the confirmed key by id", async () => {
+  it("revokes and regenerates the confirmed key, then shows the new key", async () => {
     vi.stubGlobal("confirm", () => true);
     mocks.regenerate.mockResolvedValue({
       name: "iOS app",
       key: "pk_live_new",
       keyType: "publishable",
     });
+    render(<ApiKeys />);
+    fireEvent.click(
+      within(screen.getByRole("table")).getByRole("button", {
+        name: "Revoke iOS app",
+      }),
+    );
+    fireEvent.click(
+      within(screen.getByRole("list")).getByRole("button", {
+        name: "Regenerate iOS app",
+      }),
+    );
+    expect(await screen.findByText("pk_live_new")).toBeTruthy();
+    expect(mocks.revoke).toHaveBeenCalledWith({ keyId: "key_active" });
+    expect(mocks.regenerate).toHaveBeenCalledWith({ keyId: "key_active" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss API key" }));
+    expect(screen.queryByText("pk_live_new")).toBeNull();
+  });
+
+  it("changes nothing when the confirmation is cancelled", () => {
+    vi.stubGlobal("confirm", () => false);
     render(<ApiKeys />);
     const list = screen.getByRole("list");
     fireEvent.click(
@@ -111,10 +141,16 @@ describe("API Keys page", () => {
     fireEvent.click(
       within(list).getByRole("button", { name: "Regenerate iOS app" }),
     );
-    await waitFor(() =>
-      expect(mocks.regenerate).toHaveBeenCalledWith({ keyId: "key_active" }),
-    );
-    expect(mocks.revoke).toHaveBeenCalledWith({ keyId: "key_active" });
+    expect(mocks.revoke).not.toHaveBeenCalled();
+    expect(mocks.regenerate).not.toHaveBeenCalled();
+  });
+
+  it("shows the empty state without a table or list", () => {
+    mocks.keys = [];
+    render(<ApiKeys />);
+    expect(screen.getByText("No API keys yet")).toBeTruthy();
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.queryByRole("list")).toBeNull();
   });
 
   it("highlights only the chosen key type and submits it", async () => {

@@ -33,16 +33,11 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "feature",
         topic: "Dashboard",
-        text: "The API Keys list keeps each masked key on one line, uses consistent badges with aligned status, date and actions, and shows labeled cards with full actions on narrow screens. Long names and descriptions wrap readably, keyboard focus stays visible, and loading, empty and revoked states are unchanged.",
+        text: "The API Keys page fits every screen: from 1280px a fixed-column table keeps each masked key on one line with Regenerate and Revoke in view, and narrower screens list keys in one card with matching actions. Long names and descriptions wrap, keyboard focus stays visible, the chosen key type is highlighted when creating a key, and project tabs fit from 1280px.",
       },
       {
         kind: "fix",
-        topic: "Dashboard",
-        text: "The API Keys table no longer scrolls sideways on laptop screens, so Regenerate and Revoke stay in view; long names and descriptions wrap. Narrower screens list keys in one card with matching action buttons, the chosen key type is highlighted when creating a key, and all project tabs fit on 1280px screens without a scrollbar.",
-      },
-      {
-        kind: "fix",
-        topic: "Privacy",
+        topic: "Analytics",
         text: "Fixes a Mixpanel loading error on every page load in browsers that kept session replays from before replay was turned off; the dashboard now deletes those leftover replays from the browser.",
       },
     ],

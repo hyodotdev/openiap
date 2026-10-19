@@ -104,7 +104,10 @@ function KeyStatusBadge({
 // Masked previews are already abbreviated server-side, so one line is enough.
 function KeyPreviewCode({ preview }: { preview: string }): React.JSX.Element {
   return (
-    <code className="inline-block max-w-full truncate rounded bg-muted px-2 py-1 align-middle font-mono text-xs text-muted-foreground">
+    <code
+      title={preview}
+      className="inline-block max-w-full truncate rounded bg-muted px-2 py-1 align-middle font-mono text-xs text-muted-foreground"
+    >
       {preview}
     </code>
   );
@@ -147,13 +150,13 @@ function ApiKeyTable({
           <th scope="col" className={`w-32 ${HEADER_CELL}`}>
             {"Type"}
           </th>
-          <th scope="col" className={`w-28 ${HEADER_CELL}`}>
+          <th scope="col" className={`w-32 ${HEADER_CELL}`}>
             {"Status"}
           </th>
           <th scope="col" className={`w-32 ${HEADER_CELL}`}>
             {"Created"}
           </th>
-          <th scope="col" className={`w-24 ${HEADER_CELL} text-right`}>
+          <th scope="col" className={`w-28 ${HEADER_CELL} text-right`}>
             {"Actions"}
           </th>
         </tr>
@@ -295,7 +298,9 @@ function ApiKeyList({
                 {"Revoke"}
               </ButtonSecondary>
             </div>
-          ) : null}
+          ) : (
+            <p className="sr-only">{"No actions available"}</p>
+          )}
         </li>
       ))}
     </ul>
