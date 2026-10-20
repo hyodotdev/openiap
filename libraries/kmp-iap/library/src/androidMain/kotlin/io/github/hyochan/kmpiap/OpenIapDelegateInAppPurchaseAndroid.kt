@@ -649,8 +649,8 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
 }
 
 internal fun AndroidOpenIapError.toKmpPurchaseError(): PurchaseError {
-    // Preserve native product IDs and request diagnostics. The store's cause beats a code's fixed
-    // text, but not a message openiap-google already built around it.
+    // Preserve native product IDs and request diagnostics. The specific cause in debugMessage beats a
+    // code's fixed text, but not a message openiap-google already built around it.
     val payload = toJSON() + mapOf(
         "message" to (debugMessage?.takeIf { it.isNotBlank() && it !in message } ?: message),
     )
