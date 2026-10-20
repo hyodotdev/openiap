@@ -624,11 +624,12 @@ function Releases() {
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
           <AnchorLink id="horizon-verification-2026-10-21" level="h4">
-            October 21, 2026 - Horizon verification in KMP and MAUI
+            October 21, 2026 - KMP and MAUI purchase verification fixes
           </AnchorLink>
           <p>
             kmp-iap and OpenIap.Maui now complete IAPKit verification of Meta
-            Horizon purchases on a Quest. Before, it failed after the store
+            Horizon purchases on a Quest, and kmp-iap that of Amazon receipts
+            sent without a user id. Before, verification failed after the store
             purchase succeeded, so apps that finish only after verification left
             the purchase unfinished.
           </p>
@@ -637,9 +638,7 @@ function Releases() {
             <li>
               <strong>kmp-iap 4.0.4</strong> fills in the signed-in user when{' '}
               <code>verifyPurchaseWithProvider</code> gets only the Horizon SKU
-              or the Amazon receipt id, as the other SDKs do. Horizon no longer
-              fails with &quot;IAPKit Horizon verification requires sku and
-              userId&quot;, nor Amazon with its userId counterpart.
+              or Amazon receipt id, as the other SDKs do.
             </li>
             <li>
               <strong>OpenIap.Maui 3.0.4</strong> links Meta&apos;s{' '}

@@ -621,6 +621,15 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
             throw error
         } catch (error: PurchaseException) {
             throw error
+        } catch (error: AndroidOpenIapError) {
+            // openiap-google keeps the cause in debugMessage; message is the code's fixed text.
+            failWith(
+                PurchaseError(
+                    code = ErrorCode.PurchaseVerificationFailed,
+                    message = error.debugMessage?.takeIf { it.isNotBlank() } ?: error.message,
+                    debugMessage = error.debugMessage
+                )
+            )
         } catch (error: Exception) {
             failWith(
                 PurchaseError(

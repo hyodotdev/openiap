@@ -2704,7 +2704,7 @@ function checkIapkitAmazonContractWiring() {
   expectNotIncludes(
     "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/OpenIapDelegateInAppPurchaseAndroid.kt",
     ["RequestVerifyPurchaseWithIapkitResult.fromJson"],
-    "KMP Amazon store must not round-trip through the generated decoder",
+    "KMP Android store must not round-trip through the generated decoder",
   );
   expectIncludes(
     "libraries/kmp-iap/library/src/iosMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseIOS.kt",
@@ -7134,26 +7134,34 @@ function checkFrameworkDependencyHygiene() {
     "packages/google Horizon dependency versions",
   );
   // MAUI links Horizon's Maven artifacts itself; a module it misses only fails at runtime on a Quest.
-  const horizonModuleLoop =
-    googleBuildGradle.match(
-      /for \(module in listOf\(([^)]*)\)\) \{\s*add\("horizonApi"/,
-    )?.[1] ?? "";
+  const googleGradleCode = googleBuildGradle.replace(/\/\/.*$/gm, "");
+  const horizonModuleLoop = googleGradleCode.match(
+    /for \(module in listOf\(([^)]*)\)\) \{\s*add\("horizon(?:Api|Implementation|RuntimeOnly)"/,
+  )?.[1];
+  if (horizonModuleLoop === undefined) {
+    fail(
+      'packages/google must declare its Horizon Platform SDK modules in one `for (module in listOf(...)) { add("horizonApi", ...) }` loop',
+    );
+  }
   const horizonPlatformModules = [
     ...new Set([
-      ...[...horizonModuleLoop.matchAll(/"([^"]+)"/g)].map((match) => match[1]),
+      ...[...(horizonModuleLoop ?? "").matchAll(/"([^"]+)"/g)].map(
+        (match) => match[1],
+      ),
       ...[
-        ...googleBuildGradle.matchAll(
-          /horizonApi"?,?\s*\(?\s*"com\.meta\.horizon\.platform\.sdk:([a-z][a-z0-9-]*):/g,
+        ...googleGradleCode.matchAll(
+          /horizon(?:Api|Implementation|RuntimeOnly)"?,?\s*\(?\s*"com\.meta\.horizon\.platform\.sdk:([a-z][a-z0-9-]*):/g,
         ),
       ].map((match) => match[1]),
     ]),
   ];
-  if (horizonPlatformModules.length === 0) {
-    fail("packages/google must declare its Horizon Platform SDK modules");
-  }
   expectIncludes(
     "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets",
-    horizonPlatformModules.map(
+    [
+      ...horizonPlatformModules,
+      // users-kotlin's POM dependency: Gradle resolves it, MAUI lists it by hand.
+      "abuse-report-kotlin",
+    ].map(
       (module) =>
         `<AndroidMavenLibrary Include="com.meta.horizon.platform.sdk:${module}" Version="$(MauiHorizonPlatformKotlinVersion)" Bind="false" />`,
     ),
