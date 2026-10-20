@@ -2688,8 +2688,8 @@ function checkIapkitAmazonContractWiring() {
   }
   expectIncludes(
     "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/OpenIapDelegateInAppPurchaseAndroid.kt",
-    ["androidResult.toKmpIapkitResult()"],
-    "KMP Amazon store IAPKit response contract",
+    ["result.iapkit?.toKmpIapkitResult()"],
+    "KMP Android store IAPKit response contract",
   );
   expectIncludes(
     "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/Helper.kt",
@@ -7134,11 +7134,22 @@ function checkFrameworkDependencyHygiene() {
     "packages/google Horizon dependency versions",
   );
   // MAUI links Horizon's Maven artifacts itself; a module it misses only fails at runtime on a Quest.
+  const horizonModuleLoop =
+    googleBuildGradle.match(
+      /for \(module in listOf\(([^)]*)\)\) \{\s*add\("horizonApi"/,
+    )?.[1] ?? "";
   const horizonPlatformModules = [
-    ...(googleBuildGradle.match(/for \(module in listOf\(([^)]*)\)\)/)?.[1] ?? "").matchAll(/"([^"]+)"/g),
-  ].map((match) => match[1]);
+    ...new Set([
+      ...[...horizonModuleLoop.matchAll(/"([^"]+)"/g)].map((match) => match[1]),
+      ...[
+        ...googleBuildGradle.matchAll(
+          /horizonApi"?,?\s*\(?\s*"com\.meta\.horizon\.platform\.sdk:([a-z][a-z0-9-]*):/g,
+        ),
+      ].map((match) => match[1]),
+    ]),
+  ];
   if (horizonPlatformModules.length === 0) {
-    fail("packages/google must list its Horizon Platform SDK modules in one listOf(...)");
+    fail("packages/google must declare its Horizon Platform SDK modules");
   }
   expectIncludes(
     "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets",

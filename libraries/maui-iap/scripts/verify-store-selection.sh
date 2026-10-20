@@ -165,6 +165,16 @@ if [[ "${1:-}" == "--apk" ]]; then
             printf '  FAIL %-42s expected %s, got %s\n' "$store APK links only its store" "$store" "${linked%,}"
             failed=$((failed + 1))
         fi
+        # Horizon verification looks up the signed-in user with this class at runtime.
+        if [[ "$store" == "horizon" ]]; then
+            if grep -q "Lhorizon/platform/users/Users;" <<<"$classes"; then
+                printf '  ok   %-42s\n' "horizon APK carries the Users class"
+                passed=$((passed + 1))
+            else
+                printf '  FAIL %-42s\n' "horizon APK carries the Users class"
+                failed=$((failed + 1))
+            fi
+        fi
     done
 fi
 
