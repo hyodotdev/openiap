@@ -33,6 +33,11 @@ interface ReleaseChange extends ReleaseMetadata {
   description: React.ReactNode;
 }
 
+const HORIZON_VERIFICATION_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'kmp-iap', version: '4.0.4', tag: 'kmp-iap-4.0.4' },
+  { name: 'OpenIap.Maui', version: '3.0.4', tag: 'maui-iap-3.0.4' },
+];
+
 const EXPO_REFRESH_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'expo-iap', version: '6.1.1', tag: 'expo-iap-6.1.1' },
 ];
@@ -610,6 +615,54 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'horizon-verification-2026-10-21',
+      date: new Date('2026-10-21'),
+      element: (
+        <div key="horizon-verification-2026-10-21" style={noteCardStyle}>
+          {HORIZON_VERIFICATION_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="horizon-verification-2026-10-21" level="h4">
+            October 21, 2026 - Horizon verification in KMP and MAUI
+          </AnchorLink>
+          <p>
+            kmp-iap and OpenIap.Maui verify Meta Horizon purchases through
+            IAPKit. On a Quest, both failed after the store purchase succeeded,
+            so the purchase stayed unfinished until a later restore picked it
+            up.
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            <li>
+              <strong>kmp-iap 4.0.4</strong> resolves the signed-in Horizon user
+              when <code>verifyPurchaseWithProvider</code> gets only the SKU, as
+              the other SDKs do, instead of failing with &quot;IAPKit Horizon
+              verification requires sku and userId&quot;.
+            </li>
+            <li>
+              <strong>OpenIap.Maui 3.0.4</strong> links Meta&apos;s{' '}
+              <code>users-kotlin</code> platform module and its{' '}
+              <code>abuse-report-kotlin</code> dependency in Horizon builds, so
+              verification no longer throws <code>NoClassDefFoundError</code>{' '}
+              for <code>horizon.platform.users.Users</code>.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            {HORIZON_VERIFICATION_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                >
+                  {getReleaseLabel(release)}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
     {
       id: 'expo-subscription-refresh-2026-10-18',
       date: new Date('2026-10-18'),
