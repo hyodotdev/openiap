@@ -713,6 +713,7 @@ class OpenIapDelegateTest {
         }
 
         // No context in a unit test, so creating the module fails; it must not demand a connection first.
+        assertEquals(ErrorCode.ServiceError, failure.error.code)
         assertEquals("Context not available", failure.error.message)
     }
 

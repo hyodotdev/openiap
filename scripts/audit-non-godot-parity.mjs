@@ -7152,7 +7152,7 @@ function checkFrameworkDependencyHygiene() {
       ),
       ...[
         ...googleGradleCode.matchAll(
-          /horizon(?:Api|Implementation|RuntimeOnly)"?,?\s*\(?\s*"com\.meta\.horizon\.platform\.sdk:([a-z][a-z0-9-]*):/g,
+          /horizon(?:Api|Implementation|RuntimeOnly)"?,?\s*\(?\s*"com\.meta\.horizon\.platform\.sdk:([^":$]+):/g,
         ),
       ].map((match) => match[1]),
     ]),
