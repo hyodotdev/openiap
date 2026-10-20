@@ -310,7 +310,8 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
         }
 
     override suspend fun verifyPurchaseWithProvider(options: VerifyPurchaseWithProviderProps): VerifyPurchaseWithProviderResult {
-        if (store == Store.UNKNOWN) {
+        // Horizon's module fills in the signed-in user, which a sku-only request lacks.
+        if (store == Store.UNKNOWN || store == Store.HORIZON) {
             return withMappedOpenIapError {
                 val result = requireModule().verifyPurchaseWithProvider(
                     requireNotNull(dev.hyo.openiap.VerifyPurchaseWithProviderProps.fromJson(options.toJson()))

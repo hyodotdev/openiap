@@ -17,12 +17,16 @@ import io.github.hyochan.kmpiap.openiap.ErrorCode
 import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
 import io.github.hyochan.kmpiap.openiap.ProductQueryType
 import io.github.hyochan.kmpiap.openiap.PurchaseError
+import io.github.hyochan.kmpiap.openiap.PurchaseVerificationProvider
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseAndroidProps
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseProps
 import io.github.hyochan.kmpiap.openiap.RequestPurchasePropsByPlatforms
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseResultPurchases
+import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitHorizonProps
+import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitProps
 import io.github.hyochan.kmpiap.openiap.SubResponseCodeAndroid
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseProps
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseWithProviderProps
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -596,6 +600,31 @@ class OpenIapDelegateTest {
             val purchase = nativePurchase(productId)
             updates.forEach { it.onPurchaseUpdated(purchase) }
         }
+    }
+
+    @Test
+    fun `Horizon verifies through its module, which resolves the signed-in user`() = runBlocking {
+        var forwarded: dev.hyo.openiap.VerifyPurchaseWithProviderProps? = null
+        val verify: dev.hyo.openiap.MutationVerifyPurchaseWithProviderHandler = { props ->
+            forwarded = props
+            dev.hyo.openiap.VerifyPurchaseWithProviderResult(provider = dev.hyo.openiap.PurchaseVerificationProvider.Iapkit)
+        }
+        val module = fakeModule { method, _ ->
+            if (method == "getVerifyPurchaseWithProvider") verify else error("Unexpected call: $method")
+        }
+
+        val result = delegateFor(Store.HORIZON, module).verifyPurchaseWithProvider(
+            VerifyPurchaseWithProviderProps(
+                iapkit = RequestVerifyPurchaseWithIapkitProps(
+                    horizon = RequestVerifyPurchaseWithIapkitHorizonProps(sku = "dev.hyo.martie.10bulbs"),
+                ),
+                provider = PurchaseVerificationProvider.Iapkit,
+            )
+        )
+
+        assertEquals("dev.hyo.martie.10bulbs", forwarded?.iapkit?.horizon?.sku)
+        assertNull(forwarded?.iapkit?.horizon?.userId)
+        assertEquals(PurchaseVerificationProvider.Iapkit, result.provider)
     }
 
     private fun purchaseRequest(sku: String = "premium") = RequestPurchaseProps(

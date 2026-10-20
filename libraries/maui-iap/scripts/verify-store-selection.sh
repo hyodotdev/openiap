@@ -66,7 +66,7 @@ with_device() {
 }
 
 play="play:billing,core-common,integrity"
-horizon="horizon:core-kotlin,horizon-billing-compatibility,iap-kotlin,user-age-category-kotlin"
+horizon="horizon:abuse-report-kotlin,core-kotlin,horizon-billing-compatibility,iap-kotlin,user-age-category-kotlin,users-kotlin"
 amazon="amazon:amazon-appstore-sdk"
 link=_OpenIapLinkAndroidStore
 adb="-p:AdbToolPath=$fake_sdk/"

@@ -7133,6 +7133,21 @@ function checkFrameworkDependencyHygiene() {
     ],
     "packages/google Horizon dependency versions",
   );
+  // MAUI links Horizon's Maven artifacts itself; a module it misses only fails at runtime on a Quest.
+  const horizonPlatformModules = [
+    ...(googleBuildGradle.match(/for \(module in listOf\(([^)]*)\)\)/)?.[1] ?? "").matchAll(/"([^"]+)"/g),
+  ].map((match) => match[1]);
+  if (horizonPlatformModules.length === 0) {
+    fail("packages/google must list its Horizon Platform SDK modules in one listOf(...)");
+  }
+  expectIncludes(
+    "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets",
+    horizonPlatformModules.map(
+      (module) =>
+        `<AndroidMavenLibrary Include="com.meta.horizon.platform.sdk:${module}" Version="$(MauiHorizonPlatformKotlinVersion)" Bind="false" />`,
+    ),
+    "MAUI must link every Horizon Platform SDK module packages/google declares",
+  );
   expectNotIncludes(
     "packages/google/openiap/build.gradle.kts",
     ["com.meta.horizon.platform.ovr:android-platform-sdk"],
@@ -7590,10 +7605,6 @@ function checkFrameworkDependencyHygiene() {
       '<AndroidMavenLibrary Include="com.android.billingclient:billing" Version="$(MauiPlayBillingVersion)" Repository="Google" Bind="false" />',
       '<AndroidMavenLibrary Include="com.amazon.device:amazon-appstore-sdk" Version="$(MauiAmazonAppstoreSdkVersion)" Bind="false" />',
       '<AndroidMavenLibrary Include="com.meta.horizon.billingclient.api:horizon-billing-compatibility" Version="$(MauiHorizonBillingCompatibilityVersion)" Bind="false" />',
-      "com.meta.horizon.platform.sdk:core-kotlin",
-      "com.meta.horizon.platform.sdk:user-age-category-kotlin",
-      "com.meta.horizon.platform.sdk:iap-kotlin",
-      'Version="$(MauiHorizonPlatformKotlinVersion)"',
       '<_PropertyCacheItems Include="OpenIapLinkedStore=$(OpenIapLinkedStore)" />',
       "_CreatePropertiesCache",
       "'$(Configuration)' == 'Debug'",
