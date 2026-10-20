@@ -643,9 +643,15 @@ function Releases() {
                   SKU or Amazon receipt id, as the other SDKs do.
                 </li>
                 <li>
-                  Verification errors keep the store&apos;s cause, such as an
+                  Verification errors report the specific cause, such as an
                   invalid <code>baseUrl</code>, instead of &quot;Invalid
                   arguments provided to the API&quot;.
+                </li>
+                <li>
+                  A Play subscription replacement rejected with{' '}
+                  <code>DEVELOPER_ERROR</code> shows openiap-google&apos;s
+                  replacement-mode guidance instead of only Play&apos;s debug
+                  message.
                 </li>
               </ul>
             </li>

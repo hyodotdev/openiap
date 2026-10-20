@@ -7137,12 +7137,12 @@ function checkFrameworkDependencyHygiene() {
   const googleGradleCode = googleBuildGradle.replace(/\/\/.*$/gm, "");
   const horizonModuleLoops = [
     ...googleGradleCode.matchAll(
-      /for \(module in listOf\(([^)]*)\)\) \{\s*add\("horizon(?:Api|Implementation|RuntimeOnly)"/g,
+      /for \(\w+ in listOf\(([^)]*)\)\) \{\s*add\("horizon(?:Api|Implementation|RuntimeOnly)"/g,
     ),
   ].map((match) => match[1]);
   if (horizonModuleLoops.length === 0) {
     fail(
-      'packages/google must declare its Horizon Platform SDK modules in a `for (module in listOf(...)) { add("horizonApi", ...) }` loop',
+      'packages/google must declare its Horizon Platform SDK modules in a `for (... in listOf(...)) { add("horizonApi", ...) }` loop',
     );
   }
   const horizonPlatformModules = [
@@ -7157,6 +7157,11 @@ function checkFrameworkDependencyHygiene() {
       ].map((match) => match[1]),
     ]),
   ];
+  if (horizonPlatformModules.length === 0) {
+    fail(
+      "packages/google Horizon Platform SDK modules must be string literals the audit can read",
+    );
+  }
   expectIncludes(
     "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets",
     [
