@@ -7135,18 +7135,20 @@ function checkFrameworkDependencyHygiene() {
   );
   // MAUI links Horizon's Maven artifacts itself; a module it misses only fails at runtime on a Quest.
   const googleGradleCode = googleBuildGradle.replace(/\/\/.*$/gm, "");
-  const horizonModuleLoop = googleGradleCode.match(
-    /for \(module in listOf\(([^)]*)\)\) \{\s*add\("horizon(?:Api|Implementation|RuntimeOnly)"/,
-  )?.[1];
-  if (horizonModuleLoop === undefined) {
+  const horizonModuleLoops = [
+    ...googleGradleCode.matchAll(
+      /for \(module in listOf\(([^)]*)\)\) \{\s*add\("horizon(?:Api|Implementation|RuntimeOnly)"/g,
+    ),
+  ].map((match) => match[1]);
+  if (horizonModuleLoops.length === 0) {
     fail(
-      'packages/google must declare its Horizon Platform SDK modules in one `for (module in listOf(...)) { add("horizonApi", ...) }` loop',
+      'packages/google must declare its Horizon Platform SDK modules in a `for (module in listOf(...)) { add("horizonApi", ...) }` loop',
     );
   }
   const horizonPlatformModules = [
     ...new Set([
-      ...[...(horizonModuleLoop ?? "").matchAll(/"([^"]+)"/g)].map(
-        (match) => match[1],
+      ...horizonModuleLoops.flatMap((loop) =>
+        [...loop.matchAll(/"([^"]+)"/g)].map((match) => match[1]),
       ),
       ...[
         ...googleGradleCode.matchAll(
@@ -7160,7 +7162,9 @@ function checkFrameworkDependencyHygiene() {
     [
       ...horizonPlatformModules,
       // users-kotlin's POM dependency: Gradle resolves it, MAUI lists it by hand.
-      "abuse-report-kotlin",
+      ...(horizonPlatformModules.includes("users-kotlin")
+        ? ["abuse-report-kotlin"]
+        : []),
     ].map(
       (module) =>
         `<AndroidMavenLibrary Include="com.meta.horizon.platform.sdk:${module}" Version="$(MauiHorizonPlatformKotlinVersion)" Bind="false" />`,

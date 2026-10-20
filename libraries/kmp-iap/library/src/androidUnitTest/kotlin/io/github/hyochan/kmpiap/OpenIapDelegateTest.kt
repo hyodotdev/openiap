@@ -51,7 +51,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
-import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -610,6 +609,8 @@ class OpenIapDelegateTest {
     fun `store verification forwards the request unchanged to the module that completes it`() = runBlocking {
         val requests = listOf(
             Store.PLAY_STORE to RequestVerifyPurchaseWithIapkitProps(
+                apiKey = "key",
+                baseUrl = "https://kit.example.test",
                 google = RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = "token"),
             ),
             Store.HORIZON to RequestVerifyPurchaseWithIapkitProps(
@@ -642,18 +643,12 @@ class OpenIapDelegateTest {
                 if (method == "getVerifyPurchaseWithProvider") verify else error("Unexpected call: $method")
             }
 
-            val result = delegateFor(store, module).verifyPurchaseWithProvider(
-                VerifyPurchaseWithProviderProps(iapkit = iapkit, provider = PurchaseVerificationProvider.Iapkit)
-            )
+            val request = VerifyPurchaseWithProviderProps(iapkit = iapkit, provider = PurchaseVerificationProvider.Iapkit)
+            val result = delegateFor(store, module).verifyPurchaseWithProvider(request)
 
             val sentProps = assertNotNull(forwarded, "$store skipped its module")
-            assertEquals(dev.hyo.openiap.PurchaseVerificationProvider.Iapkit, sentProps.provider)
-            val sent = sentProps.iapkit
-            assertEquals(iapkit.google?.purchaseToken, sent?.google?.purchaseToken)
-            assertEquals(iapkit.horizon?.sku, sent?.horizon?.sku)
-            assertEquals(iapkit.horizon?.userId, sent?.horizon?.userId)
-            assertEquals(iapkit.amazon?.receiptId, sent?.amazon?.receiptId)
-            assertEquals(iapkit.amazon?.userId, sent?.amazon?.userId)
+            assertEquals(request.toJson(), sentProps.toJson())
+            assertEquals(PurchaseVerificationProvider.Iapkit, result.provider)
             assertEquals(true, result.iapkit?.isValid)
         }
     }
@@ -664,7 +659,7 @@ class OpenIapDelegateTest {
         val failures = listOf<Exception>(
             IllegalArgumentException("IAPKit Horizon verification requires sku and userId"),
             OpenIapError.PurchaseVerificationFailed("Unable to resolve the logged-in Horizon user"),
-            OpenIapError.DeveloperError("IAPKit baseUrl must use HTTPS"),
+            OpenIapError.DeveloperError("IAPKit baseUrl must be a valid HTTP(S) origin"),
         )
         var next = 0
         val verify: dev.hyo.openiap.MutationVerifyPurchaseWithProviderHandler = { throw failures[next++] }
@@ -693,7 +688,7 @@ class OpenIapDelegateTest {
             listOf(
                 "IAPKit Horizon verification requires sku and userId",
                 "Purchase verification failed: Unable to resolve the logged-in Horizon user",
-                "IAPKit baseUrl must use HTTPS",
+                "IAPKit baseUrl must be a valid HTTP(S) origin",
                 "IAPKit options are required for Android verification",
             ),
             messages,
@@ -718,7 +713,7 @@ class OpenIapDelegateTest {
         }
 
         // No context in a unit test, so creating the module fails; it must not demand a connection first.
-        assertNotEquals(ErrorCode.NotPrepared, failure.error.code)
+        assertEquals("Context not available", failure.error.message)
     }
 
     private fun purchaseRequest(sku: String = "premium") = RequestPurchaseProps(

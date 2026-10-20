@@ -622,14 +622,8 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
         } catch (error: PurchaseException) {
             throw error
         } catch (error: AndroidOpenIapError) {
-            // openiap-google keeps the cause in debugMessage; message is the code's fixed text.
-            failWith(
-                PurchaseError(
-                    code = ErrorCode.PurchaseVerificationFailed,
-                    message = error.debugMessage?.takeIf { it.isNotBlank() } ?: error.message,
-                    debugMessage = error.debugMessage
-                )
-            )
+            // Keeps the cause openiap-google puts in debugMessage.
+            failWith(error.toKmpPurchaseError().copy(code = ErrorCode.PurchaseVerificationFailed))
         } catch (error: Exception) {
             failWith(
                 PurchaseError(
@@ -655,9 +649,10 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
 }
 
 internal fun AndroidOpenIapError.toKmpPurchaseError(): PurchaseError {
-    // Preserve native product IDs and request diagnostics.
+    // Preserve native product IDs and request diagnostics. The store's cause beats a code's fixed
+    // text, but not a message openiap-google already built around it.
     val payload = toJSON() + mapOf(
-        "message" to (debugMessage?.takeIf { it.isNotBlank() } ?: message),
+        "message" to (debugMessage?.takeIf { it.isNotBlank() && it !in message } ?: message),
     )
     return PurchaseError.fromJson(payload)
 }

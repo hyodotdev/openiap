@@ -627,25 +627,34 @@ function Releases() {
             October 21, 2026 - KMP and MAUI purchase verification fixes
           </AnchorLink>
           <p>
-            kmp-iap and OpenIap.Maui now complete IAPKit verification of Meta
-            Horizon purchases on a Quest, and kmp-iap that of Amazon receipts
-            sent without a user id. Before, verification failed after the store
+            kmp-iap and OpenIap.Maui now finish IAPKit verification when the
+            request omits the store user id. Before, it failed after the store
             purchase succeeded, so apps that finish only after verification left
             the purchase unfinished.
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
           <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
             <li>
-              <strong>kmp-iap 4.0.4</strong> fills in the signed-in user when{' '}
-              <code>verifyPurchaseWithProvider</code> gets only the Horizon SKU
-              or Amazon receipt id, as the other SDKs do.
+              <strong>kmp-iap 4.0.4</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Fills in the signed-in user when{' '}
+                  <code>verifyPurchaseWithProvider</code> gets only the Horizon
+                  SKU or Amazon receipt id, as the other SDKs do.
+                </li>
+                <li>
+                  Verification errors keep the store&apos;s cause, such as an
+                  invalid <code>baseUrl</code>, instead of &quot;Invalid
+                  arguments provided to the API&quot;.
+                </li>
+              </ul>
             </li>
             <li>
               <strong>OpenIap.Maui 3.0.4</strong> links Meta&apos;s{' '}
               <code>users-kotlin</code> platform module and its{' '}
               <code>abuse-report-kotlin</code> dependency in Horizon builds, so
-              verification no longer throws <code>NoClassDefFoundError</code>{' '}
-              for <code>horizon.platform.users.Users</code>.
+              verification without <code>horizon.userId</code> no longer throws{' '}
+              <code>NoClassDefFoundError</code>.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
