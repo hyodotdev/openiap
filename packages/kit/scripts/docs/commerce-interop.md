@@ -61,15 +61,15 @@ public HTTPS DNS/TLS. Those are separate deployment checks.
 
 ## Keep documentation evidence current
 
-```sh
-bun --conditions=openiap-source packages/kit/scripts/docs/export-commerce-interop.mjs \
-  <successful-run-directory> ../openiap-commerce-protocol-example
-```
+Re-record with the steps in
+[Re-recording the interop evidence](README.md#re-recording-the-interop-evidence):
+publishing needs both examples at their recorded revisions and the paywall
+export, not this run alone.
 
-The exporter rejects changed executed source. It produces the report and
-readable source snapshots used by the purchase guide. The docs build checks
-that the report, snapshots, source hashes and `#L<n>` anchors agree with each
-other; it does not compare them with the current IAPKit sources.
+`export-commerce-interop.mjs` rejects changed executed source. It produces the
+report and readable source snapshots used by the purchase guide. The docs build
+checks that the report, snapshots, source hashes and `#L<n>` anchors agree with
+each other; it does not compare them with the current IAPKit sources.
 
 ```sh
 bun run audit:commerce-evidence
