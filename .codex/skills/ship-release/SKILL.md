@@ -112,8 +112,9 @@ still return to the normal PR loop.
 
 From a clean local `main` equal to `origin/main`:
 
-1. Run `bun run audit:commerce-evidence`. If it reports drift, re-record the
-   IAPKit interop per "Re-recording the interop evidence" in
+1. Run `bun run audit:commerce-evidence`. When
+   `packages/kit/scripts/docs/commerce-interop.md` says its drift needs a
+   re-record, follow "Re-recording the interop evidence" in
    `packages/kit/scripts/docs/README.md` before deploying; the guide page shows
    the recorded revision either way.
 2. Wait for Vercel's production deployment of main's head. Use the manual

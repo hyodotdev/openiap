@@ -70,9 +70,8 @@ production or making a store purchase.
 
 ## Re-recording the interop evidence
 
-`bun audit:commerce-evidence` lists every recorded input that changed since the
-recording. Drift is advisory; re-record before deploying docs when a displayed
-snapshot or a commerce code path changed. The docs build
+[`commerce-interop.md`](commerce-interop.md#keep-documentation-evidence-current)
+says when `bun audit:commerce-evidence` drift needs a re-record. The docs build
 (`packages/docs/scripts/check-commerce-composition.mjs`) accepts only a
 recording that ran end to end, from a clean committed tree.
 

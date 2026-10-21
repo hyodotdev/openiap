@@ -365,12 +365,25 @@ console.log(
 
 // Recorders publish their checkout, temp and working paths as they ran, so a run
 // from a home folder, the macOS temp folder or an agent scratchpad names its user.
-// Archives are not scanned: the source archives name the recording account as
-// file owner, and paywall-source.tar.gz and fresh-source.tar.gz also carry local
-// paths from the pinned example commits' evidence/ files.
-// verification.json's Bun logs were recorded in agent mode on 2026-09-16 and
-// still need a re-record.
-const unreplayedLogs = new Set(['commerce-example/verification.json']);
+// Archives are not scanned: paywall-source.tar.gz and fresh-source.tar.gz
+// (git archive) carry local paths from the pinned example commits' evidence/
+// files, and the other source archives name the recording account as owner.
+// These 2026-09-16 walkthrough records hold agent-mode Bun logs. Each entry
+// pins the file's sha256, so a re-record must also drop its entry.
+const unreplayedLogs = new Map([
+  [
+    'commerce-example/verification.json',
+    '989ae654e5deed5d00f9abb786f7e930beef6c01fe77ca720481c969ba06bb29',
+  ],
+  [
+    'commerce-example/06-recover/attempt-1.txt',
+    '0f83c59cbf809b87d4f26b50e5317c37fb079f257c997668a2385ba4a2cb0464',
+  ],
+  [
+    'commerce-example/07-account-erasure/attempt-1.txt',
+    '0d95eb7193d3fd26c4adc76c229f053876f44472ca4cb588cdfb251200e71f2b',
+  ],
+]);
 const bunLogs = (value) =>
   typeof value === 'string'
     ? /^ \d+ pass$/mu.test(value)
@@ -378,8 +391,14 @@ const bunLogs = (value) =>
       : []
     : Object.values(value ?? {}).flatMap(bunLogs);
 const publicRoot = new URL('../public/', import.meta.url);
+for (const [name, sha256] of unreplayedLogs)
+  assert.equal(
+    hash(readFileSync(new URL(name, publicRoot))),
+    sha256,
+    `${name} changed; drop its unreplayedLogs entry so its Bun logs are checked`
+  );
 const localPath =
-  /\/Users\/|\/home\/|\/var\/folders\/|\/claude-\d+\/|\/scratchpad\/|[A-Za-z]:\\{1,2}Users\\{1,2}/u;
+  /\/Users\/|\/home\/|\/var\/folders\/|\/claude-\d+\/|\/scratchpad\/|[A-Za-z]:\\{1,2}[Uu]sers\\{1,2}/u;
 for (const dir of readdirSync(publicRoot).filter(
   (name) =>
     name.startsWith('commerce-') &&
@@ -396,17 +415,28 @@ for (const dir of readdirSync(publicRoot).filter(
       !localPath.test(text),
       `${dir}/${file} publishes a local path; re-record it from a neutral checkout and TMPDIR`
     );
-    if (file.endsWith('.json') && !unreplayedLogs.has(`${dir}/${file}`))
-      for (const log of bunLogs(JSON.parse(text)))
-        assertPassLines(
-          `${dir}/${file}`,
-          log,
-          [...log.matchAll(/^ (\d+) pass$/gmu)].reduce(
-            (sum, [, count]) => sum + Number(count),
-            0
-          )
-        );
+    const name = `${dir}/${file}`;
+    if (unreplayedLogs.has(name)) continue;
+    // Some .txt records hold JSON; other text is scanned as it is.
+    let value = text;
+    try {
+      value = JSON.parse(text);
+    } catch (error) {
+      assert(
+        !file.endsWith('.json'),
+        `${name} is not valid JSON: ${error.message}`
+      );
+    }
+    for (const log of bunLogs(value))
+      assertPassLines(
+        name,
+        log,
+        [...log.matchAll(/^ (\d+) pass$/gmu)].reduce(
+          (sum, [, count]) => sum + Number(count),
+          0
+        )
+      );
   }
 console.log(
-  'Commerce evidence: no published text file names a local path, and every published Bun log lists its passing tests (archives are not scanned).'
+  'Commerce evidence: no published text file names a local path, and every published Bun log outside the recorded exemptions lists its passing tests (archives are not scanned).'
 );
