@@ -2768,8 +2768,6 @@ class OpenIapModule(
             .enablePendingPurchases(
                 PendingPurchasesParams.newBuilder()
                     .enableOneTimeProducts()
-                    // Without this, Play hides delayed payment methods (cash,
-                    // some bank transfers) for prepaid subscription plans.
                     .enablePrepaidPlans()
                     .build()
             )
