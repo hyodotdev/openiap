@@ -120,7 +120,7 @@ function GodotSetup() {
 └── addons/
     └── godot-iap/
         ├── android/                     <- Android plugin, required for Android
-        │   ├── GodotIap.gdap            <- registers the export checkbox
+        │   ├── GodotIap.gdap            <- Android dependencies the export reads
         │   ├── GodotIap.release.aar
         │   └── GodotIap.debug.aar
         ├── bin/                         <- iOS plugin, required for iOS
@@ -230,9 +230,6 @@ codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/God
             #
           </a>
         </h3>
-        <p>
-          For both iOS and Android, enable the plugin in your export presets:
-        </p>
         <ol>
           <li>
             <strong>Project &gt; Export &gt; Add &gt; iOS</strong> (or Android)
@@ -240,15 +237,13 @@ codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/God
           <li>
             Configure your export settings (Bundle Identifier, Team ID, etc.)
           </li>
-          <li>
-            Enable <strong>GodotIap</strong> in the Plugins section
-          </li>
         </ol>
         <p>
-          On Android the checkbox comes from{' '}
-          <code>addons/godot-iap/android/GodotIap.gdap</code>. Godot scans that
-          folder when the project loads, so if the file is missing the Plugins
-          section stays empty and no amount of export configuration will add it.
+          There is no GodotIap checkbox to tick in the export Plugins section.
+          With the addon enabled in Project Settings, an export plugin adds it
+          to Android builds and reads its dependencies from{' '}
+          <code>addons/godot-iap/android/GodotIap.gdap</code>; on iOS the
+          GDExtension in <code>bin/</code> loads on its own.
         </p>
         <Callout kind="important" title="Android needs the Gradle build">
           Turn on <strong>Use Gradle Build</strong> in the Android export
@@ -276,8 +271,8 @@ codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/God
         <p>
           The GodotIap export plugin registers the iOS frameworks during export
           so they are added to Xcode's <strong>Embed Frameworks</strong> build
-          phase automatically. Before exporting, make sure GodotIap is enabled
-          in the iOS export preset's <strong>Plugins</strong> section.
+          phase automatically, as long as the addon is enabled in Project
+          Settings.
         </p>
         <p>
           If you exported with an older plugin version, or if Xcode still shows
@@ -651,7 +646,7 @@ func _on_purchase_error(error):
           {`func _load_products():
     var request = Types.ProductRequest.new()
     request.skus = ["premium", "coins_100"]
-    request.type = Types.ProductQueryType.InApp
+    request.type = Types.ProductQueryType.IN_APP
 
     var products: Array = await iap.fetch_products(request)
     for product in products:
@@ -779,16 +774,19 @@ func _on_purchase_error(error):
         </p>
 
         <h3 id="missing-export-checkbox" className="anchor-heading">
-          GodotIap is missing from the export Plugins list
+          No GodotIap checkbox in the export Plugins list
           <a href="#missing-export-checkbox" className="anchor-link">
             #
           </a>
         </h3>
         <p>
-          The <code>GodotIap.gdap</code> file is absent or sits outside{' '}
-          <code>addons/godot-iap/android/</code>. Put it back and restart the
-          Godot editor; the plugin list is built when the project loads, not
-          when the export dialog opens.
+          That is expected; the addon needs no checkbox (see{' '}
+          <a href="#godot-export">Godot Export Presets</a>). If Android still
+          reports <code>GodotIap singleton not found</code>, enable the addon in
+          Project Settings and turn on <strong>Use Gradle Build</strong>. A
+          GodotIap checkbox that does appear comes from an older copy under{' '}
+          <code>res://android/plugins/</code>; remove it and keep only{' '}
+          <code>addons/godot-iap/</code>.
         </p>
 
         <h3 id="iapkit-cfg-release-export" className="anchor-heading">
