@@ -37,7 +37,6 @@ struct SubscriptionFlowScreen: View {
         return ProcessInfo.processInfo.environment["IAPKIT_BASE_URL"] ?? "https://kit.openiap.dev"
     }
 
-
     // Product IDs for subscription testing
     // Ordered from lowest to highest tier for upgrade scenarios
     private let subscriptionIds: [String] = [

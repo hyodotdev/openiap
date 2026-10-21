@@ -783,9 +783,10 @@ func _on_purchase_error(error):
           <a href="#godot-export">Godot Export Presets</a>). If Android still
           reports <code>GodotIap singleton not found</code>, see{' '}
           <a href="#singleton-not-found">GodotIap singleton not found</a>. A
-          GodotIap checkbox that does appear comes from an older copy under{' '}
-          <code>res://android/plugins/</code>; remove it and keep only{' '}
-          <code>addons/godot-iap/</code>.
+          GodotIap checkbox that does appear comes from a copy placed under{' '}
+          <code>res://android/plugins/</code> (or{' '}
+          <code>res://ios/plugins/</code>
+          ); remove it and keep only <code>addons/godot-iap/</code>.
         </p>
 
         <h3 id="iapkit-cfg-release-export" className="anchor-heading">

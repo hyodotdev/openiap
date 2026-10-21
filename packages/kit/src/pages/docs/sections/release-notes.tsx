@@ -53,7 +53,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "security",
         topic: "Static files",
-        text: "Updates Hono to 4.13.11, so a request path that decodes twice can no longer skip middleware on the dashboard's static files (GHSA-5r4p-p66f-jhc7).",
+        text: "Updates Hono to 4.13.11 for GHSA-5r4p-p66f-jhc7. IAPKit serves only public files through the affected handler, so nothing was exposed.",
       },
     ],
   },
