@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { COMMERCE_IMPLEMENTATION_TOPICS } from '../src/lib/commerceImplementations.ts';
 
@@ -44,15 +44,17 @@ const reproductionAssets = new URL(
   '../public/commerce-example/',
   import.meta.url
 );
-// The Field Notes reproduction was retired: it recorded a 2026-09-08 session
-// against the deprecated unscoped package, and nothing here could regenerate
-// it — its prompt, screenshots and checkpoints were assembled by hand. A
-// record that cannot be re-recorded cannot be kept true, so it is gone rather
-// than edited.
+// Retired records: nothing here could regenerate them, and a record that
+// cannot be re-recorded cannot be kept true, so they are gone rather than
+// edited. The Field Notes reproduction (ai-reproduction*) recorded a
+// 2026-09-08 session against the deprecated unscoped package, assembled by
+// hand. paywall-public-replay.json was copied from hand-recorded example
+// evidence by the 2026-09-13 exporter; paywall-harness.json replaced it.
 for (const retired of [
   'ai-reproduction.json',
   'ai-reproduction.md',
   'ai-reproduction-source.tar.gz',
+  'paywall-public-replay.json',
 ]) {
   assert(
     !existsSync(new URL(retired, reproductionAssets)),
@@ -136,6 +138,31 @@ const provider = JSON.parse(paywallRead('paywall-provider-run.json'));
 assert(harness.ok && harness.source.status === '');
 assert.equal(harness.source.commit, connection.sourceCommit);
 assert.deepEqual(harness.suite, connection.verification);
+// Bun prints one `(pass)` line per test unless CLAUDECODE is set, so a log
+// without them was recorded inside an agent session.
+const assertPassLines = (name, log, tests) =>
+  assert.equal(
+    log.match(/^\(pass\) /gmu)?.length ?? 0,
+    tests,
+    `${name} must log one (pass) line per test; re-record it with env -u CLAUDECODE`
+  );
+assertPassLines(
+  'paywall-harness.json',
+  harness.commands.flatMap(({ stdout, stderr }) => [stdout, stderr]).join('\n'),
+  harness.suite.tests
+);
+for (const [name, steps] of [
+  ['fresh-public-replay.json', freshReplay.steps],
+  ['experience-verification.json', experience.distributionFollowup.steps],
+]) {
+  const log = steps.find(
+    (step) => step.command.join(' ') === 'npm test'
+  )?.stderr;
+  assert(log, `${name} records no npm test step`);
+  const summary = log.match(/^ (\d+) pass$/mu);
+  assert(summary, `${name} records no Bun test summary`);
+  assertPassLines(name, log, Number(summary[1]));
+}
 const paywallArchive = paywallRead('paywall-source.tar.gz');
 assert.equal(hash(paywallArchive), connection.archiveSha256);
 assert.equal(
@@ -330,4 +357,30 @@ for (const [topic, comparison] of Object.entries(
   }
 console.log(
   'Commerce guide: every source deep link still lands on its symbol. Freshness against the current IAPKit sources is advisory: bun run audit:commerce-evidence.'
+);
+
+// Recorders publish cwd, os.tmpdir() and test output as they ran, so a run from
+// a home folder, the macOS temp folder or an agent scratchpad names its user.
+// Archives are not scanned: paywall-source.tar.gz and fresh-source.tar.gz
+// still carry local paths from the pinned example commits' evidence/ files.
+const publicRoot = new URL('../public/', import.meta.url);
+const localPath = /\/Users\/|\/var\/folders\/|claude-|scratchpad/u;
+for (const dir of readdirSync(publicRoot).filter(
+  (name) =>
+    name.startsWith('commerce-') &&
+    statSync(new URL(name, publicRoot)).isDirectory()
+))
+  for (const file of readdirSync(new URL(`${dir}/`, publicRoot), {
+    recursive: true,
+  })) {
+    const url = new URL(`${dir}/${file}`, publicRoot);
+    if (/\.(?:gz|jpe?g|pdf|png|webp)$/u.test(file) || !statSync(url).isFile())
+      continue;
+    assert(
+      !localPath.test(readFileSync(url, 'utf8')),
+      `${dir}/${file} publishes a local path; re-record it from a neutral checkout and TMPDIR`
+    );
+  }
+console.log(
+  'Commerce evidence: no published text file names a local path (archives are not scanned).'
 );
