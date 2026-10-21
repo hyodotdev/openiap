@@ -732,10 +732,9 @@ func _on_purchase_error(error):
         <p>
           The GDScript loaded but the Android plugin did not. Check{' '}
           <code>addons/godot-iap/android/</code> for the <code>.gdap</code> file
-          and both AARs, confirm <strong>GodotIap</strong> is checked in the
-          Android export preset, and confirm the build used Gradle. Re-extract
-          the release zip over <code>addons/godot-iap/</code> when a file is
-          missing — see{' '}
+          and both AARs, confirm the addon is enabled in Project Settings, and
+          confirm the build used Gradle. Re-extract the release zip over{' '}
+          <code>addons/godot-iap/</code> when a file is missing — see{' '}
           <a href="#folder-structure">Required Folder Structure</a>.
         </p>
 
@@ -782,8 +781,8 @@ func _on_purchase_error(error):
         <p>
           That is expected; the addon needs no checkbox (see{' '}
           <a href="#godot-export">Godot Export Presets</a>). If Android still
-          reports <code>GodotIap singleton not found</code>, enable the addon in
-          Project Settings and turn on <strong>Use Gradle Build</strong>. A
+          reports <code>GodotIap singleton not found</code>, see{' '}
+          <a href="#singleton-not-found">GodotIap singleton not found</a>. A
           GodotIap checkbox that does appear comes from an older copy under{' '}
           <code>res://android/plugins/</code>; remove it and keep only{' '}
           <code>addons/godot-iap/</code>.
