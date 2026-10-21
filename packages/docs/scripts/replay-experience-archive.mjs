@@ -1,8 +1,7 @@
 // Re-records `distributionFollowup.steps` in experience-verification.json:
 // extract the published archive into a new temporary directory, then install
-// and test it. The steps publish their cwd, and Bun drops its `(pass)` lines
-// when CLAUDECODE is set, so run it as
-//   env -u CLAUDECODE TMPDIR=/tmp/openiap-evidence/tmp bun packages/docs/scripts/replay-experience-archive.mjs
+// and test it. Run it as packages/kit/scripts/docs/README.md shows: the steps
+// publish their cwd, and Bun drops its `(pass)` lines in agent mode.
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -16,6 +15,11 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+assert(
+  !['CLAUDECODE', 'AGENT', 'REPL_ID'].some((name) => process.env[name]),
+  'Bun hides its (pass) lines in agent mode; run with env -u CLAUDECODE -u AGENT -u REPL_ID'
+);
 
 const assets = new URL('../public/commerce-example/', import.meta.url);
 const recordFile = fileURLToPath(
