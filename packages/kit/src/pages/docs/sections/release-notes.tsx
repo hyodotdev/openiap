@@ -25,10 +25,10 @@ const RELEASES: ReleaseEntry[] = [
   {
     id: "week-2026-10-19",
     weekStart: "2026-10-19",
-    date: "2026-10-20",
-    pullRequests: [548, 550],
+    date: "2026-10-21",
+    pullRequests: [548, 550, 551],
     tagline:
-      "API Keys dashboard readability, narrow-screen layout and an analytics error fix.",
+      "API Keys dashboard readability, narrow-screen layout, an analytics error fix and a Hono security update.",
     items: [
       {
         kind: "feature",
@@ -49,6 +49,11 @@ const RELEASES: ReleaseEntry[] = [
         kind: "fix",
         topic: "Analytics",
         text: "Fixes a Mixpanel loading error on every page load in browsers that kept session replays from before replay was turned off; the dashboard now deletes those leftover replays from the browser.",
+      },
+      {
+        kind: "security",
+        topic: "Static files",
+        text: "Updates Hono to 4.13.11 for GHSA-5r4p-p66f-jhc7. IAPKit serves only public files through the affected handler, so nothing was exposed.",
       },
     ],
   },

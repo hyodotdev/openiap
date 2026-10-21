@@ -47,22 +47,14 @@ import dev.hyo.openiap.PurchaseVerificationProvider
 import dev.hyo.openiap.VerifyPurchaseWithProviderProps
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
 import dev.hyo.openiap.SubscriptionReplacementModeAndroid
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import dev.hyo.martie.util.PREMIUM_SUBSCRIPTION_PRODUCT_ID
 import dev.hyo.martie.util.SUBSCRIPTION_PREFS_NAME
 import dev.hyo.martie.util.resolvePremiumOfferInfo
 import dev.hyo.martie.util.savePremiumOffer
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 
 private const val IAPKIT_HOSTED_BASE_URL = "https://kit.openiap.dev"
-private const val IAPKIT_EXAMPLE_USER_ID = "martie-e2e-user"
 
 
 // Helper to format remaining time like "3d 4h" / "2h 12m" / "35m"
@@ -1349,13 +1341,8 @@ fun SubscriptionFlowScreen(
                     try {
                         val result = verifyWithIapkit(purchase, apiKey, baseUrl)
                         println("SubscriptionFlow: $label verification result: $result")
-                        val bound = if (result && purchase.store == IapStore.Google) {
-                            val token = purchase.purchaseToken
-                                ?: throw IllegalStateException("Purchase token is required for IAPKit bindUser")
-                            bindIapkitSubscriptionUser(apiKey, token, baseUrl)
-                        } else result
-                        verificationResultMessage = if (bound) "Subscription verified." else
-                            "Verification or binding failed; receipt retained."
+                        verificationResultMessage = if (result) "Subscription verified." else
+                            "Verification failed; receipt retained."
                         if (!result) {
                             // Post error with auto-refund notice
                             iapStore.postStatusMessage(
@@ -1364,7 +1351,7 @@ fun SubscriptionFlowScreen(
                                 productId = purchase.productId
                             )
                         }
-                        result && bound
+                        result
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
                     } catch (e: Exception) {
@@ -1591,65 +1578,5 @@ fun SubscriptionFlowScreen(
         )
     }
 }
-
-private suspend fun bindIapkitSubscriptionUser(
-    apiKey: String,
-    purchaseToken: String,
-    baseUrl: String?
-): Boolean = withContext(Dispatchers.IO) {
-    val origin = (baseUrl ?: IAPKIT_HOSTED_BASE_URL).trimEnd('/')
-    val bindPayload = JSONObject()
-        .put("purchaseToken", purchaseToken)
-        .put("userId", IAPKIT_EXAMPLE_USER_ID)
-        .toString()
-    val bindResponse = requestIapkitJson(
-        url = "$origin/v1/subscriptions/bind-user/${apiKey.urlEncode()}",
-        method = "POST",
-        body = bindPayload
-    )
-    bindResponse.optBoolean("bound", false)
-}
-
-private fun requestIapkitJson(
-    url: String,
-    method: String,
-    body: String? = null
-): JSONObject {
-    val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-        requestMethod = method
-        connectTimeout = 15_000
-        readTimeout = 15_000
-        setRequestProperty("Accept", "application/json")
-        if (body != null) {
-            setRequestProperty("Content-Type", "application/json")
-            doOutput = true
-        }
-    }
-
-    try {
-        if (body != null) {
-            connection.outputStream.use { output ->
-                output.write(body.toByteArray(StandardCharsets.UTF_8))
-            }
-        }
-
-        val statusCode = connection.responseCode
-        val stream = if (statusCode in 200..299) {
-            connection.inputStream
-        } else {
-            connection.errorStream ?: connection.inputStream
-        }
-        val responseBody = stream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
-        if (statusCode !in 200..299) {
-            error("IAPKit request failed with HTTP $statusCode")
-        }
-        return JSONObject(responseBody)
-    } finally {
-        connection.disconnect()
-    }
-}
-
-private fun String.urlEncode(): String =
-    URLEncoder.encode(this, StandardCharsets.UTF_8.name())
 
 // Moved to reusable component at: screens/uis/ActiveSubscriptionListItem.kt
