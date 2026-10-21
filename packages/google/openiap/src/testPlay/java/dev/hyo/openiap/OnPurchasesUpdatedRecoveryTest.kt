@@ -748,6 +748,44 @@ class OnPurchasesUpdatedRecoveryTest {
     }
 
     @Test
+    fun `a pending prepaid top-up resolves the request through its pending update`() {
+        val client = RecordingBillingClient()
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(
+            module = module,
+            client = client,
+            callback = { results += it },
+            skus = setOf("prepaid-id"),
+            productType = BillingClient.ProductType.SUBS,
+            launchStartedAtMillis = 1_000.0,
+            tokensBeforeLaunch = setOf("current-token"),
+        )
+        val updates = mutableListOf<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+
+        // Play reports the existing purchase; the top-up's token is in the pending update.
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.OK),
+            listOf(
+                billingPurchase(
+                    "prepaid-id",
+                    "current-token",
+                    purchaseTime = 500,
+                    pendingUpdate = "prepaid-id" to "top-up-token",
+                )
+            ),
+        )
+
+        assertEquals(listOf("current-token"), updates.map { it.purchaseToken })
+        val resolved = results.single().getOrThrow().single() as PurchaseAndroid
+        assertEquals("current-token", resolved.purchaseToken)
+        assertEquals("top-up-token", resolved.pendingPurchaseUpdateAndroid?.purchaseToken)
+        assertNull(pendingPurchaseField().get(module))
+    }
+
+    @Test
     fun `a launched purchase Play never resolves frees the slot after the flow timeout`() {
         // Earlier purchases Play still reports: a pending one and an unconsumed one.
         val client = RecordingBillingClient(
@@ -1364,6 +1402,7 @@ class OnPurchasesUpdatedRecoveryTest {
         token: String,
         purchaseTime: Long = 1,
         pending: Boolean = false,
+        pendingUpdate: Pair<String, String>? = null,
     ): BillingPurchase = BillingPurchase(
         """
         {
@@ -1375,7 +1414,13 @@ class OnPurchasesUpdatedRecoveryTest {
           "purchaseState": ${if (pending) 4 else 0},
           "purchaseToken": "$token",
           "quantity": 1,
-          "acknowledged": false
+          "acknowledged": false${pendingUpdate?.let { (updateProduct, updateToken) ->
+            """,
+          "pendingPurchaseUpdate": {
+            "productIds": ["$updateProduct"],
+            "purchaseToken": "$updateToken"
+          }"""
+        }.orEmpty()}
         }
         """.trimIndent(),
         "signature"

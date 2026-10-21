@@ -2558,7 +2558,16 @@ class OpenIapModule(
                                 purchaseToken = purchase.purchaseToken,
                                 requestedSkus = request.requestedSkus,
                                 tokensBeforeLaunch = request.tokensBeforeLaunch,
-                            )
+                            ) || purchase.pendingPurchaseUpdateAndroid?.let { update ->
+                                // A pending prepaid top-up, upgrade or downgrade arrives as
+                                // the existing purchase; the new products and token are here.
+                                isPurchaseForPendingRequest(
+                                    productIds = update.products,
+                                    purchaseToken = update.purchaseToken,
+                                    requestedSkus = request.requestedSkus,
+                                    tokensBeforeLaunch = request.tokensBeforeLaunch,
+                                )
+                            } == true
                         }
                     }
                     .orEmpty()
