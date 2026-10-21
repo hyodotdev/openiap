@@ -678,7 +678,7 @@ function Releases() {
                   <Link to="/docs/updates/releases#backend-purchase-flow-2026-10-15">
                     October 15 purchase-flow release
                   </Link>
-                  ); migrate them to authenticated backend v2 reads.
+                  ); move binding and v2 reads to your authenticated backend.
                 </li>
               </ul>
             </li>
