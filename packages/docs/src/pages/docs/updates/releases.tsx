@@ -632,6 +632,13 @@ function Releases() {
             purchase succeeded, so apps that finish only after verification left
             the purchase unfinished.
           </p>
+          <p>
+            Hosted changes in this train are recorded in the{' '}
+            <a href="https://kit.openiap.dev/docs/release-notes#week-2026-10-19">
+              IAPKit weekly history
+            </a>
+            .
+          </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
           <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
             <li>
