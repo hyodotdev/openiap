@@ -674,7 +674,12 @@ function Releases() {
                 <li>
                   <code>KitApi</code> docs mark <code>StatusAsync</code>,{' '}
                   <code>EntitlementsAsync</code> and <code>BindUserAsync</code>{' '}
-                  as retired; they return 410 since the October 15 release.
+                  as retired. They throw <code>KitApiError</code> with status
+                  410, as announced in the{' '}
+                  <Link to="/docs/updates/releases#backend-purchase-flow-2026-10-15">
+                    October 15 purchase-flow release
+                  </Link>
+                  ; call your backend instead.
                 </li>
               </ul>
             </li>
