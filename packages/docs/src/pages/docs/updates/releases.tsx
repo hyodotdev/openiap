@@ -663,11 +663,20 @@ function Releases() {
               </ul>
             </li>
             <li>
-              <strong>OpenIap.Maui 3.0.4</strong> links Meta&apos;s{' '}
-              <code>users-kotlin</code> platform module and its{' '}
-              <code>abuse-report-kotlin</code> dependency in Horizon builds, so
-              verification without <code>horizon.userId</code> no longer throws{' '}
-              <code>NoClassDefFoundError</code>.
+              <strong>OpenIap.Maui 3.0.4</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Links Meta&apos;s <code>users-kotlin</code> platform module
+                  and its <code>abuse-report-kotlin</code> dependency in Horizon
+                  builds, so verification without <code>horizon.userId</code> no
+                  longer throws <code>NoClassDefFoundError</code>.
+                </li>
+                <li>
+                  <code>KitApi</code> docs mark <code>StatusAsync</code>,{' '}
+                  <code>EntitlementsAsync</code> and <code>BindUserAsync</code>{' '}
+                  as retired; they return 410 since the October 15 release.
+                </li>
+              </ul>
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
