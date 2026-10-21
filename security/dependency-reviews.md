@@ -51,11 +51,25 @@ first-party store SDKs whose terms are a condition of distributing on that
 store, so the question a review answers is whether the obligations are met by
 this project's distribution model, not whether the dependency can be replaced.
 
-| Declared terms                                   | Dependencies                                                                                                                                                                                                                                                                                                             | Reviewed |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- |
-| Android Software Development Kit License         | `com.android.billingclient:billing`, `com.google.android.gms:play-services-base`                                                                                                                                                                                                                                         | —        |
-| Meta Platform Technologies SDK License Agreement | `com.meta.horizon.billingclient.api:horizon-billing-compatibility`, `com.meta.horizon.platform.sdk:abuse-report-kotlin`, `com.meta.horizon.platform.sdk:core-kotlin`, `com.meta.horizon.platform.sdk:iap-kotlin`, `com.meta.horizon.platform.sdk:user-age-category-kotlin`, `com.meta.horizon.platform.sdk:users-kotlin` | —        |
-| Program Materials License                        | `com.amazon.device:amazon-appstore-sdk`                                                                                                                                                                                                                                                                                  | —        |
+| Declared terms                                   | Dependencies                                                                                                                                                                                                                                                                                                             | Reviewed                                                               |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| Android Software Development Kit License         | `com.android.billingclient:billing`, `com.google.android.gms:play-services-base`                                                                                                                                                                                                                                         | —                                                                      |
+| Meta Platform Technologies SDK License Agreement | `com.meta.horizon.billingclient.api:horizon-billing-compatibility`, `com.meta.horizon.platform.sdk:abuse-report-kotlin`, `com.meta.horizon.platform.sdk:core-kotlin`, `com.meta.horizon.platform.sdk:iap-kotlin`, `com.meta.horizon.platform.sdk:user-age-category-kotlin`, `com.meta.horizon.platform.sdk:users-kotlin` | [2026-10-21](#meta-platform-technologies-sdk-license-agreement-review) |
+| Program Materials License                        | `com.amazon.device:amazon-appstore-sdk`                                                                                                                                                                                                                                                                                  | —                                                                      |
+
+### Meta Platform Technologies SDK License Agreement review
+
+- **Date and reviewer:** 2026-10-21, Hyo (maintainer).
+- **Scope:** the six Meta artifacts above, as Horizon builds of
+  `packages/google`, the framework libraries and maui-iap link them.
+- **Outcome:** accepted. OpenIAP declares these artifacts as Maven dependencies
+  that an app's build fetches from Maven Central; it does not redistribute
+  Meta binaries (its Horizon AAR and the MAUI package carry no Meta classes),
+  modify or reverse-engineer them, or relicense them, since OpenIAP is MIT
+  (kmp-iap Apache-2.0), not copyleft. Horizon builds target Meta Quest only.
+  Whether declaring a dependency counts as use or sublicensing under the
+  agreement's sections 1.2.8 and 2.3 is not settled by its text; Meta publishes
+  these artifacts on Maven Central for this use.
 
 ## No declared license
 
