@@ -37,7 +37,6 @@ struct SubscriptionFlowScreen: View {
         return ProcessInfo.processInfo.environment["IAPKIT_BASE_URL"] ?? "https://kit.openiap.dev"
     }
 
-    private let iapkitExampleUserId = "martie-e2e-user"
 
     // Product IDs for subscription testing
     // Ordered from lowest to highest tier for upgrade scenarios
@@ -650,11 +649,6 @@ struct SubscriptionFlowScreen: View {
                     verificationResultMessage = "Subscription verification, identity, environment or state check failed; receipt retained."
                     return false
                 }
-                let binding = try await bindIapkitSubscriptionUser(apiKey: apiKey, purchaseToken: jws)
-                guard binding else {
-                    verificationResultMessage = "Subscription entitlement binding failed; receipt retained."
-                    return false
-                }
             }
             try await iapStore.finishTransaction(purchase: purchase, isConsumable: false)
             verificationResultMessage = "Subscription verified and transaction finished."
@@ -663,38 +657,6 @@ struct SubscriptionFlowScreen: View {
             verificationResultMessage = "Verification or completion failed; receipt retained: \(error.localizedDescription)"
             return false
         }
-    }
-
-    private func bindIapkitSubscriptionUser(
-        apiKey: String,
-        purchaseToken: String
-    ) async throws -> Bool {
-        let baseUrl = iapkitBaseUrl.trimmedTrailingSlash()
-        let bindEndpoint = "\(baseUrl)/v1/subscriptions/bind-user/\(apiKey.urlPathEncoded())"
-        guard let bindUrl = URL(string: bindEndpoint) else {
-            throw URLError(.badURL)
-        }
-
-        var bindRequest = URLRequest(url: bindUrl)
-        bindRequest.httpMethod = "POST"
-        bindRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        bindRequest.setValue("application/json", forHTTPHeaderField: "Accept")
-        bindRequest.httpBody = try JSONSerialization.data(withJSONObject: [
-            "purchaseToken": purchaseToken,
-            "userId": iapkitExampleUserId
-        ])
-
-        let bindResponse: IapkitBindUserResponse = try await requestIapkitJson(bindRequest)
-        return bindResponse.bound
-    }
-
-    private func requestIapkitJson<T: Decodable>(_ request: URLRequest) async throws -> T {
-        let (data, response) = try await URLSession.shared.data(for: request)
-        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard (200...299).contains(statusCode) else {
-            throw IapkitSubscriptionBindError.httpStatus(statusCode)
-        }
-        return try JSONDecoder().decode(T.self, from: data)
     }
 
     private func restorePurchases() async {
@@ -869,37 +831,6 @@ private extension SubscriptionFlowScreen {
             return subscription.isActive && !renewalInfo.willAutoRenew
         }
         return false
-    }
-}
-
-private struct IapkitBindUserResponse: Decodable {
-    let bound: Bool
-}
-
-private enum IapkitSubscriptionBindError: LocalizedError {
-    case httpStatus(Int)
-
-    var errorDescription: String? {
-        switch self {
-        case .httpStatus(let statusCode):
-            return "IAPKit request failed with HTTP \(statusCode)"
-        }
-    }
-}
-
-private extension String {
-    func trimmedTrailingSlash() -> String {
-        hasSuffix("/") ? String(dropLast()) : self
-    }
-
-    func urlPathEncoded() -> String {
-        var allowed = CharacterSet.urlPathAllowed
-        allowed.remove(charactersIn: "/")
-        return addingPercentEncoding(withAllowedCharacters: allowed) ?? self
-    }
-
-    func urlQueryEncoded() -> String {
-        addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? self
     }
 }
 
