@@ -140,9 +140,12 @@ assert.equal(harness.source.commit, connection.sourceCommit);
 assert.deepEqual(harness.suite, connection.verification);
 // Bun drops its per-test `(pass)` lines in agent mode (CLAUDECODE, AGENT or
 // REPL_ID set), so a log without them was recorded inside an agent session.
+// CRLF endings and indentation (a log quoted in a list or wrapped in markup)
+// must not hide a log from the scan.
+const plainLog = (log) => log.replace(/\r/gu, '').replace(/^[ \t]+/gmu, '');
 const assertPassLines = (name, log, tests) =>
   assert.equal(
-    log.match(/^\(pass\) /gmu)?.length ?? 0,
+    plainLog(log).match(/^\(pass\) /gmu)?.length ?? 0,
     tests,
     `${name} must log one (pass) line per test; re-record it with env -u CLAUDECODE -u AGENT -u REPL_ID`
   );
@@ -386,19 +389,20 @@ const unreplayedLogs = new Map([
 ]);
 const bunLogs = (value) =>
   typeof value === 'string'
-    ? /^ \d+ pass$/mu.test(value)
+    ? /^\d+ pass$/mu.test(plainLog(value))
       ? [value]
       : []
     : Object.values(value ?? {}).flatMap(bunLogs);
 const publicRoot = new URL('../public/', import.meta.url);
-for (const [name, sha256] of unreplayedLogs)
-  assert.equal(
-    hash(readFileSync(new URL(name, publicRoot))),
-    sha256,
-    `${name} changed; drop its unreplayedLogs entry so its Bun logs are checked`
+for (const [name, sha256] of unreplayedLogs) {
+  const url = new URL(name, publicRoot);
+  assert(
+    existsSync(url) && hash(readFileSync(url)) === sha256,
+    `${name} changed or was removed; drop its unreplayedLogs entry so its Bun logs are checked`
   );
+}
 const localPath =
-  /\/Users\/|\/home\/|\/var\/folders\/|\/claude-\d+\/|\/scratchpad\/|[A-Za-z]:\\{1,2}[Uu]sers\\{1,2}/u;
+  /\/Users\/|\/home\/|\/var\/folders\/|\/claude-\d+\/|\/scratchpad\/|[A-Za-z]:[/\\]{1,2}[Uu]sers[/\\]{1,2}/u;
 for (const dir of readdirSync(publicRoot).filter(
   (name) =>
     name.startsWith('commerce-') &&
@@ -431,7 +435,7 @@ for (const dir of readdirSync(publicRoot).filter(
       assertPassLines(
         name,
         log,
-        [...log.matchAll(/^ (\d+) pass$/gmu)].reduce(
+        [...plainLog(log).matchAll(/^(\d+) pass$/gmu)].reduce(
           (sum, [, count]) => sum + Number(count),
           0
         )

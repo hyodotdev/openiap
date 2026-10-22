@@ -77,7 +77,7 @@ if (
     for (const line of drift.slice(0, 40)) console.log(`  ${line}`);
     if (drift.length > 40) console.log(`  … ${drift.length - 40} more`);
     console.log(
-      `Re-record when a displayed snapshot or commerce code path changed: ${RECIPE}.`,
+      `Drift is advisory; packages/kit/scripts/docs/commerce-interop.md says when to re-record, and ${RECIPE} says how.`,
     );
     if (process.env.GITHUB_ACTIONS) console.log(`::warning::${message}`);
     process.exit(1);
