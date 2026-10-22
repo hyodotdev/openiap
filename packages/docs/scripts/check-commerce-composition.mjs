@@ -138,10 +138,9 @@ const provider = JSON.parse(paywallRead('paywall-provider-run.json'));
 assert(harness.ok && harness.source.status === '');
 assert.equal(harness.source.commit, connection.sourceCommit);
 assert.deepEqual(harness.suite, connection.verification);
-// Bun drops its per-test `(pass)` lines in agent mode (CLAUDECODE, AGENT or
-// REPL_ID set), so a log without them was recorded inside an agent session.
-// A log quoted in a list or wrapped in markup is indented, so allow that; Bun
-// itself always prints its summary with one leading space.
+// Bun omits its per-test `(pass)` lines in agent mode (CLAUDECODE, AGENT or
+// REPL_ID set) and with --dots or --only-failures; allow indentation, as in a
+// log quoted in a list or code block.
 const assertPassLines = (name, log, tests) =>
   assert.equal(
     log.match(/^[ \t]*\(pass\) /gmu)?.length ?? 0,
@@ -386,6 +385,7 @@ const unreplayedLogs = new Map([
     '0d95eb7193d3fd26c4adc76c229f053876f44472ca4cb588cdfb251200e71f2b',
   ],
 ]);
+// Bun prints its summary as ` N pass`, with one leading space.
 const bunLogs = (value) =>
   typeof value === 'string'
     ? /^[ \t]* \d+ pass$/mu.test(value)
@@ -403,7 +403,7 @@ for (const [name, sha256] of unreplayedLogs) {
 const localPath =
   /\/Users\/|\/home\/|\/var\/folders\/|\/claude-\d+\/|\/scratchpad\//u;
 // Windows paths ignore case, and nested JSON escaping repeats the separator.
-const windowsUserPath = /[a-z]:[/\\]+users[/\\]+/iu;
+const windowsUserPath = /\b[a-z]:[/\\]+users[/\\]+/iu;
 for (const dir of readdirSync(publicRoot).filter(
   (name) =>
     name.startsWith('commerce-') &&
@@ -419,6 +419,11 @@ for (const dir of readdirSync(publicRoot).filter(
     assert(
       !localPath.test(text) && !windowsUserPath.test(text),
       `${dir}/${file} publishes a local path; re-record it from a neutral checkout and TMPDIR`
+    );
+    // FORCE_COLOR escapes hide a Bun summary from the log check.
+    assert(
+      !/\x1b\[/u.test(text),
+      `${dir}/${file} publishes terminal color codes; re-record it without FORCE_COLOR`
     );
     const name = `${dir}/${file}`;
     if (unreplayedLogs.has(name)) continue;
