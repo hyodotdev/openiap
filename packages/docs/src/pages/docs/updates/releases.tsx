@@ -33,6 +33,24 @@ interface ReleaseChange extends ReleaseMetadata {
   description: React.ReactNode;
 }
 
+const FRAMEWORK_PREPAID_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'openiap-apple', version: '4.0.4', tag: '4.0.4' },
+  {
+    name: 'react-native-iap',
+    version: '17.1.1',
+    tag: 'react-native-iap-17.1.1',
+  },
+  { name: 'expo-iap', version: '6.1.2', tag: 'expo-iap-6.1.2' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '11.0.4',
+    tag: 'flutter-iap-11.0.4',
+  },
+  { name: 'godot-iap', version: '4.0.4', tag: 'godot-iap-4.0.4' },
+  { name: 'kmp-iap', version: '4.0.5', tag: 'kmp-iap-4.0.5' },
+  { name: 'OpenIap.Maui', version: '3.0.5', tag: 'maui-iap-3.0.5' },
+];
+
 const PREPAID_PENDING_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'openiap-google', version: '4.0.4', tag: 'google-4.0.4' },
 ];
@@ -619,6 +637,53 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'framework-prepaid-pending-2026-10-23',
+      date: new Date('2026-10-23'),
+      element: (
+        <div key="framework-prepaid-pending-2026-10-23" style={noteCardStyle}>
+          {FRAMEWORK_PREPAID_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="framework-prepaid-pending-2026-10-23" level="h4">
+            October 23, 2026 - Prepaid pending payments in every framework
+          </AnchorLink>
+          <p>
+            Every framework library now ships openiap-google 4.0.4, so Google
+            Play prepaid plans accept payment methods that complete later in
+            React Native, Expo, Flutter, Godot, KMP, and MAUI apps. The{' '}
+            <Link to="/docs/updates/releases#play-prepaid-pending-2026-10-22">
+              October 22 release
+            </Link>{' '}
+            describes the purchase results.
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Protocols and native packages
+          </h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            <li>
+              <strong>openiap-apple 4.0.4</strong>:{' '}
+              <code>OpenIapVersion.clientProtocolVersion</code> reports Client
+              Protocol 1.1.0 instead of 1.0.3, so an iOS store provider built
+              for Client Protocol 1.1 passes the provider check instead of
+              failing with &quot;this app links 1.0.3&quot;.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            {FRAMEWORK_PREPAID_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                >
+                  {getReleaseLabel(release)}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
     {
       id: 'play-prepaid-pending-2026-10-22',
       date: new Date('2026-10-22'),
