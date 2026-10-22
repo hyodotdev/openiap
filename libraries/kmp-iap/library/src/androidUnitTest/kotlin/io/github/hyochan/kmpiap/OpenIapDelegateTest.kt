@@ -17,12 +17,18 @@ import io.github.hyochan.kmpiap.openiap.ErrorCode
 import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
 import io.github.hyochan.kmpiap.openiap.ProductQueryType
 import io.github.hyochan.kmpiap.openiap.PurchaseError
+import io.github.hyochan.kmpiap.openiap.PurchaseVerificationProvider
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseAndroidProps
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseProps
 import io.github.hyochan.kmpiap.openiap.RequestPurchasePropsByPlatforms
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseResultPurchases
+import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitAmazonProps
+import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
+import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitHorizonProps
+import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitProps
 import io.github.hyochan.kmpiap.openiap.SubResponseCodeAndroid
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseProps
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseWithProviderProps
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -45,6 +51,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -596,6 +603,118 @@ class OpenIapDelegateTest {
             val purchase = nativePurchase(productId)
             updates.forEach { it.onPurchaseUpdated(purchase) }
         }
+    }
+
+    @Test
+    fun `store verification forwards the request unchanged to the module that completes it`() = runBlocking {
+        val requests = listOf(
+            Store.PLAY_STORE to RequestVerifyPurchaseWithIapkitProps(
+                apiKey = "key",
+                baseUrl = "https://kit.example.test",
+                google = RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = "token"),
+            ),
+            Store.HORIZON to RequestVerifyPurchaseWithIapkitProps(
+                horizon = RequestVerifyPurchaseWithIapkitHorizonProps(sku = "dev.hyo.martie.10bulbs"),
+            ),
+            Store.HORIZON to RequestVerifyPurchaseWithIapkitProps(
+                horizon = RequestVerifyPurchaseWithIapkitHorizonProps(sku = "dev.hyo.martie.10bulbs", userId = "meta-user"),
+            ),
+            Store.AMAZON to RequestVerifyPurchaseWithIapkitProps(
+                amazon = RequestVerifyPurchaseWithIapkitAmazonProps(receiptId = "receipt"),
+            ),
+            Store.AMAZON to RequestVerifyPurchaseWithIapkitProps(
+                amazon = RequestVerifyPurchaseWithIapkitAmazonProps(receiptId = "receipt", userId = "amazon-user"),
+            ),
+        )
+        for ((store, iapkit) in requests) {
+            var forwarded: dev.hyo.openiap.VerifyPurchaseWithProviderProps? = null
+            val verify: dev.hyo.openiap.MutationVerifyPurchaseWithProviderHandler = { props ->
+                forwarded = props
+                dev.hyo.openiap.VerifyPurchaseWithProviderResult(
+                    iapkit = dev.hyo.openiap.RequestVerifyPurchaseWithIapkitResult(
+                        isValid = true,
+                        state = dev.hyo.openiap.IapkitPurchaseState.Entitled,
+                        store = dev.hyo.openiap.IapStore.Horizon,
+                    ),
+                    provider = dev.hyo.openiap.PurchaseVerificationProvider.Iapkit,
+                )
+            }
+            val module = fakeModule { method, _ ->
+                if (method == "getVerifyPurchaseWithProvider") verify else error("Unexpected call: $method")
+            }
+
+            val request = VerifyPurchaseWithProviderProps(iapkit = iapkit, provider = PurchaseVerificationProvider.Iapkit)
+            val result = delegateFor(store, module).verifyPurchaseWithProvider(request)
+
+            val sentProps = assertNotNull(forwarded, "$store skipped its module")
+            assertEquals(request.toJson(), sentProps.toJson())
+            assertEquals(PurchaseVerificationProvider.Iapkit, result.provider)
+            assertEquals(true, result.iapkit?.isValid)
+        }
+    }
+
+    @Test
+    fun `store verification failures stay PurchaseVerificationFailed and reach the error listener`() = runBlocking {
+        // What the modules throw: the validator's argument errors and the Horizon user lookup's OpenIapError.
+        val failures = listOf<Exception>(
+            IllegalArgumentException("IAPKit Horizon verification requires sku and userId"),
+            OpenIapError.PurchaseVerificationFailed("Unable to resolve the logged-in Horizon user"),
+            OpenIapError.DeveloperError("IAPKit baseUrl must be a valid HTTP(S) origin"),
+        )
+        var next = 0
+        val verify: dev.hyo.openiap.MutationVerifyPurchaseWithProviderHandler = { throw failures[next++] }
+        val module = fakeModule { method, _ ->
+            if (method == "getVerifyPurchaseWithProvider") verify else error("Unexpected call: $method")
+        }
+        val delegate = delegateFor(Store.HORIZON, module)
+        val horizon = RequestVerifyPurchaseWithIapkitProps(
+            horizon = RequestVerifyPurchaseWithIapkitHorizonProps(sku = "dev.hyo.martie.10bulbs"),
+        )
+        val events = mutableListOf<PurchaseError>()
+        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+            delegate.purchaseErrorListener.collect { events += it }
+        }
+
+        val requests = List(failures.size) {
+            VerifyPurchaseWithProviderProps(iapkit = horizon, provider = PurchaseVerificationProvider.Iapkit)
+        } + VerifyPurchaseWithProviderProps(provider = PurchaseVerificationProvider.Iapkit)
+        val messages = requests.map { options ->
+            val failure = assertFailsWith<PurchaseException> { delegate.verifyPurchaseWithProvider(options) }
+            assertEquals(ErrorCode.PurchaseVerificationFailed, failure.error.code)
+            failure.error.message
+        }
+        yield()
+        assertEquals(
+            listOf(
+                "IAPKit Horizon verification requires sku and userId",
+                "Purchase verification failed: Unable to resolve the logged-in Horizon user",
+                "IAPKit baseUrl must be a valid HTTP(S) origin",
+                "IAPKit options are required for Android verification",
+            ),
+            messages,
+        )
+        assertEquals(requests.size, events.size)
+        collector.cancel()
+    }
+
+    @Test
+    fun `store verification needs no initConnection`() = runBlocking {
+        val delegate = OpenIapDelegateInAppPurchaseAndroid(Store.HORIZON.name, Store.HORIZON, "Android")
+
+        val failure = assertFailsWith<PurchaseException> {
+            delegate.verifyPurchaseWithProvider(
+                VerifyPurchaseWithProviderProps(
+                    iapkit = RequestVerifyPurchaseWithIapkitProps(
+                        horizon = RequestVerifyPurchaseWithIapkitHorizonProps(sku = "dev.hyo.martie.10bulbs", userId = "meta-user"),
+                    ),
+                    provider = PurchaseVerificationProvider.Iapkit,
+                )
+            )
+        }
+
+        // No context in a unit test, so creating the module fails; it must not demand a connection first.
+        assertEquals(ErrorCode.ServiceError, failure.error.code)
+        assertEquals("Context not available", failure.error.message)
     }
 
     private fun purchaseRequest(sku: String = "premium") = RequestPurchaseProps(

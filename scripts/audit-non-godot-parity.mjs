@@ -2688,8 +2688,8 @@ function checkIapkitAmazonContractWiring() {
   }
   expectIncludes(
     "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/OpenIapDelegateInAppPurchaseAndroid.kt",
-    ["androidResult.toKmpIapkitResult()"],
-    "KMP Amazon store IAPKit response contract",
+    ["result.iapkit?.toKmpIapkitResult()"],
+    "KMP Android store IAPKit response contract",
   );
   expectIncludes(
     "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/Helper.kt",
@@ -2704,7 +2704,7 @@ function checkIapkitAmazonContractWiring() {
   expectNotIncludes(
     "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/OpenIapDelegateInAppPurchaseAndroid.kt",
     ["RequestVerifyPurchaseWithIapkitResult.fromJson"],
-    "KMP Amazon store must not round-trip through the generated decoder",
+    "KMP Android store must not round-trip through the generated decoder",
   );
   expectIncludes(
     "libraries/kmp-iap/library/src/iosMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseIOS.kt",
@@ -7133,6 +7133,49 @@ function checkFrameworkDependencyHygiene() {
     ],
     "packages/google Horizon dependency versions",
   );
+  // MAUI links Horizon's Maven artifacts itself; a module it misses only fails at runtime on a Quest.
+  const googleGradleCode = googleBuildGradle.replace(/\/\/.*$/gm, "");
+  const horizonModuleLoops = [
+    ...googleGradleCode.matchAll(
+      /for \(\w+ in listOf\(([^)]*)\)\) \{\s*add\("horizon(?:Api|Implementation|RuntimeOnly)"/g,
+    ),
+  ].map((match) => match[1]);
+  if (horizonModuleLoops.length === 0) {
+    fail(
+      'packages/google must declare its Horizon Platform SDK modules in a `for (... in listOf(...)) { add("horizonApi", ...) }` loop',
+    );
+  }
+  const horizonPlatformModules = [
+    ...new Set([
+      ...horizonModuleLoops.flatMap((loop) =>
+        [...loop.matchAll(/"([^"]+)"/g)].map((match) => match[1]),
+      ),
+      ...[
+        ...googleGradleCode.matchAll(
+          /horizon(?:Api|Implementation|RuntimeOnly)"?,?\s*\(?\s*"com\.meta\.horizon\.platform\.sdk:([^":$]+):/g,
+        ),
+      ].map((match) => match[1]),
+    ]),
+  ];
+  if (horizonPlatformModules.length === 0) {
+    fail(
+      "packages/google Horizon Platform SDK modules must be string literals the audit can read",
+    );
+  }
+  expectIncludes(
+    "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets",
+    [
+      ...horizonPlatformModules,
+      // users-kotlin's POM dependency: Gradle resolves it, MAUI lists it by hand.
+      ...(horizonPlatformModules.includes("users-kotlin")
+        ? ["abuse-report-kotlin"]
+        : []),
+    ].map(
+      (module) =>
+        `<AndroidMavenLibrary Include="com.meta.horizon.platform.sdk:${module}" Version="$(MauiHorizonPlatformKotlinVersion)" Bind="false" />`,
+    ),
+    "MAUI must link every Horizon Platform SDK module packages/google declares",
+  );
   expectNotIncludes(
     "packages/google/openiap/build.gradle.kts",
     ["com.meta.horizon.platform.ovr:android-platform-sdk"],
@@ -7590,10 +7633,6 @@ function checkFrameworkDependencyHygiene() {
       '<AndroidMavenLibrary Include="com.android.billingclient:billing" Version="$(MauiPlayBillingVersion)" Repository="Google" Bind="false" />',
       '<AndroidMavenLibrary Include="com.amazon.device:amazon-appstore-sdk" Version="$(MauiAmazonAppstoreSdkVersion)" Bind="false" />',
       '<AndroidMavenLibrary Include="com.meta.horizon.billingclient.api:horizon-billing-compatibility" Version="$(MauiHorizonBillingCompatibilityVersion)" Bind="false" />',
-      "com.meta.horizon.platform.sdk:core-kotlin",
-      "com.meta.horizon.platform.sdk:user-age-category-kotlin",
-      "com.meta.horizon.platform.sdk:iap-kotlin",
-      'Version="$(MauiHorizonPlatformKotlinVersion)"',
       '<_PropertyCacheItems Include="OpenIapLinkedStore=$(OpenIapLinkedStore)" />',
       "_CreatePropertiesCache",
       "'$(Configuration)' == 'Debug'",

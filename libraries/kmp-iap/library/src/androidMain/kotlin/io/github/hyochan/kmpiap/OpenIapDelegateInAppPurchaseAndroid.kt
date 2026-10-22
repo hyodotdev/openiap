@@ -18,7 +18,6 @@ import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.utils.verifyPurchaseWithGooglePlay as verifyPurchaseWithGooglePlayAndroid
-import dev.hyo.openiap.utils.verifyPurchaseWithIapkit as verifyPurchaseWithIapkitAndroid
 import io.github.hyochan.kmpiap.openiap.ActiveSubscription
 import io.github.hyochan.kmpiap.openiap.AppOwnershipVerificationResult
 import io.github.hyochan.kmpiap.openiap.VerifyAppOwnershipProps
@@ -321,27 +320,27 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
         if (options.provider != PurchaseVerificationProvider.Iapkit) {
             failUnsupported("Verification provider ${options.provider.rawValue} is not supported on Android")
         }
-        val iapkitOptions = options.iapkit ?: failWith(
-            PurchaseError(
-                code = ErrorCode.PurchaseVerificationFailed,
-                message = "IAPKit options are required for Android verification"
-            )
-        )
-        val androidOptions = runCatching {
-            dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps.fromJson(iapkitOptions.toJson())
-        }.getOrElse {
+        if (options.iapkit == null) {
             failWith(
                 PurchaseError(
                     code = ErrorCode.PurchaseVerificationFailed,
-                    message = "Invalid IAPKit options for Android verification"
+                    message = "IAPKit options are required for Android verification"
                 )
             )
         }
+        val androidProps = runCatching {
+            dev.hyo.openiap.VerifyPurchaseWithProviderProps.fromJson(options.toJson())
+        }.getOrNull() ?: failWith(
+            PurchaseError(
+                code = ErrorCode.PurchaseVerificationFailed,
+                message = "Invalid IAPKit options for Android verification"
+            )
+        )
+        // The store's module fills in what a minimal request omits: Amazon's user, Horizon's signed-in user.
         return verifyOrFail {
-            val androidResult =
-                verifyPurchaseWithIapkitAndroid(androidOptions, "kmp-iap-android-$storeName")
+            val result = ensureModule().verifyPurchaseWithProvider(androidProps)
             VerifyPurchaseWithProviderResult(
-                iapkit = androidResult.toKmpIapkitResult(),
+                iapkit = result.iapkit?.toKmpIapkitResult(),
                 provider = options.provider
             )
         }
@@ -622,6 +621,9 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
             throw error
         } catch (error: PurchaseException) {
             throw error
+        } catch (error: AndroidOpenIapError) {
+            // Keeps the cause openiap-google puts in debugMessage.
+            failWith(error.toKmpPurchaseError().copy(code = ErrorCode.PurchaseVerificationFailed))
         } catch (error: Exception) {
             failWith(
                 PurchaseError(
@@ -647,9 +649,10 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
 }
 
 internal fun AndroidOpenIapError.toKmpPurchaseError(): PurchaseError {
-    // Preserve native product IDs and request diagnostics.
+    // Preserve native product IDs and request diagnostics. The specific cause in debugMessage beats a
+    // code's fixed text, but not a message openiap-google already built around it.
     val payload = toJSON() + mapOf(
-        "message" to (debugMessage?.takeIf { it.isNotBlank() } ?: message),
+        "message" to (debugMessage?.takeIf { it.isNotBlank() && it !in message } ?: message),
     )
     return PurchaseError.fromJson(payload)
 }

@@ -23,6 +23,16 @@ class AmazonErrorMappingTest {
     }
 
     @Test
+    fun `a message built around the store's cause is kept, a fixed one gives way to it`() {
+        val curated = OpenIapError.DeveloperError("Invalid replacement mode")
+            .withMessage("Play rejected the replacement: Invalid replacement mode. Valid modes: WITH_TIME_PRORATION")
+        val fixed = OpenIapError.DeveloperError("Amazon IAPKit verification could not resolve userId")
+
+        assertEquals(curated.message, curated.toKmpPurchaseError().message)
+        assertEquals("Amazon IAPKit verification could not resolve userId", fixed.toKmpPurchaseError().message)
+    }
+
+    @Test
     fun `native query diagnostics map to KMP purchase error`() {
         val error = OpenIapError.QueryProduct.withDiagnostics(
             responseCode = 6,

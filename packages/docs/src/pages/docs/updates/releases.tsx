@@ -33,6 +33,11 @@ interface ReleaseChange extends ReleaseMetadata {
   description: React.ReactNode;
 }
 
+const HORIZON_VERIFICATION_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'kmp-iap', version: '4.0.4', tag: 'kmp-iap-4.0.4' },
+  { name: 'OpenIap.Maui', version: '3.0.4', tag: 'maui-iap-3.0.4' },
+];
+
 const EXPO_REFRESH_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'expo-iap', version: '6.1.1', tag: 'expo-iap-6.1.1' },
 ];
@@ -610,6 +615,89 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'horizon-verification-2026-10-21',
+      date: new Date('2026-10-21'),
+      element: (
+        <div key="horizon-verification-2026-10-21" style={noteCardStyle}>
+          {HORIZON_VERIFICATION_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="horizon-verification-2026-10-21" level="h4">
+            October 21, 2026 - KMP and MAUI purchase verification fixes
+          </AnchorLink>
+          <p>
+            kmp-iap and OpenIap.Maui now finish IAPKit verification when the
+            request omits the store user id. Before, it failed after the store
+            purchase succeeded, so apps that finish only after verification left
+            the purchase unfinished.
+          </p>
+          <p>
+            Hosted changes in this train are recorded in the{' '}
+            <a href="https://kit.openiap.dev/docs/release-notes#week-2026-10-19">
+              IAPKit weekly history
+            </a>
+            .
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            <li>
+              <strong>kmp-iap 4.0.4</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Fills in the signed-in user when{' '}
+                  <code>verifyPurchaseWithProvider</code> gets only the Horizon
+                  SKU or Amazon receipt id, as the other SDKs do.
+                </li>
+                <li>
+                  Verification errors report the specific cause, such as an
+                  invalid <code>baseUrl</code>, instead of &quot;Invalid
+                  arguments provided to the API&quot;.
+                </li>
+                <li>
+                  A Play subscription replacement rejected with{' '}
+                  <code>DEVELOPER_ERROR</code> shows openiap-google&apos;s
+                  replacement-mode guidance instead of only Play&apos;s debug
+                  message.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>OpenIap.Maui 3.0.4</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Links Meta&apos;s <code>users-kotlin</code> platform module
+                  and its <code>abuse-report-kotlin</code> dependency in Horizon
+                  builds, so verification without <code>horizon.userId</code> no
+                  longer throws <code>NoClassDefFoundError</code>.
+                </li>
+                <li>
+                  <code>StatusAsync</code>, <code>EntitlementsAsync</code> and{' '}
+                  <code>BindUserAsync</code> are documented as retired: they
+                  throw <code>KitApiError</code> with status 410 (see the{' '}
+                  <Link to="/docs/updates/releases#backend-purchase-flow-2026-10-15">
+                    October 15 purchase-flow release
+                  </Link>
+                  ); move binding and v2 reads to your authenticated backend.
+                </li>
+              </ul>
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            {HORIZON_VERIFICATION_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                >
+                  {getReleaseLabel(release)}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
     {
       id: 'expo-subscription-refresh-2026-10-18',
       date: new Date('2026-10-18'),

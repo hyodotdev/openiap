@@ -66,7 +66,7 @@ with_device() {
 }
 
 play="play:billing,core-common,integrity"
-horizon="horizon:core-kotlin,horizon-billing-compatibility,iap-kotlin,user-age-category-kotlin"
+horizon="horizon:abuse-report-kotlin,core-kotlin,horizon-billing-compatibility,iap-kotlin,user-age-category-kotlin,users-kotlin"
 amazon="amazon:amazon-appstore-sdk"
 link=_OpenIapLinkAndroidStore
 adb="-p:AdbToolPath=$fake_sdk/"
@@ -164,6 +164,16 @@ if [[ "${1:-}" == "--apk" ]]; then
         else
             printf '  FAIL %-42s expected %s, got %s\n' "$store APK links only its store" "$store" "${linked%,}"
             failed=$((failed + 1))
+        fi
+        # Horizon verification looks up the signed-in user with this class at runtime.
+        if [[ "$store" == "horizon" ]]; then
+            if grep -q "Lhorizon/platform/users/Users;" <<<"$classes"; then
+                printf '  ok   %-42s\n' "horizon APK carries the Users class"
+                passed=$((passed + 1))
+            else
+                printf '  FAIL %-42s\n' "horizon APK carries the Users class"
+                failed=$((failed + 1))
+            fi
         fi
     done
 fi

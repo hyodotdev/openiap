@@ -185,6 +185,9 @@
       <AndroidMavenLibrary Include="com.meta.horizon.platform.sdk:core-kotlin" Version="$(MauiHorizonPlatformKotlinVersion)" Bind="false" />
       <AndroidMavenLibrary Include="com.meta.horizon.platform.sdk:user-age-category-kotlin" Version="$(MauiHorizonPlatformKotlinVersion)" Bind="false" />
       <AndroidMavenLibrary Include="com.meta.horizon.platform.sdk:iap-kotlin" Version="$(MauiHorizonPlatformKotlinVersion)" Bind="false" />
+      <AndroidMavenLibrary Include="com.meta.horizon.platform.sdk:users-kotlin" Version="$(MauiHorizonPlatformKotlinVersion)" Bind="false" />
+      <!-- users-kotlin's POM dependency. -->
+      <AndroidMavenLibrary Include="com.meta.horizon.platform.sdk:abuse-report-kotlin" Version="$(MauiHorizonPlatformKotlinVersion)" Bind="false" />
       <!-- Supplied by the package's Xamarin.KotlinX.Serialization.Json dependency. -->
       <AndroidIgnoredJavaDependency Include="org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3" />
     </ItemGroup>
