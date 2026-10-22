@@ -192,8 +192,6 @@ jobs:
         working-directory: libraries/react-native-iap/example/android
         run: ./gradlew :react-native-iap:testDebugUnitTest --stacktrace
 
-  # A google release pins its version minutes before Maven Central serves it;
-  # the matrix below resolves openiap-google from Maven, so wait here once.
   openiap-google-published:
     name: openiap-google on Maven Central
     runs-on: ubuntu-latest

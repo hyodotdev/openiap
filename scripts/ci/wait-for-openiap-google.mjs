@@ -25,6 +25,8 @@ export async function waitForOpenIapGoogle(
     log = console.log,
   } = {},
 ) {
+  if (!/^\d+\.\d+\.\d+(?:-rc\.\d+)?$/u.test(version))
+    throw new Error(`Not an openiap-google release version: ${version}`);
   const deadline = now() + timeoutMs;
   for (;;) {
     const missing = [];
@@ -34,7 +36,7 @@ export async function waitForOpenIapGoogle(
         signal: AbortSignal.timeout(15_000),
       }).then(
         (response) => (response.ok ? null : `HTTP ${response.status}`),
-        (error) => error.cause?.code ?? error.name,
+        (error) => error.cause?.code ?? error.name ?? "fetch failed",
       );
       if (status) missing.push(`${artifact} (${status})`);
     }
