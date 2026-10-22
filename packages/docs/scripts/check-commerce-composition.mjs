@@ -140,12 +140,11 @@ assert.equal(harness.source.commit, connection.sourceCommit);
 assert.deepEqual(harness.suite, connection.verification);
 // Bun drops its per-test `(pass)` lines in agent mode (CLAUDECODE, AGENT or
 // REPL_ID set), so a log without them was recorded inside an agent session.
-// CRLF endings and indentation (a log quoted in a list or wrapped in markup)
-// must not hide a log from the scan.
-const plainLog = (log) => log.replace(/\r/gu, '').replace(/^[ \t]+/gmu, '');
+// A log quoted in a list or wrapped in markup is indented, so allow that; Bun
+// itself always prints its summary with one leading space.
 const assertPassLines = (name, log, tests) =>
   assert.equal(
-    plainLog(log).match(/^\(pass\) /gmu)?.length ?? 0,
+    log.match(/^[ \t]*\(pass\) /gmu)?.length ?? 0,
     tests,
     `${name} must log one (pass) line per test; re-record it with env -u CLAUDECODE -u AGENT -u REPL_ID`
   );
@@ -389,7 +388,7 @@ const unreplayedLogs = new Map([
 ]);
 const bunLogs = (value) =>
   typeof value === 'string'
-    ? /^\d+ pass$/mu.test(plainLog(value))
+    ? /^[ \t]* \d+ pass$/mu.test(value)
       ? [value]
       : []
     : Object.values(value ?? {}).flatMap(bunLogs);
@@ -402,7 +401,9 @@ for (const [name, sha256] of unreplayedLogs) {
   );
 }
 const localPath =
-  /\/Users\/|\/home\/|\/var\/folders\/|\/claude-\d+\/|\/scratchpad\/|[A-Za-z]:[/\\]{1,2}[Uu]sers[/\\]{1,2}/u;
+  /\/Users\/|\/home\/|\/var\/folders\/|\/claude-\d+\/|\/scratchpad\//u;
+// Windows paths ignore case, and nested JSON escaping repeats the separator.
+const windowsUserPath = /[a-z]:[/\\]+users[/\\]+/iu;
 for (const dir of readdirSync(publicRoot).filter(
   (name) =>
     name.startsWith('commerce-') &&
@@ -416,7 +417,7 @@ for (const dir of readdirSync(publicRoot).filter(
       continue;
     const text = readFileSync(url, 'utf8');
     assert(
-      !localPath.test(text),
+      !localPath.test(text) && !windowsUserPath.test(text),
       `${dir}/${file} publishes a local path; re-record it from a neutral checkout and TMPDIR`
     );
     const name = `${dir}/${file}`;
@@ -435,7 +436,7 @@ for (const dir of readdirSync(publicRoot).filter(
       assertPassLines(
         name,
         log,
-        [...plainLog(log).matchAll(/^(\d+) pass$/gmu)].reduce(
+        [...log.matchAll(/^[ \t]* (\d+) pass$/gmu)].reduce(
           (sum, [, count]) => sum + Number(count),
           0
         )

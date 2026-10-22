@@ -42,7 +42,7 @@ set -euo pipefail
 
 # Advisory: recorded IAPKit interop evidence versus the current sources
 bun test ./scripts/audit-commerce-evidence.test.mjs
-bun run audit:commerce-evidence || echo "commerce evidence drift is advisory; packages/kit/scripts/docs/commerce-interop.md says when to re-record"
+bun run audit:commerce-evidence || echo "commerce evidence audit is advisory; see its output above"
 
 # Swift build and unit tests (packages/apple)
 (cd packages/apple && swift test)
