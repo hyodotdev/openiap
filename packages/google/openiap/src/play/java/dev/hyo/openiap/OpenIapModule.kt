@@ -2530,8 +2530,8 @@ class OpenIapModule(
                     val matchesPendingRequest = pendingRequest != null &&
                         purchase.products.any { it in pendingRequest.requestedSkus }
                     // A pending plan change is reported on the existing purchase, which keeps
-                    // its old plan until the change is paid: only a purchase Play did not
-                    // report before the launch gets the requested base plan.
+                    // its old plan until the change is paid: the requested base plan goes only
+                    // to a purchase Play did not report before the launch, with no pending update.
                     val isNewPurchase = pendingRequest != null &&
                         purchase.purchaseToken !in pendingRequest.tokensBeforeLaunch
                     val productType = cached?.productType
@@ -2550,7 +2550,10 @@ class OpenIapModule(
                         firstProductId?.let { productId ->
                             pendingRequest?.selectedBasePlanIdsBySku?.get(productId)
                         }
-                            ?.takeIf { matchesPendingRequest && isNewPurchase }
+                            ?.takeIf {
+                                matchesPendingRequest && isNewPurchase &&
+                                    purchase.pendingPurchaseUpdate == null
+                            }
                             ?: cached?.subscriptionOfferDetails
                                 .orEmpty()
                                 .singleOrNull()
@@ -2782,6 +2785,7 @@ class OpenIapModule(
             .enablePendingPurchases(
                 PendingPurchasesParams.newBuilder()
                     .enableOneTimeProducts()
+                    // Prepaid plans need this for delayed payment methods (Billing Library 7.0+).
                     .enablePrepaidPlans()
                     .build()
             )

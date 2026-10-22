@@ -938,6 +938,287 @@ class OnPurchasesUpdatedRecoveryTest {
     }
 
     @Test
+    fun `a new purchase with a pending update keeps the requested plan out of currentPlanId`() {
+        val client = RecordingBillingClient()
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(
+            module = module,
+            client = client,
+            callback = { results += it },
+            skus = setOf("premium"),
+            productType = BillingClient.ProductType.SUBS,
+            launchStartedAtMillis = 1_000.0,
+            selectedBasePlanIdsBySku = mapOf("premium" to "premium-year"),
+            tokensBeforeLaunch = setOf("month-token"),
+        )
+
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.OK),
+            listOf(
+                billingPurchase(
+                    "premium",
+                    "new-token",
+                    pendingUpdate = "premium" to "year-token",
+                )
+            ),
+        )
+
+        val resolved = results.single().getOrThrow().single() as PurchaseAndroid
+        assertEquals("new-token", resolved.purchaseToken)
+        assertNull("premium-year may still be unpaid", resolved.currentPlanId)
+    }
+
+    @Test
+    fun `a new purchase without a pending update reports the requested plan`() {
+        for (pending in listOf(false, true)) {
+            val client = RecordingBillingClient()
+            val module = module()
+            setBillingClient(module, client)
+            val results = mutableListOf<Result<List<Purchase>>>()
+            installPendingPurchase(
+                module = module,
+                client = client,
+                callback = { results += it },
+                skus = setOf("premium"),
+                productType = BillingClient.ProductType.SUBS,
+                launchStartedAtMillis = 1_000.0,
+                selectedBasePlanIdsBySku = mapOf("premium" to "premium-year"),
+                tokensBeforeLaunch = setOf("month-token"),
+            )
+            val updates = mutableListOf<Purchase>()
+            module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+
+            module.onPurchasesUpdated(
+                billingResult(BillingClient.BillingResponseCode.OK),
+                listOf(billingPurchase("premium", "year-token", pending = pending)),
+            )
+
+            val resolved = results.single().getOrThrow().single() as PurchaseAndroid
+            val state = if (pending) PurchaseState.Pending else PurchaseState.Purchased
+            assertEquals("pending=$pending", state, resolved.purchaseState)
+            assertEquals("pending=$pending", "premium-year", resolved.currentPlanId)
+            assertEquals("pending=$pending", listOf<String?>("premium-year"), updates.map { it.currentPlanId })
+        }
+    }
+
+    @Test
+    fun `a new pending update after an earlier one resolves the request and reaches listeners`() {
+        // An upgrade left unpaid in an earlier session.
+        val stale = billingPurchase(
+            "basic",
+            "basic-token",
+            acknowledged = true,
+            pendingUpdate = "premium" to "stale-upgrade-token",
+        )
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(stale),
+            productDetails = listOf(prepaidProductDetails("premium")),
+            launchResponseCode = BillingClient.BillingResponseCode.OK,
+        )
+        val module = module()
+        val updates = mutableListOf<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+        val outcome = startPurchase(module, client, upgradeProps("premium", "basic-token"))
+
+        module.onPurchasesUpdated(billingResult(BillingClient.BillingResponseCode.OK), listOf(stale))
+        assertTrue(
+            "the earlier pending update must leave the request open",
+            pendingPurchaseField().get(module) != null,
+        )
+        val upgrade = billingPurchase(
+            "basic",
+            "basic-token",
+            acknowledged = true,
+            pendingUpdate = "premium" to "upgrade-token",
+        )
+        module.onPurchasesUpdated(billingResult(BillingClient.BillingResponseCode.OK), listOf(upgrade))
+        pumpMainLooperUntil { outcome.get() != null }
+
+        fun pendingUpdateTokens(purchases: List<Purchase>) = purchases.map {
+            (it as PurchaseAndroid).pendingPurchaseUpdateAndroid?.purchaseToken
+        }
+        assertEquals(listOf("upgrade-token"), pendingUpdateTokens(purchasesOf(outcome)))
+        assertEquals(
+            "listeners get the new update on the same purchase token",
+            listOf("stale-upgrade-token", "upgrade-token"),
+            pendingUpdateTokens(updates),
+        )
+    }
+
+    @Test
+    fun `listener NETWORK_ERROR recovers a pending upgrade to another product`() {
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(
+                billingPurchase(
+                    "basic",
+                    "basic-token",
+                    acknowledged = true,
+                    pendingUpdate = "premium" to "upgrade-token",
+                )
+            )
+        )
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(
+            module = module,
+            client = client,
+            callback = { results += it },
+            skus = setOf("premium"),
+            productType = BillingClient.ProductType.SUBS,
+            launchStartedAtMillis = 1_000.0,
+            tokensBeforeLaunch = setOf("basic-token"),
+        )
+        val errors = mutableListOf<OpenIapError>()
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.NETWORK_ERROR, "network lost"),
+            null,
+        )
+
+        val resolved = results.single().getOrThrow().single() as PurchaseAndroid
+        assertEquals("basic-token", resolved.purchaseToken)
+        assertEquals("upgrade-token", resolved.pendingPurchaseUpdateAndroid?.purchaseToken)
+        assertTrue("recovery must not publish an error: $errors", errors.isEmpty())
+        assertNull(pendingPurchaseField().get(module))
+    }
+
+    @Test
+    fun `listener ITEM_ALREADY_OWNED keeps an unpaid plan change out of currentPlanId`() {
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(
+                billingPurchase(
+                    "premium",
+                    "month-token",
+                    acknowledged = true,
+                    pendingUpdate = "premium" to "year-token",
+                )
+            )
+        )
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(
+            module = module,
+            client = client,
+            callback = { results += it },
+            skus = setOf("premium"),
+            productType = BillingClient.ProductType.SUBS,
+            launchStartedAtMillis = 1_000.0,
+            selectedBasePlanIdsBySku = mapOf("premium" to "premium-year"),
+        )
+
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED),
+            null,
+        )
+
+        val resolved = results.single().getOrThrow().single() as PurchaseAndroid
+        assertEquals("month-token", resolved.purchaseToken)
+        assertNull("premium-year is unpaid", resolved.currentPlanId)
+    }
+
+    @Test
+    fun `listener ITEM_ALREADY_OWNED does not count an unpaid pending update as owned`() {
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(
+                billingPurchase(
+                    "basic",
+                    "basic-token",
+                    acknowledged = true,
+                    pendingUpdate = "premium" to "upgrade-token",
+                )
+            )
+        )
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(
+            module = module,
+            client = client,
+            callback = { results += it },
+            skus = setOf("premium"),
+            productType = BillingClient.ProductType.SUBS,
+            launchStartedAtMillis = 1_000.0,
+        )
+        val errors = mutableListOf<OpenIapError>()
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED),
+            null,
+        )
+
+        assertEquals(emptyList<Purchase>(), results.single().getOrThrow())
+        assertTrue(errors.single() is OpenIapError.ItemAlreadyOwned)
+    }
+
+    @Test
+    fun `a flow timeout resolves with a pending upgrade Play never reported`() {
+        val basic = billingPurchase("basic", "basic-token", acknowledged = true)
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(basic),
+            productDetails = listOf(prepaidProductDetails("premium")),
+            launchResponseCode = BillingClient.BillingResponseCode.OK,
+        )
+        val module = module()
+        val errors = mutableListOf<OpenIapError>()
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+
+        val purchases = requestPurchaseUntilFlowTimeout(
+            module,
+            client,
+            upgradeProps("premium", oldPurchaseToken = "basic-token"),
+        ) {
+            client.ownedPurchases = listOf(
+                billingPurchase(
+                    "basic",
+                    "basic-token",
+                    acknowledged = true,
+                    pendingUpdate = "premium" to "upgrade-token",
+                )
+            )
+        }
+
+        val resolved = purchases.single() as PurchaseAndroid
+        assertEquals("basic-token", resolved.purchaseToken)
+        assertEquals("upgrade-token", resolved.pendingPurchaseUpdateAndroid?.purchaseToken)
+        assertTrue("recovery must not publish an error: $errors", errors.isEmpty())
+        assertNull(pendingPurchaseField().get(module))
+    }
+
+    @Test
+    fun `launch ITEM_ALREADY_OWNED keeps an unpaid plan change out of currentPlanId`() {
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(
+                billingPurchase(
+                    "premium",
+                    "month-token",
+                    acknowledged = true,
+                    pendingUpdate = "premium" to "year-token",
+                )
+            ),
+            productDetails = listOf(prepaidProductDetails("premium", plans = listOf("month", "year"))),
+            launchResponseCode = BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
+        )
+        val module = module()
+
+        val outcome = startPurchase(
+            module,
+            client,
+            upgradeProps("premium", offerToken = "premium-year-offer"),
+        )
+        pumpMainLooperUntil { outcome.get() != null }
+
+        val resolved = purchasesOf(outcome).single() as PurchaseAndroid
+        assertEquals("month-token", resolved.purchaseToken)
+        assertNull("premium-year is unpaid", resolved.currentPlanId)
+    }
+
+    @Test
     fun `a launched purchase Play never resolves frees the slot after the flow timeout`() {
         // Earlier purchases Play still reports: a pending one and an unconsumed one.
         val client = RecordingBillingClient(
@@ -1096,9 +1377,10 @@ class OnPurchasesUpdatedRecoveryTest {
     private fun requestPurchaseUntilFlowTimeout(
         module: OpenIapModule,
         client: RecordingBillingClient,
+        props: RequestPurchaseProps = purchaseProps(),
         afterLaunch: () -> Unit = {},
     ): List<Purchase> {
-        val outcome = startPurchase(module, client)
+        val outcome = startPurchase(module, client, props)
         afterLaunch()
         ShadowLooper.idleMainLooper(14, TimeUnit.MINUTES)
         assertNull("the request waits for Play inside the window", outcome.get())
@@ -1112,12 +1394,13 @@ class OnPurchasesUpdatedRecoveryTest {
     private fun startPurchase(
         module: OpenIapModule,
         client: RecordingBillingClient,
+        props: RequestPurchaseProps = purchaseProps(),
     ): AtomicReference<Result<RequestPurchaseResult?>> {
         setBillingClient(module, client)
         module.setActivity(Robolectric.buildActivity(Activity::class.java).create().get())
         val outcome = AtomicReference<Result<RequestPurchaseResult?>>()
         thread(isDaemon = true) {
-            outcome.set(runCatching { runBlocking { module.requestPurchase(purchaseProps()) } })
+            outcome.set(runCatching { runBlocking { module.requestPurchase(props) } })
         }
         pumpMainLooperUntil { client.launchCalls.get() > 0 }
         assertEquals("the purchase flow must launch", 1, client.launchCalls.get())
@@ -1144,6 +1427,25 @@ class OnPurchasesUpdatedRecoveryTest {
             ),
         ),
         type = ProductQueryType.InApp,
+    )
+
+    private fun upgradeProps(
+        sku: String,
+        oldPurchaseToken: String? = null,
+        offerToken: String? = null,
+    ) = RequestPurchaseProps(
+        request = RequestPurchaseProps.Request.Subscription(
+            RequestSubscriptionPropsByPlatforms(
+                google = RequestSubscriptionAndroidProps(
+                    skus = listOf(sku),
+                    purchaseToken = oldPurchaseToken,
+                    subscriptionOffers = offerToken?.let {
+                        listOf(AndroidSubscriptionOfferInput(offerToken = it, sku = sku))
+                    },
+                ),
+            ),
+        ),
+        type = ProductQueryType.Subs,
     )
 
     @Test
@@ -1542,6 +1844,46 @@ class OnPurchasesUpdatedRecoveryTest {
             }
             """.trimIndent()
         )
+
+    /** A prepaid subscription whose base plans are `<productId>-<plan>`, offered as `...-offer`. */
+    private fun prepaidProductDetails(
+        productId: String,
+        plans: List<String> = listOf("month"),
+    ): ProductDetails {
+        val offers = plans.joinToString(",") { plan ->
+            """
+            {
+              "basePlanId": "$productId-$plan",
+              "offerIdToken": "$productId-$plan-offer",
+              "pricingPhases": [
+                {
+                  "billingPeriod": "P1M",
+                  "priceCurrencyCode": "USD",
+                  "formattedPrice": "${'$'}1.00",
+                  "priceAmountMicros": 1000000,
+                  "recurrenceMode": 3,
+                  "billingCycleCount": 1
+                }
+              ]
+            }
+            """
+        }
+        return ProductDetails::class.java.getDeclaredConstructor(String::class.java).apply {
+            isAccessible = true
+        }.newInstance(
+            """
+            {
+              "productId": "$productId",
+              "type": "subs",
+              "title": "Title",
+              "name": "Name",
+              "description": "Description",
+              "skuDetailsToken": "sku-details-token",
+              "subscriptionOfferDetails": [$offers]
+            }
+            """.trimIndent()
+        )
+    }
 
     private fun billingResult(responseCode: Int, debugMessage: String = ""): BillingResult =
         BillingResult.newBuilder()

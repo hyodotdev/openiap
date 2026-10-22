@@ -3,6 +3,7 @@ package dev.hyo.openiap.helpers
 import dev.hyo.openiap.DeveloperProvidedBillingDetailsAndroid
 import dev.hyo.openiap.IapStore
 import dev.hyo.openiap.OpenIapError
+import dev.hyo.openiap.PendingPurchaseUpdateAndroid
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.UserChoiceBillingDetails
@@ -124,9 +125,28 @@ class CommonHelpersBillingEventsTest {
         assertTrue("reading must not claim", claims.claim(purchase("token-1", PurchaseState.Purchased)))
     }
 
-    private fun purchase(token: String, state: PurchaseState) = PurchaseAndroid(
+    @Test
+    fun `a new pending update on a delivered purchase is delivered`() {
+        val claims = PurchaseDeliveryClaims()
+        val stale = purchase("token-1", PurchaseState.Purchased, pendingUpdateToken = "update-1")
+
+        assertTrue(claims.claim(stale))
+        assertFalse(claims.claim(stale))
+        assertTrue(
+            claims.claim(purchase("token-1", PurchaseState.Purchased, pendingUpdateToken = "update-2")),
+        )
+    }
+
+    private fun purchase(
+        token: String,
+        state: PurchaseState,
+        pendingUpdateToken: String? = null,
+    ) = PurchaseAndroid(
         id = token,
         isAutoRenewing = false,
+        pendingPurchaseUpdateAndroid = pendingUpdateToken?.let {
+            PendingPurchaseUpdateAndroid(products = listOf("yearly"), purchaseToken = it)
+        },
         productId = "monthly",
         purchaseState = state,
         purchaseToken = token,

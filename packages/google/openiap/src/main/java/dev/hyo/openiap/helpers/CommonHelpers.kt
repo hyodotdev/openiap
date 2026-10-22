@@ -9,6 +9,7 @@ import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.Purchase
+import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseError
 import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.RequestPurchaseProps
@@ -222,14 +223,20 @@ fun matchPendingRequest(
 
 /**
  * Remembers recently delivered purchase states so each reaches listeners once, however many
- * paths (store callback, polling, recovery) report it.
+ * paths (store callback, polling, recovery) report it. A new pending update on a purchase is a
+ * new state.
  */
 class PurchaseDeliveryClaims(private val maximumSize: Int = 100) {
     private val lock = Any()
-    private val keys = linkedSetOf<Pair<String, PurchaseState>>()
+    private val keys = linkedSetOf<Triple<String, PurchaseState, String?>>()
 
     fun claim(purchase: Purchase): Boolean = synchronized(lock) {
-        if (!keys.add(stableId(purchase) to purchase.purchaseState)) return@synchronized false
+        val key = Triple(
+            stableId(purchase),
+            purchase.purchaseState,
+            (purchase as? PurchaseAndroid)?.pendingPurchaseUpdateAndroid?.purchaseToken,
+        )
+        if (!keys.add(key)) return@synchronized false
         while (keys.size > maximumSize) keys.remove(keys.first())
         true
     }
@@ -237,7 +244,7 @@ class PurchaseDeliveryClaims(private val maximumSize: Int = 100) {
     /** Whether [purchase] was claimed in any purchase state. */
     fun hasDelivered(purchase: Purchase): Boolean = synchronized(lock) {
         val id = stableId(purchase)
-        keys.any { (claimedId, _) -> claimedId == id }
+        keys.any { (claimedId) -> claimedId == id }
     }
 
     private fun stableId(purchase: Purchase): String =

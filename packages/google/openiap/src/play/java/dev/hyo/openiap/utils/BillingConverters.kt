@@ -308,7 +308,7 @@ internal object BillingConverters {
             null
         }
 
-        // Extract pending purchase update for subscription upgrades/downgrades (Billing Library 5.0+)
+        // Extract pending purchase update for subscription upgrades/downgrades (Billing Library 7.0+)
         val pendingUpdate = runCatching { pendingPurchaseUpdate }.getOrNull()?.let { update ->
             PendingPurchaseUpdateAndroid(
                 products = update.products,

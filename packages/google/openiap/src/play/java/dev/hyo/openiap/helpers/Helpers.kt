@@ -135,14 +135,15 @@ internal fun queryAlreadyOwnedPurchases(
                         )
                     }
                     if (match == PendingRequestMatch.None) return@mapNotNull null
-                    // An existing purchase matched through its pending update keeps its current plan.
                     val matchedThroughUpdate = match == PendingRequestMatch.PendingUpdate
                     val matchingSku = (if (matchedThroughUpdate) pendingUpdate?.products else billingPurchase.products)
                         ?.firstOrNull { productId -> productId in requestedSkus }
                     matchingSku?.let { sku ->
                         billingPurchase.toPurchase(
                             productType,
-                            basePlanIdsBySku[sku].takeUnless { matchedThroughUpdate },
+                            // A purchase with a pending update keeps its current plan until the
+                            // change is paid, also when it is already owned (no launch snapshot).
+                            basePlanIdsBySku[sku].takeIf { pendingUpdate == null },
                         )
                     }
                 }

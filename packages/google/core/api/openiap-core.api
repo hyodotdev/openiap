@@ -4431,6 +4431,7 @@ public final class dev/hyo/openiap/helpers/CommonHelpersKt {
 	public static final fun isPurchaseForPendingRequest (DLjava/util/Collection;Ljava/util/Set;D)Z
 	public static final fun isPurchaseForPendingRequest (Ljava/util/Collection;Ljava/lang/String;Ljava/util/Set;Ljava/util/Set;)Z
 	public static final fun isSubscriptionReplacementTargetCountValid (IZ)Z
+	public static final fun matchPendingRequest (Ljava/util/Collection;Ljava/lang/String;Ljava/util/Collection;Ljava/lang/String;Ljava/util/Set;Ljava/util/Set;)Ldev/hyo/openiap/helpers/PendingRequestMatch;
 	public static final fun onDeveloperProvidedBilling (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun onPurchaseError (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun onPurchaseUpdated (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -4461,6 +4462,15 @@ public final class dev/hyo/openiap/helpers/OpenIapFirstPurchaseNotice {
 	public static final field $stable I
 	public static final field INSTANCE Ldev/hyo/openiap/helpers/OpenIapFirstPurchaseNotice;
 	public static final fun claim (Landroid/content/Context;)Z
+}
+
+public final class dev/hyo/openiap/helpers/PendingRequestMatch : java/lang/Enum {
+	public static final field None Ldev/hyo/openiap/helpers/PendingRequestMatch;
+	public static final field PendingUpdate Ldev/hyo/openiap/helpers/PendingRequestMatch;
+	public static final field Purchase Ldev/hyo/openiap/helpers/PendingRequestMatch;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Ldev/hyo/openiap/helpers/PendingRequestMatch;
+	public static fun values ()[Ldev/hyo/openiap/helpers/PendingRequestMatch;
 }
 
 public final class dev/hyo/openiap/helpers/PurchaseDeliveryClaims {
