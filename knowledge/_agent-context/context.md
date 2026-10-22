@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-22T05:11:26.708Z
+> Last updated: 2026-10-22T15:14:23.610Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2927,6 +2927,12 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 **Result:**
 
 - Maven Central: `implementation("io.github.hyochan.openiap:openiap-google:<google-version>")`
+
+Both native releases push their version and tag before they publish, so a
+framework library release waits, before it pushes anything, until Maven
+Central and the CocoaPods CDN serve the natives it pins
+(`scripts/ci/wait-for-openiap-natives.mjs`). MAUI skips the wait because its
+NuGet package bundles natives built from source.
 
 ### Deploying Documentation
 

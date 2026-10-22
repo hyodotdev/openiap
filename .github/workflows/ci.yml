@@ -103,8 +103,8 @@ jobs:
       - name: Test Gradle network retry helper
         run: node --test scripts/ci/retry-gradle.test.mjs
 
-      - name: Test the Maven Central wait helper
-        run: node --test scripts/ci/wait-for-openiap-google.test.mjs
+      - name: Test the native registry wait helper
+        run: node --test scripts/ci/wait-for-openiap-natives.test.mjs
 
   audit-lockfile:
     name: Audit Lockfile Sync

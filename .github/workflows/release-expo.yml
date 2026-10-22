@@ -85,6 +85,9 @@ jobs:
           node scripts/release-branch-policy.mjs native-gate expo
           "$VERSION_TYPE" "$IS_PRERELEASE"
 
+      - name: Require published native packages
+        run: node scripts/ci/wait-for-openiap-natives.mjs google apple
+
   validate-android:
     needs: [release-branch]
     runs-on: ubuntu-latest

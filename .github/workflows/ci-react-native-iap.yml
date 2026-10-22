@@ -9,7 +9,7 @@ on:
       - "libraries/expo-iap/package.json"
       - "libraries/expo-iap/bun.lock"
       - "scripts/test-android-gradle-compatibility.mjs"
-      - "scripts/ci/wait-for-openiap-google.mjs"
+      - "scripts/ci/wait-for-openiap-natives.mjs"
       - "scripts/ci/retry-gradle.sh"
       - "specs/client/src/generated/types.ts"
       - "packages/apple/Sources/**"
@@ -40,7 +40,7 @@ on:
       - "libraries/expo-iap/package.json"
       - "libraries/expo-iap/bun.lock"
       - "scripts/test-android-gradle-compatibility.mjs"
-      - "scripts/ci/wait-for-openiap-google.mjs"
+      - "scripts/ci/wait-for-openiap-natives.mjs"
       - "scripts/ci/retry-gradle.sh"
       - "specs/client/src/generated/types.ts"
       - "packages/apple/Sources/**"
@@ -205,7 +205,7 @@ jobs:
           node-version: 20
       - name: Wait for the pinned openiap-google
         working-directory: .
-        run: node scripts/ci/wait-for-openiap-google.mjs
+        run: node scripts/ci/wait-for-openiap-natives.mjs google
 
   android-gradle-compatibility:
     name: Android Gradle ${{ matrix.agp }} (${{ matrix.mode }})

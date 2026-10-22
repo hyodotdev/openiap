@@ -478,6 +478,12 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 
 - Maven Central: `implementation("io.github.hyochan.openiap:openiap-google:<google-version>")`
 
+Both native releases push their version and tag before they publish, so a
+framework library release waits, before it pushes anything, until Maven
+Central and the CocoaPods CDN serve the natives it pins
+(`scripts/ci/wait-for-openiap-natives.mjs`). MAUI skips the wait because its
+NuGet package bundles natives built from source.
+
 ### Deploying Documentation
 
 Vercel automatically deploys production documentation when a commit reaches
