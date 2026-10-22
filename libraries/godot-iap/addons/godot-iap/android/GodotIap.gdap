@@ -5,4 +5,4 @@ binary="GodotIap.release.aar"
 
 [dependencies]
 local=[]
-remote=["io.github.hyochan.openiap:openiap-google:4.0.3", "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0"]
+remote=["io.github.hyochan.openiap:openiap-google:4.0.4", "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0"]
