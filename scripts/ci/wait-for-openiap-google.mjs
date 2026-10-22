@@ -3,8 +3,12 @@
 // openiap-versions.json pins. A google release pushes that version to main
 // minutes before the artifacts reach Maven Central, so jobs that resolve it
 // from Maven wait here instead of failing.
-import { readFileSync, realpathSync } from "node:fs";
+import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import {
+  readPackageVersion,
+  validateVersion,
+} from "../release-branch-policy.mjs";
 
 const MAVEN = "https://repo1.maven.org/maven2/io/github/hyochan/openiap";
 // The react-native-iap compatibility fixture resolves only these (Play is the
@@ -15,7 +19,7 @@ const pom = (artifact, version) =>
   `${MAVEN}/${artifact}/${version}/${artifact}-${version}.pom`;
 
 export async function waitForOpenIapGoogle(
-  version,
+  pinned,
   {
     fetchImpl = fetch,
     sleep = (ms) => new Promise((done) => setTimeout(done, ms)),
@@ -25,8 +29,7 @@ export async function waitForOpenIapGoogle(
     log = console.log,
   } = {},
 ) {
-  if (!/^\d+\.\d+\.\d+(?:-rc\.\d+)?$/u.test(version))
-    throw new Error(`Not an openiap-google release version: ${version}`);
+  const version = validateVersion(pinned, "openiap-google version");
   const deadline = now() + timeoutMs;
   for (;;) {
     const missing = [];
@@ -53,12 +56,7 @@ if (
   process.argv[1] &&
   realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
 ) {
-  const { google } = JSON.parse(
-    readFileSync(
-      new URL("../../openiap-versions.json", import.meta.url),
-      "utf8",
-    ),
-  );
+  const google = readPackageVersion("google");
   await waitForOpenIapGoogle(google);
   console.log(`openiap-google ${google} is on Maven Central.`);
 }
