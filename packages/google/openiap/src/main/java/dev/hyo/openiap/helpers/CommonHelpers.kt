@@ -194,19 +194,11 @@ fun isPurchaseForPendingRequest(
     purchaseToken !in tokensBeforeLaunch &&
     productIds.any { it in requestedSkus }
 
-/** How a store purchase answers the launched request; see [matchPendingRequest]. */
-enum class PendingRequestMatch {
-    /** The purchase itself is new: it is the requested purchase. */
-    Purchase,
-
-    /**
-     * Only its pending update is new. Play reports a pending top-up or plan change on the
-     * existing purchase, which stays the entitlement until the update is paid.
-     */
-    PendingUpdate,
-
-    None,
-}
+/**
+ * How a store purchase answers the launched request: the purchase itself, or only its pending
+ * update (a pending top-up or plan change Play reports on the existing purchase).
+ */
+enum class PendingRequestMatch { Purchase, PendingUpdate, None }
 
 /**
  * Matches a store purchase, or the pending update it carries, against the launched request.

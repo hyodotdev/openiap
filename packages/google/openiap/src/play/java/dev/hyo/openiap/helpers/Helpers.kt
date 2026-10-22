@@ -135,8 +135,7 @@ internal fun queryAlreadyOwnedPurchases(
                         )
                     }
                     if (match == PendingRequestMatch.None) return@mapNotNull null
-                    // Matched only through its pending update, this is the existing purchase: the
-                    // requested SKU is in the update, and the purchase keeps its current plan.
+                    // An existing purchase matched through its pending update keeps its current plan.
                     val matchedThroughUpdate = match == PendingRequestMatch.PendingUpdate
                     val matchingSku = (if (matchedThroughUpdate) pendingUpdate?.products else billingPurchase.products)
                         ?.firstOrNull { productId -> productId in requestedSkus }
