@@ -1004,6 +1004,35 @@ class OnPurchasesUpdatedRecoveryTest {
     }
 
     @Test
+    fun `a purchase Play reported before the launch keeps the requested plan out of currentPlanId`() {
+        val client = RecordingBillingClient()
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(
+            module = module,
+            client = client,
+            callback = { results += it },
+            skus = setOf("premium"),
+            productType = BillingClient.ProductType.SUBS,
+            launchStartedAtMillis = 1_000.0,
+            selectedBasePlanIdsBySku = mapOf("premium" to "premium-year"),
+            tokensBeforeLaunch = setOf("month-token"),
+        )
+        val updates = mutableListOf<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+
+        // The month purchase Play re-reports during the request, with no pending update.
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.OK),
+            listOf(billingPurchase("premium", "month-token", acknowledged = true)),
+        )
+
+        assertTrue("an earlier purchase must not resolve the request: $results", results.isEmpty())
+        assertEquals(listOf<String?>(null), updates.map { it.currentPlanId })
+    }
+
+    @Test
     fun `a new pending update after an earlier one resolves the request and reaches listeners`() {
         // An upgrade left unpaid in an earlier session.
         val stale = billingPurchase(
