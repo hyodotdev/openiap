@@ -2459,6 +2459,8 @@ test("library releases wait for the natives of the tree they publish", () => {
     );
     // A current retry publishes the tag's pins: copy the script before the
     // checkout, then wait unconditionally right after it and before any push.
+    // extractNamedStep keeps the next step's leading comments; drop them.
+    const text = (step) => step.source.replace(/(?:\n[ \t]*(?:#.*)?)+$/u, "");
     assert.ok(preserve.startIndex < checkout.startIndex, library);
     assert.equal(checkout.endIndex, wait.startIndex, library);
     assert.ok(
@@ -2467,7 +2469,7 @@ test("library releases wait for the natives of the tree they publish", () => {
       library,
     );
     assert.equal(
-      preserve.source.trimEnd(),
+      text(preserve),
       [
         "      - name: Preserve the native registry wait",
         "        run: |",
@@ -2478,7 +2480,7 @@ test("library releases wait for the natives of the tree they publish", () => {
       library,
     );
     assert.equal(
-      wait.source.trimEnd(),
+      text(wait),
       [
         "      - name: Require published native packages",
         "        run: >-",
