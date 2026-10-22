@@ -71,7 +71,7 @@ internal suspend fun queryPurchases(
 /**
  * Queries Play Billing for currently owned purchases of the requested SKUs.
  * With [tokensBeforeLaunch], only one Play did not report before the launch
- * counts (see [isPurchaseForPendingRequest]), so a transient purchase-flow error
+ * counts (see [matchPendingRequest]), so a transient purchase-flow error
  * or timeout cannot turn an earlier purchase into a success.
  * [maxAttempts] applies only when the ownership query itself fails; eligible
  * retries run through [scheduleRetry] after [retryDelayMillis]. A successful
@@ -123,21 +123,27 @@ internal fun queryAlreadyOwnedPurchases(
                 }
 
                 val recovered = purchaseList.orEmpty().mapNotNull { billingPurchase ->
-                    if (tokensBeforeLaunch != null &&
-                        !isPurchaseForPendingRequest(
+                    val pendingUpdate = runCatching { billingPurchase.pendingPurchaseUpdate }.getOrNull()
+                    val match = tokensBeforeLaunch?.let { tokens ->
+                        matchPendingRequest(
                             productIds = billingPurchase.products,
                             purchaseToken = billingPurchase.purchaseToken,
+                            pendingUpdateProductIds = pendingUpdate?.products,
+                            pendingUpdateToken = pendingUpdate?.purchaseToken,
                             requestedSkus = requestedSkus,
-                            tokensBeforeLaunch = tokensBeforeLaunch,
+                            tokensBeforeLaunch = tokens,
                         )
-                    ) {
-                        return@mapNotNull null
                     }
-                    val matchingSku = billingPurchase.products.firstOrNull { productId ->
-                        productId in requestedSkus
-                    }
+                    if (match == PendingRequestMatch.None) return@mapNotNull null
+                    // A requested product on the purchase itself, or else in its pending change.
+                    val matchingSku = billingPurchase.products.firstOrNull { it in requestedSkus }
+                        ?: pendingUpdate?.products?.firstOrNull { it in requestedSkus }
                     matchingSku?.let { sku ->
-                        billingPurchase.toPurchase(productType, basePlanIdsBySku[sku])
+                        billingPurchase.toPurchase(
+                            productType,
+                            // A purchase with a pending update reports no plan: the requested one may be unpaid.
+                            basePlanIdsBySku[sku].takeIf { pendingUpdate == null },
+                        )
                     }
                 }
                 onResult(recovered)

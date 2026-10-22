@@ -717,23 +717,29 @@ function Purchase() {
                         <code>pendingPurchaseUpdateAndroid</code>
                       </td>
                       <td>
-                        Pending subscription upgrade/downgrade details. When a
-                        user initiates a plan change, this contains the new
-                        product IDs and purchase token for the pending
-                        transaction. Returns null if no pending update exists.
-                        See{' '}
-                        <a href="#pending-purchase-update-android">
-                          PendingPurchaseUpdateAndroid
-                        </a>{' '}
-                        below. (
+                        A subscription change that is not in effect yet; null
+                        when none is pending. On Google Play (
                         <a
                           href="https://developer.android.com/reference/com/android/billingclient/api/Purchase.PendingPurchaseUpdate"
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          Billing Library 5.0+
+                          Billing Library 7.0+
                         </a>
-                        )
+                        ), a <code>purchased</code> purchase with a pending
+                        update means the requested change, such as a prepaid
+                        top-up, upgrade, or downgrade, is still unpaid. On
+                        Amazon, it is a term change deferred to the next
+                        renewal, on the current receipt. Keep the current
+                        plan&apos;s access only while it stays active. Start the
+                        requested change only when it takes effect: on Google
+                        Play when Play reports its own token as{' '}
+                        <code>purchased</code>, on Amazon at the next renewal.
+                        See{' '}
+                        <a href="#pending-purchase-update-android">
+                          PendingPurchaseUpdateAndroid
+                        </a>{' '}
+                        below.
                       </td>
                     </tr>
                     <tr>
@@ -794,10 +800,8 @@ function Purchase() {
                     </span>
                   </AnchorLink>
                   <p>
-                    Contains details about a pending subscription upgrade or
-                    downgrade. When a user changes their subscription plan, the
-                    new plan may be pending until the current billing period
-                    ends.
+                    The new products and token of a pending subscription change
+                    on Google Play (Billing Library 7.0+) or Amazon.
                   </p>
                   <table className="doc-table" style={{ marginTop: '0.5rem' }}>
                     <thead>
@@ -811,18 +815,15 @@ function Purchase() {
                         <td>
                           <code>products</code>
                         </td>
-                        <td>
-                          List of product IDs for the pending purchase update.
-                          These are the new products the user is switching to.
-                        </td>
+                        <td>Product IDs of the pending change.</td>
                       </tr>
                       <tr>
                         <td>
                           <code>purchaseToken</code>
                         </td>
                         <td>
-                          Unique token identifying the pending transaction. Use
-                          this to track or manage the pending update.
+                          On Google Play, the token of the pending change; on
+                          Amazon, the current receipt ID.
                         </td>
                       </tr>
                     </tbody>

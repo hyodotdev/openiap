@@ -1101,8 +1101,8 @@ function Subscription() {
                   </li>
                   <li>
                     <strong>pendingPurchaseUpdateAndroid</strong>: The product
-                    IDs and purchase token of an uncommitted plan change (Play
-                    Billing 5.0+)
+                    IDs and purchase token of a plan change not in effect yet
+                    (Play Billing 7.0+)
                   </li>
                   <li>
                     <strong>transactionDate</strong>: Original purchase
@@ -1347,8 +1347,19 @@ function Subscription() {
                 <p>
                   The client exposes the pending change itself via{' '}
                   <code>pendingPurchaseUpdateAndroid</code> (the new product IDs
-                  and purchase token), but its effective date and linkage still
-                  come from the server:
+                  and purchase token). On Google Play (Billing Library 7.0+), a{' '}
+                  <code>purchased</code> purchase with a pending update means
+                  the requested change, such as a prepaid top-up, upgrade, or
+                  downgrade, is still unpaid. On Amazon, it is a term change
+                  deferred to the next renewal, on the current receipt. Keep the
+                  current plan&apos;s access only while it stays active. Start
+                  the requested change only when it takes effect: on Google Play
+                  when Play reports its own token as <code>purchased</code>, on
+                  Amazon at the next renewal.
+                </p>
+                <p>
+                  The change&apos;s effective date and linkage still come from
+                  the server:
                 </p>
                 <ul>
                   <li>

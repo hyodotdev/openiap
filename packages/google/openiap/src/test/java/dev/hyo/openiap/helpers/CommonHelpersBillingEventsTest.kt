@@ -3,6 +3,7 @@ package dev.hyo.openiap.helpers
 import dev.hyo.openiap.DeveloperProvidedBillingDetailsAndroid
 import dev.hyo.openiap.IapStore
 import dev.hyo.openiap.OpenIapError
+import dev.hyo.openiap.PendingPurchaseUpdateAndroid
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.UserChoiceBillingDetails
@@ -78,6 +79,29 @@ class CommonHelpersBillingEventsTest {
     }
 
     @Test
+    fun `a pending update answers a request only when its own token is new`() {
+        val requestedSkus = setOf("monthly")
+        val tokensBeforeLaunch = setOf("current-token", "stale-update")
+
+        assertEquals(
+            PendingRequestMatch.Purchase,
+            matchPendingRequest(listOf("monthly"), "new-token", null, null, requestedSkus, tokensBeforeLaunch),
+        )
+        assertEquals(
+            PendingRequestMatch.PendingUpdate,
+            matchPendingRequest(listOf("basic"), "current-token", listOf("monthly"), "update-token", requestedSkus, tokensBeforeLaunch),
+        )
+        assertEquals(
+            PendingRequestMatch.None,
+            matchPendingRequest(listOf("basic"), "current-token", listOf("monthly"), "stale-update", requestedSkus, tokensBeforeLaunch),
+        )
+        assertEquals(
+            PendingRequestMatch.None,
+            matchPendingRequest(listOf("monthly"), "current-token", null, null, requestedSkus, tokensBeforeLaunch),
+        )
+    }
+
+    @Test
     fun `each purchase state is delivered once within the claim window`() {
         val claims = PurchaseDeliveryClaims(maximumSize = 2)
         val pending = purchase("token-1", PurchaseState.Pending)
@@ -101,9 +125,28 @@ class CommonHelpersBillingEventsTest {
         assertTrue("reading must not claim", claims.claim(purchase("token-1", PurchaseState.Purchased)))
     }
 
-    private fun purchase(token: String, state: PurchaseState) = PurchaseAndroid(
+    @Test
+    fun `a new pending update on a delivered purchase is delivered`() {
+        val claims = PurchaseDeliveryClaims()
+        val stale = purchase("token-1", PurchaseState.Purchased, pendingUpdateToken = "update-1")
+
+        assertTrue(claims.claim(stale))
+        assertFalse(claims.claim(stale))
+        assertTrue(
+            claims.claim(purchase("token-1", PurchaseState.Purchased, pendingUpdateToken = "update-2")),
+        )
+    }
+
+    private fun purchase(
+        token: String,
+        state: PurchaseState,
+        pendingUpdateToken: String? = null,
+    ) = PurchaseAndroid(
         id = token,
         isAutoRenewing = false,
+        pendingPurchaseUpdateAndroid = pendingUpdateToken?.let {
+            PendingPurchaseUpdateAndroid(products = listOf("yearly"), purchaseToken = it)
+        },
         productId = "monthly",
         purchaseState = state,
         purchaseToken = token,

@@ -3376,24 +3376,15 @@ public sealed record LimitedQuantityInfoAndroid
 }
 
 /// <summary>
-/// Pending purchase update for subscription upgrades/downgrades (Android)
-/// When a user initiates a subscription change (upgrade/downgrade), the new purchase
-/// may be pending until the current billing period ends. This type contains the
-/// details of the pending change.
-/// Available in Google Play Billing Library 5.0+
+/// New products and token of a pending subscription change on Google Play
+/// (Billing Library 7.0+) or Amazon.
 /// </summary>
 public sealed record PendingPurchaseUpdateAndroid
 {
-    /// <summary>
-    /// Product IDs for the pending purchase update.
-    /// These are the new products the user is switching to.
-    /// </summary>
+    /// <summary>Product IDs of the pending change.</summary>
     [JsonPropertyName("products")]
     public required IReadOnlyList<string> Products { get; init; }
-    /// <summary>
-    /// Purchase token for the pending transaction.
-    /// Use this token to track or manage the pending purchase update.
-    /// </summary>
+    /// <summary>On Google Play, the token of the pending change; on Amazon, the current receipt ID.</summary>
     [JsonPropertyName("purchaseToken")]
     public required string PurchaseToken { get; init; }
 }
@@ -3681,10 +3672,12 @@ public sealed record PurchaseAndroid : Purchase, IJsonOnDeserialized
     [JsonPropertyName("packageNameAndroid")]
     public string? PackageNameAndroid { get; init; }
     /// <summary>
-    /// Pending purchase update for uncommitted subscription upgrade/downgrade (Android)
-    /// Contains the new products and purchase token for the pending transaction.
-    /// Returns null if no pending update exists.
-    /// Available in Google Play Billing Library 5.0+
+    /// Subscription change that is not in effect yet; null when none is pending.
+    /// On Google Play (Billing Library 7.0+), when purchaseState is purchased, the requested
+    /// change is still unpaid. On Amazon, it is a term change deferred to the next renewal,
+    /// on the current receipt. Keep the current plan&apos;s access only while it stays active.
+    /// Start the requested change only when it takes effect: on Google Play when its own token
+    /// is reported as purchased, on Amazon at the next renewal.
     /// </summary>
     [JsonPropertyName("pendingPurchaseUpdateAndroid")]
     public PendingPurchaseUpdateAndroid? PendingPurchaseUpdateAndroid { get; init; }

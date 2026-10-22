@@ -9,6 +9,7 @@ import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.Purchase
+import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseError
 import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.RequestPurchaseProps
@@ -195,15 +196,47 @@ fun isPurchaseForPendingRequest(
     productIds.any { it in requestedSkus }
 
 /**
+ * How a store purchase answers the launched request: the purchase itself, or only its pending
+ * update (a pending top-up or plan change Play reports on the existing purchase).
+ */
+enum class PendingRequestMatch { Purchase, PendingUpdate, None }
+
+/**
+ * Matches a store purchase, or the pending update it carries, against the launched request.
+ * The single rule for every path that resolves a request (purchase updates and recovery).
+ */
+fun matchPendingRequest(
+    productIds: Collection<String>,
+    purchaseToken: String?,
+    pendingUpdateProductIds: Collection<String>?,
+    pendingUpdateToken: String?,
+    requestedSkus: Set<String>,
+    tokensBeforeLaunch: Set<String>,
+): PendingRequestMatch = when {
+    isPurchaseForPendingRequest(productIds, purchaseToken, requestedSkus, tokensBeforeLaunch) ->
+        PendingRequestMatch.Purchase
+    pendingUpdateProductIds != null &&
+        isPurchaseForPendingRequest(pendingUpdateProductIds, pendingUpdateToken, requestedSkus, tokensBeforeLaunch) ->
+        PendingRequestMatch.PendingUpdate
+    else -> PendingRequestMatch.None
+}
+
+/**
  * Remembers recently delivered purchase states so each reaches listeners once, however many
- * paths (store callback, polling, recovery) report it.
+ * paths (store callback, polling, recovery) report it. A new pending update on a purchase is a
+ * new state.
  */
 class PurchaseDeliveryClaims(private val maximumSize: Int = 100) {
     private val lock = Any()
-    private val keys = linkedSetOf<Pair<String, PurchaseState>>()
+    private val keys = linkedSetOf<Triple<String, PurchaseState, String?>>()
 
     fun claim(purchase: Purchase): Boolean = synchronized(lock) {
-        if (!keys.add(stableId(purchase) to purchase.purchaseState)) return@synchronized false
+        val key = Triple(
+            stableId(purchase),
+            purchase.purchaseState,
+            (purchase as? PurchaseAndroid)?.pendingPurchaseUpdateAndroid?.purchaseToken,
+        )
+        if (!keys.add(key)) return@synchronized false
         while (keys.size > maximumSize) keys.remove(keys.first())
         true
     }
@@ -211,7 +244,7 @@ class PurchaseDeliveryClaims(private val maximumSize: Int = 100) {
     /** Whether [purchase] was claimed in any purchase state. */
     fun hasDelivered(purchase: Purchase): Boolean = synchronized(lock) {
         val id = stableId(purchase)
-        keys.any { (claimedId, _) -> claimedId == id }
+        keys.any { (claimedId) -> claimedId == id }
     }
 
     private fun stableId(purchase: Purchase): String =
