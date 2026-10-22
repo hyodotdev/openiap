@@ -9,8 +9,8 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const metadataFile = "packages/docs/src/generated/version-metadata.json";
 const nativeFile = "packages/docs/openiap-versions.json";
 
-// Docs cannot import files outside packages/docs on Vercel, so the site reads
-// this generated copy of the package and SDK versions.
+// The version sources live across the repo; the site reads this generated copy
+// of the package and SDK versions instead.
 export function docsVersionMetadata(root = repoRoot) {
   const version = (packageId) => versionSources[packageId].read(root);
   const match = (file, pattern) =>
