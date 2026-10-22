@@ -2436,6 +2436,38 @@ test("Apple release keeps its Bundler files across a current tag checkout", () =
   assert.doesNotMatch(workflow, /BUNDLE_GEMFILE: \$\{\{ github\.workspace/u);
 });
 
+test("library releases wait for the natives of the tree they publish", () => {
+  for (const [library, natives] of [
+    ["react-native", "google apple"],
+    ["expo", "google apple"],
+    ["flutter", "google apple"],
+    ["godot", "google"],
+    ["kmp", "google"],
+  ]) {
+    const workflow = readWorkflow(`release-${library}.yml`);
+    const preserve = workflow.indexOf(
+      "- name: Preserve the native registry wait",
+    );
+    const checkout = workflow.indexOf(
+      "- name: Checkout release tag (current version)",
+    );
+    const wait = workflow.indexOf("- name: Require published native packages");
+    // A current retry publishes the tag's pins, so the wait follows the
+    // checkout, runs the preserved copy, and precedes every push.
+    assert.ok(preserve !== -1 && preserve < checkout, library);
+    assert.ok(checkout < wait && wait < workflow.indexOf("git push"), library);
+    assert.equal(workflow.lastIndexOf("- name: Require published"), wait);
+    assert.match(
+      extractNamedStep(workflow, "Require published native packages").source,
+      new RegExp(
+        `"\\$RUNNER_TEMP/openiap-scripts/ci/wait-for-openiap-natives\\.mjs"\\s+--root "\\$GITHUB_WORKSPACE" ${natives}\\s*$`,
+        "u",
+      ),
+      library,
+    );
+  }
+});
+
 test("Apple release preflights CocoaPods before repository mutation", () => {
   const workflow = readWorkflow("release-apple.yml");
   const registry = workflow.indexOf(

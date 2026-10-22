@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-22T15:38:20.037Z
+> Last updated: 2026-10-22T15:49:53.234Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2931,10 +2931,11 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 ### Library Releases Wait For Their Natives
 
 Both native releases push their version and tag before they publish, and the
-library native gate reads tags. So each framework library's deploy job, once
-it has checked out the tree it publishes (the existing tag on a `current`
-retry), waits up to 45 minutes before it pushes anything for the registries to
-serve the natives that tree pins (`scripts/ci/wait-for-openiap-natives.mjs`):
+library native gate reads tags. So each framework library's deploy job (KMP's
+`publish`), once it has checked out the tree it publishes (the existing tag on
+a `current` retry), waits up to 45 minutes before it pushes anything for the
+registries to serve the natives that tree pins
+(`scripts/ci/wait-for-openiap-natives.mjs`):
 
 - React Native, Expo, and Flutter: Maven Central (core, the Play, Horizon, and
   Fire OS flavors, and the Gradle plugin) and the CocoaPods CDN version index.

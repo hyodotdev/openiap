@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -126,6 +126,22 @@ test("waits until the pod index lists the version, not only for the POMs", async
   assert.equal(registry.requests.length, (GOOGLE_ARTIFACTS.length + 1) * 4);
 });
 
+test("counts only the exact version on the openiap line", async () => {
+  for (const [body, version, listed] of [
+    ["openiap/4.0.30/4.1.0-rc.1\n", "4.0.3", false],
+    ["openiap/4.0.30/4.1.0-rc.1\n", "4.1.0", false],
+    ["openiap/4.0.2/4.0.3\r\nopeniap-sdk/1.0.0\r\n", "4.0.3", true],
+  ]) {
+    const registry = fakeRegistry({ [INDEX]: { body: () => body } });
+    const wait = waitForOpenIapNatives(
+      { apple: version },
+      { ...registry.options, timeoutMs: 0 },
+    );
+    if (listed) await wait;
+    else await assert.rejects(wait, /CocoaPods openiap \S+ \(not listed\)/u);
+  }
+});
+
 test("polls every 30 seconds for 45 minutes by default", async () => {
   const registry = fakeRegistry({
     ...googlePoms("4.0.4"),
@@ -178,8 +194,9 @@ test("reports a network error instead of a missing release", async () => {
   }
 });
 
-test("main reads each native's pin from --root", async () => {
+test("main reads each native's pin from --root", async (t) => {
   const root = mkdtempSync(join(tmpdir(), "openiap-natives-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
   writeFileSync(
     join(root, "openiap-versions.json"),
     JSON.stringify({ google: "4.0.5", apple: "4.0.3" }),
