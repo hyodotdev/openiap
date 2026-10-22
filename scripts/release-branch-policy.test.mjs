@@ -2445,24 +2445,46 @@ test("library releases wait for the natives of the tree they publish", () => {
     ["kmp", "google"],
   ]) {
     const workflow = readWorkflow(`release-${library}.yml`);
-    const preserve = workflow.indexOf(
-      "- name: Preserve the native registry wait",
+    const preserve = extractNamedStep(
+      workflow,
+      "Preserve the native registry wait",
     );
-    const checkout = workflow.indexOf(
-      "- name: Checkout release tag (current version)",
+    const checkout = extractNamedStep(
+      workflow,
+      "Checkout release tag (current version)",
     );
-    const wait = workflow.indexOf("- name: Require published native packages");
-    // A current retry publishes the tag's pins, so the wait follows the
-    // checkout, runs the preserved copy, and precedes every push.
-    assert.ok(preserve !== -1 && preserve < checkout, library);
-    assert.ok(checkout < wait && wait < workflow.indexOf("git push"), library);
-    assert.equal(workflow.lastIndexOf("- name: Require published"), wait);
-    assert.match(
-      extractNamedStep(workflow, "Require published native packages").source,
-      new RegExp(
-        `"\\$RUNNER_TEMP/openiap-scripts/ci/wait-for-openiap-natives\\.mjs"\\s+--root "\\$GITHUB_WORKSPACE" ${natives}\\s*$`,
-        "u",
-      ),
+    const wait = extractNamedStep(
+      workflow,
+      "Require published native packages",
+    );
+    // A current retry publishes the tag's pins: copy the script before the
+    // checkout, then wait unconditionally right after it and before any push.
+    assert.ok(preserve.startIndex < checkout.startIndex, library);
+    assert.equal(checkout.endIndex, wait.startIndex, library);
+    assert.ok(
+      wait.startIndex <
+        findExecutableLineIndex(workflow, /\bgit\b[^#]*\bpush\b/u),
+      library,
+    );
+    assert.equal(
+      preserve.source.trimEnd(),
+      [
+        "      - name: Preserve the native registry wait",
+        "        run: |",
+        '          mkdir -p "$RUNNER_TEMP/openiap-scripts/ci"',
+        '          cp "$GITHUB_WORKSPACE/scripts/release-branch-policy.mjs" "$RUNNER_TEMP/openiap-scripts/"',
+        '          cp "$GITHUB_WORKSPACE/scripts/ci/wait-for-openiap-natives.mjs" "$RUNNER_TEMP/openiap-scripts/ci/"',
+      ].join("\n"),
+      library,
+    );
+    assert.equal(
+      wait.source.trimEnd(),
+      [
+        "      - name: Require published native packages",
+        "        run: >-",
+        '          node "$RUNNER_TEMP/openiap-scripts/ci/wait-for-openiap-natives.mjs"',
+        `          --root "$GITHUB_WORKSPACE" ${natives}`,
+      ].join("\n"),
       library,
     );
   }
