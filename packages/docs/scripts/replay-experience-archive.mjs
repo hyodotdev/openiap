@@ -17,8 +17,10 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 assert(
-  !['CLAUDECODE', 'AGENT', 'REPL_ID'].some((name) => process.env[name]),
-  'Bun hides its (pass) lines in agent mode; run with env -u CLAUDECODE -u AGENT -u REPL_ID'
+  !['CLAUDECODE', 'AGENT', 'REPL_ID', 'FORCE_COLOR'].some(
+    (name) => process.env[name]
+  ),
+  'Bun drops its (pass) lines in agent mode and colors them under FORCE_COLOR; run with env -u CLAUDECODE -u AGENT -u REPL_ID -u FORCE_COLOR'
 );
 
 const assets = new URL('../public/commerce-example/', import.meta.url);

@@ -404,9 +404,9 @@ for (const [name, sha256] of unreplayedLogs) {
 const localPath =
   /\/Users\/|\/home\/|\/var\/folders\/|\/claude-\d+\/|\/scratchpad\//u;
 // Windows paths ignore case, and nested JSON escaping repeats the separator.
-// The drive letter must start a word or follow an escaped newline or tab.
+// The drive letter must start a word or follow a JSON escape (\n, \t, \uXXXX).
 const windowsUserPath =
-  /(?:(?<![a-z\d_])|(?<=\\[nrt]))[a-z]:[/\\]+users[/\\]+/iu;
+  /(?:(?<![a-z\d_])|(?<=\\[bfnrt]|\\u[0-9a-f]{4}))[a-z]:[/\\]+users[/\\]+/iu;
 for (const dir of readdirSync(publicRoot).filter(
   (name) =>
     name.startsWith('commerce-') &&
@@ -416,7 +416,10 @@ for (const dir of readdirSync(publicRoot).filter(
     recursive: true,
   })) {
     const url = new URL(`${dir}/${file}`, publicRoot);
-    if (/\.(?:gz|jpe?g|pdf|png|webp)$/u.test(file) || !statSync(url).isFile())
+    if (
+      /\.(?:gif|gz|jpe?g|mp4|pdf|png|webm|webp)$/u.test(file) ||
+      !statSync(url).isFile()
+    )
       continue;
     const text = readFileSync(url, 'utf8');
     assert(
