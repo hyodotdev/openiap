@@ -139,14 +139,14 @@ assert(harness.ok && harness.source.status === '');
 assert.equal(harness.source.commit, connection.sourceCommit);
 assert.deepEqual(harness.suite, connection.verification);
 // Bun omits its per-test `(pass)` lines in agent mode (CLAUDECODE, AGENT or
-// REPL_ID set) and with --only-failures; allow indentation, as in a log quoted
+// REPL_ID set), under FORCE_COLOR and with --only-failures; allow indentation, as in a log quoted
 // in a list or code block. --dots logs are not recognised; the recipe never
 // uses it.
 const assertPassLines = (name, log, tests) =>
   assert.equal(
     log.match(/^[ \t]*\(pass\) /gmu)?.length ?? 0,
     tests,
-    `${name} must log one (pass) line per test; re-record it outside agent mode (env -u CLAUDECODE -u AGENT -u REPL_ID) and without --only-failures`
+    `${name} must log one (pass) line per test; re-record it with env -u CLAUDECODE -u AGENT -u REPL_ID -u FORCE_COLOR and without --only-failures`
   );
 assert(
   harness.suite.tests > 0,
@@ -404,7 +404,8 @@ for (const [name, sha256] of unreplayedLogs) {
 const localPath =
   /\/Users\/|\/home\/|\/var\/folders\/|\/claude-\d+\/|\/scratchpad\//u;
 // Windows paths ignore case, and nested JSON escaping repeats the separator.
-// The drive letter must start a word or follow a JSON escape (\n, \t, \uXXXX).
+// The drive letter must start a word or follow a JSON escape (\b, \f, \n, \r, \t,
+// \uXXXX).
 const windowsUserPath =
   /(?:(?<![a-z\d_])|(?<=\\[bfnrt]|\\u[0-9a-f]{4}))[a-z]:[/\\]+users[/\\]+/iu;
 for (const dir of readdirSync(publicRoot).filter(

@@ -17,8 +17,9 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 assert(
+  // Set at all, as `env -u` clears it: Bun colors under an empty FORCE_COLOR.
   !['CLAUDECODE', 'AGENT', 'REPL_ID', 'FORCE_COLOR'].some(
-    (name) => process.env[name]
+    (name) => process.env[name] !== undefined
   ),
   'Bun drops its (pass) lines in agent mode and colors them under FORCE_COLOR; run with env -u CLAUDECODE -u AGENT -u REPL_ID -u FORCE_COLOR'
 );
