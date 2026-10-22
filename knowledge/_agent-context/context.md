@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-16T02:10:48.247Z
+> Last updated: 2026-10-22T05:01:29.282Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -4093,6 +4093,8 @@ val billingClient = BillingClient.newBuilder(context)
     .enablePendingPurchases(
         PendingPurchasesParams.newBuilder()
             .enableOneTimeProducts()
+            // 7.0+: delayed payment methods for prepaid plans, top-ups and plan changes
+            .enablePrepaidPlans()
             .build()
     )
     // New in 8.0: Auto-reconnect on service disconnect
@@ -4297,16 +4299,21 @@ billingClient.queryPurchasesAsync(
 
 ## Purchase Properties
 
-| Property         | Type         | Description                     |
-| ---------------- | ------------ | ------------------------------- |
-| `orderId`        | String       | Unique order identifier         |
-| `purchaseToken`  | String       | Token for verification          |
-| `purchaseState`  | Int          | PENDING, PURCHASED, UNSPECIFIED |
-| `purchaseTime`   | Long         | Timestamp in milliseconds       |
-| `products`       | List<String> | Product IDs in purchase         |
-| `isAcknowledged` | Boolean      | Whether acknowledged            |
-| `isAutoRenewing` | Boolean      | Auto-renewal status             |
-| `quantity`       | Int          | Quantity purchased              |
+| Property                | Type                   | Description                        |
+| ----------------------- | ---------------------- | ---------------------------------- |
+| `orderId`               | String                 | Unique order identifier            |
+| `purchaseToken`         | String                 | Token for verification             |
+| `purchaseState`         | Int                    | PENDING, PURCHASED, UNSPECIFIED    |
+| `purchaseTime`          | Long                   | Timestamp in milliseconds          |
+| `products`              | List<String>           | Product IDs in purchase            |
+| `isAcknowledged`        | Boolean                | Whether acknowledged               |
+| `isAutoRenewing`        | Boolean                | Auto-renewal status                |
+| `quantity`              | Int                    | Quantity purchased                 |
+| `pendingPurchaseUpdate` | PendingPurchaseUpdate? | 7.0+: unpaid top-up or plan change |
+
+`pendingPurchaseUpdate` (`getPendingPurchaseUpdate()`, Billing Library 7.0+) holds
+the products and token of a prepaid top-up or plan change waiting for payment. The
+existing purchase stays `PURCHASED` on its current plan until the change is paid.
 
 ## Response Codes
 

@@ -2524,16 +2524,22 @@ class OpenIapModule(
         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
             // DEFERRED replacement returns null purchases; the change applies at the next renewal.
             if (purchases != null) {
-                val mapped = purchases.map { purchase ->
+                val mappedWithMatch = purchases.map { purchase ->
                     val firstProductId = purchase.products.firstOrNull()
                     val cached = firstProductId?.let { productManager.get(it) }
                     val matchesPendingRequest = pendingRequest != null &&
                         purchase.products.any { it in pendingRequest.requestedSkus }
-                    // A pending plan change is reported on the existing purchase, which keeps
-                    // its old plan until the change is paid: the requested base plan goes only
-                    // to a purchase Play did not report before the launch, with no pending update.
-                    val isNewPurchase = pendingRequest != null &&
-                        purchase.purchaseToken !in pendingRequest.tokensBeforeLaunch
+                    val pendingUpdate = runCatching { purchase.pendingPurchaseUpdate }.getOrNull()
+                    val match = pendingRequest?.let { request ->
+                        matchPendingRequest(
+                            productIds = purchase.products,
+                            purchaseToken = purchase.purchaseToken,
+                            pendingUpdateProductIds = pendingUpdate?.products,
+                            pendingUpdateToken = pendingUpdate?.purchaseToken,
+                            requestedSkus = request.requestedSkus,
+                            tokensBeforeLaunch = request.tokensBeforeLaunch,
+                        )
+                    }
                     val productType = cached?.productType
                         ?: pendingRequest?.requestedProductType?.takeIf { matchesPendingRequest }
                         // BillingClient does not expose product type on Purchase.
@@ -2545,15 +2551,14 @@ class OpenIapModule(
                             BillingClient.ProductType.INAPP
                         }
 
-                    // Extract basePlanId from ProductDetails for subscriptions
+                    // A pending plan change is reported on the existing purchase, which keeps its
+                    // old plan until the change is paid: the requested base plan goes only to a
+                    // purchase that answers the request itself and has no pending update.
                     val basePlanId = if (productType == BillingClient.ProductType.SUBS) {
                         firstProductId?.let { productId ->
                             pendingRequest?.selectedBasePlanIdsBySku?.get(productId)
                         }
-                            ?.takeIf {
-                                matchesPendingRequest && isNewPurchase &&
-                                    purchase.pendingPurchaseUpdate == null
-                            }
+                            ?.takeIf { match == PendingRequestMatch.Purchase && pendingUpdate == null }
                             ?: cached?.subscriptionOfferDetails
                                 .orEmpty()
                                 .singleOrNull()
@@ -2563,22 +2568,16 @@ class OpenIapModule(
                     }
 
                     OpenIapLog.debug("Mapping purchase products=${purchase.products} to type=$productType basePlanId=$basePlanId (cached=${cached != null})", TAG)
-                    purchase.toPurchase(productType, basePlanId)
+                    purchase.toPurchase(productType, basePlanId) to match
                 }
-                val matched = pendingRequest?.takeIf { it.launchStartedAtMillis != null }
-                    ?.let { request ->
-                        mapped.filter { purchase ->
-                            matchPendingRequest(
-                                productIds = listOf(purchase.productId) + purchase.ids.orEmpty(),
-                                purchaseToken = purchase.purchaseToken,
-                                pendingUpdateProductIds = purchase.pendingPurchaseUpdateAndroid?.products,
-                                pendingUpdateToken = purchase.pendingPurchaseUpdateAndroid?.purchaseToken,
-                                requestedSkus = request.requestedSkus,
-                                tokensBeforeLaunch = request.tokensBeforeLaunch,
-                            ) != PendingRequestMatch.None
-                        }
-                    }
-                    .orEmpty()
+                val mapped = mappedWithMatch.map { (purchase, _) -> purchase }
+                val matched = if (pendingRequest?.launchStartedAtMillis != null) {
+                    mappedWithMatch
+                        .filter { (_, match) -> match != null && match != PendingRequestMatch.None }
+                        .map { (purchase, _) -> purchase }
+                } else {
+                    emptyList()
+                }
                 // Claim the callback before notifying listeners, so a listener that
                 // starts another purchase cannot race the resolution below. If the claim
                 // fails (already completed, or cleared by disconnect/endConnection),

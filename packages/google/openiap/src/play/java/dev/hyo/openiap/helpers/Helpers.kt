@@ -141,8 +141,7 @@ internal fun queryAlreadyOwnedPurchases(
                     matchingSku?.let { sku ->
                         billingPurchase.toPurchase(
                             productType,
-                            // A purchase with a pending update keeps its current plan until the
-                            // change is paid, also when it is already owned (no launch snapshot).
+                            // A purchase with a pending update reports no plan: the requested one may be unpaid.
                             basePlanIdsBySku[sku].takeIf { pendingUpdate == null },
                         )
                     }
