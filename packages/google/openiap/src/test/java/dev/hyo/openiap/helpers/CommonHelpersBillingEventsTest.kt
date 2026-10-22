@@ -78,6 +78,29 @@ class CommonHelpersBillingEventsTest {
     }
 
     @Test
+    fun `a pending update answers a request only when its own token is new`() {
+        val requestedSkus = setOf("monthly")
+        val tokensBeforeLaunch = setOf("current-token", "stale-update")
+
+        assertEquals(
+            PendingRequestMatch.Purchase,
+            matchPendingRequest(listOf("monthly"), "new-token", null, null, requestedSkus, tokensBeforeLaunch),
+        )
+        assertEquals(
+            PendingRequestMatch.PendingUpdate,
+            matchPendingRequest(listOf("basic"), "current-token", listOf("monthly"), "update-token", requestedSkus, tokensBeforeLaunch),
+        )
+        assertEquals(
+            PendingRequestMatch.None,
+            matchPendingRequest(listOf("basic"), "current-token", listOf("monthly"), "stale-update", requestedSkus, tokensBeforeLaunch),
+        )
+        assertEquals(
+            PendingRequestMatch.None,
+            matchPendingRequest(listOf("monthly"), "current-token", null, null, requestedSkus, tokensBeforeLaunch),
+        )
+    }
+
+    @Test
     fun `each purchase state is delivered once within the claim window`() {
         val claims = PurchaseDeliveryClaims(maximumSize = 2)
         val pending = purchase("token-1", PurchaseState.Pending)

@@ -72,7 +72,8 @@ import dev.hyo.openiap.helpers.queryAlreadyOwnedPurchases
 import dev.hyo.openiap.helpers.queryProductDetails
 import dev.hyo.openiap.helpers.queryProductDetailsWithStatus
 import dev.hyo.openiap.helpers.queryPurchases
-import dev.hyo.openiap.helpers.isPurchaseForPendingRequest
+import dev.hyo.openiap.helpers.PendingRequestMatch
+import dev.hyo.openiap.helpers.matchPendingRequest
 import dev.hyo.openiap.helpers.claimPendingPurchaseIfOwned
 import dev.hyo.openiap.helpers.collectAllProductQueryResults
 import dev.hyo.openiap.helpers.PurchaseDeliveryClaims
@@ -1632,10 +1633,16 @@ class OpenIapModule(
             }
 
             val desiredType = if (androidArgs.type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
-            // Only a purchase token Play does not already report can complete this request.
+            // Only a purchase token Play does not already report can complete this request,
+            // including the token of a pending update left over from an earlier launch.
             val tokensBeforeLaunch = try {
                 queryPurchases(client, activeOperations, desiredType, includeSuspended = true)
-                    .mapNotNullTo(mutableSetOf()) { it.purchaseToken }
+                    .flatMapTo(mutableSetOf()) { purchase ->
+                        listOfNotNull(
+                            purchase.purchaseToken,
+                            (purchase as? PurchaseAndroid)?.pendingPurchaseUpdateAndroid?.purchaseToken,
+                        )
+                    }
             } catch (error: OpenIapError) {
                 errorEventGate.publishOnce(error)
                 return@withContext emptyList()
@@ -2522,6 +2529,11 @@ class OpenIapModule(
                     val cached = firstProductId?.let { productManager.get(it) }
                     val matchesPendingRequest = pendingRequest != null &&
                         purchase.products.any { it in pendingRequest.requestedSkus }
+                    // A pending plan change is reported on the existing purchase, which keeps
+                    // its old plan until the change is paid: only a purchase Play did not
+                    // report before the launch gets the requested base plan.
+                    val isNewPurchase = pendingRequest != null &&
+                        purchase.purchaseToken !in pendingRequest.tokensBeforeLaunch
                     val productType = cached?.productType
                         ?: pendingRequest?.requestedProductType?.takeIf { matchesPendingRequest }
                         // BillingClient does not expose product type on Purchase.
@@ -2538,7 +2550,7 @@ class OpenIapModule(
                         firstProductId?.let { productId ->
                             pendingRequest?.selectedBasePlanIdsBySku?.get(productId)
                         }
-                            ?.takeIf { matchesPendingRequest }
+                            ?.takeIf { matchesPendingRequest && isNewPurchase }
                             ?: cached?.subscriptionOfferDetails
                                 .orEmpty()
                                 .singleOrNull()
@@ -2553,21 +2565,14 @@ class OpenIapModule(
                 val matched = pendingRequest?.takeIf { it.launchStartedAtMillis != null }
                     ?.let { request ->
                         mapped.filter { purchase ->
-                            isPurchaseForPendingRequest(
+                            matchPendingRequest(
                                 productIds = listOf(purchase.productId) + purchase.ids.orEmpty(),
                                 purchaseToken = purchase.purchaseToken,
+                                pendingUpdateProductIds = purchase.pendingPurchaseUpdateAndroid?.products,
+                                pendingUpdateToken = purchase.pendingPurchaseUpdateAndroid?.purchaseToken,
                                 requestedSkus = request.requestedSkus,
                                 tokensBeforeLaunch = request.tokensBeforeLaunch,
-                            ) || purchase.pendingPurchaseUpdateAndroid?.let { update ->
-                                // A pending prepaid top-up, upgrade or downgrade arrives as
-                                // the existing purchase; the new products and token are here.
-                                isPurchaseForPendingRequest(
-                                    productIds = update.products,
-                                    purchaseToken = update.purchaseToken,
-                                    requestedSkus = request.requestedSkus,
-                                    tokensBeforeLaunch = request.tokensBeforeLaunch,
-                                )
-                            } == true
+                            ) != PendingRequestMatch.None
                         }
                     }
                     .orEmpty()

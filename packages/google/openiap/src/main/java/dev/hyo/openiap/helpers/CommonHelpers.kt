@@ -194,6 +194,40 @@ fun isPurchaseForPendingRequest(
     purchaseToken !in tokensBeforeLaunch &&
     productIds.any { it in requestedSkus }
 
+/** How a store purchase answers the launched request; see [matchPendingRequest]. */
+enum class PendingRequestMatch {
+    /** The purchase itself is new: it is the requested purchase. */
+    Purchase,
+
+    /**
+     * Only its pending update is new. Play reports a pending top-up or plan change on the
+     * existing purchase, which stays the entitlement until the update is paid.
+     */
+    PendingUpdate,
+
+    None,
+}
+
+/**
+ * Matches a store purchase, or the pending update it carries, against the launched request.
+ * The single rule for every path that resolves a request (purchase updates and recovery).
+ */
+fun matchPendingRequest(
+    productIds: Collection<String>,
+    purchaseToken: String?,
+    pendingUpdateProductIds: Collection<String>?,
+    pendingUpdateToken: String?,
+    requestedSkus: Set<String>,
+    tokensBeforeLaunch: Set<String>,
+): PendingRequestMatch = when {
+    isPurchaseForPendingRequest(productIds, purchaseToken, requestedSkus, tokensBeforeLaunch) ->
+        PendingRequestMatch.Purchase
+    pendingUpdateProductIds != null &&
+        isPurchaseForPendingRequest(pendingUpdateProductIds, pendingUpdateToken, requestedSkus, tokensBeforeLaunch) ->
+        PendingRequestMatch.PendingUpdate
+    else -> PendingRequestMatch.None
+}
+
 /**
  * Remembers recently delivered purchase states so each reaches listeners once, however many
  * paths (store callback, polling, recovery) report it.
