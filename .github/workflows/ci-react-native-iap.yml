@@ -9,6 +9,7 @@ on:
       - "libraries/expo-iap/package.json"
       - "libraries/expo-iap/bun.lock"
       - "scripts/test-android-gradle-compatibility.mjs"
+      - "scripts/ci/wait-for-openiap-google.mjs"
       - "scripts/ci/retry-gradle.sh"
       - "specs/client/src/generated/types.ts"
       - "packages/apple/Sources/**"
@@ -39,6 +40,7 @@ on:
       - "libraries/expo-iap/package.json"
       - "libraries/expo-iap/bun.lock"
       - "scripts/test-android-gradle-compatibility.mjs"
+      - "scripts/ci/wait-for-openiap-google.mjs"
       - "scripts/ci/retry-gradle.sh"
       - "specs/client/src/generated/types.ts"
       - "packages/apple/Sources/**"
@@ -190,8 +192,26 @@ jobs:
         working-directory: libraries/react-native-iap/example/android
         run: ./gradlew :react-native-iap:testDebugUnitTest --stacktrace
 
+  # A google release pins its version minutes before Maven Central serves it;
+  # the matrix below resolves openiap-google from Maven, so wait here once.
+  openiap-google-published:
+    name: openiap-google on Maven Central
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 20
+      - name: Wait for the pinned openiap-google
+        working-directory: .
+        run: node scripts/ci/wait-for-openiap-google.mjs
+
   android-gradle-compatibility:
     name: Android Gradle ${{ matrix.agp }} (${{ matrix.mode }})
+    needs: openiap-google-published
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
