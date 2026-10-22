@@ -20,15 +20,17 @@ const readJson = (path) =>
   JSON.parse(readFileSync(new URL(path, repo), 'utf8'));
 const vercel = readJson('packages/docs/vercel.json');
 
-// A fake git: `fail` maps a subcommand to its exit status (a diff exits 1 when
-// it finds a change); `mergeHead` is FETCH_HEAD^2's commit.
+// A fake git: `fail` maps a subcommand, or a whole command such as
+// 'rev-parse FETCH_HEAD^2', to its exit status (a diff exits 1 when it finds a
+// change); `mergeHead` is FETCH_HEAD^2's commit.
 const fakeGit = ({ fail = {}, mergeHead = 'head' } = {}) => {
   const calls = [];
   const git = (args) => {
     calls.push(args);
-    if (fail[args[0]])
+    const status = fail[args.join(' ')] ?? fail[args[0]];
+    if (status)
       throw Object.assign(new Error(`${args[0]} failed`), {
-        status: fail[args[0]],
+        status,
         stderr: `hint: retrying\nfatal: ${args[0]} failed`,
       });
     if (args[0] === 'rev-parse') return args[1] === 'HEAD' ? 'head' : mergeHead;
@@ -67,7 +69,12 @@ test('docs inputs cover the workspace packages and root scripts the build uses',
     assert(DOCS_INPUTS.includes(dir), `${name} (${dir}) is not a docs input`);
   }
   for (const [, script] of vercel.buildCommand.matchAll(/\.\.\/\.\.\/(\S+)/gu))
-    assert(DOCS_INPUTS.includes(script), `${script} is not a docs input`);
+    assert(
+      DOCS_INPUTS.some(
+        (input) => script === input || script.startsWith(`${input}/`)
+      ),
+      `${script} is not a docs input`
+    );
   // installCommand runs a frozen install from the root manifest.
   assert.match(vercel.installCommand, /--frozen-lockfile/u);
   for (const file of ['package.json', 'bun.lock'])
@@ -119,10 +126,13 @@ test("a diff that errors builds with git's own last line", () => {
 });
 
 test('a test merge without a second parent cannot be compared', () => {
-  assert.deepEqual(decide(pr, fakeGit({ fail: { 'rev-parse': 128 } }).git), {
-    build: true,
-    reason: 'cannot compare with PR #552: fatal: rev-parse failed',
-  });
+  assert.deepEqual(
+    decide(pr, fakeGit({ fail: { 'rev-parse FETCH_HEAD^2': 128 } }).git),
+    {
+      build: true,
+      reason: 'cannot compare with PR #552: fatal: rev-parse failed',
+    }
+  );
 });
 
 test('a stale test merge builds without diffing', () => {
