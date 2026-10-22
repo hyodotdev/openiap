@@ -34,7 +34,13 @@ interface ReleaseChange extends ReleaseMetadata {
 }
 
 const FRAMEWORK_PREPAID_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '1.1.1',
+    tag: 'openiap-client-protocol-1.1.1',
+  },
   { name: 'openiap-apple', version: '4.0.4', tag: '4.0.4' },
+  { name: 'openiap-google', version: '4.0.5', tag: 'google-4.0.5' },
   {
     name: 'react-native-iap',
     version: '17.1.1',
@@ -649,9 +655,10 @@ function Releases() {
             October 23, 2026 - Prepaid pending payments in every framework
           </AnchorLink>
           <p>
-            Every framework library now ships openiap-google 4.0.4, so Google
-            Play prepaid plans accept payment methods that complete later in
-            React Native, Expo, Flutter, Godot, KMP, and MAUI apps. The{' '}
+            Every framework library now ships openiap-google 4.0.5 and
+            openiap-apple 4.0.4, so Google Play prepaid plans accept payment
+            methods that complete later in React Native, Expo, Flutter, Godot,
+            KMP, and MAUI apps. The{' '}
             <Link to="/docs/updates/releases#play-prepaid-pending-2026-10-22">
               October 22 release
             </Link>{' '}
@@ -662,11 +669,20 @@ function Releases() {
           </h5>
           <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
             <li>
-              <strong>openiap-apple 4.0.4</strong>:{' '}
-              <code>OpenIapVersion.clientProtocolVersion</code> reports Client
-              Protocol 1.1.0 instead of 1.0.3, so an iOS store provider built
-              for Client Protocol 1.1 passes the provider check instead of
-              failing with &quot;this app links 1.0.3&quot;.
+              <strong>Client Protocol 1.1.1</strong>: the purchase flow that
+              React Native and Expo export marks an <code>entitled</code> Google
+              Play purchase with <code>changePending</code> when its requested
+              upgrade, downgrade, or prepaid top-up still waits for payment, and{' '}
+              <code>describePurchaseFlowStatus</code> returns{' '}
+              <code>payment_pending</code> for it instead of{' '}
+              <code>access_granted</code>. The current plan stays granted.
+            </li>
+            <li>
+              <strong>openiap-apple 4.0.4</strong> and{' '}
+              <strong>openiap-google 4.0.5</strong> report Client Protocol
+              1.1.1. The natives the libraries shipped before report 1.0.3, so
+              they rejected a community store provider built for Client Protocol
+              1.1 with &quot;this app links 1.0.3&quot;.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>

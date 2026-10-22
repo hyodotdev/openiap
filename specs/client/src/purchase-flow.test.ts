@@ -249,6 +249,55 @@ describe("processPurchase", () => {
     expect(options.finishTransaction).toHaveBeenCalledTimes(1);
   });
 
+  it("finishes the current Play purchase and marks a change that waits for payment", async () => {
+    const { flow, options } = flowWith(async () => ({
+      status: "entitled",
+      alreadyGranted: true,
+    }));
+    const current = purchase({
+      store: "google",
+      pendingPurchaseUpdateAndroid: { products: ["premium_yearly"] },
+    });
+
+    await expect(flow.processPurchase(current)).resolves.toEqual({
+      status: "entitled",
+      alreadyGranted: true,
+      changePending: true,
+    });
+    expect(options.confirmWithBackend).toHaveBeenCalledWith(current);
+    expect(options.finishTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it.each<PurchaseConfirmation>([
+    { status: "verified" },
+    { status: "ownership_conflict", alreadyGranted: true },
+  ])(
+    "marks a pending change only on an entitled purchase: %j",
+    async (confirmation) => {
+      const { flow } = flowWith(async () => confirmation);
+      const status = await flow.processPurchase(
+        purchase({
+          store: "google",
+          pendingPurchaseUpdateAndroid: { products: ["premium_yearly"] },
+        }),
+      );
+      expect(status).not.toHaveProperty("changePending");
+    },
+  );
+
+  it("does not mark a change when the purchase has no pending update", async () => {
+    const { flow } = flowWith(async () => ({
+      status: "entitled",
+      alreadyGranted: false,
+    }));
+
+    await expect(
+      flow.processPurchase(
+        purchase({ store: "google", pendingPurchaseUpdateAndroid: null }),
+      ),
+    ).resolves.toEqual({ status: "entitled", alreadyGranted: false });
+  });
+
   it("keeps access granted when finishing fails", async () => {
     const finishError = new Error("store unavailable");
     const { flow } = flowWith(
@@ -711,6 +760,10 @@ describe("describePurchaseFlowStatus", () => {
     [
       { status: "entitled", alreadyGranted: true, finishError: new Error("x") },
       { key: "access_granted", offerPurchase: false },
+    ],
+    [
+      { status: "entitled", alreadyGranted: true, changePending: true },
+      { key: "payment_pending", offerPurchase: false },
     ],
     [
       { status: "failed", error: new Error("offline") },

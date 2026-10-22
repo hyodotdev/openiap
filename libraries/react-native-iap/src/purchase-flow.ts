@@ -13,6 +13,8 @@ export interface PurchaseFlowPurchase {
   ids?: string[] | null;
   quantity?: number;
   isAcknowledgedAndroid?: boolean | null;
+  /** Google Play: a requested plan change that still waits for payment. */
+  pendingPurchaseUpdateAndroid?: { products: string[] } | null;
 }
 
 /** Body the app sends its backend, which takes the user from its own session. */
@@ -47,12 +49,21 @@ type Finishable = "entitled" | "ownership_conflict" | "test_account_restricted";
 /**
  * Where a purchase stands after the flow ran. `finishError` means finishing
  * failed and recovery retries it; an `entitled` status still grants access.
- * `recovered` marks an `invalid` purchase recovery found, not one the user
- * just bought.
+ * `changePending` marks an `entitled` Google Play purchase whose requested
+ * upgrade, downgrade, or prepaid top-up still waits for payment: access stays
+ * on the current plan. `recovered` marks an `invalid` purchase recovery found,
+ * not one the user just bought.
  */
 export type PurchaseFlowStatus =
   | Exclude<PurchaseConfirmation, { status: Finishable | "invalid" }>
-  | (Extract<PurchaseConfirmation, { status: Finishable }> & {
+  | (Extract<PurchaseConfirmation, { status: "entitled" }> & {
+      finishError?: unknown;
+      changePending?: true;
+    })
+  | (Extract<
+      PurchaseConfirmation,
+      { status: "ownership_conflict" | "test_account_restricted" }
+    > & {
       finishError?: unknown;
     })
   | (Extract<PurchaseConfirmation, { status: "invalid" }> & {
@@ -188,8 +199,13 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
       }
       // Finishing settles a purchase for good, so only a settled verdict does.
       switch (confirmation.status) {
-        case "entitled":
-          return await finish(confirmation);
+        case "entitled": {
+          const status = await finish(confirmation);
+          return purchase.pendingPurchaseUpdateAndroid &&
+            status.status === "entitled"
+            ? { ...status, changePending: true }
+            : status;
+        }
         case "ownership_conflict":
           return confirmation.alreadyGranted
             ? await finish(confirmation)
@@ -359,7 +375,10 @@ export function describePurchaseFlowStatus(
             retryAfterMs: status.retryAfterMs,
           };
     case "entitled":
-      return { key: "access_granted", offerPurchase: false };
+      return {
+        key: status.changePending ? "payment_pending" : "access_granted",
+        offerPurchase: false,
+      };
     case "failed":
       return { key: "try_again_later", offerPurchase: false };
   }

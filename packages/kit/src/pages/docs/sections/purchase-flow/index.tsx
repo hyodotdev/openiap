@@ -52,8 +52,9 @@ const STATES: {
   },
   {
     status: "entitled",
-    meaning: "Access is granted; alreadyGranted is true on a repeat.",
-    guidance: "access_granted",
+    meaning:
+      "Access is granted; alreadyGranted is true on a repeat. changePending marks a Google Play upgrade, downgrade, or prepaid top-up that still waits for payment: the current plan stays granted.",
+    guidance: "access_granted, or payment_pending with changePending",
   },
   {
     status: "failed",
