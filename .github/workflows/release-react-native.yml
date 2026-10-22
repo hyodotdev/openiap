@@ -85,9 +85,6 @@ jobs:
           node scripts/release-branch-policy.mjs native-gate react-native
           "$VERSION_TYPE" "$IS_PRERELEASE"
 
-      - name: Require published native packages
-        run: node scripts/ci/wait-for-openiap-natives.mjs google apple
-
   validate-android:
     needs: [release-branch]
     runs-on: ubuntu-latest
@@ -232,6 +229,14 @@ jobs:
         with:
           bun-version-file: package.json
 
+      # On a current retry the job publishes an existing tag, so keep the
+      # dispatch's wait script and read the pins of the checked-out tree.
+      - name: Preserve the native registry wait
+        run: |
+          mkdir -p "$RUNNER_TEMP/openiap-scripts/ci"
+          cp "$GITHUB_WORKSPACE/scripts/release-branch-policy.mjs" "$RUNNER_TEMP/openiap-scripts/"
+          cp "$GITHUB_WORKSPACE/scripts/ci/wait-for-openiap-natives.mjs" "$RUNNER_TEMP/openiap-scripts/ci/"
+
       - name: Checkout release tag (current version)
         if: ${{ inputs.version == 'current' }}
         run: |
@@ -244,6 +249,11 @@ jobs:
           else
             echo "Tag $RELEASE_TAG does not exist; current mode will use HEAD."
           fi
+
+      - name: Require published native packages
+        run: >-
+          node "$RUNNER_TEMP/openiap-scripts/ci/wait-for-openiap-natives.mjs"
+          --root "$GITHUB_WORKSPACE" google apple
 
       - name: Disable Corepack
         run: corepack disable

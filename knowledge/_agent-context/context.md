@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-22T15:14:23.610Z
+> Last updated: 2026-10-22T15:38:20.037Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2928,11 +2928,19 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 
 - Maven Central: `implementation("io.github.hyochan.openiap:openiap-google:<google-version>")`
 
-Both native releases push their version and tag before they publish, so a
-framework library release waits, before it pushes anything, until Maven
-Central and the CocoaPods CDN serve the natives it pins
-(`scripts/ci/wait-for-openiap-natives.mjs`). MAUI skips the wait because its
-NuGet package bundles natives built from source.
+### Library Releases Wait For Their Natives
+
+Both native releases push their version and tag before they publish, and the
+library native gate reads tags. So each framework library's deploy job, once
+it has checked out the tree it publishes (the existing tag on a `current`
+retry), waits up to 45 minutes before it pushes anything for the registries to
+serve the natives that tree pins (`scripts/ci/wait-for-openiap-natives.mjs`):
+
+- React Native, Expo, and Flutter: Maven Central (core, the Play, Horizon, and
+  Fire OS flavors, and the Gradle plugin) and the CocoaPods CDN version index.
+- Godot and KMP: Maven Central only, since their iOS builds take OpenIAP from
+  source or the SwiftPM tag.
+- MAUI: no wait, since its NuGet package bundles natives built from source.
 
 ### Deploying Documentation
 

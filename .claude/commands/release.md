@@ -167,19 +167,16 @@ Train rules (mistake guards):
   moves in the train is affected too, even with no commits of its own. A
   library-only train releases only the libraries the merged PRs actually
   touched and skips Apple/Google entirely.
-- **Native gate.** Do not dispatch any library workflow until every affected
-  native release (Apple, Google) is registry-verified (CocoaPods trunk /
-  Maven Central POMs publicly fetchable) and its package metadata is
-  synchronized on `main`. Workflow success is not deployment; poll the
-  registry. Each library workflow enforces the ordering with
+- **Native gate.** Dispatch a library workflow only after every affected
+  native release (Apple, Google) has finished and its package metadata is
+  synchronized on `main`. Each library workflow enforces the ordering with
   `release-branch-policy.mjs native-gate`, which refuses a stable release while
   openiap-google or openiap-apple has source commits after its release tag (an
   Expo release once shipped 93 minutes before the natives it needed). The gate
-  reads tags, not registries, so each library release then waits for the
-  registries to serve the natives it pins
-  (`knowledge/internal/06-git-deployment.md#deploying-google-package-android`). Set
-  `allow_unreleased_native` only for a library fix that must not wait for an
-  unrelated native change; it skips the gate, not the registry wait.
+  reads tags; the registry side is
+  `knowledge/internal/06-git-deployment.md#library-releases-wait-for-their-natives`.
+  Set `allow_unreleased_native` only for a library fix that must not wait for
+  an unrelated native change; it skips the gate, not the registry wait.
 - **A major and scheduled deprecations.** `scripts/scheduled-removals.mjs`
   (run by `audit:parity`) keeps each key in the migration guide's next-major
   table until its packages pass the major their rule names. A package that goes
