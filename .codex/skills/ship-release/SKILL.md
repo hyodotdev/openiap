@@ -112,9 +112,12 @@ still return to the normal PR loop.
 
 From a clean local `main` equal to `origin/main`:
 
-1. Run `bun run audit:commerce-evidence`. If it reports drift, re-record the
-   IAPKit interop per `packages/kit/scripts/docs/commerce-interop.md` before
-   deploying; the guide page shows the recorded revision either way.
+1. Run `bun run audit:commerce-evidence`. If it reports drift that "Keep
+   documentation evidence current" in
+   `packages/kit/scripts/docs/commerce-interop.md` says needs a re-record,
+   follow "Re-recording the interop evidence" in
+   `packages/kit/scripts/docs/README.md` before deploying; the guide page shows
+   the recorded revision either way.
 2. Wait for Vercel's production deployment of main's head. Use the manual
    deploy only when the automatic path cannot complete.
 3. Fetch the production release page and generated LLM documents with a cache

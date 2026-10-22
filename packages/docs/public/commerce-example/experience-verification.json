@@ -232,7 +232,7 @@
     "experience-mobile.png"
   ],
   "distributionFollowup": {
-    "recordedAt": "2026-09-12T22:48:28.755509+00:00",
+    "recordedAt": "2026-10-21T13:42:32.936Z",
     "scope": "Documentation wording only. All implementation and test files are byte-for-byte unchanged from the originally verified archive.",
     "previousArchiveSha256": "b4c345ee68f48df6afeb14b9255783780c26dd1ee2332b641ab17bd775987836",
     "archiveSha256": "fa796407cedaf32e334cab1da8ea094f3afbb3f9dbf6913cdae48861c73c7687",
@@ -245,9 +245,9 @@
           "npm",
           "ci"
         ],
-        "cwd": "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-experience-bundle-o3ht5mb4/source",
+        "cwd": "/tmp/openiap-evidence/tmp/commerce-experience-bundle-VqGyYX/source",
         "exitCode": 0,
-        "stdout": "\nadded 10 packages, and audited 11 packages in 362ms\n\n2 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n",
+        "stdout": "\nadded 10 packages, and audited 11 packages in 483ms\n\n2 packages are looking for funding\n  run `npm fund` for details\n\n1 moderate severity vulnerability\n\nTo address all issues, run:\n  npm audit fix\n\nRun `npm audit` for details.\n",
         "stderr": "npm warn allow-scripts 1 package has install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   fsevents@2.3.2 (install: (install scripts present))\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
       },
       {
@@ -255,10 +255,10 @@
           "npm",
           "test"
         ],
-        "cwd": "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-experience-bundle-o3ht5mb4/source",
+        "cwd": "/tmp/openiap-evidence/tmp/commerce-experience-bundle-VqGyYX/source",
         "exitCode": 0,
         "stdout": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs && bun test composition/app-backend.test.mjs composition/receiver.test.mjs composition/purchase-flow.test.mjs composition/experience.test.mjs\n\nCommerce Protocol Example: 229 checks passed. No store or production service contacted.\nbun test v1.3.13 (bf2e2cec)\n",
-        "stderr": "\ncomposition/purchase-flow.test.mjs:\n(pass) denied or malformed fulfillment never reports success or finishes a purchase\n\ncomposition/app-backend.test.mjs:\n(pass) account deletion waits for in-flight fulfillment and retries provider erasure after app restart [59.70ms]\n\ncomposition/experience.test.mjs:\n(pass) paywall outcomes and lifecycle events execute through the running app and provider [16.69ms]\n\ncomposition/receiver.test.mjs:\n(pass) the original SQLite and memory composition remains compatible with the receiver [32.56ms]\n(pass) one inbox scopes event IDs to authenticated emitters, survives upgrade, and discards erased users [3.31ms]\n\n 5 pass\n 0 fail\n 76 expect() calls\nRan 5 tests across 4 files. [169.00ms]\n"
+        "stderr": "\ncomposition/purchase-flow.test.mjs:\n(pass) denied or malformed fulfillment never reports success or finishes a purchase [0.39ms]\n\ncomposition/app-backend.test.mjs:\n(pass) account deletion waits for in-flight fulfillment and retries provider erasure after app restart [80.31ms]\n\ncomposition/experience.test.mjs:\n(pass) paywall outcomes and lifecycle events execute through the running app and provider [25.40ms]\n\ncomposition/receiver.test.mjs:\n(pass) the original SQLite and memory composition remains compatible with the receiver [39.25ms]\n(pass) one inbox scopes event IDs to authenticated emitters, survives upgrade, and discards erased users [3.08ms]\n\n 5 pass\n 0 fail\n 76 expect() calls\nRan 5 tests across 4 files. [276.00ms]\n"
       }
     ]
   }

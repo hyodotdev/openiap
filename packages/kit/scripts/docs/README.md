@@ -70,20 +70,66 @@ production or making a store purchase.
 
 ## Re-recording the interop evidence
 
-`bun audit:commerce-evidence` reports drift whenever `packages/kit/package.json`
-or the root `bun.lock` changes. The docs build then needs a fresh recording,
-and `packages/docs/scripts/check-commerce-composition.mjs` only accepts one
-that ran end to end, from a clean committed tree:
+[`commerce-interop.md`](commerce-interop.md#keep-documentation-evidence-current)
+says when `bun audit:commerce-evidence` drift needs a re-record. The docs build
+(`packages/docs/scripts/check-commerce-composition.mjs`) accepts only a
+recording that ran end to end, from a clean committed tree.
+
+Clone both examples at the revisions the last recording used, not the branch
+tips: `packages/docs/public/commerce-composition/iapkit-run.json` names them in
+`reproduction.originalExampleCommit` and `reproduction.freshExampleCommit`.
+Start from the openiap checkout root, with no `/tmp/openiap-evidence` left
+from an earlier run:
 
 ```sh
-# Two clean clones of openiap-commerce-protocol-example, dependencies installed:
-#   <original>  codex/commerce-protocol-review tip
-#   <fresh>     codex/commerce-protocol-from-scratch tip
-bun --conditions=openiap-source packages/kit/scripts/docs/run-commerce-interop.mjs <original> <out> <fresh>
-bun packages/kit/scripts/docs/export-commerce-interop.mjs <out> <original>
-(cd <fresh> && npm run verify && node export-paywall.mjs <repo>/packages/docs/public/commerce-example .runtime/verification.json <out>/report.json)
+repo=$PWD
+report=packages/docs/public/commerce-composition/iapkit-run.json
+evidence=/tmp/openiap-evidence
+out=$evidence/interop-run
+mkdir -p "$evidence/tmp"
+for example in original fresh; do
+  git clone https://github.com/hyodotdev/openiap-commerce-protocol-example.git "$evidence/$example-example"
+  git -C "$evidence/$example-example" checkout "$(node -p "require('./$report').reproduction.${example}ExampleCommit")"
+  (cd "$evidence/$example-example" && npm ci --ignore-scripts)
+done
+
+bun --conditions=openiap-source packages/kit/scripts/docs/run-commerce-interop.mjs "$evidence/original-example" "$out" "$evidence/fresh-example"
+bun packages/kit/scripts/docs/export-commerce-interop.mjs "$out" "$evidence/original-example"
+(cd "$evidence/fresh-example" && env -u CLAUDECODE -u AGENT -u REPL_ID -u FORCE_COLOR TMPDIR="$evidence/tmp" npm run verify && node export-paywall.mjs "$repo/packages/docs/public/commerce-example" .runtime/verification.json "$out/report.json")
 ```
+
+The last line avoids two traps, and the docs build rejects either one:
+
+- `env -u CLAUDECODE -u AGENT -u REPL_ID -u FORCE_COLOR`: Bun hides its
+  per-test `(pass)` lines in agent mode (any of the first three set) and
+  colors its output under `FORCE_COLOR`; `verify.mjs` passes its environment to
+  `npm test`, so the published test log would lose those lines or carry escape
+  codes.
+- The neutral clone path and `TMPDIR`: `paywall-harness.json` publishes the
+  checkout path (in `Project path`) and a `DATA_DIR` under `TMPDIR`, so a home
+  folder, the per-user macOS temp folder or an agent scratchpad would publish
+  the user name.
 
 Then point the first `git checkout` in
 `packages/docs/public/commerce-example/paywall-provider-reproduction.md` at the
 openiap commit the harness ran from, and run `cd packages/docs && bun run build`.
+
+Two other public replays publish local paths the same way and need the same
+prefix. `fresh-public-replay.json` comes from the example's
+`docs/example-backend-reference` branch, at the commit `fresh-build.json`
+records and with the scope sentence the replay records;
+`experience-verification.json` comes from
+`packages/docs/scripts/replay-experience-archive.mjs`. From the openiap
+checkout root, with no `/tmp/openiap-evidence/backend-reference` left:
+
+```sh
+repo=$PWD
+evidence=/tmp/openiap-evidence
+assets=packages/docs/public/commerce-example
+mkdir -p "$evidence/tmp"
+scope=$(node -p "require('./$assets/fresh-public-replay.json').scope")
+git clone --branch docs/example-backend-reference https://github.com/hyodotdev/openiap-commerce-protocol-example.git "$evidence/backend-reference"
+git -C "$evidence/backend-reference" checkout "$(node -p "require('./$assets/fresh-build.json').sourceCommit")"
+(cd "$evidence/backend-reference" && env -u CLAUDECODE -u AGENT -u REPL_ID -u FORCE_COLOR TMPDIR="$evidence/tmp" node export-public-replay.mjs "$repo/$assets" "$scope")
+env -u CLAUDECODE -u AGENT -u REPL_ID -u FORCE_COLOR TMPDIR="$evidence/tmp" bun packages/docs/scripts/replay-experience-archive.mjs
+```

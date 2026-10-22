@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { COMMERCE_IMPLEMENTATION_TOPICS } from '../src/lib/commerceImplementations.ts';
 
@@ -44,15 +44,17 @@ const reproductionAssets = new URL(
   '../public/commerce-example/',
   import.meta.url
 );
-// The Field Notes reproduction was retired: it recorded a 2026-09-08 session
-// against the deprecated unscoped package, and nothing here could regenerate
-// it — its prompt, screenshots and checkpoints were assembled by hand. A
-// record that cannot be re-recorded cannot be kept true, so it is gone rather
-// than edited.
+// Retired records: nothing here could regenerate them, and a record that
+// cannot be re-recorded cannot be kept true, so they are gone rather than
+// edited. The Field Notes reproduction (ai-reproduction*) recorded a
+// 2026-09-08 session against the deprecated unscoped package, assembled by
+// hand. paywall-public-replay.json was copied from hand-recorded example
+// evidence by the 2026-09-13 exporter; paywall-harness.json replaced it.
 for (const retired of [
   'ai-reproduction.json',
   'ai-reproduction.md',
   'ai-reproduction-source.tar.gz',
+  'paywall-public-replay.json',
 ]) {
   assert(
     !existsSync(new URL(retired, reproductionAssets)),
@@ -136,6 +138,37 @@ const provider = JSON.parse(paywallRead('paywall-provider-run.json'));
 assert(harness.ok && harness.source.status === '');
 assert.equal(harness.source.commit, connection.sourceCommit);
 assert.deepEqual(harness.suite, connection.verification);
+// Bun omits its per-test `(pass)` lines in agent mode (CLAUDECODE, AGENT or
+// REPL_ID set), under FORCE_COLOR and with --only-failures; allow indentation, as in a log quoted
+// in a list or code block. --dots logs are not recognised; the recipe never
+// uses it.
+const assertPassLines = (name, log, tests) =>
+  assert.equal(
+    log.match(/^[ \t]*\(pass\) /gmu)?.length ?? 0,
+    tests,
+    `${name} must log one (pass) line per test; re-record it with env -u CLAUDECODE -u AGENT -u REPL_ID -u FORCE_COLOR and without --only-failures`
+  );
+assert(
+  harness.suite.tests > 0,
+  'paywall-harness.json records no passing tests'
+);
+assertPassLines(
+  'paywall-harness.json',
+  harness.commands.flatMap(({ stdout, stderr }) => [stdout, stderr]).join('\n'),
+  harness.suite.tests
+);
+for (const [name, steps] of [
+  ['fresh-public-replay.json', freshReplay.steps],
+  ['experience-verification.json', experience.distributionFollowup.steps],
+])
+  assert(
+    steps.some(
+      (step) =>
+        step.command.join(' ') === 'npm test' &&
+        /^ [1-9]\d* pass$/mu.test(step.stderr)
+    ),
+    `${name} records no passing npm test run`
+  );
 const paywallArchive = paywallRead('paywall-source.tar.gz');
 assert.equal(hash(paywallArchive), connection.archiveSha256);
 assert.equal(
@@ -330,4 +363,98 @@ for (const [topic, comparison] of Object.entries(
   }
 console.log(
   'Commerce guide: every source deep link still lands on its symbol. Freshness against the current IAPKit sources is advisory: bun run audit:commerce-evidence.'
+);
+
+// Recorders publish their checkout, temp and working paths as they ran, so a run
+// from a home folder, the macOS temp folder or an agent scratchpad names its user.
+// Archives are not scanned: paywall-source.tar.gz and fresh-source.tar.gz
+// (git archive) carry local paths from the pinned example commits' evidence/
+// files, and the other source archives name the recording account as owner.
+// These 2026-09-16 walkthrough records hold agent-mode Bun logs. Each entry
+// pins the file's sha256, so a re-record must also drop its entry.
+const unreplayedLogs = new Map([
+  [
+    'commerce-example/verification.json',
+    '989ae654e5deed5d00f9abb786f7e930beef6c01fe77ca720481c969ba06bb29',
+  ],
+  [
+    'commerce-example/06-recover/attempt-1.txt',
+    '0f83c59cbf809b87d4f26b50e5317c37fb079f257c997668a2385ba4a2cb0464',
+  ],
+  [
+    'commerce-example/07-account-erasure/attempt-1.txt',
+    '0d95eb7193d3fd26c4adc76c229f053876f44472ca4cb588cdfb251200e71f2b',
+  ],
+]);
+// Bun prints its summary as ` N pass`, with one leading space.
+const bunLogs = (value) =>
+  typeof value === 'string'
+    ? /^[ \t]* \d+ pass$/mu.test(value)
+      ? [value]
+      : []
+    : Object.values(value ?? {}).flatMap(bunLogs);
+const publicRoot = new URL('../public/', import.meta.url);
+for (const [name, sha256] of unreplayedLogs) {
+  const url = new URL(name, publicRoot);
+  assert(
+    existsSync(url) && hash(readFileSync(url)) === sha256,
+    `${name} changed or was removed; drop its unreplayedLogs entry so its Bun logs are checked`
+  );
+}
+const localPath =
+  /\/Users\/|\/home\/|\/var\/folders\/|\/claude-\d+\/|\/scratchpad\//u;
+// Windows paths ignore case, and nested JSON escaping repeats the separator.
+// The drive letter must start a word or follow a JSON escape (\b, \f, \n, \r, \t,
+// \uXXXX).
+const windowsUserPath =
+  /(?:(?<![a-z\d_])|(?<=\\[bfnrt]|\\u[0-9a-f]{4}))[a-z]:[/\\]+users[/\\]+/iu;
+for (const dir of readdirSync(publicRoot).filter(
+  (name) =>
+    name.startsWith('commerce-') &&
+    statSync(new URL(name, publicRoot)).isDirectory()
+))
+  for (const file of readdirSync(new URL(`${dir}/`, publicRoot), {
+    recursive: true,
+  })) {
+    const url = new URL(`${dir}/${file}`, publicRoot);
+    if (
+      /\.(?:gif|gz|jpe?g|mp4|pdf|png|webm|webp)$/u.test(file) ||
+      !statSync(url).isFile()
+    )
+      continue;
+    const text = readFileSync(url, 'utf8');
+    assert(
+      !localPath.test(text) && !windowsUserPath.test(text),
+      `${dir}/${file} publishes a local path; re-record it from a neutral checkout and TMPDIR`
+    );
+    // Terminal escapes (FORCE_COLOR output), raw or JSON-escaped, can hide a
+    // Bun summary from the log check.
+    assert(
+      !/\x1b|\\u001b/iu.test(text),
+      `${dir}/${file} publishes terminal escape codes; re-record it without FORCE_COLOR`
+    );
+    const name = `${dir}/${file}`;
+    if (unreplayedLogs.has(name)) continue;
+    // Some .txt records hold JSON; other text is scanned as it is.
+    let value = text;
+    try {
+      value = JSON.parse(text);
+    } catch (error) {
+      assert(
+        !file.endsWith('.json'),
+        `${name} is not valid JSON: ${error.message}`
+      );
+    }
+    for (const log of bunLogs(value))
+      assertPassLines(
+        name,
+        log,
+        [...log.matchAll(/^[ \t]* (\d+) pass$/gmu)].reduce(
+          (sum, [, count]) => sum + Number(count),
+          0
+        )
+      );
+  }
+console.log(
+  'Commerce evidence: no published text file names a local path, and every published Bun log outside the recorded exemptions lists its passing tests (archives are not scanned).'
 );
