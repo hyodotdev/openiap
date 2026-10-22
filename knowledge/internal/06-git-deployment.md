@@ -478,6 +478,21 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 
 - Maven Central: `implementation("io.github.hyochan.openiap:openiap-google:<google-version>")`
 
+### Library Releases Wait For Their Natives
+
+Both native releases push their version and tag before they publish, and the
+library native gate reads tags. So each framework library's deploy job (KMP's
+`publish`), once it has checked out the tree it publishes (the existing tag on
+a `current` retry), waits up to 45 minutes before it pushes anything for the
+registries to serve the natives that tree pins
+(`scripts/ci/wait-for-openiap-natives.mjs`):
+
+- React Native, Expo, and Flutter: Maven Central (core, the Play, Horizon, and
+  Fire OS flavors, and the Gradle plugin) and the CocoaPods CDN version index.
+- Godot and KMP: Maven Central only, since their iOS builds take OpenIAP from
+  source or the SwiftPM tag.
+- MAUI: no wait, since its NuGet package bundles natives built from source.
+
 ### Deploying Documentation
 
 Vercel automatically deploys production documentation when a commit reaches

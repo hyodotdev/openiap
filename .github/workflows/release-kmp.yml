@@ -249,6 +249,14 @@ jobs:
             echo "✓ Tag $RELEASE_TAG does not exist"
           fi
 
+      # On a current retry the job publishes an existing tag, so keep the
+      # dispatch's wait script and read the pins of the checked-out tree.
+      - name: Preserve the native registry wait
+        run: |
+          mkdir -p "$RUNNER_TEMP/openiap-scripts/ci"
+          cp "$GITHUB_WORKSPACE/scripts/release-branch-policy.mjs" "$RUNNER_TEMP/openiap-scripts/"
+          cp "$GITHUB_WORKSPACE/scripts/ci/wait-for-openiap-natives.mjs" "$RUNNER_TEMP/openiap-scripts/ci/"
+
       - name: Verify current release tag provenance
         if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists == 'true' }}
         env:
@@ -265,6 +273,11 @@ jobs:
         run: |
           RELEASE_TAG="kmp-iap-$VERSION"
           git checkout "$RELEASE_TAG"
+
+      - name: Require published native packages
+        run: >-
+          node "$RUNNER_TEMP/openiap-scripts/ci/wait-for-openiap-natives.mjs"
+          --root "$GITHUB_WORKSPACE" google
 
       - name: Assert verified release head is unchanged
         if: ${{ inputs.version != 'current' || steps.check_tag.outputs.exists != 'true' }}

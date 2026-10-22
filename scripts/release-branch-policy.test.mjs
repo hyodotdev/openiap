@@ -2436,6 +2436,62 @@ test("Apple release keeps its Bundler files across a current tag checkout", () =
   assert.doesNotMatch(workflow, /BUNDLE_GEMFILE: \$\{\{ github\.workspace/u);
 });
 
+test("library releases wait for the natives of the tree they publish", () => {
+  for (const [library, natives] of [
+    ["react-native", "google apple"],
+    ["expo", "google apple"],
+    ["flutter", "google apple"],
+    ["godot", "google"],
+    ["kmp", "google"],
+  ]) {
+    const workflow = readWorkflow(`release-${library}.yml`);
+    const preserve = extractNamedStep(
+      workflow,
+      "Preserve the native registry wait",
+    );
+    const checkout = extractNamedStep(
+      workflow,
+      "Checkout release tag (current version)",
+    );
+    const wait = extractNamedStep(
+      workflow,
+      "Require published native packages",
+    );
+    // A current retry publishes the tag's pins: copy the script before the
+    // checkout, then wait unconditionally right after it and before any push.
+    // extractNamedStep keeps the next step's leading comments; drop them.
+    const text = (step) => step.source.replace(/(?:\n[ \t]*(?:#.*)?)+$/u, "");
+    assert.ok(preserve.startIndex < checkout.startIndex, library);
+    assert.equal(checkout.endIndex, wait.startIndex, library);
+    assert.ok(
+      wait.startIndex <
+        findExecutableLineIndex(workflow, /\bgit\b[^#]*\bpush\b/u),
+      library,
+    );
+    assert.equal(
+      text(preserve),
+      [
+        "      - name: Preserve the native registry wait",
+        "        run: |",
+        '          mkdir -p "$RUNNER_TEMP/openiap-scripts/ci"',
+        '          cp "$GITHUB_WORKSPACE/scripts/release-branch-policy.mjs" "$RUNNER_TEMP/openiap-scripts/"',
+        '          cp "$GITHUB_WORKSPACE/scripts/ci/wait-for-openiap-natives.mjs" "$RUNNER_TEMP/openiap-scripts/ci/"',
+      ].join("\n"),
+      library,
+    );
+    assert.equal(
+      text(wait),
+      [
+        "      - name: Require published native packages",
+        "        run: >-",
+        '          node "$RUNNER_TEMP/openiap-scripts/ci/wait-for-openiap-natives.mjs"',
+        `          --root "$GITHUB_WORKSPACE" ${natives}`,
+      ].join("\n"),
+      library,
+    );
+  }
+});
+
 test("Apple release preflights CocoaPods before repository mutation", () => {
   const workflow = readWorkflow("release-apple.yml");
   const registry = workflow.indexOf(
