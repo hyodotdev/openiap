@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -28,6 +29,7 @@ const fakeGit = ({ fail = {}, mergeHead = 'head' } = {}) => {
     if (fail[args[0]])
       throw Object.assign(new Error(`${args[0]} failed`), {
         status: fail[args[0]],
+        stderr: `hint: retrying\nfatal: ${args[0]} failed`,
       });
     if (args[0] === 'rev-parse') return args[1] === 'HEAD' ? 'head' : mergeHead;
     return '';
@@ -64,9 +66,7 @@ test('docs inputs cover the workspace packages and root scripts the build uses',
     );
     assert(DOCS_INPUTS.includes(dir), `${name} (${dir}) is not a docs input`);
   }
-  for (const [, script] of vercel.buildCommand.matchAll(
-    /\.\.\/\.\.\/(scripts\/\S+\.mjs)/gu
-  ))
+  for (const [, script] of vercel.buildCommand.matchAll(/\.\.\/\.\.\/(\S+)/gu))
     assert(DOCS_INPUTS.includes(script), `${script} is not a docs input`);
   // installCommand runs a frozen install from the root manifest.
   assert.match(vercel.installCommand, /--frozen-lockfile/u);
@@ -111,10 +111,17 @@ test('a PR that changes a docs input builds', () => {
   });
 });
 
-test('a diff that errors builds and says so', () => {
+test("a diff that errors builds with git's own last line", () => {
   assert.deepEqual(decide(pr, fakeGit({ fail: { diff: 128 } }).git), {
     build: true,
-    reason: 'cannot compare with PR #552: diff failed',
+    reason: 'cannot compare with PR #552: fatal: diff failed',
+  });
+});
+
+test('a test merge without a second parent cannot be compared', () => {
+  assert.deepEqual(decide(pr, fakeGit({ fail: { 'rev-parse': 128 } }).git), {
+    build: true,
+    reason: 'cannot compare with PR #552: fatal: rev-parse failed',
   });
 });
 
@@ -153,9 +160,10 @@ test('a fetch failure builds', () => {
     );
 });
 
-test('the command exits 1 to build and 0 to skip', () => {
+test('the command exits 1 to build and 0 to skip', (t) => {
   // A stub git that succeeds without output: every comparison finds no change.
   const bin = mkdtempSync(join(tmpdir(), 'vercel-ignore-git-'));
+  t.after(() => rmSync(bin, { recursive: true, force: true }));
   writeFileSync(join(bin, 'git'), '#!/bin/sh\nexit 0\n');
   chmodSync(join(bin, 'git'), 0o755);
   const run = (env) =>
