@@ -2813,22 +2813,17 @@ class LimitedQuantityInfoAndroid {
   }
 }
 
-/// Pending purchase update for subscription upgrades/downgrades (Android)
-/// When a user initiates a subscription change (upgrade/downgrade), the new purchase
-/// may be pending until the current billing period ends. This type contains the
-/// details of the pending change.
-/// Available in Google Play Billing Library 5.0+
+/// New products and token of a pending subscription change on Google Play
+/// (Billing Library 7.0+) or Amazon.
 class PendingPurchaseUpdateAndroid {
   const PendingPurchaseUpdateAndroid({
     required this.products,
     required this.purchaseToken,
   });
 
-  /// Product IDs for the pending purchase update.
-  /// These are the new products the user is switching to.
+  /// Product IDs of the pending change.
   final List<String> products;
-  /// Purchase token for the pending transaction.
-  /// Use this token to track or manage the pending purchase update.
+  /// On Google Play, the token of the pending change; on Amazon, the current receipt ID.
   final String purchaseToken;
 
   factory PendingPurchaseUpdateAndroid.fromJson(Map<String, dynamic> json) {
@@ -3365,10 +3360,10 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
   final String? obfuscatedAccountIdAndroid;
   final String? obfuscatedProfileIdAndroid;
   final String? packageNameAndroid;
-  /// Pending purchase update for uncommitted subscription upgrade/downgrade (Android)
-  /// Contains the new products and purchase token for the pending transaction.
-  /// Returns null if no pending update exists.
-  /// Available in Google Play Billing Library 5.0+
+  /// Subscription change that is not in effect yet; null when none is pending.
+  /// On Google Play (Billing Library 7.0+), when purchaseState is purchased, the requested
+  /// change is still unpaid. On Amazon, it is a term change deferred to the next renewal,
+  /// on the current receipt. Either way, keep granting the current plan.
   final PendingPurchaseUpdateAndroid? pendingPurchaseUpdateAndroid;
   final String productId;
   final PurchaseState purchaseState;

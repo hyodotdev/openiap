@@ -1529,6 +1529,17 @@ func format_date(timestamp: int) -> String:
                     </Link>
                   </li>
                 </ol>
+                <p>
+                  A Google Play prepaid plan change paid with a slow payment
+                  method is pending instead: the request resolves with the
+                  current <code>purchased</code> purchase and its{' '}
+                  <Link to="/docs/types/purchase#pending-purchase-update-android">
+                    <code>pendingPurchaseUpdateAndroid</code>
+                  </Link>
+                  , and the new plan starts only when Play reports its own token
+                  as <code>purchased</code>. Keep granting the current plan
+                  until then.
+                </p>
 
                 <Accordion
                   title={<>💡 Android Tip: Choose the Right Proration Mode</>}

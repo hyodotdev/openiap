@@ -33,6 +33,10 @@ interface ReleaseChange extends ReleaseMetadata {
   description: React.ReactNode;
 }
 
+const PREPAID_PENDING_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'openiap-google', version: '4.0.4', tag: 'google-4.0.4' },
+];
+
 const HORIZON_VERIFICATION_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'kmp-iap', version: '4.0.4', tag: 'kmp-iap-4.0.4' },
   { name: 'OpenIap.Maui', version: '3.0.4', tag: 'maui-iap-3.0.4' },
@@ -615,6 +619,85 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'play-prepaid-pending-2026-10-22',
+      date: new Date('2026-10-22'),
+      element: (
+        <div key="play-prepaid-pending-2026-10-22" style={noteCardStyle}>
+          {PREPAID_PENDING_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="play-prepaid-pending-2026-10-22" level="h4">
+            October 22, 2026 - Pending payments for Google Play prepaid plans
+          </AnchorLink>
+          <p>
+            Google Play prepaid plans now accept payment methods that complete
+            later, for new plans, top-ups, upgrades, and downgrades. The
+            purchase request resolves while payment is pending.
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Protocols and native packages
+          </h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            <li>
+              <strong>openiap-google 4.0.4</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  A new prepaid plan waiting for payment arrives as{' '}
+                  <code>pending</code>.
+                </li>
+                <li>
+                  A pending prepaid top-up, upgrade, or downgrade resolves the
+                  request with the existing <code>purchased</code> purchase and
+                  its <code>pendingPurchaseUpdateAndroid</code>, also after a
+                  network error or the purchase flow timeout.
+                </li>
+                <li>
+                  Purchase-update listeners get each new pending update, even on
+                  a purchase they already received.
+                </li>
+                <li>
+                  A <code>purchased</code> purchase with a pending update no
+                  longer reports the requested plan in{' '}
+                  <code>currentPlanId</code>, and a pending update left from an
+                  earlier session does not resolve a new request.
+                </li>
+              </ul>
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <p>
+            On Google Play, a <code>purchased</code> purchase with{' '}
+            <code>pendingPurchaseUpdateAndroid</code> means the requested change
+            is still unpaid; keep granting the current plan (
+            <a href="https://github.com/hyodotdev/openiap/pull/552">#552</a>
+            ).
+          </p>
+          <div
+            style={{
+              borderTop: '1px solid var(--border-color)',
+              paddingTop: '1rem',
+              marginTop: '1rem',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+              {PREPAID_PENDING_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <strong>{getReleaseLabel(release)}</strong>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
     {
       id: 'horizon-verification-2026-10-21',
       date: new Date('2026-10-21'),
