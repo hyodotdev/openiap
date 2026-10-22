@@ -2371,7 +2371,7 @@ class PurchaseAndroid:
 	var obfuscated_profile_id_android: Variant = null
 	## Whether the subscription is suspended (Android) A suspended subscription means the user's payment method failed and they need to fix it. Users should be directed to the subscription center to resolve the issue. Do NOT grant entitlements for suspended subscriptions. Available in Google Play Billing Library 8.1.0+
 	var is_suspended_android: Variant = null
-	## Subscription change that is not in effect yet; null when none is pending. On Google Play (Billing Library 7.0+), when purchaseState is purchased, the requested change is still unpaid. On Amazon, it is a term change deferred to the next renewal, on the current receipt. Either way, keep granting the current plan.
+	## Subscription change that is not in effect yet; null when none is pending. On Google Play (Billing Library 7.0+), when purchaseState is purchased, the requested change is still unpaid. On Amazon, it is a term change deferred to the next renewal, on the current receipt. Keep the current plan's access only while it stays active. Start the requested change only when it takes effect: on Google Play when its own token is reported as purchased, on Amazon at the next renewal.
 	var pending_purchase_update_android: _Types.PendingPurchaseUpdateAndroid
 	## Amazon Appstore user id (PurchaseResponse.getUserData().getUserId()). Only populated on the Amazon flavor; required for server-side Amazon RVS receipt verification (userId + receiptId). Null on Google Play and Horizon.
 	var user_id_amazon: Variant = null

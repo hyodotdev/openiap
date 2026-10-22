@@ -3675,7 +3675,9 @@ public sealed record PurchaseAndroid : Purchase, IJsonOnDeserialized
     /// Subscription change that is not in effect yet; null when none is pending.
     /// On Google Play (Billing Library 7.0+), when purchaseState is purchased, the requested
     /// change is still unpaid. On Amazon, it is a term change deferred to the next renewal,
-    /// on the current receipt. Either way, keep granting the current plan.
+    /// on the current receipt. Keep the current plan&apos;s access only while it stays active.
+    /// Start the requested change only when it takes effect: on Google Play when its own token
+    /// is reported as purchased, on Amazon at the next renewal.
     /// </summary>
     [JsonPropertyName("pendingPurchaseUpdateAndroid")]
     public PendingPurchaseUpdateAndroid? PendingPurchaseUpdateAndroid { get; init; }

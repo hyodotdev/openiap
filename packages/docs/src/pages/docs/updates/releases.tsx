@@ -669,7 +669,9 @@ function Releases() {
           <p>
             On Google Play, a <code>purchased</code> purchase with{' '}
             <code>pendingPurchaseUpdateAndroid</code> means the requested change
-            is still unpaid; keep granting the current plan (
+            is still unpaid. Keep the current plan&apos;s access only while it
+            stays active, and start the change only when Play reports its own
+            token as <code>purchased</code> (
             <a href="https://github.com/hyodotdev/openiap/pull/552">#552</a>
             ).
           </p>

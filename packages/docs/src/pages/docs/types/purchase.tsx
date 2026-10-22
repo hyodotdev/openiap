@@ -730,8 +730,12 @@ function Purchase() {
                         update means the requested change, such as a prepaid
                         top-up, upgrade, or downgrade, is still unpaid. On
                         Amazon, it is a term change deferred to the next
-                        renewal, on the current receipt. Either way, keep
-                        granting the current plan. See{' '}
+                        renewal, on the current receipt. Keep the current
+                        plan&apos;s access only while it stays active. Start the
+                        requested change only when it takes effect: on Google
+                        Play when Play reports its own token as{' '}
+                        <code>purchased</code>, on Amazon at the next renewal.
+                        See{' '}
                         <a href="#pending-purchase-update-android">
                           PendingPurchaseUpdateAndroid
                         </a>{' '}

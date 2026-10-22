@@ -1537,8 +1537,8 @@ func format_date(timestamp: int) -> String:
                     <code>pendingPurchaseUpdateAndroid</code>
                   </Link>
                   , and the new plan starts only when Play reports its own token
-                  as <code>purchased</code>. Keep granting the current plan
-                  until then.
+                  as <code>purchased</code>. Until then, keep the current
+                  plan&apos;s access only while it stays active.
                 </p>
 
                 <Accordion
