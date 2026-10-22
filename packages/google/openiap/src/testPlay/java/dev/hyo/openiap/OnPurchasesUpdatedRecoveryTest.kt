@@ -1151,7 +1151,7 @@ class OnPurchasesUpdatedRecoveryTest {
     }
 
     @Test
-    fun `listener ITEM_ALREADY_OWNED does not count an unpaid pending update as owned`() {
+    fun `listener ITEM_ALREADY_OWNED resolves with an owned purchase changing to the requested product`() {
         val client = RecordingBillingClient(
             ownedPurchases = listOf(
                 billingPurchase(
@@ -1172,6 +1172,7 @@ class OnPurchasesUpdatedRecoveryTest {
             skus = setOf("premium"),
             productType = BillingClient.ProductType.SUBS,
             launchStartedAtMillis = 1_000.0,
+            selectedBasePlanIdsBySku = mapOf("premium" to "premium-year"),
         )
         val errors = mutableListOf<OpenIapError>()
         module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
@@ -1181,8 +1182,11 @@ class OnPurchasesUpdatedRecoveryTest {
             null,
         )
 
-        assertEquals(emptyList<Purchase>(), results.single().getOrThrow())
-        assertTrue(errors.single() is OpenIapError.ItemAlreadyOwned)
+        val resolved = results.single().getOrThrow().single() as PurchaseAndroid
+        assertEquals("basic", resolved.productId)
+        assertEquals(listOf("premium"), resolved.pendingPurchaseUpdateAndroid?.products)
+        assertNull("the change to premium is unpaid", resolved.currentPlanId)
+        assertTrue("recovery must not publish an error: $errors", errors.isEmpty())
     }
 
     @Test

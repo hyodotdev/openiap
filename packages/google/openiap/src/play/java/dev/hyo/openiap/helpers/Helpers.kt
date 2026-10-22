@@ -138,6 +138,10 @@ internal fun queryAlreadyOwnedPurchases(
                     val matchedThroughUpdate = match == PendingRequestMatch.PendingUpdate
                     val matchingSku = (if (matchedThroughUpdate) pendingUpdate?.products else billingPurchase.products)
                         ?.firstOrNull { productId -> productId in requestedSkus }
+                        // Owned recovery (no snapshot) also counts a pending change to a requested product.
+                        ?: pendingUpdate?.products
+                            ?.firstOrNull { productId -> productId in requestedSkus }
+                            ?.takeIf { match == null }
                     matchingSku?.let { sku ->
                         billingPurchase.toPurchase(
                             productType,
