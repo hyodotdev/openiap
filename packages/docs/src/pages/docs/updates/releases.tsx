@@ -650,7 +650,8 @@ function Releases() {
                   A pending prepaid top-up, upgrade, or downgrade resolves the
                   request with the existing <code>purchased</code> purchase and
                   its <code>pendingPurchaseUpdateAndroid</code>, also after a
-                  network error or the purchase flow timeout.
+                  network error, the purchase flow timeout, or an already-owned
+                  rejection.
                 </li>
                 <li>
                   Purchase-update listeners get each new pending update, even on
@@ -659,8 +660,11 @@ function Releases() {
                 <li>
                   A <code>purchased</code> purchase with a pending update no
                   longer reports the requested plan in{' '}
-                  <code>currentPlanId</code>, and a pending update left from an
-                  earlier session does not resolve a new request.
+                  <code>currentPlanId</code>.
+                </li>
+                <li>
+                  A pending update left from an earlier session does not resolve
+                  a new request unless Play rejects it as already owned.
                 </li>
               </ul>
             </li>
