@@ -139,13 +139,14 @@ assert(harness.ok && harness.source.status === '');
 assert.equal(harness.source.commit, connection.sourceCommit);
 assert.deepEqual(harness.suite, connection.verification);
 // Bun omits its per-test `(pass)` lines in agent mode (CLAUDECODE, AGENT or
-// REPL_ID set) and with --dots or --only-failures; allow indentation, as in a
-// log quoted in a list or code block.
+// REPL_ID set) and with --only-failures; allow indentation, as in a log quoted
+// in a list or code block. --dots logs are not recognised; the recipe never
+// uses it.
 const assertPassLines = (name, log, tests) =>
   assert.equal(
     log.match(/^[ \t]*\(pass\) /gmu)?.length ?? 0,
     tests,
-    `${name} must log one (pass) line per test; re-record it with env -u CLAUDECODE -u AGENT -u REPL_ID`
+    `${name} must log one (pass) line per test; re-record it outside agent mode (env -u CLAUDECODE -u AGENT -u REPL_ID) and without --only-failures`
   );
 assert(
   harness.suite.tests > 0,
@@ -403,7 +404,9 @@ for (const [name, sha256] of unreplayedLogs) {
 const localPath =
   /\/Users\/|\/home\/|\/var\/folders\/|\/claude-\d+\/|\/scratchpad\//u;
 // Windows paths ignore case, and nested JSON escaping repeats the separator.
-const windowsUserPath = /\b[a-z]:[/\\]+users[/\\]+/iu;
+// The drive letter must start a word or follow an escaped newline or tab.
+const windowsUserPath =
+  /(?:(?<![a-z\d_])|(?<=\\[nrt]))[a-z]:[/\\]+users[/\\]+/iu;
 for (const dir of readdirSync(publicRoot).filter(
   (name) =>
     name.startsWith('commerce-') &&
@@ -420,10 +423,11 @@ for (const dir of readdirSync(publicRoot).filter(
       !localPath.test(text) && !windowsUserPath.test(text),
       `${dir}/${file} publishes a local path; re-record it from a neutral checkout and TMPDIR`
     );
-    // FORCE_COLOR escapes hide a Bun summary from the log check.
+    // Terminal escapes (FORCE_COLOR output), raw or JSON-escaped, can hide a
+    // Bun summary from the log check.
     assert(
-      !/\x1b\[/u.test(text),
-      `${dir}/${file} publishes terminal color codes; re-record it without FORCE_COLOR`
+      !/\x1b|\\u001b/iu.test(text),
+      `${dir}/${file} publishes terminal escape codes; re-record it without FORCE_COLOR`
     );
     const name = `${dir}/${file}`;
     if (unreplayedLogs.has(name)) continue;

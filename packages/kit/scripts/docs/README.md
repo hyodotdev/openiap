@@ -95,14 +95,16 @@ done
 
 bun --conditions=openiap-source packages/kit/scripts/docs/run-commerce-interop.mjs "$evidence/original-example" "$out" "$evidence/fresh-example"
 bun packages/kit/scripts/docs/export-commerce-interop.mjs "$out" "$evidence/original-example"
-(cd "$evidence/fresh-example" && env -u CLAUDECODE -u AGENT -u REPL_ID TMPDIR="$evidence/tmp" npm run verify && node export-paywall.mjs "$repo/packages/docs/public/commerce-example" .runtime/verification.json "$out/report.json")
+(cd "$evidence/fresh-example" && env -u CLAUDECODE -u AGENT -u REPL_ID -u FORCE_COLOR TMPDIR="$evidence/tmp" npm run verify && node export-paywall.mjs "$repo/packages/docs/public/commerce-example" .runtime/verification.json "$out/report.json")
 ```
 
 The last line avoids two traps, and the docs build rejects either one:
 
-- `env -u CLAUDECODE -u AGENT -u REPL_ID`: Bun hides its per-test `(pass)`
-  lines in agent mode (any of those set), and `verify.mjs` passes its
-  environment to `npm test`, so the published test log would lose them.
+- `env -u CLAUDECODE -u AGENT -u REPL_ID -u FORCE_COLOR`: Bun hides its
+  per-test `(pass)` lines in agent mode (any of the first three set) and
+  colors its output under `FORCE_COLOR`; `verify.mjs` passes its environment to
+  `npm test`, so the published test log would lose those lines or carry escape
+  codes.
 - The neutral clone path and `TMPDIR`: `paywall-harness.json` publishes the
   checkout path (in `Project path`) and a `DATA_DIR` under `TMPDIR`, so a home
   folder, the per-user macOS temp folder or an agent scratchpad would publish
@@ -128,6 +130,6 @@ mkdir -p "$evidence/tmp"
 scope=$(node -p "require('./$assets/fresh-public-replay.json').scope")
 git clone --branch docs/example-backend-reference https://github.com/hyodotdev/openiap-commerce-protocol-example.git "$evidence/backend-reference"
 git -C "$evidence/backend-reference" checkout "$(node -p "require('./$assets/fresh-build.json').sourceCommit")"
-(cd "$evidence/backend-reference" && env -u CLAUDECODE -u AGENT -u REPL_ID TMPDIR="$evidence/tmp" node export-public-replay.mjs "$repo/$assets" "$scope")
-env -u CLAUDECODE -u AGENT -u REPL_ID TMPDIR="$evidence/tmp" bun packages/docs/scripts/replay-experience-archive.mjs
+(cd "$evidence/backend-reference" && env -u CLAUDECODE -u AGENT -u REPL_ID -u FORCE_COLOR TMPDIR="$evidence/tmp" node export-public-replay.mjs "$repo/$assets" "$scope")
+env -u CLAUDECODE -u AGENT -u REPL_ID -u FORCE_COLOR TMPDIR="$evidence/tmp" bun packages/docs/scripts/replay-experience-archive.mjs
 ```
