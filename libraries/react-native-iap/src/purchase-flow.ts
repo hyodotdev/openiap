@@ -160,13 +160,20 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
     if (purchase.purchaseState === "pending") {
       return Promise.resolve({ status: "store_pending" });
     }
-    const running = inFlight.get(purchase.id);
-    if (running) return running;
-    const task = confirmAndFinish().finally(() => {
-      inFlight.delete(purchase.id);
-    });
-    inFlight.set(purchase.id, task);
-    return task;
+    let task = inFlight.get(purchase.id);
+    if (!task) {
+      task = confirmAndFinish().finally(() => {
+        inFlight.delete(purchase.id);
+      });
+      inFlight.set(purchase.id, task);
+    }
+    // Marked per delivery: a shared run may have started from an older copy of
+    // the purchase, before Play attached the pending change.
+    return task.then((status) =>
+      purchase.pendingPurchaseUpdateAndroid && status.status === "entitled"
+        ? { ...status, changePending: true }
+        : status,
+    );
 
     async function confirmAndFinish(): Promise<PurchaseFlowStatus> {
       let confirmation: PurchaseConfirmation | null;
@@ -199,13 +206,8 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
       }
       // Finishing settles a purchase for good, so only a settled verdict does.
       switch (confirmation.status) {
-        case "entitled": {
-          const status = await finish(confirmation);
-          return purchase.pendingPurchaseUpdateAndroid &&
-            status.status === "entitled"
-            ? { ...status, changePending: true }
-            : status;
-        }
+        case "entitled":
+          return await finish(confirmation);
         case "ownership_conflict":
           return confirmation.alreadyGranted
             ? await finish(confirmation)

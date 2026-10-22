@@ -2775,6 +2775,39 @@ test("the native gate refuses a library release while a native change is unrelea
   );
 });
 
+test("the native gate holds libraries until both natives embed main's Client Protocol", () => {
+  const embedded = { "google-3.6.1": "1.1.0", "3.6.0": "1.0.3" };
+  const git = (args) => {
+    if (args[0] !== "show") return "";
+    const tag = args[1].slice(0, args[1].indexOf(":"));
+    if (!(tag in embedded)) throw new Error("fatal: path not in tree");
+    return JSON.stringify({ clientProtocol: embedded[tag] });
+  };
+  assert.deepEqual(
+    findUnreleasedNativeChanges(
+      { ...nativeVersions, clientProtocol: "1.1.0" },
+      { git },
+    ),
+    [
+      {
+        label: "openiap-apple",
+        tag: "3.6.0",
+        commits: ["embeds Client Protocol 1.0.3, main pins 1.1.0"],
+      },
+    ],
+  );
+  assert.deepEqual(
+    findUnreleasedNativeChanges(
+      { google: "3.6.0", apple: "3.6.0", clientProtocol: "1.1.0" },
+      { git },
+    ).map(({ tag, commits }) => [tag, commits]),
+    [
+      ["google-3.6.0", ["embeds Client Protocol (none), main pins 1.1.0"]],
+      ["3.6.0", ["embeds Client Protocol 1.0.3, main pins 1.1.0"]],
+    ],
+  );
+});
+
 test("the native gate asks for full history when a release tag is missing", () => {
   const git = () => {
     throw new Error("fatal: bad revision");

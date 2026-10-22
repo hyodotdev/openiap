@@ -56,6 +56,14 @@ const GUIDANCE_COPY: Record<PurchaseFlowGuidanceKey, string> = {
   try_again_later: 'Could not confirm the purchase. Try again later.',
 };
 
+// payment_pending also covers a Play plan change that waits for payment, while
+// the current plan stays active.
+function guidanceCopy(status: PurchaseFlowStatus): string {
+  return status.status === 'entitled' && status.changePending
+    ? 'Your current plan stays active. The change applies once its payment completes.'
+    : GUIDANCE_COPY[describePurchaseFlowStatus(status).key];
+}
+
 // The backend holds the IAPKit secret key; the app only knows this URL.
 function appBackendUrl(): string | undefined {
   return (
@@ -209,8 +217,8 @@ export default function BackendEntitlementFlow({
               ? 'waiting'
               : 'done',
           'finishError' in status
-            ? `${GUIDANCE_COPY[guidance.key]} Finishing needs retry.`
-            : GUIDANCE_COPY[guidance.key],
+            ? `${guidanceCopy(status)} Finishing needs retry.`
+            : guidanceCopy(status),
         );
       }
       setOutcomes((current) => [
@@ -552,7 +560,7 @@ export default function BackendEntitlementFlow({
             <View key={purchase.id} style={styles.card}>
               <Text style={styles.cardTitle}>{purchase.productId}</Text>
               <Text style={styles.status}>{status.status}</Text>
-              <Text style={styles.text}>{GUIDANCE_COPY[guidance.key]}</Text>
+              <Text style={styles.text}>{guidanceCopy(status)}</Text>
               {guidance.retryAfterMs !== undefined ? (
                 <Text style={styles.hint}>
                   Retry after {Math.ceil(guidance.retryAfterMs / 1000)}s

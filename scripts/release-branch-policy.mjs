@@ -459,6 +459,9 @@ function runGit(args, root = repoRoot) {
 }
 
 // Source commits since each native package's release tag; version bumps excluded.
+// A native also counts as unreleased while its tag embeds an older Client
+// Protocol than main pins: a protocol release only moves the manifest (in a
+// chore(release) commit), yet both natives build that version in.
 export function findUnreleasedNativeChanges(
   versions,
   { git = runGit, gates = nativeReleaseGates } = {},
@@ -491,11 +494,28 @@ export function findUnreleasedNativeChanges(
           files.some((file) => shipsIn(id, file)),
       )
       .map(([subject]) => subject);
+    if (versions.clientProtocol !== undefined) {
+      const embedded = clientProtocolAt(git, tag);
+      if (embedded !== versions.clientProtocol) {
+        commits.push(
+          `embeds Client Protocol ${embedded ?? "(none)"}, main pins ${versions.clientProtocol}`,
+        );
+      }
+    }
     if (commits.length > 0) {
       pending.push({ label: versionSources[id].label, tag, commits });
     }
   }
   return pending;
+}
+
+function clientProtocolAt(git, tag) {
+  try {
+    return JSON.parse(git(["show", `${tag}:openiap-versions.json`]))
+      .clientProtocol;
+  } catch {
+    return undefined;
+  }
 }
 
 export function assertNativesReleased(versions, options) {

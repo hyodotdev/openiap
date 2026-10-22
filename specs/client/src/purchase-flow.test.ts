@@ -285,6 +285,61 @@ describe("processPurchase", () => {
     },
   );
 
+  it("keeps the pending change when finishing fails", async () => {
+    const finishError = new Error("store unavailable");
+    const { flow } = flowWith(
+      async () => ({ status: "entitled", alreadyGranted: true }),
+      {
+        finishTransaction: vi.fn(async () => {
+          throw finishError;
+        }),
+      },
+    );
+
+    await expect(
+      flow.processPurchase(
+        purchase({
+          store: "google",
+          pendingPurchaseUpdateAndroid: { products: ["premium_yearly"] },
+        }),
+      ),
+    ).resolves.toEqual({
+      status: "entitled",
+      alreadyGranted: true,
+      finishError,
+      changePending: true,
+    });
+  });
+
+  it("marks the pending change on a delivery that shares an earlier run", async () => {
+    let answer: (confirmation: PurchaseConfirmation) => void = () => {};
+    const { flow, options } = flowWith(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    const before = flow.processPurchase(purchase({ store: "google" }));
+    const after = flow.processPurchase(
+      purchase({
+        store: "google",
+        pendingPurchaseUpdateAndroid: { products: ["premium_yearly"] },
+      }),
+    );
+    answer({ status: "entitled", alreadyGranted: true });
+
+    await expect(before).resolves.toEqual({
+      status: "entitled",
+      alreadyGranted: true,
+    });
+    await expect(after).resolves.toEqual({
+      status: "entitled",
+      alreadyGranted: true,
+      changePending: true,
+    });
+    expect(options.confirmWithBackend).toHaveBeenCalledTimes(1);
+  });
+
   it("does not mark a change when the purchase has no pending update", async () => {
     const { flow } = flowWith(async () => ({
       status: "entitled",
@@ -683,6 +738,31 @@ describe("recoverPurchases", () => {
       expect(options.confirmWithBackend).not.toHaveBeenCalled();
     },
   );
+
+  it("restores a Play purchase whose change still waits for payment", async () => {
+    const current = purchase({
+      store: "google",
+      isAcknowledgedAndroid: true,
+      pendingPurchaseUpdateAndroid: { products: ["premium_yearly"] },
+    });
+    const { flow } = flowWith(
+      async () => ({ status: "entitled", alreadyGranted: true }),
+      { getAvailablePurchases: vi.fn(async () => [current]) },
+    );
+
+    await expect(
+      flow.recoverPurchases({ includeFinished: true }),
+    ).resolves.toEqual([
+      {
+        purchase: current,
+        status: {
+          status: "entitled",
+          alreadyGranted: true,
+          changePending: true,
+        },
+      },
+    ]);
+  });
 
   it("confirms purchases one at a time", async () => {
     let active = 0;

@@ -219,7 +219,10 @@ const outcomes = await flow.recoverPurchases();`}
         <code>invalid</code> outcomes <code>recovered</code>, so an old expired
         renewal never asks a subscriber to buy twice. iOS Ask to Buy arrives as
         a <code>deferred-payment</code> purchase error rather than a purchase;
-        show it as <code>store_pending</code>.
+        show it as <code>store_pending</code>. If your copy for{" "}
+        <code>payment_pending</code> says access unlocks later, check{" "}
+        <code>changePending</code> first: that subscriber keeps their current
+        plan while the change waits for payment.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Finish rules</h2>
