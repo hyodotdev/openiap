@@ -3,12 +3,15 @@
 // deployment, exit 1 builds. Production always builds; a preview builds only
 // when it changes a file the docs site is built from.
 import { execFileSync } from 'node:child_process';
+import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-// The site reads only packages/docs; installCommand and buildCommand also read
-// these root files.
+// packages/docs, the workspace packages it bundles, and the root files that
+// installCommand and buildCommand read.
 export const DOCS_INPUTS = [
   'packages/docs',
+  'packages/mcp-server',
+  'specs/commerce-protocol',
   'package.json',
   'bun.lock',
   'scripts/release-branch-policy.mjs',
@@ -23,17 +26,20 @@ const repoGit = (args) =>
     stdio: ['ignore', 'pipe', 'ignore'],
   }).trim();
 
-// Any failure, including a diff that finds a change, builds.
-export function shouldBuild(env = process.env, git = repoGit) {
-  if (env.VERCEL_ENV === 'production') return true;
+// Returns whether to build and why; anything it cannot compare builds.
+export function decide(env = process.env, git = repoGit) {
+  if (env.VERCEL_ENV !== 'preview')
+    return { build: true, reason: `${env.VERCEL_ENV ?? 'unknown'} deployment` };
   const pullRequest = env.VERCEL_GIT_PULL_REQUEST_ID;
   const previous = env.VERCEL_GIT_PREVIOUS_SHA;
-  const changed = (from, to) =>
-    git(['diff', '--quiet', from, to, '--', ...DOCS_INPUTS]);
+  let from = 'FETCH_HEAD';
+  let to = 'HEAD';
+  let base;
   try {
     if (pullRequest) {
       // GitHub's test merge of the PR: parent 1 is its base, parent 2 must be
       // the commit Vercel is deploying.
+      base = `PR #${pullRequest}`;
       git([
         'fetch',
         '--quiet',
@@ -42,25 +48,36 @@ export function shouldBuild(env = process.env, git = repoGit) {
         `refs/pull/${pullRequest}/merge`,
       ]);
       if (git(['rev-parse', 'FETCH_HEAD^2']) !== git(['rev-parse', 'HEAD']))
-        return true;
-      changed('FETCH_HEAD^1', 'FETCH_HEAD');
+        return { build: true, reason: `${base}'s test merge is stale` };
+      [from, to] = ['FETCH_HEAD^1', 'FETCH_HEAD'];
     } else if (previous) {
-      // A branch without a PR: what changed since its last deployment.
+      base = 'the last deployment';
       git(['fetch', '--quiet', '--depth=1', UPSTREAM, previous]);
-      changed('FETCH_HEAD', 'HEAD');
-    } else return true;
-    return false;
-  } catch {
-    return true;
+    } else {
+      // A branch's first push, usually before its PR exists. A branch behind
+      // main on docs still builds, which is the safe side.
+      base = 'main';
+      git(['fetch', '--quiet', '--depth=1', UPSTREAM, 'main']);
+    }
+  } catch (error) {
+    return { build: true, reason: `cannot fetch ${base}: ${error.message}` };
+  }
+  try {
+    git(['diff', '--quiet', from, to, '--', ...DOCS_INPUTS]);
+    return { build: false, reason: `no docs input differs from ${base}` };
+  } catch (error) {
+    return {
+      build: true,
+      reason:
+        error.status === 1
+          ? `a docs input differs from ${base}`
+          : `cannot compare with ${base}: ${error.message}`,
+    };
   }
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const build = shouldBuild();
-  console.log(
-    build
-      ? 'Building: this deployment may change the docs site.'
-      : 'Skipping: no docs input changed.'
-  );
+if (realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const { build, reason } = decide();
+  console.log(`${build ? 'Building' : 'Skipping'}: ${reason}.`);
   process.exit(build ? 1 : 0);
 }

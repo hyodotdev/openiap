@@ -482,13 +482,14 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 
 Vercel automatically deploys production documentation when a commit reaches
 `main` in `hyodotdev/openiap`. Other branches and pull requests receive a
-preview only when they change a docs input: `packages/docs`, the root
-`package.json` and `bun.lock`, or a root script the build command runs.
-`packages/docs/scripts/vercel-ignore-build.mjs` (the `ignoreCommand`) decides.
+preview only when they change a file the docs site is built from;
+`DOCS_INPUTS` in `packages/docs/scripts/vercel-ignore-build.mjs` (the
+`ignoreCommand`) lists those files, and its log line says why it built or
+skipped. Anything it cannot compare builds.
 Documentation may show RC package metadata and release cards before the
 corresponding packages publish; deploying docs does not publish packages.
-A fork's pull request still shows Vercel's "Authorization required" status
-before that check runs; it is not a required check.
+A fork's pull request needs Vercel authorization before that step runs, so it
+shows "Authorization required" until then; that status is not a required check.
 
 The OpenIAP project uses `packages/docs` as its Root Directory, with source
 files outside that directory enabled. `packages/docs/vercel.json` installs
