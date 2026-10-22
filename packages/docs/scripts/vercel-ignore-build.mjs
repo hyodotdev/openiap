@@ -6,8 +6,9 @@ import { execFileSync } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-// packages/docs, the workspace packages it bundles, and the root files that
-// installCommand and buildCommand read.
+// packages/docs, the workspace packages it bundles, and the root files its
+// install and build commands need. The build's gate scripts also read version
+// files across the repo; CI checks those, so they are not listed here.
 export const DOCS_INPUTS = [
   'packages/docs',
   'packages/mcp-server',
@@ -23,8 +24,15 @@ const repoGit = (args) =>
   execFileSync('git', args, {
     cwd: fileURLToPath(new URL('../../..', import.meta.url)),
     encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore'],
+    stdio: ['ignore', 'pipe', 'pipe'],
   }).trim();
+
+// git's own last line (for example `fatal: couldn't find remote ref`).
+const why = (error) =>
+  String(error.stderr || error.message)
+    .trim()
+    .split('\n')
+    .at(-1);
 
 // Returns whether to build and why; anything it cannot compare builds.
 export function decide(env = process.env, git = repoGit) {
@@ -47,8 +55,6 @@ export function decide(env = process.env, git = repoGit) {
         UPSTREAM,
         `refs/pull/${pullRequest}/merge`,
       ]);
-      if (git(['rev-parse', 'FETCH_HEAD^2']) !== git(['rev-parse', 'HEAD']))
-        return { build: true, reason: `${base}'s test merge is stale` };
       [from, to] = ['FETCH_HEAD^1', 'FETCH_HEAD'];
     } else if (previous) {
       base = 'the last deployment';
@@ -60,9 +66,14 @@ export function decide(env = process.env, git = repoGit) {
       git(['fetch', '--quiet', '--depth=1', UPSTREAM, 'main']);
     }
   } catch (error) {
-    return { build: true, reason: `cannot fetch ${base}: ${error.message}` };
+    return { build: true, reason: `cannot fetch ${base}: ${why(error)}` };
   }
   try {
+    if (
+      pullRequest &&
+      git(['rev-parse', 'FETCH_HEAD^2']) !== git(['rev-parse', 'HEAD'])
+    )
+      return { build: true, reason: `${base}'s test merge is stale` };
     git(['diff', '--quiet', from, to, '--', ...DOCS_INPUTS]);
     return { build: false, reason: `no docs input differs from ${base}` };
   } catch (error) {
@@ -71,12 +82,13 @@ export function decide(env = process.env, git = repoGit) {
       reason:
         error.status === 1
           ? `a docs input differs from ${base}`
-          : `cannot compare with ${base}: ${error.message}`,
+          : `cannot compare with ${base}: ${why(error)}`,
     };
   }
 }
 
-if (realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+const self = realpathSync(fileURLToPath(import.meta.url));
+if (process.argv[1] && realpathSync(process.argv[1]) === self) {
   const { build, reason } = decide();
   console.log(`${build ? 'Building' : 'Skipping'}: ${reason}.`);
   process.exit(build ? 1 : 0);

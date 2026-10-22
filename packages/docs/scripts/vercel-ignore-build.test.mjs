@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { DOCS_INPUTS, decide } from './vercel-ignore-build.mjs';
@@ -10,14 +19,16 @@ const readJson = (path) =>
   JSON.parse(readFileSync(new URL(path, repo), 'utf8'));
 const vercel = readJson('packages/docs/vercel.json');
 
-// A fake git: `fail` lists the subcommands that exit non-zero (a diff exits 1
-// when it finds a change); `mergeHead` is FETCH_HEAD^2's commit.
-const fakeGit = ({ fail = [], mergeHead = 'head' } = {}) => {
+// A fake git: `fail` maps a subcommand to its exit status (a diff exits 1 when
+// it finds a change); `mergeHead` is FETCH_HEAD^2's commit.
+const fakeGit = ({ fail = {}, mergeHead = 'head' } = {}) => {
   const calls = [];
   const git = (args) => {
     calls.push(args);
-    if (fail.includes(args[0]))
-      throw Object.assign(new Error(`${args[0]} failed`), { status: 1 });
+    if (fail[args[0]])
+      throw Object.assign(new Error(`${args[0]} failed`), {
+        status: fail[args[0]],
+      });
     if (args[0] === 'rev-parse') return args[1] === 'HEAD' ? 'head' : mergeHead;
     return '';
   };
@@ -40,9 +51,13 @@ test('docs inputs cover the workspace packages and root scripts the build uses',
       .map((name) => `${parent}/${name}`)
       .filter((dir) => existsSync(new URL(`${dir}/package.json`, repo)));
   });
-  for (const [name, version] of Object.entries(
-    readJson('packages/docs/package.json').dependencies
-  )) {
+  const docs = readJson('packages/docs/package.json');
+  for (const [name, version] of Object.entries({
+    ...docs.dependencies,
+    ...docs.devDependencies,
+    ...docs.peerDependencies,
+    ...docs.optionalDependencies,
+  })) {
     if (!version.startsWith('workspace:')) continue;
     const dir = members.find(
       (member) => readJson(`${member}/package.json`).name === name
@@ -53,6 +68,10 @@ test('docs inputs cover the workspace packages and root scripts the build uses',
     /\.\.\/\.\.\/(scripts\/\S+\.mjs)/gu
   ))
     assert(DOCS_INPUTS.includes(script), `${script} is not a docs input`);
+  // installCommand runs a frozen install from the root manifest.
+  assert.match(vercel.installCommand, /--frozen-lockfile/u);
+  for (const file of ['package.json', 'bun.lock'])
+    assert(DOCS_INPUTS.includes(file), `${file} is not a docs input`);
 });
 
 test('anything but a preview builds', () => {
@@ -73,6 +92,8 @@ test('a PR that changes no docs input is skipped', () => {
     reason: 'no docs input differs from PR #552',
   });
   assert.deepEqual(fetched(calls), ['refs/pull/552/merge']);
+  // Depth 2 brings the merge's parents, which the comparison needs.
+  assert(calls[0].includes('--depth=2'));
   assert.deepEqual(calls.at(-1), [
     'diff',
     '--quiet',
@@ -84,9 +105,16 @@ test('a PR that changes no docs input is skipped', () => {
 });
 
 test('a PR that changes a docs input builds', () => {
-  assert.deepEqual(decide(pr, fakeGit({ fail: ['diff'] }).git), {
+  assert.deepEqual(decide(pr, fakeGit({ fail: { diff: 1 } }).git), {
     build: true,
     reason: 'a docs input differs from PR #552',
+  });
+});
+
+test('a diff that errors builds and says so', () => {
+  assert.deepEqual(decide(pr, fakeGit({ fail: { diff: 128 } }).git), {
+    build: true,
+    reason: 'cannot compare with PR #552: diff failed',
   });
 });
 
@@ -119,19 +147,27 @@ test('a fetch failure builds', () => {
     { ...preview, VERCEL_GIT_PREVIOUS_SHA: 'abc' },
     preview,
   ])
-    assert.equal(decide(env, fakeGit({ fail: ['fetch'] }).git).build, true);
+    assert.equal(
+      decide(env, fakeGit({ fail: { fetch: 128 } }).git).build,
+      true
+    );
 });
 
-test('the command exits 1 when it builds', () => {
-  const production = spawnSync(
-    process.execPath,
-    ['scripts/vercel-ignore-build.mjs'],
-    {
+test('the command exits 1 to build and 0 to skip', () => {
+  // A stub git that succeeds without output: every comparison finds no change.
+  const bin = mkdtempSync(join(tmpdir(), 'vercel-ignore-git-'));
+  writeFileSync(join(bin, 'git'), '#!/bin/sh\nexit 0\n');
+  chmodSync(join(bin, 'git'), 0o755);
+  const run = (env) =>
+    spawnSync(process.execPath, ['scripts/vercel-ignore-build.mjs'], {
       cwd: fileURLToPath(new URL('..', import.meta.url)),
-      env: { PATH: process.env.PATH, VERCEL_ENV: 'production' },
+      env: { PATH: `${bin}:${process.env.PATH}`, ...env },
       encoding: 'utf8',
-    }
-  );
+    });
+  const production = run({ VERCEL_ENV: 'production' });
   assert.equal(production.status, 1);
   assert.match(production.stdout, /^Building: production deployment\./u);
+  const skipped = run({ VERCEL_ENV: 'preview' });
+  assert.equal(skipped.status, 0);
+  assert.match(skipped.stdout, /^Skipping: no docs input differs from main\./u);
 });
