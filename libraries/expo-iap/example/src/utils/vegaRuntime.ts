@@ -54,7 +54,7 @@ export type VerificationMethod =
   | 'iapkit-localhost'
   | 'iapkit';
 
-function getConfiguredIapkitApiKey(): string | undefined {
+export function getConfiguredIapkitApiKey(): string | undefined {
   const extra = Constants.expoConfig?.extra as ExpoExtraWithIapkit | undefined;
   return extra?.iapkitApiKey ?? process.env.EXPO_PUBLIC_IAPKIT_API_KEY;
 }

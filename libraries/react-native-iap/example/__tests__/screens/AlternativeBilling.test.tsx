@@ -56,6 +56,34 @@ describe('AlternativeBilling Screen', () => {
     expect(mockFinishTransaction).not.toHaveBeenCalled();
   });
 
+  it('switches the billing mode only after native applies its program', async () => {
+    Object.assign(Platform, {OS: 'android'});
+    jest
+      .mocked(RNIap.initConnection)
+      .mockRejectedValueOnce(new Error('A purchase is in progress'));
+    const {getByText} = await render(<AlternativeBilling />);
+    const chooseExternalPayments = async () => {
+      await fireEvent.press(getByText('🆕 Billing Programs API (8.2.0+)'));
+      await fireEvent.press(getByText('🇯🇵 External Payments (8.3.0+ Japan)'));
+    };
+
+    await chooseExternalPayments();
+
+    expect(
+      getByText(/Reconnection failed: A purchase is in progress/),
+    ).toBeTruthy();
+    expect(
+      getByText(/Current mode: BILLING_PROGRAMS \(external-offer\)/),
+    ).toBeTruthy();
+
+    await chooseExternalPayments();
+
+    expect(RNIap.initConnection).toHaveBeenLastCalledWith({
+      enableBillingProgramAndroid: 'external-payments',
+    });
+    expect(getByText(/Current mode: EXTERNAL_PAYMENTS/)).toBeTruthy();
+  });
+
   it('renders Amazon Vega as unsupported for alternative billing', async () => {
     Object.assign(Platform, {OS: 'kepler'});
 

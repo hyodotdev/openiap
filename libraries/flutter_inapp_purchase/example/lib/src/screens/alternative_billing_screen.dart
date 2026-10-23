@@ -184,8 +184,9 @@ Important:
   }
 
   Future<void> _reconnectWithBillingProgram(
-    BillingProgramAndroid newProgram,
-  ) async {
+    BillingProgramAndroid newProgram, {
+    String? mode,
+  }) async {
     try {
       setState(() {
         _isReconnecting = true;
@@ -200,8 +201,11 @@ Important:
       if (!mounted) return;
       setState(() {
         _connected = connected;
-        // Only a program native applied is shown and bought with.
-        if (connected) _billingProgram = newProgram;
+        // Only a program and mode native applied are shown and bought with.
+        if (connected) {
+          _billingProgram = newProgram;
+          _androidBillingMode = mode ?? _androidBillingMode;
+        }
         _purchaseResult = connected
             ? 'Reconnected with ${newProgram.name} program'
             : 'IAP unavailable for this build';
@@ -481,12 +485,15 @@ If user selects:
                     'Recommended. Includes external-offer, external-content-link, and user-choice-billing.',
                 isSelected: _androidBillingMode == 'billing-programs',
                 onTap: () {
-                  setState(() => _androidBillingMode = 'billing-programs');
+                  // Keep the current program unless it is External Payments.
                   if (_billingProgram ==
                       BillingProgramAndroid.ExternalPayments) {
                     _reconnectWithBillingProgram(
                       BillingProgramAndroid.ExternalOffer,
+                      mode: 'billing-programs',
                     );
+                  } else {
+                    setState(() => _androidBillingMode = 'billing-programs');
                   }
                   Navigator.pop(context);
                 },
@@ -498,9 +505,9 @@ If user selects:
                     'Side-by-side choice in purchase dialog. User sees both Google Play and developer billing options.',
                 isSelected: _androidBillingMode == 'external-payments',
                 onTap: () {
-                  setState(() => _androidBillingMode = 'external-payments');
                   _reconnectWithBillingProgram(
                     BillingProgramAndroid.ExternalPayments,
+                    mode: 'external-payments',
                   );
                   Navigator.pop(context);
                 },

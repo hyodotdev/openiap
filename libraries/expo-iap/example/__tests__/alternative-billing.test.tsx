@@ -81,4 +81,38 @@ describe('AlternativeBilling Component', () => {
 
     expect(getByText('Not supported on Amazon Vega')).toBeDefined();
   });
+
+  it('switches the billing flow only after native applies its program', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: jest.fn(() => 'android'),
+      configurable: true,
+    });
+    jest
+      .mocked(ExpoIap.initConnection)
+      .mockResolvedValue(true)
+      .mockRejectedValueOnce(new Error('A purchase is in progress'));
+    const {getByText, getAllByText} = await render(<AlternativeBilling />);
+    const chooseUserChoice = async () => {
+      await fireEvent.press(getByText('Billing Programs API (8.2.0+)'));
+      const options = getAllByText('User Choice Billing (7.0+)');
+      await fireEvent.press(options[options.length - 1]);
+    };
+
+    await chooseUserChoice();
+
+    expect(
+      getByText(/Reconnection failed: A purchase is in progress/),
+    ).toBeTruthy();
+    // The flow selector still reads Billing Programs.
+    expect(getByText('Billing Programs API (8.2.0+)')).toBeTruthy();
+    expect(getByText(/Current program: EXTERNAL_OFFER/)).toBeTruthy();
+
+    await chooseUserChoice();
+
+    expect(ExpoIap.initConnection).toHaveBeenLastCalledWith({
+      enableBillingProgramAndroid: 'user-choice-billing',
+    });
+    expect(getByText(/Current program: USER_CHOICE_BILLING/)).toBeTruthy();
+    expect(() => getByText('Billing Programs API (8.2.0+)')).toThrow();
+  });
 });

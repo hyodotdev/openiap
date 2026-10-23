@@ -5,7 +5,7 @@ namespace OpenIap.Maui.Example.Utils;
 
 internal enum VerificationMethod { Ignore, Local, IapkitLocal, Iapkit }
 
-// The app's one purchase flow, shared by every page.
+// The app's store connection and its one purchase flow, shared by every page.
 internal static class IapLifecycle
 {
     // Bulbs are credited once per purchase id; a real app keeps both in its own store.

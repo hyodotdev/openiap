@@ -144,6 +144,9 @@ jest.mock('../src/index', () => {
     // Event listeners
     purchaseUpdatedListener: jest.fn((callback) => ({remove: jest.fn()})),
     purchaseErrorListener: jest.fn((callback) => ({remove: jest.fn()})),
+    developerProvidedBillingListenerAndroid: jest.fn(() => ({
+      remove: jest.fn(),
+    })),
 
     // Hook
     useIAP: mockUseIAP,

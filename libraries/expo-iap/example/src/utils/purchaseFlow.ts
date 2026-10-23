@@ -13,6 +13,7 @@ import {CONSUMABLE_PRODUCT_IDS} from './constants';
 import {formatErrorForDisplay} from './errorUtils';
 import {
   getAmazonVerificationProductId,
+  getConfiguredIapkitApiKey,
   getDefaultVerificationMethod,
   isAmazonRvsSandboxEnabled,
   resolveIapkitVerificationBaseUrl,
@@ -71,8 +72,8 @@ export function getReceiptPurchaseFlow(): PurchaseFlow<Purchase> {
         case 'local':
           return confirmOnDeviceIOS({grant})(purchase, context);
         default:
-          // The SDK reads the publishable key from the iapkitApiKey config.
           return confirmWithIapkit({
+            apiKey: getConfiguredIapkitApiKey(),
             baseUrl: resolveIapkitVerificationBaseUrl(method),
             amazon: {
               sandbox: isAmazonRvsSandboxEnabled(),

@@ -138,6 +138,7 @@ describe('receipt-check purchase flow', () => {
     expect(verifyPurchaseWithProvider).toHaveBeenCalledWith({
       provider: 'iapkit',
       iapkit: {
+        apiKey: 'test-api-key',
         baseUrl: 'http://localhost:3100',
         google: {purchaseToken: 'play-token'},
       },
@@ -158,7 +159,7 @@ describe('receipt-check purchase flow', () => {
     ).resolves.toEqual({status: 'entitled', alreadyGranted: false});
     expect(verifyPurchaseWithProvider).toHaveBeenCalledWith({
       provider: 'iapkit',
-      iapkit: {apple: {jws: 'apple-jws'}},
+      iapkit: {apiKey: 'test-api-key', apple: {jws: 'apple-jws'}},
     });
   });
 
@@ -201,6 +202,7 @@ describe('receipt-check purchase flow', () => {
       expect(verifyPurchaseWithProvider).toHaveBeenCalledWith({
         provider: 'iapkit',
         iapkit: {
+          apiKey: 'test-api-key',
           amazon: {
             receiptId: 'amazon-receipt',
             expectedProductId: 'dev.hyo.martie.premium.base',

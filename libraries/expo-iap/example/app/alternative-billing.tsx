@@ -130,7 +130,7 @@ function AlternativeBillingScreen() {
 
   // Reconnect with new billing program
   const reconnectWithProgram = useCallback(
-    async (newProgram: BillingProgramAndroid) => {
+    async (newProgram: BillingProgramAndroid, newFlow?: AndroidBillingFlow) => {
       try {
         setIsReconnecting(true);
         setPurchaseResult('Reconnecting with new billing program...');
@@ -141,8 +141,9 @@ function AlternativeBillingScreen() {
             ? {enableBillingProgramAndroid: newProgram}
             : undefined;
         await initConnection(config);
-        // Only a program native applied is shown and bought with.
+        // Only a program and flow native applied are shown and bought with.
         setBillingProgram(newProgram);
+        if (newFlow) setAndroidBillingFlow(newFlow);
 
         const programNames: Record<BillingProgramAndroid, string> = {
           unspecified: 'Unspecified',
@@ -651,10 +652,14 @@ function AlternativeBillingScreen() {
                   styles.modeOptionSelected,
               ]}
               onPress={() => {
-                setAndroidBillingFlow('billing-programs');
-                // Reset to default external billing program when switching from user-choice
+                // Leaving user choice resets to the default external program.
                 if (billingProgram === 'user-choice-billing') {
-                  void reconnectWithProgram('external-offer');
+                  void reconnectWithProgram(
+                    'external-offer',
+                    'billing-programs',
+                  );
+                } else {
+                  setAndroidBillingFlow('billing-programs');
                 }
                 setShowModeSelector(false);
               }}
@@ -675,9 +680,11 @@ function AlternativeBillingScreen() {
                   styles.modeOptionSelected,
               ]}
               onPress={() => {
-                setAndroidBillingFlow('user-choice-billing');
                 setShowModeSelector(false);
-                void reconnectWithProgram('user-choice-billing');
+                void reconnectWithProgram(
+                  'user-choice-billing',
+                  'user-choice-billing',
+                );
               }}
             >
               <Text style={styles.modeOptionTitle}>

@@ -173,7 +173,7 @@ function AlternativeBillingScreen() {
 
   // Reconnect with new billing program
   const reconnectWithBillingProgram = useCallback(
-    async (newProgram: BillingProgramAndroid) => {
+    async (newProgram: BillingProgramAndroid, newMode?: AndroidBillingMode) => {
       try {
         setIsReconnecting(true);
         setPurchaseResult('Reconnecting with new billing program...');
@@ -184,8 +184,9 @@ function AlternativeBillingScreen() {
             ? {enableBillingProgramAndroid: newProgram}
             : undefined;
         await initConnection(config);
-        // Only a program native applied is shown and bought with.
+        // Only a program and mode native applied are shown and bought with.
         setBillingProgram(newProgram);
+        if (newMode) setAndroidBillingMode(newMode);
 
         setPurchaseResult(`✅ Reconnected with ${newProgram} program`);
 
@@ -722,10 +723,14 @@ function AlternativeBillingScreen() {
                     styles.modeOptionSelected,
                 ]}
                 onPress={() => {
-                  setAndroidBillingMode('billing-programs');
-                  // Keep current billing program if already set to a billing-programs option
+                  // Keep the current program unless it is External Payments.
                   if (billingProgram === 'external-payments') {
-                    void reconnectWithBillingProgram('external-offer');
+                    void reconnectWithBillingProgram(
+                      'external-offer',
+                      'billing-programs',
+                    );
+                  } else {
+                    setAndroidBillingMode('billing-programs');
                   }
                   setShowModeSelector(false);
                 }}
@@ -747,8 +752,10 @@ function AlternativeBillingScreen() {
                     styles.modeOptionSelected,
                 ]}
                 onPress={() => {
-                  setAndroidBillingMode('external-payments');
-                  void reconnectWithBillingProgram('external-payments');
+                  void reconnectWithBillingProgram(
+                    'external-payments',
+                    'external-payments',
+                  );
                   setShowModeSelector(false);
                 }}
               >
