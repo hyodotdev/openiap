@@ -148,6 +148,10 @@ internal fun mapEndConnectionError(error: Exception): OpenIapError =
 internal fun mapInitConnectionError(error: Exception, context: Context?): OpenIapError =
     error as? OpenIapError ?: (context?.let { OpenIapError.InitConnection.forProvider(it) } ?: OpenIapError.InitConnection)
 
+/** openiap-google refuses a rebuild during a purchase and keeps the live client. */
+internal fun isRefusedRebuild(error: Throwable): Boolean =
+    generateSequence(error) { it.cause }.any { it is OpenIapError.DeveloperError }
+
 /**
  * Removes the singleton JS fan-out listener without relying on callback identity.
  * Nitro creates a fresh Kotlin callback wrapper for each bridge invocation, so
@@ -444,7 +448,8 @@ class HybridRnIap : HybridRnIapSpec() {
                             error = error,
                             debugMessage = err.message,
                             messageOverride = err.message
-                        )
+                        ),
+                        cause = error,
                     )
                 }
                 if (!ok) {
@@ -466,7 +471,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 isInitialized = value
                 RnIapLog.result("initConnection", value)
             },
-            onFailed = { isInitialized = false }
+            onFailed = { error -> isInitialized = isInitialized && isRefusedRebuild(error) }
         )
         return Promise.async {
             invocation.await()

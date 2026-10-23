@@ -2,12 +2,14 @@ package com.margelo.nitro.iap
 
 import dev.hyo.openiap.OpenIapError
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
  * Pins the init-failure contract HybridRnIap relies on: a failed
- * initConnection on a non-Play build names the linked store.
+ * initConnection on a non-Play build names the linked store, and a refused
+ * rebuild keeps the connection.
  */
 class InitConnectionStoreHintTest {
     @Test
@@ -27,5 +29,14 @@ class InitConnectionStoreHintTest {
 
             assertEquals(OpenIapError.InitConnection.MESSAGE, error.message)
         }
+    }
+
+    @Test
+    fun `a refused rebuild keeps the connection and a failed connect does not`() {
+        val refused = OpenIapError.DeveloperError("initConnection cannot change the billing program while a purchase is in progress")
+
+        assertTrue(isRefusedRebuild(OpenIapException("{}", cause = refused)))
+        assertFalse(isRefusedRebuild(OpenIapException("{}", cause = OpenIapError.InitConnection)))
+        assertFalse(isRefusedRebuild(OpenIapException("{}")))
     }
 }
