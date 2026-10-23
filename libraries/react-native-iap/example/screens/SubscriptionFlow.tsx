@@ -1593,6 +1593,8 @@ function SubscriptionFlowContainer() {
   const mountedRef = useRef(true);
 
   const retainedPurchaseRef = useRef<Purchase | null>(null);
+  // The last purchase list the restore scan read.
+  const scannedPurchasesRef = useRef<Purchase[] | null>(null);
   // Latest pending plan change per purchase, kept across duplicate deliveries.
   const pendingPlanChangesRef = useRef(new Map<string, string>());
   const dispatchPurchaseSuccess = useCallback(
@@ -1600,14 +1602,6 @@ function SubscriptionFlowContainer() {
     [],
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // STEP 1: INIT CONNECTION + SUBSCRIBE TO EVENTS
-  // ──────────────────────────────────────────────────────────────────────────
-  // useIAP hook automatically:
-  // - Calls initConnection() on mount
-  // - Sets up purchase event listeners (onPurchaseSuccess, onPurchaseError)
-  // - Provides activeSubscriptions state for easy status checking
-  // - Cleans up on unmount
   // Every subscription delivery, repeats and restore scans included, records
   // whether it carries a pending plan change, so a shared run reads the latest.
   const notePlanChange = (
@@ -1634,6 +1628,14 @@ function SubscriptionFlowContainer() {
     }
   };
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // STEP 1: INIT CONNECTION + SUBSCRIBE TO EVENTS
+  // ──────────────────────────────────────────────────────────────────────────
+  // useIAP hook automatically:
+  // - Calls initConnection() on mount
+  // - Sets up purchase event listeners (onPurchaseSuccess, onPurchaseError)
+  // - Provides activeSubscriptions state for easy status checking
+  // - Cleans up on unmount
   const handlePurchaseSuccess = async (purchase: Purchase): Promise<void> => {
     if (!mountedRef.current) return;
 
@@ -2189,6 +2191,10 @@ function SubscriptionFlowContainer() {
 
   useEffect(() => {
     if (!connected || availablePurchases.length === 0) return;
+    // Reconnects and method changes rerun this over the last list; only a
+    // newly fetched one may update pending plan changes.
+    const freshList = availablePurchases !== scannedPurchasesRef.current;
+    scannedPurchasesRef.current = availablePurchases;
 
     for (const purchase of availablePurchases) {
       const productId = purchase.productId ?? '';
@@ -2202,7 +2208,7 @@ function SubscriptionFlowContainer() {
 
       const cleanupKey = getPurchaseCleanupKey(purchase);
       if (completedSubscriptionKeys.has(cleanupKey)) {
-        notePlanChange(purchase, cleanupKey, {fromScan: true});
+        if (freshList) notePlanChange(purchase, cleanupKey, {fromScan: true});
         continue;
       }
 

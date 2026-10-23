@@ -1467,6 +1467,8 @@ function SubscriptionFlowContainer() {
   const mountedRef = useRef(true);
   // Latest pending plan change per purchase, kept across duplicate deliveries.
   const pendingPlanChangesRef = useRef(new Map<string, string>());
+  // The last purchase list the restore scan read.
+  const scannedPurchasesRef = useRef<Purchase[] | null>(null);
 
   const reportStoreError = useCallback(
     (error: PurchaseError, requestTrace: string): void => {
@@ -1974,7 +1976,7 @@ function SubscriptionFlowContainer() {
     (
       purchase: Purchase,
       key: string,
-      { fromScan = false }: { fromScan?: boolean } = {},
+      {fromScan = false}: {fromScan?: boolean} = {},
     ): void => {
       if (
         retainedPurchaseRef.current &&
@@ -2005,30 +2007,33 @@ function SubscriptionFlowContainer() {
     [],
   );
 
-  const enqueuePurchase = useCallback((purchase: Purchase): Promise<void> => {
-    const cleanupKey = getPurchaseCleanupKey(purchase);
-    // Before the duplicate checks: the current purchase may already be finished.
-    notePlanChange(purchase, cleanupKey);
-    if (completedSubscriptionKeys.has(cleanupKey)) {
-      return Promise.resolve();
-    }
-    if (cleanupPurchaseKeysRef.current.has(cleanupKey)) {
-      return Promise.resolve();
-    }
-    cleanupPurchaseKeysRef.current.add(cleanupKey);
+  const enqueuePurchase = useCallback(
+    (purchase: Purchase): Promise<void> => {
+      const cleanupKey = getPurchaseCleanupKey(purchase);
+      // Before the duplicate checks: the current purchase may already be finished.
+      notePlanChange(purchase, cleanupKey);
+      if (completedSubscriptionKeys.has(cleanupKey)) {
+        return Promise.resolve();
+      }
+      if (cleanupPurchaseKeysRef.current.has(cleanupKey)) {
+        return Promise.resolve();
+      }
+      cleanupPurchaseKeysRef.current.add(cleanupKey);
 
-    const queued = purchaseQueueTailRef.current.then(() =>
-      purchaseSuccessHandlerRef.current(purchase),
-    );
-    purchaseQueueTailRef.current = queued.catch((error) => {
-      cleanupPurchaseKeysRef.current.delete(cleanupKey);
-      console.log(
-        '[SubscriptionFlow] queued purchase handler failed unexpectedly:',
-        error,
+      const queued = purchaseQueueTailRef.current.then(() =>
+        purchaseSuccessHandlerRef.current(purchase),
       );
-    });
-    return purchaseQueueTailRef.current;
-  }, [notePlanChange]);
+      purchaseQueueTailRef.current = queued.catch((error) => {
+        cleanupPurchaseKeysRef.current.delete(cleanupKey);
+        console.log(
+          '[SubscriptionFlow] queued purchase handler failed unexpectedly:',
+          error,
+        );
+      });
+      return purchaseQueueTailRef.current;
+    },
+    [notePlanChange],
+  );
 
   const {
     connected,
@@ -2159,6 +2164,10 @@ function SubscriptionFlowContainer() {
 
   useEffect(() => {
     if (!connected || availablePurchases.length === 0) return;
+    // Reconnects and method changes rerun this over the last list; only a
+    // newly fetched one may update pending plan changes.
+    const freshList = availablePurchases !== scannedPurchasesRef.current;
+    scannedPurchasesRef.current = availablePurchases;
 
     for (const purchase of availablePurchases) {
       const productId = purchase.productId ?? '';
@@ -2171,7 +2180,7 @@ function SubscriptionFlowContainer() {
       }
       const cleanupKey = getPurchaseCleanupKey(purchase);
       if (completedSubscriptionKeys.has(cleanupKey)) {
-        notePlanChange(purchase, cleanupKey, { fromScan: true });
+        if (freshList) notePlanChange(purchase, cleanupKey, {fromScan: true});
         continue;
       }
       void enqueuePurchase(purchase);
