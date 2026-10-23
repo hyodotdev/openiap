@@ -330,7 +330,7 @@ export function describePendingPlanChange(purchase: Purchase): string | null {
       : null;
   if (!change) return null;
   const products = change.products.join(', ');
-  return purchase.store === 'amazon'
+  return verificationStore(purchase.store, purchase.storeId) === 'amazon'
     ? `Plan change to ${products} applies at the next renewal. ` +
         `${purchase.productId} stays active until then.`
     : `Plan change to ${products} waits for payment. ` +

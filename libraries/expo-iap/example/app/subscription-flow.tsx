@@ -1911,8 +1911,10 @@ function SubscriptionFlowContainer() {
 
     if (!mountedRef.current) return;
 
+    const latestPlanChange =
+      pendingPlanChangesRef.current.get(purchaseCleanupKey);
     setPurchaseResult(
-      pendingPlanChangesRef.current.get(purchaseCleanupKey) ??
+      latestPlanChange ??
         (isRestoration
           ? 'Subscription restored and finished successfully.'
           : 'Subscription activated and finished successfully.'),
@@ -1936,7 +1938,7 @@ function SubscriptionFlowContainer() {
 
     if (!mountedRef.current) return;
 
-    if (!pendingPlanChangesRef.current.has(purchaseCleanupKey)) {
+    if (!latestPlanChange) {
       showNativeAlert(
         'Success',
         isRestoration
@@ -1966,27 +1968,47 @@ function SubscriptionFlowContainer() {
     }
   };
 
-  const enqueuePurchase = useCallback((purchase: Purchase): Promise<void> => {
-    const cleanupKey = getPurchaseCleanupKey(purchase);
-    // The current purchase may already be finished, so record and show a
-    // pending plan change before the duplicate checks drop this delivery; a
-    // run already in flight reads the record when it completes.
-    const pendingPlanChange = describePendingPlanChange(purchase);
-    if (pendingPlanChange) {
-      pendingPlanChangesRef.current.set(cleanupKey, pendingPlanChange);
-      if (mountedRef.current) {
+  // Every subscription delivery, repeats and restore scans included, records
+  // whether it carries a pending plan change, so a shared run reads the latest.
+  const notePlanChange = useCallback(
+    (
+      purchase: Purchase,
+      key: string,
+      { fromScan = false }: { fromScan?: boolean } = {},
+    ): void => {
+      if (
+        retainedPurchaseRef.current &&
+        getPurchaseCleanupKey(retainedPurchaseRef.current) === key
+      ) {
+        retainedPurchaseRef.current = purchase;
+      }
+      const planChange = describePendingPlanChange(purchase);
+      if (planChange) {
+        pendingPlanChangesRef.current.set(key, planChange);
+        if (!mountedRef.current) return;
         // A run in flight keeps the controls disabled until it finishes.
         if (
-          !cleanupPurchaseKeysRef.current.has(cleanupKey) ||
-          completedSubscriptionKeys.has(cleanupKey)
+          !fromScan &&
+          (!cleanupPurchaseKeysRef.current.has(key) ||
+            completedSubscriptionKeys.has(key))
         ) {
           setIsProcessing(false);
         }
-        setPurchaseResult(pendingPlanChange);
+        setPurchaseResult(planChange);
+      } else if (
+        pendingPlanChangesRef.current.delete(key) &&
+        mountedRef.current
+      ) {
+        setPurchaseResult(`${purchase.productId} has no pending plan change.`);
       }
-    } else {
-      pendingPlanChangesRef.current.delete(cleanupKey);
-    }
+    },
+    [],
+  );
+
+  const enqueuePurchase = useCallback((purchase: Purchase): Promise<void> => {
+    const cleanupKey = getPurchaseCleanupKey(purchase);
+    // Before the duplicate checks: the current purchase may already be finished.
+    notePlanChange(purchase, cleanupKey);
     if (completedSubscriptionKeys.has(cleanupKey)) {
       return Promise.resolve();
     }
@@ -2006,7 +2028,7 @@ function SubscriptionFlowContainer() {
       );
     });
     return purchaseQueueTailRef.current;
-  }, []);
+  }, [notePlanChange]);
 
   const {
     connected,
@@ -2148,13 +2170,17 @@ function SubscriptionFlowContainer() {
         continue;
       }
       const cleanupKey = getPurchaseCleanupKey(purchase);
-      if (completedSubscriptionKeys.has(cleanupKey)) continue;
+      if (completedSubscriptionKeys.has(cleanupKey)) {
+        notePlanChange(purchase, cleanupKey, { fromScan: true });
+        continue;
+      }
       void enqueuePurchase(purchase);
     }
   }, [
     availablePurchases,
     connected,
     enqueuePurchase,
+    notePlanChange,
     verificationMethod,
     verificationSelection,
   ]);

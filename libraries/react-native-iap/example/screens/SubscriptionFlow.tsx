@@ -1608,6 +1608,32 @@ function SubscriptionFlowContainer() {
   // - Sets up purchase event listeners (onPurchaseSuccess, onPurchaseError)
   // - Provides activeSubscriptions state for easy status checking
   // - Cleans up on unmount
+  // Every subscription delivery, repeats and restore scans included, records
+  // whether it carries a pending plan change, so a shared run reads the latest.
+  const notePlanChange = (
+    purchase: Purchase,
+    key: string,
+    {fromScan = false}: {fromScan?: boolean} = {},
+  ): void => {
+    if (
+      retainedPurchaseRef.current &&
+      getPurchaseCleanupKey(retainedPurchaseRef.current) === key
+    ) {
+      retainedPurchaseRef.current = purchase;
+    }
+    const planChange = describePendingPlanChange(purchase);
+    if (planChange) {
+      pendingPlanChangesRef.current.set(key, planChange);
+      // A run in flight keeps the controls disabled until it finishes.
+      if (!fromScan && !inFlightSubscriptionTasks.has(key)) {
+        setIsProcessing(false);
+      }
+      setPurchaseResult(planChange);
+    } else if (pendingPlanChangesRef.current.delete(key)) {
+      setPurchaseResult(`${purchase.productId} has no pending plan change.`);
+    }
+  };
+
   const handlePurchaseSuccess = async (purchase: Purchase): Promise<void> => {
     if (!mountedRef.current) return;
 
@@ -1621,20 +1647,8 @@ function SubscriptionFlowContainer() {
     }
 
     const purchaseCleanupKey = getPurchaseCleanupKey(purchase);
-    // The current purchase may already be finished, so record and show a
-    // pending plan change before the duplicate check drops this delivery; a
-    // run already in flight reads the record when it completes.
-    const pendingPlanChange = describePendingPlanChange(purchase);
-    if (pendingPlanChange) {
-      pendingPlanChangesRef.current.set(purchaseCleanupKey, pendingPlanChange);
-      // A run in flight keeps the controls disabled until it finishes.
-      if (!inFlightSubscriptionTasks.has(purchaseCleanupKey)) {
-        setIsProcessing(false);
-      }
-      setPurchaseResult(pendingPlanChange);
-    } else {
-      pendingPlanChangesRef.current.delete(purchaseCleanupKey);
-    }
+    // Before the duplicate check: the current purchase may already be finished.
+    notePlanChange(purchase, purchaseCleanupKey);
     if (completedSubscriptionKeys.has(purchaseCleanupKey)) {
       console.log('[SubscriptionFlow] ignoring duplicate purchase callback:', {
         productId,
@@ -2187,7 +2201,10 @@ function SubscriptionFlowContainer() {
       }
 
       const cleanupKey = getPurchaseCleanupKey(purchase);
-      if (completedSubscriptionKeys.has(cleanupKey)) continue;
+      if (completedSubscriptionKeys.has(cleanupKey)) {
+        notePlanChange(purchase, cleanupKey, {fromScan: true});
+        continue;
+      }
 
       void dispatchPurchaseSuccess(purchase).catch((error) => {
         console.log(
