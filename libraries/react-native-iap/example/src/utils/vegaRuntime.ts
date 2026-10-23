@@ -318,6 +318,21 @@ export function createIapkitVerificationPayload(
   );
 }
 
+/**
+ * Play resolves a pending upgrade, downgrade, or prepaid top-up with the
+ * current purchase: the change applies only once its payment completes.
+ */
+export function describePendingPlanChange(purchase: Purchase): string | null {
+  const change =
+    'pendingPurchaseUpdateAndroid' in purchase
+      ? purchase.pendingPurchaseUpdateAndroid
+      : null;
+  return change
+    ? `Plan change to ${change.products.join(', ')} waits for payment. ` +
+        `${purchase.productId} stays active until it completes.`
+    : null;
+}
+
 export function getPurchaseCleanupKey(purchase: Purchase): string {
   return (
     purchase.purchaseToken ??

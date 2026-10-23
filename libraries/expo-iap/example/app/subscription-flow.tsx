@@ -51,6 +51,7 @@ import {
   getDefaultVerificationMethod,
   matchesVerifiedPendingPurchase,
   getIapkitVerificationError,
+  describePendingPlanChange,
   getPurchaseCleanupKey,
   getSubscriptionProductId,
   rememberCompletedPurchaseKey,
@@ -1905,9 +1906,10 @@ function SubscriptionFlowContainer() {
     if (!mountedRef.current) return;
 
     setPurchaseResult(
-      isRestoration
-        ? 'Subscription restored and finished successfully.'
-        : 'Subscription activated and finished successfully.',
+      describePendingPlanChange(purchase) ??
+        (isRestoration
+          ? 'Subscription restored and finished successfully.'
+          : 'Subscription activated and finished successfully.'),
     );
 
     if (Platform.OS === 'android' && iapkitVerifyRequest) {
@@ -1957,6 +1959,13 @@ function SubscriptionFlowContainer() {
   };
 
   const enqueuePurchase = useCallback((purchase: Purchase): Promise<void> => {
+    // The current purchase may already be finished, so show a pending plan
+    // change before the duplicate checks drop it.
+    const pendingPlanChange = describePendingPlanChange(purchase);
+    if (pendingPlanChange && mountedRef.current) {
+      setIsProcessing(false);
+      setPurchaseResult(pendingPlanChange);
+    }
     const cleanupKey = getPurchaseCleanupKey(purchase);
     if (completedSubscriptionKeys.has(cleanupKey)) {
       return Promise.resolve();

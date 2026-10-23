@@ -20,7 +20,7 @@ on:
         default: false
         type: boolean
       allow_unreleased_native:
-        description: "Release although openiap-google or openiap-apple has unreleased source changes"
+        description: "Release although openiap-google or openiap-apple is unreleased: source changes, or a Client Protocol other than main's"
         required: false
         default: false
         type: boolean

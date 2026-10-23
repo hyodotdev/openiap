@@ -1,4 +1,4 @@
 [[IgnoredVulns]]
 id = "GHSA-vfj7-8cjw-p6xm"
-ignoreUntil = 2026-10-30
+ignoreUntil = 2026-12-15
 reason = "No patched braces release exists; 3.0.3 is npm latest and still affected. Reached only via micromatch from @graphql-codegen/cli, @graphql-tools/git-loader, and fast-glob during local type generation over repository schema files; the published SDK packages declare no runtime npm dependencies: https://github.com/advisories/GHSA-vfj7-8cjw-p6xm."

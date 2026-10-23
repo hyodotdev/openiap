@@ -172,7 +172,7 @@ Train rules (mistake guards):
   synchronized on `main`. Each library workflow enforces the ordering with
   `release-branch-policy.mjs native-gate`, which refuses a stable release while
   openiap-google or openiap-apple has source commits after its release tag or
-  embeds an older Client Protocol than `main` pins (an Expo release once
+  embeds a Client Protocol that is missing or differs from `main`'s (an Expo release once
   shipped 93 minutes before the natives it needed). The gate
   reads tags; the registry side is
   `knowledge/internal/06-git-deployment.md#library-releases-wait-for-their-natives`.

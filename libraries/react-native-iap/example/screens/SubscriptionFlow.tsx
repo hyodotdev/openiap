@@ -44,6 +44,7 @@ import {
   createIapkitVerificationPayload,
   matchesVerifiedPendingPurchase,
   getIapkitVerificationError,
+  describePendingPlanChange,
   getPurchaseCleanupKey,
   getSubscriptionProductId,
   getSubscriptionQueryIds,
@@ -1617,6 +1618,14 @@ function SubscriptionFlowContainer() {
       return;
     }
 
+    // The current purchase may already be finished, so show a pending plan
+    // change before the duplicate check drops it.
+    const pendingPlanChange = describePendingPlanChange(purchase);
+    if (pendingPlanChange) {
+      setIsProcessing(false);
+      setPurchaseResult(pendingPlanChange);
+    }
+
     const purchaseCleanupKey = getPurchaseCleanupKey(purchase);
     if (completedSubscriptionKeys.has(purchaseCleanupKey)) {
       console.log('[SubscriptionFlow] ignoring duplicate purchase callback:', {
@@ -1961,7 +1970,9 @@ function SubscriptionFlowContainer() {
         console.log('Failed to refresh subscriptions:', getErrorMessage(error));
       }
 
-      if (mountedRef.current) {
+      if (mountedRef.current && pendingPlanChange) {
+        setPurchaseResult(pendingPlanChange);
+      } else if (mountedRef.current) {
         setPurchaseResult(
           `Subscription activated and finished successfully.\n` +
             `Product: ${purchase.productId}\n` +
