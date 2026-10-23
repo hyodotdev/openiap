@@ -268,6 +268,71 @@ describe('useIAP lifecycle', () => {
     expect(hook!.availablePurchases).toEqual([purchase({id: 'newer'})]);
   });
 
+  it('publishes an older read when the newer one fails', async () => {
+    let hook: Hook | undefined;
+    await mount(
+      <Harness
+        options={{onError: () => {}}}
+        onHook={(value) => (hook = value)}
+      />,
+    );
+    let resolveOlder: (purchases: Purchase[]) => void = () => {};
+    jest
+      .mocked(ExpoIapModule.getAvailableItems)
+      .mockImplementationOnce(
+        () =>
+          new Promise<Purchase[]>((resolve) => {
+            resolveOlder = resolve;
+          }),
+      )
+      .mockRejectedValueOnce(new Error('store unavailable'));
+
+    await React.act(async () => {
+      const older = hook!.getAvailablePurchases();
+      await expect(hook!.getAvailablePurchases()).rejects.toThrow(
+        'store unavailable',
+      );
+      resolveOlder([purchase({id: 'owned'})]);
+      await older;
+    });
+
+    expect(hook!.availablePurchases).toEqual([purchase({id: 'owned'})]);
+  });
+
+  it('publishes only the latest active-subscriptions read', async () => {
+    let hook: Hook | undefined;
+    await mount(<Harness onHook={(value) => (hook = value)} />);
+    const active = (productId: string) => ({
+      productId,
+      isActive: true,
+      transactionId: productId,
+      transactionDate: 1720000000000,
+    });
+    let resolveOlder: (
+      subscriptions: ReturnType<typeof active>[],
+    ) => void = () => {};
+    jest
+      .mocked(ExpoIapModule.getActiveSubscriptions)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveOlder = resolve;
+          }),
+      )
+      .mockResolvedValueOnce([active('premium_yearly')]);
+
+    await React.act(async () => {
+      const older = hook!.getActiveSubscriptions();
+      await hook!.getActiveSubscriptions();
+      resolveOlder([active('premium_monthly')]);
+      await older;
+    });
+
+    expect(hook!.activeSubscriptions).toEqual([
+      expect.objectContaining({productId: 'premium_yearly'}),
+    ]);
+  });
+
   it('drops a read that started before a subscription purchase arrived', async () => {
     const catalog = [{id: 'premium_monthly', platform: 'ios', type: 'subs'}];
     jest.mocked(ExpoIapModule.fetchProducts).mockResolvedValue(catalog);

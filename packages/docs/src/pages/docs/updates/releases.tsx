@@ -689,10 +689,11 @@ function Releases() {
           <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
             <li>
               <strong>react-native-iap 17.1.1</strong> and{' '}
-              <strong>expo-iap 6.1.2</strong>: <code>useIAP</code> keeps the
-              newest <code>availablePurchases</code> when reads overlap, so an
-              older read that answers last no longer replaces a pending plan
-              change with stale data.
+              <strong>expo-iap 6.1.2</strong>: <code>useIAP</code> no longer
+              lets a store read that answers late overwrite newer{' '}
+              <code>availablePurchases</code> or{' '}
+              <code>activeSubscriptions</code>, such as a read that started
+              before a purchase arrived.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>

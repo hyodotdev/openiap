@@ -169,6 +169,23 @@ export interface UseIAPOptions {
  * connection, which ends when the last of them unmounts.
  * See documentation at https://openiap.dev/docs/setup/expo#useIAP-hook
  */
+// Store reads can resolve out of order. A result publishes only when no newer
+// read has published, so a failed newer read lets an older result through,
+// and a purchase makes every read that started before it stale.
+interface ReadOrder {
+  started: number;
+  published: number;
+}
+const startRead = (order: ReadOrder): number => ++order.started;
+const claimPublish = (order: ReadOrder, read: number): boolean => {
+  if (read <= order.published) return false;
+  order.published = read;
+  return true;
+};
+const invalidateReads = (order: ReadOrder): void => {
+  order.published = ++order.started;
+};
+
 export function useIAP(options?: UseIAPOptions): UseIap {
   const [connected, setConnected] = useState<boolean>(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -185,8 +202,11 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   const isMountedRef = useRef<boolean>(false);
   const initializationGenerationRef = useRef(0);
   const startedInitializationGenerationRef = useRef(0);
-  // Reads can resolve out of order; only the latest one publishes.
-  const availablePurchasesGenerationRef = useRef(0);
+  const availablePurchasesReads = useRef<ReadOrder>({started: 0, published: 0});
+  const activeSubscriptionsReads = useRef<ReadOrder>({
+    started: 0,
+    published: 0,
+  });
 
   const mergeWithDuplicateCheck = useCallback(
     <T>(
@@ -385,7 +405,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
    */
   const getAvailablePurchasesInternal = useCallback(
     async (options?: PurchaseOptions): Promise<void> => {
-      const generation = ++availablePurchasesGenerationRef.current;
+      const read = startRead(availablePurchasesReads.current);
       try {
         const result = await getAvailablePurchases({
           alsoPublishToEventListenerIOS:
@@ -393,7 +413,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
           onlyIncludeActiveItemsIOS: options?.onlyIncludeActiveItemsIOS ?? true,
           includeSuspendedAndroid: options?.includeSuspendedAndroid ?? false,
         });
-        if (generation === availablePurchasesGenerationRef.current) {
+        if (claimPublish(availablePurchasesReads.current, read)) {
           setAvailablePurchases(result);
         }
       } catch (error) {
@@ -412,9 +432,12 @@ export function useIAP(options?: UseIAPOptions): UseIap {
    */
   const getActiveSubscriptionsInternal = useCallback(
     async (subscriptionIds?: string[]): Promise<void> => {
+      const read = startRead(activeSubscriptionsReads.current);
       try {
         const result = await getActiveSubscriptions(subscriptionIds);
-        setActiveSubscriptions(result);
+        if (claimPublish(activeSubscriptionsReads.current, read)) {
+          setActiveSubscriptions(result);
+        }
       } catch (error) {
         ExpoIapConsole.error('Error getting active subscriptions:', error);
         invokeOnError(error);
@@ -488,7 +511,8 @@ export function useIAP(options?: UseIAPOptions): UseIap {
       }
       // A read that started before this purchase is stale; the refresh below
       // publishes a newer one.
-      availablePurchasesGenerationRef.current += 1;
+      invalidateReads(availablePurchasesReads.current);
+      invalidateReads(activeSubscriptionsReads.current);
       const generation = initializationGenerationRef.current;
       const isCurrent = (): boolean =>
         isMountedRef.current &&
@@ -528,14 +552,14 @@ export function useIAP(options?: UseIAPOptions): UseIap {
       try {
         await restorePurchasesNative();
 
-        const generation = ++availablePurchasesGenerationRef.current;
+        const read = startRead(availablePurchasesReads.current);
         const purchases = await getAvailablePurchases({
           alsoPublishToEventListenerIOS:
             options?.alsoPublishToEventListenerIOS ?? false,
           onlyIncludeActiveItemsIOS: options?.onlyIncludeActiveItemsIOS ?? true,
           includeSuspendedAndroid: options?.includeSuspendedAndroid ?? false,
         });
-        if (generation === availablePurchasesGenerationRef.current) {
+        if (claimPublish(availablePurchasesReads.current, read)) {
           setAvailablePurchases(purchases);
         }
       } catch (error) {

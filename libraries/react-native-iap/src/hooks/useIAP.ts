@@ -335,6 +335,23 @@ function mergeByKey<T>(
  * React Hook for managing In-App Purchases.
  * See documentation at https://react-native-iap.hyo.dev/docs/hooks/useIAP
  */
+// Store reads can resolve out of order. A result publishes only when no newer
+// read has published, so a failed newer read lets an older result through,
+// and a purchase makes every read that started before it stale.
+interface ReadOrder {
+  started: number;
+  published: number;
+}
+const startRead = (order: ReadOrder): number => ++order.started;
+const claimPublish = (order: ReadOrder, read: number): boolean => {
+  if (read <= order.published) return false;
+  order.published = read;
+  return true;
+};
+const invalidateReads = (order: ReadOrder): void => {
+  order.published = ++order.started;
+};
+
 export function useIAP(options?: UseIapOptions): UseIap {
   const [connected, setConnected] = useState<boolean>(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -369,8 +386,11 @@ export function useIAP(options?: UseIapOptions): UseIap {
   const isMountedRef = useRef<boolean>(false);
   const initializationGenerationRef = useRef(0);
   const productRequestGenerationRef = useRef(0);
-  // Reads can resolve out of order; only the latest one publishes.
-  const availablePurchasesGenerationRef = useRef(0);
+  const availablePurchasesReads = useRef<ReadOrder>({started: 0, published: 0});
+  const activeSubscriptionsReads = useRef<ReadOrder>({
+    started: 0,
+    published: 0,
+  });
   const productRequestOwnersRef = useRef(new Map<string, number>());
 
   const subscriptionsRefState = useRef<ProductSubscription[]>([]);
@@ -483,7 +503,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
 
   const getAvailablePurchasesInternal = useCallback(
     async (options?: PurchaseOptions): Promise<void> => {
-      const generation = ++availablePurchasesGenerationRef.current;
+      const read = startRead(availablePurchasesReads.current);
       try {
         const result = await getAvailablePurchases({
           alsoPublishToEventListenerIOS:
@@ -493,7 +513,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
         });
         if (
           isMountedRef.current &&
-          generation === availablePurchasesGenerationRef.current
+          claimPublish(availablePurchasesReads.current, read)
         ) {
           setAvailablePurchases(result);
         }
@@ -508,9 +528,13 @@ export function useIAP(options?: UseIapOptions): UseIap {
 
   const getActiveSubscriptionsInternal = useCallback(
     async (subscriptionIds?: string[]): Promise<ActiveSubscription[]> => {
+      const read = startRead(activeSubscriptionsReads.current);
       try {
         const result = await getActiveSubscriptions(subscriptionIds);
-        if (isMountedRef.current) {
+        if (
+          isMountedRef.current &&
+          claimPublish(activeSubscriptionsReads.current, read)
+        ) {
           setActiveSubscriptions(result);
         }
         return result;
@@ -611,7 +635,8 @@ export function useIAP(options?: UseIapOptions): UseIap {
         async (purchase: Purchase) => {
           // A read that started before this purchase is stale; the refresh
           // below publishes a newer one.
-          availablePurchasesGenerationRef.current += 1;
+          invalidateReads(availablePurchasesReads.current);
+          invalidateReads(activeSubscriptionsReads.current);
           // Deliver first so store refresh latency cannot delay verification
           // and transaction finalization in the host app.
           try {

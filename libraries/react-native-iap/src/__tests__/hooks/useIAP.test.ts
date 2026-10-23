@@ -46,6 +46,7 @@ import * as IAP from '../../index';
 import {useIAP} from '../../hooks/useIAP';
 import {Platform} from 'react-native';
 import type {
+  ActiveSubscription,
   FetchProductsResult,
   ProductAndroid,
   ProductSubscriptionAndroid,
@@ -1009,6 +1010,73 @@ describe('hooks/useIAP (renderer)', () => {
       });
 
       expect(api.availablePurchases).toEqual([listed('newer')]);
+    });
+
+    it('publishes an older read when the newer one fails', async () => {
+      let api: any;
+      const Harness = () => {
+        api = useIAP({onError: () => {}});
+        return null;
+      };
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      const owned = {id: 'owned', productId: 'owned'} as Purchase;
+      let resolveOlder: (purchases: Purchase[]) => void = () => {};
+      mockGetAvailablePurchases
+        .mockImplementationOnce(
+          () =>
+            new Promise<Purchase[]>((resolve) => {
+              resolveOlder = resolve;
+            }),
+        )
+        .mockRejectedValueOnce(new Error('store unavailable'));
+      await act(async () => {
+        const older = api.getAvailablePurchases();
+        await expect(api.getAvailablePurchases()).rejects.toThrow(
+          'store unavailable',
+        );
+        resolveOlder([owned]);
+        await older;
+      });
+
+      expect(api.availablePurchases).toEqual([owned]);
+    });
+
+    it('publishes only the latest active-subscriptions read', async () => {
+      let api: any;
+      const Harness = () => {
+        api = useIAP();
+        return null;
+      };
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      const active = (productId: string) =>
+        ({productId, isActive: true}) as ActiveSubscription;
+      let resolveOlder: (
+        subscriptions: ActiveSubscription[],
+      ) => void = () => {};
+      mockGetActiveSubscriptions
+        .mockImplementationOnce(
+          () =>
+            new Promise<ActiveSubscription[]>((resolve) => {
+              resolveOlder = resolve;
+            }),
+        )
+        .mockResolvedValueOnce([active('premium_yearly')]);
+      await act(async () => {
+        const older = api.getActiveSubscriptions();
+        await api.getActiveSubscriptions();
+        resolveOlder([active('premium_monthly')]);
+        await older;
+      });
+
+      expect(api.activeSubscriptions).toEqual([active('premium_yearly')]);
     });
 
     it('drops a read that started before a purchase arrived', async () => {
