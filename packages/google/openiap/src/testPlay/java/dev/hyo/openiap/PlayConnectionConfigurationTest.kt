@@ -70,6 +70,22 @@ class PlayConnectionConfigurationTest {
     }
 
     @Test
+    fun `no purchase starts while the client is being rebuilt`() {
+        assertTrue(
+            purchaseAdmissionError(clientReady = true, purchaseInProgress = false, reconnecting = true)
+                is OpenIapError.ServiceDisconnected,
+        )
+        assertTrue(
+            purchaseAdmissionError(clientReady = true, purchaseInProgress = true, reconnecting = false)
+                is OpenIapError.DeveloperError,
+        )
+        assertEquals(
+            null,
+            purchaseAdmissionError(clientReady = true, purchaseInProgress = false, reconnecting = false),
+        )
+    }
+
+    @Test
     fun `a client that is not ready always connects`() {
         assertFalse(keepsLiveConnection(ready = false, live = standard, requested = null))
     }

@@ -182,10 +182,6 @@ internal fun playConnectionConfiguration(
 }
 
 /**
- * A ready client stays unless the caller passed a config that asks Play for
- * something else; `requested` is null when no config was passed.
- */
-/**
  * The configuration a connect asks Play for. Programs queued for the live
  * connection stay; without a config, a reconnect after a service drop keeps
  * the program the app chose last.
@@ -207,6 +203,25 @@ internal fun requestedConnectionConfiguration(
     else -> playConnectionConfiguration(pendingPrograms, null)
 }
 
+/**
+ * Why a purchase cannot start now, or null. A rebuild for another billing
+ * program would replace the client mid-purchase, so none starts during one.
+ */
+internal fun purchaseAdmissionError(
+    clientReady: Boolean,
+    purchaseInProgress: Boolean,
+    reconnecting: Boolean,
+): OpenIapError? = when {
+    !clientReady -> OpenIapError.ServiceDisconnected(
+        "Billing connection ended before the purchase request could start"
+    )
+    purchaseInProgress -> OpenIapError.DeveloperError("Another purchase is already in progress")
+    reconnecting -> OpenIapError.ServiceDisconnected(
+        "Billing connection is reconnecting; request the purchase again"
+    )
+    else -> null
+}
+
 /** A caller that joined another caller's attempt still needs its own config applied. */
 internal fun reconnectsAfterJoin(
     hasConfig: Boolean,
@@ -214,6 +229,10 @@ internal fun reconnectsAfterJoin(
     requested: BillingConnectionConfiguration,
 ): Boolean = hasConfig && joined != requested
 
+/**
+ * A ready client stays unless the caller passed a config that asks Play for
+ * something else; `requested` is null when no config was passed.
+ */
 internal fun keepsLiveConnection(
     ready: Boolean,
     live: BillingConnectionConfiguration?,
@@ -447,25 +466,21 @@ class OpenIapModule(
         errorEventGate: PurchaseErrorEventGate,
         callback: (Result<List<Purchase>>) -> Unit
     ): OpenIapError? = synchronized(connectionLifecycleLock) {
-        when {
-            billingClient !== expectedClient || !expectedClient.isReady ->
-                OpenIapError.ServiceDisconnected(
-                    "Billing connection ended before the purchase request could start"
-                )
-            pendingPurchase != null ->
-                OpenIapError.DeveloperError("Another purchase is already in progress")
-            else -> {
-                pendingPurchase = PendingPurchaseSnapshot(
-                    client = expectedClient,
-                    generation = connectionGeneration,
-                    callback = callback,
-                    errorEventGate = errorEventGate,
-                    requestedSkus = requestedSkus.toSet(),
-                    requestedProductType = requestedProductType,
-                    tokensBeforeLaunch = tokensBeforeLaunch,
-                )
-                null
-            }
+        purchaseAdmissionError(
+            clientReady = billingClient === expectedClient && expectedClient.isReady,
+            purchaseInProgress = pendingPurchase != null,
+            reconnecting = connectionAttempt != null,
+        ) ?: run {
+            pendingPurchase = PendingPurchaseSnapshot(
+                client = expectedClient,
+                generation = connectionGeneration,
+                callback = callback,
+                errorEventGate = errorEventGate,
+                requestedSkus = requestedSkus.toSet(),
+                requestedProductType = requestedProductType,
+                tokensBeforeLaunch = tokensBeforeLaunch,
+            )
+            null
         }
     }
 
@@ -808,9 +823,11 @@ class OpenIapModule(
             )
             if (owns) {
                 connectionAttempt = null
+                // The program the app chose last, even if this connect failed.
+                liveConnectionConfiguration = attempt.configuration
                 if (connected) {
-                    liveConnectionConfiguration = attempt.configuration
-                    liveQueuedPrograms = attempt.pendingPrograms
+                    // Queued programs stay until endConnection, across reconnects.
+                    liveQueuedPrograms = liveQueuedPrograms + attempt.pendingPrograms
                 }
                 if (!connected) replaceBillingClientLocked(null)
                 activeBillingClientMode = commitPlayConnectionConfiguration(
