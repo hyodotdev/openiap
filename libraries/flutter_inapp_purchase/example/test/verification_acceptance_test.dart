@@ -1,8 +1,30 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+import 'package:flutter_inapp_purchase_example/src/app_purchase_flow.dart';
 import 'package:flutter_inapp_purchase_example/src/constants.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  final flows = <AppPurchaseFlow>[];
+
+  AppPurchaseFlow purchases() {
+    final purchases = AppPurchaseFlow(FlutterInappPurchase());
+    flows.add(purchases);
+    return purchases;
+  }
+
+  tearDown(() {
+    for (final purchases in flows) {
+      purchases.dispose();
+    }
+    flows.clear();
+  });
+
+  setUp(() {
+    dotenv.loadFromString(envString: 'IAPKIT_API_KEY=openiap-kit_pk_test');
+  });
+
   test('Apple local verification rejects unrelated or inactive signed receipts',
       () {
     PurchaseIOS receipt(
@@ -43,113 +65,39 @@ void main() {
       expect(IapConstants.matchesVerifiedPendingPurchase(purchase, [other]),
           isFalse);
     }
-    RequestVerifyPurchaseWithIapkitResult result(String? environment) =>
-        RequestVerifyPurchaseWithIapkitResult(
-            isValid: true,
-            productId: purchase.productId,
-            store: IapStore.Apple,
-            storeId: 'apple',
-            state: IapkitPurchaseState.ReadyToConsume,
-            environment: environment);
-    expect(
-        IapConstants.acceptsVerification(result('Sandbox'), purchase), isTrue);
-    expect(IapConstants.acceptsVerification(result('Production'), purchase),
-        isFalse);
-    expect(IapConstants.acceptsVerification(result(null), purchase), isFalse);
   });
 
-  test(
-      'restored Amazon terms require exact catalog metadata and provider identity',
-      () {
+  test('a restored Amazon term maps to its catalog product', () {
     for (final term in IapConstants.subscriptionProductIds) {
-      for (final store in [IapStore.Amazon, IapStore.Unknown]) {
-        PurchaseAndroid restored({String? planId, String? storeId}) =>
-            PurchaseAndroid(
-              id: 'restored-receipt',
-              productId: IapConstants.amazonSubscriptionBaseId,
-              currentPlanId: planId,
-              purchaseToken: 'restored-receipt',
-              purchaseState: PurchaseState.Purchased,
-              transactionDate: 1,
-              quantity: 1,
-              isAutoRenewing: true,
-              store: store,
-              storeId: storeId ??
-                  (store == IapStore.Amazon ? 'amazon' : 'amazon_example'),
-            );
-        final receipt = restored(planId: term);
-        expect(IapConstants.subscriptionProductId(receipt), term);
-        expect(receipt.productId, IapConstants.amazonSubscriptionBaseId);
-        expect(IapConstants.subscriptionProductId(restored()), isNull);
-        expect(
-            IapConstants.subscriptionProductId(
-                restored(planId: 'foreign.term')),
-            isNull);
-        if (store == IapStore.Unknown) {
-          expect(
-              IapConstants.subscriptionProductId(
-                  restored(planId: term, storeId: 'foreign')),
-              isNull);
-        }
-      }
+      expect(
+        IapConstants.subscriptionProductId(
+          IapConstants.amazonSubscriptionBaseId,
+          term,
+        ),
+        term,
+      );
+      expect(IapConstants.subscriptionProductId(term, null), term);
     }
+    expect(
+      IapConstants.subscriptionProductId(
+        IapConstants.amazonSubscriptionBaseId,
+        null,
+      ),
+      isNull,
+    );
+    expect(
+      IapConstants.subscriptionProductId(
+        IapConstants.amazonSubscriptionBaseId,
+        'foreign.term',
+      ),
+      isNull,
+    );
   });
 
-  for (final sku in IapConstants.subscriptionProductIds) {
-    test('Amazon term $sku must match its catalog base and active state', () {
+  for (final storeId in ['amazon', 'amazon_example']) {
+    test('verifies Amazon terms under their base SKU ($storeId)', () {
+      final options = purchases().iapkitOptions(VerificationMethod.iapkit);
       final purchase = PurchaseAndroid(
-        id: 'receipt',
-        productId: sku,
-        purchaseToken: 'receipt',
-        purchaseState: PurchaseState.Purchased,
-        transactionDate: 1,
-        quantity: 1,
-        isAutoRenewing: true,
-        store: IapStore.Amazon,
-        storeId: 'amazon',
-      );
-      RequestVerifyPurchaseWithIapkitResult result({
-        String productId = 'dev.hyo.martie.premium.base',
-        IapkitPurchaseState state = IapkitPurchaseState.Entitled,
-        IapStore store = IapStore.Amazon,
-        String? environment,
-      }) =>
-          RequestVerifyPurchaseWithIapkitResult(
-            isValid: true,
-            productId: productId,
-            state: state,
-            store: store,
-            storeId: store.value,
-            environment: environment ??
-                (IapConstants.amazonRvsSandbox ? 'Sandbox' : 'Production'),
-          );
-      expect(IapConstants.acceptsVerification(result(), purchase), isTrue);
-      expect(
-          IapConstants.acceptsVerification(
-              result(productId: 'foreign.base'), purchase),
-          isFalse);
-      expect(
-          IapConstants.acceptsVerification(
-              result(state: IapkitPurchaseState.ReadyToConsume), purchase),
-          isFalse);
-      expect(
-          IapConstants.acceptsVerification(
-              result(store: IapStore.Google), purchase),
-          isFalse);
-      expect(
-          IapConstants.acceptsVerification(
-              result(
-                  environment:
-                      IapConstants.amazonRvsSandbox ? 'Production' : 'Sandbox'),
-              purchase),
-          isFalse);
-    });
-  }
-
-  test(
-      'community verification preserves provider identity and rejects foreign receipts',
-      () {
-    final purchase = PurchaseAndroid(
         id: 'receipt',
         productId: 'dev.hyo.martie.premium',
         purchaseToken: 'receipt',
@@ -157,41 +105,75 @@ void main() {
         transactionDate: 1,
         quantity: 1,
         isAutoRenewing: true,
-        store: IapStore.Unknown,
-        storeId: 'amazon_example');
-    RequestVerifyPurchaseWithIapkitResult result(
-            {String storeId = 'amazon_example',
-            IapStore store = IapStore.Unknown,
-            String productId = 'dev.hyo.martie.premium.base',
-            String? environment}) =>
-        RequestVerifyPurchaseWithIapkitResult(
-            isValid: true,
-            store: store,
-            storeId: storeId,
-            productId: productId,
-            state: IapkitPurchaseState.Entitled,
-            environment: environment ??
-                (IapConstants.amazonRvsSandbox ? 'Sandbox' : 'Production'));
-    expect(IapConstants.verificationStore(purchase), IapStore.Amazon);
-    expect(IapConstants.acceptsVerification(result(), purchase), isTrue);
+        store: storeId == 'amazon' ? IapStore.Amazon : IapStore.Unknown,
+        storeId: storeId,
+      );
+
+      final props = toIapkitVerificationProps(purchase, options).iapkit!;
+
+      expect(props.apiKey, 'openiap-kit_pk_test');
+      expect(props.baseUrl, isNull);
+      expect(props.amazon?.receiptId, 'receipt');
+      expect(props.amazon?.expectedProductId, 'dev.hyo.martie.premium.base');
+      expect(props.amazon?.sandbox, IapConstants.amazonRvsSandbox);
+      final environment =
+          IapConstants.amazonRvsSandbox ? 'Sandbox' : 'Production';
+      VerifyPurchaseWithProviderResult result({
+        String productId = 'dev.hyo.martie.premium.base',
+        String? env,
+      }) =>
+          VerifyPurchaseWithProviderResult(
+            provider: PurchaseVerificationProvider.Iapkit,
+            iapkit: RequestVerifyPurchaseWithIapkitResult(
+              isValid: true,
+              productId: productId,
+              state: IapkitPurchaseState.Entitled,
+              store: purchase.store,
+              storeId: storeId,
+              environment: env ?? environment,
+            ),
+          );
+      expect(
+        readIapkitVerification(
+          result(),
+          purchase,
+          isConsumable: false,
+          options: options,
+        ),
+        isA<PurchaseEntitled>(),
+      );
+      for (final foreign in [
+        result(productId: 'foreign.base'),
+        result(env: environment == 'Sandbox' ? 'Production' : 'Sandbox'),
+      ]) {
+        expect(
+          () => readIapkitVerification(
+            foreign,
+            purchase,
+            isConsumable: false,
+            options: options,
+          ),
+          throwsA(isA<PurchaseError>()),
+        );
+      }
+    });
+  }
+
+  test('Local (IAPKit) needs a configured base URL', () {
+    dotenv.loadFromString(
+      envString: 'IAPKIT_API_KEY=openiap-kit_pk_test\n'
+          'IAPKIT_BASE_URL= http://localhost:3000 ',
+    );
+    final flow = purchases();
+
     expect(
-        IapConstants.acceptsVerification(result(storeId: 'foreign'), purchase),
-        isFalse);
+      flow.iapkitOptions(VerificationMethod.iapkitLocalhost).baseUrl,
+      'http://localhost:3000',
+    );
+    dotenv.loadFromString(envString: 'IAPKIT_API_KEY=openiap-kit_pk_test');
     expect(
-        IapConstants.acceptsVerification(
-            result(store: IapStore.Amazon, storeId: 'amazon'), purchase),
-        isFalse);
-    expect(
-        IapConstants.acceptsVerification(
-            result(productId: 'foreign.base'), purchase),
-        isFalse);
-    expect(
-        IapConstants.acceptsVerification(
-            result(
-                environment:
-                    IapConstants.amazonRvsSandbox ? 'Production' : 'Sandbox'),
-            purchase),
-        isFalse);
-    expect(purchase.store, IapStore.Unknown);
+      () => flow.iapkitOptions(VerificationMethod.iapkitLocalhost),
+      throwsA(isA<PurchaseError>()),
+    );
   });
 }

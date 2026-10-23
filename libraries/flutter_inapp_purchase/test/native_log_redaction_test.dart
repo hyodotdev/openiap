@@ -15,22 +15,25 @@ void main() {
     expect(source, isNot(contains('t.substring(0')));
     expect(source, isNot(contains(r'Using fake token: $fakeToken')));
     expect(source, isNot(contains("testToken.isEmpty ? 'empty' : testToken")));
-    expect(source, contains('Using configured subscription offer'));
-    expect(source, contains('Has transaction ID:'));
-    expect(source, contains('Has purchase credential:'));
-    expect(source, contains('has purchase credential:'));
+    expect(source, isNot(contains(r'${purchase.purchaseToken}')));
+    expect(source, isNot(contains(r'$token')));
   });
 
-  test('purchase example logs token presence instead of its value', () {
-    final source = File(
+  test('purchase example never logs a purchase token', () {
+    for (final path in [
       'example/lib/src/screens/purchase_flow_screen.dart',
-    ).readAsStringSync();
+      'example/lib/src/app_purchase_flow.dart',
+    ]) {
+      final source = File(path).readAsStringSync();
 
-    expect(source, isNot(contains('_formatTokenValue')));
-    expect(source, isNot(contains(r'${purchase.purchaseToken}')));
-    expect(source, isNot(contains(r'$jwsOrToken')));
-    expect(source, contains('Has purchase credential:'));
-    expect(source, contains('Has verification credential:'));
+      expect(source, isNot(contains('_formatTokenValue')), reason: path);
+      expect(
+        source,
+        isNot(contains(r'${purchase.purchaseToken}')),
+        reason: path,
+      );
+      expect(source, isNot(contains(r'$jwsOrToken')), reason: path);
+    }
   });
 
   test('Apple native loggers recursively redact sensitive payload keys', () {

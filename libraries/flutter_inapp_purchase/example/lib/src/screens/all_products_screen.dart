@@ -39,7 +39,6 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
   void dispose() {
     _purchaseUpdatedSubscription?.cancel();
     _purchaseErrorSubscription?.cancel();
-    _iap.endConnection();
     super.dispose();
   }
 

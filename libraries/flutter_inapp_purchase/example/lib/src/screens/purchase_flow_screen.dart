@@ -4,49 +4,25 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+import '../app_purchase_flow.dart';
 import '../widgets/product_detail_modal.dart';
 import '../widgets/app_ownership_card.dart';
 import '../widgets/purchase_detail_view.dart';
 import '../constants.dart';
 
 class PurchaseFlowScreen extends StatefulWidget {
-  const PurchaseFlowScreen({super.key, this.iap});
+  const PurchaseFlowScreen({super.key, this.purchases});
 
-  final FlutterInappPurchase? iap;
+  final AppPurchaseFlow? purchases;
 
   @override
   State<PurchaseFlowScreen> createState() => _PurchaseFlowScreenState();
 }
 
-/// Verification method options
-enum VerificationMethod { ignore, local, iapkitLocalhost, iapkit }
-
-extension VerificationMethodX on VerificationMethod {
-  bool get isIapkit =>
-      this == VerificationMethod.iapkitLocalhost ||
-      this == VerificationMethod.iapkit;
-
-  String get label => switch (this) {
-        VerificationMethod.ignore => 'Ignore',
-        VerificationMethod.local => 'Local (Device)',
-        VerificationMethod.iapkitLocalhost => 'Local (IAPKit)',
-        VerificationMethod.iapkit => 'IAPKit',
-      };
-}
-
-/// Mirrors the other examples: no key skips, a local origin prefers it.
-VerificationMethod defaultVerificationMethod(
-  String apiKey,
-  String localBaseUrl,
-) {
-  if (apiKey.trim().isEmpty) return VerificationMethod.ignore;
-  if (localBaseUrl.trim().isNotEmpty) return VerificationMethod.iapkitLocalhost;
-  return VerificationMethod.iapkit;
-}
-
 class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
-  late final FlutterInappPurchase _iap =
-      widget.iap ?? FlutterInappPurchase.instance;
+  late final AppPurchaseFlow _purchases =
+      widget.purchases ?? AppPurchaseFlow.instance;
+  FlutterInappPurchase get _iap => _purchases.iap;
 
   // Use product IDs from constants
   final List<String> productIds = IapConstants.inAppProductIds;
@@ -59,61 +35,39 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
   bool _loading = false;
   String? _purchaseResult;
   Purchase? _currentPurchase;
-  StreamSubscription<Purchase>? _purchaseUpdatedSubscription;
-  StreamSubscription<PurchaseError>? _purchaseErrorSubscription;
-  final Set<String> _processedTransactionIds =
-      {}; // Track processed transactions
-  final Set<String> _processedErrorMessages =
-      {}; // Track processed error messages
-  VerificationMethod _verificationMethod = defaultVerificationMethod(
-    IapConstants.iapkitApiKey,
-    IapConstants.iapkitBaseUrl,
-  );
+  late final StreamSubscription<PurchaseFlowOutcome> _outcomeSubscription;
+  late final StreamSubscription<PurchaseError> _purchaseErrorSubscription;
 
   @override
   void initState() {
     super.initState();
-    _initConnection();
+    _outcomeSubscription = _purchases.flow.outcomes.listen(_showOutcome);
+    _purchaseErrorSubscription =
+        _iap.purchaseErrorListener.listen(_handlePurchaseError);
+    _awaitConnection(_purchases.connected);
   }
 
   @override
   void dispose() {
-    _purchaseUpdatedSubscription?.cancel();
-    _purchaseErrorSubscription?.cancel();
-    _iap.endConnection();
+    _outcomeSubscription.cancel();
+    _purchaseErrorSubscription.cancel();
     super.dispose();
   }
 
-  Future<void> _initConnection() async {
+  // The app owns the connection; this screen only loads its products.
+  Future<void> _awaitConnection(Future<bool> connecting) async {
     if (!mounted) return;
     setState(() {
       _loading = true;
     });
 
     try {
-      await _purchaseUpdatedSubscription?.cancel();
-      await _purchaseErrorSubscription?.cancel();
-      // Reset alternative billing settings before connecting.
-      try {
-        await _iap.endConnection();
-        await Future.delayed(const Duration(milliseconds: 100));
-      } catch (e) {
-        debugPrint('Note: endConnection failed (might not be connected): $e');
-      }
-
-      // Initialize with default settings (no alternative billing)
-      final connected = await _iap.initConnection();
+      final connected = await connecting;
       if (!mounted) return;
       setState(() {
         _connected = connected;
       });
-      if (!connected) return;
-
-      _setupPurchaseListeners();
-      await _loadProducts();
-      await _recoverPurchases();
-    } catch (e) {
-      debugPrint('Failed to initialize IAP connection: $e');
+      if (connected) await _loadProducts();
     } finally {
       if (mounted) {
         setState(() {
@@ -123,70 +77,10 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
     }
   }
 
-  void _setupPurchaseListeners() {
-    debugPrint('Setting up purchase listeners...');
-
-    // Listen to purchase updates (using new purchaseUpdatedListener)
-    _purchaseUpdatedSubscription = _iap.purchaseUpdatedListener.listen(
-      (purchase) {
-        debugPrint('🎉 Purchase update received!');
-        debugPrint('ProductId: ${purchase.productId}');
-        debugPrint('ID: ${purchase.id}'); // OpenIAP standard
-        final txId = purchase.transactionIdFor;
-        debugPrint('TransactionId: ${txId ?? 'N/A'}');
-        debugPrint(
-          'Has purchase credential: ${purchase.purchaseToken?.isNotEmpty ?? false}',
-        );
-        debugPrint(
-          'Purchase data: productId=${purchase.productId}, store=${purchase.store}, state=${purchase.purchaseState}',
-        );
-        _handlePurchaseUpdate(purchase);
-      },
-      onError: (Object error) {
-        debugPrint('❌ Purchase stream error: $error');
-      },
-      onDone: () {
-        debugPrint('Purchase stream closed');
-      },
-    );
-
-    // Listen to purchase errors (using new purchaseErrorListener)
-    _purchaseErrorSubscription = _iap.purchaseErrorListener.listen(
-      (purchaseError) {
-        debugPrint('❌ Purchase error received!');
-        debugPrint('Error code: ${purchaseError.code}');
-        debugPrint('Error message: ${purchaseError.message}');
-
-        // Prevent duplicate error handling
-        final errorKey = purchaseError.message;
-        if (_processedErrorMessages.contains(errorKey)) {
-          debugPrint('ℹ️ Error already processed: $errorKey');
-          return;
-        }
-        _processedErrorMessages.add(errorKey);
-
-        _handlePurchaseError(purchaseError);
-      },
-      onError: (Object error) {
-        debugPrint('❌ Error stream error: $error');
-      },
-    );
-
-    debugPrint('Purchase listeners setup complete');
-  }
-
+  // Outcomes arrive through _showOutcome.
   Future<void> _recoverPurchases() async {
-    if (!_connected || !mounted) return;
     try {
-      final purchases = !kIsWeb &&
-              (defaultTargetPlatform == TargetPlatform.iOS ||
-                  defaultTargetPlatform == TargetPlatform.macOS)
-          ? await _iap.getPendingTransactionsIOS()
-          : await _iap.getAvailablePurchases();
-      for (final purchase in purchases) {
-        if (!mounted) return;
-        await _handlePurchaseUpdate(purchase);
-      }
+      await _purchases.flow.recoverPurchases();
     } catch (error) {
       if (error is PurchaseError &&
           error.code == ErrorCode.FeatureNotSupported) {
@@ -201,149 +95,20 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
     }
   }
 
-  Future<void> _handlePurchaseUpdate(Purchase purchase) async {
-    if (!IapConstants.isInAppPurchase(purchase.productId)) return;
-    if (mounted) {
-      setState(() {
-        _isProcessing = false;
-      });
-    }
-    if (_verificationMethod == VerificationMethod.ignore) {
-      if (mounted) {
-        setState(() {
-          _purchaseResult =
-              'Receipt retained. Choose verification to retry this receipt.';
-        });
-      }
-      return;
-    }
-    debugPrint('🎯 Purchase update received: ${purchase.productId}');
-    debugPrint('  Store: ${purchase.store}');
-    debugPrint('  Purchase state: ${purchase.purchaseState}');
-    final transactionId =
-        purchase.id.isNotEmpty ? purchase.id : purchase.transactionIdFor;
-    final androidStateValue = purchase.androidPurchaseStateValue;
-    final iosTransactionState = purchase.iosTransactionState;
-    final acknowledgedAndroid = purchase.androidIsAcknowledged;
-    debugPrint('  Purchase state Android (legacy value): $androidStateValue');
-    debugPrint('  Transaction state iOS: $iosTransactionState');
-    debugPrint('  Is acknowledged Android: $acknowledgedAndroid');
-    debugPrint('  Transaction ID: ${transactionId ?? 'N/A'}');
+  void _showOutcome(PurchaseFlowOutcome outcome) {
+    if (!IapConstants.isInAppPurchase(outcome.purchase.productId)) return;
     debugPrint(
-      '  Has purchase credential: ${purchase.purchaseToken?.isNotEmpty ?? false}',
+      'Purchase outcome for ${outcome.purchase.productId}: '
+      '${describePurchaseFlowStatus(outcome.status).key.value}',
     );
-    debugPrint('  ID: ${purchase.id} (${purchase.id.runtimeType})');
-    debugPrint('  IDs array: ${purchase.ids}');
-    if (purchase is PurchaseIOS) {
-      final quantityIOS = purchase.iosQuantity;
-      final originalIdentifier = purchase.iosOriginalTransactionId;
-      debugPrint('  quantityIOS: $quantityIOS');
-      debugPrint(
-        '  originalTransactionIdentifierIOS: $originalIdentifier (${originalIdentifier?.runtimeType})',
-      );
-    }
-
-    if (!mounted) {
-      debugPrint('  ⚠️ Widget not mounted, ignoring update');
-      return;
-    }
-
-    // Check if we've already processed this transaction
-    if (transactionId != null &&
-        _processedTransactionIds.contains(transactionId)) {
-      debugPrint('⚠️ Transaction already processed: $transactionId');
-      return;
-    }
-
-    if (purchase.purchaseState != PurchaseState.Purchased) {
-      debugPrint('❓ Purchase not detected as successful');
-      if (!mounted) return;
-      setState(() {
-        _isProcessing = false;
-        _purchaseResult = '''
-⚠️ Purchase is not completed
-Store: ${purchase.store}
-Purchase state: ${purchase.purchaseState}
-iOS transaction state: $iosTransactionState
-Android purchase state (legacy value): $androidStateValue
-Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpty}
-        '''
-            .trim();
-      });
-      return;
-    }
-
-    debugPrint('✅ Purchase detected as successful: ${purchase.productId}');
-    debugPrint(
-      'Has purchase credential: ${purchase.purchaseToken?.isNotEmpty ?? false}',
-    );
-    debugPrint('ID: ${purchase.id}'); // OpenIAP standard
-    debugPrint('Transaction ID: ${transactionId ?? 'N/A'}');
-
-    // A redelivery can land while this attempt is still verifying, so claim
-    // the id now and release it only if this attempt does not finish.
-    if (transactionId != null && !_processedTransactionIds.add(transactionId)) {
-      debugPrint('⚠️ Transaction already in progress: $transactionId');
-      return;
-    }
-
-    if (!mounted) return;
     setState(() {
       _isProcessing = false;
-      _currentPurchase = purchase;
-
-      // Format purchase result like KMP-IAP
-      _purchaseResult = '''
-Receipt received (${defaultTargetPlatform.name}); verification required
-Product: ${purchase.productId}
-ID: ${purchase.id.isNotEmpty ? purchase.id : "N/A"}
-Transaction ID: ${transactionId ?? "N/A"}
-Date: ${purchase.transactionDate}
-Purchase credential: ${purchase.purchaseToken?.isNotEmpty == true ? 'Present' : 'Missing'}
-      '''
-          .trim();
+      _currentPurchase = outcome.purchase;
+      _purchaseResult = describeOutcome(outcome);
     });
-
-    var verified = true;
-    if (_verificationMethod.isIapkit) {
-      verified = await _verifyPurchaseWithIAPKit(purchase);
-    } else if (_verificationMethod == VerificationMethod.local) {
-      verified = await _verifyPurchaseLocally(purchase);
-    }
-    if (!verified) {
-      debugPrint('Verification failed; transaction left unfinished');
-      _processedTransactionIds.remove(transactionId);
-      return;
-    }
-
-    // Acknowledged consumables still need consumption; the badge does not.
-    final isConsumable = IapConstants.isConsumable(purchase.productId);
-    try {
-      if (isConsumable || purchase.androidIsAcknowledged != true) {
-        await _iap.finishTransaction(
-          purchase: purchase,
-          isConsumable: isConsumable,
-        );
-      }
-      debugPrint('Transaction finished successfully');
-      if (!mounted) return;
-      setState(() {
-        _purchaseResult =
-            '$_purchaseResult\n\n✅ Transaction finished successfully';
-      });
-    } catch (e) {
-      debugPrint('Error finishing transaction: $e');
-      _processedTransactionIds.remove(transactionId);
-      if (!mounted) return;
-      setState(() {
-        _purchaseResult =
-            '$_purchaseResult\n\n❌ Failed to finish transaction: $e';
-      });
-    }
   }
 
   void _handlePurchaseError(PurchaseError error) {
-    if (!mounted) return;
     setState(() {
       _isProcessing = false;
 
@@ -356,222 +121,16 @@ Message: ${error.message}
     });
   }
 
-  Future<bool> _verifyPurchaseLocally(Purchase purchase) async {
-    final productId = purchase.productId;
-    if (productId.isEmpty) {
-      if (!mounted) return false;
-      setState(() {
-        _purchaseResult =
-            '$_purchaseResult\n\nLocal verification: No product ID';
-      });
-      return false;
-    }
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) {
-      if (!mounted) return false;
-      setState(() {
-        _purchaseResult =
-            '$_purchaseResult\n\nLocal (Device) verification is unavailable here. Choose Local (IAPKit) or Ignore.';
-      });
-      return false;
-    }
-
-    try {
-      final pending = await _iap.getPendingTransactionsIOS();
-      final verified =
-          IapConstants.matchesVerifiedPendingPurchase(purchase, pending);
-      if (!mounted) return false;
-      setState(() {
-        _purchaseResult =
-            '$_purchaseResult\n\nLocal Verification (iOS): $verified';
-      });
-      return verified;
-    } catch (error) {
-      debugPrint('Local verification failed: $error');
-      if (mounted) {
-        setState(() {
-          _purchaseResult =
-              '$_purchaseResult\n\n[Failed] Local verification failed: $error';
-        });
-      }
-      return false;
-    }
-  }
-
-  /// Verify purchase with IAPKit provider
-  Future<bool> _verifyPurchaseWithIAPKit(Purchase purchase) async {
-    final apiKey = IapConstants.iapkitApiKey;
-    final label = _verificationMethod.label;
-    final baseUrl = _verificationMethod == VerificationMethod.iapkitLocalhost
-        ? IapConstants.iapkitBaseUrl.trim()
-        : '';
-    debugPrint('IAPKit API key configured: ${apiKey.isNotEmpty}');
-    if (_verificationMethod == VerificationMethod.iapkitLocalhost &&
-        baseUrl.isEmpty) {
-      if (mounted) {
-        setState(() {
-          _purchaseResult =
-              '$_purchaseResult\n\n❌ IAPKIT_BASE_URL not configured for $label';
-        });
-      }
-      return false;
-    }
-
-    try {
-      debugPrint('Verifying purchase with IAPKit...');
-      final jwsOrToken = purchase.purchaseToken ?? '';
-      final store = IapConstants.verificationStore(purchase);
-      if (store == IapStore.Unknown) {
-        throw UnsupportedError(
-            'No verification adapter for ${purchase.storeId}');
-      }
-      debugPrint('Has verification credential: ${jwsOrToken.isNotEmpty}');
-
-      final result = await _iap.verifyPurchaseWithProvider(
-        provider: PurchaseVerificationProvider.Iapkit,
-        iapkit: RequestVerifyPurchaseWithIapkitProps(
-          amazon: store == IapStore.Amazon
-              ? RequestVerifyPurchaseWithIapkitAmazonProps(
-                  expectedProductId: IapConstants.verificationProductId(
-                      purchase.productId, store),
-                  receiptId: jwsOrToken,
-                  sandbox: IapConstants.amazonRvsSandbox,
-                  // IAPKit rejects an Amazon receipt without the buyer's id.
-                  userId: (purchase as PurchaseAndroid?)?.userIdAmazon,
-                )
-              : null,
-          apiKey: apiKey.isNotEmpty ? apiKey : null,
-          apple: store == IapStore.Apple
-              ? RequestVerifyPurchaseWithIapkitAppleProps(jws: jwsOrToken)
-              : null,
-          baseUrl: baseUrl.isNotEmpty ? baseUrl : null,
-          google: store == IapStore.Google
-              ? RequestVerifyPurchaseWithIapkitGoogleProps(
-                  purchaseToken: jwsOrToken,
-                )
-              : null,
-          horizon: store == IapStore.Horizon
-              ? RequestVerifyPurchaseWithIapkitHorizonProps(
-                  sku: purchase.productId,
-                )
-              : null,
-        ),
-      );
-
-      debugPrint(
-        'IAPKit verification completed: hasIapkit=${result.iapkit != null}',
-      );
-
-      final iapkitResult = result.iapkit;
-      if (iapkitResult != null) {
-        final statusEmoji = iapkitResult.isValid ? '✅' : '⚠️';
-        final stateText = iapkitResult.state.value;
-
-        if (mounted) {
-          setState(() {
-            _purchaseResult = '''
-$_purchaseResult
-
-$statusEmoji $label Verification
-Valid: ${iapkitResult.isValid}
-State: $stateText
-Store: ${iapkitResult.store.value}
-          '''
-                .trim();
-          });
-        }
-      }
-      return IapConstants.acceptsVerification(iapkitResult, purchase);
-    } catch (e) {
-      debugPrint('IAPKit verification failed: $e');
-      if (mounted) {
-        setState(() {
-          _purchaseResult =
-              '$_purchaseResult\n\n❌ IAPKit verification failed: $e';
-        });
-      }
-      return false;
-    }
-  }
-
-  void _showVerificationMethodPicker() {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: Icon(
-                  _verificationMethod == VerificationMethod.ignore
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_off,
-                ),
-                title: const Text('Ignore'),
-                subtitle: const Text('Skip verification'),
-                onTap: () {
-                  setState(() {
-                    _verificationMethod = VerificationMethod.ignore;
-                  });
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: Icon(
-                  _verificationMethod == VerificationMethod.local
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_off,
-                ),
-                title: const Text('Local (Device)'),
-                subtitle: const Text('Basic local verification'),
-                onTap: () {
-                  setState(() {
-                    _verificationMethod = VerificationMethod.local;
-                  });
-                  Navigator.pop(context);
-                  unawaited(_recoverPurchases());
-                },
-              ),
-              ListTile(
-                leading: Icon(
-                  _verificationMethod == VerificationMethod.iapkitLocalhost
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_off,
-                ),
-                title: const Text('Local (IAPKit)'),
-                subtitle: const Text('IAPKit routed to IAPKIT_BASE_URL'),
-                onTap: () {
-                  setState(() {
-                    _verificationMethod = VerificationMethod.iapkitLocalhost;
-                  });
-                  Navigator.pop(context);
-                  unawaited(_recoverPurchases());
-                },
-              ),
-              ListTile(
-                leading: Icon(
-                  _verificationMethod == VerificationMethod.iapkit
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_off,
-                ),
-                title: const Text('IAPKit'),
-                subtitle: const Text('Server-side verification via IAPKit'),
-                onTap: () {
-                  setState(() {
-                    _verificationMethod = VerificationMethod.iapkit;
-                  });
-                  Navigator.pop(context);
-                  unawaited(_recoverPurchases());
-                },
-              ),
-            ],
-          ),
-        );
-      },
+  Future<void> _pickVerificationMethod() async {
+    final picked = await pickVerificationMethod(
+      context,
+      _purchases,
+      VerificationMethod.values,
     );
+    if (picked == null || !mounted) return;
+    setState(() {});
+    if (picked != VerificationMethod.ignore) unawaited(_recoverPurchases());
   }
-
-  String _getVerificationMethodLabel() => _verificationMethod.label;
 
   Future<void> _loadProducts() async {
     if (!_connected) return;
@@ -620,14 +179,9 @@ Store: ${iapkitResult.store.value}
     setState(() {
       _isProcessing = true;
       _purchaseResult = null; // Clear previous results
-      _processedErrorMessages
-          .clear(); // Clear processed errors for new purchase
     });
 
     try {
-      debugPrint('Requesting purchase...');
-      debugPrint('Product ID: $productId');
-
       // Build platform-specific request and call unified requestPurchase
       final requestProps = RequestPurchaseProps.inApp((
         apple: RequestPurchaseIosProps(sku: productId, quantity: 1),
@@ -637,28 +191,22 @@ Store: ${iapkitResult.store.value}
       await _iap.requestPurchase(requestProps);
 
       debugPrint('✅ Purchase request sent successfully');
-      // Note: The actual purchase result will come through the purchaseUpdatedListener
+      // The purchase arrives through the flow's outcomes.
     } catch (error) {
       setState(() {
         _isProcessing = false;
       });
 
-      // Do not show alert dialog if the user cancelled the purchase
-      final errorString = error.toString().toLowerCase();
-      final bool isUserCancelled =
-          (error is PurchaseError && error.code == ErrorCode.UserCancelled) ||
-              errorString.contains('user_cancel') ||
-              errorString.contains('user cancelled') ||
-              errorString.contains('canceled') ||
-              errorString.contains('cancelled');
-
-      if (isUserCancelled) {
+      final code = error is PurchaseError ? error.code : null;
+      if (code == ErrorCode.UserCancelled) {
         debugPrint('ℹ️ Purchase cancelled by user - suppressing alert');
         return;
       }
 
-      // Check if it's a server error and we haven't exceeded retry limit
-      if (error.toString().contains('responseCode: 6') && retryCount < 2) {
+      // Play reports a launch-time code 6 as PurchaseFailed, so check both.
+      final transient = code == ErrorCode.ServiceError ||
+          (error is PurchaseError && error.responseCode == 6);
+      if (transient && retryCount < 2) {
         // Show retry dialog for server errors
         if (mounted) {
           final shouldRetry = await showDialog<bool>(
@@ -666,7 +214,7 @@ Store: ${iapkitResult.store.value}
             builder: (context) => AlertDialog(
               title: const Text('Server Error'),
               content: const Text(
-                'Google Play server error occurred.\n\n'
+                'The store reported a service error.\n\n'
                 'This is usually temporary. Would you like to retry?',
               ),
               actions: [
@@ -703,15 +251,14 @@ Store: ${iapkitResult.store.value}
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Error: $error'),
-                  if (error.toString().contains('responseCode: 6')) ...[
+                  if (transient) ...[
                     const SizedBox(height: 16),
                     const Text(
-                      'This is a Google Play server error. Please try:',
+                      'This is a store service error. Please try:',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     const Text('• Wait a few minutes and try again'),
-                    const Text('• Clear Google Play Store cache'),
                     const Text('• Check your internet connection'),
                     const Text('• Restart your device'),
                   ],
@@ -831,8 +378,9 @@ Store: ${iapkitResult.store.value}
                           ),
                         ),
                         OutlinedButton(
-                          onPressed: _showVerificationMethodPicker,
-                          child: Text(_getVerificationMethodLabel()),
+                          onPressed: _pickVerificationMethod,
+                          child:
+                              Text(_purchases.verificationMethod.value.label),
                         ),
                       ],
                     ),
@@ -927,12 +475,10 @@ ${purchases.map((p) => '- ${p.productId}: credential ${p.purchaseToken?.isNotEmp
                                         _purchaseResult = null;
                                       });
                                       try {
-                                        // Re-initialize connection
                                         await _iap.endConnection();
-                                        await Future<void>.delayed(
-                                          const Duration(seconds: 1),
+                                        await _awaitConnection(
+                                          _purchases.start(),
                                         );
-                                        await _initConnection();
                                         if (!mounted) return;
                                         setState(() {
                                           _purchaseResult =

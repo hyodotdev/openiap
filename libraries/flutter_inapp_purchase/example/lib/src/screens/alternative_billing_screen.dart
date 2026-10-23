@@ -78,10 +78,14 @@ class _AlternativeBillingScreenState extends State<AlternativeBillingScreen> {
     _userChoiceBillingSubscription?.cancel();
     _urlController.dispose();
 
-    FlutterInappPurchase.instance.endConnection().catchError((e) {
-      debugPrint('[AlternativeBilling] Error ending connection: $e');
-      return false;
-    });
+    // The app shares one connection; leave it on a standard client.
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      final iap = FlutterInappPurchase.instance;
+      iap.endConnection().then((_) => iap.initConnection()).catchError((e) {
+        debugPrint('[AlternativeBilling] Error restoring the connection: $e');
+        return false;
+      });
+    }
 
     super.dispose();
   }
@@ -198,9 +202,7 @@ Important:
         _purchaseResult = 'Reconnecting with new billing program...';
       });
 
-      await FlutterInappPurchase.instance.endConnection();
-      await Future.delayed(const Duration(milliseconds: 500));
-
+      // Native rebuilds the client for a different program.
       final connected = await FlutterInappPurchase.instance.initConnection(
         enableBillingProgramAndroid: newProgram,
       );

@@ -3,7 +3,9 @@
 package io.github.hyochan.flutter_inapp_purchase
 
 import android.app.Activity
+import dev.hyo.openiap.BillingProgramAndroid
 import dev.hyo.openiap.ErrorCode
+import dev.hyo.openiap.InitConnectionConfig
 import dev.hyo.openiap.MutationInitConnectionHandler
 import io.flutter.plugin.common.MethodCall
 import org.json.JSONObject
@@ -68,17 +70,40 @@ class SharedProviderTest {
         assertEquals("Billing client ready", first.call("initConnection"))
         assertEquals(false, second.call("isReady"))
         assertEquals("Billing client ready", second.call("initConnection"))
-        assertEquals(1, FakeProviderFactory.endCalls)
+        assertEquals(0, FakeProviderFactory.endCalls)
 
         assertEquals(true, first.call("endConnection"))
         assertEquals(false, first.call("isReady"))
         assertEquals(true, second.call("isReady"))
-        assertEquals(1, FakeProviderFactory.endCalls)
+        assertEquals(0, FakeProviderFactory.endCalls)
 
         assertEquals(true, second.call("endConnection"))
         assertEquals(false, second.call("isReady"))
-        assertEquals(2, FakeProviderFactory.endCalls)
+        assertEquals(1, FakeProviderFactory.endCalls)
         dispose(first, second)
+    }
+
+    @Test fun `initConnection leaves the live client to the store module`() {
+        val configs = mutableListOf<InitConnectionConfig?>()
+        val record: MutationInitConnectionHandler = { config ->
+            configs.add(config)
+            true
+        }
+        FakeProviderFactory.handlers["getInitConnection"] = record
+        val engine = fakeEngine()
+
+        assertEquals("Billing client ready", engine.call("initConnection"))
+        assertEquals(
+            "Billing client ready",
+            engine.call("initConnection", mapOf("enableBillingProgramAndroid" to "external-offer")),
+        )
+
+        // No config reaches the module as null, so it keeps a live client.
+        assertEquals(2, configs.size)
+        assertEquals(null, configs[0])
+        assertEquals(BillingProgramAndroid.ExternalOffer, configs[1]?.enableBillingProgramAndroid)
+        assertEquals(0, FakeProviderFactory.endCalls)
+        dispose(engine)
     }
 
     @Test fun `only the engine that set the Activity clears it`() {
