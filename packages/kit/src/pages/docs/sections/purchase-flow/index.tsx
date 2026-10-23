@@ -126,10 +126,10 @@ stores ──renewals, refunds──▶ IAPKit ◀──entitlements── your 
         Create one flow per signed-in app account, outside any screen, and
         capture its session token. The flow listens for purchases itself,
         confirms each with your backend, finishes it once access is granted, and
-        publishes one outcome per purchase. Keep exactly one live flow: when the
-        account changes, dispose the flow and create the next account&apos;s. A
-        disposed flow publishes nothing more and stops a recovery pass, so no
-        later purchase is confirmed with the old account&apos;s session.
+        publishes each outcome. Keep exactly one live flow: when the account
+        changes, dispose the flow and create the next account&apos;s. A disposed
+        flow publishes nothing more and stops a recovery pass, so no later
+        purchase is confirmed with the old account&apos;s session.
       </p>
       <p>
         Each SDK names it in its own idiom: <code>createPurchaseFlow</code> in

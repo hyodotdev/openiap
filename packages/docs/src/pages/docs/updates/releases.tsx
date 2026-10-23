@@ -659,9 +659,9 @@ function Releases() {
             way to confirm a purchase and the list of consumables, and it
             confirms, finishes, and recovers every purchase the store delivers,
             on the App Store, Google Play, Amazon Appstore, and Meta Horizon,
-            and reports one outcome per purchase. Apps without a backend confirm
-            with IAPKit directly. The libraries also ship openiap-google 4.0.5
-            and openiap-apple 4.0.4, so Google Play prepaid plans accept payment
+            and reports each outcome. Apps without a backend confirm with IAPKit
+            directly. The libraries also ship openiap-google 4.0.5 and
+            openiap-apple 4.0.4, so Google Play prepaid plans accept payment
             methods that complete later; the{' '}
             <Link to="/docs/updates/releases#play-prepaid-pending-2026-10-22">
               October 22 release
@@ -686,10 +686,21 @@ function Releases() {
                   that reports no acknowledgment;
                 </li>
                 <li>
-                  listens for purchases itself, publishes one outcome per
-                  purchase through <code>subscribe</code>, answers a purchase it
-                  already settled without confirming it again, and stops on{' '}
-                  <code>dispose</code>, including a recovery pass in progress;
+                  listens for purchases itself, including iOS redeliveries, and
+                  publishes an outcome through <code>subscribe</code> once per
+                  confirmation and again for each later delivery of a purchase
+                  it already settled, which it answers without confirming again.
+                  A failed confirmation is retried on the next delivery or
+                  recovery. It stops on <code>dispose</code>, including a
+                  recovery pass in progress;
+                </li>
+                <li>
+                  takes <code>wasRequested</code>, which the SDKs answer from
+                  their own <code>requestPurchase</code> calls: only a delivery
+                  bought after the request, give or take ten minutes of device
+                  clock drift (<code>PURCHASE_REQUEST_CLOCK_SKEW_MS</code>),
+                  counts as the user&apos;s own, so only that one offers buying
+                  again after an <code>invalid</code> verdict;
                 </li>
                 <li>
                   confirms with IAPKit from the app through{' '}
@@ -723,13 +734,18 @@ function Releases() {
               on a connected Google Play client with a different billing program
               or Billing Choice renderer now rebuilds the client with it instead
               of ignoring it, and an explicit empty config returns it to the
-              standard client. A call without a config keeps the live
-              connection, and after a service drop reconnects with the last
-              program. A rebuild is refused with <code>developer-error</code>{' '}
-              while a purchase is in progress, and a failed rebuild leaves the
-              store disconnected. Both natives report Client Protocol 1.2.0; the
-              natives the libraries shipped before reported 1.0.3, so they
-              rejected a community store provider built for Client Protocol 1.1.
+              standard client; programs queued with{' '}
+              <code>enableBillingProgramAndroid</code> stay. A call without a
+              config keeps the live connection, and after a service drop
+              reconnects with the program the app chose last. A rebuild is
+              refused with <code>developer-error</code> while a purchase is in
+              progress, and every library then stays connected and reports the
+              error. A purchase requested while a rebuild is being prepared
+              fails with <code>service-disconnected</code>, and a failed rebuild
+              leaves the store disconnected. Both natives report Client Protocol
+              1.2.0; the natives the libraries shipped before reported 1.0.3, so
+              they rejected a community store provider built for Client Protocol
+              1.1.
             </li>
             <li>
               <strong>openiap-apple 4.0.4</strong>: reports Client Protocol
@@ -812,7 +828,9 @@ function Releases() {
               different config, including an empty one, reconfigures the live
               connection instead of failing, and errors from non-purchase calls
               such as <code>get_storefront</code> carry a <code>method</code>{' '}
-              key.
+              key. A subscription request without an offer token, such as any
+              Amazon Appstore subscription, no longer fails with{' '}
+              <code>subscriptionOffers must match the requested skus</code>.
             </li>
             <li>
               <strong>kmp-iap 4.1.0</strong>:{' '}

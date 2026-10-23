@@ -339,11 +339,11 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
           To let the SDK do the bookkeeping, use the purchase flow every
           framework exports as <code>createPurchaseFlow</code>. It listens for
           purchases, confirms each one, finishes it once access is granted,
-          recovers unfinished purchases, and reports one outcome per purchase.
-          Without a backend, pass <code>confirmWithIapkit</code> with your
-          publishable key, or <code>confirmOnDeviceIOS</code> for App Store
-          purchases StoreKit verified on the device, and credit consumables in
-          its <code>grant</code> callback, which runs before the purchase is
+          recovers unfinished purchases, and reports each outcome. Without a
+          backend, pass <code>confirmWithIapkit</code> with your publishable
+          key, or <code>confirmOnDeviceIOS</code> for App Store purchases
+          StoreKit verified on the device, and credit consumables in its{' '}
+          <code>grant</code> callback, which runs before the purchase is
           consumed. When your own backend owns user accounts, confirm through it
           instead. See the{' '}
           <a
