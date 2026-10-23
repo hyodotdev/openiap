@@ -2,8 +2,3 @@
 id = "GHSA-86w9-cpqp-85rv"
 ignoreUntil = 2026-12-15
 reason = "No patched node-forge release exists; 1.4.0 is npm latest and still affected. Reached only via @expo/cli and @expo/code-signing-certificates for development certificate tooling; it is excluded from the published SDK runtime. Development certificate verification remains affected: https://github.com/advisories/GHSA-86w9-cpqp-85rv."
-
-[[IgnoredVulns]]
-id = "GHSA-vfj7-8cjw-p6xm"
-ignoreUntil = 2026-12-15
-reason = "No patched braces release exists; 3.0.3 is npm latest and still affected. Reached only via micromatch from build, test, and CLI tooling that parses repository-controlled glob patterns; the published SDK package declares no runtime npm dependencies: https://github.com/advisories/GHSA-vfj7-8cjw-p6xm."
