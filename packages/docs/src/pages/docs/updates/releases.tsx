@@ -858,9 +858,9 @@ function Releases() {
               openiap-google even when connected; without one it keeps the
               connection. On iOS, <code>getAvailablePurchases</code> and{' '}
               <code>verifyAppOwnership</code> with a boolean option such as{' '}
-              <code>onlyIncludeActiveItemsIOS</code> no longer fail with
-              &quot;The data couldn&apos;t be read because it isn&apos;t in the
-              correct format&quot;.
+              <code>onlyIncludeActiveItemsIOS</code> or <code>refresh</code> no
+              longer fail with &quot;The data couldn&apos;t be read because it
+              isn&apos;t in the correct format&quot;.
             </li>
             <li>
               <strong>OpenIap.Maui 3.1.0</strong>:{' '}
