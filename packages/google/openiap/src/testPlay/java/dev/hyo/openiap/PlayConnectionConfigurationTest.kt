@@ -37,6 +37,39 @@ class PlayConnectionConfigurationTest {
     }
 
     @Test
+    fun `a caller that joined another config's attempt applies its own next`() {
+        assertTrue(reconnectsAfterJoin(hasConfig = true, joined = standard, requested = externalOffer))
+        assertFalse(reconnectsAfterJoin(hasConfig = true, joined = externalOffer, requested = externalOffer))
+        assertFalse(reconnectsAfterJoin(hasConfig = false, joined = externalOffer, requested = standard))
+    }
+
+    @Test
+    fun `a repeated config keeps a program queued for the live connection`() {
+        val queued = setOf(BillingProgramAndroid.UserChoiceBilling)
+        val live = playConnectionConfiguration(queued, InitConnectionConfig())
+        val again = requestedConnectionConfiguration(emptySet(), InitConnectionConfig(), live, queued)
+        assertEquals(live, again)
+        assertTrue(keepsLiveConnection(ready = true, live = live, requested = again))
+    }
+
+    @Test
+    fun `a reconnect without a config restores the program after a service drop`() {
+        assertEquals(
+            externalOffer,
+            requestedConnectionConfiguration(emptySet(), null, externalOffer, emptySet()),
+        )
+        assertEquals(standard, requestedConnectionConfiguration(emptySet(), null, null, emptySet()))
+    }
+
+    @Test
+    fun `an explicit empty config returns to the standard client`() {
+        val requested =
+            requestedConnectionConfiguration(emptySet(), InitConnectionConfig(), externalOffer, emptySet())
+        assertEquals(standard, requested)
+        assertFalse(keepsLiveConnection(ready = true, live = externalOffer, requested = requested))
+    }
+
+    @Test
     fun `a client that is not ready always connects`() {
         assertFalse(keepsLiveConnection(ready = false, live = standard, requested = null))
     }

@@ -185,6 +185,35 @@ internal fun playConnectionConfiguration(
  * A ready client stays unless the caller passed a config that asks Play for
  * something else; `requested` is null when no config was passed.
  */
+/**
+ * The configuration a connect asks Play for. Programs queued for the live
+ * connection stay; without a config, a reconnect after a service drop keeps
+ * the program the app chose last.
+ */
+internal fun requestedConnectionConfiguration(
+    pendingPrograms: Set<BillingProgramAndroid>,
+    config: InitConnectionConfig?,
+    live: BillingConnectionConfiguration?,
+    liveQueuedPrograms: Set<BillingProgramAndroid>,
+): BillingConnectionConfiguration = when {
+    config != null -> playConnectionConfiguration(pendingPrograms + liveQueuedPrograms, config)
+    live != null -> playConnectionConfiguration(
+        pendingPrograms + live.billingPrograms,
+        InitConnectionConfig(
+            billingChoiceScreenTypeAndroid = live.billingChoiceScreenType,
+            enableBillingProgramAndroid = null,
+        ),
+    )
+    else -> playConnectionConfiguration(pendingPrograms, null)
+}
+
+/** A caller that joined another caller's attempt still needs its own config applied. */
+internal fun reconnectsAfterJoin(
+    hasConfig: Boolean,
+    joined: BillingConnectionConfiguration,
+    requested: BillingConnectionConfiguration,
+): Boolean = hasConfig && joined != requested
+
 internal fun keepsLiveConnection(
     ready: Boolean,
     live: BillingConnectionConfiguration?,
@@ -238,8 +267,10 @@ class OpenIapModule(
     private var connectionAttempt: ConnectionAttempt? = null
     @Volatile
     private var activeBillingClientMode = BillingClientMode.Standard
-    // What the ready client was built with, so a changed config can rebuild it.
+    // What the last connected client was built with, so a changed config can
+    // rebuild it and a reconnect after a service drop can restore it.
     private var liveConnectionConfiguration: BillingConnectionConfiguration? = null
+    private var liveQueuedPrograms: Set<BillingProgramAndroid> = emptySet()
 
     private data class ConnectionAttempt(
         val generation: Long,
@@ -251,6 +282,7 @@ class OpenIapModule(
     private data class ConnectionStart(
         val attempt: ConnectionAttempt,
         val isOwner: Boolean,
+        val requested: BillingConnectionConfiguration,
     )
 
     private data class ConnectionEnd(
@@ -569,18 +601,29 @@ class OpenIapModule(
         withContext(Dispatchers.IO) {
             val start = synchronized(connectionLifecycleLock) {
                 val attemptedPendingPrograms = pendingBillingPrograms.toSet()
-                val configuration =
-                    playConnectionConfiguration(attemptedPendingPrograms, config)
+                val configuration = requestedConnectionConfiguration(
+                    attemptedPendingPrograms,
+                    config,
+                    liveConnectionConfiguration,
+                    liveQueuedPrograms,
+                )
+                val ready = billingClient?.isReady == true
                 if (keepsLiveConnection(
-                        ready = billingClient?.isReady == true,
+                        ready = ready,
                         live = liveConnectionConfiguration,
                         requested = config?.let { configuration },
                     )
                 ) {
                     return@withContext true
                 }
+                // Rebuilding the client would drop the purchase the user is paying for.
+                if (ready && pendingPurchase != null) {
+                    throw OpenIapError.DeveloperError(
+                        "initConnection cannot change the billing program while a purchase is in progress",
+                    )
+                }
                 connectionAttempt?.let { existing ->
-                    return@synchronized ConnectionStart(existing, isOwner = false)
+                    return@synchronized ConnectionStart(existing, isOwner = false, configuration)
                 }
                 val attempt = ConnectionAttempt(
                     connectionGeneration,
@@ -588,13 +631,21 @@ class OpenIapModule(
                     attemptedPendingPrograms,
                 )
                 connectionAttempt = attempt
-                ConnectionStart(attempt, isOwner = true)
+                ConnectionStart(attempt, isOwner = true, configuration)
             }
             val attempt = start.attempt
             if (!start.isOwner) {
-                return@withContext withTimeoutOrNull(15_000) {
+                val joined = withTimeoutOrNull(15_000) {
                     attempt.completion.await()
                 } ?: false
+                // The running attempt carries another caller's config; apply this one next.
+                return@withContext if (
+                    reconnectsAfterJoin(config != null, attempt.configuration, start.requested)
+                ) {
+                    initConnection(config)
+                } else {
+                    joined
+                }
             }
             val connectionConfiguration = attempt.configuration
 
@@ -714,6 +765,7 @@ class OpenIapModule(
                     val activeAttempt = connectionAttempt
                     connectionAttempt = null
                     liveConnectionConfiguration = null
+                    liveQueuedPrograms = emptySet()
                     pendingBillingPrograms.clear()
                     val activePurchase = pendingPurchase
                     clearPurchaseStateLocked()
@@ -756,7 +808,10 @@ class OpenIapModule(
             )
             if (owns) {
                 connectionAttempt = null
-                liveConnectionConfiguration = attempt.configuration.takeIf { connected }
+                if (connected) {
+                    liveConnectionConfiguration = attempt.configuration
+                    liveQueuedPrograms = attempt.pendingPrograms
+                }
                 if (!connected) replaceBillingClientLocked(null)
                 activeBillingClientMode = commitPlayConnectionConfiguration(
                     connected,
