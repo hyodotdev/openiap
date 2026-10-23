@@ -26,10 +26,15 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-10-19",
     weekStart: "2026-10-19",
     date: "2026-10-21",
-    pullRequests: [548, 550, 551],
+    pullRequests: [548, 550, 551, 559],
     tagline:
-      "API Keys dashboard readability, narrow-screen layout, an analytics error fix and a Hono security update.",
+      "API Keys dashboard readability, narrow-screen layout, the purchase flow guide for every framework, an analytics error fix, a Hono security update and machine health checks.",
     items: [
+      {
+        kind: "docs",
+        topic: "Purchase flow",
+        text: "The purchase flow guide covers the flow every OpenIAP framework SDK now ships: one live flow per signed-in account that listens for purchases itself, confirms each with your backend, with IAPKit from the app, or on the device for iOS, finishes it, and recovers unfinished purchases on every store.",
+      },
       {
         kind: "feature",
         topic: "Dashboard",
@@ -54,6 +59,11 @@ const RELEASES: ReleaseEntry[] = [
         kind: "security",
         topic: "Static files",
         text: "Updates Hono to 4.13.11 for GHSA-5r4p-p66f-jhc7. IAPKit serves only public files through the affected handler, so nothing was exposed.",
+      },
+      {
+        kind: "ops",
+        topic: "Availability",
+        text: "Each machine now answers a /health check, and the load balancer stops sending requests to one that fails it. During emergency host maintenance on October 23, about a third of requests timed out on one machine until it was replaced.",
       },
     ],
   },
