@@ -25,7 +25,7 @@ const RELEASES: ReleaseEntry[] = [
   {
     id: "week-2026-10-19",
     weekStart: "2026-10-19",
-    date: "2026-10-21",
+    date: "2026-10-23",
     pullRequests: [548, 550, 551, 559],
     tagline:
       "API Keys dashboard readability, narrow-screen layout, the purchase flow guide for every framework, an analytics error fix, a Hono security update and machine health checks.",
@@ -63,7 +63,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "ops",
         topic: "Availability",
-        text: "Each machine now answers a /health check, and the load balancer stops sending requests to one that fails it. During emergency host maintenance on October 23, about a third of requests timed out on one machine until it was replaced.",
+        text: "Fly now checks each machine's /health endpoint and stops routing requests to one that fails it. During emergency host maintenance on October 23, about a third of requests timed out on one machine until it was replaced.",
       },
     ],
   },

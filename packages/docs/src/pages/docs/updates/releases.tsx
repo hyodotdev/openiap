@@ -672,6 +672,13 @@ function Releases() {
             </a>
             .
           </p>
+          <p>
+            Hosted changes in this train are recorded in the{' '}
+            <a href="https://kit.openiap.dev/docs/release-notes#week-2026-10-19">
+              IAPKit weekly history
+            </a>
+            .
+          </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
             Protocols and native packages
           </h5>
