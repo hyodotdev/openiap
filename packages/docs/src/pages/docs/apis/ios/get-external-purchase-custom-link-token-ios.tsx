@@ -141,7 +141,7 @@ if (Platform.OS === 'ios') {
 using OpenIap.Maui;
 
 // Throws FeatureNotSupported on Android
-var token = await ((QueryResolver)OpenIapClient.Instance).GetExternalPurchaseCustomLinkTokenIOSAsync(
+var token = await OpenIapClient.Query.GetExternalPurchaseCustomLinkTokenIOSAsync(
     tokenType: ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition
 );`}</CodeBlock>
           ),

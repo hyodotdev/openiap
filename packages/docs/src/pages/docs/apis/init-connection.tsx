@@ -237,7 +237,7 @@ if (!connected) throw StateError('Store connection failed');`}</CodeBlock>
 using OpenIap.Maui;
 
 // Choose one call. Remove the config for a standard connection.
-var connected = await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
+var connected = await OpenIapClient.Mutation.InitConnectionAsync(
     new InitConnectionConfig
     {
         EnableBillingProgramAndroid = BillingProgramAndroid.BillingChoice,

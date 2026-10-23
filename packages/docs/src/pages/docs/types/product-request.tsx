@@ -176,11 +176,11 @@ final allProducts = await FlutterInappPurchase.instance
 using OpenIap.Maui;
 
 // Fetch in-app purchases (default)
-var inappProducts = await ((QueryResolver)OpenIapClient.Instance).FetchProductsAsync(
+var inappProducts = await OpenIapClient.Query.FetchProductsAsync(
     new ProductRequest { Skus = new[] { "product1", "product2" } });
 
 // Fetch only subscriptions
-var subscriptions = await ((QueryResolver)OpenIapClient.Instance).FetchProductsAsync(
+var subscriptions = await OpenIapClient.Query.FetchProductsAsync(
     new ProductRequest
     {
         Skus = new[] { "sub1", "sub2" },
@@ -188,7 +188,7 @@ var subscriptions = await ((QueryResolver)OpenIapClient.Instance).FetchProductsA
     });
 
 // Fetch all products (both in-app and subscriptions)
-var allProducts = await ((QueryResolver)OpenIapClient.Instance).FetchProductsAsync(
+var allProducts = await OpenIapClient.Query.FetchProductsAsync(
     new ProductRequest
     {
         Skus = new[] { "product1", "sub1" },

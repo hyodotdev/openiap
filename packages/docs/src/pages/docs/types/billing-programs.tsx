@@ -1181,7 +1181,7 @@ using OpenIap.Maui;
 using System;
 
 // Enable External Payments via InitConnectionConfig.
-var connected = await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(new InitConnectionConfig
+var connected = await OpenIapClient.Mutation.InitConnectionAsync(new InitConnectionConfig
 {
     EnableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments,
 });
@@ -1195,7 +1195,7 @@ using var subscription = OpenIapClient.Instance.DeveloperProvidedBillingAndroid.
 });
 
 // Check availability (Japan only).
-var result = await ((MutationResolver)OpenIapClient.Instance)
+var result = await OpenIapClient.Mutation
     .IsBillingProgramAvailableAndroidAsync(BillingProgramAndroid.ExternalPayments);
 if (result.IsAvailable)
 {
@@ -1217,7 +1217,7 @@ if (result.IsAvailable)
         },
         Type = ProductQueryType.InApp,
     };
-    await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(props);
+    await OpenIapClient.Mutation.RequestPurchaseAsync(props);
 }`}</CodeBlock>
             ),
             gdscript: (

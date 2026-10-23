@@ -325,7 +325,7 @@ for item in items:
         print("in-app product ", item.id)`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`var result = await iap.FetchProductsAsync(new ProductRequest {
+            <CodeBlock language="csharp">{`var result = await OpenIapClient.Query.FetchProductsAsync(new ProductRequest {
     Skus = new[] { "com.app.coins_100", "com.app.monthly" },
     Type = ProductQueryType.All,
 });
@@ -448,9 +448,7 @@ var products = await iap.fetch_products(request)`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var iap = (QueryResolver)OpenIapClient.Instance;
-
-var result = await iap.FetchProductsAsync(new ProductRequest {
+var result = await OpenIapClient.Query.FetchProductsAsync(new ProductRequest {
     Skus = new[] { "com.app.coins_100", "com.app.premium" },
     Type = ProductQueryType.InApp,
 });

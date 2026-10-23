@@ -206,7 +206,7 @@ async Task HandlePurchaseErrorSafelyAsync(PurchaseError error)
             case ErrorCode.UserCancelled:
                 break;
             case ErrorCode.AlreadyOwned:
-                await ((MutationResolver)OpenIapClient.Instance).RestorePurchasesAsync();
+                await OpenIapClient.Mutation.RestorePurchasesAsync();
                 break;
             case ErrorCode.NetworkError:
                 ShowRetryDialog();

@@ -80,6 +80,11 @@ openiap/
 - **KISS and SSOT** are release criteria; apply
   [the canonical rules](knowledge/internal/03-coding-style.md#0-kiss-and-ssot-are-release-requirements)
   before implementation and during every review.
+- **Examples stay clean**: example code must not turn into spaghetti. When
+  an example needs refs, maps, retries, or ordering patches to be correct, the
+  framework library gets the abstraction (same design in every framework,
+  tested), and the example goes back to plain usage.
+  [Rule](knowledge/internal/04-platform-packages.md#examples-show-clean-library-usage).
 - **Clean up once it works**: reread the diff for duplication, redundant
   fallbacks, and stale comments, and fix smells you meet even outside the
   change. Never write `as any`.
@@ -184,7 +189,11 @@ them and syncs every target in `specs/client/generated-sync-manifest.mjs`:
 - `libraries/maui-iap/src/OpenIap.Maui/Types.cs`
 - `libraries/{react-native-iap,expo-iap}/src/{kit-api,purchase-flow}.ts`
 - `libraries/expo-iap/src/utils/errorMapping.ts` and its
-  `__tests__/errorMapping.shared.test.ts` (mirrored from react-native-iap)
+  `__tests__/errorMapping.shared.test.ts`, and
+  `libraries/expo-iap/src/utils/purchaseFlowBinding.ts` (mirrored from
+  react-native-iap)
+- each library's `purchase-flow.vectors.json` test fixture (copied from
+  `specs/client/src/purchase-flow.vectors.json`)
 
 `openiap-versions.json` tracks only `clientProtocol`, `google`, `apple`, and the
 `plugins/openiap` `plugin` version, and only release CI changes it; feature work

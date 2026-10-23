@@ -355,15 +355,12 @@ Future<void> disposePurchaseListener() => purchaseSubscription.cancel();`}</Code
                 <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var query = (QueryResolver)OpenIapClient.Instance;
-var mutation = (MutationResolver)OpenIapClient.Instance;
-
 // 1. Open the store connection on app start.
-var connected = await mutation.InitConnectionAsync();
+var connected = await OpenIapClient.Mutation.InitConnectionAsync();
 if (!connected) throw new InvalidOperationException("Store connection failed");
 
 // 2. Fetch products by SKU.
-var products = await query.FetchProductsAsync(new ProductRequest
+var products = await OpenIapClient.Query.FetchProductsAsync(new ProductRequest
 {
     Skus = new[] { "com.app.premium" },
     Type = ProductQueryType.InApp,
@@ -374,7 +371,7 @@ async Task HandlePurchaseSafelyAsync(Purchase purchase)
 {
     try
     {
-        await mutation.FinishTransactionAsync(
+        await OpenIapClient.Mutation.FinishTransactionAsync(
             new PurchaseInput(purchase),
             isConsumable: false);
     }
@@ -388,7 +385,7 @@ var subscription = OpenIapClient.Instance.PurchaseUpdated.Subscribe(
     purchase => _ = HandlePurchaseSafelyAsync(purchase));
 
 // 4. Initiate a purchase.
-await mutation.RequestPurchaseAsync(new RequestPurchaseProps
+await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
 {
     RequestPurchase = new RequestPurchasePropsByPlatforms
     {

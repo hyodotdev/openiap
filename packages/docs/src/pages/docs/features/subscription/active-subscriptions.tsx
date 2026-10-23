@@ -154,11 +154,11 @@ final hasPremium = await FlutterInappPurchase.instance
     "dev.hyo.martie.premium_year"
 };
 
-var active = await ((QueryResolver)Iap.Instance)
+var active = await OpenIapClient.Query
     .GetActiveSubscriptionsAsync(premiumIds);
 var canUsePremium = active.Any(sub => sub.IsActive);
 
-var hasPremium = await ((QueryResolver)Iap.Instance)
+var hasPremium = await OpenIapClient.Query
     .HasActiveSubscriptionsAsync(premiumIds);`}</CodeBlock>
             ),
           }}

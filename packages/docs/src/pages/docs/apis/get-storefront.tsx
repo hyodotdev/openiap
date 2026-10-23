@@ -158,7 +158,7 @@ val countryCode = module.getStorefront()`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var countryCode = await ((QueryResolver)OpenIapClient.Instance).GetStorefrontAsync();`}</CodeBlock>
+var countryCode = await OpenIapClient.Query.GetStorefrontAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var country_code = await iap.get_storefront()`}</CodeBlock>

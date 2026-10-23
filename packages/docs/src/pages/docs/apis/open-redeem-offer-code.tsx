@@ -176,7 +176,7 @@ if (purchase != null) print('Redeemed purchase: \${purchase.productId}');`}</Cod
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var purchase = await ((MutationResolver)OpenIapClient.Instance)
+var purchase = await OpenIapClient.Mutation
     .OpenRedeemOfferCodeAsync();
 if (purchase is not null)
     Console.WriteLine($"Redeemed purchase: {purchase.ProductId}");`}</CodeBlock>

@@ -269,7 +269,7 @@ async Task HandlePurchaseSafelyAsync(Purchase purchase)
                 await DeliverProductAsync(validPurchase.ProductId);
             }
 
-            await ((MutationResolver)OpenIapClient.Instance).FinishTransactionAsync(
+            await OpenIapClient.Mutation.FinishTransactionAsync(
                 new PurchaseInput(purchase),
                 isConsumable: false);
         }

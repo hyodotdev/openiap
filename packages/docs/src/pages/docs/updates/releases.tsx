@@ -36,25 +36,25 @@ interface ReleaseChange extends ReleaseMetadata {
 const FRAMEWORK_PREPAID_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: '@hyodotdev/openiap-client-protocol',
-    version: '1.1.1',
-    tag: 'openiap-client-protocol-1.1.1',
+    version: '1.2.0',
+    tag: 'openiap-client-protocol-1.2.0',
   },
   { name: 'openiap-apple', version: '4.0.4', tag: '4.0.4' },
   { name: 'openiap-google', version: '4.0.5', tag: 'google-4.0.5' },
   {
     name: 'react-native-iap',
-    version: '17.1.1',
-    tag: 'react-native-iap-17.1.1',
+    version: '17.2.0',
+    tag: 'react-native-iap-17.2.0',
   },
-  { name: 'expo-iap', version: '6.1.2', tag: 'expo-iap-6.1.2' },
+  { name: 'expo-iap', version: '6.2.0', tag: 'expo-iap-6.2.0' },
   {
     name: 'flutter_inapp_purchase',
-    version: '11.0.4',
-    tag: 'flutter-iap-11.0.4',
+    version: '11.1.0',
+    tag: 'flutter-iap-11.1.0',
   },
-  { name: 'godot-iap', version: '4.0.4', tag: 'godot-iap-4.0.4' },
-  { name: 'kmp-iap', version: '4.0.5', tag: 'kmp-iap-4.0.5' },
-  { name: 'OpenIap.Maui', version: '3.0.5', tag: 'maui-iap-3.0.5' },
+  { name: 'godot-iap', version: '4.1.0', tag: 'godot-iap-4.1.0' },
+  { name: 'kmp-iap', version: '4.1.0', tag: 'kmp-iap-4.1.0' },
+  { name: 'OpenIap.Maui', version: '3.1.0', tag: 'maui-iap-3.1.0' },
 ];
 
 const PREPAID_PENDING_RELEASES: readonly ReleaseMetadata[] = [
@@ -652,49 +652,162 @@ function Releases() {
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
           <AnchorLink id="framework-prepaid-pending-2026-10-23" level="h4">
-            October 23, 2026 - Prepaid pending payments in every framework
+            October 23, 2026 - One purchase flow in every framework
           </AnchorLink>
           <p>
-            Every framework library now ships openiap-google 4.0.5 and
-            openiap-apple 4.0.4, so Google Play prepaid plans accept payment
-            methods that complete later in React Native, Expo, Flutter, Godot,
-            KMP, and MAUI apps. The{' '}
+            Every framework library now ships the same purchase flow. Give it a
+            way to confirm a purchase and the list of consumables, and it
+            confirms, finishes, and recovers every purchase the store delivers,
+            on the App Store, Google Play, Amazon Appstore, and Meta Horizon,
+            and reports one outcome per purchase. Apps without a backend confirm
+            with IAPKit directly. The libraries also ship openiap-google 4.0.5
+            and openiap-apple 4.0.4, so Google Play prepaid plans accept payment
+            methods that complete later; the{' '}
             <Link to="/docs/updates/releases#play-prepaid-pending-2026-10-22">
               October 22 release
             </Link>{' '}
-            describes the purchase results.
+            describes those purchases. See the{' '}
+            <a href="https://kit.openiap.dev/docs/purchase-flow">
+              purchase flow guide
+            </a>
+            .
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
             Protocols and native packages
           </h5>
           <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
             <li>
-              <strong>Client Protocol 1.1.1</strong>: the purchase flow that
-              React Native and Expo export marks an <code>entitled</code> Google
-              Play purchase with <code>changePending</code> when its requested
-              upgrade, downgrade, or prepaid top-up still waits for payment, and{' '}
-              <code>describePurchaseFlowStatus</code> returns{' '}
-              <code>payment_pending</code> for it instead of{' '}
-              <code>access_granted</code>. The current plan stays granted.
+              <strong>Client Protocol 1.2.0</strong>: the purchase flow
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  accepts Amazon and Meta Horizon purchases, not only Apple and
+                  Google Play, and recovers each store&apos;s unfinished ones;
+                </li>
+                <li>
+                  listens for purchases itself, publishes one outcome per
+                  purchase through <code>subscribe</code>, answers a purchase it
+                  already settled without confirming it again, and stops on{' '}
+                  <code>dispose</code>, including a recovery pass in progress;
+                </li>
+                <li>
+                  confirms with IAPKit from the app through{' '}
+                  <code>createIapkitConfirmation</code>, which calls your{' '}
+                  <code>grant</code> before a consumable is consumed and leaves
+                  a purchase unfinished on any answer that may be a
+                  configuration error;
+                </li>
+                <li>
+                  marks an <code>entitled</code> purchase whose plan change has
+                  not applied yet with <code>changePending</code>, which{' '}
+                  <code>describePurchaseFlowStatus</code> reports as the new
+                  guidance key <code>change_pending</code>. A{' '}
+                  <code>Record&lt;PurchaseFlowGuidanceKey, string&gt;</code>{' '}
+                  copy map needs the new key;
+                </li>
+                <li>
+                  passes <code>{'{ isConsumable }'}</code> to{' '}
+                  <code>confirmWithBackend</code>, and no longer finishes an
+                  acknowledged Google Play non-consumable again during a
+                  restore.
+                </li>
+              </ul>
+              The package publishes the shared test cases every library runs as{' '}
+              <code>purchase-flow-vectors</code>.
             </li>
             <li>
-              <strong>openiap-apple 4.0.4</strong> and{' '}
-              <strong>openiap-google 4.0.5</strong> report Client Protocol
-              1.1.1. The natives the libraries shipped before report 1.0.3, so
-              they rejected a community store provider built for Client Protocol
-              1.1 with &quot;this app links 1.0.3&quot;.
+              <strong>openiap-google 4.0.5</strong>: <code>initConnection</code>{' '}
+              on a connected Google Play client with a different billing program
+              or Billing Choice renderer now rebuilds the client with it instead
+              of ignoring it; a call without a config keeps the live connection.
+              Both natives report Client Protocol 1.2.0; the natives the
+              libraries shipped before reported 1.0.3, so they rejected a
+              community store provider built for Client Protocol 1.1.
+            </li>
+            <li>
+              <strong>openiap-apple 4.0.4</strong>: reports Client Protocol
+              1.2.0.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
           <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
             <li>
-              <strong>react-native-iap 17.1.1</strong> and{' '}
-              <strong>expo-iap 6.1.2</strong>: <code>useIAP</code> no longer
-              lets a store read that answers late overwrite newer{' '}
-              <code>availablePurchases</code> or{' '}
-              <code>activeSubscriptions</code>, such as a read that started
-              before a purchase arrived. expo-iap now refreshes both after every
-              purchase, as react-native-iap does.
+              <strong>react-native-iap 17.2.0</strong> and{' '}
+              <strong>expo-iap 6.2.0</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  <code>createPurchaseFlow</code> needs only{' '}
+                  <code>confirmWithBackend</code> and <code>isConsumable</code>,
+                  also on Amazon Vega, and <code>confirmWithIapkit</code>{' '}
+                  confirms with a publishable key.
+                </li>
+                <li>
+                  <code>
+                    useIAP({'{ purchaseFlow, onPurchaseFlowOutcome }'})
+                  </code>{' '}
+                  recovers unfinished purchases once connected and when the flow
+                  changes, reports each outcome, and refreshes ownership after
+                  it; <code>restorePurchases</code> confirms every owned
+                  purchase again.
+                </li>
+                <li>
+                  <code>useIAP</code> no longer lets a store read that answers
+                  late overwrite newer <code>availablePurchases</code> or{' '}
+                  <code>activeSubscriptions</code>, and expo-iap refreshes both
+                  after every purchase, as react-native-iap does.
+                </li>
+                <li>
+                  expo-iap replaces a product or subscription fetched again with
+                  its new details instead of keeping the stale entry.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 11.1.0</strong>:{' '}
+              <code>createPurchaseFlow</code> with an <code>outcomes</code>{' '}
+              stream, <code>confirmWithIapkit</code>, and{' '}
+              <code>PurchaseConfirmation.fromJson</code>. On Android,{' '}
+              <code>initConnection</code> with a config now reaches
+              openiap-google even when connected; without one it keeps the
+              connection. <code>initConnection</code> and{' '}
+              <code>endConnection</code> run in call order, and a failed
+              connection attempt leaves the store disconnected. The new exports
+              include generic names such as <code>PurchaseFlow</code> and{' '}
+              <code>PurchaseEntitled</code>; hide them on import if your app
+              declares the same names.
+            </li>
+            <li>
+              <strong>godot-iap 4.1.0</strong>:{' '}
+              <code>create_purchase_flow</code>,{' '}
+              <code>confirm_with_iapkit</code>, and a typed{' '}
+              <code>purchase_received</code> signal. Android{' '}
+              <code>purchase_updated</code> dictionaries now match the purchase
+              queries (<code>isAcknowledgedAndroid</code> is filled in). Trace
+              logs are off unless <code>debug_logging</code> is true; errors
+              still print. <code>init_connection</code> with a different config
+              reconfigures the live connection instead of failing, and errors
+              from non-purchase calls such as <code>get_storefront</code> carry
+              a <code>method</code> key.
+            </li>
+            <li>
+              <strong>kmp-iap 4.1.0</strong>:{' '}
+              <code>KmpIAP.createPurchaseFlow</code> on the app&apos;s existing
+              instance, with an <code>outcomes</code> flow that ends on{' '}
+              <code>dispose</code>, and <code>confirmWithIapkit</code>. On
+              Android, <code>initConnection</code> with a config now reaches
+              openiap-google even when connected; without one it keeps the
+              connection.
+            </li>
+            <li>
+              <strong>OpenIap.Maui 3.1.0</strong>:{' '}
+              <code>OpenIapClient.CreatePurchaseFlow</code>,{' '}
+              <code>ConfirmWithIapkit</code>, and{' '}
+              <code>PurchaseConfirmationRequest.FromPurchase</code>.{' '}
+              <code>OpenIapClient.Query</code> and{' '}
+              <code>OpenIapClient.Mutation</code> replace casting the client to
+              the resolver interfaces, which still works, and{' '}
+              <code>ObserveOnCurrentContext()</code> delivers listener streams
+              on the UI thread. iOS and Mac Catalyst trace logs are off unless{' '}
+              <code>OpenIapClient.DebugLogging</code> is true.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>

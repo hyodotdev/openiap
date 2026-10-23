@@ -181,7 +181,7 @@ if (Platform.OS === 'android') {
 }`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`var result = await ((MutationResolver)OpenIapClient.Instance)
+            <CodeBlock language="csharp">{`var result = await OpenIapClient.Mutation
     .ShowInAppMessagesAndroidAsync(new InAppMessageParamsAndroid
     {
         Categories = new[] { InAppMessageCategoryAndroid.Transactional },

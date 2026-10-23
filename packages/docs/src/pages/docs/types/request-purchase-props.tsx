@@ -213,7 +213,7 @@ await FlutterInappPurchase.instance.requestPurchase(
 using OpenIap.Maui;
 
 // Standard in-app purchase
-await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(
+await OpenIapClient.Mutation.RequestPurchaseAsync(
     new RequestPurchaseProps
     {
         RequestPurchase = new RequestPurchasePropsByPlatforms
@@ -227,7 +227,7 @@ await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(
     });
 
 // Subscription purchase
-await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(
+await OpenIapClient.Mutation.RequestPurchaseAsync(
     new RequestPurchaseProps
     {
         RequestSubscription = new RequestSubscriptionPropsByPlatforms

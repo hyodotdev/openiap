@@ -168,7 +168,7 @@ var config = new InitConnectionConfig
 };
 
 // Pass no config instead for standard billing.
-var connected = await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(config);
+var connected = await OpenIapClient.Mutation.InitConnectionAsync(config);
 if (!connected) throw new InvalidOperationException("Store connection failed");`}</CodeBlock>
             ),
             gdscript: (
@@ -416,21 +416,21 @@ var userChoiceSubscription = OpenIapClient.Instance.UserChoiceBillingAndroid.Sub
     details => _ = HandleUserChoiceBillingSafelyAsync(details));
 
 // Step 2: Initialize with user choice billing (recommended).
-var connected = await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(new InitConnectionConfig
+var connected = await OpenIapClient.Mutation.InitConnectionAsync(new InitConnectionConfig
 {
     EnableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling,
 });
 if (!connected) throw new InvalidOperationException("Store connection failed");
 
 // Step 3: Fetch products and purchase as normal.
-await ((QueryResolver)OpenIapClient.Instance).FetchProductsAsync(new ProductRequest
+await OpenIapClient.Query.FetchProductsAsync(new ProductRequest
 {
     Skus = new[] { "premium_subscription" },
     Type = ProductQueryType.Subs,
 });
 
 // Step 4: Request purchase - dialog will show both options.
-await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
 {
     Type = ProductQueryType.Subs,
     RequestSubscription = new RequestSubscriptionPropsByPlatforms
@@ -686,16 +686,14 @@ using OpenIap.Maui;
 using System.Linq;
 
 // Step 1: Initialize with external offer (recommended).
-var connected = await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(new InitConnectionConfig
+var connected = await OpenIapClient.Mutation.InitConnectionAsync(new InitConnectionConfig
 {
     EnableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer,
 });
 if (!connected) throw new InvalidOperationException("Store connection failed");
 
-var mutate = (MutationResolver)OpenIapClient.Instance;
-
 // Step 2: Check whether External Offer is available for this user.
-var availability = await mutate.IsBillingProgramAvailableAndroidAsync(
+var availability = await OpenIapClient.Mutation.IsBillingProgramAvailableAndroidAsync(
     BillingProgramAndroid.ExternalOffer);
 if (!availability.IsAvailable)
 {
@@ -704,7 +702,7 @@ if (!availability.IsAvailable)
 }
 
 // Step 3: Fetch products (still needed to show prices).
-var result = await ((QueryResolver)OpenIapClient.Instance).FetchProductsAsync(new ProductRequest
+var result = await OpenIapClient.Query.FetchProductsAsync(new ProductRequest
 {
     Skus = new[] { "premium_subscription" },
     Type = ProductQueryType.Subs,
@@ -716,11 +714,11 @@ var product = result is FetchProductsResultSubscriptions subscriptions
 if (product is null) return;
 
 // Step 4: Create reporting details immediately before redirecting.
-var reportingDetails = await mutate.CreateBillingProgramReportingDetailsAndroidAsync(
+var reportingDetails = await OpenIapClient.Mutation.CreateBillingProgramReportingDetailsAndroidAsync(
     BillingProgramAndroid.ExternalOffer);
 
 // Step 5: Play shows the disclosure and launches the checkout URL.
-var launched = await mutate.LaunchExternalLinkAndroidAsync(
+var launched = await OpenIapClient.Mutation.LaunchExternalLinkAndroidAsync(
     new LaunchExternalLinkParamsAndroid
     {
         BillingProgram = BillingProgramAndroid.ExternalOffer,

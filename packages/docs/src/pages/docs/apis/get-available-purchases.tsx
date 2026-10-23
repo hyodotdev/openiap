@@ -253,7 +253,7 @@ function PendingPurchases() {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var purchases = await ((QueryResolver)OpenIapClient.Instance).GetAvailablePurchasesAsync();`}</CodeBlock>
+var purchases = await OpenIapClient.Query.GetAvailablePurchasesAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var result = await iap.get_available_purchases_result()

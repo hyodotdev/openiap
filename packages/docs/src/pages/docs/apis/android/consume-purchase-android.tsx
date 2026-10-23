@@ -134,7 +134,7 @@ if (Platform.isAndroid && token != null) {
 using OpenIap.Maui;
 
 if (purchase.PurchaseToken is { } token)
-    await ((MutationResolver)OpenIapClient.Instance).ConsumePurchaseAndroidAsync(token);`}</CodeBlock>
+    await OpenIapClient.Mutation.ConsumePurchaseAndroidAsync(token);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android" and purchase.purchase_token != null:

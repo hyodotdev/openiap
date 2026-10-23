@@ -202,7 +202,7 @@ if (Platform.OS === 'android') {
 using OpenIap.Maui;
 
 // External Offer: create immediately before each launch; never cache.
-var details = await ((MutationResolver)OpenIapClient.Instance).CreateBillingProgramReportingDetailsAndroidAsync(
+var details = await OpenIapClient.Mutation.CreateBillingProgramReportingDetailsAndroidAsync(
     BillingProgramAndroid.ExternalOffer
 );`}</CodeBlock>
           ),

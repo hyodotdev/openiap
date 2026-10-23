@@ -252,18 +252,18 @@ public sealed class RedemptionManager : IDisposable
     {
         _purchaseSubscription = _iap.PurchaseUpdated.Subscribe(
             purchase => Console.WriteLine("Redeemed product: " + purchase.ProductId));
-        var connected = await ((MutationResolver)_iap).InitConnectionAsync();
+        var connected = await OpenIapClient.Mutation.InitConnectionAsync();
         if (!connected) throw new InvalidOperationException("Store connection failed");
     }
 
     public Task<Purchase?> RedeemCodeAsync() =>
-        ((MutationResolver)_iap).OpenRedeemOfferCodeAsync();
+        OpenIapClient.Mutation.OpenRedeemOfferCodeAsync();
 
     public async Task StopAsync()
     {
         _purchaseSubscription?.Dispose();
         _purchaseSubscription = null;
-        var ended = await ((MutationResolver)_iap).EndConnectionAsync();
+        var ended = await OpenIapClient.Mutation.EndConnectionAsync();
         if (!ended) Console.WriteLine("Store teardown did not complete");
     }
 
@@ -478,24 +478,19 @@ Future<void> reconcileAfterResume() async {
                       <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var mutations = (MutationResolver)OpenIapClient.Instance;
 // Resolves null on Google Play — the redemption completes in the Play Store.
-await mutations.OpenRedeemOfferCodeAsync();
+await OpenIapClient.Mutation.OpenRedeemOfferCodeAsync();
 
 async Task ReconcileAfterResumeAsync()
 {
-    var iap = OpenIapClient.Instance;
-    var mutations = (MutationResolver)iap;
-    var queries = (QueryResolver)iap;
-
-    if (!await mutations.InitConnectionAsync()) return;
-    foreach (var purchase in await queries.GetAvailablePurchasesAsync())
+    if (!await OpenIapClient.Mutation.InitConnectionAsync()) return;
+    foreach (var purchase in await OpenIapClient.Query.GetAvailablePurchasesAsync())
     {
         if (purchase.PurchaseState != PurchaseState.Purchased) continue;
         if (!await VerifyOnServerAsync(purchase)) continue;
 
         await GrantIdempotentlyAsync(purchase);
-        await mutations.FinishTransactionAsync(
+        await OpenIapClient.Mutation.FinishTransactionAsync(
             new PurchaseInput(purchase),
             IsConsumableProduct(purchase.ProductId));
     }
