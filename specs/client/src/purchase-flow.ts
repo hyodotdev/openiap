@@ -24,6 +24,9 @@ export interface PurchaseFlowPurchase {
   environmentIOS?: string | null;
   /** The Amazon user the receipt belongs to, which Amazon RVS checks. */
   userIdAmazon?: string | null;
+  revocationDateIOS?: number | null;
+  isUpgradedIOS?: boolean | null;
+  expirationDateIOS?: number | null;
 }
 
 /** Body the app sends its backend, which takes the user from its own session. */
@@ -202,7 +205,11 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
     2_147_483_647,
   );
   const subscription = options.listenForPurchases?.((purchase) => {
-    void deliver(purchase, options.wasRequested?.(purchase) ?? false);
+    // A pending delivery leaves the mark for the completed one that follows.
+    const requested =
+      purchase.purchaseState !== "pending" &&
+      (options.wasRequested?.(purchase) ?? false);
+    void deliver(purchase, requested);
   });
 
   function publish(outcome: PurchaseFlowOutcome<P>): void {
@@ -291,8 +298,11 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
 
   async function confirmAndFinish(purchase: P): Promise<PurchaseFlowStatus> {
     let confirmation: PurchaseConfirmation | null;
+    let isConsumable: boolean;
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
+      // Read once: finishing must consume exactly what confirmation granted.
+      isConsumable = options.isConsumable(purchase.productId);
       const timeout = new Promise<never>((_, reject) => {
         timer = setTimeout(() => {
           reject(
@@ -302,7 +312,6 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
           );
         }, confirmTimeoutMs);
       });
-      const isConsumable = options.isConsumable(purchase.productId);
       confirmation = readConfirmation(
         await Promise.race([
           options.confirmWithBackend(purchase, { isConsumable }),
@@ -323,15 +332,15 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
     // Finishing settles a purchase for good, so only a settled verdict does.
     switch (confirmation.status) {
       case "entitled":
-        return await finish(purchase, confirmation);
+        return await finish(purchase, isConsumable, confirmation);
       case "ownership_conflict":
         return confirmation.alreadyGranted
-          ? await finish(purchase, confirmation)
+          ? await finish(purchase, isConsumable, confirmation)
           : confirmation;
       case "invalid":
       case "test_account_restricted":
         return purchase.store === "apple"
-          ? await finish(purchase, confirmation)
+          ? await finish(purchase, isConsumable, confirmation)
           : confirmation;
       default:
         return confirmation;
@@ -340,13 +349,13 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
 
   async function finish(
     purchase: P,
+    isConsumable: boolean,
     confirmation: Extract<
       PurchaseConfirmation,
       { status: Finishable | "invalid" }
     >,
   ): Promise<PurchaseFlowStatus> {
     try {
-      const isConsumable = options.isConsumable(purchase.productId);
       // Play keeps an acknowledged purchase finished; a restore need not redo it.
       if (purchase.isAcknowledgedAndroid === true && !isConsumable) {
         return confirmation;
@@ -422,20 +431,12 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
   }
 
   function isUnfinished(purchase: P): boolean {
-    switch (purchase.store) {
-      // Amazon reports no acknowledgment, and approves a Kids purchase later,
-      // so every listed purchase is confirmed again.
-      case "amazon":
-        return true;
-      // Horizon's acknowledgment does nothing; a listed consumable is unconsumed.
-      case "horizon":
-        return (
-          purchase.isAcknowledgedAndroid === false ||
-          options.isConsumable(purchase.productId)
-        );
-      default:
-        return purchase.isAcknowledgedAndroid === false;
-    }
+    // Amazon and most community stores report no acknowledgment, and Amazon
+    // approves a Kids purchase later; a listed consumable is unconsumed.
+    return (
+      purchase.isAcknowledgedAndroid !== true ||
+      options.isConsumable(purchase.productId)
+    );
   }
 
   return {
@@ -564,12 +565,7 @@ export function createIapkitConfirmation<P extends PurchaseFlowPurchase>(
   context: { isConsumable: boolean },
 ) => Promise<PurchaseConfirmation> {
   return async (purchase, context) => {
-    // Checked first: a consumable must never verify without a way to credit it.
-    if (context.isConsumable && !options.grant) {
-      throw new Error(
-        `confirmWithIapkit needs grant to credit consumable ${purchase.productId} before it is consumed`,
-      );
-    }
+    requireGrant("confirmWithIapkit", purchase, context, options);
     const confirmation = readIapkitVerification(
       await verifyPurchaseWithProvider(
         toIapkitVerificationProps(purchase, options),
@@ -583,6 +579,69 @@ export function createIapkitConfirmation<P extends PurchaseFlowPurchase>(
     }
     return confirmation;
   };
+}
+
+/**
+ * The SDK's `confirmOnDeviceIOS`, given its `getPendingTransactionsIOS`, for an
+ * app with neither a backend nor IAPKit. StoreKit verified the transaction if
+ * it is still unfinished, unrevoked, not upgraded, unexpired, and from the
+ * purchase's environment; `grant` then runs before the flow finishes it.
+ */
+export function createDeviceConfirmationIOS<P extends PurchaseFlowPurchase>(
+  getPendingTransactionsIOS: () => Promise<P[]>,
+  options: Pick<IapkitConfirmationOptions<P>, "grant"> = {},
+): (
+  purchase: P,
+  context: { isConsumable: boolean },
+) => Promise<PurchaseConfirmation> {
+  return async (purchase, context) => {
+    requireGrant("confirmOnDeviceIOS", purchase, context, options);
+    // A community provider may report store "apple" under its own storeId.
+    if (
+      purchase.store !== "apple" ||
+      (purchase.storeId ?? "apple") !== "apple"
+    ) {
+      throw new Error(
+        `Device confirmation covers App Store purchases, not ${purchase.storeId ?? purchase.store}`,
+      );
+    }
+    const now = Date.now();
+    const pending = await getPendingTransactionsIOS();
+    const verified = pending.some(
+      (candidate) =>
+        candidate.store === "apple" &&
+        purchase.id !== "" &&
+        candidate.id === purchase.id &&
+        candidate.productId === purchase.productId &&
+        candidate.revocationDateIOS == null &&
+        candidate.isUpgradedIOS !== true &&
+        (candidate.expirationDateIOS == null ||
+          candidate.expirationDateIOS > now) &&
+        (purchase.environmentIOS == null ||
+          candidate.environmentIOS === purchase.environmentIOS),
+    );
+    if (!verified) {
+      throw new Error(
+        `StoreKit lists no valid unfinished transaction for ${purchase.productId}`,
+      );
+    }
+    await options.grant?.(purchase, context);
+    return { status: "entitled", alreadyGranted: false };
+  };
+}
+
+// Checked before verifying: a consumable must never pass without a way to credit it.
+function requireGrant<P extends PurchaseFlowPurchase>(
+  name: string,
+  purchase: P,
+  context: { isConsumable: boolean },
+  options: Pick<IapkitConfirmationOptions<P>, "grant">,
+): void {
+  if (context.isConsumable && !options.grant) {
+    throw new Error(
+      `${name} needs grant to credit consumable ${purchase.productId} before it is consumed`,
+    );
+  }
 }
 
 /** Builds the IAPKit request for a purchase; throws for a store IAPKit cannot verify. */

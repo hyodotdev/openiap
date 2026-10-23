@@ -70,7 +70,7 @@ describe('Amazon Vega public API', () => {
       type: 'in-app',
     });
     deliver(purchase('old'));
-    deliver(purchase('fresh'));
+    deliver({...purchase('fresh'), transactionDate: Date.now()});
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Amazon keeps a rejected purchase unfinished; only the request offers a rebuy.

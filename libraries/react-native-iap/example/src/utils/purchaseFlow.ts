@@ -1,11 +1,9 @@
-import {Platform} from 'react-native';
 import {
   confirmWithIapkit,
   createPurchaseFlow,
   describePurchaseFlowStatus,
-  getPendingTransactionsIOS,
+  confirmOnDeviceIOS,
   type Purchase,
-  type PurchaseConfirmation,
   type PurchaseFlowGuidanceKey,
   type PurchaseFlowStatus,
 } from 'react-native-iap';
@@ -14,7 +12,6 @@ import {CONSUMABLE_PRODUCT_IDS} from './constants';
 import {getErrorMessage} from './errorUtils';
 import {
   getAmazonVerificationProductId,
-  matchesVerifiedPendingPurchase,
   resolveIapkitVerificationBaseUrl,
   showNativeAlert,
 } from './vegaRuntime';
@@ -52,30 +49,17 @@ export function setVerificationMethod(method: VerificationMethod): void {
   });
 }
 
-// A real app credits the purchase here, once per purchase.id: the flow
-// finishes it right after, and a crash can confirm the same purchase again.
-async function grant(purchase: Purchase): Promise<void> {
-  console.log('[purchaseFlow] Granting', purchase.productId, purchase.id);
-}
+// A real app keeps this set in its own store: a crash can confirm the same
+// purchase again, and the flow finishes it right after the grant.
+const creditedPurchaseIds = new Set<string>();
 
-// StoreKit lists only transactions it verified on this device.
-async function confirmOnDevice(
-  purchase: Purchase,
-): Promise<PurchaseConfirmation> {
-  if (Platform.OS !== 'ios' || purchase.store !== 'apple') {
-    throw new Error(
-      'Local (Device) verification is available only for Apple purchases. Choose Local (IAPKit).',
-    );
+async function grant(purchase: Purchase): Promise<void> {
+  if (creditedPurchaseIds.has(purchase.id)) {
+    console.log('[purchaseFlow] Already credited', purchase.id);
+    return;
   }
-  if (
-    !matchesVerifiedPendingPurchase(purchase, await getPendingTransactionsIOS())
-  ) {
-    throw new Error(
-      'Local verification did not match this pending transaction',
-    );
-  }
-  await grant(purchase);
-  return {status: 'entitled', alreadyGranted: false};
+  creditedPurchaseIds.add(purchase.id);
+  console.log('[purchaseFlow] Crediting', purchase.productId, purchase.id);
 }
 
 /** The app's one purchase flow; every purchase screen passes it to useIAP. */
@@ -88,7 +72,7 @@ export const purchaseFlow = createPurchaseFlow({
         // Valid but not granted: the purchase stays unfinished.
         return {status: 'verified'};
       case 'local':
-        return confirmOnDevice(purchase);
+        return confirmOnDeviceIOS({grant})(purchase, context);
       default:
         return confirmWithIapkit({
           apiKey: IAPKIT_API_KEY,

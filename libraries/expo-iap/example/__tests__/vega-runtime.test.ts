@@ -3,10 +3,8 @@ import {
   getSubscriptionProductId,
   getDefaultVerificationMethod,
   isAmazonRvsSandboxEnabled,
-  matchesVerifiedPendingPurchase,
   resolveIapkitVerificationBaseUrl,
 } from '../src/utils/vegaRuntime';
-import type {Purchase} from '../../src/types';
 
 jest.mock('expo-constants', () => ({
   __esModule: true,
@@ -22,59 +20,6 @@ jest.mock('expo-constants', () => ({
 }));
 
 describe('Vega runtime example helpers', () => {
-  it('local Apple verification binds the exact pending transaction and provider', () => {
-    const receipt: Purchase = {
-      id: 'unfinished-old',
-      productId: 'dev.hyo.martie.10bulbs',
-      store: 'apple',
-      storeId: 'apple',
-      purchaseState: 'purchased',
-      transactionDate: 1,
-      quantity: 1,
-      isAutoRenewing: false,
-    };
-    expect(
-      matchesVerifiedPendingPurchase(receipt, [
-        {...receipt, id: 'latest-other'},
-      ]),
-    ).toBe(false);
-    expect(
-      matchesVerifiedPendingPurchase(receipt, [
-        {...receipt, productId: 'another-sku'},
-      ]),
-    ).toBe(false);
-    expect(
-      matchesVerifiedPendingPurchase({...receipt, storeId: 'community-apple'}, [
-        receipt,
-      ]),
-    ).toBe(false);
-    expect(
-      matchesVerifiedPendingPurchase({...receipt, id: ''}, [
-        {...receipt, id: ''},
-      ]),
-    ).toBe(false);
-    expect(matchesVerifiedPendingPurchase(receipt, [{...receipt}])).toBe(true);
-    for (const extra of [
-      {revocationDateIOS: 1},
-      {isUpgradedIOS: true},
-      {expirationDateIOS: 1},
-    ]) {
-      expect(
-        matchesVerifiedPendingPurchase(receipt, [{...receipt, ...extra}]),
-      ).toBe(false);
-    }
-    expect(
-      matchesVerifiedPendingPurchase({...receipt, environmentIOS: 'Sandbox'}, [
-        {...receipt, environmentIOS: 'Production'},
-      ]),
-    ).toBe(false);
-    expect(
-      matchesVerifiedPendingPurchase({...receipt, environmentIOS: 'Sandbox'}, [
-        receipt,
-      ]),
-    ).toBe(false);
-  });
-
   it('defaults to local IAPKit when a key and local URL are configured', () => {
     expect(getDefaultVerificationMethod()).toBe('iapkit-localhost');
   });

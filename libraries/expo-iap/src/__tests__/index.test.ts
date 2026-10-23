@@ -179,13 +179,43 @@ describe('Public API (index.ts)', () => {
 
       await requestPurchase({request: {apple: {sku: 'fresh'}}, type: 'in-app'});
       deliver(applePurchase('old'));
-      deliver(applePurchase('fresh'));
+      // A receipt from before the request is a redelivery, not the purchase.
+      deliver(applePurchase('fresh', 'tx-earlier'));
+      deliver({...applePurchase('fresh'), transactionDate: Date.now()});
       await settle();
 
       expect(statuses).toEqual([
         {status: 'invalid', recovered: true},
+        {status: 'invalid', recovered: true},
         {status: 'invalid'},
       ]);
+      flow.dispose();
+    });
+
+    it('keeps the 17.1 manual delivery for a flow given its own store functions', () => {
+      const listenersBefore = jest.mocked(ExpoIapModule.addListener).mock.calls
+        .length;
+      createPurchaseFlow({
+        confirmWithBackend: async () => ({status: 'invalid' as const}),
+        isConsumable: () => false,
+        finishTransaction: jest.fn(async () => {}),
+        getAvailablePurchases: jest.fn(async () => []),
+        getPendingTransactionsIOS: undefined,
+      });
+
+      expect(jest.mocked(ExpoIapModule.addListener).mock.calls.length).toBe(
+        listenersBefore,
+      );
+    });
+
+    it('receives iOS replays, which the flow deduplicates itself', () => {
+      const setOptions = purchaseUpdatedOptionsMock();
+      const flow = createPurchaseFlow({
+        confirmWithBackend: async () => ({status: 'invalid' as const}),
+        isConsumable: () => false,
+      });
+
+      expect(setOptions).toHaveBeenCalledWith({dedupeTransactionIOS: false});
       flow.dispose();
     });
 
@@ -203,9 +233,10 @@ describe('Public API (index.ts)', () => {
         message: 'cancelled',
       });
       // A new transaction id: iOS drops one it has already delivered.
-      listenerFor(OpenIapEvent.PurchaseUpdated)(
-        applePurchase('fresh', 'tx-after-error'),
-      );
+      listenerFor(OpenIapEvent.PurchaseUpdated)({
+        ...applePurchase('fresh', 'tx-after-error'),
+        transactionDate: Date.now(),
+      });
       await settle();
 
       expect(statuses).toEqual([{status: 'invalid', recovered: true}]);

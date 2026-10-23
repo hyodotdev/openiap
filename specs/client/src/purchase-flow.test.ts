@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  createDeviceConfirmationIOS,
   createIapkitConfirmation,
   createPurchaseFlow,
   describePurchaseFlowStatus,
@@ -52,12 +53,24 @@ const vectors: {
     error?: true;
     granted: boolean;
   }[];
+  device: {
+    name: string;
+    purchase: PurchaseFlowPurchase;
+    pending: PurchaseFlowPurchase[];
+    isConsumable: boolean;
+    noGrant?: true;
+    reads?: boolean;
+    confirmation?: PurchaseConfirmation;
+    error?: true;
+    granted: boolean;
+  }[];
   sequences: {
     name: string;
     consumables?: string[];
     purchases: Record<string, PurchaseFlowPurchase>;
     answers: Record<string, (PurchaseConfirmation | "throw")[]>;
     requested?: string[];
+    requestedOnce?: true;
     pendingIOS?: string[] | "throw";
     available?: string[];
     steps: StepVector[];
@@ -555,6 +568,24 @@ describe("processPurchase", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("finishes with the product type confirmation was given", async () => {
+    const isConsumable = vi
+      .fn()
+      .mockReturnValueOnce(false)
+      .mockReturnValue(true);
+    const { flow, options } = flowWith(
+      async () => ({ status: "entitled", alreadyGranted: false }),
+      { isConsumable },
+    );
+
+    await flow.processPurchase(purchase({ store: "google" }));
+
+    expect(isConsumable).toHaveBeenCalledOnce();
+    expect(options.finishTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ isConsumable: false }),
+    );
   });
 
   it("shares one backend call between concurrent deliveries of a transaction", async () => {
@@ -1179,6 +1210,30 @@ describe("shared vectors", () => {
     },
   );
 
+  it.each(vectors.device.map((v) => [v.name, v] as const))(
+    "device: %s",
+    async (_, vector) => {
+      const grant = vi.fn(async () => {});
+      const read = vi.fn(async () => vector.pending);
+      const confirm = createDeviceConfirmationIOS(
+        read,
+        vector.noGrant ? {} : { grant },
+      );
+
+      const answer = confirm(vector.purchase, {
+        isConsumable: vector.isConsumable,
+      });
+
+      if (vector.error) {
+        await expect(answer).rejects.toThrow();
+      } else {
+        await expect(answer).resolves.toEqual(vector.confirmation);
+      }
+      expect(read).toHaveBeenCalledTimes(vector.reads === false ? 0 : 1);
+      expect(grant).toHaveBeenCalledTimes(vector.granted ? 1 : 0);
+    },
+  );
+
   it.each(vectors.sequences.map((v) => [v.name, v] as const))(
     "sequence: %s",
     async (_, vector) => {
@@ -1218,7 +1273,8 @@ describe("shared vectors", () => {
             },
           };
         },
-        wasRequested: (p) => requested.has(p.id),
+        wasRequested: (p) =>
+          vector.requestedOnce ? requested.delete(p.id) : requested.has(p.id),
       });
       flow.subscribe((outcome) => published.push(outcome));
       const comparable = (status: PurchaseFlowStatus) => {

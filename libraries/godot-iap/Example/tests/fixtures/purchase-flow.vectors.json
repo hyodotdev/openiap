@@ -1,5 +1,5 @@
 {
-  "$comment": "Shared cases for every purchase-flow port. process: one processPurchase call. iapkit: confirmWithIapkit with a fake verifyPurchaseWithProvider, apiKey \"pk\" unless the case sets apiKey (null: none passed); props null means building the request throws. sequences: deliveries through the flow's listener (listener), processPurchase (process), or recoverPurchases (recover); each step's deliveries start together and settle before the next step. answers: confirmWithBackend results per purchase id, used in order with the last repeating; the string \"throw\" throws. A port compares every listed field; error: true means a thrown error or a failed status, finishError: true a status carrying one, whatever the message.",
+  "$comment": "Shared cases for every purchase-flow port. process: one processPurchase call. iapkit: confirmWithIapkit with a fake verifyPurchaseWithProvider, apiKey \"pk\" unless the case sets apiKey (null: none passed); props null means building the request throws. sequences: deliveries through the flow's listener (listener), processPurchase (process), or recoverPurchases (recover); each step's deliveries start together and settle before the next step. answers: confirmWithBackend results per purchase id, used in order with the last repeating; the string \"throw\" throws. A port compares every listed field; error: true means a thrown error or a failed status, finishError: true a status carrying one, whatever the message. device: confirmOnDeviceIOS over a fake getPendingTransactionsIOS returning pending (reads false: never called). requestedOnce: wasRequested answers true only once per listed id, like an SDK's request mark.",
   "schemaVersion": 1,
   "process": [
     {
@@ -1727,6 +1727,22 @@
           "purchaseToken": "t4",
           "store": "horizon",
           "isAcknowledgedAndroid": true
+        },
+        "community": {
+          "purchaseState": "purchased",
+          "id": "community",
+          "productId": "coins",
+          "purchaseToken": "t5",
+          "store": "unknown",
+          "storeId": "amazon_example"
+        },
+        "play-coins": {
+          "purchaseState": "purchased",
+          "id": "play-coins",
+          "productId": "coins",
+          "purchaseToken": "t6",
+          "store": "google",
+          "isAcknowledgedAndroid": true
         }
       },
       "answers": {
@@ -1742,7 +1758,9 @@
         "play-done",
         "amazon-sub",
         "horizon-coins",
-        "horizon-done"
+        "horizon-done",
+        "community",
+        "play-coins"
       ],
       "steps": [
         {
@@ -1768,6 +1786,20 @@
                 "status": "entitled",
                 "alreadyGranted": true
               }
+            },
+            {
+              "id": "community",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": true
+              }
+            },
+            {
+              "id": "play-coins",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": true
+              }
             }
           ]
         }
@@ -1775,12 +1807,16 @@
       "confirms": {
         "play-new": 1,
         "amazon-sub": 1,
-        "horizon-coins": 1
+        "horizon-coins": 1,
+        "community": 1,
+        "play-coins": 1
       },
       "finishes": {
         "play-new": 1,
         "amazon-sub": 1,
-        "horizon-coins": 1
+        "horizon-coins": 1,
+        "community": 1,
+        "play-coins": 1
       }
     },
     {
@@ -2017,6 +2053,336 @@
           }
         }
       ]
+    },
+    {
+      "name": "keeps the request for the completed delivery after a pending one",
+      "purchases": {
+        "pending": {
+          "purchaseState": "pending",
+          "id": "p1",
+          "productId": "premium",
+          "purchaseToken": "t1",
+          "store": "google"
+        },
+        "done": {
+          "purchaseState": "purchased",
+          "id": "p1",
+          "productId": "premium",
+          "purchaseToken": "t1",
+          "store": "google"
+        }
+      },
+      "answers": {
+        "p1": [
+          {
+            "status": "invalid"
+          }
+        ]
+      },
+      "requested": ["p1"],
+      "requestedOnce": true,
+      "steps": [
+        {
+          "listener": ["pending"]
+        },
+        {
+          "listener": ["done"]
+        }
+      ],
+      "confirms": {
+        "p1": 1
+      },
+      "finishes": {},
+      "published": [
+        {
+          "id": "p1",
+          "status": {
+            "status": "store_pending"
+          }
+        },
+        {
+          "id": "p1",
+          "status": {
+            "status": "invalid"
+          }
+        }
+      ]
+    }
+  ],
+  "device": [
+    {
+      "name": "confirms a transaction StoreKit still lists",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-1",
+        "productId": "premium",
+        "environmentIOS": "Sandbox"
+      },
+      "pending": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-1",
+          "productId": "premium",
+          "environmentIOS": "Sandbox",
+          "expirationDateIOS": 4102444800000
+        }
+      ],
+      "isConsumable": false,
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "granted": true
+    },
+    {
+      "name": "grants a consumable before it is consumed",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-2",
+        "productId": "coins_100"
+      },
+      "pending": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-2",
+          "productId": "coins_100"
+        }
+      ],
+      "isConsumable": true,
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "granted": true
+    },
+    {
+      "name": "refuses a consumable it could not credit",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-3",
+        "productId": "coins_100"
+      },
+      "pending": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-3",
+          "productId": "coins_100"
+        }
+      ],
+      "isConsumable": true,
+      "noGrant": true,
+      "reads": false,
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "refuses a transaction StoreKit no longer lists",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-4",
+        "productId": "premium"
+      },
+      "pending": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-other",
+          "productId": "premium"
+        }
+      ],
+      "isConsumable": false,
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "refuses a revoked transaction",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-5",
+        "productId": "premium"
+      },
+      "pending": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-5",
+          "productId": "premium",
+          "revocationDateIOS": 946684800000
+        }
+      ],
+      "isConsumable": false,
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "refuses an upgraded transaction",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-6",
+        "productId": "premium"
+      },
+      "pending": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-6",
+          "productId": "premium",
+          "isUpgradedIOS": true
+        }
+      ],
+      "isConsumable": false,
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "refuses an expired transaction",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-7",
+        "productId": "premium"
+      },
+      "pending": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-7",
+          "productId": "premium",
+          "expirationDateIOS": 946684800000
+        }
+      ],
+      "isConsumable": false,
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "refuses a transaction from another environment",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-8",
+        "productId": "premium",
+        "environmentIOS": "Production"
+      },
+      "pending": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-8",
+          "productId": "premium",
+          "environmentIOS": "Sandbox"
+        }
+      ],
+      "isConsumable": false,
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "refuses a transaction for another product",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-9",
+        "productId": "premium"
+      },
+      "pending": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-9",
+          "productId": "premium_plus"
+        }
+      ],
+      "isConsumable": false,
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "covers App Store purchases only",
+      "purchase": {
+        "purchaseState": "purchased",
+        "id": "tx-10",
+        "productId": "premium",
+        "store": "google",
+        "storeId": "play"
+      },
+      "pending": [],
+      "isConsumable": false,
+      "reads": false,
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "refuses a community provider that reports the App Store",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "community-apple",
+        "id": "tx-11",
+        "productId": "premium"
+      },
+      "pending": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "community-apple",
+          "id": "tx-11",
+          "productId": "premium"
+        }
+      ],
+      "isConsumable": false,
+      "reads": false,
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "refuses a transaction without an id",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "",
+        "productId": "premium"
+      },
+      "pending": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "",
+          "productId": "premium"
+        }
+      ],
+      "isConsumable": false,
+      "error": true,
+      "granted": false
     }
   ]
 }

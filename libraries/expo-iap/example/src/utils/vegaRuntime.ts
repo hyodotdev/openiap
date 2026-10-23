@@ -125,33 +125,3 @@ export function showNativeAlert(title: string, message?: string): void {
     Alert.alert(title, message);
   }
 }
-
-export function matchesVerifiedPendingPurchase(
-  purchase: Purchase,
-  pending: Purchase[],
-): boolean {
-  return (
-    purchase.store === 'apple' &&
-    purchase.storeId === 'apple' &&
-    !!purchase.id &&
-    pending.some(
-      (candidate) =>
-        candidate.store === 'apple' &&
-        candidate.storeId === 'apple' &&
-        candidate.id === purchase.id &&
-        candidate.productId === purchase.productId &&
-        !(
-          'revocationDateIOS' in candidate &&
-          candidate.revocationDateIOS != null
-        ) &&
-        !('isUpgradedIOS' in candidate && candidate.isUpgradedIOS === true) &&
-        (!('expirationDateIOS' in candidate) ||
-          candidate.expirationDateIOS == null ||
-          candidate.expirationDateIOS > Date.now()) &&
-        (!('environmentIOS' in purchase) ||
-          purchase.environmentIOS == null ||
-          ('environmentIOS' in candidate &&
-            candidate.environmentIOS === purchase.environmentIOS)),
-    )
-  );
-}

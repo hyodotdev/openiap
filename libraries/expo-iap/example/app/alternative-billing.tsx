@@ -106,6 +106,17 @@ function AlternativeBillingScreen() {
   });
 
   // Load products when connected
+  // This screen's billing program applies only here; the others use the
+  // standard client.
+  useEffect(() => {
+    if (Platform.OS !== 'android' || isVega) return;
+    return () => {
+      initConnection({}).catch((error: unknown) => {
+        console.log('Failed to restore the standard client:', error);
+      });
+    };
+  }, [isVega]);
+
   useEffect(() => {
     if (connected && !isVega) {
       fetchProducts({skus: CONSUMABLE_PRODUCT_IDS, type: 'in-app'}).catch(

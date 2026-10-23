@@ -66,7 +66,12 @@ describe('Amazon Vega public API', () => {
     const deliver = listeners[Kepler.OpenIapEvent.PurchaseUpdated];
     deliver(vegaPurchase({id: 'old', productId: 'old', purchaseToken: 'r1'}));
     deliver(
-      vegaPurchase({id: 'fresh', productId: 'fresh', purchaseToken: 'r2'}),
+      vegaPurchase({
+        id: 'fresh',
+        productId: 'fresh',
+        purchaseToken: 'r2',
+        transactionDate: Date.now(),
+      }),
     );
     await new Promise((resolve) => setTimeout(resolve, 0));
 

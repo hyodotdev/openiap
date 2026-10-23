@@ -6,6 +6,7 @@ global.__fbBatchedBridgeConfig = {
   localModulesConfig: [],
 };
 
+const mockGetPendingTransactionsIOS = jest.fn(() => Promise.resolve([]));
 jest.mock(
   '@env',
   () => ({
@@ -88,6 +89,12 @@ jest.mock('../src/index', () => {
         options,
       ),
     ),
+    confirmOnDeviceIOS: jest.fn((options) =>
+      purchaseFlowSpec.createDeviceConfirmationIOS(
+        () => mockGetPendingTransactionsIOS(),
+        options,
+      ),
+    ),
     describePurchaseFlowStatus: purchaseFlowSpec.describePurchaseFlowStatus,
 
     // Core functions
@@ -102,7 +109,7 @@ jest.mock('../src/index', () => {
     getPurchaseHistory: jest.fn(() => Promise.resolve([])),
     getActiveSubscriptions: mockGetActiveSubscriptions,
     getStorefront: jest.fn(() => Promise.resolve('US')),
-    getPendingTransactionsIOS: jest.fn(() => Promise.resolve([])),
+    getPendingTransactionsIOS: mockGetPendingTransactionsIOS,
     verifyPurchase: mockVerifyPurchase,
     verifyPurchaseWithProvider: mockVerifyPurchaseWithProvider,
     openRedeemOfferCode: jest.fn(() => Promise.resolve(null)),

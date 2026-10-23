@@ -124,6 +124,17 @@ function AlternativeBillingScreen() {
     }
   }, [connected, fetchProducts, isVega]);
 
+  // This screen's billing program applies only here; the others use the
+  // standard client.
+  useEffect(() => {
+    if (Platform.OS !== 'android' || isVega) return;
+    return () => {
+      initConnection({}).catch((error: unknown) => {
+        console.log('Failed to restore the standard client:', error);
+      });
+    };
+  }, [isVega]);
+
   // Set up the developer-provided billing listener (Android 8.3.0+)
   useEffect(() => {
     if (Platform.OS !== 'android' || isVega) return;

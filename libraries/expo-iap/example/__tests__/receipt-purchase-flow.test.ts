@@ -229,12 +229,12 @@ describe('receipt-check purchase flow', () => {
 
     await expect(
       flowOptions().confirmWithBackend(appleCertified, {isConsumable: false}),
-    ).rejects.toThrow('did not match this pending transaction');
+    ).rejects.toThrow('StoreKit lists no valid unfinished transaction');
 
     setPlatform('android');
     await expect(
       flowOptions().confirmWithBackend(googleBulbs, {isConsumable: true}),
-    ).rejects.toThrow('available only for Apple purchases');
+    ).rejects.toThrow('Device confirmation covers App Store purchases');
   });
 
   it('describes and alerts each outcome', () => {

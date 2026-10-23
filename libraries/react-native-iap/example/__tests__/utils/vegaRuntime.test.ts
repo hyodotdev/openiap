@@ -1,65 +1,10 @@
-import type {Purchase} from 'react-native-iap';
 import {
   getAmazonVerificationProductId,
   getSubscriptionProductId,
-  matchesVerifiedPendingPurchase,
   resolveIapkitVerificationBaseUrl,
 } from '../../src/utils/vegaRuntime';
 
 describe('Vega runtime example helpers', () => {
-  it('local Apple verification binds the exact pending transaction and provider', () => {
-    const receipt: Purchase = {
-      id: 'unfinished-old',
-      productId: 'dev.hyo.martie.10bulbs',
-      store: 'apple',
-      storeId: 'apple',
-      purchaseState: 'purchased',
-      transactionDate: 1,
-      quantity: 1,
-      isAutoRenewing: false,
-    };
-    expect(
-      matchesVerifiedPendingPurchase(receipt, [
-        {...receipt, id: 'latest-other'},
-      ]),
-    ).toBe(false);
-    expect(
-      matchesVerifiedPendingPurchase(receipt, [
-        {...receipt, productId: 'another-sku'},
-      ]),
-    ).toBe(false);
-    expect(
-      matchesVerifiedPendingPurchase({...receipt, storeId: 'community-apple'}, [
-        receipt,
-      ]),
-    ).toBe(false);
-    expect(
-      matchesVerifiedPendingPurchase({...receipt, id: ''}, [
-        {...receipt, id: ''},
-      ]),
-    ).toBe(false);
-    expect(matchesVerifiedPendingPurchase(receipt, [{...receipt}])).toBe(true);
-    for (const extra of [
-      {revocationDateIOS: 1},
-      {isUpgradedIOS: true},
-      {expirationDateIOS: 1},
-    ]) {
-      expect(
-        matchesVerifiedPendingPurchase(receipt, [{...receipt, ...extra}]),
-      ).toBe(false);
-    }
-    expect(
-      matchesVerifiedPendingPurchase({...receipt, environmentIOS: 'Sandbox'}, [
-        {...receipt, environmentIOS: 'Production'},
-      ]),
-    ).toBe(false);
-    expect(
-      matchesVerifiedPendingPurchase({...receipt, environmentIOS: 'Sandbox'}, [
-        receipt,
-      ]),
-    ).toBe(false);
-  });
-
   it('keeps hosted IAPKit free of a configured local base URL', () => {
     expect(
       resolveIapkitVerificationBaseUrl('iapkit', 'http://192.168.0.10:3100'),

@@ -3,6 +3,7 @@
 // React Native Testing Library includes its Jest matchers.
 
 // Mock expo modules
+const mockGetPendingTransactionsIOS = jest.fn(() => Promise.resolve([]));
 jest.mock('expo-font', () => ({
   loadAsync: jest.fn(),
   isLoaded: jest.fn(() => true),
@@ -65,8 +66,14 @@ jest.mock('expo-iap', () => {
         options,
       ),
     ),
+    confirmOnDeviceIOS: jest.fn((options) =>
+      purchaseFlowSpec.createDeviceConfirmationIOS(
+        () => mockGetPendingTransactionsIOS(),
+        options,
+      ),
+    ),
     describePurchaseFlowStatus: purchaseFlowSpec.describePurchaseFlowStatus,
-    getPendingTransactionsIOS: jest.fn(() => Promise.resolve([])),
+    getPendingTransactionsIOS: mockGetPendingTransactionsIOS,
 
     getUserFriendlyErrorMessage: jest.requireActual('../src/utils/errorMapping')
       .getUserFriendlyErrorMessage,

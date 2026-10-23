@@ -209,13 +209,103 @@ describe('Public API (src/index.ts)', () => {
         type: 'in-app',
       });
       deliver(nitroPurchase('old'));
-      deliver(nitroPurchase('fresh'));
+      // A receipt from before the request is a redelivery, not the purchase.
+      deliver(nitroPurchase('fresh', 'tx-earlier'));
+      deliver({...nitroPurchase('fresh'), transactionDate: Date.now()});
       await settle();
 
       expect(statuses).toEqual([
         {status: 'invalid', recovered: true},
+        {status: 'invalid', recovered: true},
         {status: 'invalid'},
       ]);
+    });
+
+    it('forgets requests when the flow is disposed', async () => {
+      const create = () =>
+        IAP.createPurchaseFlow({
+          confirmWithBackend: async () => ({status: 'invalid' as const}),
+          isConsumable: () => false,
+        });
+      await IAP.requestPurchase({
+        request: {apple: {sku: 'fresh'}},
+        type: 'in-app',
+      });
+      create().dispose();
+      const flow = create();
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome: {status: unknown}) =>
+        statuses.push(outcome.status),
+      );
+
+      mockIap.addPurchaseUpdatedListener.mock.lastCall[0]({
+        ...nitroPurchase('fresh'),
+        transactionDate: Date.now(),
+      });
+      await settle();
+
+      expect(statuses).toEqual([{status: 'invalid', recovered: true}]);
+      flow.dispose();
+    });
+
+    it('keeps the 17.1 manual delivery for a flow given its own store functions', async () => {
+      const confirmWithBackend = jest.fn(async () => ({
+        status: 'entitled' as const,
+        alreadyGranted: false,
+      }));
+      const listenersBefore =
+        mockIap.addPurchaseUpdatedListener.mock.calls.length;
+      IAP.createPurchaseFlow({
+        confirmWithBackend,
+        isConsumable: () => false,
+        finishTransaction: jest.fn(async () => {}),
+        getAvailablePurchases: jest.fn(async () => []),
+        getPendingTransactionsIOS: undefined,
+      });
+
+      expect(mockIap.addPurchaseUpdatedListener.mock.calls.length).toBe(
+        listenersBefore,
+      );
+    });
+
+    it('receives iOS replays, which the flow deduplicates itself', () => {
+      const flow = IAP.createPurchaseFlow({
+        confirmWithBackend: async () => ({status: 'invalid' as const}),
+        isConsumable: () => false,
+      });
+
+      expect(mockIap.addPurchaseUpdatedListener).toHaveBeenCalledWith(
+        expect.any(Function),
+        {dedupeTransactionIOS: false},
+      );
+      flow.dispose();
+    });
+
+    it('confirms an App Store purchase on the device', async () => {
+      mockIap.getPendingTransactionsIOS = jest.fn(async () => [
+        nitroPurchase('premium'),
+      ]);
+      const grant = jest.fn(async () => {});
+      const confirm = IAP.confirmOnDeviceIOS({grant});
+
+      await expect(
+        confirm(
+          {
+            id: 'tx-premium',
+            transactionId: 'tx-premium',
+            productId: 'premium',
+            store: 'apple',
+            storeId: 'apple',
+            platform: 'ios',
+            purchaseState: 'purchased',
+            transactionDate: 1,
+            quantity: 1,
+            isAutoRenewing: false,
+          },
+          {isConsumable: false},
+        ),
+      ).resolves.toEqual({status: 'entitled', alreadyGranted: false});
+      expect(grant).toHaveBeenCalledTimes(1);
     });
 
     it('forgets a request the store answered with an error', async () => {
@@ -236,7 +326,7 @@ describe('Public API (src/index.ts)', () => {
         code: 'user-cancelled',
         message: 'cancelled',
       });
-      deliver(nitroPurchase('fresh'));
+      deliver({...nitroPurchase('fresh'), transactionDate: Date.now()});
       await settle();
 
       expect(statuses).toEqual([{status: 'invalid', recovered: true}]);

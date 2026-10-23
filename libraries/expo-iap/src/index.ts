@@ -10,6 +10,7 @@ import {
   isProductIOS,
 } from './modules/ios';
 import {
+  createDeviceConfirmationIOS,
   createIapkitConfirmation,
   type IapkitConfirmationOptions,
   type PurchaseConfirmation,
@@ -94,9 +95,7 @@ type ExpoIapEventPayloads = {
   [OpenIapEvent.PurchaseUpdated]: Purchase;
   [OpenIapEvent.PurchaseError]: PurchaseError;
   [OpenIapEvent.PromotedProductIOS]:
-    | Product
-    | string
-    | {id?: string; productId?: string};
+    Product | string | {id?: string; productId?: string};
   [OpenIapEvent.UserChoiceBillingAndroid]: UserChoiceBillingDetails;
   [OpenIapEvent.DeveloperProvidedBillingAndroid]: DeveloperProvidedBillingDetailsAndroid;
   [OpenIapEvent.SubscriptionBillingIssue]: Purchase;
@@ -398,8 +397,7 @@ export const promotedProductListenerIOS = (
     let pendingProduct: Promise<Product | null> | undefined;
     try {
       pendingProduct = ExpoIapModule.getPromotedProductIOS() as
-        | Promise<Product | null>
-        | undefined;
+        Promise<Product | null> | undefined;
     } catch {
       return Promise.resolve();
     }
@@ -900,8 +898,7 @@ function normalizeRequestProps(
 ): RequestSubscriptionAndroidProps | null | undefined;
 function normalizeRequestProps(
   request:
-    | RequestPurchasePropsByPlatforms
-    | RequestSubscriptionPropsByPlatforms,
+    RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms,
   platform: 'ios' | 'android',
 ) {
   if (platform === 'ios') {
@@ -950,8 +947,8 @@ export const verifyAppOwnership: QueryField<'verifyAppOwnership'> = async (
       storeId: isVegaOS()
         ? 'amazon'
         : ExpoIapModule.USING_ONSIDE_SDK
-        ? 'onside'
-        : 'unknown',
+          ? 'onside'
+          : 'unknown',
     };
   }
   return invokeNativeWithPurchaseError(
@@ -1069,8 +1066,7 @@ const requestPurchaseFromStore: MutationField<'requestPurchase'> = async (
     validateAndroidPurchaseBranchOptions(
       (
         request as
-          | RequestPurchasePropsByPlatforms
-          | RequestSubscriptionPropsByPlatforms
+          RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms
       )?.google,
       canonical,
     );
@@ -1466,7 +1462,8 @@ const purchaseFlowSdk: PurchaseFlowSdk = {
   getAvailablePurchases: () => getAvailablePurchases(),
   getPendingTransactionsIOS:
     Platform.OS === 'ios' ? () => getPendingTransactionsIOS() : undefined,
-  purchaseUpdatedListener: (listener) => purchaseUpdatedListener(listener),
+  purchaseUpdatedListener: (listener) =>
+    purchaseUpdatedListener(listener, {dedupeTransactionIOS: false}),
   purchaseErrorListener: (listener) => purchaseErrorListener(listener),
 };
 
@@ -1501,6 +1498,23 @@ export function confirmWithIapkit(
   context: {isConsumable: boolean},
 ) => Promise<PurchaseConfirmation> {
   return createIapkitConfirmation(verifyPurchaseWithProvider, options);
+}
+
+/**
+ * Confirms App Store purchases on the device, for apps with neither a backend
+ * nor IAPKit: StoreKit must still list the transaction as unfinished and
+ * valid. Credit consumables in `grant`.
+ */
+export function confirmOnDeviceIOS(
+  options: Pick<IapkitConfirmationOptions<Purchase>, 'grant'> = {},
+): (
+  purchase: Purchase,
+  context: {isConsumable: boolean},
+) => Promise<PurchaseConfirmation> {
+  return createDeviceConfirmationIOS<Purchase>(
+    () => getPendingTransactionsIOS(),
+    options,
+  );
 }
 
 export * from './useIAP';

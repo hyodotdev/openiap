@@ -90,6 +90,7 @@ import {
   type SdkPurchaseFlowOptions,
 } from './utils/purchaseFlowBinding';
 import {
+  createDeviceConfirmationIOS,
   createIapkitConfirmation,
   type IapkitConfirmationOptions,
   type PurchaseConfirmation,
@@ -2348,13 +2349,6 @@ export const verifyPurchaseWithProvider: MutationField<
   }
 };
 
-/**
- * Sync iOS purchases with App Store (iOS only)
- * @returns Promise<boolean>
- * @platform iOS
- *
- * @see {@link https://openiap.dev/docs/apis/ios/sync-ios}
- */
 export type {SdkPurchaseFlowOptions} from './utils/purchaseFlowBinding';
 
 const purchaseFlowSdk: PurchaseFlowSdk = {
@@ -2362,7 +2356,8 @@ const purchaseFlowSdk: PurchaseFlowSdk = {
   getAvailablePurchases: () => getAvailablePurchases(),
   getPendingTransactionsIOS:
     Platform.OS === 'ios' ? () => getPendingTransactionsIOS() : undefined,
-  purchaseUpdatedListener: (listener) => purchaseUpdatedListener(listener),
+  purchaseUpdatedListener: (listener) =>
+    purchaseUpdatedListener(listener, {dedupeTransactionIOS: false}),
   purchaseErrorListener: (listener) => purchaseErrorListener(listener),
 };
 
@@ -2399,6 +2394,30 @@ export function confirmWithIapkit(
   return createIapkitConfirmation(verifyPurchaseWithProvider, options);
 }
 
+/**
+ * Confirms App Store purchases on the device, for apps with neither a backend
+ * nor IAPKit: StoreKit must still list the transaction as unfinished and
+ * valid. Credit consumables in `grant`.
+ */
+export function confirmOnDeviceIOS(
+  options: Pick<IapkitConfirmationOptions<Purchase>, 'grant'> = {},
+): (
+  purchase: Purchase,
+  context: {isConsumable: boolean},
+) => Promise<PurchaseConfirmation> {
+  return createDeviceConfirmationIOS<Purchase>(
+    () => getPendingTransactionsIOS(),
+    options,
+  );
+}
+
+/**
+ * Sync iOS purchases with App Store (iOS only)
+ * @returns Promise<boolean>
+ * @platform iOS
+ *
+ * @see {@link https://openiap.dev/docs/apis/ios/sync-ios}
+ */
 export const syncIOS: MutationField<'syncIOS'> = async () => {
   if (Platform.OS !== 'ios') {
     throw new Error('syncIOS is only available on iOS');
