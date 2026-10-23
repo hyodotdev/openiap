@@ -38,6 +38,8 @@ var verification_method: IapkitConfig.Method = IapkitConfig.default_method()
 ## One flow for the whole app: it confirms, credits, and finishes every purchase.
 var flow: PurchaseFlow
 var _amazon_catalog: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://amazon.sdktester.json"))
+# Credited purchase ids; a real app keeps them in its own store.
+var _granted_ids := {}
 
 
 func _ready() -> void:
@@ -123,11 +125,8 @@ func set_verification_method(method: IapkitConfig.Method) -> void:
 func _confirm(purchase: Dictionary, is_consumable: bool) -> Variant:
 	match verification_method:
 		IapkitConfig.Method.LOCAL_DEVICE:
-			# StoreKit delivers only transactions it verified on this device.
-			if purchase.store != "apple":
-				return PurchaseFlow.Failure.new("Local (Device) needs StoreKit; choose Local (IAPKit) or IAPKit (Server)")
-			_grant(purchase, is_consumable)
-			return {"status": "entitled", "alreadyGranted": false}
+			var confirm := GodotIapPlugin.confirm_on_device_ios({"grant": _grant})
+			return await confirm.call(purchase, is_consumable)
 		IapkitConfig.Method.IAPKIT_LOCAL, IapkitConfig.Method.IAPKIT:
 			var confirm := GodotIapPlugin.confirm_with_iapkit({
 				"api_key": IapkitConfig.api_key(),
@@ -150,9 +149,14 @@ func _verify_as(purchase: Dictionary) -> Variant:
 	return "amazon" if purchase.get("storeId") == "amazon_example" else null
 
 
-# Bulbs are credited here, before the flow consumes them.
-func _grant(purchase: Dictionary, _is_consumable: bool) -> void:
+# Bulbs are credited here, once per purchase id, before the flow consumes them.
+func _grant(purchase: Dictionary, _is_consumable: bool) -> bool:
+	if _granted_ids.has(purchase.id):
+		print("[IAPManager] %s was already credited" % purchase.id)
+		return true
+	_granted_ids[purchase.id] = true
 	purchase_completed.emit(purchase.productId)
+	return true
 
 
 func _on_purchase_processed(purchase: Dictionary, status: PurchaseFlow.Status) -> void:

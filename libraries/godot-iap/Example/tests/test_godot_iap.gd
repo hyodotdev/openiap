@@ -526,6 +526,8 @@ func test_billing_choice_android_payloads() -> void:
 	external_offer.enable_billing_program_android = Types.BillingProgramAndroid.EXTERNAL_OFFER
 	_assert_true(await GodotIapPlugin.init_connection(external_offer), "A changed config should reconnect without end_connection")
 	_assert_equal(fake.last_config.get("enableBillingProgramAndroid"), "external-offer", "A changed config should reach the connected Android plugin")
+	_assert_true(await GodotIapPlugin.init_connection({}), "An empty config should reconnect to Standard")
+	_assert_equal(fake.last_config, {}, "An empty config should reach the Android plugin as an explicit config")
 
 	var subscription = Types.RequestSubscriptionAndroidProps.new()
 	var skus: Array[String] = ["monthly_subscription"]

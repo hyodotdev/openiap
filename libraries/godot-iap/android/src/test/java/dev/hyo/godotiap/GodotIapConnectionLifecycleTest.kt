@@ -24,7 +24,7 @@ class GodotIapConnectionLifecycleTest {
         val lifecycle = GodotIapConnectionLifecycle()
         val connects = AtomicInteger()
         val reconfigures = AtomicInteger()
-        fun init(config: Map<String, Any?>) = lifecycle.init(
+        fun init(config: Map<String, Any?>?) = lifecycle.init(
             config,
             connect = { connects.incrementAndGet(); true },
             reconfigure = { reconfigures.incrementAndGet(); true },
@@ -36,13 +36,16 @@ class GodotIapConnectionLifecycleTest {
         val repeated = init(defaultConfig)
         val changed = init(externalOffer)
         val changedAgain = init(externalOffer)
-        val empty = init(emptyMap())
+        val kept = init(null)
+        assertEquals(1, reconfigures.get())
+        // An explicit empty config returns to Standard.
+        val standard = init(emptyMap())
 
-        assertTrue(repeated.success && changed.success && changedAgain.success && empty.success)
+        assertTrue(repeated.success && changed.success && changedAgain.success && kept.success && standard.success)
         assertFalse(changed.didConnect)
         // Listeners attach only when connecting, so a reconfigure cannot add them twice.
         assertEquals(1, connects.get())
-        assertEquals(1, reconfigures.get())
+        assertEquals(2, reconfigures.get())
         assertTrue(lifecycle.isConnected)
     }
 

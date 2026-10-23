@@ -37,13 +37,8 @@ const Types = preload("res://addons/godot-iap/types.gd")
 @onready var iap = $GodotIapWrapper
 
 func _ready():
-    # Connect signals
-    iap.purchase_updated.connect(_on_purchase_updated)
-    iap.purchase_error.connect(_on_purchase_error)
-    iap.products_fetched.connect(_on_products_fetched)
-
-    # Initialize connection
-    if iap.init_connection():
+    # Purchases go through the purchase flow in 2.3.
+    if await iap.init_connection():
         print("IAP connected!")
 ```
 
@@ -72,11 +67,8 @@ func _setup_iap_node():
     iap = wrapper
 
 func _initialize_iap():
-    iap.purchase_updated.connect(_on_purchase_updated)
-    iap.purchase_error.connect(_on_purchase_error)
-    iap.products_fetched.connect(_on_products_fetched)
-
-    is_connected = iap.init_connection()
+    # Purchases go through the purchase flow in 2.3.
+    is_connected = await iap.init_connection()
 ```
 
 ---
@@ -158,8 +150,7 @@ func _ready():
         # An app with a backend calls it here instead.
         "confirm_with_backend": iap.confirm_with_iapkit({
             "api_key": "openiap-kit_pk_...",
-            # Runs before the flow consumes the purchase.
-            "grant": func(purchase, _is_consumable): _grant_purchase(purchase.productId),
+            "grant": _grant_purchase,
         }),
         "is_consumable": func(product_id): return product_id in CONSUMABLES,
     })
@@ -176,14 +167,20 @@ func _on_purchase_error(error: Dictionary):
     if error.get("code", "") != "user-cancelled":
         print("Purchase error: %s - %s" % [error.get("code", ""), error.get("message", "")])
 
-func _grant_purchase(product_id: String):
-    match product_id:
+# Runs before the flow consumes the purchase, and must return true. Credit each
+# purchase id once: recovery confirms a purchase again after a failed finish.
+func _grant_purchase(purchase: Dictionary, _is_consumable: bool) -> bool:
+    if GameState.credited_purchase_ids.has(purchase.id):
+        return true
+    GameState.credited_purchase_ids[purchase.id] = true
+    match purchase.productId:
         "com.yourgame.coins_100":
             GameState.add_coins(100)
         "com.yourgame.coins_500":
             GameState.add_coins(500)
         "com.yourgame.remove_ads":
             GameState.set_ads_removed(true)
+    return true
 ```
 
 `guidance.key` is one of `payment_pending`, `change_pending`,
@@ -603,7 +600,7 @@ func _ready():
     flow = iap.create_purchase_flow({
         "confirm_with_backend": iap.confirm_with_iapkit({
             "api_key": "openiap-kit_pk_...",
-            "grant": func(purchase, _is_consumable): _grant_purchase(purchase.productId),
+            "grant": _grant_purchase,
         }),
         "is_consumable": func(product_id): return product_id in [PRODUCT_IDS.coins_100, PRODUCT_IDS.coins_500],
     })
@@ -637,8 +634,12 @@ func _on_purchase_error(error: Dictionary):
     if error.get("code", "") != "user-cancelled":
         purchase_failed.emit(error)
 
-func _grant_purchase(product_id: String):
-    match product_id:
+# Must return true; credits each purchase id once, as in 2.3.
+func _grant_purchase(purchase: Dictionary, _is_consumable: bool) -> bool:
+    if GameState.credited_purchase_ids.has(purchase.id):
+        return true
+    GameState.credited_purchase_ids[purchase.id] = true
+    match purchase.productId:
         "com.yourgame.coins_100":
             GameState.add_coins(100)
         "com.yourgame.coins_500":
@@ -647,6 +648,7 @@ func _grant_purchase(product_id: String):
             GameState.set_ads_removed(true)
         "com.yourgame.premium_monthly":
             GameState.set_premium(true)
+    return true
 
 # Public API
 func buy(product_id: String):

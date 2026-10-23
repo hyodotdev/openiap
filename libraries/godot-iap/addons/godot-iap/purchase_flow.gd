@@ -181,7 +181,10 @@ func dispose() -> void:
 
 func _on_delivered(purchase: Dictionary) -> void:
 	var was_requested = _options.get("was_requested")
-	_deliver(purchase, was_requested != null and was_requested.call(purchase))
+	# A pending delivery leaves the mark for the completed one that follows.
+	var requested: bool = purchase.get("purchaseState") != "pending" \
+		and was_requested != null and was_requested.call(purchase)
+	_deliver(purchase, requested)
 
 
 func _publish(purchase: Dictionary, status: Status) -> void:
@@ -270,8 +273,7 @@ func _confirm_and_finish(purchase: Dictionary) -> Status:
 	return confirmation
 
 
-# Ends a hung confirm_with_backend call as failed, so it cannot hold the
-# purchase for the session.
+# Ends a hung confirm_with_backend call as failed, so it cannot hold the purchase.
 func _confirm(purchase: Dictionary, is_consumable: bool) -> Variant:
 	var timeout_ms = _options.get("confirm_timeout_ms", 30000)
 	var answer := _Pending.new()
@@ -335,16 +337,9 @@ func _recover(include_finished: bool) -> Variant:
 
 
 func _is_unfinished(purchase: Dictionary) -> bool:
-	match purchase.get("store"):
-		# Amazon reports no acknowledgment, and approves a Kids purchase later,
-		# so every listed purchase is confirmed again.
-		"amazon":
-			return true
-		# Horizon's acknowledgment does nothing; a listed consumable is unconsumed.
-		"horizon":
-			return purchase.get("isAcknowledgedAndroid") == false \
-				or _options.is_consumable.call(purchase.productId)
-	return purchase.get("isAcknowledgedAndroid") == false
+	# Amazon and most community stores report no acknowledgment, and Amazon
+	# approves a Kids purchase later; a listed consumable is unconsumed.
+	return purchase.get("isAcknowledgedAndroid") != true or _options.is_consumable.call(purchase.productId)
 
 
 static func _failed(error: Failure) -> Status:
@@ -455,15 +450,15 @@ static func to_purchase_confirmation_request(purchase: Dictionary) -> Variant:
 ## Cloud Sandbox and the parent SKU RVS reports a subscription term under;
 ## [code]verify_as(purchase)[/code], the IAPKit store that verifies a community
 ## store's evidence; [code]grant(purchase, is_consumable)[/code], which gives the
-## user what they bought before the flow finishes (and so consumes) it. Grant is
-## required for consumables and must be idempotent per purchase id: after a
-## crash the same purchase is confirmed again.
+## user what they bought before the flow finishes (and so consumes) it, then
+## returns [code]true[/code]; any other answer, a script error included, fails
+## the confirmation. Grant is required for consumables and must be idempotent
+## per purchase id: after a crash the same purchase is confirmed again.
 static func create_iapkit_confirmation(verify: Callable, options: Dictionary) -> Callable:
 	return func(purchase: Dictionary, is_consumable: bool) -> Variant:
-		var grant = options.get("grant")
-		# Checked first: a consumable must never verify without a way to credit it.
-		if is_consumable and grant == null:
-			return Failure.new("confirm_with_iapkit needs grant to credit consumable %s before it is consumed" % purchase.productId)
+		var missing_grant := _missing_grant("confirm_with_iapkit", purchase, is_consumable, options)
+		if missing_grant != null:
+			return missing_grant
 		var props = to_iapkit_verification_props(purchase, options)
 		if props is Failure:
 			return props
@@ -471,11 +466,68 @@ static func create_iapkit_confirmation(verify: Callable, options: Dictionary) ->
 		if result is Failure:
 			return result
 		var confirmation = read_iapkit_verification(result, purchase, is_consumable, options)
-		if confirmation is Dictionary and confirmation.status == "entitled" and not confirmation.alreadyGranted and grant != null:
-			var granted = await grant.call(purchase, is_consumable)
-			if granted is Failure:
-				return granted
+		if confirmation is Dictionary and confirmation.status == "entitled" and not confirmation.alreadyGranted:
+			var failed_grant := await _grant(purchase, is_consumable, options)
+			if failed_grant != null:
+				return failed_grant
 		return confirmation
+
+
+## Confirms App Store purchases on the device, for an app with neither a backend
+## nor IAPKit, given the SDK's get_pending_transactions_ios. StoreKit verified
+## the transaction if it still lists it unfinished, unrevoked, not upgraded,
+## unexpired, and from the purchase's environment; [code]grant[/code] then runs
+## as in [code]create_iapkit_confirmation[/code].
+static func create_device_confirmation_ios(get_pending_transactions_ios: Callable, options := {}) -> Callable:
+	return func(purchase: Dictionary, is_consumable: bool) -> Variant:
+		var missing_grant := _missing_grant("confirm_on_device_ios", purchase, is_consumable, options)
+		if missing_grant != null:
+			return missing_grant
+		# A community provider may report store "apple" under its own storeId.
+		var store_id = purchase.get("storeId")
+		if purchase.get("store") != "apple" or (store_id != null and store_id != "apple"):
+			return Failure.new("Device confirmation covers App Store purchases, not %s" % (purchase.get("store") if store_id == null else store_id))
+		var now := Time.get_unix_time_from_system() * 1000.0
+		var pending = await get_pending_transactions_ios.call()
+		if pending is Failure:
+			return pending
+		var verified: bool = pending.any(func(candidate: Dictionary) -> bool:
+			var expiration = candidate.get("expirationDateIOS")
+			var environment = purchase.get("environmentIOS")
+			return candidate.get("store") == "apple" \
+				and not String(purchase.id).is_empty() \
+				and candidate.get("id") == purchase.id \
+				and candidate.get("productId") == purchase.productId \
+				and candidate.get("revocationDateIOS") == null \
+				and candidate.get("isUpgradedIOS") != true \
+				and (expiration == null or expiration > now) \
+				and (environment == null or candidate.get("environmentIOS") == environment))
+		if not verified:
+			return Failure.new("StoreKit lists no valid unfinished transaction for %s" % purchase.productId)
+		var failed_grant := await _grant(purchase, is_consumable, options)
+		if failed_grant != null:
+			return failed_grant
+		return {"status": "entitled", "alreadyGranted": false}
+
+
+# Checked before verifying: a consumable must never pass without a way to credit it.
+static func _missing_grant(name: String, purchase: Dictionary, is_consumable: bool, options: Dictionary) -> Failure:
+	if is_consumable and options.get("grant") == null:
+		return Failure.new("%s needs grant to credit consumable %s before it is consumed" % [name, purchase.productId])
+	return null
+
+
+# A grant that hit a script error answers null, so only true counts as credited.
+static func _grant(purchase: Dictionary, is_consumable: bool, options: Dictionary) -> Failure:
+	var grant = options.get("grant")
+	if grant == null:
+		return null
+	var granted = await grant.call(purchase, is_consumable)
+	if granted is Failure:
+		return granted
+	if not _same(granted, true):
+		return Failure.new("grant did not return true for %s" % purchase.productId)
+	return null
 
 
 ## Builds the IAPKit request for a purchase; returns a Failure for a store

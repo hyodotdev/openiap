@@ -89,6 +89,13 @@ func _run() -> void:
 	fake.responses["verifyPurchaseWithProvider"] = JSON.stringify({"success": true, "resultJson": JSON.stringify(verification)})
 	status = await manager.flow.process_purchase(coins)
 	_check(status.status == "entitled" and completed.back() == manager.PRODUCT_30_BULBS and fake.calls.count("finishTransaction") == 2, "IAPKit credits the consumable in grant, then the flow finishes it")
+	var retried := coins.merged({"id": "example-retried", "transactionId": "example-retried"}, true)
+	fake.responses["finishTransaction"] = JSON.stringify({"success": false, "error": "Store unavailable"})
+	status = await manager.flow.process_purchase(retried)
+	fake.responses.erase("finishTransaction")
+	var credits := completed.size()
+	status = await manager.flow.process_purchase(retried)
+	_check(status.status == "entitled" and status.finish_error == null and completed.size() == credits, "A purchase confirmed again after a failed finish is credited once")
 
 	var android := RecordingAndroidPlugin.new()
 	plugin._native_plugin = android
@@ -98,7 +105,7 @@ func _run() -> void:
 	for store_id in ["amazon", "amazon_example"]:
 		var receipt := _android_purchase("example-" + store_id, manager.PRODUCT_PREMIUM, store_id)
 		receipt["userIdAmazon"] = "fixture-user"
-		android.responses["verifyPurchaseWithProvider"] = JSON.stringify({"provider": "iapkit", "iapkit": {
+		android.responses["verifyPurchaseWithProvider"] = _provider_answer({"provider": "iapkit", "iapkit": {
 			"isValid": true, "productId": "dev.hyo.martie.premium.base", "store": receipt.store,
 			"storeId": store_id, "state": "entitled", "environment": environment,
 		}})
@@ -109,7 +116,7 @@ func _run() -> void:
 
 	var upgrade := _android_purchase("example-upgrade", manager.PRODUCT_PREMIUM, "play")
 	upgrade["pendingPurchaseUpdateAndroid"] = {"products": [manager.PRODUCT_PREMIUM_YEAR]}
-	android.responses["verifyPurchaseWithProvider"] = JSON.stringify({"provider": "iapkit", "iapkit": {
+	android.responses["verifyPurchaseWithProvider"] = _provider_answer({"provider": "iapkit", "iapkit": {
 		"isValid": true, "productId": manager.PRODUCT_PREMIUM, "store": "google", "storeId": "play", "state": "entitled",
 	}})
 	android.responses["finishTransaction"] = JSON.stringify({"success": true})
@@ -302,3 +309,8 @@ func _start_ownership_check(scene: Node) -> void:
 func _check(condition: bool, message: String) -> void:
 	print("%s %s" % ["PASS" if condition else "FAIL", message])
 	_failed = _failed or not condition
+
+
+# The Android plugin answers verifyPurchaseWithProvider through products_fetched, like Apple.
+func _provider_answer(result: Dictionary) -> String:
+	return JSON.stringify({"success": true, "resultJson": JSON.stringify(result)})

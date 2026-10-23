@@ -26,7 +26,7 @@ internal class GodotIapConnectionLifecycle(
 
     @Volatile
     private var state = State.Disconnected
-    private var activeConfig: Map<String, Any?>? = null
+    private var activeConfig: Map<String, Any?> = emptyMap()
 
     /** Numbers connection attempts, so a late teardown can tell it targets an older one. */
     private var generation = 0L
@@ -34,9 +34,9 @@ internal class GodotIapConnectionLifecycle(
     val isConnected: Boolean
         get() = state == State.Connected
 
-    /** [connect] gets the attempt's generation; while connected, a changed non-empty [config] goes to [reconfigure]. */
+    /** [connect] gets the attempt's generation; while connected, a changed [config] goes to [reconfigure], and null keeps it. */
     fun init(
-        config: Map<String, Any?>,
+        config: Map<String, Any?>?,
         connect: (generation: Long) -> Boolean,
         reconfigure: () -> Boolean,
         disconnect: () -> Boolean,
@@ -44,8 +44,7 @@ internal class GodotIapConnectionLifecycle(
     ): InitResult = synchronized(lock) {
         when (state) {
             State.Connected -> {
-                // An empty config asks for nothing new, so the live connection stays.
-                if (config.isEmpty() || activeConfig == config) {
+                if (config == null || activeConfig == config) {
                     return@synchronized InitResult(success = true, didConnect = false)
                 }
                 return@synchronized reconfigureLocked(config, reconfigure, disconnect, cleanupListeners)
@@ -64,15 +63,15 @@ internal class GodotIapConnectionLifecycle(
         val result = try {
             val connected = connect(generation)
             if (connected) {
-                activeConfig = config.toMap()
+                activeConfig = config.orEmpty().toMap()
                 state = State.Connected
             } else {
-                activeConfig = null
+                activeConfig = emptyMap()
                 state = State.Disconnected
             }
             InitResult(success = connected, didConnect = connected)
         } catch (error: Throwable) {
-            activeConfig = null
+            activeConfig = emptyMap()
             state = State.Disconnected
             throw error
         }
@@ -130,7 +129,7 @@ internal class GodotIapConnectionLifecycle(
             } finally {
                 // Listener cleanup is best-effort. A bridge implementation must
                 // never remain wedged in Ending if a removal callback throws.
-                activeConfig = null
+                activeConfig = emptyMap()
                 state = State.Disconnected
             }
         }

@@ -103,8 +103,7 @@ var _platform: String = ""
 ## OS.has_feature, swappable in tests: an editor run carries no export tags.
 var _has_feature: Callable = Callable(OS, "has_feature")
 var _shell_open: Callable = Callable(OS, "shell_open")
-# SKUs passed to request_purchase, so the purchase flow can tell the user's own
-# purchase from one the store delivers again.
+# When request_purchase got each SKU, so the flow can tell the user's purchase from a redelivery.
 var _requested_skus := {}
 var _listening_flows: Array = []
 
@@ -317,8 +316,9 @@ func _on_android_subscription_billing_issue(purchase_json: String) -> void:
 ## [param config]: optional [InitConnectionConfig]. On Android, set
 ## [code]enable_billing_program_android[/code] to Billing Choice and use
 ## [code]billing_choice_screen_type_android[/code] to match Play Console.
-## Calling it again with a different config reconfigures the live connection;
-## no [method end_connection] is needed.
+## Calling it again with a different config reconfigures the live connection,
+## with no [method end_connection]: an empty config returns to Standard, and
+## null keeps the connection as it is.
 ##
 ## Returns [code]true[/code] once the platform billing client is connected.
 ##
@@ -415,7 +415,8 @@ func is_store_connected() -> bool:
 ## On Apple platforms, set [code]dedupe_transaction_ios[/code] to false to also receive
 ## StoreKit replay events for transaction IDs already delivered during the
 ## current connection session. Every wrapper shares one native listener, so
-## the latest call applies to all of them. Android ignores this flag.
+## the latest call applies to all of them, and a listening purchase flow keeps
+## replays on. Android ignores this flag.
 func set_purchase_updated_listener_options(options = null) -> void:
 	if typeof(options) == TYPE_OBJECT and options.has_method("to_dict"):
 		_purchase_updated_listener_options = options.to_dict()
@@ -430,10 +431,11 @@ func _apply_purchase_updated_listener_options_apple() -> void:
 		return
 	if not _native_plugin.has_method("setPurchaseUpdatedListenerOptions"):
 		return
-	_native_plugin.call(
-		"setPurchaseUpdatedListenerOptions",
-		JSON.stringify(_purchase_updated_listener_options)
-	)
+	var options := _purchase_updated_listener_options
+	# A purchase flow deduplicates itself, and a replay is how a failed confirmation retries.
+	if not _listening_flows.is_empty():
+		options = options.merged({"dedupeTransactionIOS": false}, true)
+	_native_plugin.call("setPurchaseUpdatedListenerOptions", JSON.stringify(options))
 
 # ==========================================
 # Products (OpenIAP Query)
@@ -1491,44 +1493,21 @@ func _verify_purchase_raw(props: Dictionary) -> Dictionary:
 func verify_purchase_with_provider(props) -> Variant:
 	_log("verify_purchase_with_provider called")
 	var props_dict := _as_dictionary(props)
-	if _native_plugin and _is_apple():
-		var payload = await _call_native_async("verifyPurchaseWithProvider", [JSON.stringify(props_dict)])
-		if payload is Dictionary and payload.get("success", false):
-			var payload_json = payload.get("resultJson", "")
-			var decoded = JSON.parse_string(payload_json)
+	var payload := {"code": "feature-not-supported", "error": "Not available in no native plugin"}
+	# Android answers through products_fetched too, so the network call never blocks the frame.
+	if _native_plugin and (_is_apple() or _platform == "Android"):
+		payload = await _call_native_async("verifyPurchaseWithProvider", [JSON.stringify(props_dict)])
+		if payload.get("success", false):
+			var decoded = JSON.parse_string(payload.get("resultJson", ""))
 			if decoded is Dictionary:
 				return Types.VerifyPurchaseWithProviderResult.from_dict(decoded)
-		return Types.VerifyPurchaseWithProviderResult.from_dict({
-			"provider": props_dict.get("provider", "iapkit"),
-			"errors": [
-				{
-					"code": payload.get("code", "purchase-verification-failed") if payload is Dictionary else "purchase-verification-failed",
-					"message": payload.get("error", "Verification failed") if payload is Dictionary else "Verification failed",
-				},
-			],
-		})
-
-	var result = _verify_purchase_with_provider_raw(props_dict)
-	return Types.VerifyPurchaseWithProviderResult.from_dict(result)
-
-## Internal: Verify purchase with provider raw Dictionary
-func _verify_purchase_with_provider_raw(props: Dictionary) -> Dictionary:
-	if _native_plugin and _platform == "Android":
-		var props_json = JSON.stringify(props)
-		var result_json = _native_plugin.call("verifyPurchaseWithProvider", props_json)
-		var result = JSON.parse_string(result_json)
-		if result is Dictionary:
-			return result
-	# No native plugin
-	return {
-		"provider": props.get("provider", "iapkit"),
-		"errors": [
-			{
-				"code": "feature-not-supported",
-				"message": "Not available in no native plugin",
-			},
-		],
-	}
+	return Types.VerifyPurchaseWithProviderResult.from_dict({
+		"provider": props_dict.get("provider", "iapkit"),
+		"errors": [{
+			"code": payload.get("code", "purchase-verification-failed"),
+			"message": payload.get("error", "Verification failed"),
+		}],
+	})
 
 
 # ==========================================
@@ -1540,7 +1519,9 @@ func _verify_purchase_with_provider_raw(props: Dictionary) -> Dictionary:
 ## this wrapper. Pass [code]confirm_with_backend[/code] and
 ## [code]is_consumable[/code]; the wrapper supplies the store options left out
 ## (see [code]GodotIapWrapper.PurchaseFlow[/code]). Create one per signed-in
-## account, and dispose it when the account changes.
+## account, and dispose it when the account changes. On Apple platforms a
+## listening flow turns StoreKit replays on, so [signal purchase_updated] carries
+## them too.
 ##
 ## [codeblock]
 ## var flow = GodotIapPlugin.create_purchase_flow({
@@ -1557,7 +1538,7 @@ func create_purchase_flow(options: Dictionary) -> PurchaseFlow:
 		"finish_transaction": _finish_for_flow,
 		"get_available_purchases": func() -> Variant: return _purchase_dicts(await get_available_purchases_result()),
 		# Off iOS a pending list would hide unacknowledged Android purchases.
-		"get_pending_transactions_ios": (func() -> Variant: return _purchase_dicts(await _get_pending_transactions_ios_result())) if _is_apple() else null,
+		"get_pending_transactions_ios": _pending_transaction_dicts_ios if _is_apple() else null,
 		"listen_for_purchases": _listen_for_purchases,
 		"was_requested": _take_requested,
 	}
@@ -1573,6 +1554,18 @@ func confirm_with_iapkit(options: Dictionary) -> Callable:
 		var result = await verify_purchase_with_provider(props)
 		return result.to_dict() if result != null else {}
 	return PurchaseFlow.create_iapkit_confirmation(verify, options)
+
+
+## Confirms App Store purchases on the device, for an app with neither a backend
+## nor IAPKit: StoreKit verified a transaction it still lists as unfinished.
+## Credit consumables in [code]grant[/code], which runs before the purchase is
+## consumed.
+func confirm_on_device_ios(options := {}) -> Callable:
+	return PurchaseFlow.create_device_confirmation_ios(_pending_transaction_dicts_ios, options)
+
+
+func _pending_transaction_dicts_ios() -> Variant:
+	return _purchase_dicts(await _get_pending_transactions_ios_result())
 
 
 # Keeps the store's reason, which a VoidResult drops.
@@ -1592,6 +1585,7 @@ func _purchase_dicts(result: Dictionary) -> Variant:
 func _listen_for_purchases(on_purchase: Callable) -> Callable:
 	# A signal connection does not keep the flow alive, so the wrapper holds it until dispose.
 	_listening_flows.append(on_purchase.get_object())
+	_apply_purchase_updated_listener_options_apple()
 	# A failed or cancelled purchase ends what the user asked for; other operations tag a method.
 	var clear_requested := func(error: Dictionary) -> void:
 		if not error.has("method"):
@@ -1601,24 +1595,30 @@ func _listen_for_purchases(on_purchase: Callable) -> Callable:
 	return func() -> void:
 		purchase_updated.disconnect(on_purchase)
 		purchase_error.disconnect(clear_requested)
+		_requested_skus.clear()
 		_listening_flows.erase(on_purchase.get_object())
+		_apply_purchase_updated_listener_options_apple()
 
 
 func _mark_requested(skus: Array) -> void:
+	var now := Time.get_unix_time_from_system() * 1000.0
 	for sku in skus:
-		_requested_skus[sku] = true
+		_requested_skus[sku] = now
 
 
-# Whether the app asked for this purchase or the plan it changes to; clears the mark.
+# A purchase made after the app asked for it, or a plan change to what it asked for; clears the mark.
 func _take_requested(purchase: Dictionary) -> bool:
-	var product_ids: Array = [purchase.get("productId")]
+	var asked_at = _requested_skus.get(purchase.get("productId"))
+	var bought_at = purchase.get("transactionDate")
+	# A store's purchase time may run up to a minute behind the device clock.
+	var bought: bool = asked_at != null and (bought_at is int or bought_at is float) \
+		and bought_at >= asked_at - 60000 and _requested_skus.erase(purchase.productId)
+	var changed := false
 	var change = purchase.get("pendingPurchaseUpdateAndroid")
 	if change is Dictionary:
-		product_ids.append_array(change.get("products", []))
-	var taken := false
-	for product_id in product_ids:
-		taken = _requested_skus.erase(product_id) or taken
-	return taken
+		for product_id in change.get("products", []):
+			changed = _requested_skus.erase(product_id) or changed
+	return bought or changed
 
 
 # ==========================================

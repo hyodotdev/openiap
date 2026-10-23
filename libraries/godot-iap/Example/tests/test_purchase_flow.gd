@@ -36,9 +36,14 @@ func _run() -> void:
 		await _run_iapkit_vector(vector)
 	for vector in vectors.sequences:
 		await _run_sequence_vector(vector)
+	for vector in vectors.device:
+		await _run_device_vector(vector)
 	await _test_confirm_timeout()
 	await _test_confirm_timeout_ignores_time_scale()
 	await _test_finish_results()
+	await _test_consumability_read_once()
+	await _test_grant_must_return_true()
+	await _test_pending_delivery_keeps_request_mark()
 	await _test_synchronous_callbacks()
 	await _test_requested_delivery_joins_run()
 	await _test_joined_run_publishes_latest_delivery()
@@ -110,9 +115,10 @@ func _run_iapkit_vector(vector: Dictionary) -> void:
 			"verified_product_id": func(product_id: String) -> String: return product_ids.get(product_id, product_id),
 		}
 	if not vector.get("noGrant", false):
-		options["grant"] = func(purchase: Dictionary, _is_consumable: bool) -> void:
+		options["grant"] = func(purchase: Dictionary, _is_consumable: bool) -> bool:
 			grants.append(purchase)
 			await process_frame
+			return true
 	var verify := func(props: Dictionary) -> Dictionary:
 		verifies.append(props)
 		await process_frame
@@ -129,6 +135,32 @@ func _run_iapkit_vector(vector: Dictionary) -> void:
 		_check(verifies.is_empty(), name + " does not verify")
 	else:
 		_check(_equal(verifies, [vector.props]), name + " verifies once with the props")
+	_check(grants.size() == (1 if vector.granted else 0), name + " grants")
+
+
+func _run_device_vector(vector: Dictionary) -> void:
+	var name := "device: %s" % vector.name
+	var grants := []
+	var reads := [0]
+	var read := func() -> Array:
+		reads[0] += 1
+		await process_frame
+		return vector.pending
+	var options := {}
+	if not vector.get("noGrant", false):
+		options["grant"] = func(purchase: Dictionary, _is_consumable: bool) -> bool:
+			grants.append(purchase)
+			await process_frame
+			return true
+	var confirm := PurchaseFlow.create_device_confirmation_ios(read, options)
+
+	var answer = await confirm.call(vector.purchase, vector.isConsumable)
+
+	if vector.get("error", false):
+		_check(answer is PurchaseFlow.Failure, name + " fails")
+	else:
+		_check(_equal(answer, vector.confirmation), name + " confirmation")
+	_check(reads[0] == (0 if vector.get("reads") == false else 1), name + " reads the pending list")
 	_check(grants.size() == (1 if vector.granted else 0), name + " grants")
 
 
@@ -162,7 +194,12 @@ func _run_sequence_vector(vector: Dictionary) -> void:
 		"listen_for_purchases": func(on_purchase: Callable) -> Callable:
 			store.deliver = on_purchase
 			return func() -> void: store.deliver = null,
-		"was_requested": func(purchase: Dictionary) -> bool: return purchase.id in requested,
+		# requestedOnce: answers true once per id, like an SDK's request mark.
+		"was_requested": func(purchase: Dictionary) -> bool:
+			var listed := requested.has(purchase.id)
+			if listed and vector.get("requestedOnce", false):
+				requested.erase(purchase.id)
+			return listed,
 	}
 	if pending_ios != null:
 		options["get_pending_transactions_ios"] = func() -> Variant:
@@ -204,7 +241,7 @@ func _test_confirm_timeout() -> void:
 		"confirm_with_backend": func(_purchase: Dictionary, _is_consumable: bool) -> Variant:
 			confirms[0] += 1
 			return await hung.wait(),
-		"confirm_timeout_ms": 50,
+		"confirm_timeout_ms": 300,
 		"finish_transaction": func(_purchase: Dictionary, _is_consumable: bool) -> Types.VoidResult:
 			finishes[0] += 1
 			return _void_result(true),
@@ -213,8 +250,9 @@ func _test_confirm_timeout() -> void:
 	})
 	var started := Time.get_ticks_msec()
 	var status: PurchaseFlow.Status = await flow.process_purchase(_purchase("tx-hung"))
-	_check(status.status == "failed" and str(status.error) == "confirm_with_backend did not answer within 50 ms", "A hung backend call fails after confirm_timeout_ms")
-	_check(Time.get_ticks_msec() - started >= 40, "The timeout waits for the configured time")
+	_check(status.status == "failed" and str(status.error) == "confirm_with_backend did not answer within 300 ms", "A hung backend call fails after confirm_timeout_ms")
+	# A frame's delta can include time spent before the timer started, so allow one long frame.
+	_check(Time.get_ticks_msec() - started >= 200, "The timeout waits for the configured time")
 	_check(finishes[0] == 0, "A timed-out purchase stays unfinished")
 	_start(flow.process_purchase.bind(_purchase("tx-hung")))
 	_check(confirms[0] == 2, "The hung call no longer holds the transaction")
@@ -260,6 +298,57 @@ func _test_finish_results() -> void:
 	answers["tx-unsuccessful"] = {"success": false, "error": "Billing unavailable"}
 	status = await flow.process_purchase(_purchase("tx-unsuccessful"))
 	_check(status.finish_error is Dictionary and status.finish_error.error == "Billing unavailable", "A result whose success is false is a finish error")
+
+
+func _test_consumability_read_once() -> void:
+	var reads := [0]
+	var seen := []
+	var flow := PurchaseFlow.new(_options({
+		# A config refresh between confirming and finishing must not change the answer.
+		"is_consumable": func(_product_id: String) -> bool:
+			reads[0] += 1
+			return reads[0] == 1,
+		"confirm_with_backend": func(_purchase: Dictionary, is_consumable: bool) -> Dictionary:
+			seen.append(is_consumable)
+			return {"status": "entitled", "alreadyGranted": false},
+		"finish_transaction": func(_purchase: Dictionary, is_consumable: bool) -> Types.VoidResult:
+			seen.append(is_consumable)
+			return _void_result(true),
+	}))
+	await flow.process_purchase(_purchase("tx-config", {"store": "google", "isAcknowledgedAndroid": true}))
+	_check(seen == [true, true] and reads[0] == 1, "Confirming and finishing read consumability once")
+
+
+func _test_grant_must_return_true() -> void:
+	var verify := func(_props: Dictionary) -> Dictionary:
+		return {"iapkit": {"store": "google", "storeId": "play", "isValid": true, "state": "ready-to-consume", "productId": "coins_100"}}
+	var coins := _purchase("GPA.coins", {"store": "google", "productId": "coins_100"})
+	for answer in [null, false, "credited"]:
+		var confirm := PurchaseFlow.create_iapkit_confirmation(verify, {
+			"api_key": "pk",
+			"grant": func(_purchase: Dictionary, _is_consumable: bool) -> Variant: return answer,
+		})
+		_check(await confirm.call(coins, true) is PurchaseFlow.Failure, "A grant that answers %s does not credit the consumable" % [answer])
+
+
+func _test_pending_delivery_keeps_request_mark() -> void:
+	var asked := []
+	var published := []
+	var deliver := [null]
+	var flow := PurchaseFlow.new(_options({
+		"confirm_with_backend": func(_purchase: Dictionary, _is_consumable: bool) -> Dictionary:
+			return {"status": "invalid", "reason": "declined"},
+		"listen_for_purchases": func(on_purchase: Callable) -> Callable:
+			deliver[0] = on_purchase
+			return Callable(),
+		"was_requested": func(purchase: Dictionary) -> bool:
+			asked.append(purchase.purchaseState)
+			return true,
+	}))
+	flow.purchase_processed.connect(func(_purchase: Dictionary, status: PurchaseFlow.Status) -> void: published.append(status))
+	deliver[0].call(_purchase("GPA.wait", {"store": "google", "purchaseState": "pending"}))
+	deliver[0].call(_purchase("GPA.wait", {"store": "google"}))
+	_check(asked == ["purchased"] and not published.back().recovered, "A pending delivery leaves the request mark for the completed one")
 
 
 func _test_synchronous_callbacks() -> void:
@@ -410,15 +499,22 @@ func _test_wrapper_tracks_requests() -> void:
 	await _settle(flow)
 	_check(published.size() == 1 and published[0].recovered, "A purchase error clears every request mark")
 	wrapper.request_purchase(_purchase_props("premium"))
+	var old_receipt := _android_purchase("GPA.old", "premium")
+	old_receipt["transactionDate"] = Time.get_unix_time_from_system() * 1000.0 - 120000
+	wrapper._on_android_purchase_updated(JSON.stringify(old_receipt))
+	await _settle(flow)
+	_check(published.size() == 2 and published[1].recovered, "A receipt older than the request is a redelivery")
 	# A storefront failure is not a purchase error, so the mark stays.
 	await wrapper.get_storefront()
 	wrapper._on_android_purchase_updated(JSON.stringify(_android_purchase("GPA.requested", "premium")))
 	await _settle(flow)
-	_check(published.size() == 2 and not published[1].recovered, "A delivery of a requested SKU counts as requested, past a storefront failure")
+	_check(published.size() == 3 and not published[2].recovered, "A delivery of a requested SKU counts as requested, past a storefront failure")
+	wrapper.request_purchase(_purchase_props("premium"))
 	flow.dispose()
+	_check(wrapper._requested_skus.is_empty(), "Dispose clears every request mark")
 	wrapper._on_android_purchase_updated(JSON.stringify(_android_purchase("GPA.after", "premium")))
 	await _settle(flow)
-	_check(published.size() == 2 and not wrapper.purchase_updated.is_connected(flow._on_delivered), "Dispose stops listening to the wrapper")
+	_check(published.size() == 3 and not wrapper.purchase_updated.is_connected(flow._on_delivered), "Dispose stops listening to the wrapper")
 	wrapper.queue_free()
 
 
@@ -446,7 +542,7 @@ func _test_wrapper_binding() -> void:
 		"is_consumable": func(_product_id: String) -> bool: return false,
 	})
 	_check(flow._options.get("get_pending_transactions_ios") == null, "Off Apple platforms the flow gets no pending-transaction reader")
-	android.responses["verifyPurchaseWithProvider"] = JSON.stringify({"provider": "iapkit", "iapkit": {
+	android.responses["verifyPurchaseWithProvider"] = _provider_answer({"provider": "iapkit", "iapkit": {
 		"store": "google", "storeId": "play", "isValid": true, "state": "entitled", "productId": "premium",
 	}})
 	android.responses["finishTransaction"] = JSON.stringify({"success": false, "error": "Billing unavailable"})
@@ -463,6 +559,7 @@ func _test_wrapper_binding() -> void:
 	var apple := EnvelopeTests.FakeImmediateApplePlugin.new()
 	wrapper._native_plugin = apple
 	wrapper._platform = "macOS"
+	wrapper.set_purchase_updated_listener_options({})
 	var owned := _apple_purchase("tx-owned")
 	apple.responses["getPendingTransactionsIOS"] = JSON.stringify({"success": false, "code": "service-error", "error": "Transaction failed StoreKit verification"})
 	apple.responses["getAvailablePurchases"] = JSON.stringify({"success": true, "purchasesJson": JSON.stringify([owned])})
@@ -473,10 +570,16 @@ func _test_wrapper_binding() -> void:
 			return {"status": "entitled", "alreadyGranted": true},
 		"is_consumable": func(_product_id: String) -> bool: return false,
 	})
+	_check(JSON.parse_string(apple.responses.last_listener_options) == {"dedupeTransactionIOS": false}, "A listening flow receives StoreKit replays")
 	var outcomes = await flow.recover_purchases()
 	_check(confirmed == ["tx-owned"] and outcomes.size() == 1, "A failed pending-transaction read falls back to every owned Apple purchase")
 	_check(apple.responses.has("last_finish_args"), "The recovered Apple purchase is finished")
 	flow.dispose()
+	_check(JSON.parse_string(apple.responses.last_listener_options) == {}, "Dispose restores the app's replay setting")
+
+	var device_confirm: Callable = wrapper.confirm_on_device_ios()
+	apple.responses["getPendingTransactionsIOS"] = JSON.stringify({"success": true, "transactionsJson": JSON.stringify([owned])})
+	_check(_equal(await device_confirm.call(owned, false), {"status": "entitled", "alreadyGranted": false}), "confirm_on_device_ios reads the wrapper's pending transactions")
 	wrapper.queue_free()
 
 
@@ -587,7 +690,7 @@ func _purchase(id: String, overrides: Dictionary = {}) -> Dictionary:
 func _android_purchase(id: String, product_id: String) -> Dictionary:
 	return {
 		"id": id, "productId": product_id, "purchaseToken": "token-" + id,
-		"purchaseState": "purchased", "transactionDate": 1, "quantity": 1,
+		"purchaseState": "purchased", "transactionDate": Time.get_unix_time_from_system() * 1000.0, "quantity": 1,
 		"isAutoRenewing": false, "store": "google", "storeId": "play",
 		"isAcknowledgedAndroid": false,
 	}
@@ -617,3 +720,8 @@ func _check(condition: bool, message: String) -> void:
 		_passed += 1
 	else:
 		_failed += 1
+
+
+# The Android plugin answers verifyPurchaseWithProvider through products_fetched, like Apple.
+func _provider_answer(result: Dictionary) -> String:
+	return JSON.stringify({"success": true, "resultJson": JSON.stringify(result)})

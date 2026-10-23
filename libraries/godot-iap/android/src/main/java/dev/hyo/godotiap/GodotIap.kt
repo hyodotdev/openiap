@@ -141,7 +141,8 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             return false
         }
 
-        val normalizedConfig = config?.toJson()?.filterValues { it != null }.orEmpty()
+        // Null keeps a live connection; an explicit config, even an empty one, applies.
+        val normalizedConfig = config?.toJson()?.filterValues { it != null }
         val result = try {
             connectionLifecycle.init(
                 config = normalizedConfig,
@@ -990,50 +991,36 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         }
     }
 
+    // Answers through products_fetched: blocking here would freeze the frame for the whole network call.
     @UsedByGodot
     fun verifyPurchaseWithProvider(propsJson: String): String {
         GodotIapLog.payload(
             "verifyPurchaseWithProvider",
             mapOf("hasIapkit" to propsJson.contains("\"iapkit\""))
         )
-
-        fun errorResponse(message: String, code: String = ErrorCode.PurchaseVerificationFailed.toJson()): String {
-            return JSONObject().apply {
-                put("success", false)
-                put("provider", PurchaseVerificationProvider.Iapkit.toJson())
-                put(
-                    "errors",
-                    JSONArray().apply {
-                        put(JSONObject().apply {
-                            put("code", code)
-                            put("message", message)
-                        })
-                    }
-                )
-            }.toString()
-        }
-
-        if (!isInitialized) {
-            return errorResponse("Not initialized", ErrorCode.NotPrepared.toJson())
-        }
-
-        return runBlocking {
+        val requestId = java.util.UUID.randomUUID().toString()
+        pluginScope.launch {
+            val envelope = JSONObject().put("method", "verifyPurchaseWithProvider").put("requestId", requestId)
             try {
-                val propsMap = GodotIapHelper.jsonObjectToMap(JSONObject(propsJson))
-                val providerProps = VerifyPurchaseWithProviderProps.fromJson(propsMap)
-                    ?: throw IllegalArgumentException("Invalid verifyPurchaseWithProvider options")
-
+                if (!isInitialized) throw OpenIapError.NotPrepared
+                val providerProps = VerifyPurchaseWithProviderProps.fromJson(
+                    GodotIapHelper.jsonObjectToMap(JSONObject(propsJson))
+                ) ?: throw IllegalArgumentException("Invalid verifyPurchaseWithProvider options")
                 val result = openIap.verifyPurchaseWithProvider(providerProps)
-                val response = JSONObject(GodotIapHelper.sanitizeDictionary(result.toJson()))
-                    .apply { put("success", true) }
-                    .toString()
+                envelope.put("success", true)
+                    .put("resultJson", JSONObject(GodotIapHelper.sanitizeDictionary(result.toJson())).toString())
                 GodotIapLog.result("verifyPurchaseWithProvider", "verified")
-                response
-            } catch (e: Exception) {
-                GodotIapLog.failure("verifyPurchaseWithProvider", e)
-                errorResponse(e.message ?: "Verification failed", (e as? OpenIapError)?.code ?: ErrorCode.PurchaseVerificationFailed.toJson())
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                GodotIapLog.failure("verifyPurchaseWithProvider", error)
+                envelope.put("success", false)
+                    .put("code", (error as? OpenIapError)?.code ?: ErrorCode.PurchaseVerificationFailed.toJson())
+                    .put("error", error.message ?: "Verification failed")
             }
+            emitSignal("products_fetched", envelope.toString())
         }
+        return JSONObject().put("status", "pending").put("requestId", requestId).toString()
     }
 
     // ==========================================
