@@ -170,8 +170,8 @@ Message: ${error.message}
     }
   }
 
-  Future<void> _handlePurchase(String productId, {int retryCount = 0}) async {
-    debugPrint('🛒 Starting purchase for: $productId (retry: $retryCount)');
+  Future<void> _handlePurchase(String productId) async {
+    debugPrint('🛒 Starting purchase for: $productId');
     debugPrint('📱 Platform: ${defaultTargetPlatform.name}');
     debugPrint('🔗 Connection status: $_connected');
 
@@ -206,40 +206,8 @@ Message: ${error.message}
       // Play reports a launch-time code 6 as PurchaseFailed, so check both.
       final transient = code == ErrorCode.ServiceError ||
           (error is PurchaseError && error.responseCode == 6);
-      if (transient && retryCount < 2) {
-        // Show retry dialog for server errors
-        if (mounted) {
-          final shouldRetry = await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Server Error'),
-              content: const Text(
-                'The store reported a service error.\n\n'
-                'This is usually temporary. Would you like to retry?',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
-          );
 
-          if (shouldRetry == true) {
-            // Wait a bit before retrying
-            await Future<void>.delayed(const Duration(seconds: 2));
-            await _handlePurchase(productId, retryCount: retryCount + 1);
-            return;
-          }
-        }
-      }
-
-      // Show error to user
+      // The user taps Buy again to retry.
       if (mounted) {
         showDialog<void>(
           context: context,

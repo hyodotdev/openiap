@@ -103,15 +103,8 @@ class AppPurchaseFlow {
           'Receipt retained. Choose verification to retry this receipt.',
         );
       case VerificationMethod.local:
-        final pending = await iap.getPendingTransactionsIOS();
-        if (!IapConstants.matchesVerifiedPendingPurchase(purchase, pending)) {
-          throw _unverified(
-            'Local (Device) verification found no matching verified Apple '
-            'transaction.',
-          );
-        }
-        await _grant(purchase, isConsumable: isConsumable);
-        return const PurchaseEntitled(alreadyGranted: false);
+        final confirm = iap.confirmOnDeviceIOS(grant: _grant);
+        return confirm(purchase, isConsumable: isConsumable);
       case VerificationMethod.iapkitLocalhost || VerificationMethod.iapkit:
         final confirm = iap.confirmWithIapkit(iapkitOptions(method));
         return confirm(purchase, isConsumable: isConsumable);
@@ -139,10 +132,13 @@ class AppPurchaseFlow {
     );
   }
 
-  // Stands in for crediting the user's balance, once per purchase id.
+  // Credits a consumable once per purchase id; a real app stores the ids.
   Future<void> _grant(Purchase purchase, {required bool isConsumable}) async {
-    if (isConsumable && _creditedPurchaseIds.add(purchase.id)) {
+    if (!isConsumable) return;
+    if (_creditedPurchaseIds.add(purchase.id)) {
       debugPrint('Credited ${purchase.productId}');
+    } else {
+      debugPrint('Already credited ${purchase.id}');
     }
   }
 }

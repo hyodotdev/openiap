@@ -107,11 +107,19 @@ void main() {
     });
   });
 
-  tearDown(() {
+  // The listener's native cleanup after dispose starts from a real microtask,
+  // so let real async run before the test ends.
+  Future<void> closeScreen(WidgetTester tester) async {
+    await tester.pumpWidget(const SizedBox.shrink());
     for (final purchases in flows) {
       purchases.dispose();
     }
     flows.clear();
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
+  }
+
+  tearDown(() {
     debugDefaultTargetPlatformOverride = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
@@ -141,8 +149,7 @@ void main() {
             log.where((call) => call.method == 'finishTransaction'), isEmpty);
       } finally {
         debugDefaultTargetPlatformOverride = null;
-        await tester.pumpWidget(const SizedBox.shrink());
-        await tester.pumpAndSettle();
+        await closeScreen(tester);
       }
     });
   }
@@ -161,8 +168,7 @@ void main() {
     expect(find.text('No active subscriptions found'), findsOneWidget);
     expect(find.text('Subscribe'), findsOneWidget);
     expect(log.where((call) => call.method == 'finishTransaction'), isEmpty);
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pumpAndSettle();
+    await closeScreen(tester);
   });
 
   testWidgets('renders subscriptions and leaves pending callbacks unfinished',
@@ -193,8 +199,7 @@ void main() {
         isEmpty);
     expect(find.textContaining('Payment is pending'), findsOneWidget);
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pumpAndSettle();
+    await closeScreen(tester);
   });
 
   testWidgets('shows a Play plan change that waits for payment',
@@ -236,8 +241,7 @@ void main() {
       expect(log.where((call) => call.method == 'finishTransaction'), isEmpty);
     } finally {
       debugDefaultTargetPlatformOverride = null;
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pumpAndSettle();
+      await closeScreen(tester);
     }
   });
 
@@ -297,8 +301,7 @@ void main() {
         );
       } finally {
         debugDefaultTargetPlatformOverride = null;
-        await tester.pumpWidget(const SizedBox.shrink());
-        await tester.pumpAndSettle();
+        await closeScreen(tester);
       }
     });
   }

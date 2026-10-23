@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // Product IDs for testing in the example app
@@ -85,26 +84,6 @@ class IapConstants {
       subscriptionProductIds.contains(productId)
           ? amazonSubscriptionBaseId
           : productId;
-
-  static bool matchesVerifiedPendingPurchase(
-          Purchase purchase, List<Purchase> pending) =>
-      purchase is PurchaseIOS &&
-      purchase.store == IapStore.Apple &&
-      purchase.storeId == 'apple' &&
-      purchase.id.isNotEmpty &&
-      pending.any((candidate) =>
-          candidate is PurchaseIOS &&
-          candidate.store == IapStore.Apple &&
-          candidate.storeId == 'apple' &&
-          candidate.id == purchase.id &&
-          candidate.productId == purchase.productId &&
-          candidate.revocationDateIOS == null &&
-          candidate.isUpgradedIOS != true &&
-          (candidate.expirationDateIOS == null ||
-              candidate.expirationDateIOS! >
-                  DateTime.now().millisecondsSinceEpoch) &&
-          (purchase.environmentIOS == null ||
-              candidate.environmentIOS == purchase.environmentIOS));
 
   // Consumable Product IDs
   static const List<String> consumableProductIds = [

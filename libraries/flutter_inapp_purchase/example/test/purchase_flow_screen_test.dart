@@ -123,8 +123,16 @@ void main() {
     flows.clear();
   }
 
-  tearDown(() {
+  // The listener's native cleanup after dispose starts from a real microtask,
+  // so let real async run before the test ends.
+  Future<void> closeScreen(WidgetTester tester) async {
+    await tester.pumpWidget(const SizedBox.shrink());
     disposeFlows();
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
+  }
+
+  tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
   });
@@ -243,14 +251,11 @@ void main() {
           expect(log.where((call) => call.method == 'finishTransaction').length,
               1);
         }
-        await tester.pumpWidget(const SizedBox.shrink());
-        await tester.pumpAndSettle();
-        disposeFlows();
+        await closeScreen(tester);
       }
     } finally {
       debugDefaultTargetPlatformOverride = null;
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pumpAndSettle();
+      await closeScreen(tester);
     }
   });
 
@@ -267,8 +272,7 @@ void main() {
       expect(find.textContaining('Purchase recovery failed'), findsNothing);
     } finally {
       debugDefaultTargetPlatformOverride = null;
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pumpAndSettle();
+      await closeScreen(tester);
     }
   });
 
@@ -302,8 +306,10 @@ void main() {
       try {
         await tester.pumpWidget(screen());
         await tester.pumpAndSettle();
-        // Play keeps an acknowledged purchase; recovery leaves it alone.
-        expect(calls('verifyPurchaseWithProvider'), 0);
+        // Recovery confirms a listed consumable, which is still unconsumed;
+        // Play keeps an acknowledged non-consumable finished.
+        expect(calls('verifyPurchaseWithProvider'), isConsumable ? 1 : 0);
+        expect(calls('finishTransaction'), isConsumable ? 1 : 0);
 
         await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .handlePlatformMessage(
@@ -314,8 +320,8 @@ void main() {
           (_) {},
         );
         await tester.pumpAndSettle();
+        // A settled purchase is answered without confirming it again.
         expect(calls('verifyPurchaseWithProvider'), 1);
-        // Only a consumable still needs finishing (consuming).
         expect(calls('finishTransaction'), isConsumable ? 1 : 0);
         expect(find.textContaining('Access granted.'), findsOneWidget);
 
@@ -327,8 +333,7 @@ void main() {
         expect(calls('finishTransaction'), isConsumable ? 1 : 0);
       } finally {
         debugDefaultTargetPlatformOverride = null;
-        await tester.pumpWidget(const SizedBox.shrink());
-        await tester.pumpAndSettle();
+        await closeScreen(tester);
       }
     });
   }

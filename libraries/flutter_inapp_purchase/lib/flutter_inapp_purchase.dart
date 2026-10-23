@@ -116,20 +116,33 @@ class _SharedNativeState {
   /// Serializes initConnection and endConnection on the one native connection.
   final connectionChanges = _SerialTasks();
 
-  /// Products the app asked to buy, until their purchase or a purchase error.
-  final requestedProductIds = <String>{};
+  /// When the app asked for each product, until its purchase or a purchase
+  /// error, so a flow can tell the user's own purchase from a redelivery.
+  final requestedProductIds = <String, int>{};
 
-  /// Whether the app asked for [purchase]: its product, or a plan change's
-  /// target. Clears the mark.
+  void markRequested(Iterable<String> productIds) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final productId in productIds) {
+      requestedProductIds[productId] = now;
+    }
+  }
+
+  /// Whether the app asked for [purchase]: bought after the request, or a
+  /// plan change to what it asked for. Clears the mark.
   bool wasRequested(gentype.Purchase purchase) {
+    final askedAt = requestedProductIds[purchase.productId];
+    // A store's purchase time may run slightly behind the device clock.
+    final bought =
+        askedAt != null && purchase.transactionDate >= askedAt - 60000;
+    if (bought) requestedProductIds.remove(purchase.productId);
     final changeTargets = purchase is gentype.PurchaseAndroid
         ? purchase.pendingPurchaseUpdateAndroid?.products
         : null;
-    var requested = false;
-    for (final productId in [purchase.productId, ...?changeTargets]) {
-      requested = requestedProductIds.remove(productId) || requested;
+    var changed = false;
+    for (final productId in changeTargets ?? const <String>[]) {
+      changed = requestedProductIds.remove(productId) != null || changed;
     }
-    return requested;
+    return bought || changed;
   }
 
   /// Whether each Play purchase token was last seen acknowledged.
@@ -519,9 +532,10 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   ///
   /// Returns `true` once the platform billing client is connected. Calls
   /// queue behind any initConnection or endConnection still running. While
-  /// connected, a call without a config returns `true`; on Android a config is
-  /// always passed to native, which rebuilds the client only when it differs
-  /// from the live one. iOS ignores the config.
+  /// connected, a call without a config returns `true`, and an explicitly
+  /// empty config cannot be told apart from none, so it keeps the connection
+  /// too. On Android a config is always passed to native, which rebuilds the
+  /// client only when it differs from the live one.
   /// Throws when the billing client fails to initialize.
   ///
   /// ```dart
@@ -699,7 +713,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               );
             }
 
-            _shared.requestedProductIds.add(payload['sku'] as String);
+            _shared.markRequested([payload['sku'] as String]);
             await _channel.invokeMethod('requestPurchase', payload);
             return null;
           }
@@ -823,7 +837,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                   subscriptionProductReplacementParams.toJson();
             }
 
-            _shared.requestedProductIds.addAll(skus);
+            _shared.markRequested(skus);
             await _channel.invokeMethod('requestPurchase', payload);
             return null;
           }
@@ -2130,10 +2144,36 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         getPendingTransactionsIOS: getPendingTransactionsIOS ??
             (isIOS ? this.getPendingTransactionsIOS : null),
         confirmTimeout: confirmTimeout,
-        listenForPurchases:
-            listenForPurchases ?? purchaseUpdatedListener.listen,
+        listenForPurchases: listenForPurchases ?? _flowDeliveries().listen,
         wasRequested: wasRequested ?? _shared.wasRequested,
       );
+
+  /// Every delivery, iOS replays included: the flow deduplicates itself, and a
+  /// redelivery is how a failed confirmation retries. Ending it drops the
+  /// request marks.
+  Stream<gentype.Purchase> _flowDeliveries() =>
+      Stream<gentype.Purchase>.multi((controller) {
+        final subscription = purchaseUpdatedListenerWithOptions(
+          const gentype.PurchaseUpdatedListenerOptions(
+            dedupeTransactionIOS: false,
+          ),
+        ).listen(
+          controller.add,
+          onError: controller.addError,
+          onDone: controller.close,
+        );
+        controller.onCancel = () {
+          _shared.requestedProductIds.clear();
+          return subscription.cancel();
+        };
+      });
+
+  /// Confirms iOS purchases on the device from StoreKit's unfinished
+  /// transactions, for apps with neither a backend nor IAPKit: pass it as
+  /// [createPurchaseFlow]'s `confirmWithBackend`. [grant] is required for
+  /// consumables.
+  PurchaseConfirmer confirmOnDeviceIOS({PurchaseGrant? grant}) =>
+      createDeviceConfirmationIOS(getPendingTransactionsIOS, grant: grant);
 
   /// Confirms purchases with IAPKit from the app, for apps without their own
   /// backend: pass it as [createPurchaseFlow]'s `confirmWithBackend`.

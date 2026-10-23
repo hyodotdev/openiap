@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+import '../app_purchase_flow.dart';
 import '../widgets/product_detail_modal.dart';
 import '../constants.dart';
 
@@ -24,7 +24,7 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
   bool _connected = false;
   bool _loading = false;
   String? _purchaseResult;
-  StreamSubscription<Purchase>? _purchaseUpdatedSubscription;
+  StreamSubscription<PurchaseFlowOutcome>? _outcomeSubscription;
   StreamSubscription<PurchaseError>? _purchaseErrorSubscription;
   final Set<String> _processedErrorMessages = {};
   String? _storefront;
@@ -37,31 +37,9 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
 
   @override
   void dispose() {
-    _purchaseUpdatedSubscription?.cancel();
+    _outcomeSubscription?.cancel();
     _purchaseErrorSubscription?.cancel();
     super.dispose();
-  }
-
-  PurchaseError? _convertPlatformExceptionToPurchaseError(dynamic error) {
-    if (error is! PlatformException) return null;
-
-    // Web platform doesn't have IAP support, so this shouldn't be called
-    // Use Android as default for error reporting purposes
-    final IapPlatform platform;
-    if (kIsWeb) {
-      // Web doesn't support IAP - return null or use Android as fallback
-      return null;
-    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-      platform = IapPlatform.IOS;
-    } else {
-      platform = IapPlatform.Android;
-    }
-
-    return PurchaseError.fromPlatformError({
-      'code': error.code,
-      'message': error.message ?? 'Unknown error',
-      'details': error.details,
-    }, platform);
   }
 
   Future<void> _initConnection() async {
@@ -95,27 +73,11 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
   void _setupPurchaseListeners() {
     debugPrint('Setting up purchase listeners...');
 
-    _purchaseUpdatedSubscription = _iap.purchaseUpdatedListener.listen(
-      (purchase) {
-        if (!mounted) return;
-        setState(() {
-          _purchaseResult =
-              'Receipt retained; verify in Purchase Flow or Subscription Flow';
-        });
-      },
-      onError: (error) {
-        debugPrint('Purchase update error: $error');
-        final purchaseError = _convertPlatformExceptionToPurchaseError(error);
-        if (purchaseError != null) {
-          _handlePurchaseError(purchaseError);
-        } else {
-          if (!mounted) return;
-          setState(() {
-            _purchaseResult = 'Error: ${error.toString()}';
-          });
-        }
-      },
-    );
+    // The app-wide flow confirms every purchase; show what it decided.
+    _outcomeSubscription =
+        AppPurchaseFlow.instance.flow.outcomes.listen((outcome) {
+      setState(() => _purchaseResult = describeOutcome(outcome));
+    });
 
     _purchaseErrorSubscription = _iap.purchaseErrorListener.listen((error) {
       debugPrint('Purchase error received: ${error.message}');

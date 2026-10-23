@@ -22,9 +22,26 @@ Purchase purchaseFromVector(Map<String, dynamic> json) {
     if (pending != null)
       'pendingPurchaseUpdateAndroid': {'purchaseToken': 'pending', ...pending},
   };
-  return json['store'] == 'apple'
-      ? PurchaseIOS.fromJson(full)
-      : PurchaseAndroid.fromJson(full);
+  if (json['store'] != 'apple') return PurchaseAndroid.fromJson(full);
+  // Built field by field: fromJson rejects a community storeId under "apple".
+  final ios = PurchaseIOS.fromJson({...full, 'storeId': 'apple'});
+  return PurchaseIOS(
+    id: ios.id,
+    transactionId: ios.transactionId,
+    productId: ios.productId,
+    purchaseState: ios.purchaseState,
+    purchaseToken: ios.purchaseToken,
+    quantity: ios.quantity,
+    isAutoRenewing: ios.isAutoRenewing,
+    transactionDate: ios.transactionDate,
+    ids: ios.ids,
+    environmentIOS: ios.environmentIOS,
+    expirationDateIOS: ios.expirationDateIOS,
+    revocationDateIOS: ios.revocationDateIOS,
+    isUpgradedIOS: ios.isUpgradedIOS,
+    store: ios.store,
+    storeId: full['storeId'] as String? ?? ios.storeId,
+  );
 }
 
 /// The status as the vectors spell it: `error` and `finishError` as `true`.
@@ -102,6 +119,7 @@ PurchaseAndroid _play(
   String id, {
   bool? acknowledged,
   List<String>? changeTo,
+  double transactionDate = 1,
 }) =>
     PurchaseAndroid(
       id: id,
@@ -119,7 +137,7 @@ PurchaseAndroid _play(
             ),
       store: IapStore.Google,
       storeId: 'play',
-      transactionDate: 1,
+      transactionDate: transactionDate,
     );
 
 PurchaseFlow _flow(
@@ -198,6 +216,40 @@ void main() {
           comparableGuidance(describePurchaseFlowStatus(status)),
           vector['guidance'],
         );
+      });
+    }
+  });
+
+  group('device', () {
+    for (final vector in cases(vectors, 'device')) {
+      test(vector['name'] as String, () async {
+        var reads = 0;
+        var grants = 0;
+        final confirm = createDeviceConfirmationIOS(
+          () async {
+            reads++;
+            return [
+              for (final pending in vector['pending'] as List<dynamic>)
+                purchaseFromVector(pending as Map<String, dynamic>),
+            ];
+          },
+          grant: vector['noGrant'] == true
+              ? null
+              : (purchase, {required isConsumable}) async => grants++,
+        );
+
+        final answer = confirm(
+          purchaseFromVector(vector['purchase'] as Map<String, dynamic>),
+          isConsumable: vector['isConsumable'] as bool,
+        );
+
+        if (vector['error'] == true) {
+          await expectLater(answer, throwsA(anything));
+        } else {
+          expect(comparableStatus(await answer), vector['confirmation']);
+        }
+        expect(reads, vector['reads'] == false ? 0 : 1);
+        expect(grants, vector['granted'] == true ? 1 : 0);
       });
     }
   });
@@ -310,7 +362,9 @@ void main() {
                   return listed(pendingIOS);
                 },
           listenForPurchases: store.stream.listen,
-          wasRequested: (purchase) => requested.contains(purchase.id),
+          wasRequested: (purchase) => vector['requestedOnce'] == true
+              ? requested.remove(purchase.id)
+              : requested.contains(purchase.id),
         );
         flow.outcomes.listen(published.add);
 
@@ -421,6 +475,27 @@ void main() {
         comparableStatus(await flow.processPurchase(_play('p1'))),
         {'status': 'entitled', 'alreadyGranted': false},
       );
+    });
+
+    test('finishes with the consumability it confirmed with', () async {
+      var reads = 0;
+      final finishedAs = <bool>[];
+      final flow = PurchaseFlow(
+        confirmWithBackend: (purchase, {required isConsumable}) async =>
+            const PurchaseEntitled(alreadyGranted: false),
+        finishTransaction: ({required purchase, required isConsumable}) async {
+          finishedAs.add(isConsumable);
+        },
+        // A config refresh between confirming and finishing flips the answer.
+        isConsumable: (_) => ++reads == 1,
+        getAvailablePurchases: () async => [],
+        getPendingTransactionsIOS: null,
+      );
+
+      await flow.processPurchase(_play('p1'));
+
+      expect(finishedAs, [true]);
+      expect(reads, 1);
     });
 
     test('reads a negative typed retry hint like backend JSON', () async {
@@ -678,11 +753,16 @@ void main() {
         return (published.single.status as PurchaseInvalid).recovered;
       }
 
+      final now = DateTime.now().millisecondsSinceEpoch.toDouble();
+
       await requestPurchase(iap, 'premium');
-      expect(await recovered(_play('GPA.1')), isFalse);
+      // A receipt older than the request is a redelivery and keeps the mark.
+      expect(await recovered(_play('GPA.0')), isTrue);
+      expect(await recovered(_play('GPA.1', transactionDate: now)), isFalse);
       // The delivery cleared the mark.
-      expect(await recovered(_play('GPA.2')), isTrue);
+      expect(await recovered(_play('GPA.2', transactionDate: now)), isTrue);
       await requestPurchase(iap, 'premium_yearly');
+      // A change to the requested product needs no date check.
       expect(
         await recovered(_play('GPA.3', changeTo: ['premium_yearly'])),
         isFalse,
@@ -692,8 +772,97 @@ void main() {
         'purchase-error',
         jsonEncode({'code': 'user-cancelled', 'message': 'Cancelled'}),
       );
-      expect(await recovered(_play('GPA.4')), isTrue);
+      expect(await recovered(_play('GPA.4', transactionDate: now)), isTrue);
       flow.dispose();
+    });
+
+    test('drops request marks on dispose', () async {
+      final iap = await connected('android');
+      PurchaseFlow create() => iap.createPurchaseFlow(
+            confirmWithBackend: (purchase, {required isConsumable}) async =>
+                const PurchaseInvalid(reason: 'expired'),
+            isConsumable: (_) => false,
+          );
+      final first = create();
+      await requestPurchase(iap, 'premium');
+      first.dispose();
+      await pumpEventQueue();
+
+      final second = create();
+      final outcome = second.outcomes.first;
+      final now = DateTime.now().millisecondsSinceEpoch.toDouble();
+      await deliver(_play('GPA.1', transactionDate: now));
+
+      expect(((await outcome).status as PurchaseInvalid).recovered, isTrue);
+      second.dispose();
+    });
+
+    test('passes iOS replays to the flow, which retries a failed one',
+        () async {
+      final iap = await connected('ios');
+      var confirms = 0;
+      final flow = iap.createPurchaseFlow(
+        confirmWithBackend: (purchase, {required isConsumable}) async {
+          if (++confirms == 1) throw StateError('backend down');
+          return const PurchaseEntitled(alreadyGranted: false);
+        },
+        isConsumable: (_) => false,
+      );
+      final published = <PurchaseFlowOutcome>[];
+      flow.outcomes.listen(published.add);
+      await pumpEventQueue();
+      const replay = PurchaseIOS(
+        id: 'tx-1',
+        transactionId: 'tx-1',
+        productId: 'premium',
+        purchaseState: PurchaseState.Purchased,
+        purchaseToken: 'jws',
+        quantity: 1,
+        isAutoRenewing: false,
+        store: IapStore.Apple,
+        storeId: 'apple',
+        transactionDate: 1,
+      );
+
+      for (var delivery = 0; delivery < 2; delivery++) {
+        await _sendNative('purchase-updated', jsonEncode(replay.toJson()));
+        await pumpEventQueue();
+      }
+
+      expect(confirms, 2);
+      expect(published.map((outcome) => outcome.status), [
+        isA<PurchaseFailed>(),
+        isA<PurchaseEntitled>(),
+      ]);
+      flow.dispose();
+    });
+
+    test('confirmOnDeviceIOS reads this instance\'s pending transactions',
+        () async {
+      final iap = await connected('ios');
+      final confirm = iap.confirmOnDeviceIOS();
+
+      await expectLater(
+        confirm(
+          const PurchaseIOS(
+            id: 'tx-1',
+            transactionId: 'tx-1',
+            productId: 'premium',
+            purchaseState: PurchaseState.Purchased,
+            quantity: 1,
+            isAutoRenewing: false,
+            store: IapStore.Apple,
+            storeId: 'apple',
+            transactionDate: 1,
+          ),
+          isConsumable: false,
+        ),
+        throwsA(isA<PurchaseError>()),
+      );
+      expect(
+        calls.where((call) => call.method == 'getPendingTransactionsIOS'),
+        hasLength(1),
+      );
     });
 
     test('recovers through this instance on each platform', () async {

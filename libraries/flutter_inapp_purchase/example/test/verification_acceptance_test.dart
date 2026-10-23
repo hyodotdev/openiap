@@ -1,6 +1,7 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+import 'package:platform/platform.dart';
 import 'package:flutter_inapp_purchase_example/src/app_purchase_flow.dart';
 import 'package:flutter_inapp_purchase_example/src/constants.dart';
 
@@ -9,7 +10,10 @@ void main() {
   final flows = <AppPurchaseFlow>[];
 
   AppPurchaseFlow purchases() {
-    final purchases = AppPurchaseFlow(FlutterInappPurchase());
+    // Android needs no native listener options, so nothing reaches native.
+    final purchases = AppPurchaseFlow(
+      FlutterInappPurchase(platform: FakePlatform(operatingSystem: 'android')),
+    );
     flows.add(purchases);
     return purchases;
   }
@@ -23,48 +27,6 @@ void main() {
 
   setUp(() {
     dotenv.loadFromString(envString: 'IAPKIT_API_KEY=openiap-kit_pk_test');
-  });
-
-  test('Apple local verification rejects unrelated or inactive signed receipts',
-      () {
-    PurchaseIOS receipt(
-            {String id = 'old',
-            String storeId = 'apple',
-            String productId = 'dev.hyo.martie.10bulbs',
-            String? environment = 'Sandbox',
-            double? revoked,
-            double? expired,
-            bool? upgraded}) =>
-        PurchaseIOS(
-            id: id,
-            transactionId: id,
-            productId: productId,
-            purchaseState: PurchaseState.Purchased,
-            transactionDate: 1,
-            quantity: 1,
-            isAutoRenewing: false,
-            store: IapStore.Apple,
-            storeId: storeId,
-            environmentIOS: environment,
-            revocationDateIOS: revoked,
-            expirationDateIOS: expired,
-            isUpgradedIOS: upgraded);
-    final purchase = receipt();
-    expect(IapConstants.matchesVerifiedPendingPurchase(purchase, [receipt()]),
-        isTrue);
-    for (final other in [
-      receipt(id: 'new'),
-      receipt(productId: 'foreign'),
-      receipt(storeId: 'community'),
-      receipt(environment: 'Production'),
-      receipt(environment: null),
-      receipt(revoked: 1),
-      receipt(expired: 1),
-      receipt(upgraded: true)
-    ]) {
-      expect(IapConstants.matchesVerifiedPendingPurchase(purchase, [other]),
-          isFalse);
-    }
   });
 
   test('a restored Amazon term maps to its catalog product', () {

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+import '../app_purchase_flow.dart';
 import '../constants.dart';
 
 /// Alternative Billing Example
@@ -108,27 +109,13 @@ class _AlternativeBillingScreenState extends State<AlternativeBillingScreen> {
   }
 
   void _setupListeners() {
-    _purchaseUpdatedSubscription = FlutterInappPurchase
-        .instance.purchaseUpdatedListener
-        .listen((purchase) {
-      debugPrint(
-        '[AlternativeBilling] Purchase received: ${purchase.productId}',
-      );
-
-      if (!mounted) return;
+    // The app-wide flow confirms every purchase; show what it decided.
+    _purchaseUpdatedSubscription =
+        AppPurchaseFlow.instance.flow.outcomes.listen((outcome) {
       setState(() {
         _isProcessing = false;
-        _purchaseResult = '''
-Receipt received · verification required
-Product: ${purchase.productId}
-Transaction ID: ${purchase.id}
-''';
+        _purchaseResult = describeOutcome(outcome);
       });
-
-      _showAlert(
-        'Receipt retained',
-        'Open Purchase Flow or Subscription Flow to verify and complete this receipt.',
-      );
     });
 
     _purchaseErrorSubscription =
