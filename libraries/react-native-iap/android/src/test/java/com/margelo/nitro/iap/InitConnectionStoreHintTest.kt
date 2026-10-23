@@ -1,6 +1,7 @@
 package com.margelo.nitro.iap
 
 import dev.hyo.openiap.OpenIapError
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -32,11 +33,25 @@ class InitConnectionStoreHintTest {
     }
 
     @Test
-    fun `a refused rebuild keeps the connection and a failed connect does not`() {
-        val refused = OpenIapError.DeveloperError("initConnection cannot change the billing program while a purchase is in progress")
+    fun `a refused rebuild keeps the connection and a failed connect does not`() = runBlocking {
+        val queue = ConnectionLifecycleQueue()
+        val readiness = ConnectionReadiness()
+        suspend fun init(operation: suspend () -> Boolean) {
+            runCatching {
+                queue.enqueueInit(operation, readiness::committed, readiness::failed).await()
+            }
+        }
 
-        assertTrue(isRefusedRebuild(nativeInitFailure(refused, null)))
-        assertFalse(isRefusedRebuild(nativeInitFailure(IllegalStateException("setup failed"), null)))
-        assertFalse(isRefusedRebuild(OpenIapException("{}")))
+        init { true }
+        assertTrue(readiness.isInitialized)
+        init {
+            throw nativeInitFailure(
+                OpenIapError.DeveloperError("initConnection cannot change the billing program while a purchase is in progress"),
+                null,
+            )
+        }
+        assertTrue("a refused rebuild keeps the live client", readiness.isInitialized)
+        init { throw nativeInitFailure(IllegalStateException("setup failed"), null) }
+        assertFalse("a failed connect leaves the store disconnected", readiness.isInitialized)
     }
 }

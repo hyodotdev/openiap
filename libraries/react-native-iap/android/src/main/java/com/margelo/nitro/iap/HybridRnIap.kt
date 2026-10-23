@@ -213,6 +213,21 @@ internal fun toErrorJson(
 internal fun isRefusedRebuild(error: Throwable): Boolean =
     generateSequence(error) { it.cause }.any { it is OpenIapError.DeveloperError }
 
+/** Whether initConnection left the store connected, as the connection queue reports it. */
+internal class ConnectionReadiness {
+    @Volatile
+    var isInitialized = false
+
+    fun committed(connected: Boolean) {
+        isInitialized = connected
+    }
+
+    /** A refused rebuild keeps the live client; any other failure leaves the store disconnected. */
+    fun failed(error: Throwable) {
+        isInitialized = isInitialized && isRefusedRebuild(error)
+    }
+}
+
 /**
  * Removes the singleton JS fan-out listener without relying on callback identity.
  * Nitro creates a fresh Kotlin callback wrapper for each bridge invocation, so
@@ -315,8 +330,8 @@ class HybridRnIap : HybridRnIapSpec() {
     private val developerProvidedBillingListenersAndroid = mutableListOf<(DeveloperProvidedBillingDetailsAndroid) -> Unit>()
     private val subscriptionBillingIssueListeners = mutableListOf<(NitroPurchase) -> Unit>()
     private var listenersAttached = false
-    @Volatile
-    private var isInitialized = false
+    private val readiness = ConnectionReadiness()
+    private var isInitialized by readiness::isInitialized
     private val connectionLifecycleQueue = ConnectionLifecycleQueue()
     
     // Variant wrapper helpers shared by the generated Nitrogen bindings.
@@ -521,10 +536,10 @@ class HybridRnIap : HybridRnIapSpec() {
         val invocation = connectionLifecycleQueue.enqueueInit(
             operation = performInit,
             onCommitted = { value ->
-                isInitialized = value
+                readiness.committed(value)
                 RnIapLog.result("initConnection", value)
             },
-            onFailed = { error -> isInitialized = isInitialized && isRefusedRebuild(error) }
+            onFailed = readiness::failed
         )
         return Promise.async {
             invocation.await()
