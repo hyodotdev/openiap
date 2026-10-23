@@ -31,7 +31,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.flow.takeWhile
@@ -145,6 +144,7 @@ class PurchaseFlow internal constructor(
     listenForPurchases: Flow<Purchase>?,
     // Store events that end the user's purchase request, collected until dispose.
     endsRequest: Flow<*>?,
+    private val onDispose: () -> Unit,
     private val wasRequested: (Purchase) -> Boolean,
     private val confirmTimeout: Duration,
 ) {
@@ -245,6 +245,7 @@ class PurchaseFlow internal constructor(
     fun dispose() {
         disposed = true
         listening.cancel()
+        onDispose()
         outcomeFlow.tryEmit(null)
     }
 
@@ -432,7 +433,8 @@ fun KmpIAP.createPurchaseFlow(
     getPendingTransactionsIOS = getPendingTransactionsIOS,
     listenForPurchases = listenForPurchases,
     // An error ends the user's request; dispose ends them all.
-    endsRequest = purchaseErrorListener.onEach { purchaseRequests.clear() }.onCompletion { purchaseRequests.clear() },
+    endsRequest = purchaseErrorListener.onEach { purchaseRequests.clear() },
+    onDispose = purchaseRequests::clear,
     wasRequested = wasRequested,
     confirmTimeout = confirmTimeout,
 )
@@ -463,7 +465,7 @@ internal class PurchaseRequests {
         requestedAt.update { marks ->
             // A receipt older than the request is the store redelivering an earlier purchase.
             val bought = marks[purchase.productId]
-                ?.takeIf { purchase.transactionDate >= it - CLOCK_SKEW_MS }
+                ?.takeIf { purchase.transactionDate >= it - PURCHASE_REQUEST_CLOCK_SKEW_MS }
                 ?.let { purchase.productId }
             val changed = purchase.pendingPurchaseUpdate()?.products.orEmpty().filter { it in marks }
             val hits = listOfNotNull(bought) + changed
@@ -478,8 +480,8 @@ internal class PurchaseRequests {
     }
 }
 
-// A store's purchase time may run slightly behind the device clock.
-private const val CLOCK_SKEW_MS = 60_000L
+// As in specs/client/src/purchase-flow.ts: a device clock may run ahead of the store's.
+private const val PURCHASE_REQUEST_CLOCK_SKEW_MS = 600_000L
 
 /** What a status means for the user; see [describePurchaseFlowStatus]. */
 enum class PurchaseFlowGuidanceKey(val rawValue: String) {

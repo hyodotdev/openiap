@@ -66,6 +66,7 @@ class PurchaseFlowVectorsTest {
             getPendingTransactionsIOS = null,
             listenForPurchases = null,
             endsRequest = null,
+            onDispose = {},
             wasRequested = { false },
             confirmTimeout = 30.seconds,
         )
@@ -172,6 +173,7 @@ class PurchaseFlowVectorsTest {
             },
             listenForPurchases = store,
             endsRequest = null,
+            onDispose = {},
             // Like an SDK's request mark, requestedOnce answers true once per id.
             wasRequested = { if (requestedOnce) requested.remove(it.id) else it.id in requested },
             confirmTimeout = 30.seconds,

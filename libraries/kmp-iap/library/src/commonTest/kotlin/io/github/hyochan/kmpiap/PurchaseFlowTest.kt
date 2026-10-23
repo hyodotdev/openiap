@@ -80,6 +80,7 @@ class PurchaseFlowTest {
         getPendingTransactionsIOS = null,
         listenForPurchases = listenForPurchases,
         endsRequest = null,
+        onDispose = {},
         wasRequested = { false },
         confirmTimeout = 30.seconds,
     )
@@ -376,8 +377,9 @@ class PurchaseFlowTest {
         )
         val now = Clock.System.now().toEpochMilliseconds().toDouble()
 
-        assertFalse(requests.wasRequested(purchase(productId = "coins", transactionDate = now - 120_000)))
-        assertTrue(requests.wasRequested(purchase(productId = "coins", transactionDate = now)))
+        assertFalse(requests.wasRequested(purchase(productId = "coins", transactionDate = now - 20 * 60_000)))
+        // A device clock running minutes ahead still counts the user's own purchase.
+        assertTrue(requests.wasRequested(purchase(productId = "coins", transactionDate = now - 5 * 60_000)))
     }
 
     @Test

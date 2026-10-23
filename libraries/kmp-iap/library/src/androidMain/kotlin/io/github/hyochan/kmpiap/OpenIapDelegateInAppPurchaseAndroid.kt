@@ -153,8 +153,9 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
 
     /**
      * Connects to the store's billing service, serialized with [endConnection].
-     * Without a config a live connection is kept. A config always reaches
-     * openiap-google, which decides whether the live connection must change.
+     * Without a config a live connection is kept, and a dropped one comes back
+     * with its last program. A config always reaches openiap-google, which
+     * decides whether the live connection must change; a refusal keeps it.
      */
     override suspend fun initConnection(config: InitConnectionConfig?): Boolean = withContext(Dispatchers.Main) {
         connectionMutex.withLock {
@@ -162,10 +163,14 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
             withMappedOpenIapError {
                 val openModule = ensureModuleLocked()
                 openModule.setActivity(currentActivity)
+                // A refused change throws, so the live connection and its program stay as they were.
                 openModule.initConnection(config?.toOpenIap()).also { connected ->
                     isConnected = connected
-                    enabledBillingProgram = config?.enableBillingProgramAndroid
-                        ?.takeIf { connected && it != BillingProgramAndroid.Unspecified }
+                    when {
+                        !connected -> enabledBillingProgram = null
+                        config != null -> enabledBillingProgram = config.enableBillingProgramAndroid
+                            ?.takeIf { it != BillingProgramAndroid.Unspecified }
+                    }
                 }
             }
         }
@@ -534,12 +539,10 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
             _purchaseErrorListener.tryEmit(error.toKmpPurchaseError())
         }
         // Locked so an in-flight initConnection cannot overwrite the drop; runs inline when uncontended.
+        // The program stays: reconnecting without a config restores it.
         val connectionState = OpenIapConnectionStateListener {
             scope.launch(start = CoroutineStart.UNDISPATCHED) {
-                connectionMutex.withLock {
-                    isConnected = false
-                    enabledBillingProgram = null
-                }
+                connectionMutex.withLock { isConnected = false }
             }
         }
         openModule.addPurchaseUpdateListener(purchaseUpdate)

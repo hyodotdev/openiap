@@ -60,7 +60,6 @@ class PurchaseFlowBindingTest {
 
         iap.requestPurchase(premiumRequest())
         flow.dispose()
-        runCurrent()
         val afterDispose = io.github.hyochan.kmpiap.openiap.PurchaseAndroid(
             id = "after-dispose",
             isAutoRenewing = false,
