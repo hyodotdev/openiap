@@ -137,10 +137,146 @@ describe('Public API (src/index.ts)', () => {
 
   it('exports the backend purchase flow', () => {
     expect(
-      IAP.describePurchaseFlowStatus({status: 'entitled', alreadyGranted: false}),
+      IAP.describePurchaseFlowStatus({
+        status: 'entitled',
+        alreadyGranted: false,
+      }),
     ).toEqual({key: 'access_granted', offerPurchase: false});
     expect(typeof IAP.createPurchaseFlow).toBe('function');
     expect(typeof IAP.toPurchaseConfirmationRequest).toBe('function');
+  });
+
+  describe('createPurchaseFlow', () => {
+    const nitroPurchase = (productId: string, id = `tx-${productId}`) => ({
+      id,
+      transactionId: id,
+      productId,
+      transactionDate: 1,
+      store: 'apple',
+      storeId: 'apple',
+      quantity: 1,
+      purchaseState: 'purchased',
+      isAutoRenewing: false,
+      purchaseToken: `jws-${id}`,
+    });
+    // Listener deliveries settle without a promise to wait on.
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+    const deliver = (purchase: ReturnType<typeof nitroPurchase>) =>
+      mockIap.addPurchaseUpdatedListener.mock.calls[0][0](purchase);
+
+    it('confirms and finishes what the store delivers until disposed', async () => {
+      const confirmWithBackend = jest.fn(async () => ({
+        status: 'entitled' as const,
+        alreadyGranted: false,
+      }));
+      const flow = IAP.createPurchaseFlow({
+        confirmWithBackend,
+        isConsumable: () => false,
+      });
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome: {status: unknown}) =>
+        statuses.push(outcome.status),
+      );
+
+      deliver(nitroPurchase('premium'));
+      await settle();
+
+      expect(confirmWithBackend).toHaveBeenCalledWith(
+        expect.objectContaining({productId: 'premium'}),
+        {isConsumable: false},
+      );
+      expect(mockIap.finishTransaction).toHaveBeenCalledTimes(1);
+      expect(statuses).toEqual([{status: 'entitled', alreadyGranted: false}]);
+
+      flow.dispose();
+      deliver(nitroPurchase('premium', 'tx-2'));
+      await settle();
+      expect(confirmWithBackend).toHaveBeenCalledTimes(1);
+    });
+
+    it('offers buying again only for a purchase the app requested', async () => {
+      const flow = IAP.createPurchaseFlow({
+        confirmWithBackend: async () => ({status: 'invalid' as const}),
+        isConsumable: () => false,
+      });
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome: {status: unknown}) =>
+        statuses.push(outcome.status),
+      );
+
+      await IAP.requestPurchase({
+        request: {apple: {sku: 'fresh'}},
+        type: 'in-app',
+      });
+      deliver(nitroPurchase('old'));
+      deliver(nitroPurchase('fresh'));
+      await settle();
+
+      expect(statuses).toEqual([
+        {status: 'invalid', recovered: true},
+        {status: 'invalid'},
+      ]);
+    });
+
+    it('forgets a request the store answered with an error', async () => {
+      const flow = IAP.createPurchaseFlow({
+        confirmWithBackend: async () => ({status: 'invalid' as const}),
+        isConsumable: () => false,
+      });
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome: {status: unknown}) =>
+        statuses.push(outcome.status),
+      );
+
+      await IAP.requestPurchase({
+        request: {apple: {sku: 'fresh'}},
+        type: 'in-app',
+      });
+      mockIap.addPurchaseErrorListener.mock.calls[0][0]({
+        code: 'user-cancelled',
+        message: 'cancelled',
+      });
+      deliver(nitroPurchase('fresh'));
+      await settle();
+
+      expect(statuses).toEqual([{status: 'invalid', recovered: true}]);
+    });
+
+    it('grants an IAPKit-confirmed consumable before consuming it', async () => {
+      const order: string[] = [];
+      mockIap.verifyPurchaseWithProvider = jest.fn(async () => ({
+        provider: 'iapkit',
+        iapkit: {
+          store: 'apple',
+          storeId: 'apple',
+          isValid: true,
+          state: 'ready-to-consume',
+          productId: 'coins',
+        },
+      }));
+      mockIap.finishTransaction.mockImplementationOnce(async () => {
+        order.push('finish');
+        return true;
+      });
+      IAP.createPurchaseFlow({
+        confirmWithBackend: IAP.confirmWithIapkit({
+          apiKey: 'pk',
+          grant: async () => {
+            order.push('grant');
+          },
+        }),
+        isConsumable: () => true,
+      });
+
+      deliver(nitroPurchase('coins'));
+      await settle();
+
+      expect(mockIap.verifyPurchaseWithProvider).toHaveBeenCalledWith({
+        provider: 'iapkit',
+        iapkit: {apiKey: 'pk', apple: {jws: 'jws-tx-coins'}},
+      });
+      expect(order).toEqual(['grant', 'finish']);
+    });
   });
 
   describe('platform detection helpers', () => {

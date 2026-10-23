@@ -39,6 +39,7 @@ import {
   verifyPurchase,
   verifyPurchaseWithProvider,
   ErrorCode,
+  confirmWithIapkit,
   createPurchaseFlow,
   describePurchaseFlowStatus,
   toPurchaseConfirmationRequest,
@@ -104,6 +105,153 @@ describe('Public API (index.ts)', () => {
     ).toEqual({key: 'access_granted', offerPurchase: false});
     expect(typeof createPurchaseFlow).toBe('function');
     expect(typeof toPurchaseConfirmationRequest).toBe('function');
+  });
+
+  describe('createPurchaseFlow', () => {
+    const applePurchase = (productId: string, id = `tx-${productId}`) =>
+      nativePurchase(id, {
+        productId,
+        store: 'apple',
+        storeId: 'apple',
+        purchaseToken: `jws-${id}`,
+      });
+    const listenerFor = (event: string): ((payload: unknown) => void) => {
+      const call = jest
+        .mocked(ExpoIapModule.addListener)
+        .mock.calls.filter(([name]) => name === event)
+        .at(-1);
+      if (!call) throw new Error(`No ${event} listener`);
+      return call[1];
+    };
+    // Listener deliveries settle without a promise to wait on.
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    beforeEach(() => {
+      jest
+        .mocked(ExpoIapModule.addListener)
+        .mockImplementation(() => ({remove: jest.fn()}));
+      (ExpoIapModule.finishTransaction as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue(true);
+      (ExpoIapModule.requestPurchase as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue(null);
+    });
+
+    it('confirms and finishes what the store delivers until disposed', async () => {
+      const confirmWithBackend = jest.fn(async () => ({
+        status: 'entitled' as const,
+        alreadyGranted: false,
+      }));
+      const flow = createPurchaseFlow({
+        confirmWithBackend,
+        isConsumable: () => false,
+      });
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome) => statuses.push(outcome.status));
+      const deliver = listenerFor(OpenIapEvent.PurchaseUpdated);
+
+      deliver(applePurchase('premium'));
+      await settle();
+
+      expect(confirmWithBackend).toHaveBeenCalledWith(
+        expect.objectContaining({productId: 'premium'}),
+        {isConsumable: false},
+      );
+      expect(ExpoIapModule.finishTransaction).toHaveBeenCalledTimes(1);
+      expect(statuses).toEqual([{status: 'entitled', alreadyGranted: false}]);
+
+      flow.dispose();
+      for (const {value} of jest.mocked(ExpoIapModule.addListener).mock
+        .results) {
+        expect(value.remove).toHaveBeenCalledTimes(1);
+      }
+    });
+
+    it('offers buying again only for a purchase the app requested', async () => {
+      const flow = createPurchaseFlow({
+        confirmWithBackend: async () => ({status: 'invalid' as const}),
+        isConsumable: () => false,
+      });
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome) => statuses.push(outcome.status));
+      const deliver = listenerFor(OpenIapEvent.PurchaseUpdated);
+
+      await requestPurchase({request: {apple: {sku: 'fresh'}}, type: 'in-app'});
+      deliver(applePurchase('old'));
+      deliver(applePurchase('fresh'));
+      await settle();
+
+      expect(statuses).toEqual([
+        {status: 'invalid', recovered: true},
+        {status: 'invalid'},
+      ]);
+      flow.dispose();
+    });
+
+    it('forgets a request the store answered with an error', async () => {
+      const flow = createPurchaseFlow({
+        confirmWithBackend: async () => ({status: 'invalid' as const}),
+        isConsumable: () => false,
+      });
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome) => statuses.push(outcome.status));
+
+      await requestPurchase({request: {apple: {sku: 'fresh'}}, type: 'in-app'});
+      listenerFor(OpenIapEvent.PurchaseError)({
+        code: 'user-cancelled',
+        message: 'cancelled',
+      });
+      // A new transaction id: iOS drops one it has already delivered.
+      listenerFor(OpenIapEvent.PurchaseUpdated)(
+        applePurchase('fresh', 'tx-after-error'),
+      );
+      await settle();
+
+      expect(statuses).toEqual([{status: 'invalid', recovered: true}]);
+      flow.dispose();
+    });
+
+    it('grants an IAPKit-confirmed consumable before consuming it', async () => {
+      const order: string[] = [];
+      (
+        ExpoIapModule.verifyPurchaseWithProvider as jest.Mock
+      ).mockResolvedValueOnce({
+        provider: 'iapkit',
+        iapkit: {
+          store: 'apple',
+          storeId: 'apple',
+          isValid: true,
+          state: 'ready-to-consume',
+          productId: 'coins',
+        },
+      });
+      (ExpoIapModule.finishTransaction as jest.Mock).mockImplementationOnce(
+        async () => {
+          order.push('finish');
+          return true;
+        },
+      );
+      const flow = createPurchaseFlow({
+        confirmWithBackend: confirmWithIapkit({
+          apiKey: 'pk',
+          grant: async () => {
+            order.push('grant');
+          },
+        }),
+        isConsumable: () => true,
+      });
+
+      listenerFor(OpenIapEvent.PurchaseUpdated)(applePurchase('coins'));
+      await settle();
+
+      expect(ExpoIapModule.verifyPurchaseWithProvider).toHaveBeenCalledWith({
+        provider: 'iapkit',
+        iapkit: {apiKey: 'pk', apple: {jws: 'jws-tx-coins'}},
+      });
+      expect(order).toEqual(['grant', 'finish']);
+      flow.dispose();
+    });
   });
 
   describe('listeners', () => {

@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -20,11 +14,9 @@ import {useActionSheet} from '@expo/react-native-action-sheet';
 import {
   requestPurchase,
   useIAP,
-  getPendingTransactionsIOS,
   getStorefront,
   type Product,
   type Purchase,
-  type VerifyPurchaseWithProviderProps,
   ErrorCode,
   type ExpoPurchaseError as PurchaseError,
 } from 'expo-iap';
@@ -35,6 +27,7 @@ import usePurchaseFlowScroll from '../src/components/usePurchaseFlowScroll';
 import ExampleButton from '../src/components/ExampleButton';
 import StoreProductCard from '../src/components/StoreProductCard';
 import PurchaseFlowDiagram, {
+  receiptOutcome,
   usePurchaseFlowActivity,
 } from '../src/components/PurchaseFlowDiagram';
 import {
@@ -47,34 +40,16 @@ import PurchaseSummaryRow from '../src/components/PurchaseSummaryRow';
 import {formatErrorForDisplay} from '../src/utils/errorUtils';
 import {useVegaTvSelection} from '../src/hooks/useVegaTvSelection';
 import {
-  createIapkitVerificationPayload,
-  getDefaultVerificationMethod,
-  matchesVerifiedPendingPurchase,
-  getIapkitVerificationError,
-  getPurchaseCleanupKey,
-  rememberCompletedPurchaseKey,
-  resolveIapkitVerificationBaseUrl,
-  showNativeAlert,
-  type VerificationMethod,
-} from '../src/utils/vegaRuntime';
+  alertPurchaseOutcome,
+  describePurchaseOutcome,
+  getReceiptPurchaseFlow,
+  getVerificationMethod,
+  setVerificationMethod,
+} from '../src/utils/purchaseFlow';
+import type {VerificationMethod} from '../src/utils/vegaRuntime';
 
 const CONSUMABLE_PRODUCT_ID_SET = new Set(CONSUMABLE_PRODUCT_IDS);
 const NON_CONSUMABLE_PRODUCT_ID_SET = new Set(NON_CONSUMABLE_PRODUCT_IDS);
-
-type InFlightPurchaseTask = {
-  result: Promise<'abandoned' | 'failed' | 'finished'>;
-  complete: (result: 'abandoned' | 'failed' | 'finished') => void;
-};
-
-const inFlightPurchaseTasks = new Map<string, InFlightPurchaseTask>();
-const completedPurchaseKeys = new Set<string>();
-
-function isPurchaseFlowProduct(productId: string): boolean {
-  return (
-    CONSUMABLE_PRODUCT_ID_SET.has(productId) ||
-    NON_CONSUMABLE_PRODUCT_ID_SET.has(productId)
-  );
-}
 
 const deduplicatePurchases = (purchases: Purchase[]): Purchase[] => {
   const uniquePurchases = new Map<string, Purchase>();
@@ -122,8 +97,8 @@ type PurchaseFlowProps = {
 };
 
 /**
- * Purchase Flow example: one-time in-app products through the useIAP hook,
- * with results delivered to its success and error callbacks.
+ * Purchase Flow example: one-time in-app products. Each purchase's result
+ * arrives as an outcome of the app's purchase flow.
  */
 
 function PurchaseFlow({
@@ -201,7 +176,6 @@ function PurchaseFlow({
 
   const hasHiddenNonConsumables = products.length > visibleProducts.length;
 
-  // Load products when component mounts (guard against dev double-invoke)
   const handlePurchase = useCallback(
     (itemId: string) => {
       beginPurchase(itemId);
@@ -290,10 +264,10 @@ function PurchaseFlow({
                 {verificationMethod === 'ignore'
                   ? 'None (Skip)'
                   : verificationMethod === 'local'
-                    ? 'Local (Device)'
-                    : verificationMethod === 'iapkit-localhost'
-                      ? 'Local (IAPKit)'
-                      : 'IAPKit'}
+                  ? 'Local (Device)'
+                  : verificationMethod === 'iapkit-localhost'
+                  ? 'Local (IAPKit)'
+                  : 'IAPKit'}
               </Text>
             </View>
             <Text style={styles.changeLabel}>Change ›</Text>
@@ -307,8 +281,8 @@ function PurchaseFlow({
             {visibleProducts.length > 0
               ? `${visibleProducts.length} product(s) available`
               : hasHiddenNonConsumables
-                ? 'All non-consumable products already purchased'
-                : 'Loading products...'}
+              ? 'All non-consumable products already purchased'
+              : 'Loading products...'}
           </Text>
 
           {visibleProducts.map((product, index) => (
@@ -319,8 +293,8 @@ function PurchaseFlow({
                 CONSUMABLE_PRODUCT_ID_SET.has(product.id)
                   ? 'Consumable product'
                   : NON_CONSUMABLE_PRODUCT_ID_SET.has(product.id)
-                    ? 'Non-consumable product'
-                    : 'In-app product'
+                  ? 'Non-consumable product'
+                  : 'In-app product'
               }
             >
               <ExampleButton
@@ -379,10 +353,10 @@ function PurchaseFlow({
               {storefrontLoading
                 ? 'Fetching…'
                 : storefront
-                  ? storefront
-                  : storefrontError
-                    ? 'Unavailable'
-                    : 'Not available'}
+                ? storefront
+                : storefrontError
+                ? 'Unavailable'
+                : 'Not available'}
             </Text>
           </View>
           {storefrontError ? (
@@ -499,7 +473,7 @@ function PurchaseFlow({
             3. Tap Purchase to initiate the transaction
           </Text>
           <Text style={styles.instructionsText}>
-            4. The transaction will be processed via the hook callbacks
+            4. The purchase flow verifies and finishes the transaction
           </Text>
           <Text style={styles.instructionsText}>
             5. Server-side receipt validation is recommended for production
@@ -710,551 +684,83 @@ function PurchaseFlow({
 }
 
 /**
- * PurchaseFlowContainer: the in-app purchase flow. Steps, marked in the code
- * below:
- * 1. initConnection     - Store connection (handled by useIAP)
- * 2. subscribeEvent     - Event subscription (onPurchaseSuccess/onPurchaseError)
- * 3. requestPurchase    - 3 options: Apple, Google, Google with offers
- * 4. verify purchase    - local device | local IAPKit | hosted IAPKit | skip
- * 5. finish transaction - Settle the verified store purchase
- * 6. refresh purchases  - Read store purchases, not app-account access
+ * PurchaseFlowContainer: one-time products through the app's receipt-check
+ * flow (src/utils/purchaseFlow.ts).
+ * 1. useIAP connects. Given `purchaseFlow`, it also recovers unfinished
+ *    purchases, reports each outcome, and refreshes ownership afterwards.
+ * 2. requestPurchase opens the store sheet; the purchase arrives as an outcome.
+ * 3. The flow checks the receipt with the selected method, credits a
+ *    consumable in `grant`, then finishes the transaction.
  */
 function PurchaseFlowContainer() {
-  const {activity, startStore, startPurchase, update, storeError} =
+  const {activity, startStore, observeOutcome, storeError} =
     usePurchaseFlowActivity();
   const purchaseRequestTrace = useRef('');
-  // ============================================================
-  // State Management
-  // ============================================================
-  const [purchaseResult, setPurchaseResult] = useState<string>('');
-  const [isProcessing, setIsProcessing] = useState(false);
   const purchaseRequestPendingRef = useRef(false);
+  const [purchaseResult, setPurchaseResult] = useState<string>('');
+  // From requestPurchase until that product's outcome or a purchase error.
+  const [processingProductId, setProcessingProductId] = useState<string | null>(
+    null,
+  );
   const [lastPurchase, setLastPurchase] = useState<Purchase | null>(null);
   const [refreshingAvailablePurchases, setRefreshingAvailablePurchases] =
     useState(false);
   const [storefront, setStorefront] = useState('');
   const [storefrontError, setStorefrontError] = useState<string | null>(null);
   const [storefrontLoading, setStorefrontLoading] = useState(true);
-  const [verificationMethod, setVerificationMethod] =
-    useState<VerificationMethod>(getDefaultVerificationMethod());
-  const [verificationSelection, setVerificationSelection] = useState(0);
-  const retainedPurchaseRef = useRef<Purchase | null>(null);
-  const verificationMethodRef = useRef<VerificationMethod>(verificationMethod);
-
-  // Keep ref in sync with state
-  useEffect(() => {
-    verificationMethodRef.current = verificationMethod;
-  }, [verificationMethod]);
-
+  const [verificationMethod, setMethod] = useState(getVerificationMethod);
   const {showActionSheetWithOptions} = useActionSheet();
-  const cleanupPurchaseKeysRef = useRef(new Set<string>());
-  const purchaseSuccessHandlerRef = useRef<
-    (purchase: Purchase) => Promise<void>
-  >(async () => {});
-  const retryPurchaseRef = useRef<(purchase: Purchase) => Promise<void>>(
-    async () => {},
-  );
-  const purchaseQueueTailRef = useRef<Promise<void>>(Promise.resolve());
-  const mountedRef = useRef(true);
 
-  // ============================================================
-  // Step 1: initConnection
-  // Step 2: subscribeEvent (onPurchaseSuccess, onPurchaseError)
-  // ============================================================
-  // Step 2: subscribeEvent - onPurchaseSuccess callback
-  // This handles both new and restored purchases through one verified path.
-  const handlePurchaseSuccess = async (purchase: Purchase): Promise<void> => {
-    if (!mountedRef.current) return;
-
-    const purchaseCleanupKey = getPurchaseCleanupKey(purchase);
-
-    console.log('Purchase successful:', purchase.productId);
-    console.log('[PurchaseFlow] purchaseState:', purchase.purchaseState);
-    const productId = purchase.productId ?? '';
-    if (!isPurchaseFlowProduct(productId)) {
-      console.log('[PurchaseFlow] ignoring non-purchase-flow product:', {
-        productId,
-      });
-      cleanupPurchaseKeysRef.current.delete(purchaseCleanupKey);
-      return;
-    }
-
-    if (completedPurchaseKeys.has(purchaseCleanupKey)) {
-      console.log('[PurchaseFlow] ignoring duplicate purchase callback:', {
-        productId,
-      });
-      return;
-    }
-    const inFlightTask = inFlightPurchaseTasks.get(purchaseCleanupKey);
-    if (inFlightTask) {
-      console.log('[PurchaseFlow] ignoring duplicate purchase task:', {
-        productId,
-      });
-      void inFlightTask.result.then((result) => {
-        if (result === 'finished') {
-          rememberCompletedPurchaseKey(
-            completedPurchaseKeys,
-            purchaseCleanupKey,
-          );
-          return;
-        }
-
-        cleanupPurchaseKeysRef.current.delete(purchaseCleanupKey);
-        if (result === 'abandoned' && mountedRef.current) {
-          void retryPurchaseRef.current(purchase);
-        }
-      });
-      return;
-    }
-
-    let taskReleased = false;
-    let completeTask!: (result: 'abandoned' | 'failed' | 'finished') => void;
-    const taskResult = new Promise<'abandoned' | 'failed' | 'finished'>(
-      (resolve) => {
-        completeTask = resolve;
-      },
-    );
-    const task: InFlightPurchaseTask = {
-      result: taskResult,
-      complete: completeTask,
-    };
-    const releasePurchaseTask = (
-      result: 'abandoned' | 'failed' | 'finished' = 'failed',
-    ): void => {
-      if (taskReleased) return;
-      taskReleased = true;
-      if (inFlightPurchaseTasks.get(purchaseCleanupKey) === task) {
-        inFlightPurchaseTasks.delete(purchaseCleanupKey);
-      }
-      if (result !== 'finished')
-        cleanupPurchaseKeysRef.current.delete(purchaseCleanupKey);
-      task.complete(result);
-    };
-    inFlightPurchaseTasks.set(purchaseCleanupKey, task);
-
-    retainedPurchaseRef.current = purchase;
-    startPurchase(purchase);
-    setLastPurchase(purchase);
-    setIsProcessing(false);
-
-    setPurchaseResult(
-      `Purchase received (state: ${purchase.purchaseState}). Verifying purchase...`,
-    );
-
-    const isConsumablePurchase = CONSUMABLE_PRODUCT_ID_SET.has(productId);
-    if (!isConsumablePurchase) {
-      console.log(
-        '[PurchaseFlow] Non-consumable purchase recorded:',
-        productId,
-      );
-    }
-
-    // ------------------------------------------------------------
-    // Step 4: four verification selections
-    //   - ignore: Retain the receipt without verification or completion
-    //   - local: Direct Apple/Google verification on the device
-    //   - iapkit-localhost: IAPKit provider through the local server
-    //   - iapkit: IAPKit provider through the hosted service
-    // ------------------------------------------------------------
-    const currentVerificationMethod = verificationMethodRef.current;
-    if (currentVerificationMethod === 'ignore') {
-      update(
-        purchase.id,
-        'confirmation',
-        'skipped',
-        'Receipt checks skipped — transaction unfinished.',
-      );
-      setIsProcessing(false);
+  const showPurchaseError = useCallback(
+    (error: PurchaseError, requestTrace: string): void => {
+      storeError(requestTrace, error.code);
+      setProcessingProductId(null);
       setPurchaseResult(
-        'Receipt retained. Choose verification to retry this receipt.',
+        error.code === ErrorCode.UserCancelled
+          ? 'Purchase cancelled by user'
+          : error.code === ErrorCode.DeferredPayment
+          ? 'Payment is pending at the store.'
+          : `Purchase failed: ${formatErrorForDisplay(
+              error,
+              ErrorCode.PurchaseError,
+            )}`,
       );
-      releasePurchaseTask('abandoned');
-      return;
-    }
-
-    console.log('[PurchaseFlow] About to verify purchase:', {
-      verificationMethod: currentVerificationMethod,
-      productId,
-      willVerify: !!productId,
-    });
-
-    if (productId) {
-      update(
-        purchase.id,
-        'confirmation',
-        'running',
-        'Checking the receipt with the selected provider.',
-      );
-      setIsProcessing(true);
-      try {
-        if (currentVerificationMethod === 'local') {
-          console.log('[PurchaseFlow] Verifying with Local (Device)...');
-          if (
-            Platform.OS !== 'ios' ||
-            purchase.store !== 'apple' ||
-            purchase.storeId !== 'apple'
-          ) {
-            throw new Error(
-              'Local (Device) verification is available only for Apple purchases. Choose Local (IAPKit).',
-            );
-          }
-          const pending = await getPendingTransactionsIOS();
-          if (!matchesVerifiedPendingPurchase(purchase, pending)) {
-            throw new Error(
-              'Local verification did not match this pending transaction',
-            );
-          }
-          console.log('[PurchaseFlow] Local (Device) verification completed');
-        } else {
-          const verificationLabel =
-            currentVerificationMethod === 'iapkit-localhost'
-              ? 'Local (IAPKit)'
-              : 'IAPKit';
-          console.log(`[PurchaseFlow] Verifying with ${verificationLabel}...`);
-
-          const jwsOrToken = purchase.purchaseToken ?? '';
-          if (!jwsOrToken) {
-            throw new Error(
-              'No purchase token available for IAPKit verification',
-            );
-          }
-
-          const baseUrl = resolveIapkitVerificationBaseUrl(
-            currentVerificationMethod,
-          );
-          const iapkitPayload = createIapkitVerificationPayload(
-            purchase,
-            jwsOrToken,
-            baseUrl,
-          );
-          const verifyRequest: VerifyPurchaseWithProviderProps = {
-            provider: 'iapkit',
-            iapkit: iapkitPayload,
-          };
-          console.log(
-            `[PurchaseFlow] Sending ${verificationLabel} verification request`,
-          );
-
-          const result = await verifyPurchaseWithProvider(verifyRequest);
-          console.log('[PurchaseFlow] IAPKit verification result:', result);
-
-          const verificationError = getIapkitVerificationError(
-            result,
-            productId,
-            isConsumablePurchase,
-            purchase.store,
-            purchase.storeId,
-            'environmentIOS' in purchase ? purchase.environmentIOS : undefined,
-          );
-          if (verificationError) {
-            throw new Error(verificationError);
-          }
-
-          if (result.iapkit && mountedRef.current) {
-            const iapkitResult = result.iapkit;
-            const statusEmoji = iapkitResult.isValid ? '✅' : '⚠️';
-            const stateText = iapkitResult.state || 'unknown';
-
-            showNativeAlert(
-              `${statusEmoji} ${verificationLabel} Verification`,
-              `Valid: ${iapkitResult.isValid}\nState: ${stateText}\nStore: ${
-                iapkitResult.store || 'unknown'
-              }`,
-            );
-          }
-        }
-      } catch (error) {
-        update(
-          purchase.id,
-          'confirmation',
-          'failed',
-          'Receipt verification failed — transaction unfinished.',
-        );
-        if (__DEV__) {
-          console.log('[PurchaseFlow] Verification failed:', error);
-        }
-        const message = formatErrorForDisplay(
-          error,
-          ErrorCode.PurchaseVerificationFailed,
-        );
-        if (mountedRef.current) {
-          setPurchaseResult(`Purchase verification failed: ${message}`);
-          showNativeAlert(
-            'Verification Failed',
-            `Purchase verification failed: ${message}`,
-          );
-          cleanupPurchaseKeysRef.current.delete(purchaseCleanupKey);
-        }
-        releasePurchaseTask(mountedRef.current ? 'failed' : 'abandoned');
-        return;
-      } finally {
-        if (mountedRef.current) {
-          setIsProcessing(false);
-        }
-      }
-    }
-
-    if (!mountedRef.current) {
-      releasePurchaseTask('abandoned');
-      return;
-    }
-
-    // ------------------------------------------------------------
-    // Step 6: finish transaction
-    // Finish verified purchases unless an Android non-consumable is acknowledged.
-    // ------------------------------------------------------------
-    const needsFinishing =
-      isConsumablePurchase ||
-      !(
-        'isAcknowledgedAndroid' in purchase &&
-        purchase.isAcknowledgedAndroid === true
-      );
-    try {
-      update(
-        purchase.id,
-        'confirmation',
-        'done',
-        'Receipt verified. App-account access is not decided by this example.',
-      );
-      if (needsFinishing) {
-        update(
-          purchase.id,
-          'finish',
-          'running',
-          'Finishing the verified store transaction.',
-        );
-        await finishTransaction({
-          purchase,
-          isConsumable: isConsumablePurchase,
-        });
-      }
-      update(
-        purchase.id,
-        'finish',
-        'done',
-        needsFinishing
-          ? 'Transaction settled. Your app still owns the access decision.'
-          : 'Already acknowledged by Google. No new finish call was needed.',
-      );
-      rememberCompletedPurchaseKey(completedPurchaseKeys, purchaseCleanupKey);
-      releasePurchaseTask('finished');
-    } catch (error) {
-      update(
-        purchase.id,
-        'finish',
-        'failed',
-        'Receipt verified, but finishing needs retry.',
-      );
-      const message = formatErrorForDisplay(
-        error,
-        ErrorCode.PurchaseVerificationFinishFailed,
-      );
-      console.log('[PurchaseFlow] finishTransaction failed:', error);
-      releasePurchaseTask(mountedRef.current ? 'failed' : 'abandoned');
-      if (mountedRef.current) {
-        setPurchaseResult(
-          `Purchase completed, but finishTransaction failed: ${message}`,
-        );
-        cleanupPurchaseKeysRef.current.delete(purchaseCleanupKey);
-      }
-      return;
-    }
-
-    if (!mountedRef.current) return;
-
-    setPurchaseResult(
-      `Purchase completed and finished successfully (state: ${purchase.purchaseState}).`,
-    );
-
-    // ------------------------------------------------------------
-    // Refresh store purchases; this does not grant app-account access.
-    // Refresh available purchases to update UI state
-    // ------------------------------------------------------------
-    try {
-      await getAvailablePurchases();
-      console.log('[PurchaseFlow] Available purchases refreshed');
-    } catch (error) {
-      console.log(
-        '[PurchaseFlow] Failed to refresh available purchases:',
-        error,
-      );
-    }
-
-    if (mountedRef.current) {
-      showNativeAlert('Success', 'Purchase completed successfully!');
-    }
-  };
-
-  const enqueuePurchase = useCallback((purchase: Purchase): Promise<void> => {
-    const cleanupKey = getPurchaseCleanupKey(purchase);
-    if (completedPurchaseKeys.has(cleanupKey)) {
-      return Promise.resolve();
-    }
-    if (cleanupPurchaseKeysRef.current.has(cleanupKey)) {
-      return Promise.resolve();
-    }
-    cleanupPurchaseKeysRef.current.add(cleanupKey);
-
-    const queued = purchaseQueueTailRef.current.then(() =>
-      purchaseSuccessHandlerRef.current(purchase),
-    );
-    purchaseQueueTailRef.current = queued.catch((error) => {
-      cleanupPurchaseKeysRef.current.delete(cleanupKey);
-      console.log(
-        '[PurchaseFlow] queued purchase handler failed unexpectedly:',
-        error,
-      );
-    });
-    return purchaseQueueTailRef.current;
-  }, []);
+    },
+    [storeError],
+  );
 
   const {
     connected,
     products,
     availablePurchases,
     fetchProducts,
-    finishTransaction,
     getAvailablePurchases,
-    verifyPurchaseWithProvider,
   } = useIAP({
-    onPurchaseSuccess: enqueuePurchase,
-    // ------------------------------------------------------------
-    // Step 2: subscribeEvent - onPurchaseError callback
-    // ------------------------------------------------------------
-    onPurchaseError: (error: PurchaseError) => {
-      storeError(purchaseRequestTrace.current, error.code);
-      console.log('Purchase failed:', error.message);
-      setIsProcessing(false);
-      if (error.code === ErrorCode.UserCancelled) {
-        setPurchaseResult('Purchase cancelled by user');
-        return;
-      }
-      if (error.code === ErrorCode.DeferredPayment) {
-        setPurchaseResult('Payment is pending at the store.');
-        return;
-      }
-
-      setPurchaseResult(
-        `Purchase failed: ${formatErrorForDisplay(
-          error,
-          ErrorCode.PurchaseError,
-        )}`,
+    purchaseFlow: getReceiptPurchaseFlow(),
+    onPurchaseFlowOutcome: ({purchase, status}) => {
+      if (!PRODUCT_IDS.includes(purchase.productId)) return;
+      observeOutcome(purchase, receiptOutcome(status));
+      setLastPurchase(purchase);
+      setProcessingProductId((current) =>
+        current === purchase.productId ? null : current,
       );
+      setPurchaseResult(describePurchaseOutcome(status));
+      alertPurchaseOutcome(status);
     },
+    onPurchaseError: (error: PurchaseError) =>
+      showPurchaseError(error, purchaseRequestTrace.current),
   });
 
-  useLayoutEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      purchaseSuccessHandlerRef.current = async () => {};
-      retryPurchaseRef.current = async () => {};
-    };
-  }, []);
-
-  useLayoutEffect(() => {
-    purchaseSuccessHandlerRef.current = handlePurchaseSuccess;
-    retryPurchaseRef.current = enqueuePurchase;
-  });
-
-  const didFetchRef = useRef(false);
-
   useEffect(() => {
-    console.log('[PurchaseFlow] useEffect - connected:', connected);
-    console.log('[PurchaseFlow] PRODUCT_IDS:', PRODUCT_IDS);
-    if (connected && !didFetchRef.current) {
-      didFetchRef.current = true;
-      console.log('[PurchaseFlow] Calling fetchProducts with:', PRODUCT_IDS);
-      fetchProducts({skus: PRODUCT_IDS, type: 'in-app'})
-        .then(() => {
-          console.log('[PurchaseFlow] fetchProducts completed');
-        })
-        .catch((error) => {
-          const message = formatErrorForDisplay(error, ErrorCode.QueryProduct);
-          console.log('[PurchaseFlow] fetchProducts error:', message);
-          setPurchaseResult(`Product loading failed: ${message}`);
-        });
-
-      getAvailablePurchases()
-        .then(async () => {
-          console.log('[PurchaseFlow] getAvailablePurchases completed');
-        })
-        .catch((error) => {
-          console.log('[PurchaseFlow] getAvailablePurchases error:', error);
-        });
-    } else if (!connected) {
-      didFetchRef.current = false;
-      console.log('[PurchaseFlow] Not fetching products - not connected');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connected]);
-
-  useEffect(() => {
-    if (!connected || Platform.OS !== 'ios' || verificationMethod === 'ignore')
-      return;
-    let active = true;
-    void getPendingTransactionsIOS()
-      .then(async (purchases) => {
-        for (const purchase of purchases) {
-          if (!active) return;
-          if (isPurchaseFlowProduct(purchase.productId ?? ''))
-            await enqueuePurchase(purchase);
-        }
-      })
-      .catch((error) => {
-        if (active)
-          setPurchaseResult(
-            `Purchase recovery failed; receipts retained: ${String(error)}`,
-          );
-      });
-    return () => {
-      active = false;
-    };
-  }, [connected, verificationMethod, verificationSelection, enqueuePurchase]);
-
-  useEffect(() => {
-    if (
-      !connected ||
-      verificationSelection === 0 ||
-      verificationMethod === 'ignore'
-    )
-      return;
-    void getAvailablePurchases().catch((error) => {
-      console.log('[purchase-flow] Receipt recovery failed:', error);
+    if (!connected) return;
+    fetchProducts({skus: PRODUCT_IDS, type: 'in-app'}).catch((error) => {
+      const message = formatErrorForDisplay(error, ErrorCode.QueryProduct);
+      setPurchaseResult(`Product loading failed: ${message}`);
     });
-    if (retainedPurchaseRef.current)
-      void enqueuePurchase(retainedPurchaseRef.current);
-  }, [
-    connected,
-    getAvailablePurchases,
-    enqueuePurchase,
-    verificationMethod,
-    verificationSelection,
-  ]);
-
-  useEffect(() => {
-    if (!connected || availablePurchases.length === 0) return;
-
-    for (const purchase of availablePurchases) {
-      const productId = purchase.productId ?? '';
-      if (!isPurchaseFlowProduct(productId)) {
-        console.log(
-          '[PurchaseFlow] skipping cleanup for non-purchase-flow product:',
-          {productId},
-        );
-        continue;
-      }
-      const cleanupKey = getPurchaseCleanupKey(purchase);
-      if (completedPurchaseKeys.has(cleanupKey)) continue;
-      void enqueuePurchase(purchase);
-    }
-  }, [
-    availablePurchases,
-    connected,
-    enqueuePurchase,
-    verificationMethod,
-    verificationSelection,
-  ]);
+    getAvailablePurchases().catch((error) => {
+      console.log('[PurchaseFlow] getAvailablePurchases error:', error);
+    });
+  }, [connected, fetchProducts, getAvailablePurchases]);
 
   const handleRefreshAvailablePurchases = useCallback(async () => {
     if (refreshingAvailablePurchases) {
@@ -1275,80 +781,39 @@ function PurchaseFlowContainer() {
     }
   }, [getAvailablePurchases, refreshingAvailablePurchases]);
 
-  // ============================================================
-  // Step 3: requestPurchase - 3 options available
-  //   - Apple: { sku, quantity, ... }
-  //   - Google: { skus: [...] }
-  //   - Google with offers: { skus: [...], subscriptionOffers: [...] }
-  // ============================================================
+  // requestPurchase takes an Apple request, a Google request, or both. A
+  // Google subscription also passes subscriptionOffers with an offerToken.
   const handlePurchase = useCallback(
-    (itemId: string) => {
+    (productId: string) => {
+      // Presses can arrive before the disabled button rerenders.
       if (purchaseRequestPendingRef.current) return;
       purchaseRequestPendingRef.current = true;
-      purchaseRequestTrace.current = startStore(itemId);
-      const requestTrace = purchaseRequestTrace.current;
-      setIsProcessing(true);
+      const requestTrace = startStore(productId);
+      purchaseRequestTrace.current = requestTrace;
+      setProcessingProductId(productId);
       setPurchaseResult('Processing purchase...');
 
-      void requestPurchase({
+      requestPurchase({
         request: {
-          // Option 1: Apple purchase request
-          apple: {
-            sku: itemId,
-            quantity: 1,
-          },
-          // Option 2: Google purchase request
-          google: {
-            skus: [itemId],
-          },
-          // Option 3: Google with subscription offers (for subs)
-          // google: {
-          //   skus: [itemId],
-          //   subscriptionOffers: [{ sku: itemId, offerToken: '...' }],
-          // },
+          apple: {sku: productId, quantity: 1},
+          google: {skus: [productId]},
         },
         type: 'in-app',
       })
-        .catch((error: PurchaseError) => {
-          storeError(requestTrace, error.code);
-          console.log('requestPurchase failed:', {
-            code: error.code,
-            message: error.message,
-          });
-          setIsProcessing(false);
-          if (error.code === ErrorCode.UserCancelled) {
-            setPurchaseResult('Purchase cancelled by user');
-            return;
-          }
-          if (error.code === ErrorCode.DeferredPayment) {
-            setPurchaseResult('Payment is pending at the store.');
-            return;
-          }
-
-          setPurchaseResult(
-            `Purchase failed: ${formatErrorForDisplay(
-              error,
-              ErrorCode.PurchaseError,
-            )}`,
-          );
-        })
+        .catch((error: PurchaseError) => showPurchaseError(error, requestTrace))
         .finally(() => {
           purchaseRequestPendingRef.current = false;
         });
     },
-    [setIsProcessing, setPurchaseResult, startStore, storeError],
+    [showPurchaseError, startStore],
   );
 
   const handleChangeVerificationMethod = useCallback(() => {
-    const method = (value: VerificationMethod) => () => {
-      setVerificationSelection((selection) => selection + 1);
-      setVerificationMethod(value);
-    };
-    const choices: {label: string; select: () => void}[] = [
-      {label: 'Local (Device)', select: method('local')},
-      {label: 'Local (IAPKit)', select: method('iapkit-localhost')},
-      {label: 'IAPKit', select: method('iapkit')},
-      {label: 'None (Skip)', select: method('ignore')},
+    const choices: {label: string; method: VerificationMethod}[] = [
+      {label: 'Local (Device)', method: 'local'},
+      {label: 'Local (IAPKit)', method: 'iapkit-localhost'},
+      {label: 'IAPKit', method: 'iapkit'},
+      {label: 'None (Skip)', method: 'ignore'},
     ];
 
     showActionSheetWithOptions(
@@ -1359,7 +824,10 @@ function PurchaseFlowContainer() {
         message: 'Verify purchases before completing the transaction',
       },
       (buttonIndex) => {
-        if (buttonIndex != null) choices[buttonIndex]?.select();
+        const choice = buttonIndex == null ? undefined : choices[buttonIndex];
+        if (!choice) return;
+        setVerificationMethod(choice.method);
+        setMethod(choice.method);
       },
     );
   }, [showActionSheetWithOptions]);
@@ -1367,21 +835,17 @@ function PurchaseFlowContainer() {
   const loadStorefront = useCallback(() => {
     return getStorefront()
       .then((code) => {
-        if (!mountedRef.current) return;
         setStorefront(code ?? '');
         setStorefrontError(null);
       })
       .catch((error: unknown) => {
-        if (!mountedRef.current) return;
         console.log('[PurchaseFlow] getStorefront error:', error);
         setStorefrontError(
           error instanceof Error ? error.message : 'Failed to load storefront',
         );
         setStorefront('');
       })
-      .finally(() => {
-        if (mountedRef.current) setStorefrontLoading(false);
-      });
+      .finally(() => setStorefrontLoading(false));
   }, []);
 
   useEffect(() => {
@@ -1400,7 +864,7 @@ function PurchaseFlowContainer() {
       products={products}
       availablePurchases={availablePurchases}
       purchaseResult={purchaseResult}
-      isProcessing={isProcessing}
+      isProcessing={processingProductId !== null}
       lastPurchase={lastPurchase}
       refreshingAvailablePurchases={refreshingAvailablePurchases}
       onPurchase={handlePurchase}

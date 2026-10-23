@@ -7,7 +7,13 @@ import {
   within,
 } from '@testing-library/react-native';
 import * as ExpoIap from 'expo-iap';
-import type {ExpoPurchaseError, PurchaseIOS, UseIAPOptions} from 'expo-iap';
+import type {
+  ExpoPurchaseError,
+  Purchase,
+  PurchaseIOS,
+  SdkPurchaseFlowOptions,
+  UseIAPOptions,
+} from 'expo-iap';
 import BackendEntitlementFlow from '../src/components/BackendEntitlementFlow';
 
 const mockIap: {
@@ -15,31 +21,70 @@ const mockIap: {
   subscriptions: object[];
   fetchProducts: jest.Mock;
   requestPurchase: jest.Mock;
+  listeners: Set<(purchase: Purchase) => void>;
 } = {
   subscriptions: [],
   fetchProducts: jest.fn(() => Promise.resolve()),
   requestPurchase: jest.fn(() => Promise.resolve()),
+  listeners: new Set(),
 };
 
-jest.mock('expo-iap', () => ({
-  ...jest.requireActual('../../src/purchase-flow'),
-  ErrorCode: jest.requireActual('../../src/types').ErrorCode,
-  finishTransaction: jest.fn(() => Promise.resolve()),
-  getAvailablePurchases: jest.fn(() => Promise.resolve([])),
-  getPendingTransactionsIOS: jest.fn(() => Promise.resolve([])),
-  useIAP: (options: UseIAPOptions) => {
-    mockIap.options = options;
-    return {
-      connected: true,
-      products: [
-        {id: 'dev.hyo.martie.10bulbs', title: '10 Bulbs', displayPrice: '$1'},
-      ],
-      subscriptions: mockIap.subscriptions,
-      fetchProducts: mockIap.fetchProducts,
-      requestPurchase: mockIap.requestPurchase,
-    };
-  },
-}));
+jest.mock('expo-iap', () => {
+  const spec = jest.requireActual('../../src/purchase-flow');
+  const {useEffect} = jest.requireActual('react');
+  const finishTransaction = jest.fn(() => Promise.resolve());
+  const getAvailablePurchases = jest.fn(() => Promise.resolve([]));
+  const getPendingTransactionsIOS = jest.fn(() => Promise.resolve([]));
+  return {
+    ...spec,
+    ErrorCode: jest.requireActual('../../src/types').ErrorCode,
+    finishTransaction,
+    getAvailablePurchases,
+    getPendingTransactionsIOS,
+    // Like the SDK's, it fills in the store functions an app leaves out.
+    createPurchaseFlow: (options: SdkPurchaseFlowOptions) =>
+      spec.createPurchaseFlow({
+        finishTransaction,
+        getAvailablePurchases,
+        getPendingTransactionsIOS,
+        listenForPurchases: (onPurchase: (purchase: Purchase) => void) => {
+          mockIap.listeners.add(onPurchase);
+          return {remove: () => mockIap.listeners.delete(onPurchase)};
+        },
+        ...options,
+      }),
+    // Keeps useIAP's purchase flow contract: report outcomes, and recover
+    // for each flow it is given.
+    useIAP: (options: UseIAPOptions) => {
+      mockIap.options = options;
+      const flow = options.purchaseFlow;
+      useEffect(
+        () =>
+          flow?.subscribe((outcome) =>
+            mockIap.options?.onPurchaseFlowOutcome?.(outcome),
+          ),
+        [flow],
+      );
+      useEffect(() => {
+        flow?.recoverPurchases().catch(() => undefined);
+      }, [flow]);
+      return {
+        connected: true,
+        products: [
+          {id: 'dev.hyo.martie.10bulbs', title: '10 Bulbs', displayPrice: '$1'},
+        ],
+        subscriptions: mockIap.subscriptions,
+        fetchProducts: mockIap.fetchProducts,
+        requestPurchase: mockIap.requestPurchase,
+      };
+    },
+  };
+});
+
+// The store's purchase listener delivering a purchase.
+function deliver(purchase: Purchase): void {
+  for (const listener of mockIap.listeners) listener(purchase);
+}
 
 const bulbs: PurchaseIOS = {
   id: 'tx-1',
@@ -193,7 +238,7 @@ describe('BackendEntitlementFlow', () => {
     ).toBeTruthy();
 
     await act(async () => {
-      mockIap.options?.onPurchaseSuccess?.(bulbs);
+      deliver(bulbs);
     });
     expect(
       within(screen.getByTestId('purchase-step-store')).getByText('Completed'),
@@ -216,7 +261,7 @@ describe('BackendEntitlementFlow', () => {
       within(screen.getByTestId('purchase-step-finish')).getByText('Running'),
     ).toBeTruthy();
     await act(async () => {
-      mockIap.options?.onPurchaseSuccess?.(bulbs);
+      deliver(bulbs);
     });
     expect(
       within(screen.getByTestId('purchase-step-finish')).getByText('Running'),
@@ -245,7 +290,7 @@ describe('BackendEntitlementFlow', () => {
       screen.getByRole('button', {name: /Show purchase steps/}),
     );
     await act(async () => {
-      mockIap.options?.onPurchaseSuccess?.(bulbs);
+      deliver(bulbs);
     });
     expect(
       await screen.findByText('Access granted. Finishing needs retry.'),
@@ -264,7 +309,7 @@ describe('BackendEntitlementFlow', () => {
   });
 
   it.each([false, true])(
-    'starts fresh diagram steps on reconfirm after finish failure=%s',
+    'reconfirms a redelivered purchase only after a failed finish=%s',
     async (finishFails) => {
       jest
         .spyOn(global, 'fetch')
@@ -292,12 +337,19 @@ describe('BackendEntitlementFlow', () => {
         screen.getByRole('button', {name: /Show purchase steps/}),
       );
       await act(async () => {
-        mockIap.options?.onPurchaseSuccess?.(bulbs);
+        deliver(bulbs);
       });
       await screen.findByText('entitled');
       await act(async () => {
-        mockIap.options?.onPurchaseSuccess?.(bulbs);
+        deliver(bulbs);
       });
+      expect(ExpoIap.finishTransaction).toHaveBeenCalledTimes(1);
+      if (!finishFails) {
+        // A finished purchase answers from the flow without a new confirmation.
+        expect(global.fetch).toHaveBeenCalledTimes(1);
+        expect(screen.getByText('entitled')).toBeTruthy();
+        return;
+      }
       await screen.findByText('verification_delayed');
       expect(
         within(screen.getByTestId('purchase-step-confirmation')).getByText(
@@ -309,7 +361,6 @@ describe('BackendEntitlementFlow', () => {
           'Not observed',
         ),
       ).toBeTruthy();
-      expect(ExpoIap.finishTransaction).toHaveBeenCalledTimes(1);
     },
   );
 
@@ -355,7 +406,7 @@ describe('BackendEntitlementFlow', () => {
       screen.getByRole('button', {name: /Show purchase steps/}),
     );
     await act(async () => {
-      mockIap.options?.onPurchaseSuccess?.(bulbs);
+      deliver(bulbs);
     });
     await act(async () => {
       returnPending([
@@ -407,10 +458,10 @@ describe('BackendEntitlementFlow', () => {
       screen.getByRole('button', {name: /Show purchase steps/}),
     );
     await act(async () => {
-      mockIap.options?.onPurchaseSuccess?.(bulbs);
+      deliver(bulbs);
     });
     await act(async () => {
-      mockIap.options?.onPurchaseSuccess?.({
+      deliver({
         ...bulbs,
         id: 'tx-2',
         productId: 'dev.hyo.martie.30bulbs',
@@ -476,7 +527,7 @@ describe('BackendEntitlementFlow', () => {
     const {findByText, getByText} = await renderReady();
 
     await act(async () => {
-      mockIap.options?.onPurchaseSuccess?.(bulbs);
+      deliver(bulbs);
     });
 
     expect(
@@ -491,7 +542,7 @@ describe('BackendEntitlementFlow', () => {
     const {findByText} = await renderReady();
 
     await act(async () => {
-      mockIap.options?.onPurchaseSuccess?.(bulbs);
+      deliver(bulbs);
     });
 
     expect(
@@ -508,7 +559,7 @@ describe('BackendEntitlementFlow', () => {
     const {findByText} = await renderReady();
 
     await act(async () => {
-      mockIap.options?.onPurchaseSuccess?.(bulbs);
+      deliver(bulbs);
     });
 
     expect(await findByText('Retry after 5s')).toBeDefined();
@@ -549,7 +600,7 @@ describe('BackendEntitlementFlow', () => {
       await renderReady();
 
     await act(async () => {
-      mockIap.options?.onPurchaseSuccess?.(bulbs);
+      deliver(bulbs);
     });
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
     await act(async () => {
@@ -577,8 +628,11 @@ describe('BackendEntitlementFlow', () => {
     expect(queryByText('Access granted.')).toBeNull();
   });
 
-  it('clears the previous account outcomes when switching accounts', async () => {
-    jest.mocked(ExpoIap.getPendingTransactionsIOS).mockResolvedValue([bulbs]);
+  it('clears the previous account outcomes and recovers for the new account', async () => {
+    // Finished at launch, so the new account's recovery finds nothing.
+    jest
+      .mocked(ExpoIap.getPendingTransactionsIOS)
+      .mockResolvedValueOnce([bulbs]);
     replyWith({status: 'entitled', alreadyGranted: false});
     const {findByText, getByLabelText, queryByText} = await renderReady();
     await findByText('Access granted.');
@@ -588,6 +642,7 @@ describe('BackendEntitlementFlow', () => {
     });
 
     expect(queryByText('Access granted.')).toBeNull();
+    expect(ExpoIap.getPendingTransactionsIOS).toHaveBeenCalledTimes(2);
   });
 
   it.each([
@@ -823,7 +878,7 @@ describe('BackendEntitlementFlow', () => {
   });
 
   it.each([false, true])(
-    'recovers once under the current StrictMode owner with a purchase=%s',
+    'recovers once under StrictMode with a purchase=%s',
     async (hasPurchase) => {
       const resolvers: ((purchases: PurchaseIOS[]) => void)[] = [];
       jest.mocked(ExpoIap.getPendingTransactionsIOS).mockImplementation(
@@ -838,13 +893,10 @@ describe('BackendEntitlementFlow', () => {
           <BackendEntitlementFlow />
         </React.StrictMode>,
       );
-      expect(resolvers).toHaveLength(2);
+      expect(resolvers).toHaveLength(1);
+      expect(mockIap.listeners.size).toBe(1);
       await act(async () => {
         resolvers[0]?.(hasPurchase ? [bulbs] : []);
-      });
-      expect(fetchSpy).not.toHaveBeenCalled();
-      await act(async () => {
-        resolvers[1]?.(hasPurchase ? [bulbs] : []);
       });
       expect(
         await screen.findByRole('button', {name: 'Restore purchases'}),

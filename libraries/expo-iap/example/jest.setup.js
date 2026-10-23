@@ -40,8 +40,34 @@ jest.mock('expo-iap', () => {
   const mockFinishTransaction = jest.fn();
   const mockGetActiveSubscriptions = jest.fn();
   const mockRequestPurchase = jest.fn(() => Promise.resolve());
+  const mockVerifyPurchaseWithProvider = jest.fn(() =>
+    Promise.resolve({
+      iapkit: {
+        isValid: true,
+        state: 'purchased',
+        store: 'amazon',
+      },
+    }),
+  );
+  const purchaseFlowSpec = jest.requireActual('../src/purchase-flow');
 
   return {
+    // Purchase flow: screens get a stub flow; confirmations run the real rules.
+    createPurchaseFlow: jest.fn(() => ({
+      processPurchase: jest.fn(),
+      recoverPurchases: jest.fn(() => Promise.resolve([])),
+      subscribe: jest.fn(() => jest.fn()),
+      dispose: jest.fn(),
+    })),
+    confirmWithIapkit: jest.fn((options) =>
+      purchaseFlowSpec.createIapkitConfirmation(
+        (props) => mockVerifyPurchaseWithProvider(props),
+        options,
+      ),
+    ),
+    describePurchaseFlowStatus: purchaseFlowSpec.describePurchaseFlowStatus,
+    getPendingTransactionsIOS: jest.fn(() => Promise.resolve([])),
+
     getUserFriendlyErrorMessage: jest.requireActual('../src/utils/errorMapping')
       .getUserFriendlyErrorMessage,
     // Core functions
@@ -54,15 +80,7 @@ jest.mock('expo-iap', () => {
 
     getAvailablePurchases: mockGetAvailablePurchases,
     verifyPurchase: jest.fn(() => Promise.resolve({})),
-    verifyPurchaseWithProvider: jest.fn(() =>
-      Promise.resolve({
-        iapkit: {
-          isValid: true,
-          state: 'purchased',
-          store: 'amazon',
-        },
-      }),
-    ),
+    verifyPurchaseWithProvider: mockVerifyPurchaseWithProvider,
 
     // iOS functions with IOS suffix
     syncIOS: jest.fn(),

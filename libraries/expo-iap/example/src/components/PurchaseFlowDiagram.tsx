@@ -7,7 +7,7 @@ import {
   View,
   type LayoutChangeEvent,
 } from 'react-native';
-import {ErrorCode, type Purchase} from 'expo-iap';
+import {ErrorCode, type Purchase, type PurchaseFlowStatus} from 'expo-iap';
 
 type Stage = 'store' | 'confirmation' | 'finish';
 type StepState = 'idle' | 'running' | 'done' | 'waiting' | 'failed' | 'skipped';
@@ -46,14 +46,56 @@ const STEP_LABELS: Record<StepState, string> = {
   skipped: 'Skipped',
 };
 
+/** Steps an outcome settles, and the note shown with them. */
+export interface ObservedOutcome {
+  steps: Partial<Record<Stage, StepState>>;
+  note: string;
+}
+
+/** How a receipt-check outcome shows on the diagram. */
+export function receiptOutcome(status: PurchaseFlowStatus): ObservedOutcome {
+  switch (status.status) {
+    case 'store_pending':
+      return {steps: {}, note: 'Payment is pending at the store.'};
+    case 'verified':
+      return {
+        steps: {confirmation: 'skipped'},
+        note: 'Receipt checks skipped — transaction unfinished.',
+      };
+    case 'failed':
+      return {
+        steps: {confirmation: 'failed'},
+        note: 'Receipt verification failed — transaction unfinished.',
+      };
+    case 'entitled':
+      return status.finishError === undefined
+        ? {
+            steps: {confirmation: 'done', finish: 'done'},
+            note: 'Transaction settled. Your app still owns the access decision.',
+          }
+        : {
+            steps: {confirmation: 'done', finish: 'failed'},
+            note: 'Receipt verified, but finishing needs retry.',
+          };
+    case 'invalid':
+      return {
+        steps: {confirmation: 'failed'},
+        note: 'The store did not confirm this purchase.',
+      };
+    default:
+      return {
+        steps: {confirmation: 'waiting'},
+        note: 'The store has not confirmed the purchase yet.',
+      };
+  }
+}
+
 /** One visible attempt; late events from another purchase cannot advance it. */
 export function usePurchaseFlowActivity() {
   const [activity, setActivity] = useState<PurchaseFlowActivity | null>(null);
   const requestNumber = useRef(0);
-  const activityVersion = useRef(0);
   const startStore = useCallback((productId: string): string => {
     const key = `request-${++requestNumber.current}`;
-    activityVersion.current++;
     setActivity({
       key,
       productId,
@@ -63,12 +105,10 @@ export function usePurchaseFlowActivity() {
     return key;
   }, []);
   const startPurchase = useCallback((purchase: ObservedPurchase): void => {
-    activityVersion.current++;
     setActivity(receivedPurchase(purchase));
   }, []);
   const update = useCallback(
     (key: string, stage: Stage, state: StepState, note: string): void => {
-      activityVersion.current++;
       setActivity((current) =>
         current?.key === key
           ? {...current, steps: {...current.steps, [stage]: state}, note}
@@ -77,7 +117,26 @@ export function usePurchaseFlowActivity() {
     },
     [],
   );
-  const captureVersion = useCallback((): number => activityVersion.current, []);
+  // An outcome shows on its own purchase or request, or on an empty diagram;
+  // it never replaces another purchase, such as a recovered one.
+  const observeOutcome = useCallback(
+    (purchase: ObservedPurchase, {steps, note}: ObservedOutcome): void => {
+      setActivity((current) => {
+        const base =
+          current?.key === purchase.id
+            ? current
+            : !current ||
+              (current.steps.store === 'running' &&
+                current.productId === purchase.productId)
+            ? receivedPurchase(purchase)
+            : null;
+        return base
+          ? {...base, steps: {...base.steps, ...steps}, note}
+          : current;
+      });
+    },
+    [],
+  );
   const storeError = useCallback(
     (key: string, code: string | undefined): void => {
       update(
@@ -86,35 +145,18 @@ export function usePurchaseFlowActivity() {
         code === ErrorCode.UserCancelled
           ? 'skipped'
           : code === ErrorCode.DeferredPayment
-            ? 'waiting'
-            : 'failed',
+          ? 'waiting'
+          : 'failed',
         code === ErrorCode.UserCancelled
           ? 'Purchase cancelled. No new payment was confirmed.'
           : code === ErrorCode.DeferredPayment
-            ? 'Payment is pending at the store.'
-            : 'The store reported a purchase error.',
+          ? 'Payment is pending at the store.'
+          : 'The store reported a purchase error.',
       );
     },
     [update],
   );
-  const observeRecoveredPending = useCallback(
-    (purchase: ObservedPurchase, version: number): void => {
-      setActivity((current) => {
-        if (
-          activityVersion.current !== version ||
-          (current && Object.values(current.steps).includes('running'))
-        )
-          return current;
-        return {
-          ...receivedPurchase(purchase),
-          note: 'Recovered a pending store payment. No backend confirmation or finish was attempted.',
-        };
-      });
-    },
-    [],
-  );
   const reset = useCallback((): void => {
-    activityVersion.current++;
     setActivity(null);
   }, []);
   return {
@@ -123,8 +165,7 @@ export function usePurchaseFlowActivity() {
     startPurchase,
     update,
     reset,
-    captureVersion,
-    observeRecoveredPending,
+    observeOutcome,
     storeError,
   };
 }
@@ -222,12 +263,12 @@ export default function PurchaseFlowDiagram({
               state === 'done'
                 ? '#166534'
                 : state === 'running'
-                  ? '#1D4ED8'
-                  : state === 'failed'
-                    ? '#B91C1C'
-                    : state === 'waiting' || state === 'skipped'
-                      ? '#92400E'
-                      : '#64748B';
+                ? '#1D4ED8'
+                : state === 'failed'
+                ? '#B91C1C'
+                : state === 'waiting' || state === 'skipped'
+                ? '#92400E'
+                : '#64748B';
             return (
               <View
                 key={stage.id}

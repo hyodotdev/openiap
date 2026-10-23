@@ -29,7 +29,11 @@ describe('Amazon Vega public API', () => {
     getStorefront: jest.fn().mockResolvedValue('US'),
     verifyPurchaseWithProvider: jest.fn().mockResolvedValue({ok: true}),
     verifyAppOwnership: jest.fn().mockResolvedValue(
-      JSON.stringify({status: 'unknown', reason: 'unsupported', storeId: 'amazon'}),
+      JSON.stringify({
+        status: 'unknown',
+        reason: 'unsupported',
+        storeId: 'amazon',
+      }),
     ),
     acknowledgePurchaseAndroid: jest.fn().mockResolvedValue(true),
     consumePurchaseAndroid: jest.fn().mockResolvedValue(true),
@@ -40,8 +44,43 @@ describe('Amazon Vega public API', () => {
     (getVegaIapModule as jest.Mock).mockReturnValue(vegaModule);
   });
 
-  it('leaves out the purchase flow, which supports only Apple and Google Play', () => {
-    expect('createPurchaseFlow' in IAP).toBe(false);
+  it('tells a requested Amazon purchase from a redelivery', async () => {
+    const statuses: unknown[] = [];
+    const flow = IAP.createPurchaseFlow({
+      confirmWithBackend: async () => ({status: 'invalid'}),
+      isConsumable: () => true,
+    });
+    flow.subscribe((outcome) => statuses.push(outcome.status));
+    const deliver = vegaModule.addPurchaseUpdatedListener.mock.calls[0][0];
+    const purchase = (productId: string) => ({
+      id: `receipt-${productId}`,
+      productId,
+      transactionDate: 1720000000000,
+      purchaseToken: `receipt-${productId}`,
+      platform: 'android',
+      store: 'amazon',
+      storeId: 'amazon',
+      quantity: 1,
+      purchaseState: 'purchased',
+      isAutoRenewing: false,
+    });
+
+    await IAP.requestPurchase({
+      request: {google: {skus: ['fresh']}},
+      type: 'in-app',
+    });
+    deliver(purchase('old'));
+    deliver(purchase('fresh'));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Amazon keeps a rejected purchase unfinished; only the request offers a rebuy.
+    expect(statuses).toEqual([
+      {status: 'invalid', recovered: true},
+      {status: 'invalid'},
+    ]);
+    expect(vegaModule.finishTransaction).not.toHaveBeenCalled();
+    flow.dispose();
+    expect(vegaModule.removePurchaseUpdatedListener).toHaveBeenCalledWith(7);
   });
 
   it('resolves null from the unified openRedeemOfferCode API', async () => {

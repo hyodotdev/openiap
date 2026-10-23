@@ -14,7 +14,6 @@ import {
   useIAP,
   requestPurchase,
   initConnection,
-  endConnection,
   presentExternalPurchaseLinkIOS,
   // Billing Programs API (Android 8.2.0+); enable the program in InitConnectionConfig
   isBillingProgramAvailableAndroid,
@@ -30,6 +29,11 @@ import {
 } from 'react-native-iap';
 import Loading from '../src/components/Loading';
 import {CONSUMABLE_PRODUCT_IDS} from '../src/utils/constants';
+import {
+  alertPurchaseOutcome,
+  describePurchaseOutcome,
+  purchaseFlow,
+} from '../src/utils/purchaseFlow';
 
 /**
  * Alternative Billing Example
@@ -89,25 +93,13 @@ function AlternativeBillingScreen() {
   const {connected, products, fetchProducts} = useIAP({
     enableBillingProgramAndroid:
       Platform.OS === 'android' ? billingProgram : undefined,
-    onPurchaseSuccess: (purchase: Purchase) => {
-      console.log('Purchase received:', {
-        productId: purchase.productId,
-        transactionId: purchase.id,
-        store: purchase.store,
-      });
+    purchaseFlow,
+    onPurchaseFlowOutcome: ({purchase, status}) => {
+      if (!CONSUMABLE_PRODUCT_IDS.includes(purchase.productId)) return;
       setLastPurchase(purchase);
       setIsProcessing(false);
-
-      setPurchaseResult(
-        `Receipt received · verification required\nProduct: ${purchase.productId}\nTransaction ID: ${
-          purchase.id
-        }\nDate: ${new Date(purchase.transactionDate).toLocaleString()}`,
-      );
-
-      Alert.alert(
-        'Receipt retained',
-        'Open Purchase Flow or Subscription Flow to verify and complete this receipt.',
-      );
+      setPurchaseResult(describePurchaseOutcome(status));
+      alertPurchaseOutcome(status);
     },
     onPurchaseError: (error: PurchaseError) => {
       console.log('Purchase failed:', error);
@@ -175,15 +167,7 @@ function AlternativeBillingScreen() {
         setIsReconnecting(true);
         setPurchaseResult('Reconnecting with new billing program...');
 
-        // End current connection
-        await endConnection();
-
-        // Wait a bit for cleanup
-        await new Promise<void>((resolve) => {
-          setTimeout(() => resolve(), 500);
-        });
-
-        // Reinitialize with new billing program (recommended API)
+        // A connected store reconnects itself for a different program.
         const config =
           Platform.OS === 'android'
             ? {enableBillingProgramAndroid: newProgram}
@@ -687,10 +671,6 @@ function AlternativeBillingScreen() {
               </Text>
               <Text style={styles.purchaseText}>
                 Date: {new Date(lastPurchase.transactionDate).toLocaleString()}
-              </Text>
-              <Text style={styles.purchaseWarning}>
-                ℹ️ Receipt retained pending verification.{'\n'}
-                PRODUCTION: Validate on backend first!
               </Text>
             </View>
           </View>

@@ -1,5 +1,5 @@
 // External dependencies
-import {useCallback, useEffect, useState, useRef} from 'react';
+import {useCallback, useEffect, useLayoutEffect, useState, useRef} from 'react';
 import {Platform} from 'react-native';
 import {RnIapConsole} from '../utils/debug';
 import {
@@ -37,6 +37,7 @@ import {
 
 // Types
 import {ErrorCode} from '../types';
+import type {PurchaseFlow, PurchaseFlowOutcome} from '../purchase-flow';
 import type {
   ProductQueryType,
   RequestPurchaseProps,
@@ -279,6 +280,15 @@ type UseIap = {
 export interface UseIapOptions {
   onPurchaseSuccess?: (purchase: Purchase) => void;
   /**
+   * The app's flow from `createPurchaseFlow`, which confirms and finishes
+   * every purchase. The hook recovers unfinished purchases once connected or
+   * when the flow changes, reports outcomes, and refreshes ownership after
+   * each. Leave finishing out of `onPurchaseSuccess` when this is set.
+   */
+  purchaseFlow?: PurchaseFlow<Purchase>;
+  /** Each purchase's outcome from `purchaseFlow`. */
+  onPurchaseFlowOutcome?: (outcome: PurchaseFlowOutcome<Purchase>) => void;
+  /**
    * Options for the purchase success listener. iOS defaults to suppressing
    * StoreKit replay events for the same transaction ID; set
    * `dedupeTransactionIOS` to false only for diagnostics.
@@ -365,7 +375,8 @@ export function useIAP(options?: UseIapOptions): UseIap {
   const optionsRef = useRef<UseIapOptions | undefined>(options);
   const connectedRef = useRef<boolean>(false);
 
-  useEffect(() => {
+  // Before any effect runs, so a purchase never reaches a stale callback.
+  useLayoutEffect(() => {
     optionsRef.current = options;
   }, [options]);
 
@@ -392,12 +403,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
     published: 0,
   });
   const productRequestOwnersRef = useRef(new Map<string, number>());
-
-  const subscriptionsRefState = useRef<ProductSubscription[]>([]);
-
-  useEffect(() => {
-    subscriptionsRefState.current = subscriptions;
-  }, [subscriptions]);
 
   // Helper function to invoke onError callback
   const invokeOnError = useCallback((error: unknown) => {
@@ -547,6 +552,19 @@ export function useIAP(options?: UseIapOptions): UseIap {
     [invokeOnError],
   );
 
+  const refreshOwnership = useCallback(async (): Promise<void> => {
+    try {
+      await getActiveSubscriptionsInternal();
+    } catch (e) {
+      RnIapConsole.warn('[useIAP] post-purchase refresh failed:', e);
+    }
+    try {
+      await getAvailablePurchasesInternal();
+    } catch (e) {
+      RnIapConsole.warn('[useIAP] post-purchase refresh failed:', e);
+    }
+  }, [getActiveSubscriptionsInternal, getAvailablePurchasesInternal]);
+
   const hasActiveSubscriptionsInternal = useCallback(
     async (subscriptionIds?: string[]): Promise<boolean> => {
       try {
@@ -577,6 +595,14 @@ export function useIAP(options?: UseIapOptions): UseIap {
         RnIapConsole.warn('Failed to restore purchases:', error);
         invokeOnError(purchaseError);
         throw purchaseError;
+      }
+      try {
+        await optionsRef.current?.purchaseFlow?.recoverPurchases({
+          includeFinished: true,
+        });
+      } catch (error) {
+        invokeOnError(error);
+        throw error;
       }
       // The query helper reports and rethrows its own error, avoiding a second
       // onError call while keeping restore failure observable to the caller.
@@ -649,16 +675,9 @@ export function useIAP(options?: UseIapOptions): UseIap {
             RnIapConsole.error('[useIAP] onPurchaseSuccess failed:', e);
           }
 
-          try {
-            await getActiveSubscriptionsInternal();
-          } catch (e) {
-            RnIapConsole.warn('[useIAP] post-purchase refresh failed:', e);
-          }
-          try {
-            await getAvailablePurchasesInternal();
-          } catch (e) {
-            RnIapConsole.warn('[useIAP] post-purchase refresh failed:', e);
-          }
+          // With a purchase flow, its outcome refreshes once the purchase is
+          // finished instead.
+          if (!optionsRef.current?.purchaseFlow) await refreshOwnership();
         },
         optionsRef.current?.purchaseUpdatedListenerOptions,
       );
@@ -721,7 +740,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
           optionsRef.current?.onSubscriptionBillingIssue?.(purchase);
         });
     }
-  }, [getActiveSubscriptionsInternal, getAvailablePurchasesInternal]);
+  }, [refreshOwnership]);
 
   const requestPurchase = useCallback(
     async (requestObj: RequestPurchaseProps): Promise<void> => {
@@ -838,6 +857,32 @@ export function useIAP(options?: UseIapOptions): UseIap {
       return false;
     }
   }, [buildAndroidConfig, registerListeners, cleanupListeners, invokeOnError]);
+
+  const purchaseFlow = options?.purchaseFlow;
+  useEffect(
+    () =>
+      purchaseFlow?.subscribe((outcome) => {
+        // Reads that started before the purchase settled are stale.
+        invalidateReads(availablePurchasesReads.current);
+        invalidateReads(activeSubscriptionsReads.current);
+        try {
+          optionsRef.current?.onPurchaseFlowOutcome?.(outcome);
+        } catch (e) {
+          RnIapConsole.error('[useIAP] onPurchaseFlowOutcome failed:', e);
+        }
+        void refreshOwnership();
+      }),
+    [purchaseFlow, refreshOwnership],
+  );
+
+  // Once connected, and again for a new account's flow.
+  useEffect(() => {
+    if (!connected || !purchaseFlow) return;
+    purchaseFlow.recoverPurchases().catch((error) => {
+      RnIapConsole.warn('[useIAP] purchase recovery failed:', error);
+      invokeOnError(error);
+    });
+  }, [connected, purchaseFlow, invokeOnError]);
 
   useEffect(() => {
     const generation = ++initializationGenerationRef.current;

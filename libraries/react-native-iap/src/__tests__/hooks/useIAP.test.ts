@@ -1755,4 +1755,129 @@ describe('hooks/useIAP (renderer)', () => {
       expect(onError).toHaveBeenCalledWith(expect.any(Error));
     });
   });
+  describe('purchaseFlow', () => {
+    const purchase = {
+      id: 't1',
+      productId: 'p1',
+      transactionDate: 0,
+      platform: 'ios',
+      store: 'apple',
+      storeId: 'apple',
+      quantity: 1,
+      purchaseState: 'purchased',
+      isAutoRenewing: false,
+    } as Purchase;
+
+    function fakeFlow() {
+      const listeners = new Set<(outcome: any) => void>();
+      return {
+        processPurchase: jest.fn(),
+        recoverPurchases: jest.fn(async () => []),
+        subscribe: jest.fn((listener: (outcome: any) => void) => {
+          listeners.add(listener);
+          return () => {
+            listeners.delete(listener);
+          };
+        }),
+        dispose: jest.fn(),
+        emit: (outcome: unknown) => listeners.forEach((l) => l(outcome)),
+        subscribers: () => listeners.size,
+      };
+    }
+
+    it('reports each outcome, then refreshes ownership', async () => {
+      const flow = fakeFlow();
+      const onPurchaseFlowOutcome = jest.fn();
+      const Harness = () => {
+        useIAP({purchaseFlow: flow, onPurchaseFlowOutcome});
+        return null;
+      };
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+      mockGetAvailablePurchases.mockClear();
+      mockGetActiveSubscriptions.mockClear();
+
+      const outcome = {
+        purchase,
+        status: {status: 'entitled', alreadyGranted: false},
+      };
+      await act(async () => {
+        flow.emit(outcome);
+      });
+
+      expect(onPurchaseFlowOutcome).toHaveBeenCalledWith(outcome);
+      expect(mockGetActiveSubscriptions).toHaveBeenCalledTimes(1);
+      expect(mockGetAvailablePurchases).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves the post-purchase refresh to the outcome', async () => {
+      const flow = fakeFlow();
+      const Harness = () => {
+        useIAP({purchaseFlow: flow});
+        return null;
+      };
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+      mockGetAvailablePurchases.mockClear();
+
+      await act(async () => {
+        await capturedPurchaseListener?.(purchase);
+      });
+
+      expect(mockGetAvailablePurchases).not.toHaveBeenCalled();
+    });
+
+    it('recovers once connected, and again for the next account', async () => {
+      const first = fakeFlow();
+      const second = fakeFlow();
+      let flow: ReturnType<typeof fakeFlow> = first;
+      const Harness = () => {
+        useIAP({purchaseFlow: flow});
+        return null;
+      };
+      let root: Root;
+      await act(async () => {
+        root = TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+      expect(first.recoverPurchases).toHaveBeenCalledTimes(1);
+      expect(first.subscribers()).toBe(1);
+
+      flow = second;
+      await act(async () => {
+        root.render(React.createElement(Harness));
+      });
+
+      expect(first.subscribers()).toBe(0);
+      expect(second.subscribers()).toBe(1);
+      expect(second.recoverPurchases).toHaveBeenCalledTimes(1);
+      expect(first.recoverPurchases).toHaveBeenCalledTimes(1);
+    });
+
+    it('re-confirms every owned purchase on restore', async () => {
+      const flow = fakeFlow();
+      let api: any;
+      const Harness = () => {
+        api = useIAP({purchaseFlow: flow});
+        return null;
+      };
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      await act(async () => {
+        await api.restorePurchases();
+      });
+
+      expect(mockRestorePurchases).toHaveBeenCalled();
+      expect(flow.recoverPurchases).toHaveBeenLastCalledWith({
+        includeFinished: true,
+      });
+    });
+  });
 });

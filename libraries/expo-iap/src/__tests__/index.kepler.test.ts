@@ -40,8 +40,43 @@ describe('Amazon Vega public API', () => {
     });
   });
 
-  it('leaves out the purchase flow, which supports only Apple and Google Play', () => {
-    expect('createPurchaseFlow' in Kepler).toBe(false);
+  it('tells a requested Amazon purchase from a redelivery', async () => {
+    const listeners: Record<string, (payload: unknown) => void> = {};
+    const remove = jest.fn();
+    (getVegaIapModule as jest.Mock).mockReturnValue({
+      requestPurchase: requestPurchaseNative,
+      addListener: jest.fn(
+        (event: string, listener: (payload: unknown) => void) => {
+          listeners[event] = listener;
+          return {remove};
+        },
+      ),
+    });
+    const statuses: unknown[] = [];
+    const flow = Kepler.createPurchaseFlow({
+      confirmWithBackend: async () => ({status: 'invalid'}),
+      isConsumable: () => true,
+    });
+    flow.subscribe((outcome) => statuses.push(outcome.status));
+
+    await requestPurchase({
+      request: {google: {skus: ['fresh']}},
+      type: 'in-app',
+    });
+    const deliver = listeners[Kepler.OpenIapEvent.PurchaseUpdated];
+    deliver(vegaPurchase({id: 'old', productId: 'old', purchaseToken: 'r1'}));
+    deliver(
+      vegaPurchase({id: 'fresh', productId: 'fresh', purchaseToken: 'r2'}),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Amazon keeps a rejected purchase unfinished; only the request offers a rebuy.
+    expect(statuses).toEqual([
+      {status: 'invalid', recovered: true},
+      {status: 'invalid'},
+    ]);
+    flow.dispose();
+    expect(remove).toHaveBeenCalledTimes(2);
   });
 
   it('resolves null for openRedeemOfferCode without launching anything', async () => {

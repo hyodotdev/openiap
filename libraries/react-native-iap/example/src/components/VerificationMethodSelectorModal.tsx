@@ -1,5 +1,5 @@
 import {Modal, Pressable, StyleSheet, Text, View} from 'react-native';
-import type {VerificationMethod} from '../hooks/useVerificationMethod';
+import type {VerificationMethod} from '../utils/purchaseFlow';
 
 const VERIFICATION_METHOD_OPTIONS: readonly {
   description: string;

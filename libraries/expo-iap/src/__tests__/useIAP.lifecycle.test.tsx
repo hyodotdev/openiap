@@ -681,4 +681,117 @@ describe('useIAP lifecycle', () => {
     });
     expect(onPurchaseSuccess).toHaveBeenCalledTimes(1);
   });
+  it('replaces a product fetched again with its new details', async () => {
+    jest
+      .mocked(ExpoIapModule.fetchProducts)
+      .mockResolvedValueOnce([
+        {id: 'premium', platform: 'ios', type: 'in-app', displayPrice: '$1'},
+      ])
+      .mockResolvedValueOnce([
+        {id: 'premium', platform: 'ios', type: 'in-app', displayPrice: '$2'},
+      ]);
+    let hook: Hook | undefined;
+    await mount(<Harness onHook={(value) => (hook = value)} />);
+
+    for (let i = 0; i < 2; i++) {
+      await React.act(async () => {
+        await hook!.fetchProducts({skus: ['premium'], type: 'in-app'});
+      });
+    }
+
+    expect(hook!.products).toEqual([
+      expect.objectContaining({id: 'premium', displayPrice: '$2'}),
+    ]);
+  });
+
+  describe('purchaseFlow', () => {
+    function fakeFlow() {
+      const listeners = new Set<(outcome: unknown) => void>();
+      return {
+        processPurchase: jest.fn(),
+        recoverPurchases: jest.fn(async () => []),
+        subscribe: jest.fn((listener: (outcome: unknown) => void) => {
+          listeners.add(listener);
+          return () => {
+            listeners.delete(listener);
+          };
+        }),
+        dispose: jest.fn(),
+        emit: (outcome: unknown) => listeners.forEach((l) => l(outcome)),
+        subscribers: () => listeners.size,
+      };
+    }
+
+    it('reports each outcome, then refreshes ownership', async () => {
+      const flow = fakeFlow();
+      const onPurchaseFlowOutcome = jest.fn();
+      await mount(
+        <Harness options={{purchaseFlow: flow, onPurchaseFlowOutcome}} />,
+      );
+      jest.mocked(ExpoIapModule.getAvailableItems).mockClear();
+      jest.mocked(ExpoIapModule.getActiveSubscriptions).mockClear();
+
+      const outcome = {
+        purchase: purchase(),
+        status: {status: 'entitled', alreadyGranted: false},
+      };
+      await React.act(async () => {
+        flow.emit(outcome);
+        await flush();
+      });
+
+      expect(onPurchaseFlowOutcome).toHaveBeenCalledWith(outcome);
+      expect(ExpoIapModule.getAvailableItems).toHaveBeenCalledTimes(1);
+      expect(ExpoIapModule.getActiveSubscriptions).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves the post-purchase refresh to the outcome', async () => {
+      await mount(<Harness options={{purchaseFlow: fakeFlow()}} />);
+      jest.mocked(ExpoIapModule.getAvailableItems).mockClear();
+
+      await React.act(async () => {
+        await purchaseHandler!(purchase());
+      });
+
+      expect(ExpoIapModule.getAvailableItems).not.toHaveBeenCalled();
+    });
+
+    it('recovers once connected, and again for the next account', async () => {
+      const first = fakeFlow();
+      const second = fakeFlow();
+      const root = await mount(<Harness options={{purchaseFlow: first}} />);
+      expect(first.recoverPurchases).toHaveBeenCalledTimes(1);
+      expect(first.subscribers()).toBe(1);
+
+      await React.act(async () => {
+        root.render(<Harness options={{purchaseFlow: second}} />);
+        await flush();
+      });
+
+      expect(first.subscribers()).toBe(0);
+      expect(second.subscribers()).toBe(1);
+      expect(second.recoverPurchases).toHaveBeenCalledTimes(1);
+      expect(first.recoverPurchases).toHaveBeenCalledTimes(1);
+    });
+
+    it('re-confirms every owned purchase on restore', async () => {
+      jest.mocked(ExpoIapModule.restorePurchases!).mockResolvedValue(true);
+      const flow = fakeFlow();
+      let hook: Hook | undefined;
+      await mount(
+        <Harness
+          options={{purchaseFlow: flow}}
+          onHook={(value) => (hook = value)}
+        />,
+      );
+
+      await React.act(async () => {
+        await hook!.restorePurchases();
+      });
+
+      expect(flow.recoverPurchases).toHaveBeenLastCalledWith({
+        includeFinished: true,
+      });
+    });
+  });
 });

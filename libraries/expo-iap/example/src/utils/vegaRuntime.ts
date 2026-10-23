@@ -1,11 +1,7 @@
-import {Alert, Platform} from 'react-native';
+import {Alert} from 'react-native';
 import amazonCatalog from '../../amazon.sdktester.json';
 import Constants from 'expo-constants';
-import type {
-  Purchase,
-  VerifyPurchaseWithProviderProps,
-  VerifyPurchaseWithProviderResult,
-} from 'expo-iap';
+import type {Purchase} from 'expo-iap';
 
 const catalog: Readonly<
   Record<
@@ -38,16 +34,13 @@ export function getSubscriptionProductId(
     : undefined;
 }
 
-function getAmazonVerificationProductId(productId: string): string {
+/** Amazon RVS reports a subscription term under its catalog base SKU. */
+export function getAmazonVerificationProductId(productId: string): string {
   const item = catalog[productId];
   return item?.itemType === 'SUBSCRIPTION'
     ? item.subscriptionBase ?? item.subscriptionParent ?? productId
     : productId;
 }
-
-export type IapkitVerificationPayload = NonNullable<
-  VerifyPurchaseWithProviderProps['iapkit']
->;
 
 type ExpoExtraWithIapkit = {
   amazonRvsSandbox?: string;
@@ -71,7 +64,7 @@ function getConfiguredIapkitBaseUrl(): string | undefined {
   return extra?.iapkitBaseUrl ?? process.env.EXPO_PUBLIC_IAPKIT_BASE_URL;
 }
 
-function isAmazonRvsSandboxEnabled(): boolean {
+export function isAmazonRvsSandboxEnabled(): boolean {
   const extra = Constants.expoConfig?.extra as ExpoExtraWithIapkit | undefined;
   const configuredValue =
     extra?.amazonRvsSandbox ?? process.env.EXPO_PUBLIC_AMAZON_RVS_SANDBOX;
@@ -87,20 +80,6 @@ export function getDefaultVerificationMethod(
   }
 
   return baseUrl?.trim() ? 'iapkit-localhost' : 'iapkit';
-}
-
-function withIapkitEndpoint(
-  payload: IapkitVerificationPayload,
-  baseUrl?: string | null,
-): IapkitVerificationPayload {
-  const trimmedBaseUrl = baseUrl?.trim();
-  if (!trimmedBaseUrl) {
-    return payload;
-  }
-  return {
-    ...payload,
-    baseUrl: trimmedBaseUrl,
-  };
 }
 
 export function resolveIapkitVerificationBaseUrl(
@@ -147,114 +126,6 @@ export function showNativeAlert(title: string, message?: string): void {
   }
 }
 
-// This example explicitly adapts the educational provider to Amazon RVS.
-function verificationStore(
-  store: Purchase['store'],
-  storeId?: string,
-): Purchase['store'] {
-  return store === 'unknown' && storeId === 'amazon_example' ? 'amazon' : store;
-}
-
-function isIapkitStateReadyForFulfillment(
-  verified: NonNullable<VerifyPurchaseWithProviderResult['iapkit']>,
-  isConsumable: boolean,
-): boolean {
-  switch (verificationStore(verified.store, verified.storeId)) {
-    case 'apple':
-    case 'amazon':
-      return (
-        verified.state === (isConsumable ? 'ready-to-consume' : 'entitled')
-      );
-    case 'google':
-      return (
-        verified.state === 'entitled' ||
-        verified.state === 'pending-acknowledgment' ||
-        (isConsumable && verified.state === 'ready-to-consume')
-      );
-    case 'horizon':
-      return verified.state === 'entitled';
-    default:
-      return false;
-  }
-}
-
-export function getIapkitVerificationError(
-  result: VerifyPurchaseWithProviderResult,
-  expectedProductId: string,
-  isConsumable: boolean,
-  expectedStore: Purchase['store'],
-  expectedStoreId?: string,
-  expectedEnvironment?: string | null,
-): string | null {
-  const verified = result.iapkit;
-  if (!verified) {
-    const providerErrors = result.errors
-      ?.map((error) =>
-        error.code ? `[${error.code}] ${error.message}` : error.message,
-      )
-      .filter(Boolean);
-    return providerErrors?.length
-      ? providerErrors.join('\n')
-      : 'IAPKit did not return a verification result';
-  }
-
-  if (!verified.isValid) {
-    return `IAPKit rejected the purchase (state: ${verified.state}, store: ${verified.store})`;
-  }
-
-  if (!verified.productId) {
-    return `IAPKit did not return a product ID for ${verified.store}`;
-  }
-
-  if (verified.store !== expectedStore) {
-    return `IAPKit verified ${verified.store}, expected ${expectedStore}`;
-  }
-
-  if (
-    (expectedStore === 'unknown' && !expectedStoreId) ||
-    (expectedStoreId && verified.storeId !== expectedStoreId)
-  ) {
-    return 'IAPKit changed or omitted the expected provider identity';
-  }
-  if (
-    expectedStore === 'apple' &&
-    expectedEnvironment != null &&
-    verified.environment !== expectedEnvironment
-  ) {
-    return `IAPKit verified Apple in ${
-      verified.environment ?? 'an unknown environment'
-    }, expected ${expectedEnvironment}`;
-  }
-  const store = verificationStore(verified.store, verified.storeId);
-
-  const verificationProductId =
-    store === 'amazon'
-      ? getAmazonVerificationProductId(expectedProductId)
-      : expectedProductId;
-  if (verified.productId !== verificationProductId) {
-    return `IAPKit verified ${verified.productId}, expected ${verificationProductId}`;
-  }
-
-  if (store === 'amazon') {
-    const expectedEnvironment = isAmazonRvsSandboxEnabled()
-      ? 'Sandbox'
-      : 'Production';
-    if (verified.environment !== expectedEnvironment) {
-      return `IAPKit verified Amazon in ${
-        verified.environment ?? 'an unknown environment'
-      }, expected ${expectedEnvironment}`;
-    }
-  }
-
-  if (!isIapkitStateReadyForFulfillment(verified, isConsumable)) {
-    return `IAPKit state ${verified.state} cannot fulfill this ${
-      isConsumable ? 'consumable' : 'non-consumable'
-    } ${verified.store} purchase`;
-  }
-
-  return null;
-}
-
 export function matchesVerifiedPendingPurchase(
   purchase: Purchase,
   pending: Purchase[],
@@ -282,113 +153,5 @@ export function matchesVerifiedPendingPurchase(
           ('environmentIOS' in candidate &&
             candidate.environmentIOS === purchase.environmentIOS)),
     )
-  );
-}
-
-export function rememberCompletedPurchaseKey(
-  completedKeys: Set<string>,
-  key: string,
-  maxSize = 100,
-): void {
-  completedKeys.delete(key);
-  completedKeys.add(key);
-
-  while (completedKeys.size > maxSize) {
-    const oldestKey = completedKeys.values().next().value;
-    if (typeof oldestKey !== 'string') break;
-    completedKeys.delete(oldestKey);
-  }
-}
-
-export function createIapkitVerificationPayload(
-  purchase: Purchase,
-  purchaseToken: string,
-  baseUrl?: string | null,
-): IapkitVerificationPayload {
-  const apiKey = getConfiguredIapkitApiKey()?.trim();
-  if (!apiKey) {
-    throw new Error('EXPO_PUBLIC_IAPKIT_API_KEY not configured');
-  }
-
-  const purchaseStore = (
-    (purchase as Purchase & {store?: string | null}).store ?? ''
-  ).toLowerCase();
-  if (
-    purchaseStore === 'amazon' ||
-    (purchaseStore === 'unknown' && purchase.storeId === 'amazon_example')
-  ) {
-    return withIapkitEndpoint(
-      {
-        apiKey,
-        amazon: {
-          expectedProductId: getAmazonVerificationProductId(purchase.productId),
-          receiptId: purchaseToken,
-          sandbox: isAmazonRvsSandboxEnabled(),
-        },
-      },
-      baseUrl,
-    );
-  }
-  if (purchaseStore === 'unknown') {
-    throw new Error(
-      `No verification adapter configured for ${purchase.storeId}`,
-    );
-  }
-  if (purchaseStore === 'horizon') {
-    return withIapkitEndpoint(
-      {
-        apiKey,
-        horizon: {sku: purchase.productId},
-      },
-      baseUrl,
-    );
-  }
-
-  const isApplePurchase =
-    purchaseStore === 'apple' || (!purchaseStore && Platform.OS === 'ios');
-
-  return withIapkitEndpoint(
-    isApplePurchase
-      ? {
-          apiKey,
-          apple: {
-            jws: purchaseToken,
-          },
-        }
-      : {
-          apiKey,
-          google: {
-            purchaseToken,
-          },
-        },
-    baseUrl,
-  );
-}
-
-/**
- * Play resolves a pending upgrade, downgrade, or prepaid top-up with the
- * current purchase, and Amazon defers a term change to the next renewal: the
- * current plan stays active until the change applies.
- */
-export function describePendingPlanChange(purchase: Purchase): string | null {
-  const change =
-    'pendingPurchaseUpdateAndroid' in purchase
-      ? purchase.pendingPurchaseUpdateAndroid
-      : null;
-  if (!change) return null;
-  const products = change.products.join(', ');
-  return verificationStore(purchase.store, purchase.storeId) === 'amazon'
-    ? `Plan change to ${products} applies at the next renewal. ` +
-        `${purchase.productId} stays active until then.`
-    : `Plan change to ${products} waits for payment. ` +
-        `${purchase.productId} stays active until it completes.`;
-}
-
-export function getPurchaseCleanupKey(purchase: Purchase): string {
-  return (
-    purchase.purchaseToken ??
-    purchase.id ??
-    purchase.productId ??
-    `${purchase.transactionDate ?? Date.now()}`
   );
 }

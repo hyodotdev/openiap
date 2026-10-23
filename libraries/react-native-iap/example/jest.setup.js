@@ -72,7 +72,24 @@ jest.mock('../src/index', () => {
     verifyPurchaseWithProvider: mockVerifyPurchaseWithProvider,
   }));
 
+  const purchaseFlowSpec = jest.requireActual('../src/purchase-flow');
+
   return {
+    // Purchase flow: screens get a stub flow; confirmations run the real rules.
+    createPurchaseFlow: jest.fn(() => ({
+      processPurchase: jest.fn(),
+      recoverPurchases: jest.fn(() => Promise.resolve([])),
+      subscribe: jest.fn(() => jest.fn()),
+      dispose: jest.fn(),
+    })),
+    confirmWithIapkit: jest.fn((options) =>
+      purchaseFlowSpec.createIapkitConfirmation(
+        (props) => mockVerifyPurchaseWithProvider(props),
+        options,
+      ),
+    ),
+    describePurchaseFlowStatus: purchaseFlowSpec.describePurchaseFlowStatus,
+
     // Core functions
     initConnection: jest.fn(() => Promise.resolve(true)),
     endConnection: jest.fn(() => Promise.resolve()),

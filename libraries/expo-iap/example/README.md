@@ -40,7 +40,9 @@ The purchase and subscription screens list verification in this order:
 1. **Local (Device)** — match an Apple purchase against StoreKit's verified pending transactions; unavailable for Google purchases.
 2. **Local (IAPKit)** — IAPKit provider routed to the configured local origin.
 3. **IAPKit** — hosted IAPKit; the local URL is deliberately omitted.
-4. **None (Skip)** — skip verification.
+4. **None (Skip)** — leave the purchase unfinished; choosing another method checks it again.
+
+With **Receipt checks**, both screens share one purchase flow, `src/utils/purchaseFlow.ts`: it confirms each purchase with the selected method, credits consumables in `grant`, then finishes the transaction.
 
 With both values configured, the example defaults to **Local (IAPKit)**. With only the key, it defaults to hosted **IAPKit**; without a key, it defaults to **None (Skip)**.
 

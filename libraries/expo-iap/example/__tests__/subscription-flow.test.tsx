@@ -7,8 +7,14 @@ import {
   within,
 } from '@testing-library/react-native';
 import {ErrorCode} from '../../src/types';
-import type {ExpoPurchaseError} from '../../src';
+import type {
+  ExpoPurchaseError,
+  Purchase,
+  PurchaseFlowStatus,
+  UseIAPOptions,
+} from '../../src';
 import {Alert, Platform} from 'react-native';
+import {getReceiptPurchaseFlow} from '../src/utils/purchaseFlow';
 
 const mockShowActionSheetWithOptions = jest.fn();
 
@@ -32,32 +38,11 @@ jest.mock('expo-constants', () => ({
 jest.spyOn(Alert, 'alert');
 
 // Mock the functions
-const mockGetPendingTransactionsIOS = jest.fn().mockResolvedValue([]);
-const mockInitConnection = jest.fn().mockResolvedValue(true);
 const mockFetchProducts = jest.fn();
 const mockRequestPurchase = jest.fn().mockResolvedValue(undefined);
-const mockFinishTransaction = jest.fn();
 const mockGetActiveSubscriptions = jest.fn();
 const mockGetAvailablePurchases = jest.fn().mockResolvedValue([]);
-const mockVerifyPurchase = jest.fn().mockResolvedValue({});
-const mockVerifyPurchaseWithProvider = jest
-  .fn((_request: unknown) =>
-    Promise.resolve({
-      iapkit: {
-        isValid: true,
-        productId: 'dev.hyo.martie.premium',
-        state: 'entitled',
-        store: 'google',
-        storeId: 'play',
-      },
-    }),
-  )
-  .mockName('verifyPurchaseWithProvider');
-let mockOnPurchaseSuccess:
-  | ((purchase: Record<string, unknown>) => Promise<void> | void)
-  | undefined;
-
-let mockOnPurchaseError: ((error: ExpoPurchaseError) => void) | undefined;
+let mockOptions: UseIAPOptions | undefined;
 
 const createMockSubscription = (overrides = {}) => ({
   id: 'dev.hyo.martie.premium',
@@ -114,18 +99,17 @@ const createMockAndroidSubscription = () => ({
 const mockUseIAP = jest.fn();
 jest.mock('../../src', () => ({
   ...jest.requireActual('../../src/purchase-flow'),
-  getAvailablePurchases: mockGetAvailablePurchases,
-  finishTransaction: mockFinishTransaction,
-  getPendingTransactionsIOS: mockGetPendingTransactionsIOS,
   ErrorCode: jest.requireActual('../../src/types').ErrorCode,
-  initConnection: mockInitConnection,
-  requestPurchase: mockRequestPurchase,
-  useIAP: (options?: {
-    onPurchaseSuccess?: typeof mockOnPurchaseSuccess;
-    onPurchaseError?: typeof mockOnPurchaseError;
-  }) => {
-    mockOnPurchaseSuccess = options?.onPurchaseSuccess;
-    mockOnPurchaseError = options?.onPurchaseError;
+  createPurchaseFlow: jest.fn(() => ({
+    processPurchase: jest.fn(),
+    recoverPurchases: jest.fn(() => Promise.resolve([])),
+    subscribe: jest.fn(() => jest.fn()),
+    dispose: jest.fn(),
+  })),
+  // The module loads at import, before these mocks are initialized.
+  requestPurchase: (...args: unknown[]) => mockRequestPurchase(...args),
+  useIAP: (options?: UseIAPOptions) => {
+    mockOptions = options;
     return mockUseIAP();
   },
 }));
@@ -134,10 +118,35 @@ const SubscriptionFlow = jest.requireActual<
   typeof import('../app/subscription-flow')
 >('../app/subscription-flow').default;
 
+const premium: Purchase = {
+  id: 'transaction-1',
+  productId: 'dev.hyo.martie.premium',
+  purchaseToken: 'token',
+  purchaseState: 'purchased',
+  quantity: 1,
+  isAutoRenewing: true,
+  transactionDate: 1,
+  store: 'google',
+  storeId: 'play',
+};
+
+const planChange =
+  'Plan change to dev.hyo.martie.premium_year is pending. ' +
+  'dev.hyo.martie.premium stays active until it applies.';
+
 async function renderConnectedSubscriptionFlow() {
   const result = await render(<SubscriptionFlow />);
   await waitFor(() => expect(mockGetActiveSubscriptions).toHaveBeenCalled());
   return result;
+}
+
+async function report(
+  purchase: Purchase,
+  status: PurchaseFlowStatus,
+): Promise<void> {
+  await act(async () => {
+    mockOptions?.onPurchaseFlowOutcome?.({purchase, status});
+  });
 }
 
 describe('SubscriptionFlow Component', () => {
@@ -146,20 +155,8 @@ describe('SubscriptionFlow Component', () => {
     mockShowActionSheetWithOptions.mockReset();
     mockFetchProducts.mockResolvedValue([createMockSubscription()]);
     mockGetActiveSubscriptions.mockResolvedValue([]);
-    mockFinishTransaction.mockResolvedValue(undefined);
     mockGetAvailablePurchases.mockResolvedValue([]);
-    mockVerifyPurchase.mockResolvedValue({isValid: true});
-    mockVerifyPurchaseWithProvider.mockResolvedValue({
-      iapkit: {
-        isValid: true,
-        productId: 'dev.hyo.martie.premium',
-        state: 'entitled',
-        store: 'google',
-        storeId: 'play',
-      },
-    });
-    mockOnPurchaseSuccess = undefined;
-    mockOnPurchaseError = undefined;
+    mockOptions = undefined;
 
     // Default mock implementation
     mockUseIAP.mockReturnValue({
@@ -168,11 +165,8 @@ describe('SubscriptionFlow Component', () => {
       availablePurchases: [],
       fetchProducts: mockFetchProducts,
       getAvailablePurchases: mockGetAvailablePurchases,
-      finishTransaction: mockFinishTransaction,
       getActiveSubscriptions: mockGetActiveSubscriptions,
       activeSubscriptions: [],
-      verifyPurchase: mockVerifyPurchase,
-      verifyPurchaseWithProvider: mockVerifyPurchaseWithProvider,
     });
   });
 
@@ -213,7 +207,8 @@ describe('SubscriptionFlow Component', () => {
         screen.getByRole('button', {name: 'Show purchase steps'}),
       );
       await fireEvent.press(screen.getByText('Subscribe'));
-      if (path === 'listener') await act(() => mockOnPurchaseError?.(error));
+      if (path === 'listener')
+        await act(() => mockOptions?.onPurchaseError?.(error));
       expect(
         (await screen.findAllByText('Payment is pending at the store.')).length,
       ).toBeGreaterThan(0);
@@ -221,8 +216,6 @@ describe('SubscriptionFlow Component', () => {
         within(screen.getByTestId('purchase-step-store')).getByText('Waiting'),
       ).toBeDefined();
       expect(screen.queryByText(/Subscription failed:/)).toBeNull();
-      expect(mockFinishTransaction).not.toHaveBeenCalled();
-      expect(mockVerifyPurchaseWithProvider).not.toHaveBeenCalled();
     },
   );
 
@@ -394,7 +387,6 @@ describe('SubscriptionFlow Component', () => {
       availablePurchases: [],
       fetchProducts: mockFetchProducts,
       getAvailablePurchases: mockGetAvailablePurchases,
-      finishTransaction: mockFinishTransaction,
       getActiveSubscriptions: mockGetActiveSubscriptions,
       activeSubscriptions: [activeSubscription],
     });
@@ -419,7 +411,6 @@ describe('SubscriptionFlow Component', () => {
       availablePurchases: [],
       fetchProducts: mockFetchProducts,
       getAvailablePurchases: mockGetAvailablePurchases,
-      finishTransaction: mockFinishTransaction,
       getActiveSubscriptions: mockGetActiveSubscriptions,
       activeSubscriptions: [expiringSubscription],
     });
@@ -447,7 +438,6 @@ describe('SubscriptionFlow Component', () => {
       availablePurchases: [],
       fetchProducts: mockFetchProducts,
       getAvailablePurchases: mockGetAvailablePurchases,
-      finishTransaction: mockFinishTransaction,
       getActiveSubscriptions: mockGetActiveSubscriptions,
       activeSubscriptions: [androidActiveSubscription],
     });
@@ -464,7 +454,6 @@ describe('SubscriptionFlow Component', () => {
       availablePurchases: [],
       fetchProducts: mockFetchProducts,
       getAvailablePurchases: mockGetAvailablePurchases,
-      finishTransaction: mockFinishTransaction,
       getActiveSubscriptions: mockGetActiveSubscriptions,
       activeSubscriptions: [
         {
@@ -498,7 +487,6 @@ describe('SubscriptionFlow Component', () => {
     expect(getByText('dev.hyo.martie.premium_year')).toBeDefined();
     expect(getByText('Unknown; check your backend')).toBeDefined();
     expect(queryByText('⚠️ Cancelled')).toBeNull();
-    expect(mockFinishTransaction).not.toHaveBeenCalled();
   });
 
   it('should show no subscriptions message when empty', async () => {
@@ -508,7 +496,6 @@ describe('SubscriptionFlow Component', () => {
       availablePurchases: [],
       fetchProducts: mockFetchProducts,
       getAvailablePurchases: mockGetAvailablePurchases,
-      finishTransaction: mockFinishTransaction,
       getActiveSubscriptions: mockGetActiveSubscriptions,
       activeSubscriptions: [],
     });
@@ -525,7 +512,6 @@ describe('SubscriptionFlow Component', () => {
       availablePurchases: [],
       fetchProducts: mockFetchProducts,
       getAvailablePurchases: mockGetAvailablePurchases,
-      finishTransaction: mockFinishTransaction,
       getActiveSubscriptions: mockGetActiveSubscriptions,
       activeSubscriptions: [],
     });
@@ -547,7 +533,6 @@ describe('SubscriptionFlow Component', () => {
       availablePurchases: [],
       fetchProducts: mockFetchProducts,
       getAvailablePurchases: mockGetAvailablePurchases,
-      finishTransaction: mockFinishTransaction,
       getActiveSubscriptions: mockGetActiveSubscriptions,
       activeSubscriptions: [],
     });
@@ -574,7 +559,6 @@ describe('SubscriptionFlow Component', () => {
       availablePurchases: [],
       fetchProducts: mockFetchProducts,
       getAvailablePurchases: mockGetAvailablePurchases,
-      finishTransaction: mockFinishTransaction,
       getActiveSubscriptions: mockGetActiveSubscriptions,
       activeSubscriptions: [],
     });
@@ -593,7 +577,6 @@ describe('SubscriptionFlow Component', () => {
       availablePurchases: [],
       fetchProducts: mockFetchProducts,
       getAvailablePurchases: mockGetAvailablePurchases,
-      finishTransaction: mockFinishTransaction,
       getActiveSubscriptions: mockGetActiveSubscriptions,
       activeSubscriptions: [],
     });
@@ -603,602 +586,123 @@ describe('SubscriptionFlow Component', () => {
     // When there are no active subscriptions but connected, show check status link
     expect(getByText('Check Status')).toBeDefined();
   });
-
-  it('re-verifies the Android IAPKit snapshot after finishing', async () => {
-    Object.defineProperty(Platform, 'OS', {
-      value: 'android',
-      writable: true,
-    });
-
+  it('hands the shared receipt-check flow to useIAP', async () => {
     await renderConnectedSubscriptionFlow();
 
-    await act(async () => {
-      await mockOnPurchaseSuccess?.({
-        id: 'transaction-android-1',
-        store: 'google',
-        storeId: 'play',
-        productId: 'dev.hyo.martie.premium',
-        purchaseToken: 'android-token',
-        transactionDate: Date.now(),
-      });
-    });
+    expect(mockOptions?.purchaseFlow).toBe(getReceiptPurchaseFlow());
+    expect(mockGetAvailablePurchases).toHaveBeenCalledTimes(1);
+  });
 
-    expect(mockFinishTransaction).toHaveBeenCalledTimes(1);
-    expect(mockVerifyPurchase).not.toHaveBeenCalled();
-    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(2);
-    expect(mockVerifyPurchaseWithProvider.mock.calls[0]?.[0]).toEqual({
-      provider: 'iapkit',
-      iapkit: {
-        apiKey: 'test-api-key',
-        baseUrl: 'http://192.168.0.10:3100',
-        google: {purchaseToken: 'android-token'},
-      },
-    });
-    expect(mockVerifyPurchaseWithProvider.mock.calls[1]?.[0]).toEqual(
-      mockVerifyPurchaseWithProvider.mock.calls[0]?.[0],
+  it('shows its subscription outcome and releases processing', async () => {
+    const screen = await renderConnectedSubscriptionFlow();
+
+    await fireEvent.press(screen.getByText('Subscribe'));
+    expect(screen.getByText('Processing...')).toBeTruthy();
+
+    await report(
+      {...premium, productId: 'dev.hyo.martie.10bulbs'},
+      {status: 'entitled', alreadyGranted: false},
     );
+    expect(screen.getByText('Processing...')).toBeTruthy();
+
+    await report(premium, {status: 'entitled', alreadyGranted: false});
+    expect(screen.queryByText('Processing...')).toBeNull();
+    expect(screen.getByText('Purchase verified. Access granted.')).toBeTruthy();
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Success',
+      'Purchase completed successfully!',
+    );
+  });
+
+  it('matches an Amazon base-SKU outcome to the requested term', async () => {
+    const screen = await renderConnectedSubscriptionFlow();
+
+    await fireEvent.press(screen.getByText('Subscribe'));
+    await report(
+      {
+        ...premium,
+        productId: 'dev.hyo.martie.premium.base',
+        currentPlanId: 'dev.hyo.martie.premium',
+        store: 'amazon',
+        storeId: 'amazon',
+      },
+      {status: 'failed', error: new Error('RVS unavailable')},
+    );
+
+    expect(screen.queryByText('Processing...')).toBeNull();
     expect(
-      mockVerifyPurchaseWithProvider.mock.invocationCallOrder[0],
-    ).toBeLessThan(mockFinishTransaction.mock.invocationCallOrder[0]!);
-    expect(mockFinishTransaction.mock.invocationCallOrder[0]).toBeLessThan(
-      mockVerifyPurchaseWithProvider.mock.invocationCallOrder[1]!,
-    );
+      screen.getByText('Purchase verification failed: RVS unavailable'),
+    ).toBeTruthy();
   });
 
-  it.each([true, false])(
-    'Local (Device) matches the exact subscription transaction (%s)',
-    async (matches) => {
-      Platform.OS = 'ios';
-      mockShowActionSheetWithOptions.mockImplementation(
-        (_options: unknown, callback: (index?: number) => void) => callback(0),
-      );
-      const {getByText} = await renderConnectedSubscriptionFlow();
-      await fireEvent.press(getByText('Local (IAPKit)'));
-      await waitFor(() => expect(getByText('Local (Device)')).toBeTruthy());
-      const receipt = {
-        id: 'old-subscription',
-        transactionId: 'old-subscription',
-        productId: 'dev.hyo.martie.premium',
-        purchaseToken: 'jws',
-        transactionDate: 1,
-        store: 'apple' as const,
-        storeId: 'apple',
-        purchaseState: 'purchased' as const,
-        isAutoRenewing: true,
-        quantity: 1,
-      };
-      mockGetPendingTransactionsIOS.mockResolvedValue([
-        {...receipt, id: matches ? receipt.id : 'newer-subscription'},
-      ]);
-      await act(async () => {
-        await mockOnPurchaseSuccess?.(receipt);
-      });
-      expect(mockVerifyPurchase).not.toHaveBeenCalled();
-      expect(mockVerifyPurchaseWithProvider).not.toHaveBeenCalled();
-      expect(mockFinishTransaction).toHaveBeenCalledTimes(matches ? 1 : 0);
-    },
-  );
-
-  it.each([
-    {
-      label: 'an invalid result',
-      result: {
-        provider: 'iapkit',
-        iapkit: {
-          isValid: false,
-          productId: 'dev.hyo.martie.premium',
-          state: 'expired',
-          store: 'google',
-          storeId: 'play',
+  it('shows a pending plan change beside, never instead of, the latest result', async () => {
+    mockUseIAP.mockReturnValue({
+      ...mockUseIAP(),
+      availablePurchases: [
+        {
+          ...premium,
+          pendingPurchaseUpdateAndroid: {
+            products: ['dev.hyo.martie.premium_year'],
+            purchaseToken: 'pending-token',
+          },
         },
-      },
-    },
-    {
-      label: 'a mismatched product',
-      result: {
-        provider: 'iapkit',
-        iapkit: {
-          isValid: true,
-          productId: 'dev.hyo.martie.premium_year',
-          state: 'entitled',
-          store: 'google',
-          storeId: 'play',
+      ],
+    });
+    const screen = await renderConnectedSubscriptionFlow();
+    expect(screen.getByText(planChange)).toBeTruthy();
+
+    await report(premium, {
+      status: 'entitled',
+      alreadyGranted: false,
+      changePending: true,
+    });
+    expect(screen.getByText('Plan change requested.')).toBeTruthy();
+
+    await act(async () => {
+      mockOptions?.onPurchaseError?.({
+        code: ErrorCode.UserCancelled,
+        message: 'Cancelled',
+      } as ExpoPurchaseError);
+    });
+    expect(screen.getByText('Subscription cancelled by user')).toBeTruthy();
+    expect(screen.getByText(planChange)).toBeTruthy();
+
+    mockUseIAP.mockReturnValue({
+      ...mockUseIAP(),
+      availablePurchases: [premium],
+    });
+    await screen.rerender(<SubscriptionFlow />);
+    expect(screen.queryByText(/is pending/)).toBeNull();
+  });
+
+  it('ignores a pending change on a product outside this screen', async () => {
+    mockUseIAP.mockReturnValue({
+      ...mockUseIAP(),
+      availablePurchases: [
+        {
+          ...premium,
+          productId: 'other.app.plan',
+          pendingPurchaseUpdateAndroid: {
+            products: ['other.app.plan_year'],
+            purchaseToken: 'pending-token',
+          },
         },
-      },
-    },
-  ])('does not finish after $label', async ({result}) => {
-    Object.defineProperty(Platform, 'OS', {
-      value: 'android',
-      writable: true,
+      ],
     });
-    mockVerifyPurchaseWithProvider.mockResolvedValue(result);
-    await renderConnectedSubscriptionFlow();
+    const screen = await renderConnectedSubscriptionFlow();
 
-    await act(async () => {
-      await mockOnPurchaseSuccess?.({
-        id: 'transaction-rejected-sub-1',
-        store: 'google',
-        storeId: 'play',
-        productId: 'dev.hyo.martie.premium',
-        purchaseToken: 'rejected-google-token',
-        transactionDate: Date.now(),
-      });
-    });
-
-    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-    expect(mockFinishTransaction).not.toHaveBeenCalled();
+    expect(screen.queryByText(/is pending/)).toBeNull();
   });
 
-  it('verifies a restored subscription and keeps a mismatch unfinished', async () => {
-    Object.defineProperty(Platform, 'OS', {
-      value: 'ios',
-      writable: true,
-    });
-    const restoredPurchase = {
-      id: 'restored-subscription-1',
-      originalTransactionIdentifierIOS: 'original-subscription-1',
-      productId: 'dev.hyo.martie.premium',
-      purchaseToken: 'restored-apple-jws',
-      store: 'apple',
-      storeId: 'apple',
-      transactionDate: Date.now(),
-      transactionReasonIOS: 'RENEWAL',
-    };
-    mockVerifyPurchaseWithProvider.mockResolvedValue({
-      iapkit: {
-        isValid: true,
-        productId: 'dev.hyo.martie.premium_year',
-        state: 'entitled',
-        store: 'apple',
-        storeId: 'apple',
-      },
-    });
-    mockUseIAP.mockReturnValue({
-      connected: true,
-      subscriptions: [createMockSubscription()],
-      availablePurchases: [restoredPurchase],
-      fetchProducts: mockFetchProducts,
-      getAvailablePurchases: mockGetAvailablePurchases,
-      finishTransaction: mockFinishTransaction,
-      getActiveSubscriptions: mockGetActiveSubscriptions,
-      activeSubscriptions: [],
-      verifyPurchase: mockVerifyPurchase,
-      verifyPurchaseWithProvider: mockVerifyPurchaseWithProvider,
-    });
-
-    await renderConnectedSubscriptionFlow();
-
-    await waitFor(() => {
-      expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-    });
-    expect(mockFinishTransaction).not.toHaveBeenCalled();
-  });
-
-  it('verifies and finishes multiple restored subscriptions sequentially', async () => {
-    Object.defineProperty(Platform, 'OS', {
-      value: 'ios',
-      writable: true,
-    });
-    const restoredSubscriptions = [
-      {
-        id: 'restored-subscription-monthly',
-        originalTransactionIdentifierIOS: 'original-subscription-monthly',
-        productId: 'dev.hyo.martie.premium',
-        purchaseToken: 'restored-monthly-jws',
-        store: 'apple',
-        storeId: 'apple',
-        transactionDate: Date.now(),
-        transactionReasonIOS: 'RENEWAL',
-      },
-      {
-        id: 'restored-subscription-yearly',
-        originalTransactionIdentifierIOS: 'original-subscription-yearly',
-        productId: 'dev.hyo.martie.premium_year',
-        purchaseToken: 'restored-yearly-jws',
-        store: 'apple',
-        storeId: 'apple',
-        transactionDate: Date.now() + 1,
-        transactionReasonIOS: 'RENEWAL',
-      },
-    ];
-    mockVerifyPurchaseWithProvider.mockImplementation((request) => {
-      const token = (request as {iapkit?: {apple?: {jws?: string}}}).iapkit
-        ?.apple?.jws;
-      return Promise.resolve({
-        provider: 'iapkit',
-        iapkit: {
-          isValid: true,
-          productId:
-            token === 'restored-yearly-jws'
-              ? 'dev.hyo.martie.premium_year'
-              : 'dev.hyo.martie.premium',
-          state: 'entitled',
-          store: 'apple',
-          storeId: 'apple',
-        },
-      });
-    });
-    mockUseIAP.mockReturnValue({
-      connected: true,
-      subscriptions: [createMockSubscription()],
-      availablePurchases: restoredSubscriptions,
-      fetchProducts: mockFetchProducts,
-      getAvailablePurchases: mockGetAvailablePurchases,
-      finishTransaction: mockFinishTransaction,
-      getActiveSubscriptions: mockGetActiveSubscriptions,
-      activeSubscriptions: [],
-      verifyPurchase: mockVerifyPurchase,
-      verifyPurchaseWithProvider: mockVerifyPurchaseWithProvider,
-    });
-
-    await renderConnectedSubscriptionFlow();
-
-    await waitFor(() => {
-      expect(mockFinishTransaction).toHaveBeenCalledTimes(2);
-    });
-    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(2);
-    expect(
-      mockVerifyPurchaseWithProvider.mock.invocationCallOrder[0],
-    ).toBeLessThan(mockFinishTransaction.mock.invocationCallOrder[0]!);
-    expect(mockFinishTransaction.mock.invocationCallOrder[0]).toBeLessThan(
-      mockVerifyPurchaseWithProvider.mock.invocationCallOrder[1]!,
+  it('recovers retained receipts after a verification method is chosen', async () => {
+    mockShowActionSheetWithOptions.mockImplementation(
+      (_options: unknown, callback: (index: number) => void) => callback(2),
     );
-    expect(
-      mockVerifyPurchaseWithProvider.mock.invocationCallOrder[1],
-    ).toBeLessThan(mockFinishTransaction.mock.invocationCallOrder[1]!);
-  });
+    const screen = await renderConnectedSubscriptionFlow();
 
-  it('keeps a preclaimed subscription restore queue across a hook rerender', async () => {
-    Object.defineProperty(Platform, 'OS', {
-      value: 'ios',
-      writable: true,
-    });
-    const restoredSubscriptions = [
-      {
-        id: 'rerender-subscription-monthly',
-        originalTransactionIdentifierIOS: 'original-rerender-monthly',
-        productId: 'dev.hyo.martie.premium',
-        purchaseToken: 'rerender-monthly-jws',
-        store: 'apple',
-        storeId: 'apple',
-        transactionDate: Date.now(),
-        transactionReasonIOS: 'RENEWAL',
-      },
-      {
-        id: 'rerender-subscription-yearly',
-        originalTransactionIdentifierIOS: 'original-rerender-yearly',
-        productId: 'dev.hyo.martie.premium_year',
-        purchaseToken: 'rerender-yearly-jws',
-        store: 'apple',
-        storeId: 'apple',
-        transactionDate: Date.now() + 1,
-        transactionReasonIOS: 'RENEWAL',
-      },
-    ];
-    const firstResult = {
-      provider: 'iapkit',
-      iapkit: {
-        isValid: true,
-        productId: 'dev.hyo.martie.premium',
-        state: 'entitled',
-        store: 'apple',
-        storeId: 'apple',
-      },
-    };
-    let resolveFirst: ((value: typeof firstResult) => void) | undefined;
-    const firstVerification = new Promise<typeof firstResult>((resolve) => {
-      resolveFirst = resolve;
-    });
-    mockVerifyPurchaseWithProvider.mockImplementation((request) => {
-      const token = (request as {iapkit?: {apple?: {jws?: string}}}).iapkit
-        ?.apple?.jws;
-      if (token === 'rerender-monthly-jws') return firstVerification;
-      return Promise.resolve({
-        provider: 'iapkit',
-        iapkit: {
-          isValid: true,
-          productId: 'dev.hyo.martie.premium_year',
-          state: 'entitled',
-          store: 'apple',
-          storeId: 'apple',
-        },
-      });
-    });
-    const hookValue = {
-      connected: true,
-      subscriptions: [createMockSubscription()],
-      availablePurchases: restoredSubscriptions,
-      fetchProducts: mockFetchProducts,
-      getAvailablePurchases: mockGetAvailablePurchases,
-      finishTransaction: mockFinishTransaction,
-      getActiveSubscriptions: mockGetActiveSubscriptions,
-      activeSubscriptions: [],
-      verifyPurchase: mockVerifyPurchase,
-      verifyPurchaseWithProvider: mockVerifyPurchaseWithProvider,
-    };
-    mockUseIAP.mockReturnValue(hookValue);
+    await fireEvent.press(screen.getByText('Local (IAPKit)'));
 
-    const {rerender} = await renderConnectedSubscriptionFlow();
-    await waitFor(() => {
-      expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-    });
-
-    mockUseIAP.mockReturnValue({
-      ...hookValue,
-      availablePurchases: restoredSubscriptions.map((purchase) => ({
-        ...purchase,
-      })),
-    });
-    await rerender(<SubscriptionFlow />);
-    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-
-    if (!resolveFirst) throw new Error('first verification was not pending');
-    await act(async () => {
-      resolveFirst?.(firstResult);
-    });
-    await waitFor(() => {
-      expect(mockFinishTransaction).toHaveBeenCalledTimes(2);
-    });
-    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(2);
-    expect(mockFinishTransaction.mock.invocationCallOrder[0]).toBeLessThan(
-      mockVerifyPurchaseWithProvider.mock.invocationCallOrder[1]!,
-    );
-  });
-
-  it('keeps an in-flight restored subscription deduped across reconnect', async () => {
-    Object.defineProperty(Platform, 'OS', {
-      value: 'ios',
-      writable: true,
-    });
-    const restoredSubscription = {
-      id: 'reconnect-subscription-monthly',
-      originalTransactionIdentifierIOS: 'original-reconnect-monthly',
-      productId: 'dev.hyo.martie.premium',
-      purchaseToken: 'reconnect-monthly-jws',
-      store: 'apple',
-      storeId: 'apple',
-      transactionDate: Date.now(),
-      transactionReasonIOS: 'RENEWAL',
-    };
-    const result = {
-      provider: 'iapkit',
-      iapkit: {
-        isValid: true,
-        productId: 'dev.hyo.martie.premium',
-        state: 'entitled',
-        store: 'apple',
-        storeId: 'apple',
-      },
-    };
-    let resolveVerification: ((value: typeof result) => void) | undefined;
-    mockVerifyPurchaseWithProvider.mockImplementation(
-      () =>
-        new Promise<typeof result>((resolve) => {
-          resolveVerification = resolve;
-        }),
-    );
-    const hookValue = {
-      connected: true,
-      subscriptions: [createMockSubscription()],
-      availablePurchases: [restoredSubscription],
-      fetchProducts: mockFetchProducts,
-      getAvailablePurchases: mockGetAvailablePurchases,
-      finishTransaction: mockFinishTransaction,
-      getActiveSubscriptions: mockGetActiveSubscriptions,
-      activeSubscriptions: [],
-      verifyPurchase: mockVerifyPurchase,
-      verifyPurchaseWithProvider: mockVerifyPurchaseWithProvider,
-    };
-    mockUseIAP.mockReturnValue(hookValue);
-
-    const {rerender} = await renderConnectedSubscriptionFlow();
-    await waitFor(() => {
-      expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-    });
-
-    mockUseIAP.mockReturnValue({
-      ...hookValue,
-      connected: false,
-      availablePurchases: [],
-    });
-    await rerender(<SubscriptionFlow />);
-    mockUseIAP.mockReturnValue({
-      ...hookValue,
-      availablePurchases: [{...restoredSubscription}],
-    });
-    await rerender(<SubscriptionFlow />);
-
-    if (!resolveVerification) {
-      throw new Error('restored subscription verification was not pending');
-    }
-    await act(async () => {
-      resolveVerification?.(result);
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    });
-    await waitFor(() => {
-      expect(mockFinishTransaction).toHaveBeenCalledTimes(1);
-    });
-    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-    expect(mockFinishTransaction).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not duplicate verification or finish across a remount while finish is pending', async () => {
-    Object.defineProperty(Platform, 'OS', {
-      value: 'ios',
-      writable: true,
-    });
-    const purchase = {
-      id: 'remount-subscription-pending-finish',
-      originalTransactionIdentifierIOS: 'remount-subscription-original',
-      productId: 'dev.hyo.martie.premium',
-      purchaseToken: 'remount-subscription-pending-finish-jws',
-      store: 'apple',
-      storeId: 'apple',
-      transactionDate: Date.now(),
-      transactionReasonIOS: 'PURCHASE',
-    };
-    let resolveFinish: (() => void) | undefined;
-    mockFinishTransaction.mockImplementation(
-      () =>
-        new Promise<void>((resolve) => {
-          resolveFinish = resolve;
-        }),
-    );
-    mockVerifyPurchaseWithProvider.mockResolvedValue({
-      iapkit: {
-        isValid: true,
-        productId: 'dev.hyo.martie.premium',
-        state: 'entitled',
-        store: 'apple',
-        storeId: 'apple',
-      },
-    });
-    const hookValue = {
-      connected: true,
-      subscriptions: [createMockSubscription()],
-      availablePurchases: [],
-      fetchProducts: mockFetchProducts,
-      getAvailablePurchases: mockGetAvailablePurchases,
-      finishTransaction: mockFinishTransaction,
-      getActiveSubscriptions: mockGetActiveSubscriptions,
-      activeSubscriptions: [],
-      verifyPurchase: mockVerifyPurchase,
-      verifyPurchaseWithProvider: mockVerifyPurchaseWithProvider,
-    };
-    mockUseIAP.mockReturnValue(hookValue);
-
-    const firstMount = await render(<SubscriptionFlow />);
-    const firstPurchaseSuccessHandler = mockOnPurchaseSuccess;
-    if (!firstPurchaseSuccessHandler) {
-      throw new Error('purchase success handler was not registered');
-    }
-
-    let processingPromise: Promise<void> | undefined;
-    await act(async () => {
-      processingPromise = Promise.resolve(
-        firstPurchaseSuccessHandler(purchase),
-      );
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-    expect(mockFinishTransaction).toHaveBeenCalledTimes(1);
-    await firstMount.unmount();
-
-    mockUseIAP.mockReturnValue({
-      ...hookValue,
-      availablePurchases: [{...purchase}],
-    });
-    const secondMount = await render(<SubscriptionFlow />);
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-    expect(mockFinishTransaction).toHaveBeenCalledTimes(1);
-
-    if (!resolveFinish || !processingPromise) {
-      throw new Error('pending finish was not initialized');
-    }
-    await act(async () => {
-      resolveFinish?.();
-      await processingPromise;
-      await Promise.resolve();
-    });
-
-    const remountedPurchaseSuccessHandler = mockOnPurchaseSuccess;
-    if (!remountedPurchaseSuccessHandler) {
-      throw new Error('remounted purchase success handler was not registered');
-    }
-    await act(async () => {
-      await remountedPurchaseSuccessHandler({...purchase});
-    });
-
-    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-    expect(mockFinishTransaction).toHaveBeenCalledTimes(1);
-    await secondMount.unmount();
-  });
-
-  it('serializes two overlapping live subscription callbacks', async () => {
-    Object.defineProperty(Platform, 'OS', {
-      value: 'ios',
-      writable: true,
-    });
-    const purchases = [
-      {
-        id: 'live-subscription-monthly',
-        originalTransactionIdentifierIOS: 'live-original-monthly',
-        productId: 'dev.hyo.martie.premium',
-        purchaseToken: 'live-monthly-jws',
-        store: 'apple',
-        storeId: 'apple',
-        transactionDate: Date.now(),
-        transactionReasonIOS: 'PURCHASE',
-      },
-      {
-        id: 'live-subscription-yearly',
-        originalTransactionIdentifierIOS: 'live-original-yearly',
-        productId: 'dev.hyo.martie.premium_year',
-        purchaseToken: 'live-yearly-jws',
-        store: 'apple',
-        storeId: 'apple',
-        transactionDate: Date.now() + 1,
-        transactionReasonIOS: 'PURCHASE',
-      },
-    ];
-    const firstResult = {
-      provider: 'iapkit',
-      iapkit: {
-        isValid: true,
-        productId: 'dev.hyo.martie.premium',
-        state: 'entitled',
-        store: 'apple',
-        storeId: 'apple',
-      },
-    };
-    let resolveFirst: ((value: typeof firstResult) => void) | undefined;
-    const firstVerification = new Promise<typeof firstResult>((resolve) => {
-      resolveFirst = resolve;
-    });
-    mockVerifyPurchaseWithProvider.mockImplementation((request) => {
-      const token = (request as {iapkit?: {apple?: {jws?: string}}}).iapkit
-        ?.apple?.jws;
-      if (token === 'live-monthly-jws') return firstVerification;
-      return Promise.resolve({
-        provider: 'iapkit',
-        iapkit: {
-          isValid: true,
-          productId: 'dev.hyo.martie.premium_year',
-          state: 'entitled',
-          store: 'apple',
-          storeId: 'apple',
-        },
-      });
-    });
-    await renderConnectedSubscriptionFlow();
-    if (!mockOnPurchaseSuccess) {
-      throw new Error('purchase success handler was not registered');
-    }
-
-    const firstCallback = mockOnPurchaseSuccess(purchases[0]!);
-    const secondCallback = mockOnPurchaseSuccess(purchases[1]!);
-    await waitFor(() => {
-      expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-    });
-    expect(mockFinishTransaction).not.toHaveBeenCalled();
-
-    if (!resolveFirst) throw new Error('first verification was not pending');
-    await act(async () => {
-      resolveFirst?.(firstResult);
-      await Promise.all([firstCallback, secondCallback]);
-    });
-
-    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(2);
-    expect(mockFinishTransaction).toHaveBeenCalledTimes(2);
-    expect(mockFinishTransaction.mock.invocationCallOrder[0]).toBeLessThan(
-      mockVerifyPurchaseWithProvider.mock.invocationCallOrder[1]!,
-    );
+    expect(screen.getByText('IAPKit')).toBeTruthy();
+    expect(getReceiptPurchaseFlow().recoverPurchases).toHaveBeenCalledTimes(1);
   });
 });
