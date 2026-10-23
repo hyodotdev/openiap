@@ -10,7 +10,6 @@ import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
 import io.github.hyochan.kmpiap.openiap.PurchaseState
 import io.github.hyochan.kmpiap.openiap.PurchaseUpdatedListenerOptions
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseProps
-import kotlin.concurrent.Volatile
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -182,8 +181,9 @@ class PurchaseFlow internal constructor(
         extraBufferCapacity = 63,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
-    @Volatile
-    private var disposed = false
+    // Atomic, so only one dispose runs the cleanup even when two race.
+    private val disposal = MutableStateFlow(false)
+    private val disposed get() = disposal.value
 
     /**
      * Every outcome: once per confirmation, however many deliveries shared it,
@@ -244,8 +244,7 @@ class PurchaseFlow internal constructor(
      */
     fun dispose() {
         // A second dispose must not clear the next account's requests.
-        if (disposed) return
-        disposed = true
+        if (!disposal.compareAndSet(expect = false, update = true)) return
         listening.cancel()
         onDispose()
         outcomeFlow.tryEmit(null)
