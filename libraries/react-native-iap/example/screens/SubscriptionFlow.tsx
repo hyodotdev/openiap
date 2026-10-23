@@ -1593,6 +1593,8 @@ function SubscriptionFlowContainer() {
   const mountedRef = useRef(true);
 
   const retainedPurchaseRef = useRef<Purchase | null>(null);
+  // Latest pending plan change per purchase, kept across duplicate deliveries.
+  const pendingPlanChangesRef = useRef(new Map<string, string>());
   const dispatchPurchaseSuccess = useCallback(
     (purchase: Purchase) => purchaseSuccessHandlerRef.current(purchase),
     [],
@@ -1618,15 +1620,18 @@ function SubscriptionFlowContainer() {
       return;
     }
 
-    // The current purchase may already be finished, so show a pending plan
-    // change before the duplicate check drops it.
+    const purchaseCleanupKey = getPurchaseCleanupKey(purchase);
+    // The current purchase may already be finished, so record and show a
+    // pending plan change before the duplicate check drops this delivery; a
+    // run already in flight reads the record when it completes.
     const pendingPlanChange = describePendingPlanChange(purchase);
     if (pendingPlanChange) {
+      pendingPlanChangesRef.current.set(purchaseCleanupKey, pendingPlanChange);
       setIsProcessing(false);
       setPurchaseResult(pendingPlanChange);
+    } else {
+      pendingPlanChangesRef.current.delete(purchaseCleanupKey);
     }
-
-    const purchaseCleanupKey = getPurchaseCleanupKey(purchase);
     if (completedSubscriptionKeys.has(purchaseCleanupKey)) {
       console.log('[SubscriptionFlow] ignoring duplicate purchase callback:', {
         productId,
@@ -1927,8 +1932,12 @@ function SubscriptionFlowContainer() {
       } catch (error) {
         const message = getErrorMessage(error);
         if (mountedRef.current) {
+          const planChange =
+            pendingPlanChangesRef.current.get(purchaseCleanupKey);
           setPurchaseResult(
-            `Subscription activated, but finishTransaction failed: ${message}`,
+            planChange
+              ? `${planChange} Finishing the current purchase failed: ${message}`
+              : `Subscription activated, but finishTransaction failed: ${message}`,
           );
         }
         console.log(`[SubscriptionFlow] ${finishLogLabel} failed:`, message);
@@ -1970,8 +1979,9 @@ function SubscriptionFlowContainer() {
         console.log('Failed to refresh subscriptions:', getErrorMessage(error));
       }
 
-      if (mountedRef.current && pendingPlanChange) {
-        setPurchaseResult(pendingPlanChange);
+      const planChange = pendingPlanChangesRef.current.get(purchaseCleanupKey);
+      if (mountedRef.current && planChange) {
+        setPurchaseResult(planChange);
       } else if (mountedRef.current) {
         setPurchaseResult(
           `Subscription activated and finished successfully.\n` +

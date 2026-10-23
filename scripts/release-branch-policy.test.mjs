@@ -2824,6 +2824,17 @@ test("the native gate holds libraries until both natives embed main's Client Pro
       ["3.6.0", ["embeds Client Protocol 1.0.3, main pins 1.1.0"]],
     ],
   );
+  // A tag and a manifest that both name no Client Protocol still hold.
+  assert.deepEqual(
+    findUnreleasedNativeChanges(
+      { google: "3.6.1", apple: "3.6.0" },
+      { git: () => "" },
+    ).map(({ commits }) => commits),
+    [
+      ["embeds Client Protocol (none), main pins (none)"],
+      ["embeds Client Protocol (none), main pins (none)"],
+    ],
+  );
   // A manifest that names no Client Protocol holds both natives.
   assert.equal(
     findUnreleasedNativeChanges({ google: "3.6.1", apple: "3.6.0" }, { git })

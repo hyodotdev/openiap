@@ -1465,6 +1465,8 @@ function SubscriptionFlowContainer() {
   const purchaseQueueTailRef = useRef<Promise<void>>(Promise.resolve());
   const taskOwnerRef = useRef({});
   const mountedRef = useRef(true);
+  // Latest pending plan change per purchase, kept across duplicate deliveries.
+  const pendingPlanChangesRef = useRef(new Map<string, string>());
 
   const reportStoreError = useCallback(
     (error: PurchaseError, requestTrace: string): void => {
@@ -1893,10 +1895,14 @@ function SubscriptionFlowContainer() {
           error,
           ErrorCode.PurchaseVerificationFinishFailed,
         );
+        const planChange =
+          pendingPlanChangesRef.current.get(purchaseCleanupKey);
         setPurchaseResult(
-          `Subscription ${
-            isRestoration ? 'restored' : 'activated'
-          }, but finishTransaction failed: ${message}`,
+          planChange
+            ? `${planChange} Finishing the current purchase failed: ${message}`
+            : `Subscription ${
+                isRestoration ? 'restored' : 'activated'
+              }, but finishTransaction failed: ${message}`,
         );
         cleanupPurchaseKeysRef.current.delete(purchaseCleanupKey);
       }
@@ -1906,7 +1912,7 @@ function SubscriptionFlowContainer() {
     if (!mountedRef.current) return;
 
     setPurchaseResult(
-      describePendingPlanChange(purchase) ??
+      pendingPlanChangesRef.current.get(purchaseCleanupKey) ??
         (isRestoration
           ? 'Subscription restored and finished successfully.'
           : 'Subscription activated and finished successfully.'),
@@ -1930,12 +1936,14 @@ function SubscriptionFlowContainer() {
 
     if (!mountedRef.current) return;
 
-    showNativeAlert(
-      'Success',
-      isRestoration
-        ? 'Subscription restored successfully!'
-        : 'New subscription activated successfully!',
-    );
+    if (!pendingPlanChangesRef.current.has(purchaseCleanupKey)) {
+      showNativeAlert(
+        'Success',
+        isRestoration
+          ? 'Subscription restored successfully!'
+          : 'New subscription activated successfully!',
+      );
+    }
     console.log(
       isRestoration
         ? '✅ Subscription restoration completed'
@@ -1959,14 +1967,20 @@ function SubscriptionFlowContainer() {
   };
 
   const enqueuePurchase = useCallback((purchase: Purchase): Promise<void> => {
-    // The current purchase may already be finished, so show a pending plan
-    // change before the duplicate checks drop it.
-    const pendingPlanChange = describePendingPlanChange(purchase);
-    if (pendingPlanChange && mountedRef.current) {
-      setIsProcessing(false);
-      setPurchaseResult(pendingPlanChange);
-    }
     const cleanupKey = getPurchaseCleanupKey(purchase);
+    // The current purchase may already be finished, so record and show a
+    // pending plan change before the duplicate checks drop this delivery; a
+    // run already in flight reads the record when it completes.
+    const pendingPlanChange = describePendingPlanChange(purchase);
+    if (pendingPlanChange) {
+      pendingPlanChangesRef.current.set(cleanupKey, pendingPlanChange);
+      if (mountedRef.current) {
+        setIsProcessing(false);
+        setPurchaseResult(pendingPlanChange);
+      }
+    } else {
+      pendingPlanChangesRef.current.delete(cleanupKey);
+    }
     if (completedSubscriptionKeys.has(cleanupKey)) {
       return Promise.resolve();
     }
