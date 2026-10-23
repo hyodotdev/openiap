@@ -25,6 +25,7 @@ import io.github.hyochan.kmpiap.PurchaseException
 import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.openiap.*
 import io.github.hyochan.kmpiap.requestPurchase
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
@@ -116,24 +117,20 @@ fun AlternativeBillingScreen(navController: NavController) {
         }
     }
 
-    // Listen for purchase updates
+    // The app's flow confirms and finishes every purchase; this screen shows the outcome.
     LaunchedEffect(Unit) {
-        launch {
-            kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
-                lastPurchase = purchase
+        ExamplePurchaseFlow.flow.outcomes
+            .filter { it.purchase.productId in PRODUCT_IDS }
+            .collect { outcome ->
+                lastPurchase = outcome.purchase
                 isProcessing = false
-
-                val dateText = Instant.fromEpochMilliseconds(purchase.transactionDate.toLong())
-                    .toLocalDateTime(TimeZone.currentSystemDefault())
-
-                purchaseResult = """
-                    Receipt received · verification required
-                    Product: ${purchase.productId}
-                    Transaction ID: ${purchase.id}
-                    Date: $dateText
-                """.trimIndent()
+                purchaseResult = outcome.resultText()
             }
-        }
+    }
+
+    // Other screens keep the live connection, so leaving restores Standard billing.
+    DisposableEffect(Unit) {
+        onDispose { ExamplePurchaseFlow.restoreStandardBilling() }
     }
 
     // Listen for purchase errors
@@ -1133,16 +1130,6 @@ private fun LastPurchaseCard(purchase: Purchase) {
                     .toLocalDateTime(TimeZone.currentSystemDefault())
                     .toString()
                 Text("Date: $dateText", fontSize = 14.sp)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = """
-                        Receipt retained pending verification.
-                        Open Purchase Flow or Subscription Flow to verify and complete it.
-                    """.trimIndent(),
-                    fontSize = 12.sp,
-                    color = Color(0xFFFF9800),
-                    lineHeight = 18.sp
-                )
             }
         }
     }

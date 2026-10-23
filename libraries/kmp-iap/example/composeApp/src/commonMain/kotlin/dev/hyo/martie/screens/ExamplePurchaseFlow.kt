@@ -9,13 +9,13 @@ import io.github.hyochan.kmpiap.PurchaseConfirmation
 import io.github.hyochan.kmpiap.PurchaseFlowGuidanceKey
 import io.github.hyochan.kmpiap.PurchaseFlowOutcome
 import io.github.hyochan.kmpiap.PurchaseFlowStatus
+import io.github.hyochan.kmpiap.confirmOnDeviceIOS
 import io.github.hyochan.kmpiap.confirmWithIapkit
 import io.github.hyochan.kmpiap.createPurchaseFlow
 import io.github.hyochan.kmpiap.describePurchaseFlowStatus
-import io.github.hyochan.kmpiap.getCurrentPlatform
 import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.openiap.IapPlatform
 import io.github.hyochan.kmpiap.openiap.IapStore
+import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
 import io.github.hyochan.kmpiap.openiap.Purchase
 import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
 import kotlinx.coroutines.CancellationException
@@ -45,6 +45,7 @@ internal object ExamplePurchaseFlow {
     )
         private set
 
+    private val onDevice = kmpIapInstance.confirmOnDeviceIOS(grant = ::grant)
     private val hostedIapkit = iapkit(baseUrl = null)
     private val localIapkit = iapkit(baseUrl = AppConfig.iapkitBaseUrl)
 
@@ -55,9 +56,27 @@ internal object ExamplePurchaseFlow {
         isConsumable = { it in ConsumableProductIds },
     )
 
+    // A real app keeps this in its own store.
+    private val credited = mutableSetOf<String>()
+
     /** Connects, then finishes what an earlier session left unfinished. */
     suspend fun start() {
-        if (kmpIapInstance.initConnection()) recover()
+        if (connect(config = null)) recover()
+    }
+
+    /** Ends an alternative billing program a screen enabled; other screens keep the live connection. */
+    fun restoreStandardBilling() {
+        scope.launch { connect(InitConnectionConfig()) }
+    }
+
+    // A failed connection must not crash the app; each screen shows its own state.
+    private suspend fun connect(config: InitConnectionConfig?): Boolean = try {
+        kmpIapInstance.initConnection(config)
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        println("[KMP-IAP Example] Connection failed: ${error.message}")
+        false
     }
 
     /** Purchases left unfinished are confirmed again with the new method. */
@@ -80,7 +99,7 @@ internal object ExamplePurchaseFlow {
     private suspend fun confirm(purchase: Purchase, isConsumable: Boolean): PurchaseConfirmation =
         when (verificationMethod) {
             VerificationMethod.None -> error("No verification method selected; the purchase stays unfinished.")
-            VerificationMethod.Local -> confirmOnDevice(purchase, isConsumable)
+            VerificationMethod.Local -> onDevice(purchase, isConsumable)
             VerificationMethod.IAPKitLocal -> {
                 check(AppConfig.iapkitBaseUrl.isNotBlank()) {
                     "Set IAPKIT_BASE_URL in .env (Android) or Secrets.xcconfig (iOS)."
@@ -90,21 +109,14 @@ internal object ExamplePurchaseFlow {
             VerificationMethod.IAPKit -> hostedIapkit(purchase, isConsumable)
         }
 
-    // StoreKit verified the unfinished transaction on the device.
-    private suspend fun confirmOnDevice(purchase: Purchase, isConsumable: Boolean): PurchaseConfirmation {
-        check(getCurrentPlatform() == IapPlatform.Ios) {
-            "Local (Device) verification is iOS only. Choose an IAPKit method."
-        }
-        check(matchesVerifiedPendingPurchase(purchase, kmpIapInstance.getPendingTransactionsIOS())) {
-            "StoreKit has no verified unfinished transaction ${purchase.id}"
-        }
-        grant(purchase, isConsumable)
-        return PurchaseConfirmation.Entitled(alreadyGranted = false)
-    }
-
-    // Credit consumables here, once per purchase.id: a crash can confirm the same purchase again.
+    // Credits a consumable once per purchase.id: a crash or a failed finish confirms it again.
     private suspend fun grant(purchase: Purchase, isConsumable: Boolean) {
-        if (isConsumable) println("[KMP-IAP Example] Credit ${purchase.productId} for purchase ${purchase.id}")
+        if (!isConsumable) return
+        if (credited.add(purchase.id)) {
+            println("[KMP-IAP Example] Credit ${purchase.productId} for purchase ${purchase.id}")
+        } else {
+            println("[KMP-IAP Example] Purchase ${purchase.id} was already credited")
+        }
     }
 
     private fun iapkit(baseUrl: String?) = kmpIapInstance.confirmWithIapkit(

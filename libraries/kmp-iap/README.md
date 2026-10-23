@@ -170,7 +170,9 @@ if (kmpIapInstance.initConnection()) flow.recoverPurchases()
 
 An app without a backend passes
 `kmpIapInstance.confirmWithIapkit(IapkitConfirmationOptions(apiKey = "openiap-kit_pk_...", grant = ::credit))`;
-`grant` credits consumables before they are consumed. See the
+`grant` credits consumables before they are consumed. On iOS, an app with
+neither passes `kmpIapInstance.confirmOnDeviceIOS(grant = ::credit)`, which
+trusts StoreKit's own verification. See the
 [purchase flow guide](https://kit.openiap.dev/docs/purchase-flow).
 
 ## Powered by OpenIAP

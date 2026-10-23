@@ -2,7 +2,6 @@ package dev.hyo.martie.screens
 
 import io.github.hyochan.kmpiap.openiap.IapStore
 import io.github.hyochan.kmpiap.openiap.Purchase
-import io.github.hyochan.kmpiap.openiap.PurchaseIOS
 
 internal val ConsumableProductIds = listOf(
     "dev.hyo.martie.10bulbs",
@@ -42,13 +41,3 @@ internal fun subscriptionProductId(purchase: Purchase): String? =
 // Amazon RVS reports a term of Martie's catalog under its base SKU.
 internal fun amazonVerifiedProductId(productId: String): String =
     if (productId in SubscriptionProductIds) AmazonSubscriptionBaseId else productId
-
-internal fun matchesVerifiedPendingPurchase(purchase: Purchase, pending: List<Purchase>): Boolean =
-    purchase is PurchaseIOS && purchase.store == IapStore.Apple && purchase.storeId == "apple" &&
-        purchase.id.isNotBlank() && pending.any {
-            it is PurchaseIOS && it.store == IapStore.Apple && it.storeId == "apple" &&
-                it.id == purchase.id && it.productId == purchase.productId &&
-                it.revocationDateIOS == null && it.isUpgradedIOS != true &&
-                (it.expirationDateIOS ?: Double.POSITIVE_INFINITY) > currentTimeMillis() &&
-                (purchase.environmentIOS == null || it.environmentIOS == purchase.environmentIOS)
-        }

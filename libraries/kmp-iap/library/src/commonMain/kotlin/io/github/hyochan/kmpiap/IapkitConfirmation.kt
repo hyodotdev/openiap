@@ -54,10 +54,7 @@ fun createIapkitConfirmation(
     verifyPurchaseWithProvider: suspend (VerifyPurchaseWithProviderProps) -> VerifyPurchaseWithProviderResult,
     options: IapkitConfirmationOptions,
 ): suspend (purchase: Purchase, isConsumable: Boolean) -> PurchaseConfirmation = { purchase, isConsumable ->
-    // Checked first: a consumable must never verify without a way to credit it.
-    check(!isConsumable || options.grant != null) {
-        "confirmWithIapkit needs grant to credit consumable ${purchase.productId} before it is consumed"
-    }
+    requireGrant("confirmWithIapkit", purchase, isConsumable, options.grant)
     val confirmation = readIapkitVerification(
         verifyPurchaseWithProvider(toIapkitVerificationProps(purchase, options)),
         purchase,
@@ -192,3 +189,15 @@ private fun verifyingStore(purchase: Purchase, options: IapkitConfirmationOption
 
 private fun amazonProductId(purchase: Purchase, options: IapkitConfirmationOptions): String =
     options.amazon?.verifiedProductId?.invoke(purchase.productId) ?: purchase.productId
+
+// Checked before verifying: a consumable must never pass without a way to credit it.
+internal fun requireGrant(
+    name: String,
+    purchase: Purchase,
+    isConsumable: Boolean,
+    grant: (suspend (Purchase, Boolean) -> Unit)?,
+) {
+    check(!isConsumable || grant != null) {
+        "$name needs grant to credit consumable ${purchase.productId} before it is consumed"
+    }
+}

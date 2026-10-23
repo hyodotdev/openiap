@@ -8,8 +8,10 @@ import io.github.hyochan.kmpiap.openiap.IapStore
 import io.github.hyochan.kmpiap.openiap.Purchase
 import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
 import io.github.hyochan.kmpiap.openiap.PurchaseState
+import io.github.hyochan.kmpiap.openiap.PurchaseUpdatedListenerOptions
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseProps
 import kotlin.concurrent.Volatile
+import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CompletableDeferred
@@ -29,6 +31,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.flow.takeWhile
@@ -202,7 +205,8 @@ class PurchaseFlow internal constructor(
         listenForPurchases?.let { purchases ->
             listen {
                 purchases.collect { purchase ->
-                    val requested = wasRequested(purchase)
+                    // A pending delivery leaves the mark for the completed one that follows.
+                    val requested = purchase.purchaseState != PurchaseState.Pending && wasRequested(purchase)
                     // Registered before the next delivery; the run publishes its own outcome.
                     mutex.withLock { admit(purchase, requested, reconfirm = false) }
                 }
@@ -302,36 +306,42 @@ class PurchaseFlow internal constructor(
     }
 
     private suspend fun confirmAndFinish(purchase: Purchase): PurchaseFlowStatus {
+        val consumable: Boolean
         val confirmation = try {
-            val consumable = isConsumable(purchase.productId)
+            // Read once: finishing must consume exactly what confirmation granted.
+            consumable = isConsumable(purchase.productId)
             withTimeoutOrNull(confirmTimeout) { confirmWithBackend(purchase, consumable) }
                 ?: return PurchaseFlowStatus.Failed(
                     IllegalStateException("confirmWithBackend did not answer within $confirmTimeout")
                 )
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
+            // Only this run's own cancellation propagates; an Error must not leave the run stuck.
             currentCoroutineContext().ensureActive()
             return PurchaseFlowStatus.Failed(error)
         }
         // Finishing settles a purchase for good, so only a settled verdict does.
         return when (confirmation) {
-            is PurchaseConfirmation.Entitled -> finish(purchase, confirmation)
+            is PurchaseConfirmation.Entitled -> finish(purchase, consumable, confirmation)
             is PurchaseConfirmation.OwnershipConflict ->
-                if (confirmation.alreadyGranted) finish(purchase, confirmation) else confirmation.toStatus()
+                if (confirmation.alreadyGranted) finish(purchase, consumable, confirmation) else confirmation.toStatus()
             is PurchaseConfirmation.Invalid, PurchaseConfirmation.TestAccountRestricted ->
-                if (purchase.store == IapStore.Apple) finish(purchase, confirmation) else confirmation.toStatus()
+                if (purchase.store == IapStore.Apple) finish(purchase, consumable, confirmation) else confirmation.toStatus()
             else -> confirmation.toStatus()
         }
     }
 
-    private suspend fun finish(purchase: Purchase, confirmation: PurchaseConfirmation): PurchaseFlowStatus =
+    private suspend fun finish(
+        purchase: Purchase,
+        consumable: Boolean,
+        confirmation: PurchaseConfirmation,
+    ): PurchaseFlowStatus =
         try {
-            val consumable = isConsumable(purchase.productId)
             // Play keeps an acknowledged purchase finished; a restore need not redo it.
             if ((purchase as? PurchaseAndroid)?.isAcknowledgedAndroid != true || consumable) {
                 finishTransaction(purchase, consumable)
             }
             confirmation.toStatus()
-        } catch (finishError: Exception) {
+        } catch (finishError: Throwable) {
             currentCoroutineContext().ensureActive()
             confirmation.toStatus(finishError)
         }
@@ -370,17 +380,10 @@ class PurchaseFlow internal constructor(
         return outcomes
     }
 
-    private fun isUnfinished(purchase: Purchase): Boolean {
-        val acknowledged = (purchase as? PurchaseAndroid)?.isAcknowledgedAndroid
-        return when (purchase.store) {
-            // Amazon reports no acknowledgment, and approves a Kids purchase later,
-            // so every listed purchase is confirmed again.
-            IapStore.Amazon -> true
-            // Horizon's acknowledgment does nothing; a listed consumable is unconsumed.
-            IapStore.Horizon -> acknowledged == false || isConsumable(purchase.productId)
-            else -> acknowledged == false
-        }
-    }
+    // Amazon and most community stores report no acknowledgment, and Amazon
+    // approves a Kids purchase later; a listed consumable is unconsumed.
+    private fun isUnfinished(purchase: Purchase): Boolean =
+        (purchase as? PurchaseAndroid)?.isAcknowledgedAndroid != true || isConsumable(purchase.productId)
 }
 
 /**
@@ -417,7 +420,8 @@ fun KmpIAP.createPurchaseFlow(
     // Off iOS a store may answer [], which would hide unacknowledged Android purchases.
     getPendingTransactionsIOS: (suspend () -> List<Purchase>)? =
         if (getCurrentPlatform() == IapPlatform.Ios) ({ this.getPendingTransactionsIOS() }) else null,
-    listenForPurchases: Flow<Purchase>? = purchaseUpdatedListener,
+    // The flow deduplicates itself, and a StoreKit replay is how a failed confirmation retries.
+    listenForPurchases: Flow<Purchase>? = purchaseUpdatedListener(PurchaseUpdatedListenerOptions(dedupeTransactionIOS = false)),
     wasRequested: (Purchase) -> Boolean = purchaseRequests::wasRequested,
 ): PurchaseFlow = PurchaseFlow(
     scope = scope,
@@ -427,15 +431,16 @@ fun KmpIAP.createPurchaseFlow(
     getAvailablePurchases = getAvailablePurchases,
     getPendingTransactionsIOS = getPendingTransactionsIOS,
     listenForPurchases = listenForPurchases,
-    endsRequest = purchaseErrorListener.onEach { purchaseRequests.clear() },
+    // An error ends the user's request; dispose ends them all.
+    endsRequest = purchaseErrorListener.onEach { purchaseRequests.clear() }.onCompletion { purchaseRequests.clear() },
     wasRequested = wasRequested,
     confirmTimeout = confirmTimeout,
 )
 
 /** The products passed to [KmpIAP.requestPurchase] whose purchase has not arrived yet. */
 internal class PurchaseRequests {
-    // An atomic set: requests, deliveries, and errors arrive on different threads.
-    private val productIds = MutableStateFlow(emptySet<String>())
+    // When the app asked for each product. An atomic map: requests, deliveries, and errors arrive on different threads.
+    private val requestedAt = MutableStateFlow(emptyMap<String, Long>())
 
     fun mark(params: RequestPurchaseProps) {
         val requested = when (val request = params.request) {
@@ -445,24 +450,36 @@ internal class PurchaseRequests {
             is RequestPurchaseProps.Request.Subscription ->
                 listOfNotNull(request.value.apple?.sku) + request.value.google?.skus.orEmpty()
         }
-        productIds.update { it + requested }
+        val now = Clock.System.now().toEpochMilliseconds()
+        requestedAt.update { marks -> marks + requested.associateWith { now } }
     }
 
-    /** Whether the user requested [purchase]; a match clears its marks. */
+    /**
+     * Whether the user requested [purchase]: bought after the request, or a
+     * plan change to a requested product. A match clears its mark.
+     */
     fun wasRequested(purchase: Purchase): Boolean {
-        val delivered = setOf(purchase.productId) + purchase.pendingPurchaseUpdate()?.products.orEmpty()
         var matched = false
-        productIds.update { marked ->
-            matched = delivered.any { it in marked }
-            marked - delivered
+        requestedAt.update { marks ->
+            // A receipt older than the request is the store redelivering an earlier purchase.
+            val bought = marks[purchase.productId]
+                ?.takeIf { purchase.transactionDate >= it - CLOCK_SKEW_MS }
+                ?.let { purchase.productId }
+            val changed = purchase.pendingPurchaseUpdate()?.products.orEmpty().filter { it in marks }
+            val hits = listOfNotNull(bought) + changed
+            matched = hits.isNotEmpty()
+            marks - hits
         }
         return matched
     }
 
     fun clear() {
-        productIds.value = emptySet()
+        requestedAt.value = emptyMap()
     }
 }
+
+// A store's purchase time may run slightly behind the device clock.
+private const val CLOCK_SKEW_MS = 60_000L
 
 /** What a status means for the user; see [describePurchaseFlowStatus]. */
 enum class PurchaseFlowGuidanceKey(val rawValue: String) {

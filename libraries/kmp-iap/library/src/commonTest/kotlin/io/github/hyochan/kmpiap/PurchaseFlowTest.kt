@@ -22,6 +22,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -48,6 +49,7 @@ class PurchaseFlowTest {
         productId: String = "premium",
         acknowledged: Boolean? = null,
         pendingChange: List<String>? = null,
+        transactionDate: Double = 0.0,
     ) = PurchaseAndroid(
         id = id,
         productId = productId,
@@ -59,7 +61,7 @@ class PurchaseFlowTest {
         isAcknowledgedAndroid = acknowledged,
         pendingPurchaseUpdateAndroid = pendingChange?.let { PendingPurchaseUpdateAndroid(it, "token-change") },
         isAutoRenewing = false,
-        transactionDate = 0.0,
+        transactionDate = transactionDate,
     )
 
     private fun TestScope.flowWith(
@@ -67,11 +69,13 @@ class PurchaseFlowTest {
         listenForPurchases: Flow<Purchase>? = null,
         getAvailablePurchases: suspend () -> List<Purchase> = { emptyList() },
         scope: CoroutineScope = backgroundScope,
+        isConsumable: (String) -> Boolean = { false },
+        finishTransaction: suspend (Purchase, Boolean) -> Unit = { _, _ -> },
     ) = PurchaseFlow(
         scope = scope,
         confirmWithBackend = confirm,
-        isConsumable = { false },
-        finishTransaction = { _, _ -> },
+        isConsumable = isConsumable,
+        finishTransaction = finishTransaction,
         getAvailablePurchases = getAvailablePurchases,
         getPendingTransactionsIOS = null,
         listenForPurchases = listenForPurchases,
@@ -133,7 +137,7 @@ class PurchaseFlowTest {
     }
 
     @Test
-    fun anErrorFromTheBackendCallReachesItsCallerOnly() = runTest {
+    fun anErrorFromTheBackendCallFailsOnlyItsPurchase() = runTest {
         val store = MutableSharedFlow<Purchase>(extraBufferCapacity = 1)
         val flow = flowWith(
             { purchase, _ ->
@@ -145,13 +149,12 @@ class PurchaseFlowTest {
         val published = collect(flow)
         runCurrent()
 
-        assertFailsWith<NotImplementedError> { flow.processPurchase(purchase(id = "broken")) }
-        store.tryEmit(purchase(id = "broken"))
-        runCurrent()
+        val failed = assertIs<PurchaseFlowStatus.Failed>(flow.processPurchase(purchase(id = "broken")))
+        assertIs<NotImplementedError>(failed.error)
         store.tryEmit(purchase(id = "fine"))
         runCurrent()
 
-        assertEquals(listOf("fine"), published.map { it.purchase.id })
+        assertEquals(listOf("broken", "fine"), published.map { it.purchase.id })
         assertTrue(backgroundScope.isActive)
     }
 
@@ -171,6 +174,23 @@ class PurchaseFlowTest {
 
         assertEquals(listOf("a"), recovered.await().map { it.purchase.id })
         assertEquals(1, confirms)
+    }
+
+    @Test
+    fun finishingUsesTheConsumabilityConfirmationSaw() = runTest {
+        var reads = 0
+        val finished = mutableListOf<Boolean>()
+        val flow = flowWith(
+            { _, _ -> PurchaseConfirmation.Entitled(alreadyGranted = false) },
+            // A config refresh between confirming and finishing.
+            isConsumable = { reads++ == 0 },
+            finishTransaction = { _, consumable -> finished += consumable },
+        )
+
+        flow.processPurchase(purchase(productId = "coins"))
+
+        assertEquals(listOf(true), finished)
+        assertEquals(1, reads)
     }
 
     @Test
@@ -341,6 +361,23 @@ class PurchaseFlowTest {
         )
         requests.clear()
         assertFalse(requests.wasRequested(purchase(productId = "coins")))
+    }
+
+    @Test
+    fun anOldReceiptForARequestedProductStaysUnrequested() {
+        val requests = PurchaseRequests()
+        requests.mark(
+            RequestPurchaseProps(
+                request = RequestPurchaseProps.Request.Purchase(
+                    RequestPurchasePropsByPlatforms(google = RequestPurchaseAndroidProps(skus = listOf("coins")))
+                ),
+                type = ProductQueryType.InApp,
+            )
+        )
+        val now = Clock.System.now().toEpochMilliseconds().toDouble()
+
+        assertFalse(requests.wasRequested(purchase(productId = "coins", transactionDate = now - 120_000)))
+        assertTrue(requests.wasRequested(purchase(productId = "coins", transactionDate = now)))
     }
 
     @Test

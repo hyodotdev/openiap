@@ -30,6 +30,7 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -118,11 +119,34 @@ class PurchaseFlowVectorsTest {
     }
 
     @Test
+    fun device() = runCases("device") { vector ->
+        val item = purchaseOf(vector.obj("purchase"))
+        val pending = vector["pending"]!!.jsonArray.map { purchaseOf(it.jsonObject) as PurchaseIOS }
+        var reads = 0
+        var grants = 0
+        val confirm = createDeviceConfirmationIOS(
+            { reads++; pending },
+            grant = if (vector.bool("noGrant")) null else { _, _ -> grants++ },
+        )
+
+        val answer = runCatching { confirm(item, vector.bool("isConsumable")) }
+
+        if (vector.bool("error")) {
+            assertTrue(answer.isFailure, "expected an error, got ${answer.getOrNull()}")
+        } else {
+            assertEquals(vector.plain("confirmation"), comparable(answer.getOrThrow()), "confirmation")
+        }
+        assertEquals(if (vector["reads"]?.jsonPrimitive?.booleanOrNull == false) 0 else 1, reads, "reads")
+        assertEquals(if (vector.bool("granted")) 1 else 0, grants, "grants")
+    }
+
+    @Test
     fun sequences() = runCases("sequences") { vector ->
         val purchases = vector.obj("purchases").mapValues { purchaseOf(it.value.jsonObject) }
         val answers = vector.obj("answers").mapValues { it.value.jsonArray }
         val consumables = vector["consumables"]?.jsonArray?.map { it.jsonPrimitive.content }.orEmpty().toSet()
-        val requested = vector["requested"]?.jsonArray?.map { it.jsonPrimitive.content }.orEmpty().toSet()
+        val requested = vector["requested"]?.jsonArray?.map { it.jsonPrimitive.content }.orEmpty().toMutableSet()
+        val requestedOnce = vector.bool("requestedOnce")
         val available = vector["available"]?.jsonArray?.map { purchases.getValue(it.jsonPrimitive.content) }.orEmpty()
         val pendingIOS = vector["pendingIOS"]
         val confirms = mutableMapOf<String, Int>()
@@ -148,7 +172,8 @@ class PurchaseFlowVectorsTest {
             },
             listenForPurchases = store,
             endsRequest = null,
-            wasRequested = { it.id in requested },
+            // Like an SDK's request mark, requestedOnce answers true once per id.
+            wasRequested = { if (requestedOnce) requested.remove(it.id) else it.id in requested },
             confirmTimeout = 30.seconds,
         )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { flow.outcomes.collect { published += it } }
@@ -198,6 +223,9 @@ class PurchaseFlowVectorsTest {
                 id = id, transactionId = id, productId = productId, purchaseState = state, purchaseToken = json.string("purchaseToken"),
                 quantity = quantity, ids = ids, store = store, storeId = storeId,
                 environmentIOS = json.string("environmentIOS"), isAutoRenewing = false, transactionDate = 0.0,
+                revocationDateIOS = json["revocationDateIOS"]?.jsonPrimitive?.doubleOrNull,
+                isUpgradedIOS = json["isUpgradedIOS"]?.jsonPrimitive?.booleanOrNull,
+                expirationDateIOS = json["expirationDateIOS"]?.jsonPrimitive?.doubleOrNull,
             )
         } else {
             PurchaseAndroid(

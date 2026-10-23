@@ -10,6 +10,7 @@ import io.github.hyochan.kmpiap.openiap.RequestPurchaseProps
 import io.github.hyochan.kmpiap.openiap.RequestPurchasePropsByPlatforms
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -56,6 +57,21 @@ class PurchaseFlowBindingTest {
             listOf("requested" to false, "renewal" to true, "after-cancel" to true),
             published.map { it.purchase.id to (it.status as PurchaseFlowStatus.Invalid).recovered },
         )
+
+        iap.requestPurchase(premiumRequest())
+        flow.dispose()
+        runCurrent()
+        val afterDispose = io.github.hyochan.kmpiap.openiap.PurchaseAndroid(
+            id = "after-dispose",
+            isAutoRenewing = false,
+            productId = "premium",
+            purchaseState = io.github.hyochan.kmpiap.openiap.PurchaseState.Purchased,
+            quantity = 1,
+            store = io.github.hyochan.kmpiap.openiap.IapStore.Horizon,
+            storeId = "horizon",
+            transactionDate = System.currentTimeMillis().toDouble(),
+        )
+        assertFalse(iap.purchaseRequests.wasRequested(afterDispose))
     }
 
     private fun premiumRequest() = RequestPurchaseProps(
@@ -74,6 +90,6 @@ class PurchaseFlowBindingTest {
         quantity = 1,
         store = dev.hyo.openiap.IapStore.Horizon,
         storeId = "horizon",
-        transactionDate = 1.0,
+        transactionDate = System.currentTimeMillis().toDouble(),
     )
 }
