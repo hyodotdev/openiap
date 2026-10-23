@@ -259,7 +259,12 @@ public partial class AlternativeBillingPage : ContentPage
             ShowResult("Reconnecting with new billing program...");
 
             // A changed config reconnects natively; a refusal keeps the live program, so commit only on success.
-            await OpenIapClient.Mutation.InitConnectionAsync(new InitConnectionConfig { EnableBillingProgramAndroid = program });
+            var connected = await OpenIapClient.Mutation.InitConnectionAsync(new InitConnectionConfig { EnableBillingProgramAndroid = program });
+            if (!connected)
+            {
+                ShowResult("❌ Could not connect to the store");
+                return;
+            }
             _billingProgram = program;
             _androidBillingFlow = flow;
             ShowResult($"✅ Reconnected with {ProgramName(program)} program");
