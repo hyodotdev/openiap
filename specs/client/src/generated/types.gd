@@ -71,7 +71,7 @@ enum BillingChoiceScreenTypeAndroid {
 
 ## Billing program types for Google Play Billing Programs (Android) Available in Google Play Billing Library 8.2.0 (External Offer and External Content Link integrations require 8.2.1+), EXTERNAL_PAYMENTS added in 8.3.0, BILLING_CHOICE added in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 enum BillingProgramAndroid {
-	## No billing program. In InitConnectionConfig, it selects the standard client.
+	## No billing program. In InitConnectionConfig, it selects the standard client, and programs queued with enableBillingProgramAndroid stay. Other billing program APIs reject it.
 	UNSPECIFIED = 0,
 	## User Choice Billing program. User can select between Google Play Billing or alternative billing. Available in Google Play Billing Library 7.0+
 	USER_CHOICE_BILLING = 1,

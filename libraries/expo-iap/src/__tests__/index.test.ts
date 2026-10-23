@@ -219,6 +219,30 @@ describe('Public API (index.ts)', () => {
       flow.dispose();
     });
 
+    it("a second dispose leaves the next flow's requests alone", async () => {
+      const create = () =>
+        createPurchaseFlow({
+          confirmWithBackend: async () => ({status: 'invalid' as const}),
+          isConsumable: () => false,
+        });
+      const first = create();
+      first.dispose();
+      const flow = create();
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome) => statuses.push(outcome.status));
+
+      await requestPurchase({request: {apple: {sku: 'fresh'}}, type: 'in-app'});
+      first.dispose();
+      listenerFor(OpenIapEvent.PurchaseUpdated)({
+        ...applePurchase('fresh', 'tx-after-second-dispose'),
+        transactionDate: Date.now(),
+      });
+      await settle();
+
+      expect(statuses).toEqual([{status: 'invalid'}]);
+      flow.dispose();
+    });
+
     it('forgets a request the store answered with an error', async () => {
       const flow = createPurchaseFlow({
         confirmWithBackend: async () => ({status: 'invalid' as const}),

@@ -418,7 +418,11 @@ public static class BillingChoiceScreenTypeAndroidExtensions
 [JsonConverter(typeof(BillingProgramAndroidJsonConverter))]
 public enum BillingProgramAndroid
 {
-    /// <summary>No billing program. In InitConnectionConfig, it selects the standard client.</summary>
+    /// <summary>
+    /// No billing program. In InitConnectionConfig, it selects the standard client,
+    /// and programs queued with enableBillingProgramAndroid stay. Other billing
+    /// program APIs reject it.
+    /// </summary>
     Unspecified,
     /// <summary>
     /// User Choice Billing program.

@@ -248,6 +248,35 @@ describe('Public API (src/index.ts)', () => {
       flow.dispose();
     });
 
+    it("a second dispose leaves the next flow's requests alone", async () => {
+      const create = () =>
+        IAP.createPurchaseFlow({
+          confirmWithBackend: async () => ({status: 'invalid' as const}),
+          isConsumable: () => false,
+        });
+      const first = create();
+      first.dispose();
+      const flow = create();
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome: {status: unknown}) =>
+        statuses.push(outcome.status),
+      );
+
+      await IAP.requestPurchase({
+        request: {apple: {sku: 'fresh'}},
+        type: 'in-app',
+      });
+      first.dispose();
+      mockIap.addPurchaseUpdatedListener.mock.lastCall[0]({
+        ...nitroPurchase('fresh'),
+        transactionDate: Date.now(),
+      });
+      await settle();
+
+      expect(statuses).toEqual([{status: 'invalid'}]);
+      flow.dispose();
+    });
+
     it('forgets requests when a flow with its own listener is disposed', async () => {
       await IAP.requestPurchase({
         request: {apple: {sku: 'fresh'}},
