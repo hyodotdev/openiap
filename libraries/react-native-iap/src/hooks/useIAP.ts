@@ -369,6 +369,8 @@ export function useIAP(options?: UseIapOptions): UseIap {
   const isMountedRef = useRef<boolean>(false);
   const initializationGenerationRef = useRef(0);
   const productRequestGenerationRef = useRef(0);
+  // Reads can resolve out of order; only the latest one publishes.
+  const availablePurchasesGenerationRef = useRef(0);
   const productRequestOwnersRef = useRef(new Map<string, number>());
 
   const subscriptionsRefState = useRef<ProductSubscription[]>([]);
@@ -481,6 +483,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
 
   const getAvailablePurchasesInternal = useCallback(
     async (options?: PurchaseOptions): Promise<void> => {
+      const generation = ++availablePurchasesGenerationRef.current;
       try {
         const result = await getAvailablePurchases({
           alsoPublishToEventListenerIOS:
@@ -488,7 +491,10 @@ export function useIAP(options?: UseIapOptions): UseIap {
           onlyIncludeActiveItemsIOS: options?.onlyIncludeActiveItemsIOS ?? true,
           includeSuspendedAndroid: options?.includeSuspendedAndroid ?? false,
         });
-        if (isMountedRef.current) {
+        if (
+          isMountedRef.current &&
+          generation === availablePurchasesGenerationRef.current
+        ) {
           setAvailablePurchases(result);
         }
       } catch (error) {

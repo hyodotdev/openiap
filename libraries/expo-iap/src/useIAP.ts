@@ -185,6 +185,8 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   const isMountedRef = useRef<boolean>(false);
   const initializationGenerationRef = useRef(0);
   const startedInitializationGenerationRef = useRef(0);
+  // Reads can resolve out of order; only the latest one publishes.
+  const availablePurchasesGenerationRef = useRef(0);
 
   const mergeWithDuplicateCheck = useCallback(
     <T>(
@@ -383,6 +385,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
    */
   const getAvailablePurchasesInternal = useCallback(
     async (options?: PurchaseOptions): Promise<void> => {
+      const generation = ++availablePurchasesGenerationRef.current;
       try {
         const result = await getAvailablePurchases({
           alsoPublishToEventListenerIOS:
@@ -390,7 +393,9 @@ export function useIAP(options?: UseIAPOptions): UseIap {
           onlyIncludeActiveItemsIOS: options?.onlyIncludeActiveItemsIOS ?? true,
           includeSuspendedAndroid: options?.includeSuspendedAndroid ?? false,
         });
-        setAvailablePurchases(result);
+        if (generation === availablePurchasesGenerationRef.current) {
+          setAvailablePurchases(result);
+        }
       } catch (error) {
         ExpoIapConsole.error('Error fetching available purchases:', error);
         invokeOnError(error);
@@ -520,13 +525,16 @@ export function useIAP(options?: UseIAPOptions): UseIap {
       try {
         await restorePurchasesNative();
 
+        const generation = ++availablePurchasesGenerationRef.current;
         const purchases = await getAvailablePurchases({
           alsoPublishToEventListenerIOS:
             options?.alsoPublishToEventListenerIOS ?? false,
           onlyIncludeActiveItemsIOS: options?.onlyIncludeActiveItemsIOS ?? true,
           includeSuspendedAndroid: options?.includeSuspendedAndroid ?? false,
         });
-        setAvailablePurchases(purchases);
+        if (generation === availablePurchasesGenerationRef.current) {
+          setAvailablePurchases(purchases);
+        }
       } catch (error) {
         ExpoIapConsole.warn('Failed to restore purchases:', error);
         invokeOnError(error);

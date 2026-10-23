@@ -49,6 +49,7 @@ import type {
   FetchProductsResult,
   ProductAndroid,
   ProductSubscriptionAndroid,
+  Purchase,
   PurchaseError,
 } from '../../types';
 
@@ -977,6 +978,37 @@ describe('hooks/useIAP (renderer)', () => {
 
       expect(mockRestorePurchases).toHaveBeenCalled();
       expect(mockGetAvailablePurchases).toHaveBeenCalledTimes(1);
+    });
+
+    it('publishes only the latest available-purchases read', async () => {
+      let api: any;
+      const Harness = () => {
+        api = useIAP();
+        return null;
+      };
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      const listed = (id: string) => ({id, productId: id}) as Purchase;
+      let resolveOlder: (purchases: Purchase[]) => void = () => {};
+      mockGetAvailablePurchases
+        .mockImplementationOnce(
+          () =>
+            new Promise<Purchase[]>((resolve) => {
+              resolveOlder = resolve;
+            }),
+        )
+        .mockResolvedValueOnce([listed('newer')]);
+      await act(async () => {
+        const older = api.getAvailablePurchases();
+        await api.getAvailablePurchases();
+        resolveOlder([listed('older')]);
+        await older;
+      });
+
+      expect(api.availablePurchases).toEqual([listed('newer')]);
     });
 
     it('does not call onError when operations succeed', async () => {

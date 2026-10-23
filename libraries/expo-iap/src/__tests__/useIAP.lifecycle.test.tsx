@@ -45,7 +45,7 @@ const purchase = (overrides: Partial<Purchase> = {}): Purchase =>
     isAutoRenewing: true,
     platform: 'ios',
     ...overrides,
-  }) as Purchase;
+  } as Purchase);
 
 const roots: Root[] = [];
 
@@ -237,6 +237,36 @@ describe('useIAP lifecycle', () => {
       }
     },
   );
+
+  it('publishes only the latest available-purchases read', async () => {
+    let hook: Hook | undefined;
+    await mount(
+      <Harness
+        onHook={(value) => {
+          hook = value;
+        }}
+      />,
+    );
+    let resolveOlder: (purchases: Purchase[]) => void = () => {};
+    jest
+      .mocked(ExpoIapModule.getAvailableItems)
+      .mockImplementationOnce(
+        () =>
+          new Promise<Purchase[]>((resolve) => {
+            resolveOlder = resolve;
+          }),
+      )
+      .mockResolvedValueOnce([purchase({id: 'newer'})]);
+
+    await React.act(async () => {
+      const older = hook!.getAvailablePurchases();
+      await hook!.getAvailablePurchases();
+      resolveOlder([purchase({id: 'older'})]);
+      await older;
+    });
+
+    expect(hook!.availablePurchases).toEqual([purchase({id: 'newer'})]);
+  });
 
   it.each(['resolves', 'rejects'])(
     'stops an old hook refresh that %s after switching purchase flows',

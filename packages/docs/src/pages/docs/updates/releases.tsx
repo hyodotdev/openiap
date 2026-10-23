@@ -685,6 +685,16 @@ function Releases() {
               1.1 with &quot;this app links 1.0.3&quot;.
             </li>
           </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            <li>
+              <strong>react-native-iap 17.1.1</strong> and{' '}
+              <strong>expo-iap 6.1.2</strong>: <code>useIAP</code> keeps the
+              newest <code>availablePurchases</code> when reads overlap, so an
+              older read that answers last no longer replaces a pending plan
+              change with stale data.
+            </li>
+          </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
           <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
             {FRAMEWORK_PREPAID_RELEASES.map((release) => (
