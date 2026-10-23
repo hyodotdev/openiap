@@ -9,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import dev.hyo.godotiap.GodotIapConnectionLifecycle.Reconfigure
 
 class GodotIapConnectionLifecycleTest {
     private val defaultConfig = mapOf<String, Any?>("program" to null)
@@ -17,7 +18,13 @@ class GodotIapConnectionLifecycleTest {
     private fun GodotIapConnectionLifecycle.connect(
         config: Map<String, Any?> = defaultConfig,
         connect: (Long) -> Boolean = { true },
-    ) = init(config, connect, reconfigure = { true }, disconnect = { true }, cleanupListeners = {})
+    ) = init(
+        config,
+        connect = { generation, _ -> connect(generation) },
+        reconfigure = { Reconfigure.Applied },
+        disconnect = { true },
+        cleanupListeners = {},
+    )
 
     @Test
     fun `a changed configuration reconfigures the live connection without connecting again`() {
@@ -26,8 +33,8 @@ class GodotIapConnectionLifecycleTest {
         val reconfigures = AtomicInteger()
         fun init(config: Map<String, Any?>?) = lifecycle.init(
             config,
-            connect = { connects.incrementAndGet(); true },
-            reconfigure = { reconfigures.incrementAndGet(); true },
+            connect = { _, _ -> connects.incrementAndGet(); true },
+            reconfigure = { reconfigures.incrementAndGet(); Reconfigure.Applied },
             disconnect = { true },
             cleanupListeners = {},
         )
@@ -60,8 +67,8 @@ class GodotIapConnectionLifecycleTest {
 
         val failed = lifecycle.init(
             externalOffer,
-            connect = { error("already connected") },
-            reconfigure = { false },
+            connect = { _, _ -> error("already connected") },
+            reconfigure = { Reconfigure.Failed },
             disconnect = { events += "disconnect"; true },
             cleanupListeners = { events += "listeners-removed" },
         )
@@ -81,7 +88,7 @@ class GodotIapConnectionLifecycleTest {
         val thrown = runCatching {
             lifecycle.init(
                 externalOffer,
-                connect = { true },
+                connect = { _, _ -> true },
                 reconfigure = { error("billing unavailable") },
                 disconnect = { true },
                 cleanupListeners = {},
@@ -90,6 +97,81 @@ class GodotIapConnectionLifecycleTest {
 
         assertTrue(thrown is IllegalStateException)
         assertFalse(lifecycle.isConnected)
+    }
+
+    @Test
+    fun `a refused rebuild keeps the connection, its config, and its listeners`() {
+        val signals = Collections.synchronizedList(mutableListOf<String>())
+        val lifecycle = GodotIapConnectionLifecycle { connected ->
+            signals += if (connected) "connected" else "disconnected"
+        }
+        val teardowns = AtomicInteger()
+        lifecycle.connect()
+
+        val refused = lifecycle.init(
+            externalOffer,
+            connect = { _, _ -> error("already connected") },
+            reconfigure = { Reconfigure.Refused },
+            disconnect = { teardowns.incrementAndGet(); true },
+            cleanupListeners = { teardowns.incrementAndGet() },
+        )
+
+        assertFalse(refused.success)
+        assertTrue(lifecycle.isConnected)
+        assertEquals(0, teardowns.get())
+        assertEquals(listOf("connected"), signals)
+        // The active config is unchanged, so the same request is tried again.
+        val reconfigures = AtomicInteger()
+        lifecycle.init(
+            externalOffer,
+            connect = { _, _ -> error("already connected") },
+            reconfigure = { reconfigures.incrementAndGet(); Reconfigure.Applied },
+            disconnect = { true },
+            cleanupListeners = {},
+        )
+        assertEquals(1, reconfigures.get())
+    }
+
+    @Test
+    fun `a reconnect after a drop keeps the billing program until end or a failed connect`() {
+        val lifecycle = GodotIapConnectionLifecycle()
+        val requested = mutableListOf<Map<String, Any?>>()
+        fun reconnect() = lifecycle.init(
+            null,
+            connect = { _, config -> requested += config; true },
+            reconfigure = { Reconfigure.Applied },
+            disconnect = { true },
+            cleanupListeners = {},
+        )
+        var dropped = 0L
+        lifecycle.connect(externalOffer) { dropped = it; true }
+
+        lifecycle.end(disconnect = { true }, cleanupListeners = {}, onlyGeneration = dropped)
+        assertTrue(reconnect().success)
+        lifecycle.end(disconnect = { true }, cleanupListeners = {})
+        assertTrue(reconnect().success)
+        // The drop kept the program; an explicit end did not.
+        assertEquals(listOf(externalOffer, emptyMap<String, Any?>()), requested)
+    }
+
+    @Test
+    fun `a failed reconnect after a drop forgets the billing program`() {
+        val lifecycle = GodotIapConnectionLifecycle()
+        val requested = mutableListOf<Map<String, Any?>>()
+        fun reconnect(succeeds: Boolean) = lifecycle.init(
+            null,
+            connect = { _, config -> requested += config; succeeds },
+            reconfigure = { Reconfigure.Applied },
+            disconnect = { true },
+            cleanupListeners = {},
+        )
+        var dropped = 0L
+        lifecycle.connect(externalOffer) { dropped = it; true }
+        lifecycle.end(disconnect = { true }, cleanupListeners = {}, onlyGeneration = dropped)
+
+        assertFalse(reconnect(succeeds = false).success)
+        assertTrue(reconnect(succeeds = true).success)
+        assertEquals(listOf(externalOffer, emptyMap<String, Any?>()), requested)
     }
 
     @Test

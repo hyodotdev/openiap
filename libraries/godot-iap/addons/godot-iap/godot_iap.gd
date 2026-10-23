@@ -15,6 +15,8 @@ const AndroidStore = preload("android_store.gd")
 const PurchaseFlow = preload("purchase_flow.gd")
 
 const APPLE_PLATFORMS := ["iOS", "macOS"]
+# PURCHASE_REQUEST_CLOCK_SKEW_MS in specs/client/src/purchase-flow.ts: a game may run the device clock ahead.
+const PURCHASE_REQUEST_CLOCK_SKEW_MS := 600000
 const APPLE_ASYNC_RESULT_CACHE_LIMIT := 64
 const APPLE_ASYNC_TERMINAL_CACHE_LIMIT := 128
 
@@ -89,6 +91,8 @@ var _is_connected: bool = false
 var _is_initialized: bool = false
 ## Shared like the native listener it configures, so another wrapper's init cannot reset it.
 static var _purchase_updated_listener_options: Dictionary = {}
+## Purchase flows listening on any wrapper; while any do, StoreKit replays stay on.
+static var _listening_flow_count := 0
 var _apple_async_results: Dictionary = {}
 var _apple_async_result_order: Array[String] = []
 var _apple_async_waiters: Dictionary = {}
@@ -332,19 +336,25 @@ func init_connection(config = null) -> bool:
 	if _native_plugin:
 		if _platform == "Android":
 			_log("Calling Android initConnection...")
+			var connected: bool
 			if config != null:
 				var config_dict = config.to_dict() if typeof(config) == TYPE_OBJECT and config.has_method("to_dict") else config
-				_is_connected = _native_plugin.call("initConnectionWithConfig", JSON.stringify(config_dict))
+				connected = _native_plugin.call("initConnectionWithConfig", JSON.stringify(config_dict))
 			else:
-				_is_connected = _native_plugin.call("initConnection")
-			if not _is_connected:
-				var reported_message = _last_android_init_error_message()
-				if not reported_message.is_empty():
+				connected = _native_plugin.call("initConnection")
+			_is_connected = connected
+			if not connected:
+				var reported := _last_android_init_error()
+				# Native refuses a rebuild while a purchase is in progress and keeps the live connection.
+				_is_connected = reported.get("connected") == true
+				var reported_message = reported.get("message", "")
+				if reported.get("code", "") == "developer-error" and reported_message is String and not reported_message.is_empty():
 					print("[GodotIap] ERROR: initConnection failed. %s" % reported_message)
 				else:
 					print("[GodotIap] ERROR: initConnection failed. Check Google Play Services and billing setup.")
 			else:
 				_log("initConnection result: %s" % _is_connected)
+			return connected
 		elif _is_apple():
 			_log("Calling Apple initConnection...")
 			_apply_purchase_updated_listener_options_apple()
@@ -364,20 +374,11 @@ func init_connection(config = null) -> bool:
 
 
 # The error signal queues on the render thread, so read the stored cause back.
-func _last_android_init_error_message() -> String:
+func _last_android_init_error() -> Dictionary:
 	# has_method() doesn't work reliably with JNISingleton, so call directly.
 	var raw = _native_plugin.call("getLastInitError")
-	if not (raw is String) or raw.is_empty():
-		return ""
-	var reported = JSON.parse_string(raw)
-	if not (reported is Dictionary):
-		return ""
-	var message = reported.get("message", "")
-	if reported.get("code", "") != "developer-error" \
-		or not (message is String) \
-		or message.is_empty():
-		return ""
-	return message
+	var reported = JSON.parse_string(raw) if raw is String and not raw.is_empty() else null
+	return reported if reported is Dictionary else {}
 
 
 ## End the IAP connection.
@@ -433,7 +434,7 @@ func _apply_purchase_updated_listener_options_apple() -> void:
 		return
 	var options := _purchase_updated_listener_options
 	# A purchase flow deduplicates itself, and a replay is how a failed confirmation retries.
-	if not _listening_flows.is_empty():
+	if _listening_flow_count > 0:
 		options = options.merged({"dedupeTransactionIOS": false}, true)
 	_native_plugin.call("setPurchaseUpdatedListenerOptions", JSON.stringify(options))
 
@@ -718,9 +719,6 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 				"developer-error",
 				"Invalid request: offerToken requires type `in-app`"
 			)
-		var has_subscription_offers = (
-			google_props.has("subscriptionOffers") and google_props["subscriptionOffers"] != null
-		)
 		var subscription_offers = google_props.get("subscriptionOffers", [])
 		if subscription_offers == null:
 			subscription_offers = []
@@ -729,6 +727,8 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 				"developer-error",
 				"Invalid request: subscriptionOffers must contain sku and offerToken strings"
 			)
+		# Typed props always carry a list; an empty one means no offer was chosen.
+		var has_subscription_offers = not subscription_offers.is_empty()
 		if has_subscription_offers and purchase_type != "subs":
 			return _purchase_failure(
 				"developer-error",
@@ -1585,7 +1585,10 @@ func _purchase_dicts(result: Dictionary) -> Variant:
 func _listen_for_purchases(on_purchase: Callable) -> Callable:
 	# A signal connection does not keep the flow alive, so the wrapper holds it until dispose.
 	_listening_flows.append(on_purchase.get_object())
-	_apply_purchase_updated_listener_options_apple()
+	_listening_flow_count += 1
+	# Only the first flow changes the native listener.
+	if _listening_flow_count == 1:
+		_apply_purchase_updated_listener_options_apple()
 	# A failed or cancelled purchase ends what the user asked for; other operations tag a method.
 	var clear_requested := func(error: Dictionary) -> void:
 		if not error.has("method"):
@@ -1597,7 +1600,9 @@ func _listen_for_purchases(on_purchase: Callable) -> Callable:
 		purchase_error.disconnect(clear_requested)
 		_requested_skus.clear()
 		_listening_flows.erase(on_purchase.get_object())
-		_apply_purchase_updated_listener_options_apple()
+		_listening_flow_count -= 1
+		if _listening_flow_count == 0:
+			_apply_purchase_updated_listener_options_apple()
 
 
 func _mark_requested(skus: Array) -> void:
@@ -1610,9 +1615,8 @@ func _mark_requested(skus: Array) -> void:
 func _take_requested(purchase: Dictionary) -> bool:
 	var asked_at = _requested_skus.get(purchase.get("productId"))
 	var bought_at = purchase.get("transactionDate")
-	# A store's purchase time may run up to a minute behind the device clock.
 	var bought: bool = asked_at != null and (bought_at is int or bought_at is float) \
-		and bought_at >= asked_at - 60000 and _requested_skus.erase(purchase.productId)
+		and bought_at >= asked_at - PURCHASE_REQUEST_CLOCK_SKEW_MS and _requested_skus.erase(purchase.productId)
 	var changed := false
 	var change = purchase.get("pendingPurchaseUpdateAndroid")
 	if change is Dictionary:

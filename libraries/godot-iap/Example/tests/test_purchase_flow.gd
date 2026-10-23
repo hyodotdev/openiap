@@ -15,6 +15,14 @@ var _passed := 0
 var _failed := 0
 
 
+class ListenerOptionsApplePlugin:
+	extends EnvelopeTests.FakeImmediateApplePlugin
+	var listener_options: Array = []
+
+	func setPurchaseUpdatedListenerOptions(options_json: String) -> void:
+		listener_options.append(JSON.parse_string(options_json))
+
+
 class RecordingAndroidPlugin:
 	extends EnvelopeTests.FakeAndroidJsonPlugin
 	var provider_props := "{}"
@@ -54,6 +62,7 @@ func _run() -> void:
 	await _test_wrapper_tracks_requests()
 	await _test_wrapper_binding()
 	await _test_wrapper_holds_listening_flows()
+	await _test_flows_share_the_replay_setting()
 	print("Results: %d passed, %d failed" % [_passed, _failed])
 	quit(1 if _failed > 0 else 0)
 
@@ -500,13 +509,16 @@ func _test_wrapper_tracks_requests() -> void:
 	_check(published.size() == 1 and published[0].recovered, "A purchase error clears every request mark")
 	wrapper.request_purchase(_purchase_props("premium"))
 	var old_receipt := _android_purchase("GPA.old", "premium")
-	old_receipt["transactionDate"] = Time.get_unix_time_from_system() * 1000.0 - 120000
+	old_receipt["transactionDate"] = Time.get_unix_time_from_system() * 1000.0 - 20 * 60000
 	wrapper._on_android_purchase_updated(JSON.stringify(old_receipt))
 	await _settle(flow)
-	_check(published.size() == 2 and published[1].recovered, "A receipt older than the request is a redelivery")
+	_check(published.size() == 2 and published[1].recovered, "A receipt far older than the request is a redelivery")
 	# A storefront failure is not a purchase error, so the mark stays.
 	await wrapper.get_storefront()
-	wrapper._on_android_purchase_updated(JSON.stringify(_android_purchase("GPA.requested", "premium")))
+	var clock_ahead := _android_purchase("GPA.requested", "premium")
+	# A game that runs the device clock ahead makes the store's time look minutes old.
+	clock_ahead["transactionDate"] = Time.get_unix_time_from_system() * 1000.0 - 5 * 60000
+	wrapper._on_android_purchase_updated(JSON.stringify(clock_ahead))
 	await _settle(flow)
 	_check(published.size() == 3 and not published[2].recovered, "A delivery of a requested SKU counts as requested, past a storefront failure")
 	wrapper.request_purchase(_purchase_props("premium"))
@@ -559,7 +571,6 @@ func _test_wrapper_binding() -> void:
 	var apple := EnvelopeTests.FakeImmediateApplePlugin.new()
 	wrapper._native_plugin = apple
 	wrapper._platform = "macOS"
-	wrapper.set_purchase_updated_listener_options({})
 	var owned := _apple_purchase("tx-owned")
 	apple.responses["getPendingTransactionsIOS"] = JSON.stringify({"success": false, "code": "service-error", "error": "Transaction failed StoreKit verification"})
 	apple.responses["getAvailablePurchases"] = JSON.stringify({"success": true, "purchasesJson": JSON.stringify([owned])})
@@ -570,12 +581,10 @@ func _test_wrapper_binding() -> void:
 			return {"status": "entitled", "alreadyGranted": true},
 		"is_consumable": func(_product_id: String) -> bool: return false,
 	})
-	_check(JSON.parse_string(apple.responses.last_listener_options) == {"dedupeTransactionIOS": false}, "A listening flow receives StoreKit replays")
 	var outcomes = await flow.recover_purchases()
 	_check(confirmed == ["tx-owned"] and outcomes.size() == 1, "A failed pending-transaction read falls back to every owned Apple purchase")
 	_check(apple.responses.has("last_finish_args"), "The recovered Apple purchase is finished")
 	flow.dispose()
-	_check(JSON.parse_string(apple.responses.last_listener_options) == {}, "Dispose restores the app's replay setting")
 
 	var device_confirm: Callable = wrapper.confirm_on_device_ios()
 	apple.responses["getPendingTransactionsIOS"] = JSON.stringify({"success": true, "transactionsJson": JSON.stringify([owned])})
@@ -584,6 +593,41 @@ func _test_wrapper_binding() -> void:
 
 
 # Starts a coroutine now, to await later like a TS promise.
+func _test_flows_share_the_replay_setting() -> void:
+	# The count is shared with the example's autoload flow; start from none.
+	var others: int = GodotIapWrapper._listening_flow_count
+	GodotIapWrapper._listening_flow_count = 0
+	var wrappers := []
+	var fakes := []
+	for _index in 2:
+		var wrapper = GodotIapWrapper.new()
+		wrapper._is_initialized = true
+		root.add_child(wrapper)
+		var fake := ListenerOptionsApplePlugin.new()
+		wrapper._native_plugin = fake
+		wrapper._platform = "macOS"
+		wrappers.append(wrapper)
+		fakes.append(fake)
+	var flow_options := {
+		"confirm_with_backend": func(_purchase: Dictionary, _is_consumable: bool) -> Dictionary:
+			return {"status": "verified"},
+		"is_consumable": func(_product_id: String) -> bool: return false,
+	}
+	var first = wrappers[0].create_purchase_flow(flow_options)
+	_check(fakes[0].listener_options == [{"dedupeTransactionIOS": false}], "A listening flow receives StoreKit replays")
+	var second = wrappers[1].create_purchase_flow(flow_options)
+	_check(fakes[1].listener_options.is_empty(), "A second flow leaves the native listener alone")
+	await wrappers[1].init_connection()
+	_check(fakes[1].listener_options == [{"dedupeTransactionIOS": false}], "Another wrapper's init keeps replays on under a live flow")
+	first.dispose()
+	_check(fakes[0].listener_options.size() == 1, "Replays stay on while any flow listens")
+	second.dispose()
+	_check(fakes[1].listener_options.back() == {}, "The last dispose restores the app's replay setting")
+	for wrapper in wrappers:
+		wrapper.queue_free()
+	GodotIapWrapper._listening_flow_count = others
+
+
 func _test_wrapper_holds_listening_flows() -> void:
 	var wrapper = GodotIapWrapper.new()
 	wrapper._is_initialized = true

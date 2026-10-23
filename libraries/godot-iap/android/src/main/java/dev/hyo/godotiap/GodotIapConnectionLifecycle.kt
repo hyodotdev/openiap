@@ -20,12 +20,16 @@ internal class GodotIapConnectionLifecycle(
         val didEnd: Boolean,
     )
 
+    /** Native refuses a rebuild while a purchase is in progress and keeps the live client. */
+    internal enum class Reconfigure { Applied, Refused, Failed }
+
     private enum class State { Disconnected, Initializing, Connected, Ending }
 
     private val lock = Any()
 
     @Volatile
     private var state = State.Disconnected
+    // Kept across a drop, so a reconnect without a config restores the billing program.
     private var activeConfig: Map<String, Any?> = emptyMap()
 
     /** Numbers connection attempts, so a late teardown can tell it targets an older one. */
@@ -34,11 +38,11 @@ internal class GodotIapConnectionLifecycle(
     val isConnected: Boolean
         get() = state == State.Connected
 
-    /** [connect] gets the attempt's generation; while connected, a changed [config] goes to [reconfigure], and null keeps it. */
+    /** [connect] gets the attempt's generation and config; while connected, a changed [config] goes to [reconfigure], and null keeps it. */
     fun init(
         config: Map<String, Any?>?,
-        connect: (generation: Long) -> Boolean,
-        reconfigure: () -> Boolean,
+        connect: (generation: Long, config: Map<String, Any?>) -> Boolean,
+        reconfigure: () -> Reconfigure,
         disconnect: () -> Boolean,
         cleanupListeners: () -> Unit,
     ): InitResult = synchronized(lock) {
@@ -60,10 +64,11 @@ internal class GodotIapConnectionLifecycle(
         state = State.Initializing
         // Allocated before connecting, so a drop reported before connect returns targets this attempt.
         generation++
+        val requested = config ?: activeConfig
         val result = try {
-            val connected = connect(generation)
+            val connected = connect(generation, requested)
             if (connected) {
-                activeConfig = config.orEmpty().toMap()
+                activeConfig = requested.toMap()
                 state = State.Connected
             } else {
                 activeConfig = emptyMap()
@@ -82,26 +87,29 @@ internal class GodotIapConnectionLifecycle(
     // The listeners stay attached: native keeps them across a rebuilt client.
     private fun reconfigureLocked(
         config: Map<String, Any?>,
-        reconfigure: () -> Boolean,
+        reconfigure: () -> Reconfigure,
         disconnect: () -> Boolean,
         cleanupListeners: () -> Unit,
     ): InitResult {
         val reconfigured = try {
             reconfigure()
         } catch (error: Throwable) {
-            endLocked(disconnect, cleanupListeners)
+            endLocked(disconnect, cleanupListeners, keepConfig = false)
             throw error
         }
-        if (!reconfigured) {
+        when (reconfigured) {
+            Reconfigure.Applied -> activeConfig = config.toMap()
+            Reconfigure.Refused -> return InitResult(success = false, didConnect = false)
             // A failed rebuild leaves native without a client, so end this connection too.
-            endLocked(disconnect, cleanupListeners)
-            return InitResult(success = false, didConnect = false)
+            Reconfigure.Failed -> {
+                endLocked(disconnect, cleanupListeners, keepConfig = false)
+                return InitResult(success = false, didConnect = false)
+            }
         }
-        activeConfig = config.toMap()
         return InitResult(success = true, didConnect = false)
     }
 
-    /** With [onlyGeneration], ends only that connection and leaves a newer one alone. */
+    /** With [onlyGeneration], ends only that dropped connection, keeping its config for the reconnect. */
     fun end(
         disconnect: () -> Boolean,
         cleanupListeners: () -> Unit,
@@ -113,10 +121,14 @@ internal class GodotIapConnectionLifecycle(
         if (state != State.Connected) {
             return@synchronized EndResult(success = false, didEnd = false)
         }
-        endLocked(disconnect, cleanupListeners)
+        endLocked(disconnect, cleanupListeners, keepConfig = onlyGeneration != null)
     }
 
-    private fun endLocked(disconnect: () -> Boolean, cleanupListeners: () -> Unit): EndResult {
+    private fun endLocked(
+        disconnect: () -> Boolean,
+        cleanupListeners: () -> Unit,
+        keepConfig: Boolean,
+    ): EndResult {
         state = State.Ending
         var success = false
         try {
@@ -129,7 +141,7 @@ internal class GodotIapConnectionLifecycle(
             } finally {
                 // Listener cleanup is best-effort. A bridge implementation must
                 // never remain wedged in Ending if a removal callback throws.
-                activeConfig = emptyMap()
+                if (!keepConfig) activeConfig = emptyMap()
                 state = State.Disconnected
             }
         }

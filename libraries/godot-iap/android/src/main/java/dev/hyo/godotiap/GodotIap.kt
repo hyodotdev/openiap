@@ -39,7 +39,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     private lateinit var openIap: OpenIapProtocol
     private lateinit var store: OpenIapStore
     private lateinit var dropListener: OpenIapConnectionStateListener
-    private var lastInitError: OpenIapError.ProviderConfiguration? = null
+    private var lastInitError: OpenIapError? = null
     private val connectionLifecycle = GodotIapConnectionLifecycle { connected ->
         emitSignal(if (connected) "connected" else "disconnected")
     }
@@ -129,7 +129,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     // Render-thread signals arrive after initConnection returns; the wrapper log reads this.
     @UsedByGodot
-    fun getLastInitError(): String = GodotIapHelper.lastInitErrorJson(lastInitError)
+    fun getLastInitError(): String = GodotIapHelper.lastInitErrorJson(lastInitError, isInitialized)
 
     private fun initConnectionInternal(config: InitConnectionConfig?): Boolean {
         GodotIapLog.debug("initConnection called")
@@ -146,14 +146,16 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         val result = try {
             connectionLifecycle.init(
                 config = normalizedConfig,
-                connect = { generation ->
+                connect = { generation, requested ->
+                    // Each connect builds a new module, so the config kept across a drop goes along.
+                    val connectConfig = requested.takeIf { it.isNotEmpty() }?.let { InitConnectionConfig.fromJson(it) }
                     runBlocking {
                         val candidateModule = OpenIapProvider.create(activity)
                         val candidateStore = OpenIapStore(candidateModule)
                         val candidateDropListener = dropListenerFor(generation)
                         attachListeners(candidateModule, candidateStore, candidateDropListener)
                         try {
-                            val connected = candidateStore.initConnection(config)
+                            val connected = candidateStore.initConnection(connectConfig)
                             if (connected) {
                                 openIap = candidateModule
                                 store = candidateStore
@@ -173,22 +175,38 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                     }
                 },
                 // Native rebuilds the client only when the config changes what Play reads.
-                reconfigure = { runBlocking { store.initConnection(config) } },
+                reconfigure = {
+                    try {
+                        if (runBlocking { store.initConnection(config) }) {
+                            GodotIapConnectionLifecycle.Reconfigure.Applied
+                        } else {
+                            GodotIapConnectionLifecycle.Reconfigure.Failed
+                        }
+                    } catch (error: OpenIapError.DeveloperError) {
+                        // A purchase is in progress; native keeps the live client.
+                        reportInitError(error)
+                        GodotIapConnectionLifecycle.Reconfigure.Refused
+                    }
+                },
                 disconnect = ::disconnectStore,
                 cleanupListeners = ::detachActiveListeners,
             )
         } catch (error: Exception) {
             GodotIapLog.failure("initConnection", error)
             // A missing or incompatible provider is a build mistake, not a store outage.
-            (error as? OpenIapError.ProviderConfiguration)?.let {
-                lastInitError = it
-                purchaseErrorListener.onPurchaseError(it)
-            }
+            (error as? OpenIapError.ProviderConfiguration)?.let(::reportInitError)
             GodotIapConnectionLifecycle.InitResult(false, false)
         }
 
         GodotIapLog.result("initConnection", result.success)
         return result.success
+    }
+
+    // Tagged with its method, so the purchase flow does not read it as a failed purchase.
+    private fun reportInitError(error: OpenIapError) {
+        lastInitError = error
+        val payload = serializeOpenIapError(error) + ("method" to "initConnection")
+        emitSignal("purchase_error", JSONObject(payload).toString())
     }
 
     @UsedByGodot
