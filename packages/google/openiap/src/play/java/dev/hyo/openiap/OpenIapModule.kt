@@ -152,6 +152,45 @@ internal enum class BillingClientMode {
     UserChoice,
 }
 
+internal data class BillingConnectionConfiguration(
+    val billingClientMode: BillingClientMode,
+    val billingPrograms: Set<BillingProgramAndroid>,
+    val billingChoiceScreenType: BillingChoiceScreenTypeAndroid,
+)
+
+internal fun playConnectionConfiguration(
+    pendingPrograms: Set<BillingProgramAndroid>,
+    config: InitConnectionConfig?,
+): BillingConnectionConfiguration {
+    val programs = resolveBillingProgramsForConnection(
+        pendingPrograms,
+        config?.enableBillingProgramAndroid,
+    )
+    return BillingConnectionConfiguration(
+        billingClientMode = if (BillingProgramAndroid.UserChoiceBilling in programs) {
+            BillingClientMode.UserChoice
+        } else {
+            BillingClientMode.Standard
+        },
+        billingPrograms = programs,
+        // Play reads the renderer only for Billing Choice.
+        billingChoiceScreenType = config?.billingChoiceScreenTypeAndroid
+            ?.takeIf { BillingProgramAndroid.BillingChoice in programs }
+            ?.takeUnless { it == BillingChoiceScreenTypeAndroid.Unspecified }
+            ?: BillingChoiceScreenTypeAndroid.GoogleRendered,
+    )
+}
+
+/**
+ * A ready client stays unless the caller passed a config that asks Play for
+ * something else; `requested` is null when no config was passed.
+ */
+internal fun keepsLiveConnection(
+    ready: Boolean,
+    live: BillingConnectionConfiguration?,
+    requested: BillingConnectionConfiguration?,
+): Boolean = ready && (requested == null || requested == live)
+
 /**
  * Main OpenIapModule implementation for Android
  *
@@ -199,12 +238,8 @@ class OpenIapModule(
     private var connectionAttempt: ConnectionAttempt? = null
     @Volatile
     private var activeBillingClientMode = BillingClientMode.Standard
-
-    private data class BillingConnectionConfiguration(
-        val billingClientMode: BillingClientMode,
-        val billingPrograms: Set<BillingProgramAndroid>,
-        val billingChoiceScreenType: BillingChoiceScreenTypeAndroid,
-    )
+    // What the ready client was built with, so a changed config can rebuild it.
+    private var liveConnectionConfiguration: BillingConnectionConfiguration? = null
 
     private data class ConnectionAttempt(
         val generation: Long,
@@ -533,29 +568,20 @@ class OpenIapModule(
     override val initConnection: MutationInitConnectionHandler = { config ->
         withContext(Dispatchers.IO) {
             val start = synchronized(connectionLifecycleLock) {
-                if (billingClient?.isReady == true) return@withContext true
+                val attemptedPendingPrograms = pendingBillingPrograms.toSet()
+                val configuration =
+                    playConnectionConfiguration(attemptedPendingPrograms, config)
+                if (keepsLiveConnection(
+                        ready = billingClient?.isReady == true,
+                        live = liveConnectionConfiguration,
+                        requested = config?.let { configuration },
+                    )
+                ) {
+                    return@withContext true
+                }
                 connectionAttempt?.let { existing ->
                     return@synchronized ConnectionStart(existing, isOwner = false)
                 }
-
-                val attemptedPendingPrograms = pendingBillingPrograms.toSet()
-                val requestedBillingPrograms = resolveBillingProgramsForConnection(
-                    attemptedPendingPrograms,
-                    config?.enableBillingProgramAndroid,
-                )
-                val requestedBillingClientMode =
-                    if (BillingProgramAndroid.UserChoiceBilling in requestedBillingPrograms) {
-                        BillingClientMode.UserChoice
-                    } else {
-                        BillingClientMode.Standard
-                    }
-                val configuration = BillingConnectionConfiguration(
-                    billingClientMode = requestedBillingClientMode,
-                    billingPrograms = requestedBillingPrograms.toSet(),
-                    billingChoiceScreenType = config?.billingChoiceScreenTypeAndroid
-                        ?.takeUnless { it == BillingChoiceScreenTypeAndroid.Unspecified }
-                        ?: BillingChoiceScreenTypeAndroid.GoogleRendered,
-                )
                 val attempt = ConnectionAttempt(
                     connectionGeneration,
                     configuration,
@@ -687,6 +713,7 @@ class OpenIapModule(
                     val activeClient = replaceBillingClientLocked(null)
                     val activeAttempt = connectionAttempt
                     connectionAttempt = null
+                    liveConnectionConfiguration = null
                     pendingBillingPrograms.clear()
                     val activePurchase = pendingPurchase
                     clearPurchaseStateLocked()
@@ -729,6 +756,7 @@ class OpenIapModule(
             )
             if (owns) {
                 connectionAttempt = null
+                liveConnectionConfiguration = attempt.configuration.takeIf { connected }
                 if (!connected) replaceBillingClientLocked(null)
                 activeBillingClientMode = commitPlayConnectionConfiguration(
                     connected,
