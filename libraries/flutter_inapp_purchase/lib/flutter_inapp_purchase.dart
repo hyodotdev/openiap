@@ -151,6 +151,10 @@ class _SharedNativeState {
   /// Whether each Play purchase token was last seen acknowledged.
   final acknowledgedAndroidPurchaseTokens = <String, bool>{};
 
+  /// Whether native keeps a billing program the app chose, even after a drop
+  /// or a failed connect; only endConnection forgets it.
+  bool billingProgramKept = false;
+
   /// A new connection replays transactions, so delivered ids start over.
   void markDisconnected() {
     connectionDrops++;
@@ -578,6 +582,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               await _shared.purchaseListenerConfiguration.idle;
 
               attempted = true;
+              if (config.isNotEmpty && _platform.isAndroid) {
+                _shared.billingProgramKept = true;
+              }
               final nativeResult = await _channel.invokeMethod<Object?>(
                 'initConnection',
                 config.isEmpty ? null : config,
@@ -612,7 +619,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// See: https://openiap.dev/docs/apis/end-connection
   gentype.MutationEndConnectionHandler get endConnection =>
       () => _shared.connectionChanges.run(() async {
-            if (!_isInitialized) {
+            // A dropped or failed connection still needs native to forget
+            // the billing program it kept.
+            if (!_isInitialized && !_shared.billingProgramKept) {
               return false;
             }
 
@@ -624,6 +633,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               // The native connection is shared, so every instance must
               // reconnect.
               _shared.markDisconnected();
+              _shared.billingProgramKept = false;
               _isIapUnavailable = false;
               return true;
             } on PlatformException catch (error) {

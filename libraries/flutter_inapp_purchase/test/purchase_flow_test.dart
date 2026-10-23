@@ -959,6 +959,35 @@ void main() {
       });
     });
 
+    test('ends native after a drop or a failed connect kept a program',
+        () async {
+      for (final connects in [true, false]) {
+        final iap = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: 'android'),
+        );
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(_channel, (call) async {
+          calls.add(call);
+          return call.method == 'initConnection' ? connects : true;
+        });
+        await iap.initConnection(
+          enableBillingProgramAndroid: BillingProgramAndroid.ExternalOffer,
+        );
+        if (connects) {
+          await _sendNative(
+            'connection-updated',
+            jsonEncode({'connected': false}),
+          );
+        }
+        calls.clear();
+
+        // Native would reconnect with the old program unless it is ended.
+        expect(await iap.endConnection(), isTrue);
+        expect(calls.map((call) => call.method), ['endConnection']);
+        expect(await iap.endConnection(), isFalse);
+      }
+    });
+
     test('a failed reconnect leaves the store disconnected', () async {
       final iap = FlutterInappPurchase.private(
         FakePlatform(operatingSystem: 'android'),
