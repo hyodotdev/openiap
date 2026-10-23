@@ -504,29 +504,30 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     [toPurchaseInput],
   );
 
-  const refreshSubscriptionStatus = useCallback(
+  // Replaces the reads a purchase invalidated; a known subscription also
+  // refreshes its catalog entry and the active subscriptions.
+  const refreshAfterPurchase = useCallback(
     async (productId: string) => {
-      if (!subscriptionsRefState.current.some((sub) => sub.id === productId)) {
-        return;
-      }
       const generation = initializationGenerationRef.current;
       const isCurrent = (): boolean =>
         isMountedRef.current &&
         initializationGenerationRef.current === generation;
-      for (const refresh of [
-        () => fetchProductsInternal({skus: [productId], type: 'subs'}),
-        getAvailablePurchasesInternal,
-        getActiveSubscriptionsInternal,
-      ]) {
+      const refreshes = subscriptionsRefState.current.some(
+        (sub) => sub.id === productId,
+      )
+        ? [
+            () => fetchProductsInternal({skus: [productId], type: 'subs'}),
+            getAvailablePurchasesInternal,
+            getActiveSubscriptionsInternal,
+          ]
+        : [getAvailablePurchasesInternal];
+      for (const refresh of refreshes) {
         if (!isCurrent()) return;
         try {
           await refresh();
         } catch (error) {
           if (isCurrent()) {
-            ExpoIapConsole.warn(
-              'Failed to refresh subscription status:',
-              error,
-            );
+            ExpoIapConsole.warn('Failed to refresh after a purchase:', error);
           }
         }
       }
@@ -624,10 +625,9 @@ export function useIAP(options?: UseIAPOptions): UseIap {
         ExpoIapConsole.error('[useIAP] onPurchaseSuccess failed:', error);
       }
 
-      // Safe for any purchase: it skips products that are not known subscriptions.
-      await refreshSubscriptionStatus(purchase.productId);
+      await refreshAfterPurchase(purchase.productId);
     },
-    [refreshSubscriptionStatus],
+    [refreshAfterPurchase],
   );
 
   // Registers only missing listeners, so reconnect can restore removed ones.

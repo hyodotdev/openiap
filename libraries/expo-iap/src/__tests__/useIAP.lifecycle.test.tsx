@@ -407,25 +407,29 @@ describe('useIAP lifecycle', () => {
     ]);
   });
 
-  it('drops a read that started before any purchase arrived', async () => {
+  it('replaces a read that started before any purchase arrived', async () => {
     let hook: Hook | undefined;
     await mount(<Harness onHook={(value) => (hook = value)} />);
     let resolveOlder: (purchases: Purchase[]) => void = () => {};
-    jest.mocked(ExpoIapModule.getAvailableItems).mockImplementationOnce(
-      () =>
-        new Promise<Purchase[]>((resolve) => {
-          resolveOlder = resolve;
-        }),
-    );
+    const coins = purchase({id: 'coins', productId: 'coins_100'});
+    jest
+      .mocked(ExpoIapModule.getAvailableItems)
+      .mockImplementationOnce(
+        () =>
+          new Promise<Purchase[]>((resolve) => {
+            resolveOlder = resolve;
+          }),
+      )
+      .mockResolvedValueOnce([coins]);
 
     await React.act(async () => {
       const older = hook!.getAvailablePurchases();
-      await purchaseHandler!(purchase({id: 'coins', productId: 'coins_100'}));
+      await purchaseHandler!(coins);
       resolveOlder([purchase({id: 'before-purchase'})]);
       await older;
     });
 
-    expect(hook!.availablePurchases).toEqual([]);
+    expect(hook!.availablePurchases).toEqual([coins]);
   });
 
   it('publishes a read the purchase callback starts', async () => {
