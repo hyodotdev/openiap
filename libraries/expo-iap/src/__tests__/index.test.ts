@@ -2503,6 +2503,54 @@ describe('Public API (index.ts)', () => {
       jest.clearAllMocks();
     });
 
+    it('fills the IAPKit key from the app config', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      jest.resetModules();
+      jest.doMock('expo-constants', () => ({
+        __esModule: true,
+        default: {expoConfig: {extra: {iapkitApiKey: 'pk-config'}}},
+      }));
+      (
+        ExpoIapModule.verifyPurchaseWithProvider as jest.Mock
+      ).mockResolvedValueOnce({provider: 'iapkit'});
+      try {
+        await verifyPurchaseWithProvider({
+          provider: 'iapkit',
+          iapkit: {apple: {jws: 'jws'}},
+        });
+      } finally {
+        jest.dontMock('expo-constants');
+      }
+
+      expect(ExpoIapModule.verifyPurchaseWithProvider).toHaveBeenCalledWith({
+        provider: 'iapkit',
+        iapkit: {apple: {jws: 'jws'}, apiKey: 'pk-config'},
+      });
+    });
+
+    it('keeps the reason it could not read the IAPKit key', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      const reason = new Error('module failed to load');
+      jest.resetModules();
+      jest.doMock('expo-constants', () => {
+        throw reason;
+      });
+      try {
+        await expect(
+          verifyPurchaseWithProvider({
+            provider: 'iapkit',
+            iapkit: {apple: {jws: 'jws'}},
+          }),
+        ).rejects.toMatchObject({
+          message: expect.stringContaining('Could not read iapkitApiKey'),
+          cause: reason,
+        });
+      } finally {
+        jest.dontMock('expo-constants');
+      }
+      expect(ExpoIapModule.verifyPurchaseWithProvider).not.toHaveBeenCalled();
+    });
+
     it('calls native module with IAPKit provider on iOS', async () => {
       Object.assign(Platform, {OS: 'ios'});
       const mockResult = {

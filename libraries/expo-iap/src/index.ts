@@ -1418,25 +1418,27 @@ export const verifyPurchaseWithProvider: MutationField<
     resolvedOptions.iapkit &&
     !resolvedOptions.iapkit.apiKey
   ) {
+    let configApiKey: unknown;
     try {
       // Dynamically import expo-constants to avoid hard dependency
       const {default: Constants} = await import('expo-constants');
-      const configApiKey = Constants.expoConfig?.extra?.iapkitApiKey;
-      if (typeof configApiKey === 'string' && configApiKey.length > 0) {
-        resolvedOptions = {
-          ...resolvedOptions,
-          iapkit: {
-            ...resolvedOptions.iapkit,
-            apiKey: configApiKey,
-          },
-        };
-      }
-    } catch {
+      configApiKey = Constants.expoConfig?.extra?.iapkitApiKey;
+    } catch (error) {
       throw new Error(
-        'expo-constants is required for auto-filling iapkitApiKey from config. ' +
-          'Please install it: npx expo install expo-constants\n' +
-          'Or provide apiKey directly in verifyPurchaseWithProvider options.',
+        'Could not read iapkitApiKey from expo-constants. Install it with ' +
+          '`npx expo install expo-constants`, or pass apiKey in ' +
+          'verifyPurchaseWithProvider options.',
+        {cause: error},
       );
+    }
+    if (typeof configApiKey === 'string' && configApiKey.length > 0) {
+      resolvedOptions = {
+        ...resolvedOptions,
+        iapkit: {
+          ...resolvedOptions.iapkit,
+          apiKey: configApiKey,
+        },
+      };
     }
   }
 
