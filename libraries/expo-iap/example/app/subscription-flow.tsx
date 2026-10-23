@@ -1911,15 +1911,6 @@ function SubscriptionFlowContainer() {
 
     if (!mountedRef.current) return;
 
-    const latestPlanChange =
-      pendingPlanChangesRef.current.get(purchaseCleanupKey);
-    setPurchaseResult(
-      latestPlanChange ??
-        (isRestoration
-          ? 'Subscription restored and finished successfully.'
-          : 'Subscription activated and finished successfully.'),
-    );
-
     if (Platform.OS === 'android' && iapkitVerifyRequest) {
       try {
         const refreshedResult =
@@ -1938,6 +1929,15 @@ function SubscriptionFlowContainer() {
 
     if (!mountedRef.current) return;
 
+    // Read once, after the refresh: a pending change can arrive while it runs.
+    const latestPlanChange =
+      pendingPlanChangesRef.current.get(purchaseCleanupKey);
+    setPurchaseResult(
+      latestPlanChange ??
+        (isRestoration
+          ? 'Subscription restored and finished successfully.'
+          : 'Subscription activated and finished successfully.'),
+    );
     if (!latestPlanChange) {
       showNativeAlert(
         'Success',
