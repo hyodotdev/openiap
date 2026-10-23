@@ -331,7 +331,6 @@ class HybridRnIap : HybridRnIapSpec() {
     private val subscriptionBillingIssueListeners = mutableListOf<(NitroPurchase) -> Unit>()
     private var listenersAttached = false
     private val readiness = ConnectionReadiness()
-    private var isInitialized by readiness::isInitialized
     private val connectionLifecycleQueue = ConnectionLifecycleQueue()
     
     // Variant wrapper helpers shared by the generated Nitrogen bindings.
@@ -399,7 +398,7 @@ class HybridRnIap : HybridRnIapSpec() {
                     // fast (#408). JS still learns of it only from the next call.
                     openIap.addConnectionStateListener(
                         OpenIapConnectionStateListener {
-                            isInitialized = false
+                            readiness.isInitialized = false
                             RnIapLog.warn(
                                 "billing service disconnected; connection must be re-initialized"
                             )
@@ -493,7 +492,7 @@ class HybridRnIap : HybridRnIapSpec() {
                         messageOverride = "Failed to register billing listeners: $errorMessage"
                     )
                 )
-                isInitialized = false
+                readiness.isInitialized = false
                 throw wrapped
             }
 
@@ -562,7 +561,7 @@ class HybridRnIap : HybridRnIapSpec() {
                     endConnection = { openIap.endConnection() },
                     cleanup = {
                         productTypeBySku.clear()
-                        isInitialized = false
+                        readiness.isInitialized = false
                         // Native listener sets persist; clear only bridge callbacks and
                         // the pending event queues.
                         synchronized(purchaseUpdatedListeners) {
@@ -683,7 +682,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 return@async defaultResult
             }
 
-            if (rejectDisconnectedPurchase(isInitialized) { error ->
+            if (rejectDisconnectedPurchase(readiness.isInitialized) { error ->
                 RnIapLog.warn("requestPurchase without an active billing connection")
                 sendPurchaseError(toErrorResult(error))
             }) {
