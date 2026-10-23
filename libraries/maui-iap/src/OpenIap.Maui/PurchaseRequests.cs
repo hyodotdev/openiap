@@ -12,8 +12,8 @@ namespace OpenIap.Maui;
 
 internal static class PurchaseRequests
 {
-    // A store's purchase time may run slightly behind the device clock.
-    private const double ClockSkewMs = 60_000;
+    // PURCHASE_REQUEST_CLOCK_SKEW_MS in specs/client/src/purchase-flow.ts: device clocks run ahead.
+    private const double ClockSkewMs = 600_000;
 
     private static readonly Dictionary<string, double> Requested = new(StringComparer.Ordinal);
 

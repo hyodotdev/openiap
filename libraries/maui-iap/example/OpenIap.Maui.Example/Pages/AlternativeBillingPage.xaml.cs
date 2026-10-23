@@ -212,18 +212,14 @@ public partial class AlternativeBillingPage : ContentPage
 
         if (choice.StartsWith("User Choice", StringComparison.Ordinal))
         {
-            _androidBillingFlow = AndroidBillingFlow.UserChoiceBilling;
-            _billingProgram = BillingProgramAndroid.UserChoiceBilling;
-            await ReconnectWithProgramAsync(_billingProgram);
+            await ReconnectWithProgramAsync(BillingProgramAndroid.UserChoiceBilling, AndroidBillingFlow.UserChoiceBilling);
         }
         else
         {
-            _androidBillingFlow = AndroidBillingFlow.BillingPrograms;
-            if (_billingProgram == BillingProgramAndroid.UserChoiceBilling)
-            {
-                _billingProgram = BillingProgramAndroid.ExternalOffer;
-            }
-            await ReconnectWithProgramAsync(_billingProgram);
+            var program = _billingProgram == BillingProgramAndroid.UserChoiceBilling
+                ? BillingProgramAndroid.ExternalOffer
+                : _billingProgram;
+            await ReconnectWithProgramAsync(program, AndroidBillingFlow.BillingPrograms);
         }
 #else
         await Task.CompletedTask;
@@ -242,20 +238,19 @@ public partial class AlternativeBillingPage : ContentPage
             "External Content Link");
         if (choice is null or "Cancel") return;
 
-        _billingProgram = choice switch
+        var program = choice switch
         {
             "External Payments" => BillingProgramAndroid.ExternalPayments,
             "External Content Link" => BillingProgramAndroid.ExternalContentLink,
             _ => BillingProgramAndroid.ExternalOffer,
         };
-        _androidBillingFlow = AndroidBillingFlow.BillingPrograms;
-        await ReconnectWithProgramAsync(_billingProgram);
+        await ReconnectWithProgramAsync(program, AndroidBillingFlow.BillingPrograms);
 #else
         await Task.CompletedTask;
 #endif
     }
 
-    private async Task ReconnectWithProgramAsync(BillingProgramAndroid program)
+    private async Task ReconnectWithProgramAsync(BillingProgramAndroid program, AndroidBillingFlow flow)
     {
         try
         {
@@ -263,15 +258,17 @@ public partial class AlternativeBillingPage : ContentPage
             ReconnectBanner.IsVisible = true;
             ShowResult("Reconnecting with new billing program...");
 
-            // A changed config reconnects natively.
+            // A changed config reconnects natively; a refusal keeps the live program, so commit only on success.
             await OpenIapClient.Mutation.InitConnectionAsync(new InitConnectionConfig { EnableBillingProgramAndroid = program });
+            _billingProgram = program;
+            _androidBillingFlow = flow;
             ShowResult($"✅ Reconnected with {ProgramName(program)} program");
             UpdateModeLabels();
             await LoadProductsAsync();
         }
         catch (Exception ex)
         {
-            ShowResult($"❌ Reconnection failed: {ErrorUtils.ExtractErrorMessage(ex)}");
+            ShowResult($"❌ Still on {ProgramName(_billingProgram)}: {ErrorUtils.ExtractErrorMessage(ex)}");
         }
         finally
         {

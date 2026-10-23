@@ -126,9 +126,10 @@ public class OpenIapClientFacadeTests
                     RequestPurchase = new() { Apple = new() { Sku = "coins" }, Google = new() { Skus = ["coins"] } },
                 },
                 () => Task.FromResult(0));
-            // A receipt older than the request is a redelivery and leaves the mark.
+            // A receipt far older than the request is a redelivery and leaves the mark.
             Assert.False(PurchaseRequests.Take(Bought("GPA.0", "coins") with { TransactionDate = Now() - 3_600_000 }));
-            Assert.True(PurchaseRequests.Take(Bought("GPA.1", "coins")));
+            // A device clock up to ten minutes ahead still counts as the user's purchase.
+            Assert.True(PurchaseRequests.Take(Bought("GPA.1", "coins") with { TransactionDate = Now() - 540_000 }));
             Assert.False(PurchaseRequests.Take(Bought("GPA.1", "coins")));
 
             await Assert.ThrowsAsync<InvalidOperationException>(() => PurchaseRequests.Track(
