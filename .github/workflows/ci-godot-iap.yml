@@ -250,6 +250,13 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      # The image's default Xcode can move past the App Store SDK the
+      # committed frameworks pin; build with the pinned one.
+      - name: Set up Xcode
+        uses: ./.github/actions/setup-xcode
+        with:
+          xcode-version: "27.0"
+
       - name: Build iOS and macOS frameworks
         run: make ios macos
 

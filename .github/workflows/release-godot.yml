@@ -325,6 +325,14 @@ jobs:
         if: ${{ steps.check_tag.outputs.exists != 'true' }}
         run: make android GODOT_VERSION="$GODOT_MINIMUM"
 
+      # The image's default Xcode can move past the App Store SDK the
+      # verify step pins; build with the pinned one.
+      - name: Set up Xcode
+        if: ${{ steps.check_tag.outputs.exists != 'true' }}
+        uses: ./.github/actions/setup-xcode
+        with:
+          xcode-version: "27.0"
+
       - name: Build iOS and macOS frameworks
         if: ${{ steps.check_tag.outputs.exists != 'true' }}
         run: make ios macos GODOT_VERSION="$GODOT_MINIMUM"
