@@ -55,6 +55,7 @@ const vectors: {
   }[];
   device: {
     name: string;
+    clock?: { beforeRead: number; afterRead: number };
     purchase: PurchaseFlowPurchase;
     pending: PurchaseFlowPurchase[];
     isConsumable: boolean;
@@ -747,27 +748,6 @@ describe("listening", () => {
   });
 });
 
-describe("createDeviceConfirmationIOS", () => {
-  it("refuses a transaction that expires while StoreKit answers", async () => {
-    vi.useFakeTimers({ now: 1_000 });
-    try {
-      const item = purchase({ store: "apple", storeId: "apple" });
-      const confirm = createDeviceConfirmationIOS<PurchaseFlowPurchase>(
-        async () => {
-          vi.setSystemTime(3_000);
-          return [{ ...item, expirationDateIOS: 2_000 }];
-        },
-      );
-
-      await expect(confirm(item, { isConsumable: false })).rejects.toThrow(
-        "StoreKit lists no valid unfinished transaction",
-      );
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-});
-
 describe("confirmTimeoutMs", () => {
   it("treats a timeout too long for setTimeout as the longest one", async () => {
     const { flow } = flowWith(
@@ -1234,24 +1214,33 @@ describe("shared vectors", () => {
   it.each(vectors.device.map((v) => [v.name, v] as const))(
     "device: %s",
     async (_, vector) => {
-      const grant = vi.fn(async () => {});
-      const read = vi.fn(async () => vector.pending);
-      const confirm = createDeviceConfirmationIOS(
-        read,
-        vector.noGrant ? {} : { grant },
-      );
+      const { clock } = vector;
+      if (clock) vi.useFakeTimers({ now: clock.beforeRead });
+      try {
+        const grant = vi.fn(async () => {});
+        const read = vi.fn(async () => {
+          if (clock) vi.setSystemTime(clock.afterRead);
+          return vector.pending;
+        });
+        const confirm = createDeviceConfirmationIOS(
+          read,
+          vector.noGrant ? {} : { grant },
+        );
 
-      const answer = confirm(vector.purchase, {
-        isConsumable: vector.isConsumable,
-      });
+        const answer = confirm(vector.purchase, {
+          isConsumable: vector.isConsumable,
+        });
 
-      if (vector.error) {
-        await expect(answer).rejects.toThrow();
-      } else {
-        await expect(answer).resolves.toEqual(vector.confirmation);
+        if (vector.error) {
+          await expect(answer).rejects.toThrow();
+        } else {
+          await expect(answer).resolves.toEqual(vector.confirmation);
+        }
+        expect(read).toHaveBeenCalledTimes(vector.reads === false ? 0 : 1);
+        expect(grant).toHaveBeenCalledTimes(vector.granted ? 1 : 0);
+      } finally {
+        vi.useRealTimers();
       }
-      expect(read).toHaveBeenCalledTimes(vector.reads === false ? 0 : 1);
-      expect(grant).toHaveBeenCalledTimes(vector.granted ? 1 : 0);
     },
   );
 

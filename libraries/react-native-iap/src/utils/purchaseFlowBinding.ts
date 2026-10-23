@@ -77,6 +77,9 @@ export function createSdkPurchaseFlow(
   options: SdkPurchaseFlowOptions,
 ): PurchaseFlow<Purchase> {
   const manual = options.finishTransaction !== undefined;
+  // Whatever listens, a failed or cancelled request ends what the user asked
+  // for, and the next account's flow must not inherit requests.
+  const errors = manual ? undefined : sdk.purchaseErrorListener(clearRequested);
   const flow = createPurchaseFlow({
     finishTransaction: sdk.finishTransaction,
     getAvailablePurchases: sdk.getAvailablePurchases,
@@ -84,26 +87,17 @@ export function createSdkPurchaseFlow(
     ...(manual
       ? {}
       : {
-          listenForPurchases: (onPurchase: (purchase: Purchase) => void) => {
-            const updates = sdk.purchaseUpdatedListener(onPurchase);
-            // A failed or cancelled request ends what the user asked for.
-            const errors = sdk.purchaseErrorListener(clearRequested);
-            return {
-              remove: () => {
-                updates.remove();
-                errors.remove();
-              },
-            };
-          },
+          listenForPurchases: (onPurchase: (purchase: Purchase) => void) =>
+            sdk.purchaseUpdatedListener(onPurchase),
           wasRequested: takeRequested,
         }),
     ...options,
   });
-  // Whatever listens, the next account's flow must not inherit requests.
   return {
     ...flow,
     dispose: () => {
       flow.dispose();
+      errors?.remove();
       clearRequested();
     },
   };

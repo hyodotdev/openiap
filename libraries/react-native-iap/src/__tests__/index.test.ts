@@ -361,6 +361,48 @@ describe('Public API (src/index.ts)', () => {
       expect(statuses).toEqual([{status: 'invalid', recovered: true}]);
     });
 
+    it('forgets a request the store answered with an error, whatever listens', async () => {
+      const errorListenersBefore =
+        mockIap.addPurchaseErrorListener.mock.calls.length;
+      let deliverOwn: (purchase: Purchase) => void = () => {};
+      const flow = IAP.createPurchaseFlow({
+        confirmWithBackend: async () => ({status: 'invalid' as const}),
+        isConsumable: () => false,
+        listenForPurchases: (onPurchase: (purchase: Purchase) => void) => {
+          deliverOwn = onPurchase;
+          return {remove: () => {}};
+        },
+      });
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome: {status: unknown}) =>
+        statuses.push(outcome.status),
+      );
+
+      await IAP.requestPurchase({
+        request: {apple: {sku: 'fresh'}},
+        type: 'in-app',
+      });
+      mockIap.addPurchaseErrorListener.mock.calls[errorListenersBefore][0]({
+        code: 'user-cancelled',
+        message: 'cancelled',
+      });
+      deliverOwn({
+        id: 'tx-fresh',
+        transactionId: 'tx-fresh',
+        productId: 'fresh',
+        store: 'apple',
+        storeId: 'apple',
+        purchaseState: 'purchased',
+        transactionDate: Date.now(),
+        quantity: 1,
+        isAutoRenewing: false,
+      });
+      await settle();
+
+      expect(statuses).toEqual([{status: 'invalid', recovered: true}]);
+      flow.dispose();
+    });
+
     it('restores through the SDK store reads and finishing', async () => {
       mockIap.getPendingTransactionsIOS = jest.fn(async () => []);
       mockIap.getAvailablePurchases = jest.fn(async () => [

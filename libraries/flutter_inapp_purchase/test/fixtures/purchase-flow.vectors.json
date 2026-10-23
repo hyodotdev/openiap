@@ -1,5 +1,5 @@
 {
-  "$comment": "Shared cases for every purchase-flow port. process: one processPurchase call. iapkit: confirmWithIapkit with a fake verifyPurchaseWithProvider, apiKey \"pk\" unless the case sets apiKey (null: none passed); props null means building the request throws. sequences: deliveries through the flow's listener (listener), processPurchase (process), or recoverPurchases (recover); each step's deliveries start together and settle before the next step. answers: confirmWithBackend results per purchase id, used in order with the last repeating; the string \"throw\" throws. A port compares every listed field; error: true means a thrown error or a failed status, finishError: true a status carrying one, whatever the message. device: confirmOnDeviceIOS over a fake getPendingTransactionsIOS returning pending (reads false: never called). requestedOnce: wasRequested answers true only once per listed id, like an SDK's request mark.",
+  "$comment": "Shared cases for every purchase-flow port. process: one processPurchase call. iapkit: confirmWithIapkit with a fake verifyPurchaseWithProvider, apiKey \"pk\" unless the case sets apiKey (null: none passed); props null means building the request throws. sequences: deliveries through the flow's listener (listener), processPurchase (process), or recoverPurchases (recover); each step's deliveries start together and settle before the next step. answers: confirmWithBackend results per purchase id, used in order with the last repeating; the string \"throw\" throws. A port compares every listed field; error: true means a thrown error or a failed status, finishError: true a status carrying one, whatever the message. device: confirmOnDeviceIOS over a fake getPendingTransactionsIOS returning pending (reads false: never called); clock sets the time in ms before the call (beforeRead) and while the read answers (afterRead). requestedOnce: wasRequested answers true only once per listed id, like an SDK's request mark.",
   "schemaVersion": 1,
   "process": [
     {
@@ -2272,6 +2272,30 @@
           "id": "tx-7",
           "productId": "premium",
           "expirationDateIOS": 946684800000
+        }
+      ],
+      "isConsumable": false,
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "refuses a transaction that expires while StoreKit answers",
+      "clock": { "beforeRead": 1000, "afterRead": 3000 },
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-expiring",
+        "productId": "premium"
+      },
+      "pending": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-expiring",
+          "productId": "premium",
+          "expirationDateIOS": 2000
         }
       ],
       "isConsumable": false,

@@ -593,7 +593,7 @@ BILLING_CHOICE added in OpenIAP 2.1.0 / openiap-google 2.3.0
 """
 enum BillingProgramAndroid {
   """
-  Unspecified billing program. Do not use.
+  No billing program. In InitConnectionConfig, it selects the standard client.
   """
   UNSPECIFIED
   """

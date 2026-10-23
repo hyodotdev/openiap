@@ -203,7 +203,7 @@ enum BillingChoiceScreenTypeAndroid {
 /// BILLING_CHOICE added in OpenIAP 2.1.0 / openiap-google 2.3.0
 /// (requires Play Billing 9.1.0+).
 enum BillingProgramAndroid {
-  /// Unspecified billing program. Do not use.
+  /// No billing program. In InitConnectionConfig, it selects the standard client.
   Unspecified('unspecified'),
   /// User Choice Billing program.
   /// User can select between Google Play Billing or alternative billing.
