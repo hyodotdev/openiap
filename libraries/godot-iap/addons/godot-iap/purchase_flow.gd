@@ -18,6 +18,9 @@ signal purchase_processed(purchase: Dictionary, status: Status)
 
 const IAPKIT_UNKNOWN_RETRY_MS := 30000
 
+# Unix time in ms that tests set; null reads the system clock.
+static var _clock_ms: Variant = null
+
 
 ## Where a purchase stands after the flow ran.
 class Status:
@@ -487,10 +490,11 @@ static func create_device_confirmation_ios(get_pending_transactions_ios: Callabl
 		var store_id = purchase.get("storeId")
 		if purchase.get("store") != "apple" or (store_id != null and store_id != "apple"):
 			return Failure.new("Device confirmation covers App Store purchases, not %s" % (purchase.get("store") if store_id == null else store_id))
-		var now := Time.get_unix_time_from_system() * 1000.0
 		var pending = await get_pending_transactions_ios.call()
 		if pending is Failure:
 			return pending
+		# After the query: a transaction can expire while StoreKit answers.
+		var now := _now_ms()
 		var verified: bool = pending.any(func(candidate: Dictionary) -> bool:
 			var expiration = candidate.get("expirationDateIOS")
 			var environment = purchase.get("environmentIOS")
@@ -508,6 +512,10 @@ static func create_device_confirmation_ios(get_pending_transactions_ios: Callabl
 		if failed_grant != null:
 			return failed_grant
 		return {"status": "entitled", "alreadyGranted": false}
+
+
+static func _now_ms() -> float:
+	return Time.get_unix_time_from_system() * 1000.0 if _clock_ms == null else float(_clock_ms)
 
 
 # Checked before verifying: a consumable must never pass without a way to credit it.

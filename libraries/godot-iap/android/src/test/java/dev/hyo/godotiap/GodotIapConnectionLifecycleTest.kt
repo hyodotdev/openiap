@@ -26,6 +26,18 @@ class GodotIapConnectionLifecycleTest {
         cleanupListeners = {},
     )
 
+    /** Connects without a config, recording the config each connect receives. */
+    private fun GodotIapConnectionLifecycle.reconnect(
+        requested: MutableList<Map<String, Any?>>,
+        succeeds: Boolean = true,
+    ) = init(
+        null,
+        connect = { _, config -> requested += config; succeeds },
+        reconfigure = { Reconfigure.Applied },
+        disconnect = { true },
+        cleanupListeners = {},
+    )
+
     @Test
     fun `a changed configuration reconfigures the live connection without connecting again`() {
         val lifecycle = GodotIapConnectionLifecycle()
@@ -77,7 +89,10 @@ class GodotIapConnectionLifecycleTest {
         assertFalse(lifecycle.isConnected)
         assertEquals(listOf("disconnect", "listeners-removed"), events)
         assertEquals(listOf("connected", "disconnected"), signals)
-        assertTrue(lifecycle.connect(externalOffer).didConnect)
+        // The program the app chose last stays for the reconnect, as native records it.
+        val requested = mutableListOf<Map<String, Any?>>()
+        assertTrue(lifecycle.reconnect(requested).didConnect)
+        assertEquals(listOf(externalOffer), requested)
     }
 
     @Test
@@ -97,6 +112,9 @@ class GodotIapConnectionLifecycleTest {
 
         assertTrue(thrown is IllegalStateException)
         assertFalse(lifecycle.isConnected)
+        val requested = mutableListOf<Map<String, Any?>>()
+        assertTrue(lifecycle.reconnect(requested).success)
+        assertEquals(listOf(externalOffer), requested)
     }
 
     @Test
@@ -133,45 +151,45 @@ class GodotIapConnectionLifecycleTest {
     }
 
     @Test
-    fun `a reconnect after a drop keeps the billing program until end or a failed connect`() {
+    fun `a reconnect after a drop keeps the billing program until end`() {
         val lifecycle = GodotIapConnectionLifecycle()
         val requested = mutableListOf<Map<String, Any?>>()
-        fun reconnect() = lifecycle.init(
-            null,
-            connect = { _, config -> requested += config; true },
-            reconfigure = { Reconfigure.Applied },
-            disconnect = { true },
-            cleanupListeners = {},
-        )
         var dropped = 0L
         lifecycle.connect(externalOffer) { dropped = it; true }
 
         lifecycle.end(disconnect = { true }, cleanupListeners = {}, onlyGeneration = dropped)
-        assertTrue(reconnect().success)
+        assertTrue(lifecycle.reconnect(requested).success)
         lifecycle.end(disconnect = { true }, cleanupListeners = {})
-        assertTrue(reconnect().success)
+        assertTrue(lifecycle.reconnect(requested).success)
         // The drop kept the program; an explicit end did not.
         assertEquals(listOf(externalOffer, emptyMap<String, Any?>()), requested)
     }
 
     @Test
-    fun `a failed reconnect after a drop forgets the billing program`() {
+    fun `a failed connect keeps the billing program it asked for`() {
         val lifecycle = GodotIapConnectionLifecycle()
         val requested = mutableListOf<Map<String, Any?>>()
-        fun reconnect(succeeds: Boolean) = lifecycle.init(
-            null,
-            connect = { _, config -> requested += config; succeeds },
-            reconfigure = { Reconfigure.Applied },
-            disconnect = { true },
-            cleanupListeners = {},
-        )
+
+        assertFalse(lifecycle.connect(externalOffer) { false }.success)
+        assertFalse(lifecycle.reconnect(requested, succeeds = false).success)
+        assertTrue(runCatching { lifecycle.connect(externalOffer) { error("no provider") } }.isFailure)
+        assertTrue(lifecycle.reconnect(requested).success)
+        assertEquals(listOf(externalOffer, externalOffer), requested)
+    }
+
+    @Test
+    fun `end forgets the billing program even after a drop disconnected`() {
+        val lifecycle = GodotIapConnectionLifecycle()
+        val requested = mutableListOf<Map<String, Any?>>()
         var dropped = 0L
         lifecycle.connect(externalOffer) { dropped = it; true }
         lifecycle.end(disconnect = { true }, cleanupListeners = {}, onlyGeneration = dropped)
 
-        assertFalse(reconnect(succeeds = false).success)
-        assertTrue(reconnect(succeeds = true).success)
-        assertEquals(listOf(externalOffer, emptyMap<String, Any?>()), requested)
+        val ended = lifecycle.end(disconnect = { true }, cleanupListeners = {})
+        assertTrue(ended.success)
+        assertFalse(ended.didEnd)
+        assertTrue(lifecycle.reconnect(requested).success)
+        assertEquals(listOf(emptyMap<String, Any?>()), requested)
     }
 
     @Test

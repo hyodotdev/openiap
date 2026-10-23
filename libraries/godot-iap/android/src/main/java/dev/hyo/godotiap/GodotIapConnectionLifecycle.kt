@@ -29,7 +29,7 @@ internal class GodotIapConnectionLifecycle(
 
     @Volatile
     private var state = State.Disconnected
-    // Kept across a drop, so a reconnect without a config restores the billing program.
+    // Kept across a drop or a failed connect, so a reconnect without a config restores the billing program.
     private var activeConfig: Map<String, Any?> = emptyMap()
 
     /** Numbers connection attempts, so a late teardown can tell it targets an older one. */
@@ -65,18 +65,13 @@ internal class GodotIapConnectionLifecycle(
         // Allocated before connecting, so a drop reported before connect returns targets this attempt.
         generation++
         val requested = config ?: activeConfig
+        // The program the app chose last, even if this connect fails, as native records it.
+        activeConfig = requested.toMap()
         val result = try {
             val connected = connect(generation, requested)
-            if (connected) {
-                activeConfig = requested.toMap()
-                state = State.Connected
-            } else {
-                activeConfig = emptyMap()
-                state = State.Disconnected
-            }
+            state = if (connected) State.Connected else State.Disconnected
             InitResult(success = connected, didConnect = connected)
         } catch (error: Throwable) {
-            activeConfig = emptyMap()
             state = State.Disconnected
             throw error
         }
@@ -94,17 +89,17 @@ internal class GodotIapConnectionLifecycle(
         val reconfigured = try {
             reconfigure()
         } catch (error: Throwable) {
-            endLocked(disconnect, cleanupListeners, keepConfig = false)
+            activeConfig = config.toMap()
+            endLocked(disconnect, cleanupListeners, keepConfig = true)
             throw error
         }
-        when (reconfigured) {
-            Reconfigure.Applied -> activeConfig = config.toMap()
-            Reconfigure.Refused -> return InitResult(success = false, didConnect = false)
-            // A failed rebuild leaves native without a client, so end this connection too.
-            Reconfigure.Failed -> {
-                endLocked(disconnect, cleanupListeners, keepConfig = false)
-                return InitResult(success = false, didConnect = false)
-            }
+        if (reconfigured == Reconfigure.Refused) return InitResult(success = false, didConnect = false)
+        // Recorded even when the rebuild fails, as native records it.
+        activeConfig = config.toMap()
+        // A failed rebuild leaves native without a client, so end this connection too.
+        if (reconfigured == Reconfigure.Failed) {
+            endLocked(disconnect, cleanupListeners, keepConfig = true)
+            return InitResult(success = false, didConnect = false)
         }
         return InitResult(success = true, didConnect = false)
     }
@@ -115,13 +110,18 @@ internal class GodotIapConnectionLifecycle(
         cleanupListeners: () -> Unit,
         onlyGeneration: Long? = null,
     ): EndResult = synchronized(lock) {
-        if (state == State.Disconnected || (onlyGeneration != null && onlyGeneration != generation)) {
+        if (onlyGeneration != null && onlyGeneration != generation) {
             return@synchronized EndResult(success = true, didEnd = false)
         }
-        if (state != State.Connected) {
-            return@synchronized EndResult(success = false, didEnd = false)
+        when (state) {
+            State.Disconnected -> {
+                // Only endConnection forgets the program, even after a drop disconnected.
+                if (onlyGeneration == null) activeConfig = emptyMap()
+                EndResult(success = true, didEnd = false)
+            }
+            State.Connected -> endLocked(disconnect, cleanupListeners, keepConfig = onlyGeneration != null)
+            State.Initializing, State.Ending -> EndResult(success = false, didEnd = false)
         }
-        endLocked(disconnect, cleanupListeners, keepConfig = onlyGeneration != null)
     }
 
     private fun endLocked(

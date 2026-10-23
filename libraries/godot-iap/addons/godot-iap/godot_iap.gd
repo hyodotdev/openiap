@@ -56,6 +56,20 @@ class AppleAsyncWaiter:
 		_timeout_callback = Callable()
 		completed.emit(payload)
 
+
+# Whatever listens, the next account's flow must not inherit requests.
+class _SdkPurchaseFlow:
+	extends PurchaseFlow
+	var _on_dispose: Callable
+
+	func _init(options: Dictionary, on_dispose: Callable) -> void:
+		super(options)
+		_on_dispose = on_dispose
+
+	func dispose() -> void:
+		super()
+		_on_dispose.call()
+
 # ==========================================
 # Signals (OpenIAP Events)
 # ==========================================
@@ -119,6 +133,11 @@ func _log(message: String) -> void:
 
 func _is_apple() -> bool:
 	return _platform in APPLE_PLATFORMS
+
+
+# Whatever listener a flow uses, a purchase error forgets the requests.
+func _init() -> void:
+	purchase_error.connect(_forget_requests_on_error)
 
 
 func _ready() -> void:
@@ -1542,7 +1561,7 @@ func create_purchase_flow(options: Dictionary) -> PurchaseFlow:
 		"listen_for_purchases": _listen_for_purchases,
 		"was_requested": _take_requested,
 	}
-	return PurchaseFlow.new(store_options.merged(options, true))
+	return _SdkPurchaseFlow.new(store_options.merged(options, true), func() -> void: _requested_skus.clear())
 
 
 ## Confirms purchases with IAPKit from the app, for apps without a backend:
@@ -1589,20 +1608,19 @@ func _listen_for_purchases(on_purchase: Callable) -> Callable:
 	# Only the first flow changes the native listener.
 	if _listening_flow_count == 1:
 		_apply_purchase_updated_listener_options_apple()
-	# A failed or cancelled purchase ends what the user asked for; other operations tag a method.
-	var clear_requested := func(error: Dictionary) -> void:
-		if not error.has("method"):
-			_requested_skus.clear()
 	purchase_updated.connect(on_purchase)
-	purchase_error.connect(clear_requested)
 	return func() -> void:
 		purchase_updated.disconnect(on_purchase)
-		purchase_error.disconnect(clear_requested)
-		_requested_skus.clear()
 		_listening_flows.erase(on_purchase.get_object())
 		_listening_flow_count -= 1
 		if _listening_flow_count == 0:
 			_apply_purchase_updated_listener_options_apple()
+
+
+# A failed or cancelled purchase ends what the user asked for; other operations tag a method.
+func _forget_requests_on_error(error: Dictionary) -> void:
+	if not error.has("method"):
+		_requested_skus.clear()
 
 
 func _mark_requested(skus: Array) -> void:

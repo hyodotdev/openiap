@@ -60,6 +60,7 @@ func _run() -> void:
 	await _test_recover_reports_failed_reads()
 	_test_confirmation_request()
 	await _test_wrapper_tracks_requests()
+	await _test_custom_listener_forgets_requests()
 	await _test_wrapper_binding()
 	await _test_wrapper_holds_listening_flows()
 	await _test_flows_share_the_replay_setting()
@@ -149,11 +150,14 @@ func _run_iapkit_vector(vector: Dictionary) -> void:
 
 func _run_device_vector(vector: Dictionary) -> void:
 	var name := "device: %s" % vector.name
+	var clock: Dictionary = vector.get("clock", {})
+	PurchaseFlow._clock_ms = clock.get("beforeRead")
 	var grants := []
 	var reads := [0]
 	var read := func() -> Array:
 		reads[0] += 1
 		await process_frame
+		PurchaseFlow._clock_ms = clock.get("afterRead")
 		return vector.pending
 	var options := {}
 	if not vector.get("noGrant", false):
@@ -164,6 +168,7 @@ func _run_device_vector(vector: Dictionary) -> void:
 	var confirm := PurchaseFlow.create_device_confirmation_ios(read, options)
 
 	var answer = await confirm.call(vector.purchase, vector.isConsumable)
+	PurchaseFlow._clock_ms = null
 
 	if vector.get("error", false):
 		_check(answer is PurchaseFlow.Failure, name + " fails")
@@ -527,6 +532,45 @@ func _test_wrapper_tracks_requests() -> void:
 	wrapper._on_android_purchase_updated(JSON.stringify(_android_purchase("GPA.after", "premium")))
 	await _settle(flow)
 	_check(published.size() == 3 and not wrapper.purchase_updated.is_connected(flow._on_delivered), "Dispose stops listening to the wrapper")
+	wrapper.queue_free()
+
+
+func _test_custom_listener_forgets_requests() -> void:
+	var wrapper = GodotIapWrapper.new()
+	wrapper._is_initialized = true
+	root.add_child(wrapper)
+	var fake := EnvelopeTests.FakeAndroidJsonPlugin.new()
+	wrapper._native_plugin = fake
+	wrapper._platform = "Android"
+	fake.responses["requestPurchase"] = JSON.stringify({"status": "pending"})
+	var listeners := []
+	var published := []
+	var create_flow := func() -> PurchaseFlow:
+		var created = wrapper.create_purchase_flow({
+			"confirm_with_backend": func(_purchase: Dictionary, _is_consumable: bool) -> Dictionary:
+				return {"status": "invalid", "reason": "expired"},
+			"is_consumable": func(_product_id: String) -> bool: return false,
+			"listen_for_purchases": func(on_purchase: Callable) -> Callable:
+				listeners.append(on_purchase)
+				return func() -> void: pass,
+		})
+		created.purchase_processed.connect(func(_purchase: Dictionary, status: PurchaseFlow.Status) -> void: published.append(status))
+		return created
+
+	var flow: PurchaseFlow = create_flow.call()
+	wrapper.request_purchase(_purchase_props("premium"))
+	wrapper._on_android_purchase_error(JSON.stringify({"code": "user-cancelled", "message": "Cancelled"}))
+	listeners.back().call(_android_purchase("GPA.cancelled", "premium"))
+	await _settle(flow)
+	_check(published.size() == 1 and published[0].recovered, "A purchase error clears request marks under a custom listener")
+	wrapper.request_purchase(_purchase_props("premium"))
+	flow.dispose()
+	_check(wrapper._requested_skus.is_empty(), "Dispose clears request marks under a custom listener")
+	var next: PurchaseFlow = create_flow.call()
+	listeners.back().call(_android_purchase("GPA.redelivered", "premium"))
+	await _settle(next)
+	_check(published.size() == 2 and published[1].recovered, "The next flow's redelivery does not count as requested")
+	next.dispose()
 	wrapper.queue_free()
 
 
