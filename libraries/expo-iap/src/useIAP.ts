@@ -164,11 +164,6 @@ export interface UseIAPOptions {
   billingChoiceScreenTypeAndroid?: BillingChoiceScreenTypeAndroid;
 }
 
-/**
- * React Hook for managing In-App Purchases. Mounted hooks share one store
- * connection, which ends when the last of them unmounts.
- * See documentation at https://openiap.dev/docs/setup/expo#useIAP-hook
- */
 // Store reads can resolve out of order. A result publishes only when no newer
 // read has published, so a failed newer read lets an older result through,
 // and a purchase makes every read that started before it stale.
@@ -186,6 +181,11 @@ const invalidateReads = (order: ReadOrder): void => {
   order.published = ++order.started;
 };
 
+/**
+ * React Hook for managing In-App Purchases. Mounted hooks share one store
+ * connection, which ends when the last of them unmounts.
+ * See documentation at https://openiap.dev/docs/setup/expo#useIAP-hook
+ */
 export function useIAP(options?: UseIAPOptions): UseIap {
   const [connected, setConnected] = useState<boolean>(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -509,10 +509,6 @@ export function useIAP(options?: UseIAPOptions): UseIap {
       if (!subscriptionsRefState.current.some((sub) => sub.id === productId)) {
         return;
       }
-      // A read that started before this purchase is stale; the refresh below
-      // publishes a newer one.
-      invalidateReads(availablePurchasesReads.current);
-      invalidateReads(activeSubscriptionsReads.current);
       const generation = initializationGenerationRef.current;
       const isCurrent = (): boolean =>
         isMountedRef.current &&
@@ -613,6 +609,16 @@ export function useIAP(options?: UseIAPOptions): UseIap {
 
   const handlePurchaseUpdate = useCallback(
     async (purchase: Purchase): Promise<void> => {
+      // Before the callback, which may read again: a read that started before
+      // this purchase is stale, and the refresh below publishes a newer one.
+      if (
+        subscriptionsRefState.current.some(
+          (sub) => sub.id === purchase.productId,
+        )
+      ) {
+        invalidateReads(availablePurchasesReads.current);
+        invalidateReads(activeSubscriptionsReads.current);
+      }
       // Deliver first so a store refresh cannot delay finishing the transaction.
       try {
         const callbackResult: unknown =

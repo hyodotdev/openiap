@@ -1091,7 +1091,12 @@ describe('hooks/useIAP (renderer)', () => {
       await act(async () => {});
 
       const listed = (id: string) => ({id, productId: id}) as Purchase;
+      const active = (productId: string) =>
+        ({productId, isActive: true}) as ActiveSubscription;
       let resolveOlder: (purchases: Purchase[]) => void = () => {};
+      let resolveOlderActive: (
+        subscriptions: ActiveSubscription[],
+      ) => void = () => {};
       let resolveActive: () => void = () => {};
       mockGetAvailablePurchases
         .mockImplementationOnce(
@@ -1101,30 +1106,43 @@ describe('hooks/useIAP (renderer)', () => {
             }),
         )
         .mockResolvedValueOnce([listed('after-purchase')]);
-      mockGetActiveSubscriptions.mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            resolveActive = () => resolve([]);
-          }),
-      );
+      mockGetActiveSubscriptions
+        .mockImplementationOnce(
+          () =>
+            new Promise<ActiveSubscription[]>((resolve) => {
+              resolveOlderActive = resolve;
+            }),
+        )
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveActive = () => resolve([active('premium_yearly')]);
+            }),
+        );
 
       let older: Promise<void> = Promise.resolve();
+      let olderActive: Promise<unknown> = Promise.resolve();
       let delivery: Promise<void> = Promise.resolve();
       await act(async () => {
         older = api.getAvailablePurchases();
+        olderActive = api.getActiveSubscriptions();
         delivery = capturedPurchaseListener(listed('after-purchase'));
       });
       await act(async () => {
         resolveOlder([listed('before-purchase')]);
+        resolveOlderActive([active('premium_monthly')]);
         await older;
+        await olderActive;
       });
       expect(api.availablePurchases).toEqual([]);
+      expect(api.activeSubscriptions).toEqual([]);
 
       await act(async () => {
         resolveActive();
         await delivery;
       });
       expect(api.availablePurchases).toEqual([listed('after-purchase')]);
+      expect(api.activeSubscriptions).toEqual([active('premium_yearly')]);
     });
 
     it('does not call onError when operations succeed', async () => {

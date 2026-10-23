@@ -331,10 +331,6 @@ function mergeByKey<T>(
   return Array.from(merged.values());
 }
 
-/**
- * React Hook for managing In-App Purchases.
- * See documentation at https://react-native-iap.hyo.dev/docs/hooks/useIAP
- */
 // Store reads can resolve out of order. A result publishes only when no newer
 // read has published, so a failed newer read lets an older result through,
 // and a purchase makes every read that started before it stale.
@@ -352,6 +348,10 @@ const invalidateReads = (order: ReadOrder): void => {
   order.published = ++order.started;
 };
 
+/**
+ * React Hook for managing In-App Purchases.
+ * See documentation at https://react-native-iap.hyo.dev/docs/hooks/useIAP
+ */
 export function useIAP(options?: UseIapOptions): UseIap {
   const [connected, setConnected] = useState<boolean>(false);
   const [products, setProducts] = useState<Product[]>([]);
