@@ -286,8 +286,8 @@ class OpenIapModule(
     private var connectionAttempt: ConnectionAttempt? = null
     @Volatile
     private var activeBillingClientMode = BillingClientMode.Standard
-    // What the last connected client was built with, so a changed config can
-    // rebuild it and a reconnect after a service drop can restore it.
+    // The config the app chose last, even if that connect failed. A call without
+    // a config reconnects with it; a different config rebuilds the client.
     private var liveConnectionConfiguration: BillingConnectionConfiguration? = null
     private var liveQueuedPrograms: Set<BillingProgramAndroid> = emptySet()
 
@@ -664,8 +664,11 @@ class OpenIapModule(
             }
             val connectionConfiguration = attempt.configuration
 
-            val availability = GoogleApiAvailability.getInstance()
-            if (availability.isGooglePlayServicesAvailable(context) != ConnectionResult.SUCCESS) {
+            // A check that throws, such as for a missing Play services version in the manifest, still releases the attempt.
+            val playServicesReady = runCatching {
+                GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
+            }.getOrDefault(false)
+            if (!playServicesReady) {
                 finishConnectionAttempt(attempt, null, false)
                 return@withContext false
             }
