@@ -476,7 +476,7 @@ if not connected:
 
 # Step 3: Fetch products and purchase as normal
 var request = ProductRequest.new()
-request.skus = ["premium_subscription"]
+request.skus.assign(["premium_subscription"])
 request.type = ProductQueryType.SUBS
 var products = await iap.fetch_products(request)
 
@@ -484,7 +484,7 @@ var products = await iap.fetch_products(request)
 var props = RequestPurchaseProps.new()
 props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
 props.request_subscription.google = RequestSubscriptionAndroidProps.new()
-props.request_subscription.google.skus = ["premium_subscription"]
+props.request_subscription.google.skus.assign(["premium_subscription"])
 props.type = ProductQueryType.SUBS
 await iap.request_purchase(props)
 
@@ -759,7 +759,7 @@ if not availability.is_available:
 
 # Step 3: Fetch products (still needed to show prices)
 var request = ProductRequest.new()
-request.skus = ["premium_subscription"]
+request.skus.assign(["premium_subscription"])
 request.type = ProductQueryType.SUBS
 var products = await iap.fetch_products(request)
 

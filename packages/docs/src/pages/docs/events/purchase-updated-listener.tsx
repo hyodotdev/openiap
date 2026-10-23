@@ -73,7 +73,10 @@ using System;
 IObservable<Purchase> purchaseUpdates = OpenIapClient.Instance.PurchaseUpdated;`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`signal purchase_updated(purchase: Purchase)`}</CodeBlock>
+            <CodeBlock language="gdscript">{`# The purchase as a Dictionary in OpenIAP's JSON shape
+signal purchase_updated(purchase: Dictionary)
+# The same purchase, typed: PurchaseAndroid or PurchaseIOS
+signal purchase_received(purchase: Variant)`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -287,10 +290,10 @@ var subscription = OpenIapClient.Instance.PurchaseUpdated.Subscribe(
 subscription.Dispose();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`# Connect to the signal
-iap.purchase_updated.connect(_on_purchase_updated)
+            <CodeBlock language="gdscript">{`# Connect to the typed signal
+iap.purchase_received.connect(_on_purchase_received)
 
-func _on_purchase_updated(purchase: Purchase):
+func _on_purchase_received(purchase: Purchase):
     print("Purchase updated: %s" % purchase.product_id)
 
     # Verify with your backend or IAPKit before granting content.
@@ -305,7 +308,7 @@ func _on_purchase_updated(purchase: Purchase):
 
 # Cleanup when done
 func _exit_tree():
-    iap.purchase_updated.disconnect(_on_purchase_updated)`}</CodeBlock>
+    iap.purchase_received.disconnect(_on_purchase_received)`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

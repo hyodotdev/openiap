@@ -408,12 +408,12 @@ if not await iap.init_connection():
 
 # 2. Fetch products by SKU.
 var request = ProductRequest.new()
-request.skus = ["com.app.premium"]
+request.skus.assign(["com.app.premium"])
 request.type = ProductQueryType.IN_APP
 var products = await iap.fetch_products(request)
 
 # 3. Listen for purchase results.
-iap.purchase_updated.connect(func(purchase):
+iap.purchase_received.connect(func(purchase):
     # Verify on your backend, grant entitlement, then finish.
     await iap.finish_transaction(purchase, false)
 )

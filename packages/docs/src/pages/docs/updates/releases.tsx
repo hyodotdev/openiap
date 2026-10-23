@@ -681,7 +681,9 @@ function Releases() {
               <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
                 <li>
                   accepts Amazon and Meta Horizon purchases, not only Apple and
-                  Google Play, and recovers each store&apos;s unfinished ones;
+                  Google Play, and recovers each store&apos;s unfinished ones,
+                  including a listed consumable and every purchase from a store
+                  that reports no acknowledgment;
                 </li>
                 <li>
                   listens for purchases itself, publishes one outcome per
@@ -694,7 +696,9 @@ function Releases() {
                   <code>createIapkitConfirmation</code>, which calls your{' '}
                   <code>grant</code> before a consumable is consumed and leaves
                   a purchase unfinished on any answer that may be a
-                  configuration error;
+                  configuration error, and on the device through{' '}
+                  <code>createDeviceConfirmationIOS</code> for App Store
+                  purchases StoreKit still lists as unfinished and valid;
                 </li>
                 <li>
                   marks an <code>entitled</code> purchase whose plan change has
@@ -718,10 +722,14 @@ function Releases() {
               <strong>openiap-google 4.0.5</strong>: <code>initConnection</code>{' '}
               on a connected Google Play client with a different billing program
               or Billing Choice renderer now rebuilds the client with it instead
-              of ignoring it; a call without a config keeps the live connection.
-              Both natives report Client Protocol 1.2.0; the natives the
-              libraries shipped before reported 1.0.3, so they rejected a
-              community store provider built for Client Protocol 1.1.
+              of ignoring it, and an explicit empty config returns it to the
+              standard client. A call without a config keeps the live
+              connection, and after a service drop reconnects with the last
+              program. A rebuild is refused with <code>developer-error</code>{' '}
+              while a purchase is in progress, and a failed rebuild leaves the
+              store disconnected. Both natives report Client Protocol 1.2.0; the
+              natives the libraries shipped before reported 1.0.3, so they
+              rejected a community store provider built for Client Protocol 1.1.
             </li>
             <li>
               <strong>openiap-apple 4.0.4</strong>: reports Client Protocol
@@ -737,8 +745,19 @@ function Releases() {
                 <li>
                   <code>createPurchaseFlow</code> needs only{' '}
                   <code>confirmWithBackend</code> and <code>isConsumable</code>,
-                  also on Amazon Vega, and <code>confirmWithIapkit</code>{' '}
-                  confirms with a publishable key.
+                  also on Amazon Vega; <code>confirmWithIapkit</code> confirms
+                  with a publishable key and <code>confirmOnDeviceIOS</code> on
+                  the device.
+                </li>
+                <li>
+                  Upgrading from react-native-iap 17.1 or expo-iap 6.1: a flow
+                  created with your own <code>finishTransaction</code> keeps the
+                  manual delivery, where your purchase listener calls{' '}
+                  <code>processPurchase</code>. A flow created without store
+                  functions listens for purchases itself, so drop{' '}
+                  <code>processPurchase</code> from your listener, keep one live
+                  flow, and call <code>dispose()</code> when the account
+                  changes.
                 </li>
                 <li>
                   <code>
@@ -764,7 +783,8 @@ function Releases() {
             <li>
               <strong>flutter_inapp_purchase 11.1.0</strong>:{' '}
               <code>createPurchaseFlow</code> with an <code>outcomes</code>{' '}
-              stream, <code>confirmWithIapkit</code>, and{' '}
+              stream, <code>confirmWithIapkit</code>,{' '}
+              <code>confirmOnDeviceIOS</code>, and{' '}
               <code>PurchaseConfirmation.fromJson</code>. On Android,{' '}
               <code>initConnection</code> with a config now reaches
               openiap-google even when connected; without one it keeps the
@@ -778,30 +798,41 @@ function Releases() {
             <li>
               <strong>godot-iap 4.1.0</strong>:{' '}
               <code>create_purchase_flow</code>,{' '}
-              <code>confirm_with_iapkit</code>, and a typed{' '}
-              <code>purchase_received</code> signal. Android{' '}
-              <code>purchase_updated</code> dictionaries now match the purchase
-              queries (<code>isAcknowledgedAndroid</code> is filled in). Trace
-              logs are off unless <code>debug_logging</code> is true; errors
-              still print. <code>init_connection</code> with a different config
-              reconfigures the live connection instead of failing, and errors
-              from non-purchase calls such as <code>get_storefront</code> carry
-              a <code>method</code> key.
+              <code>confirm_with_iapkit</code>,{' '}
+              <code>confirm_on_device_ios</code>, and a typed{' '}
+              <code>purchase_received</code> signal; a <code>grant</code>{' '}
+              callback must return <code>true</code>. While a flow exists, the
+              iOS purchase listener also delivers StoreKit replays, including to
+              your own <code>purchase_updated</code> handlers. On Android,{' '}
+              <code>verify_purchase_with_provider</code> no longer blocks the
+              frame. Android <code>purchase_updated</code> dictionaries now
+              match the purchase queries (<code>isAcknowledgedAndroid</code> is
+              filled in). Trace logs are off unless <code>debug_logging</code>{' '}
+              is true; errors still print. <code>init_connection</code> with a
+              different config, including an empty one, reconfigures the live
+              connection instead of failing, and errors from non-purchase calls
+              such as <code>get_storefront</code> carry a <code>method</code>{' '}
+              key.
             </li>
             <li>
               <strong>kmp-iap 4.1.0</strong>:{' '}
               <code>KmpIAP.createPurchaseFlow</code> on the app&apos;s existing
               instance, with an <code>outcomes</code> flow that ends on{' '}
-              <code>dispose</code>, and <code>confirmWithIapkit</code>. On
-              Android, <code>initConnection</code> with a config now reaches
+              <code>dispose</code>, <code>confirmWithIapkit</code>, and{' '}
+              <code>confirmOnDeviceIOS</code>. On Android,{' '}
+              <code>initConnection</code> with a config now reaches
               openiap-google even when connected; without one it keeps the
               connection.
             </li>
             <li>
               <strong>OpenIap.Maui 3.1.0</strong>:{' '}
               <code>OpenIapClient.CreatePurchaseFlow</code>,{' '}
-              <code>ConfirmWithIapkit</code>, and{' '}
-              <code>PurchaseConfirmationRequest.FromPurchase</code>.{' '}
+              <code>ConfirmWithIapkit</code>, <code>ConfirmOnDeviceIOS</code>,
+              and <code>PurchaseConfirmationRequest.FromPurchase</code>.{' '}
+              <code>InitConnectionAsync</code> and{' '}
+              <code>EndConnectionAsync</code> run one at a time in call order,
+              and <code>RequestPurchaseAsync</code> records the requested
+              products so the flow can tell a purchase from a redelivery.{' '}
               <code>OpenIapClient.Query</code> and{' '}
               <code>OpenIapClient.Mutation</code> replace casting the client to
               the resolver interfaces, which still works, and{' '}

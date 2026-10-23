@@ -247,7 +247,7 @@ props.request = RequestPurchasePropsByPlatforms.new()
 props.request.apple = RequestPurchaseIosProps.new()
 props.request.apple.sku = "premium"
 props.request.google = RequestPurchaseAndroidProps.new()
-props.request.google.skus = ["premium"]
+props.request.google.skus.assign(["premium"])
 props.type = ProductQueryType.IN_APP
 await iap.request_purchase(props)
 
@@ -257,7 +257,7 @@ subs_props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
 subs_props.request_subscription.apple = RequestSubscriptionIosProps.new()
 subs_props.request_subscription.apple.sku = "monthly_sub"
 subs_props.request_subscription.google = RequestSubscriptionAndroidProps.new()
-subs_props.request_subscription.google.skus = ["monthly_sub"]
+subs_props.request_subscription.google.skus.assign(["monthly_sub"])
 subs_props.type = ProductQueryType.SUBS
 await iap.request_purchase(subs_props)`}</CodeBlock>
             ),

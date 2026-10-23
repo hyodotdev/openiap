@@ -126,9 +126,21 @@ stores ──renewals, refunds──▶ IAPKit ◀──entitlements── your 
         Create one flow per signed-in app account, outside any screen, and
         capture its session token. The flow listens for purchases itself,
         confirms each with your backend, finishes it once access is granted, and
-        publishes one outcome per purchase. When the account changes, dispose
-        the flow and create the next account&apos;s; a disposed flow publishes
-        nothing more.
+        publishes one outcome per purchase. Keep exactly one live flow: when the
+        account changes, dispose the flow and create the next account&apos;s. A
+        disposed flow publishes nothing more and stops a recovery pass, so no
+        later purchase is confirmed with the old account&apos;s session.
+      </p>
+      <p>
+        Each SDK names it in its own idiom: <code>createPurchaseFlow</code> in
+        React Native IAP, Expo IAP, flutter_inapp_purchase, and kmp-iap,{" "}
+        <code>create_purchase_flow</code> in godot-iap, and{" "}
+        <code>OpenIapClient.CreatePurchaseFlow</code> in OpenIap.Maui. Outcomes
+        arrive through <code>subscribe</code>, a stream, a flow, a signal, or an
+        event, and every SDK passes the same shared test cases. A React Native
+        IAP or Expo IAP flow given its own <code>finishTransaction</code> keeps
+        the earlier manual delivery: the app calls <code>processPurchase</code>{" "}
+        itself.
       </p>
       <CodeBlock title="Expo IAP (React Native IAP is identical)" language="ts">
         {`import {
@@ -225,6 +237,13 @@ const flow = createPurchaseFlow({
 });`}
       </CodeBlock>
       <p>
+        An App Store app with neither a backend nor IAPKit can pass{" "}
+        <code>confirmOnDeviceIOS</code> instead: StoreKit verified a transaction
+        it still lists as unfinished, unrevoked, not upgraded, unexpired, and
+        from the purchase&apos;s environment. The same <code>grant</code> rule
+        applies.
+      </p>
+      <p>
         Anything that may be a configuration error rather than a rejected
         payment ends as <code>failed</code> and stays unfinished: evidence for
         another store, product, or environment, IAPKit&apos;s{" "}
@@ -314,10 +333,10 @@ const flow = createPurchaseFlow({
         <code>useIAP</code> calls <code>recoverPurchases()</code> once
         connected; call it yourself when the app returns to the foreground or
         when you use the flow without the hook. It confirms only unfinished
-        purchases: unfinished StoreKit transactions, unacknowledged Google Play
-        purchases, every listed Amazon purchase (Amazon reports no
-        acknowledgment and approves Amazon Kids purchases later), and on Meta
-        Horizon unacknowledged purchases plus listed consumables. A call made
+        purchases: unfinished StoreKit transactions; on other stores, every
+        unacknowledged purchase, every listed consumable (it is unconsumed), and
+        every purchase from a store that reports no acknowledgment, such as
+        Amazon, which also approves Amazon Kids purchases later. A call made
         while a pass runs shares it, and a purchase this flow already settled is
         skipped. For a restore button, call{" "}
         <code>recoverPurchases({"{ includeFinished: true }"})</code>, which{" "}

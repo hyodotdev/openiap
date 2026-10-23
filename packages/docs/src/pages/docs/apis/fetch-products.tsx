@@ -314,7 +314,7 @@ for (final item in items) {
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var request = ProductRequest.new()
-request.skus = ["com.app.coins_100", "com.app.monthly"]
+request.skus.assign(["com.app.coins_100", "com.app.monthly"])
 request.type = ProductQueryType.ALL
 var items = await iap.fetch_products(request)
 
@@ -440,7 +440,7 @@ for (final product in products) {
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var request = ProductRequest.new()
-request.skus = ["com.app.coins_100", "com.app.premium"]
+request.skus.assign(["com.app.coins_100", "com.app.premium"])
 request.type = ProductQueryType.IN_APP
 var products = await iap.fetch_products(request)`}</CodeBlock>
           ),

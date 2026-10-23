@@ -623,10 +623,12 @@ example back to plain usage. Shared behavior is specified once in
 example is the wrong fix. A review loop that keeps finding new race conditions
 in an example is the signal to stop and move the logic.
 
-The purchase flow is the worked example. `createPurchaseFlow` and
-`confirmWithIapkit` own duplicate deliveries, finishing, recovery, IAPKit
-verdicts, and pending plan changes, so purchase screens only subscribe to
-outcomes. All six frameworks run `specs/client/src/purchase-flow.vectors.json`.
+The purchase flow is the worked example. `createPurchaseFlow`,
+`confirmWithIapkit`, and `confirmOnDeviceIOS` own duplicate deliveries,
+finishing, recovery, store and on-device verdicts, and pending plan changes,
+so purchase screens only subscribe to outcomes. Every SDK's flow passes
+`specs/client/src/purchase-flow.vectors.json`: React Native and Expo through
+the spec they sync, the other four through their own runners.
 
 ## Cross-Library Verification for Shared-Package Changes (MANDATORY)
 

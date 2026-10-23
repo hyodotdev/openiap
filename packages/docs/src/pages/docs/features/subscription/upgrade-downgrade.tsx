@@ -1740,7 +1740,7 @@ if current_sub:
     var props = RequestPurchaseProps.new()
     props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
     props.request_subscription.google = RequestSubscriptionAndroidProps.new()
-    props.request_subscription.google.skus = ["premium_monthly"]
+    props.request_subscription.google.skus.assign(["premium_monthly"])
     props.request_subscription.google.purchase_token = current_sub.purchase_token
     var replacement = SubscriptionProductReplacementParamsAndroid.new()
     replacement.old_product_id = current_sub.product_id
@@ -1995,7 +1995,7 @@ if premium_purchase:
     var props = RequestPurchaseProps.new()
     props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
     props.request_subscription.google = RequestSubscriptionAndroidProps.new()
-    props.request_subscription.google.skus = ["basic_monthly"]
+    props.request_subscription.google.skus.assign(["basic_monthly"])
     props.request_subscription.google.purchase_token = premium_purchase.purchase_token
     var replacement = SubscriptionProductReplacementParamsAndroid.new()
     replacement.old_product_id = premium_purchase.product_id
@@ -2197,7 +2197,7 @@ if current_sub:
     var props = RequestPurchaseProps.new()
     props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
     props.request_subscription.google = RequestSubscriptionAndroidProps.new()
-    props.request_subscription.google.skus = ["premium_yearly"]
+    props.request_subscription.google.skus.assign(["premium_yearly"])
     props.request_subscription.google.subscription_product_replacement_params = SubscriptionProductReplacementParamsAndroid.new()
     props.request_subscription.google.subscription_product_replacement_params.old_product_id = current_sub.product_id
     props.request_subscription.google.subscription_product_replacement_params.replacement_mode = SubscriptionReplacementModeAndroid.WITH_TIME_PRORATION
@@ -2712,7 +2712,7 @@ func change_subscription(new_sku: String, is_upgrade: bool) -> void:
     var props = RequestPurchaseProps.new()
     props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
     props.request_subscription.google = RequestSubscriptionAndroidProps.new()
-    props.request_subscription.google.skus = [new_sku]
+    props.request_subscription.google.skus.assign([new_sku])
     props.request_subscription.google.purchase_token = current_sub.purchase_token
     var replacement = SubscriptionProductReplacementParamsAndroid.new()
     replacement.old_product_id = current_sub.product_id

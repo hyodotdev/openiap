@@ -1419,7 +1419,7 @@ func handle_purchase_with_external_payments(product_id: String) -> void:
     var props = RequestPurchaseProps.new()
     props.request = RequestPurchasePropsByPlatforms.new()
     props.request.google = RequestPurchaseAndroidProps.new()
-    props.request.google.skus = [product_id]
+    props.request.google.skus.assign([product_id])
     props.request.google.developer_billing_option = DeveloperBillingOptionParamsAndroid.new()
     props.request.google.developer_billing_option.billing_program = BillingProgramAndroid.EXTERNAL_PAYMENTS
     props.request.google.developer_billing_option.link_uri = "https://your-payment-site.com/checkout"

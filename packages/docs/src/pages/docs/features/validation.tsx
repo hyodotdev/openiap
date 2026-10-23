@@ -341,9 +341,11 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
           purchases, confirms each one, finishes it once access is granted,
           recovers unfinished purchases, and reports one outcome per purchase.
           Without a backend, pass <code>confirmWithIapkit</code> with your
-          publishable key, and credit consumables in its <code>grant</code>{' '}
-          callback, which runs before the purchase is consumed. When your own
-          backend owns user accounts, confirm through it instead. See the{' '}
+          publishable key, or <code>confirmOnDeviceIOS</code> for App Store
+          purchases StoreKit verified on the device, and credit consumables in
+          its <code>grant</code> callback, which runs before the purchase is
+          consumed. When your own backend owns user accounts, confirm through it
+          instead. See the{' '}
           <a
             href={`${IAPKIT_URL}/docs/purchase-flow`}
             target="_blank"

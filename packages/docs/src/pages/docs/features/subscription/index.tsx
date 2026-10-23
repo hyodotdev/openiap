@@ -523,7 +523,7 @@ foreach (var offer in subscription?.SubscriptionOffers?
                     gdscript: (
                       <CodeBlock language="gdscript">{`# Fetch subscription products
 var request = ProductRequest.new()
-request.skus = ["premium_monthly"]
+request.skus.assign(["premium_monthly"])
 request.type = ProductQueryType.SUBS
 var subscriptions = await iap.fetch_products(request)
 
@@ -1407,7 +1407,7 @@ foreach (var offer in subscription?.SubscriptionOffers
                     gdscript: (
                       <CodeBlock language="gdscript">{`# Fetch subscription products
 var request = ProductRequest.new()
-request.skus = ["premium_monthly"]
+request.skus.assign(["premium_monthly"])
 request.type = ProductQueryType.SUBS
 var subscriptions = await iap.fetch_products(request)
 
@@ -1643,7 +1643,7 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
                     gdscript: (
                       <CodeBlock language="gdscript">{`func purchase_subscription(subscription_id: String) -> void:
     var request = ProductRequest.new()
-    request.skus = [subscription_id]
+    request.skus.assign([subscription_id])
     request.type = ProductQueryType.SUBS
     var subscriptions = await iap.fetch_products(request)
 
@@ -1673,7 +1673,7 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
     var props = RequestPurchaseProps.new()
     props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
     props.request_subscription.google = RequestSubscriptionAndroidProps.new()
-    props.request_subscription.google.skus = [subscription_id]
+    props.request_subscription.google.skus.assign([subscription_id])
     props.request_subscription.google.subscription_offers = subscription_offers  # Recommended; Play uses the first offer if omitted
     props.type = ProductQueryType.SUBS
 
@@ -2071,11 +2071,11 @@ func handle_purchase(base_plan_id_android: String) -> void:
     var props = RequestPurchaseProps.new()
     props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
     props.request_subscription.google = RequestSubscriptionAndroidProps.new()
-    props.request_subscription.google.skus = [subscription_group_id]
+    props.request_subscription.google.skus.assign([subscription_group_id])
     var offer_input = AndroidSubscriptionOfferInput.new()
     offer_input.sku = subscription_group_id
     offer_input.offer_token = offer.offer_token_android
-    props.request_subscription.google.subscription_offers = [offer_input]
+    props.request_subscription.google.subscription_offers.assign([offer_input])
     props.type = ProductQueryType.SUBS
 
     await iap.request_purchase(props)
@@ -2537,7 +2537,7 @@ func select_offer(subscription: ProductSubscriptionAndroid, offer_type: int) -> 
 # Purchase with selected offer
 func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
     var request = ProductRequest.new()
-    request.skus = [subscription_id]
+    request.skus.assign([subscription_id])
     request.type = ProductQueryType.SUBS
     var subscriptions = await iap.fetch_products(request)
 
@@ -2555,11 +2555,11 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
     var props = RequestPurchaseProps.new()
     props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
     props.request_subscription.google = RequestSubscriptionAndroidProps.new()
-    props.request_subscription.google.skus = [subscription_id]
+    props.request_subscription.google.skus.assign([subscription_id])
     var offer_input = AndroidSubscriptionOfferInput.new()
     offer_input.sku = subscription_id
     offer_input.offer_token = selected_offer.offer_token_android
-    props.request_subscription.google.subscription_offers = [offer_input]
+    props.request_subscription.google.subscription_offers.assign([offer_input])
     props.type = ProductQueryType.SUBS
 
     await iap.request_purchase(props)`}</CodeBlock>

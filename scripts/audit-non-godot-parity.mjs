@@ -3027,15 +3027,24 @@ function checkPurchaseFlowPorts() {
       `${library} example must confirm purchases through the library's purchase flow`,
     );
   }
-  const mauiPages = "libraries/maui-iap/example/OpenIap.Maui.Example/Pages";
-  for (const page of [
-    "PurchaseFlowPage.xaml.cs",
-    "SubscriptionFlowPage.xaml.cs",
-  ]) {
+  const flowScreens = [
+    "libraries/react-native-iap/example/screens/PurchaseFlow.tsx",
+    "libraries/react-native-iap/example/screens/SubscriptionFlow.tsx",
+    "libraries/expo-iap/example/app/purchase-flow.tsx",
+    "libraries/expo-iap/example/app/subscription-flow.tsx",
+    "libraries/flutter_inapp_purchase/example/lib/src/screens/purchase_flow_screen.dart",
+    "libraries/flutter_inapp_purchase/example/lib/src/screens/subscription_flow_screen.dart",
+    "libraries/kmp-iap/example/composeApp/src/commonMain/kotlin/dev/hyo/martie/screens/PurchaseFlowScreen.kt",
+    "libraries/kmp-iap/example/composeApp/src/commonMain/kotlin/dev/hyo/martie/screens/SubscriptionFlowScreen.kt",
+    "libraries/godot-iap/Example/iap_manager.gd",
+    "libraries/maui-iap/example/OpenIap.Maui.Example/Pages/PurchaseFlowPage.xaml.cs",
+    "libraries/maui-iap/example/OpenIap.Maui.Example/Pages/SubscriptionFlowPage.xaml.cs",
+  ];
+  for (const screen of flowScreens) {
     expectNotIncludes(
-      `${mauiPages}/${page}`,
-      ["FinishTransactionAsync("],
-      `MAUI ${page} must leave finishing to the purchase flow`,
+      screen,
+      ["finishTransaction(", "finish_transaction(", "FinishTransactionAsync("],
+      `${screen} must leave finishing to the purchase flow`,
     );
   }
 }

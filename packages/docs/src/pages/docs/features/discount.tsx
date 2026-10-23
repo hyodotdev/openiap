@@ -466,7 +466,7 @@ foreach (var product in products)
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`var request = ProductRequest.new()
-request.skus = ["premium_feature", "coins_100"]
+request.skus.assign(["premium_feature", "coins_100"])
 request.type = ProductQueryType.IN_APP
 var products = await iap.fetch_products(request)
 
@@ -1422,7 +1422,7 @@ async Task PurchaseWithOfferAsync(ProductAndroid product, int offerIndex = 0)
     props.type = ProductQueryType.IN_APP
     props.request = RequestPurchasePropsByPlatforms.new()
     props.request.google = RequestPurchaseAndroidProps.new()
-    props.request.google.skus = [product.id]
+    props.request.google.skus.assign([product.id])
     props.request.google.offer_token = selected_offer.offer_token_android
 
     await iap.request_purchase(props)`}</CodeBlock>
