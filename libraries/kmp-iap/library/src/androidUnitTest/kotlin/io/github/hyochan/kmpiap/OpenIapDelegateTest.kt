@@ -441,6 +441,36 @@ class OpenIapDelegateTest {
     }
 
     @Test
+    fun `initConnection forwards every config and keeps a live connection without one`() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        try {
+            val configs = mutableListOf<String>()
+            val init: MutationInitConnectionHandler = { config ->
+                configs += config?.enableBillingProgramAndroid?.toJson() ?: "none"
+                true
+            }
+            val module = fakeModule { method, _ ->
+                when (method) {
+                    "setActivity" -> null
+                    "getInitConnection" -> init
+                    else -> error("Unexpected call: $method")
+                }
+            }
+            val play = delegateFor(Store.PLAY_STORE, module, context = ContextWrapper(null))
+            val externalPayments = InitConnectionConfig(enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments)
+
+            for (config in listOf(null, null, externalPayments, externalPayments, null)) {
+                assertTrue(play.initConnection(config))
+            }
+
+            // openiap-google decides whether a config changes the live connection.
+            assertEquals(listOf("none", "external-payments", "external-payments"), configs)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
     fun `a drop while initConnection is still resuming survives its success`() = runTest {
         Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
         try {

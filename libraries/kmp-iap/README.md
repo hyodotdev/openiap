@@ -147,6 +147,32 @@ kmpIAP.finishTransaction(
 
 Keep one live client per process. On Meta Horizon a second live client kills the process when it queries purchases.
 
+### Confirm and finish purchases
+
+`createPurchaseFlow` confirms every purchase the store delivers, finishes it
+once access is granted, and recovers purchases an earlier session left
+unfinished. Create one per signed-in account, in a scope that outlives the
+screens, and dispose it when the account changes; that also ends collection of
+`outcomes`.
+
+```kotlin
+val flow = kmpIapInstance.createPurchaseFlow(
+    scope = appScope,
+    // Your backend confirms with IAPKit and grants access; read its JSON answer.
+    confirmWithBackend = { purchase, _ ->
+        PurchaseConfirmation.fromJson(backend.confirm(toPurchaseConfirmationRequest(purchase)))
+    },
+    isConsumable = { it in consumableIds },
+)
+appScope.launch { flow.outcomes.collect { show(describePurchaseFlowStatus(it.status)) } }
+if (kmpIapInstance.initConnection()) flow.recoverPurchases()
+```
+
+An app without a backend passes
+`kmpIapInstance.confirmWithIapkit(IapkitConfirmationOptions(apiKey = "openiap-kit_pk_...", grant = ::credit))`;
+`grant` credits consumables before they are consumed. See the
+[purchase flow guide](https://kit.openiap.dev/docs/purchase-flow).
+
 ## Powered by OpenIAP
 
 <a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.webp" alt="OpenIAP" height="50" /></a>

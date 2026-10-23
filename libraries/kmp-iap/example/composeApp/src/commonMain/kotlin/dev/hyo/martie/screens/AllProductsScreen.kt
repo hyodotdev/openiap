@@ -38,7 +38,7 @@ fun AllProductsScreen(navController: NavController) {
             loading = true
             message = null
             try {
-                ensureExampleConnection()
+                kmpIapInstance.initConnection()
                 products = kmpIapInstance.fetchProducts {
                     skus = AllProductIds
                     type = ProductQueryType.All

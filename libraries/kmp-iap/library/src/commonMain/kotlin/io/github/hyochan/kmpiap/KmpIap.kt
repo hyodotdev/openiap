@@ -2,6 +2,7 @@ package io.github.hyochan.kmpiap
 
 import io.github.hyochan.kmpiap.openiap.*
 import io.github.hyochan.kmpiap.dsl.*
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
@@ -191,7 +192,22 @@ interface KmpInAppPurchase : MutationResolver, QueryResolver, SubscriptionResolv
  */
 class KmpIAP(
     private val delegate: KmpInAppPurchase = createPlatformInAppPurchase()
-) : KmpInAppPurchase by delegate
+) : KmpInAppPurchase by delegate {
+    // What the user asked to buy, for the purchase flow's wasRequested.
+    internal val purchaseRequests = PurchaseRequests()
+
+    override suspend fun requestPurchase(params: RequestPurchaseProps): RequestPurchaseResult? {
+        purchaseRequests.mark(params)
+        return try {
+            delegate.requestPurchase(params)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            purchaseRequests.clear()
+            throw error
+        }
+    }
+}
 
 /**
  * Creates platform-specific InAppPurchase implementation

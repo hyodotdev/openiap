@@ -90,7 +90,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                 )
             } else null
 
-            connected = ensureExampleConnection(config)
+            connected = kmpIapInstance.initConnection(config)
 
             if (connected) {
                 // Fetch products
@@ -192,7 +192,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                     )
                 } else null
 
-                connected = ensureExampleConnection(config)
+                connected = kmpIapInstance.initConnection(config)
 
                 purchaseResult = "✅ Connected with ${
                     when (program) {

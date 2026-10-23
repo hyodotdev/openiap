@@ -151,9 +151,14 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
     private var billingIssueListener: OpenIapSubscriptionBillingIssueListener? = null
     private var connectionStateListener: OpenIapConnectionStateListener? = null
 
+    /**
+     * Connects to the store's billing service, serialized with [endConnection].
+     * Without a config a live connection is kept. A config always reaches
+     * openiap-google, which decides whether the live connection must change.
+     */
     override suspend fun initConnection(config: InitConnectionConfig?): Boolean = withContext(Dispatchers.Main) {
         connectionMutex.withLock {
-            if (isConnected) return@withLock true
+            if (isConnected && config == null) return@withLock true
             withMappedOpenIapError {
                 val openModule = ensureModuleLocked()
                 openModule.setActivity(currentActivity)
