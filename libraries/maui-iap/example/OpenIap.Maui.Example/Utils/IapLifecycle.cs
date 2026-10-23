@@ -5,11 +5,10 @@ namespace OpenIap.Maui.Example.Utils;
 
 internal enum VerificationMethod { Ignore, Local, IapkitLocal, Iapkit }
 
-// The store connection and the app's one purchase flow, shared by every page.
+// The app's one purchase flow, shared by every page.
 internal static class IapLifecycle
 {
-    private static readonly SemaphoreSlim Gate = new(1, 1);
-    // Bulbs are credited once per purchase id; a real app keeps both on its server.
+    // Bulbs are credited once per purchase id; a real app keeps both in its own store.
     private static readonly HashSet<string> CreditedPurchaseIds = new(StringComparer.Ordinal);
 
     // Mirrors the other examples: no key skips, a local origin prefers it.
@@ -30,36 +29,6 @@ internal static class IapLifecycle
         ConfirmWithBackend = ConfirmAsync,
         IsConsumable = Constants.ConsumableProductIdSet.Contains,
     });
-
-    public static async Task<bool> InitConnectionAsync(InitConnectionConfig? config = null)
-    {
-        await Gate.WaitAsync();
-        try
-        {
-            return await OpenIapClient.Mutation.InitConnectionAsync(config).WaitAsync(TimeSpan.FromSeconds(15));
-        }
-        finally
-        {
-            Gate.Release();
-        }
-    }
-
-    public static async Task EndConnectionQuietlyAsync(string owner)
-    {
-        await Gate.WaitAsync();
-        try
-        {
-            await OpenIapClient.Mutation.EndConnectionAsync().WaitAsync(TimeSpan.FromSeconds(5));
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[{owner}] endConnection failed: {ErrorUtils.ExtractErrorMessage(ex)}");
-        }
-        finally
-        {
-            Gate.Release();
-        }
-    }
 
     public static string Label(VerificationMethod method) => method switch
     {
@@ -114,38 +83,20 @@ internal static class IapLifecycle
         VerificationMethod.Iapkit => ConfirmWithIapkit(baseUrl: null)(purchase, isConsumable),
         VerificationMethod.IapkitLocal => ConfirmWithIapkit(IapKitSettings.LocalBaseUrl
             ?? throw new InvalidOperationException("IAPKit base URL not configured for Local (IAPKit)"))(purchase, isConsumable),
-        VerificationMethod.Local => ConfirmOnDeviceAsync(purchase, isConsumable),
+        VerificationMethod.Local => OpenIapClient.ConfirmOnDeviceIOS(GrantAsync)(purchase, isConsumable),
         _ => throw new InvalidOperationException("Receipt retained. Choose verification to retry this receipt."),
     };
 
     private static PurchaseConfirmer ConfirmWithIapkit(string? baseUrl) =>
         OpenIapClient.ConfirmWithIapkit(IapKitSettings.ConfirmationOptions(baseUrl) with { Grant = GrantAsync });
 
-#if IOS || MACCATALYST
-    // StoreKit verified the transaction on the device; nothing checks it on a server.
-    private static async Task<PurchaseConfirmation?> ConfirmOnDeviceAsync(Purchase purchase, bool isConsumable)
-    {
-        var pending = await OpenIapClient.Query.GetPendingTransactionsIOSAsync();
-        if (!IapKitSettings.MatchesVerifiedPendingPurchase(purchase, pending))
-        {
-            throw new InvalidOperationException("StoreKit lists no verified, unfinished transaction for this purchase.");
-        }
-        await GrantAsync(purchase, isConsumable);
-        return new PurchaseConfirmation.Entitled(AlreadyGranted: false);
-    }
-#else
-    private static Task<PurchaseConfirmation?> ConfirmOnDeviceAsync(Purchase purchase, bool isConsumable) =>
-        throw new NotSupportedException("Local (Device) verification is unavailable here. Choose Local (IAPKit).");
-#endif
-
     private static Task GrantAsync(Purchase purchase, bool isConsumable)
     {
+        if (!isConsumable) return Task.CompletedTask;
         lock (CreditedPurchaseIds)
         {
-            if (isConsumable && CreditedPurchaseIds.Add(purchase.Id))
-            {
-                Bulbs += Constants.ConsumableBulbs[purchase.ProductId];
-            }
+            if (CreditedPurchaseIds.Add(purchase.Id)) Bulbs += Constants.ConsumableBulbs[purchase.ProductId];
+            else Console.WriteLine($"[IapLifecycle] {purchase.Id} was already credited");
         }
         return Task.CompletedTask;
     }

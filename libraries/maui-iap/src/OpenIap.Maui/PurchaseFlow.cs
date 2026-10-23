@@ -282,7 +282,12 @@ public sealed class PurchaseFlow : IDisposable
             ?? throw new ArgumentException("GetAvailablePurchases is required; OpenIapClient.CreatePurchaseFlow supplies the library's.", nameof(options));
         _confirmTimeout = options.ConfirmTimeout > MaxConfirmTimeout ? MaxConfirmTimeout : options.ConfirmTimeout;
         _subscription = options.ListenForPurchases?.Invoke(purchase =>
-            _ = Deliver(purchase, options.WasRequested?.Invoke(purchase) ?? false, reconfirm: false));
+        {
+            // A pending delivery leaves the mark for the completed one that follows.
+            var requested = purchase.PurchaseState != PurchaseState.Pending
+                && (options.WasRequested?.Invoke(purchase) ?? false);
+            _ = Deliver(purchase, requested, reconfirm: false);
+        });
     }
 
     /// <summary>
@@ -414,10 +419,12 @@ public sealed class PurchaseFlow : IDisposable
     private async Task<PurchaseFlowStatus> ConfirmAndFinishAsync(Purchase purchase)
     {
         PurchaseConfirmation? confirmation;
+        bool isConsumable;
         Task<PurchaseConfirmation?>? answer = null;
         try
         {
-            var isConsumable = _options.IsConsumable(purchase.ProductId);
+            // Read once: finishing must consume exactly what confirmation granted.
+            isConsumable = _options.IsConsumable(purchase.ProductId);
             answer = _options.ConfirmWithBackend(purchase, isConsumable);
             confirmation = PurchaseConfirmation.Read(await answer.WaitAsync(_confirmTimeout).ConfigureAwait(false));
         }
@@ -443,20 +450,19 @@ public sealed class PurchaseFlow : IDisposable
         // Finishing settles a purchase for good, so only a settled verdict does.
         return confirmation switch
         {
-            PurchaseConfirmation.Entitled => await FinishAsync(purchase, confirmation).ConfigureAwait(false),
+            PurchaseConfirmation.Entitled => await FinishAsync(purchase, isConsumable, confirmation).ConfigureAwait(false),
             PurchaseConfirmation.OwnershipConflict { AlreadyGranted: true }
-                => await FinishAsync(purchase, confirmation).ConfigureAwait(false),
+                => await FinishAsync(purchase, isConsumable, confirmation).ConfigureAwait(false),
             PurchaseConfirmation.Invalid or PurchaseConfirmation.TestAccountRestricted when purchase.Store == IapStore.Apple
-                => await FinishAsync(purchase, confirmation).ConfigureAwait(false),
+                => await FinishAsync(purchase, isConsumable, confirmation).ConfigureAwait(false),
             _ => ToStatus(confirmation, finishError: null),
         };
     }
 
-    private async Task<PurchaseFlowStatus> FinishAsync(Purchase purchase, PurchaseConfirmation confirmation)
+    private async Task<PurchaseFlowStatus> FinishAsync(Purchase purchase, bool isConsumable, PurchaseConfirmation confirmation)
     {
         try
         {
-            var isConsumable = _options.IsConsumable(purchase.ProductId);
             // Play keeps an acknowledged purchase finished; a restore need not redo it.
             if (purchase is PurchaseAndroid { IsAcknowledgedAndroid: true } && !isConsumable)
             {
@@ -591,16 +597,9 @@ public sealed class PurchaseFlow : IDisposable
         return outcomes;
     }
 
-    private bool IsUnfinished(Purchase purchase) => purchase.Store switch
-    {
-        // Amazon reports no acknowledgment, and approves a Kids purchase later,
-        // so every listed purchase is confirmed again.
-        IapStore.Amazon => true,
-        // Horizon's acknowledgment does nothing; a listed consumable is unconsumed.
-        IapStore.Horizon => purchase is PurchaseAndroid { IsAcknowledgedAndroid: false }
-            || _options.IsConsumable(purchase.ProductId),
-        _ => purchase is PurchaseAndroid { IsAcknowledgedAndroid: false },
-    };
+    // Amazon and community stores report no acknowledgment, and a listed consumable is unconsumed.
+    private bool IsUnfinished(Purchase purchase) =>
+        purchase is not PurchaseAndroid { IsAcknowledgedAndroid: true } || _options.IsConsumable(purchase.ProductId);
 
     internal static void AssertSupportedPurchase(Purchase purchase)
     {

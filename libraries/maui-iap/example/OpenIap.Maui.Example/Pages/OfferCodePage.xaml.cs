@@ -25,7 +25,7 @@ public partial class OfferCodePage : ContentPage
 
         try
         {
-            await IapLifecycle.InitConnectionAsync();
+            await OpenIapClient.Mutation.InitConnectionAsync();
             _connected = true;
             SetStatus("Connected to Store", Color.FromArgb("#28A745"));
         }
@@ -36,13 +36,6 @@ public partial class OfferCodePage : ContentPage
         }
 
         UpdateButtonState();
-    }
-
-    protected override async void OnDisappearing()
-    {
-        base.OnDisappearing();
-        _connected = false;
-        await IapLifecycle.EndConnectionQuietlyAsync(nameof(OfferCodePage));
     }
 
     private async void OnPresentClicked(object sender, EventArgs e)

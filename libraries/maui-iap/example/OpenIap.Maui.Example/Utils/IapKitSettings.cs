@@ -86,15 +86,6 @@ internal static class IapKitSettings
     private static bool IsAmazonExample(Purchase purchase) =>
         purchase.Store == IapStore.Unknown && purchase.StoreId == "amazon_example";
 
-    public static bool MatchesVerifiedPendingPurchase(Purchase purchase, IEnumerable<PurchaseIOS> pending) =>
-        purchase is PurchaseIOS && purchase.Store == IapStore.Apple && purchase.StoreId == "apple" &&
-        !string.IsNullOrEmpty(purchase.Id) && pending.Any(candidate =>
-            candidate.Store == IapStore.Apple && candidate.StoreId == "apple" &&
-            candidate.Id == purchase.Id && candidate.ProductId == purchase.ProductId &&
-            candidate.RevocationDateIOS is null && candidate.IsUpgradedIOS != true &&
-            (candidate.ExpirationDateIOS is null || candidate.ExpirationDateIOS > DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) &&
-            (purchase is not PurchaseIOS { EnvironmentIOS: { } expected } || candidate.EnvironmentIOS == expected));
-
     private static string? FirstNonBlank(params string?[] values)
     {
         foreach (var value in values)

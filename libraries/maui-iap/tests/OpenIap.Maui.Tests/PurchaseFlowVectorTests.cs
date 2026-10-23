@@ -16,6 +16,7 @@ public class PurchaseFlowVectorTests
     public static TheoryData<string> ProcessCases => Names("process");
     public static TheoryData<string> IapkitCases => Names("iapkit");
     public static TheoryData<string> SequenceCases => Names("sequences");
+    public static TheoryData<string> DeviceCases => Names("device");
 
     [Theory]
     [MemberData(nameof(ProcessCases))]
@@ -135,6 +136,42 @@ public class PurchaseFlowVectorTests
     }
 
     [Theory]
+    [MemberData(nameof(DeviceCases))]
+    public async Task Device(string name)
+    {
+        var vector = Case("device", name);
+        var grants = 0;
+        var reads = 0;
+        var pending = vector["pending"]!.AsArray().Select(entry => (PurchaseIOS)ToPurchase(entry!)).ToList();
+        var confirm = DeviceConfirmationIOS.Create(
+            () =>
+            {
+                reads++;
+                return Task.FromResult<IReadOnlyList<PurchaseIOS>>(pending);
+            },
+            vector["noGrant"] is null
+                ? (_, _) =>
+                {
+                    grants++;
+                    return Task.CompletedTask;
+                }
+                : null);
+
+        var answer = confirm(ToPurchase(vector["purchase"]!), (bool)vector["isConsumable"]!);
+
+        if (vector["error"] is not null)
+        {
+            await Assert.ThrowsAnyAsync<Exception>(() => answer);
+        }
+        else
+        {
+            AssertJson(vector["confirmation"], Comparable((await answer)!));
+        }
+        Assert.Equal((bool?)vector["reads"] == false ? 0 : 1, reads);
+        Assert.Equal((bool)vector["granted"]! ? 1 : 0, grants);
+    }
+
+    [Theory]
     [MemberData(nameof(SequenceCases))]
     public void Sequence(string name)
     {
@@ -179,7 +216,10 @@ public class PurchaseFlowVectorTests
                 deliver = onPurchase;
                 return new DisposableAction(() => deliver = null);
             },
-            WasRequested = purchase => requested.Contains(purchase.Id),
+            // requestedOnce: like an SDK's request mark, a true answer clears it.
+            WasRequested = purchase => (bool?)vector["requestedOnce"] == true
+                ? requested.Remove(purchase.Id)
+                : requested.Contains(purchase.Id),
         });
         flow.OutcomePublished += (_, outcome) => published.Add(outcome);
 
@@ -214,7 +254,16 @@ public class PurchaseFlowVectorTests
         json["isAutoRenewing"] ??= false;
         json["transactionDate"] ??= 0;
         if (json["pendingPurchaseUpdateAndroid"] is JsonObject pending) pending["purchaseToken"] ??= "";
-        return json.Deserialize<Purchase>(JsonOptions.Default)!;
+        try
+        {
+            return json.Deserialize<Purchase>(JsonOptions.Default)!;
+        }
+        catch (JsonException) when (json["storeId"] is { } storeId)
+        {
+            // A pairing the SDK types refuse, such as store "apple" with another id, then fails where the code reads it.
+            json.Remove("storeId");
+            return json.Deserialize<Purchase>(JsonOptions.Default)! with { StoreId = (string)storeId! };
+        }
     }
 
     internal static JsonObject Comparable(PurchaseFlowStatus status)

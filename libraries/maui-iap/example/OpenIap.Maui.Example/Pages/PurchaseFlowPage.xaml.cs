@@ -5,8 +5,7 @@ using OpenIap.Maui.Example.Utils;
 
 namespace OpenIap.Maui.Example.Pages;
 
-// One-time purchases through the app's purchase flow, which confirms each
-// purchase, recovered iOS transactions included, before finishing it.
+// One-time purchases through the app's purchase flow, which confirms each one before finishing it.
 public partial class PurchaseFlowPage : ContentPage
 {
     private readonly List<Product> _products = new();
@@ -34,18 +33,17 @@ public partial class PurchaseFlowPage : ContentPage
         await ConnectAndFetchAsync();
     }
 
-    protected override async void OnDisappearing()
+    protected override void OnDisappearing()
     {
         base.OnDisappearing();
         IapLifecycle.Flow.OutcomePublished -= OnOutcome;
-        await IapLifecycle.EndConnectionQuietlyAsync(nameof(PurchaseFlowPage));
     }
 
     private async Task ConnectAndFetchAsync()
     {
         try
         {
-            await IapLifecycle.InitConnectionAsync();
+            await OpenIapClient.Mutation.InitConnectionAsync();
             ConnectionLabel.Text = "✅ Connected";
             ConnectionLabel.TextColor = Color.FromArgb("#4CAF50");
 

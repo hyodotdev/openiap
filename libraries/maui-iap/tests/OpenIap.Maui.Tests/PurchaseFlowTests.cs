@@ -122,6 +122,34 @@ public class PurchaseFlowTests
     }
 
     [Fact]
+    public async Task IsConsumable_IsReadOnceSoFinishingConsumesWhatConfirmationGranted()
+    {
+        var reads = 0;
+        bool? confirmedAs = null;
+        bool? finishedAs = null;
+        using var flow = new PurchaseFlow(Flow((_, isConsumable) =>
+        {
+            confirmedAs = isConsumable;
+            return Task.FromResult<PurchaseConfirmation?>(new PurchaseConfirmation.Entitled(false));
+        }) with
+        {
+            // The product config changes between confirming and finishing.
+            IsConsumable = _ => ++reads == 1,
+            FinishTransaction = (_, isConsumable) =>
+            {
+                finishedAs = isConsumable;
+                return Task.CompletedTask;
+            },
+        });
+
+        await flow.ProcessPurchaseAsync(Play());
+
+        Assert.Equal(1, reads);
+        Assert.True(confirmedAs);
+        Assert.True(finishedAs);
+    }
+
+    [Fact]
     public async Task ConfirmTimeout_FailsAHungAnswerAndTheNextDeliveryAsksAgain()
     {
         var confirms = 0;

@@ -60,12 +60,7 @@ public static class IapkitConfirmation
         ArgumentNullException.ThrowIfNull(options);
         return async (purchase, isConsumable) =>
         {
-            // Checked first: a consumable must never verify without a way to credit it.
-            if (isConsumable && options.Grant is null)
-            {
-                throw new InvalidOperationException(
-                    $"ConfirmWithIapkit needs Grant to credit consumable {purchase.ProductId} before it is consumed");
-            }
+            RequireGrant("ConfirmWithIapkit", purchase, isConsumable, options.Grant);
             var confirmation = ReadVerification(
                 await verifyPurchaseWithProvider(ToVerificationProps(purchase, options)).ConfigureAwait(false),
                 purchase,
@@ -174,6 +169,16 @@ public static class IapkitConfirmation
                 $"IAPKit state {verified.State.ToJson()} cannot grant this {kind} {purchase.Store.ToJson()} purchase");
         }
         return new PurchaseConfirmation.Entitled(AlreadyGranted: false);
+    }
+
+    // Checked before verifying: a consumable must never pass without a way to credit it.
+    internal static void RequireGrant(string name, Purchase purchase, bool isConsumable, PurchaseGranter? grant)
+    {
+        if (isConsumable && grant is null)
+        {
+            throw new InvalidOperationException(
+                $"{name} needs Grant to credit consumable {purchase.ProductId} before it is consumed");
+        }
     }
 
     private static IapStore VerifyingStore(Purchase purchase, IapkitConfirmationOptions options) =>

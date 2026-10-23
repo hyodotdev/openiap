@@ -34,20 +34,37 @@ public partial class AlternativeBillingPage : ContentPage
         await ConnectAndFetchAsync();
     }
 
-    protected override async void OnDisappearing()
+    protected override void OnDisappearing()
     {
         base.OnDisappearing();
         IapLifecycle.Flow.OutcomePublished -= OnOutcome;
         _errorSub?.Dispose();
         _errorSub = null;
-        await IapLifecycle.EndConnectionQuietlyAsync(nameof(AlternativeBillingPage));
+#if ANDROID
+        _ = RestoreStandardBillingAsync();
+#endif
     }
+
+#if ANDROID
+    // An explicit empty config returns the app-wide connection to Standard billing.
+    private static async Task RestoreStandardBillingAsync()
+    {
+        try
+        {
+            await OpenIapClient.Mutation.InitConnectionAsync(new InitConnectionConfig());
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[AlternativeBillingPage] restoring Standard billing failed: {ErrorUtils.ExtractErrorMessage(ex)}");
+        }
+    }
+#endif
 
     private async Task ConnectAndFetchAsync()
     {
         try
         {
-            await IapLifecycle.InitConnectionAsync(BuildConnectionConfig());
+            await OpenIapClient.Mutation.InitConnectionAsync(BuildConnectionConfig());
             ConnectionLabel.Text = "✅ Connected";
             ConnectionLabel.TextColor = Color.FromArgb("#4CAF50");
             UpdateModeLabels();
@@ -246,9 +263,8 @@ public partial class AlternativeBillingPage : ContentPage
             ReconnectBanner.IsVisible = true;
             ShowResult("Reconnecting with new billing program...");
 
-            await IapLifecycle.EndConnectionQuietlyAsync(nameof(AlternativeBillingPage));
-            await Task.Delay(500);
-            await IapLifecycle.InitConnectionAsync(new InitConnectionConfig { EnableBillingProgramAndroid = program });
+            // A changed config reconnects natively.
+            await OpenIapClient.Mutation.InitConnectionAsync(new InitConnectionConfig { EnableBillingProgramAndroid = program });
             ShowResult($"✅ Reconnected with {ProgramName(program)} program");
             UpdateModeLabels();
             await LoadProductsAsync();

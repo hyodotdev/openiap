@@ -5,10 +5,7 @@ using OpenIap.Maui.Example.Utils;
 
 namespace OpenIap.Maui.Example.Pages;
 
-// Mirrors libraries/expo-iap/example/app/subscription-flow.tsx — fetches
-// subscription products, passes Android subscription offer tokens, tracks
-// active subscription state, and confirms purchases through the app's
-// purchase flow.
+// Mirrors libraries/expo-iap/example/app/subscription-flow.tsx on the app's purchase flow.
 public partial class SubscriptionFlowPage : ContentPage
 {
     private sealed record UpgradeInfo(
@@ -46,18 +43,17 @@ public partial class SubscriptionFlowPage : ContentPage
         await ConnectAndFetchAsync();
     }
 
-    protected override async void OnDisappearing()
+    protected override void OnDisappearing()
     {
         base.OnDisappearing();
         IapLifecycle.Flow.OutcomePublished -= OnOutcome;
-        await IapLifecycle.EndConnectionQuietlyAsync(nameof(SubscriptionFlowPage));
     }
 
     private async Task ConnectAndFetchAsync()
     {
         try
         {
-            await IapLifecycle.InitConnectionAsync();
+            await OpenIapClient.Mutation.InitConnectionAsync();
             ConnectionLabel.Text = "✅ Connected";
             ConnectionLabel.TextColor = Color.FromArgb("#4CAF50");
 

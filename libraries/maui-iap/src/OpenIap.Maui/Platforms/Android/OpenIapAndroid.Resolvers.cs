@@ -20,15 +20,15 @@ internal sealed partial class OpenIapAndroid
     // MutationResolver
     // ====================================================================
 
-    public Task<bool> InitConnectionAsync(InitConnectionConfig? config = null)
+    public Task<bool> InitConnectionAsync(InitConnectionConfig? config = null) => _connection.RunAsync(() =>
     {
         RefreshCurrentActivity();
         var json = config is null ? null : JsonSerializer.Serialize(config, JsonOptions.Default);
         return InvokeBool(cb => _module.InitConnection(json, cb));
-    }
+    });
 
     public Task<bool> EndConnectionAsync()
-        => InvokeBool(cb => _module.EndConnection(cb));
+        => _connection.RunAsync(() => InvokeBool(cb => _module.EndConnection(cb)));
 
     // NOTE: Every async wrapper uses `await Invoke(...)` rather than
     // ContinueWith(.., OnlyOnRanToCompletion) because the latter swallows

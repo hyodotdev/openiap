@@ -126,13 +126,15 @@ public class OpenIapClientFacadeTests
                     RequestPurchase = new() { Apple = new() { Sku = "coins" }, Google = new() { Skus = ["coins"] } },
                 },
                 () => Task.FromResult(0));
-            Assert.True(PurchaseRequests.Take(PurchaseFlowTests.Play("GPA.1", "coins")));
-            Assert.False(PurchaseRequests.Take(PurchaseFlowTests.Play("GPA.1", "coins")));
+            // A receipt older than the request is a redelivery and leaves the mark.
+            Assert.False(PurchaseRequests.Take(Bought("GPA.0", "coins") with { TransactionDate = Now() - 3_600_000 }));
+            Assert.True(PurchaseRequests.Take(Bought("GPA.1", "coins")));
+            Assert.False(PurchaseRequests.Take(Bought("GPA.1", "coins")));
 
             await Assert.ThrowsAsync<InvalidOperationException>(() => PurchaseRequests.Track(
                 SubscriptionRequest("premium"),
                 () => Task.FromException<int>(new InvalidOperationException("cancelled"))));
-            Assert.False(PurchaseRequests.Take(PurchaseFlowTests.Play("GPA.2", "premium")));
+            Assert.False(PurchaseRequests.Take(Bought("GPA.2", "premium")));
         }
         finally
         {
@@ -163,29 +165,44 @@ public class OpenIapClientFacadeTests
             });
             SynchronizationContext.SetSynchronizationContext(previous);
             flow.OutcomePublished += (_, outcome) => published.Add(outcome);
+            Assert.False(store.UpdateOptions?.DedupeTransactionIOS ?? true);
 
-            // A plan change delivers the current plan with the requested one pending.
+            // A plan change delivers the current plan, however old, with the requested one pending.
             await PurchaseRequests.Track(SubscriptionRequest("premium_yearly"), () => Task.FromResult(0));
             store.Updates.OnNext(PurchaseFlowTests.Play("GPA.1", "premium_monthly") with
             {
                 PendingPurchaseUpdateAndroid = new() { Products = ["premium_yearly"], PurchaseToken = "token" },
             });
-            store.Updates.OnNext(PurchaseFlowTests.Play("GPA.2", "premium_yearly"));
+            store.Updates.OnNext(Bought("GPA.2", "premium_yearly"));
+            // A failed request clears the marks.
             await PurchaseRequests.Track(SubscriptionRequest("premium_yearly"), () => Task.FromResult(0));
             store.Errors.OnNext(new PurchaseError { Code = ErrorCode.UserCancelled, Message = "cancelled" });
-            store.Updates.OnNext(PurchaseFlowTests.Play("GPA.3", "premium_yearly"));
+            store.Updates.OnNext(Bought("GPA.3", "premium_yearly"));
+            // An old receipt and a pending delivery both leave the mark for the completed purchase.
+            await PurchaseRequests.Track(SubscriptionRequest("premium_yearly"), () => Task.FromResult(0));
+            store.Updates.OnNext(Bought("GPA.4", "premium_yearly") with { TransactionDate = Now() - 3_600_000 });
+            store.Updates.OnNext(Bought("GPA.5", "premium_yearly") with { PurchaseState = PurchaseState.Pending });
+            store.Updates.OnNext(Bought("GPA.6", "premium_yearly"));
 
             // Outcomes arrive on the context current when the flow was created.
             Assert.Empty(published);
             context.RunPosted();
             Assert.Equal(
-                [("GPA.1", false), ("GPA.2", true), ("GPA.3", true)],
-                published.Select(outcome =>
-                    (outcome.Purchase.Id, Assert.IsType<PurchaseFlowStatus.Invalid>(outcome.Status).Recovered)));
+                ["GPA.1 requested", "GPA.2 recovered", "GPA.3 recovered", "GPA.4 recovered", "GPA.5 pending", "GPA.6 requested"],
+                published.Select(outcome => outcome.Purchase.Id + outcome.Status switch
+                {
+                    PurchaseFlowStatus.Invalid { Recovered: true } => " recovered",
+                    PurchaseFlowStatus.Invalid => " requested",
+                    PurchaseFlowStatus.StorePending => " pending",
+                    _ => " " + outcome.Status,
+                }));
 
+            // Disposing clears the marks and stops listening.
+            await PurchaseRequests.Track(SubscriptionRequest("premium_yearly"), () => Task.FromResult(0));
             flow.Dispose();
-            store.Updates.OnNext(PurchaseFlowTests.Play("GPA.4"));
-            Assert.Equal(["GPA.1", "GPA.2", "GPA.3"], confirmed);
+            Assert.False(PurchaseRequests.Take(Bought("GPA.7", "premium_yearly")));
+            store.Updates.OnNext(Bought("GPA.8", "premium_yearly"));
+            Assert.Equal(["GPA.1", "GPA.2", "GPA.3", "GPA.4", "GPA.6"], confirmed);
         }
         finally
         {
@@ -213,12 +230,24 @@ public class OpenIapClientFacadeTests
             Assert.Contains(nameof(MutationResolver.FinishTransactionAsync), finishError.Message, StringComparison.Ordinal);
             var readError = await Assert.ThrowsAsync<OpenIapException>(() => flow.RecoverPurchasesAsync());
             Assert.Contains(nameof(QueryResolver.GetAvailablePurchasesAsync), readError.Message, StringComparison.Ordinal);
+            var apple = new PurchaseIOS
+            {
+                Id = "tx-1", TransactionId = "tx-1", ProductId = "premium", PurchaseState = PurchaseState.Purchased,
+                Quantity = 1, IsAutoRenewing = false, Store = IapStore.Apple, TransactionDate = 0,
+            };
+            var pendingError = await Assert.ThrowsAsync<OpenIapException>(() => OpenIapClient.ConfirmOnDeviceIOS()(apple, false));
+            Assert.Contains(nameof(QueryResolver.GetPendingTransactionsIOSAsync), pendingError.Message, StringComparison.Ordinal);
         }
         finally
         {
             OpenIapClient.OverrideInstance(new UnsupportedOpenIap());
         }
     }
+
+    private static double Now() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+    private static PurchaseAndroid Bought(string id, string productId) =>
+        PurchaseFlowTests.Play(id, productId) with { TransactionDate = Now() };
 
     private static RequestPurchaseProps SubscriptionRequest(string sku) => new()
     {
@@ -230,10 +259,15 @@ public class OpenIapClientFacadeTests
     {
         public Subject<Purchase> Updates { get; } = new();
         public Subject<PurchaseError> Errors { get; } = new();
+        public PurchaseUpdatedListenerOptions? UpdateOptions { get; private set; }
 
         public IObservable<Purchase> PurchaseUpdated => Updates;
 
-        public IObservable<Purchase> PurchaseUpdatedWithOptions(PurchaseUpdatedListenerOptions? options = null) => Updates;
+        public IObservable<Purchase> PurchaseUpdatedWithOptions(PurchaseUpdatedListenerOptions? options = null)
+        {
+            UpdateOptions = options;
+            return Updates;
+        }
 
         public IObservable<PurchaseError> PurchaseError => Errors;
 

@@ -37,6 +37,7 @@ namespace OpenIap.Maui.Platforms.iOS;
 internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposable
 {
     private readonly OpenIapModule _module = OpenIapModule.SharedInstance();
+    private readonly CallQueue _connection = new();
 
     private readonly Subject<Purchase> _purchaseUpdated = new();
     private readonly Subject<PurchaseError> _purchaseError = new();
@@ -253,7 +254,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     // MutationResolver
     // ====================================================================
 
-    public Task<bool> InitConnectionAsync(InitConnectionConfig? config = null)
+    public Task<bool> InitConnectionAsync(InitConnectionConfig? config = null) => _connection.RunAsync(() =>
     {
         // The ObjC bridge has no config arg; iOS doesn't use the Android-only
         // billing-program/alternative-billing fields anyway.
@@ -265,14 +266,14 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
             Complete(tcs, ok, err);
         });
         return tcs.Task;
-    }
+    });
 
-    public Task<bool> EndConnectionAsync()
+    public Task<bool> EndConnectionAsync() => _connection.RunAsync(() =>
     {
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         _module.EndConnection((ok, err) => Complete(tcs, ok, err));
         return tcs.Task;
-    }
+    });
 
     public Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps @params) => PurchaseRequests.Track(@params, () =>
     {

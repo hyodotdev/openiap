@@ -79,6 +79,7 @@ access is granted, so a purchase is never finished before your server knows of
 it. An app without a backend passes
 `OpenIapClient.ConfirmWithIapkit(new IapkitConfirmationOptions { ApiKey = "openiap-kit_pk_...", Grant = CreditAsync })`
 as `ConfirmWithBackend`; `Grant` credits consumables before they are consumed.
+An iOS app with neither a backend nor IAPKit passes `OpenIapClient.ConfirmOnDeviceIOS(CreditAsync)`.
 Dispose the flow when the signed-in account changes and create the next one.
 See the [purchase flow guide](https://kit.openiap.dev/docs/purchase-flow).
 

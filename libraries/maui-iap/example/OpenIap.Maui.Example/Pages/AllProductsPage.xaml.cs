@@ -23,17 +23,11 @@ public partial class AllProductsPage : ContentPage
         await ConnectAndFetchAsync();
     }
 
-    protected override async void OnDisappearing()
-    {
-        base.OnDisappearing();
-        await IapLifecycle.EndConnectionQuietlyAsync(nameof(AllProductsPage));
-    }
-
     private async Task ConnectAndFetchAsync()
     {
         try
         {
-            await IapLifecycle.InitConnectionAsync();
+            await OpenIapClient.Mutation.InitConnectionAsync();
             ConnectionLabel.Text = "✅ Connected";
             ConnectionLabel.TextColor = Color.FromArgb("#4CAF50");
 

@@ -25,17 +25,11 @@ public partial class AvailablePurchasesPage : ContentPage
         await ConnectAndRefreshAsync();
     }
 
-    protected override async void OnDisappearing()
-    {
-        base.OnDisappearing();
-        await IapLifecycle.EndConnectionQuietlyAsync(nameof(AvailablePurchasesPage));
-    }
-
     private async Task ConnectAndRefreshAsync()
     {
         try
         {
-            await IapLifecycle.InitConnectionAsync();
+            await OpenIapClient.Mutation.InitConnectionAsync();
             ConnectionLabel.Text = "✅ Connected";
             ConnectionLabel.TextColor = Color.FromArgb("#4CAF50");
 

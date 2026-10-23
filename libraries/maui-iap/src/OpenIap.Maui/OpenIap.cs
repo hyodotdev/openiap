@@ -168,13 +168,17 @@ public static class OpenIapClient
 #endif
             ListenForPurchases = options.ListenForPurchases ?? (onPurchase =>
             {
-                var updates = instance.PurchaseUpdated.Subscribe(onPurchase);
+                // iOS replays reach the flow, which deduplicates itself; a redelivery retries a failed confirmation.
+                var updates = instance
+                    .PurchaseUpdatedWithOptions(new PurchaseUpdatedListenerOptions { DedupeTransactionIOS = false })
+                    .Subscribe(onPurchase);
                 // A failed or cancelled request ends what the user asked for.
                 var errors = instance.PurchaseError.Subscribe(_ => PurchaseRequests.Clear());
                 return new DisposableAction(() =>
                 {
                     updates.Dispose();
                     errors.Dispose();
+                    PurchaseRequests.Clear();
                 });
             }),
             WasRequested = options.WasRequested ?? PurchaseRequests.Take,
@@ -195,6 +199,19 @@ public static class OpenIapClient
         return IapkitConfirmation.Create(
             props => Resolver<MutationResolver>(instance).VerifyPurchaseWithProviderAsync(props),
             options);
+    }
+
+    /// <summary>
+    /// Confirms App Store purchases on the device, for apps with neither a
+    /// backend nor IAPKit: StoreKit must still list the transaction as
+    /// unfinished and valid. Credit consumables in <paramref name="grant"/>.
+    /// </summary>
+    public static PurchaseConfirmer ConfirmOnDeviceIOS(PurchaseGranter? grant = null)
+    {
+        var instance = Instance;
+        return DeviceConfirmationIOS.Create(
+            () => Resolver<QueryResolver>(instance).GetPendingTransactionsIOSAsync(),
+            grant);
     }
 
     private static T Resolver<T>(IOpenIap instance) where T : class =>
