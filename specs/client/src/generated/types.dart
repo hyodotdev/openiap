@@ -204,8 +204,7 @@ enum BillingChoiceScreenTypeAndroid {
 /// (requires Play Billing 9.1.0+).
 enum BillingProgramAndroid {
   /// No billing program. In InitConnectionConfig, it selects the standard client,
-  /// and programs queued with enableBillingProgramAndroid stay. Other billing
-  /// program APIs reject it.
+  /// and programs queued with enableBillingProgramAndroid stay.
   Unspecified('unspecified'),
   /// User Choice Billing program.
   /// User can select between Google Play Billing or alternative billing.

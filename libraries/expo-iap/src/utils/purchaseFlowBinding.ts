@@ -92,7 +92,13 @@ export function createSdkPurchaseFlow(
   });
   // Whatever listens, a failed or cancelled request ends what the user asked
   // for, and the next account's flow must not inherit requests.
-  const errors = manual ? undefined : sdk.purchaseErrorListener(clearRequested);
+  let errors: Subscription | undefined;
+  try {
+    errors = manual ? undefined : sdk.purchaseErrorListener(clearRequested);
+  } catch (error) {
+    flow.dispose();
+    throw error;
+  }
   let disposed = false;
   return {
     ...flow,

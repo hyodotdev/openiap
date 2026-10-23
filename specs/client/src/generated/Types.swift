@@ -171,8 +171,7 @@ public enum BillingChoiceScreenTypeAndroid: String, Codable, CaseIterable {
 /// (requires Play Billing 9.1.0+).
 public enum BillingProgramAndroid: String, Codable, CaseIterable {
     /// No billing program. In InitConnectionConfig, it selects the standard client,
-    /// and programs queued with enableBillingProgramAndroid stay. Other billing
-    /// program APIs reject it.
+    /// and programs queued with enableBillingProgramAndroid stay.
     case unspecified = "unspecified"
     /// User Choice Billing program.
     /// User can select between Google Play Billing or alternative billing.

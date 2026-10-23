@@ -219,6 +219,28 @@ describe('Public API (index.ts)', () => {
       flow.dispose();
     });
 
+    it('stops listening when the error listener cannot register', () => {
+      const updates = {remove: jest.fn()};
+      jest
+        .mocked(ExpoIapModule.addListener)
+        .mockImplementation((name: string) => {
+          if (name === OpenIapEvent.PurchaseError) {
+            throw new Error('native listener unavailable');
+          }
+          return name === OpenIapEvent.PurchaseUpdated
+            ? updates
+            : {remove: jest.fn()};
+        });
+
+      expect(() =>
+        createPurchaseFlow({
+          confirmWithBackend: async () => ({status: 'invalid' as const}),
+          isConsumable: () => false,
+        }),
+      ).toThrow('native listener unavailable');
+      expect(updates.remove).toHaveBeenCalledTimes(1);
+    });
+
     it("a second dispose leaves the next flow's requests alone", async () => {
       const create = () =>
         createPurchaseFlow({

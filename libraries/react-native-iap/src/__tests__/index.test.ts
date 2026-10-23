@@ -248,6 +248,23 @@ describe('Public API (src/index.ts)', () => {
       flow.dispose();
     });
 
+    it('stops listening when the error listener cannot register', async () => {
+      const confirmWithBackend = jest.fn(async () => ({
+        status: 'invalid' as const,
+      }));
+      mockIap.addPurchaseErrorListener.mockImplementationOnce(() => {
+        throw new Error('native listener unavailable');
+      });
+
+      expect(() =>
+        IAP.createPurchaseFlow({confirmWithBackend, isConsumable: () => false}),
+      ).toThrow('native listener unavailable');
+      deliver(nitroPurchase('premium', 'tx-orphan'));
+      await settle();
+
+      expect(confirmWithBackend).not.toHaveBeenCalled();
+    });
+
     it("a second dispose leaves the next flow's requests alone", async () => {
       const create = () =>
         IAP.createPurchaseFlow({
