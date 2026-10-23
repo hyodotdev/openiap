@@ -129,12 +129,32 @@ function InitConnection() {
           <code>DEVELOPER_RENDERED</code> when your app owns the choice screen.
         </li>
       </ul>
+      <p>On Google Play, calling it again changes the live connection:</p>
+      <ul>
+        <li>
+          A config with a different program or renderer rebuilds the client; a
+          matching config or no config keeps it.
+        </li>
+        <li>
+          During a purchase the rebuild is refused with{' '}
+          <code>developer-error</code> and the live client stays. A rebuild that
+          fails leaves the store disconnected.
+        </li>
+        <li>
+          The program the app chose last survives a service drop or a failed
+          connect, so a later call without a config reconnects with it. Only{' '}
+          <code>endConnection</code> forgets it.
+        </li>
+        <li>
+          A config without a program returns to the standard client; programs
+          queued with <code>enableBillingProgramAndroid</code> stay. Flutter
+          cannot pass an empty config, so it passes{' '}
+          <code>BillingProgramAndroid.Unspecified</code>.
+        </li>
+      </ul>
       <p>
-        On Google Play and Meta Horizon, calling{' '}
-        <code>initConnection(config)</code> on an already connected client
-        returns <code>true</code> and ignores the config, so end the connection
-        first to change the billing program; Godot Android instead returns{' '}
-        <code>false</code> and emits a developer error when the config differs.
+        Meta Horizon has no billing programs: a connected client returns{' '}
+        <code>true</code> and ignores the config.
       </p>
 
       <AnchorLink id="returns" level="h2">

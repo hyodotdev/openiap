@@ -112,7 +112,7 @@ function AlternativeBillingTypes() {
         <LanguageTabs>
           {{
             typescript: (
-              <CodeBlock language="typescript">{`// Choose one configuration. End the current connection before changing programs.
+              <CodeBlock language="typescript">{`// Choose one configuration. On Google Play, connecting again with another program switches to it.
 
 const config = {
   // Also supported: 'user-choice-billing', 'external-payments', or 'billing-choice'.
@@ -132,7 +132,7 @@ let connected = try await OpenIapModule.shared.initConnection()
 precondition(connected, "Store connection failed")`}</CodeBlock>
             ),
             kotlin: (
-              <CodeBlock language="kotlin">{`// Choose one configuration. End the current connection before changing programs.
+              <CodeBlock language="kotlin">{`// Choose one configuration. On Google Play, connecting again with another program switches to it.
 
 val config = InitConnectionConfig(
     // Also supported: UserChoiceBilling, ExternalPayments, or BillingChoice.
@@ -145,7 +145,7 @@ val connected = openIapStore.initConnection(config)
 check(connected) { "Store connection failed" }`}</CodeBlock>
             ),
             dart: (
-              <CodeBlock language="dart">{`// Choose one configuration. End the current connection before changing programs.
+              <CodeBlock language="dart">{`// Choose one configuration. On Google Play, connecting again with another program switches to it.
 
 // Also supported: UserChoiceBilling, ExternalPayments, or BillingChoice.
 final connected = await FlutterInappPurchase.instance.initConnection(
@@ -158,7 +158,7 @@ if (!connected) throw StateError('Store connection failed');`}</CodeBlock>
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Choose one configuration. End the current connection before changing programs.
+// Choose one configuration. On Google Play, connecting again with another program switches to it.
 
 var config = new InitConnectionConfig
 {
@@ -172,7 +172,7 @@ var connected = await OpenIapClient.Mutation.InitConnectionAsync(config);
 if (!connected) throw new InvalidOperationException("Store connection failed");`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`# Choose one configuration. End the current connection before changing programs.
+              <CodeBlock language="gdscript">{`# Choose one configuration. On Google Play, connecting again with another program switches to it.
 
 var config = InitConnectionConfig.new()
 # Also supported: USER_CHOICE_BILLING, EXTERNAL_PAYMENTS, or BILLING_CHOICE.

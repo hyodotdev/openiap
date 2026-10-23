@@ -822,10 +822,12 @@ function Releases() {
               openiap-google even when connected; without one it keeps the
               connection. <code>initConnection</code> and{' '}
               <code>endConnection</code> run in call order, and a failed
-              connection attempt leaves the store disconnected. The new exports
-              include generic names such as <code>PurchaseFlow</code> and{' '}
-              <code>PurchaseEntitled</code>; hide them on import if your app
-              declares the same names.
+              connection attempt leaves the store disconnected.{' '}
+              <code>endConnection</code> after a dropped or failed connection
+              still reaches openiap-google, so it forgets the billing program.
+              The new exports include generic names such as{' '}
+              <code>PurchaseFlow</code> and <code>PurchaseEntitled</code>; hide
+              them on import if your app declares the same names.
             </li>
             <li>
               <strong>godot-iap 4.1.0</strong>:{' '}
