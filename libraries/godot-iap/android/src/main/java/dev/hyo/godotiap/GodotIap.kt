@@ -141,18 +141,10 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             return false
         }
 
-        val normalizedConfig = (config ?: InitConnectionConfig()).toJson()
+        val normalizedConfig = config?.toJson()?.filterValues { it != null }.orEmpty()
         val result = try {
             connectionLifecycle.init(
                 config = normalizedConfig,
-                onConfigMismatch = {
-                    purchaseErrorListener.onPurchaseError(
-                        OpenIapError.DeveloperError(
-                            "Connection is already initialized with different billing configuration. " +
-                                "Call endConnection before changing configuration."
-                        )
-                    )
-                },
                 connect = { generation ->
                     runBlocking {
                         val candidateModule = OpenIapProvider.create(activity)
@@ -179,6 +171,10 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                         }
                     }
                 },
+                // Native rebuilds the client only when the config changes what Play reads.
+                reconfigure = { runBlocking { store.initConnection(config) } },
+                disconnect = ::disconnectStore,
+                cleanupListeners = ::detachActiveListeners,
             )
         } catch (error: Exception) {
             GodotIapLog.failure("initConnection", error)
@@ -202,14 +198,8 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
         val result = try {
             connectionLifecycle.end(
-                disconnect = {
-                    runBlocking {
-                        runCatching { store.endConnection() }
-                            .onFailure { GodotIapLog.failure("endConnection", it) }
-                            .getOrDefault(false)
-                    }
-                },
-                cleanupListeners = { detachListeners(openIap, store, dropListener) },
+                disconnect = ::disconnectStore,
+                cleanupListeners = ::detachActiveListeners,
                 onlyGeneration = onlyGeneration,
             )
         } catch (error: Exception) {
@@ -220,6 +210,14 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         GodotIapLog.result("endConnection", result.success)
         return result.success
     }
+
+    private fun disconnectStore(): Boolean = runBlocking {
+        runCatching { store.endConnection() }
+            .onFailure { GodotIapLog.failure("endConnection", it) }
+            .getOrDefault(false)
+    }
+
+    private fun detachActiveListeners() = detachListeners(openIap, store, dropListener)
 
     private fun attachListeners(
         module: OpenIapProtocol,

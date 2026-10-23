@@ -12,6 +12,7 @@ class_name GodotIapWrapper
 # Types from OpenIAP spec
 const Types = preload("types.gd")
 const AndroidStore = preload("android_store.gd")
+const PurchaseFlow = preload("purchase_flow.gd")
 
 const APPLE_PLATFORMS := ["iOS", "macOS"]
 const APPLE_ASYNC_RESULT_CACHE_LIMIT := 64
@@ -57,6 +58,9 @@ class AppleAsyncWaiter:
 # Signals (OpenIAP Events)
 # ==========================================
 signal purchase_updated(purchase: Dictionary)
+## [signal purchase_updated] as a typed purchase: [Types.PurchaseAndroid] on
+## Android, [Types.PurchaseIOS] on Apple platforms.
+signal purchase_received(purchase: Variant)
 signal purchase_error(error: Dictionary)
 signal products_fetched(result: Dictionary)
 signal connected()
@@ -72,6 +76,9 @@ signal developer_provided_billing_android(details: Dictionary)
 ## and Google Play Billing [code]Purchase.isSuspended[/code] (Play Billing 8.1+).
 ## Not emitted on the Meta Horizon flavor.
 signal subscription_billing_issue(purchase: Dictionary)
+
+## Prints the wrapper's call trace. Errors print either way.
+var debug_logging := false
 
 # Native plugin reference
 var _native_plugin: Object = null
@@ -96,6 +103,15 @@ var _platform: String = ""
 ## OS.has_feature, swappable in tests: an editor run carries no export tags.
 var _has_feature: Callable = Callable(OS, "has_feature")
 var _shell_open: Callable = Callable(OS, "shell_open")
+# SKUs passed to request_purchase, so the purchase flow can tell the user's own
+# purchase from one the store delivers again.
+var _requested_skus := {}
+var _listening_flows: Array = []
+
+
+func _log(message: String) -> void:
+	if debug_logging:
+		print("[GodotIap] ", message)
 
 
 func _is_apple() -> bool:
@@ -117,13 +133,12 @@ func _exit_tree() -> void:
 	)
 
 func _init_native_plugin() -> void:
-	print("[GodotIap] Initializing native plugin...")
-	print("[GodotIap] Platform: ", _platform)
+	_log("Initializing native plugin on %s" % _platform)
 	if _shared_native_plugin == null:
 		_shared_native_plugin = _load_native_plugin()
 	_native_plugin = _shared_native_plugin
 	if _native_plugin == null:
-		print("[GodotIap] Native plugin not available - expected in the editor or on desktop")
+		_log("Native plugin not available - expected in the editor or on desktop")
 	elif _is_apple():
 		_connect_signals_apple()
 	elif _platform == "Android":
@@ -133,12 +148,12 @@ func _init_native_plugin() -> void:
 func _load_native_plugin() -> Object:
 	# iOS/macOS: SwiftGodot GDExtension
 	if _is_apple() and ClassDB.class_exists("GodotIap") and ClassDB.can_instantiate("GodotIap"):
-		print("[GodotIap] Native plugin loaded via ClassDB (", _platform, ")")
+		_log("Native plugin loaded via ClassDB (%s)" % _platform)
 		return ClassDB.instantiate("GodotIap")
 	# Android: plugin singleton
 	if _platform == "Android":
 		if Engine.has_singleton("GodotIap"):
-			print("[GodotIap] Native plugin loaded via Engine singleton (Android)")
+			_log("Native plugin loaded via Engine singleton (Android)")
 			return Engine.get_singleton("GodotIap")
 		print("[GodotIap] ERROR: GodotIap singleton not found!")
 	return null
@@ -168,47 +183,49 @@ func _connect_signals_android() -> void:
 	if not _native_plugin:
 		return
 
-	print("[GodotIap] Connecting Android signals...")
-
 	if _native_plugin.has_signal("purchase_updated"):
 		_native_plugin.connect("purchase_updated", _on_android_purchase_updated)
-		print("[GodotIap] Connected: purchase_updated")
 
 	if _native_plugin.has_signal("purchase_error"):
 		_native_plugin.connect("purchase_error", _on_android_purchase_error)
-		print("[GodotIap] Connected: purchase_error")
 
 	if _native_plugin.has_signal("products_fetched"):
 		_native_plugin.connect("products_fetched", _on_android_products_fetched)
-		print("[GodotIap] Connected: products_fetched")
 
 	if _native_plugin.has_signal("connected"):
 		_native_plugin.connect("connected", _on_connected)
-		print("[GodotIap] Connected: connected")
 
 	if _native_plugin.has_signal("disconnected"):
 		_native_plugin.connect("disconnected", _on_disconnected)
-		print("[GodotIap] Connected: disconnected")
 
 	if _native_plugin.has_signal("user_choice_billing"):
 		_native_plugin.connect("user_choice_billing", _on_android_user_choice_billing)
-		print("[GodotIap] Connected: user_choice_billing")
 
 	if _native_plugin.has_signal("developer_provided_billing"):
 		_native_plugin.connect("developer_provided_billing", _on_android_developer_provided_billing)
-		print("[GodotIap] Connected: developer_provided_billing")
 
 	if _native_plugin.has_signal("subscription_billing_issue"):
 		_native_plugin.connect("subscription_billing_issue", _on_android_subscription_billing_issue)
-		print("[GodotIap] Connected: subscription_billing_issue")
-
-	print("[GodotIap] Android signal connection complete")
 
 # ==========================================
 # Signal Handlers - Apple (SwiftGodot)
 # ==========================================
 func _on_native_purchase_updated(purchase: Dictionary) -> void:
-	purchase_updated.emit(_canonical_purchase(purchase))
+	_emit_purchase_updated(_canonical_purchase(purchase))
+
+
+func _emit_purchase_updated(purchase: Dictionary) -> void:
+	purchase_updated.emit(purchase)
+	var typed = Types.PurchaseAndroid.from_dict(purchase) if _platform == "Android" \
+		else Types.PurchaseIOS.from_dict(purchase)
+	if typed == null:
+		push_error(
+			"[GodotIap] purchase_received skipped a purchase with an invalid store identity (productId=%s, transactionId=%s); purchase_updated still delivered it."
+			% [purchase.get("productId", "?"), purchase.get("transactionId", purchase.get("id", "?"))]
+		)
+	else:
+		purchase_received.emit(typed)
+
 
 func _canonical_purchase(purchase: Dictionary) -> Dictionary:
 	var purchase_json = purchase.get("purchaseJson")
@@ -264,7 +281,7 @@ func _on_native_subscription_billing_issue_apple(purchase: Dictionary) -> void:
 func _on_android_purchase_updated(purchase_json: String) -> void:
 	var purchase = JSON.parse_string(purchase_json)
 	if purchase is Dictionary:
-		purchase_updated.emit(purchase)
+		_emit_purchase_updated(_normalize_android_purchase_dict(purchase))
 
 func _on_android_purchase_error(error_json: String) -> void:
 	var error = JSON.parse_string(error_json)
@@ -300,6 +317,8 @@ func _on_android_subscription_billing_issue(purchase_json: String) -> void:
 ## [param config]: optional [InitConnectionConfig]. On Android, set
 ## [code]enable_billing_program_android[/code] to Billing Choice and use
 ## [code]billing_choice_screen_type_android[/code] to match Play Console.
+## Calling it again with a different config reconfigures the live connection;
+## no [method end_connection] is needed.
 ##
 ## Returns [code]true[/code] once the platform billing client is connected.
 ##
@@ -309,10 +328,10 @@ func _on_android_subscription_billing_issue(purchase_json: String) -> void:
 ##
 ## See: https://openiap.dev/docs/apis/init-connection
 func init_connection(config = null) -> bool:
-	print("[GodotIap] init_connection called")
+	_log("init_connection called")
 	if _native_plugin:
 		if _platform == "Android":
-			print("[GodotIap] Calling Android initConnection...")
+			_log("Calling Android initConnection...")
 			if config != null:
 				var config_dict = config.to_dict() if typeof(config) == TYPE_OBJECT and config.has_method("to_dict") else config
 				_is_connected = _native_plugin.call("initConnectionWithConfig", JSON.stringify(config_dict))
@@ -325,18 +344,18 @@ func init_connection(config = null) -> bool:
 				else:
 					print("[GodotIap] ERROR: initConnection failed. Check Google Play Services and billing setup.")
 			else:
-				print("[GodotIap] initConnection result: ", _is_connected)
+				_log("initConnection result: %s" % _is_connected)
 		elif _is_apple():
-			print("[GodotIap] Calling Apple initConnection...")
+			_log("Calling Apple initConnection...")
 			_apply_purchase_updated_listener_options_apple()
 			var payload = await _call_native_async("initConnection")
 			_is_connected = payload.get("success", false)
 			if not _is_connected:
 				print("[GodotIap] ERROR: initConnection failed. Check StoreKit configuration.")
 			else:
-				print("[GodotIap] initConnection result: ", _is_connected)
+				_log("initConnection result: %s" % _is_connected)
 		else:
-			print("[GodotIap] No init method found, assuming connected")
+			_log("No init method found, assuming connected")
 			_is_connected = true
 		return _is_connected
 	# No native plugin available
@@ -366,7 +385,7 @@ func _last_android_init_error_message() -> String:
 ##
 ## See: https://openiap.dev/docs/apis/end-connection
 func end_connection() -> bool:
-	print("[GodotIap] end_connection called")
+	_log("end_connection called")
 	if _native_plugin:
 		if _is_apple():
 			_cancel_pending_apple_async(
@@ -441,7 +460,7 @@ func _apply_purchase_updated_listener_options_apple() -> void:
 ##
 ## See: https://openiap.dev/docs/apis/fetch-products
 func fetch_products(request) -> Array:
-	print("[GodotIap] fetch_products called")
+	_log("fetch_products called")
 	var result = await _fetch_products_raw(request.to_dict())
 	var products: Array = []
 
@@ -494,7 +513,7 @@ func _product_from_dict(product_dict: Dictionary) -> Variant:
 
 ## Internal: Fetch products with a native Dictionary payload.
 func _fetch_products_raw(request: Dictionary) -> Dictionary:
-	print("[GodotIap] _fetch_products_raw called with: ", request)
+	_log("_fetch_products_raw called with: %s" % request)
 	if _native_plugin:
 		var normalized_request := request.duplicate(true)
 		var query_type := _normalize_product_query_type(
@@ -506,14 +525,14 @@ func _fetch_products_raw(request: Dictionary) -> Dictionary:
 		normalized_request["type"] = query_type
 		var request_json = JSON.stringify(normalized_request)
 		if _platform == "Android":
-			print("[GodotIap] Calling fetchProducts with: ", request_json)
+			_log("Calling fetchProducts with: %s" % request_json)
 			var result_json = _native_plugin.call("fetchProducts", request_json)
 			var result = JSON.parse_string(result_json)
 			if result is Dictionary:
 				return result
 			return { "products": [], "error": "Parse error" }
 		elif _is_apple():
-			print("[GodotIap] Calling fetchProducts with: ", request_json)
+			_log("Calling fetchProducts with: %s" % request_json)
 			var signal_result = await _call_native_async("fetchProducts", [request_json])
 			var products_array: Array = []
 			if signal_result.get("success", false):
@@ -635,7 +654,7 @@ func _purchase_failure(code: String, message: String, details: Dictionary = {}) 
 
 ## Internal: Request a purchase with raw Dictionary
 func _request_purchase_raw(args: Dictionary) -> Dictionary:
-	print("[GodotIap] _request_purchase_raw called")
+	_log("_request_purchase_raw called")
 	if not _native_plugin:
 		print("[GodotIap] ERROR: Native plugin not available. Cannot make purchases.")
 		return _purchase_failure("not-prepared", "Native plugin not available")
@@ -762,7 +781,8 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 		if purchase_type == "in-app" and not offer_token.is_empty():
 			params["offerToken"] = offer_token
 		var params_json = JSON.stringify(params)
-		print("[GodotIap] Calling Android requestPurchase: type=", purchase_type, ", skus=", params["skus"].size(), ", subscriptionOffers=", subscription_offers.size(), ", hasPurchaseToken=", params.has("purchaseToken"))
+		_mark_requested(params["skus"])
+		_log("Calling Android requestPurchase: type=%s, skus=%d, subscriptionOffers=%d, hasPurchaseToken=%s" % [purchase_type, params["skus"].size(), subscription_offers.size(), params.has("purchaseToken")])
 		result_raw = _native_plugin.call("requestPurchase", params_json)
 	elif _is_apple():
 		var apple_props = request.get("apple", {})
@@ -779,6 +799,7 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 			apple_payload["requestSubscription"] = { "apple": apple_props }
 		else:
 			apple_payload["requestPurchase"] = { "apple": apple_props }
+		_mark_requested([sku])
 		result_raw = _native_plugin.call("requestPurchaseWithPayload", JSON.stringify(apple_payload))
 	else:
 		return _purchase_failure("feature-not-supported", "Unsupported platform")
@@ -789,7 +810,7 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 		return _purchase_failure("service-error", err_msg)
 
 	var result_json = str(result_raw)
-	print("[GodotIap] requestPurchase result received")
+	_log("requestPurchase result received")
 	var result = JSON.parse_string(result_json)
 	if result is Dictionary:
 		if result.get("success", false):
@@ -823,11 +844,8 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 ##
 ## See: https://openiap.dev/docs/apis/finish-transaction
 func finish_transaction(purchase, is_consumable: bool = false) -> Variant:
-	print("[GodotIap] finish_transaction called, consumable: ", is_consumable)
-	var purchase_dict: Dictionary = purchase.to_dict()
-	var result = await _finish_transaction_raw(purchase_dict, is_consumable)
-	_print_first_purchase_notice.call_deferred(purchase_dict, result)
-	return Types.VoidResult.from_dict(result)
+	_log("finish_transaction called, consumable: %s" % is_consumable)
+	return Types.VoidResult.from_dict(await _finish_and_notify(purchase.to_dict(), is_consumable))
 
 ## Finish transaction with raw Dictionary (convenience method).
 ## Use this when you have the purchase dictionary from purchase_updated signal.
@@ -835,14 +853,18 @@ func finish_transaction(purchase, is_consumable: bool = false) -> Variant:
 ## @param is_consumable: bool - whether to consume (true) or acknowledge (false)
 ## @return Types.VoidResult
 func finish_transaction_dict(purchase: Dictionary, is_consumable: bool = false) -> Variant:
-	print("[GodotIap] finish_transaction_dict called, consumable: ", is_consumable)
+	_log("finish_transaction_dict called, consumable: %s" % is_consumable)
+	return Types.VoidResult.from_dict(await _finish_and_notify(purchase, is_consumable))
+
+
+func _finish_and_notify(purchase: Dictionary, is_consumable: bool) -> Dictionary:
 	var result = await _finish_transaction_raw(purchase, is_consumable)
 	_print_first_purchase_notice.call_deferred(purchase, result)
-	return Types.VoidResult.from_dict(result)
+	return result
 
 ## Internal: Finish transaction with raw Dictionary
 func _finish_transaction_raw(purchase: Dictionary, is_consumable: bool) -> Dictionary:
-	print("[GodotIap] _finish_transaction_raw called for productId=", purchase.get("productId", ""), ", consumable: ", is_consumable)
+	_log("_finish_transaction_raw called for productId=%s, consumable: %s" % [purchase.get("productId", ""), is_consumable])
 
 	if not _native_plugin:
 		return { "success": true }
@@ -855,11 +877,11 @@ func _finish_transaction_raw(purchase: Dictionary, is_consumable: bool) -> Dicti
 			return { "success": false, "error": "Product ID is required", "code": Types.ErrorCode.DEVELOPER_ERROR }
 
 		var purchase_json = JSON.stringify(purchase)
-		print("[GodotIap] Calling Android finishTransaction for productId=", product_id, ", isConsumable: ", is_consumable)
+		_log("Calling Android finishTransaction for productId=%s, isConsumable: %s" % [product_id, is_consumable])
 
 		# Note: has_method() doesn't work reliably with JNISingleton, so we call directly
 		var result_json = _native_plugin.call("finishTransaction", purchase_json, is_consumable)
-		print("[GodotIap] finishTransaction result received")
+		_log("finishTransaction result received")
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
 			return result
@@ -868,7 +890,7 @@ func _finish_transaction_raw(purchase: Dictionary, is_consumable: bool) -> Dicti
 	elif _is_apple():
 		var args = { "purchase": purchase, "isConsumable": is_consumable }
 		var args_json = JSON.stringify(args)
-		print("[GodotIap] Calling finishTransaction for productId=", purchase.get("productId", ""), ", isConsumable: ", is_consumable)
+		_log("Calling finishTransaction for productId=%s, isConsumable: %s" % [purchase.get("productId", ""), is_consumable])
 		return await _call_native_async("finishTransaction", [args_json])
 
 	return { "success": true }
@@ -916,7 +938,7 @@ func _print_first_purchase_notice(purchase: Dictionary, result: Dictionary) -> v
 ##
 ## See: https://openiap.dev/docs/apis/restore-purchases
 func restore_purchases() -> Variant:
-	print("[GodotIap] restore_purchases called")
+	_log("restore_purchases called")
 
 	var payload: Dictionary
 	if not _native_plugin:
@@ -946,7 +968,7 @@ func restore_purchases() -> Variant:
 		var failure := _purchase_failure(
 			String(payload.get("code", "service-error")),
 			String(payload.get("error", "Failed to restore purchases")),
-			payload
+			payload.merged({"method": "restorePurchases"})
 		)
 		result.code = failure.code
 		result.error = failure.error
@@ -972,7 +994,7 @@ func restore_purchases() -> Variant:
 ##
 ## See: https://openiap.dev/docs/apis/get-available-purchases
 func get_available_purchases(options = null) -> Array:
-	print("[GodotIap] get_available_purchases called")
+	_log("get_available_purchases called")
 	var result := await get_available_purchases_result(options)
 	return result.get("purchases", []) if result.get("success", false) else []
 
@@ -987,7 +1009,7 @@ func get_available_purchases(options = null) -> Array:
 ## shape: [method get_available_purchases] collapses a failure into an empty
 ## array, while this method preserves it.
 func get_available_purchases_result(options = null) -> Dictionary:
-	print("[GodotIap] get_available_purchases_result called")
+	_log("get_available_purchases_result called")
 	var raw_result := await _get_available_purchases_result_raw(options)
 	if not raw_result.get("success", false):
 		return raw_result
@@ -1191,7 +1213,7 @@ func _is_valid_purchase_dictionary(value) -> bool:
 ##
 ## See: https://openiap.dev/docs/apis/get-active-subscriptions
 func get_active_subscriptions(subscription_ids: Array[String] = []) -> Array:
-	print("[GodotIap] get_active_subscriptions called")
+	_log("get_active_subscriptions called")
 	var result := await get_active_subscriptions_result(subscription_ids)
 	return result.get("subscriptions", []) if result.get("success", false) else []
 
@@ -1201,7 +1223,7 @@ func get_active_subscriptions(subscription_ids: Array[String] = []) -> Array:
 func get_active_subscriptions_result(
 	subscription_ids: Array[String] = []
 ) -> Dictionary:
-	print("[GodotIap] get_active_subscriptions_result called")
+	_log("get_active_subscriptions_result called")
 	var raw_result := await _get_active_subscriptions_result_raw(subscription_ids)
 	if not raw_result.get("success", false):
 		return raw_result
@@ -1316,7 +1338,7 @@ func _active_subscription_failure(code: String, message: String) -> Dictionary:
 ##
 ## See: https://openiap.dev/docs/apis/has-active-subscriptions
 func has_active_subscriptions(subscription_ids: Array[String] = []) -> bool:
-	print("[GodotIap] has_active_subscriptions called")
+	_log("has_active_subscriptions called")
 	var result := await has_active_subscriptions_result(subscription_ids)
 	return result.get("hasActive", false) if result.get("success", false) else false
 
@@ -1325,7 +1347,7 @@ func has_active_subscriptions(subscription_ids: Array[String] = []) -> bool:
 func has_active_subscriptions_result(
 	subscription_ids: Array[String] = []
 ) -> Dictionary:
-	print("[GodotIap] has_active_subscriptions_result called")
+	_log("has_active_subscriptions_result called")
 	if _native_plugin and (_platform == "Android" or _is_apple()):
 		var ids_json := _subscription_ids_json(subscription_ids)
 		var result = null
@@ -1366,12 +1388,13 @@ func has_active_subscriptions_result(
 ##
 ## See: https://openiap.dev/docs/apis/get-storefront
 func get_storefront() -> String:
-	print("[GodotIap] get_storefront called")
+	_log("get_storefront called")
 	if not _native_plugin:
 		var unavailable_code = "not-prepared" if _platform == "Android" or _is_apple() else "feature-not-supported"
 		purchase_error.emit({
 			"code": unavailable_code,
 			"message": "Storefront lookup requires a native store plugin",
+			"method": "getStorefront",
 		})
 		return ""
 	if _is_apple():
@@ -1381,12 +1404,14 @@ func get_storefront() -> String:
 		purchase_error.emit({
 			"code": String(payload.get("code", "service-error")),
 			"message": String(payload.get("error", "Storefront lookup failed")),
+			"method": "getStorefront",
 		})
 		return ""
 	if _platform != "Android":
 		purchase_error.emit({
 			"code": "feature-not-supported",
 			"message": "Storefront lookup is not supported on %s" % _platform,
+			"method": "getStorefront",
 		})
 		return ""
 
@@ -1410,6 +1435,7 @@ func get_storefront() -> String:
 	purchase_error.emit({
 		"code": error_code,
 		"message": error_message,
+		"method": "getStorefront",
 	})
 	return ""
 
@@ -1424,7 +1450,7 @@ func get_storefront() -> String:
 ##
 ## See: https://openiap.dev/docs/features/validation#verify-purchase
 func verify_purchase(props) -> Variant:
-	print("[GodotIap] verify_purchase called")
+	_log("verify_purchase called")
 	var props_dict := _as_dictionary(props)
 	if _native_plugin and _is_apple():
 		var payload = await _call_native_async("verifyPurchase", [JSON.stringify(props_dict)])
@@ -1433,7 +1459,7 @@ func verify_purchase(props) -> Variant:
 			var decoded = JSON.parse_string(payload_json)
 			if decoded is Dictionary:
 				return Types.VerifyPurchaseResultIOS.from_dict(decoded)
-		_purchase_failure(payload.get("code", "purchase-verification-failed"), payload.get("error", "Verification failed"), payload)
+		_purchase_failure(payload.get("code", "purchase-verification-failed"), payload.get("error", "Verification failed"), payload.merged({"method": "verifyPurchase"}))
 		return null
 
 	var result = _verify_purchase_raw(props_dict)
@@ -1444,7 +1470,7 @@ func verify_purchase(props) -> Variant:
 				return Types.VerifyPurchaseResultHorizon.from_dict(result)
 			return Types.VerifyPurchaseResultAndroid.from_dict(result)
 	if result.has("code") and not result.get("success", false):
-		_purchase_failure(result.code, result.get("error", "Verification failed"), result)
+		_purchase_failure(result.code, result.get("error", "Verification failed"), result.merged({"method": "verifyPurchase"}))
 	return null
 ## Internal: Verify purchase with raw Dictionary
 func _verify_purchase_raw(props: Dictionary) -> Dictionary:
@@ -1463,7 +1489,7 @@ func _verify_purchase_raw(props: Dictionary) -> Dictionary:
 ##
 ## See: https://openiap.dev/docs/features/validation#verify-purchase-with-provider
 func verify_purchase_with_provider(props) -> Variant:
-	print("[GodotIap] verify_purchase_with_provider called")
+	_log("verify_purchase_with_provider called")
 	var props_dict := _as_dictionary(props)
 	if _native_plugin and _is_apple():
 		var payload = await _call_native_async("verifyPurchaseWithProvider", [JSON.stringify(props_dict)])
@@ -1506,6 +1532,96 @@ func _verify_purchase_with_provider_raw(props: Dictionary) -> Dictionary:
 
 
 # ==========================================
+# Purchase Flow
+# ==========================================
+
+## Creates the app's purchase flow. It confirms and finishes every purchase
+## [signal purchase_updated] delivers, and recovers unfinished ones, through
+## this wrapper. Pass [code]confirm_with_backend[/code] and
+## [code]is_consumable[/code]; the wrapper supplies the store options left out
+## (see [code]GodotIapWrapper.PurchaseFlow[/code]). Create one per signed-in
+## account, and dispose it when the account changes.
+##
+## [codeblock]
+## var flow = GodotIapPlugin.create_purchase_flow({
+##     "confirm_with_backend": GodotIapPlugin.confirm_with_iapkit({"api_key": key, "grant": grant}),
+##     "is_consumable": func(product_id): return product_id in CONSUMABLES,
+## })
+## flow.purchase_processed.connect(_on_purchase_processed)
+## await flow.recover_purchases()
+## [/codeblock]
+##
+## See: https://kit.openiap.dev/docs/purchase-flow
+func create_purchase_flow(options: Dictionary) -> PurchaseFlow:
+	var store_options := {
+		"finish_transaction": _finish_for_flow,
+		"get_available_purchases": func() -> Variant: return _purchase_dicts(await get_available_purchases_result()),
+		# Off iOS a pending list would hide unacknowledged Android purchases.
+		"get_pending_transactions_ios": (func() -> Variant: return _purchase_dicts(await _get_pending_transactions_ios_result())) if _is_apple() else null,
+		"listen_for_purchases": _listen_for_purchases,
+		"was_requested": _take_requested,
+	}
+	return PurchaseFlow.new(store_options.merged(options, true))
+
+
+## Confirms purchases with IAPKit from the app, for apps without a backend:
+## pass it as [code]confirm_with_backend[/code] with a publishable key. Credit
+## consumables in [code]grant[/code], which runs before the purchase is
+## consumed. Options: [code]GodotIapWrapper.PurchaseFlow.create_iapkit_confirmation[/code].
+func confirm_with_iapkit(options: Dictionary) -> Callable:
+	var verify := func(props: Dictionary) -> Dictionary:
+		var result = await verify_purchase_with_provider(props)
+		return result.to_dict() if result != null else {}
+	return PurchaseFlow.create_iapkit_confirmation(verify, options)
+
+
+# Keeps the store's reason, which a VoidResult drops.
+func _finish_for_flow(purchase: Dictionary, is_consumable: bool) -> Variant:
+	var result := await _finish_and_notify(purchase, is_consumable)
+	if result.get("success", false):
+		return result
+	return PurchaseFlow.Failure.new(String(result.get("error", "Failed to finish the transaction")))
+
+
+func _purchase_dicts(result: Dictionary) -> Variant:
+	if not result.get("success", false):
+		return PurchaseFlow.Failure.new(String(result.get("error", "The store did not list purchases")))
+	return result.purchases.map(func(purchase): return purchase.to_dict())
+
+
+func _listen_for_purchases(on_purchase: Callable) -> Callable:
+	# A signal connection does not keep the flow alive, so the wrapper holds it until dispose.
+	_listening_flows.append(on_purchase.get_object())
+	# A failed or cancelled purchase ends what the user asked for; other operations tag a method.
+	var clear_requested := func(error: Dictionary) -> void:
+		if not error.has("method"):
+			_requested_skus.clear()
+	purchase_updated.connect(on_purchase)
+	purchase_error.connect(clear_requested)
+	return func() -> void:
+		purchase_updated.disconnect(on_purchase)
+		purchase_error.disconnect(clear_requested)
+		_listening_flows.erase(on_purchase.get_object())
+
+
+func _mark_requested(skus: Array) -> void:
+	for sku in skus:
+		_requested_skus[sku] = true
+
+
+# Whether the app asked for this purchase or the plan it changes to; clears the mark.
+func _take_requested(purchase: Dictionary) -> bool:
+	var product_ids: Array = [purchase.get("productId")]
+	var change = purchase.get("pendingPurchaseUpdateAndroid")
+	if change is Dictionary:
+		product_ids.append_array(change.get("products", []))
+	var taken := false
+	for product_id in product_ids:
+		taken = _requested_skus.erase(product_id) or taken
+	return taken
+
+
+# ==========================================
 # iOS-Specific (OpenIAP)
 # ==========================================
 
@@ -1535,21 +1651,31 @@ func clear_transaction_ios() -> bool:
 ##
 ## See: https://openiap.dev/docs/apis/ios/get-pending-transactions-ios
 func get_pending_transactions_ios() -> Array:
+	var result := await _get_pending_transactions_ios_result()
+	return result.get("purchases", [])
+
+
+# Keeps a failed read apart from an empty list, which purchase recovery needs.
+func _get_pending_transactions_ios_result() -> Dictionary:
+	if not (_native_plugin and _is_apple()):
+		return {"success": false, "code": "feature-not-supported", "error": "Pending transactions need the Apple native plugin"}
+	var payload = await _call_native_async("getPendingTransactionsIOS")
+	var transactions = JSON.parse_string(payload.get("transactionsJson", "[]")) if payload.get("success", false) else null
+	if not transactions is Array:
+		return {
+			"success": false,
+			"code": String(payload.get("code", "billing-response-json-parse-error")),
+			"error": String(payload.get("error", "Failed to get pending transactions")),
+		}
 	var purchases: Array = []
-	if _native_plugin and _is_apple():
-		var payload = await _call_native_async("getPendingTransactionsIOS")
-		if payload.get("success", false):
-			var transactions_json = payload.get("transactionsJson", "[]")
-			var transactions = JSON.parse_string(transactions_json)
-			if transactions is Array:
-				for tx in transactions:
-					if tx is Dictionary:
-						var purchase = Types.PurchaseIOS.from_dict(tx)
-						if purchase == null:
-							_log_dropped_purchase(tx)
-							continue
-						purchases.append(purchase)
-	return purchases
+	for tx in transactions:
+		if tx is Dictionary:
+			var purchase = Types.PurchaseIOS.from_dict(tx)
+			if purchase == null:
+				_log_dropped_purchase(tx)
+				continue
+			purchases.append(purchase)
+	return {"success": true, "purchases": purchases}
 
 ## Get all transactions including finished consumables (iOS only).
 ## Requires SKIncludeConsumableInAppPurchaseHistory Info.plist key for finished consumables (iOS 18+).
@@ -1727,7 +1853,7 @@ func present_external_purchase_notice_sheet_ios() -> Variant:
 	failed.result = Types.ExternalPurchaseNoticeAction.DISMISSED
 	if not (_native_plugin and _platform == "iOS"):
 		failed.error = "External purchase notice requires the iOS native plugin"
-		_purchase_failure("not-prepared" if _platform == "iOS" else "feature-not-supported", failed.error)
+		_purchase_failure("not-prepared" if _platform == "iOS" else "feature-not-supported", failed.error, {"method": "presentExternalPurchaseNoticeSheetIOS"})
 		return failed
 	var payload = await _call_native_async(
 		"presentExternalPurchaseNoticeSheetIOS", [], _apple_async_ui_timeout_seconds
@@ -1740,7 +1866,7 @@ func present_external_purchase_notice_sheet_ios() -> Variant:
 				return notice
 		payload = {"code": "billing-response-json-parse-error", "error": "Invalid external purchase notice result"}
 	failed.error = String(payload.get("error", "External purchase notice failed"))
-	_purchase_failure(String(payload.get("code", "service-error")), failed.error)
+	_purchase_failure(String(payload.get("code", "service-error")), failed.error, {"method": "presentExternalPurchaseNoticeSheetIOS"})
 	return failed
 
 ## Present external purchase link.
@@ -2042,9 +2168,9 @@ func acknowledge_purchase_android(purchase_token: String) -> bool:
 
 ## Internal: Acknowledge purchase raw
 func _acknowledge_purchase_android_raw(purchase_token: String) -> Dictionary:
-	print("[GodotIap] _acknowledge_purchase_android_raw tokenPresent=", not purchase_token.is_empty())
+	_log("_acknowledge_purchase_android_raw tokenPresent=%s" % (not purchase_token.is_empty()))
 	if _native_plugin and _platform == "Android":
-		print("[GodotIap] Calling acknowledgePurchaseAndroid...")
+		_log("Calling acknowledgePurchaseAndroid...")
 		var result_json = _native_plugin.call("acknowledgePurchaseAndroid", purchase_token)
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
@@ -2062,9 +2188,9 @@ func consume_purchase_android(purchase_token: String) -> bool:
 
 ## Internal: Consume purchase raw
 func _consume_purchase_android_raw(purchase_token: String) -> Dictionary:
-	print("[GodotIap] _consume_purchase_android_raw tokenPresent=", not purchase_token.is_empty())
+	_log("_consume_purchase_android_raw tokenPresent=%s" % (not purchase_token.is_empty()))
 	if _native_plugin and _platform == "Android":
-		print("[GodotIap] Calling consumePurchaseAndroid...")
+		_log("Calling consumePurchaseAndroid...")
 		var result_json = _native_plugin.call("consumePurchaseAndroid", purchase_token)
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
@@ -2160,7 +2286,7 @@ func show_billing_program_information_dialog_android(params) -> Variant:
 	failed.response_code = 6
 	if not (_native_plugin and _platform == "Android"):
 		failed.debug_message = "The billing information dialog requires the Android native plugin"
-		_purchase_failure("not-prepared" if _platform == "Android" else "feature-not-supported", failed.debug_message)
+		_purchase_failure("not-prepared" if _platform == "Android" else "feature-not-supported", failed.debug_message, {"method": "showBillingProgramInformationDialogAndroid"})
 		return failed
 	var result_json = _native_plugin.call("showBillingProgramInformationDialogAndroid", JSON.stringify(params.to_dict()))
 	var result = JSON.parse_string(result_json)
@@ -2169,7 +2295,7 @@ func show_billing_program_information_dialog_android(params) -> Variant:
 	if result.get("success", false):
 		return Types.BillingResultAndroid.from_dict(result)
 	failed.debug_message = String(result.get("error", "The billing information dialog failed"))
-	_purchase_failure(String(result.get("code", "service-error")), failed.debug_message)
+	_purchase_failure(String(result.get("code", "service-error")), failed.debug_message, {"method": "showBillingProgramInformationDialogAndroid"})
 	return failed
 
 ## Show Play Billing in-app messages (Android).
@@ -2276,7 +2402,7 @@ func open_redeem_offer_code() -> Variant:
 	if _platform == "Android":
 		if not _native_plugin:
 			if _shell_open.call("https://play.google.com/redeem") != OK:
-				_purchase_failure("service-error", "Failed to open the Play redeem page")
+				_purchase_failure("service-error", "Failed to open the Play redeem page", {"method": "openRedeemOfferCode"})
 			return null
 		var parsed = JSON.parse_string(_native_plugin.call("openRedeemOfferCode"))
 		if parsed is Dictionary:
@@ -2289,7 +2415,7 @@ func open_redeem_offer_code() -> Variant:
 		_purchase_failure(
 			String(payload.get("code", "service-error")),
 			String(payload.get("error", "Failed to redeem offer code")),
-			payload
+			payload.merged({"method": "openRedeemOfferCode"})
 		)
 		return null
 	var purchase_json = payload.get("purchaseJson", "")

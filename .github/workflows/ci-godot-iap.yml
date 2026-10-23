@@ -179,6 +179,9 @@ jobs:
       - name: Test export store mapping
         run: bash scripts/run-godot-suite.sh test_android_store test_android_export
 
+      - name: Test the purchase flow
+        run: bash scripts/run-godot-suite.sh test_purchase_flow
+
   verify-minimum-godot:
     name: Verify on minimum Godot
     # Verify runs the build version; this runs the shipped compatibility_minimum.
@@ -200,10 +203,11 @@ jobs:
           version: ${{ env.GODOT_MINIMUM_SEMVER }}
           use-dotnet: false
 
-      - name: Test generated types, API surface, envelopes, and export store mapping
+      - name: Test generated types, API surface, envelopes, export store mapping, and the purchase flow
         run: >
           bash scripts/run-godot-suite.sh
           test_types_only test_api_surface test_envelope_parsing test_android_store test_android_export
+          test_purchase_flow
 
   apple-changes:
     name: Detect Apple framework sources
