@@ -111,7 +111,7 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
     // Cleared when the store drops the billing service so the next initConnection reconnects.
     @Volatile
     private var isConnected = false
-    // The program the live connection enabled; null when none or disconnected.
+    // The program the app chose last; as in openiap-google, only endConnection forgets it.
     @Volatile
     private var enabledBillingProgram: BillingProgramAndroid? = null
     // The Play requestPurchase call running on this thread, so each call keeps only its own errors.
@@ -153,9 +153,9 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
 
     /**
      * Connects to the store's billing service, serialized with [endConnection].
-     * Without a config a live connection is kept, and a dropped one comes back
-     * with its last program. A config always reaches openiap-google, which
-     * decides whether the live connection must change; a refusal keeps it.
+     * Without a config a live connection is kept, and a dropped or failed one
+     * comes back with its last program. A config always reaches openiap-google,
+     * which decides whether the live connection must change; a refusal keeps it.
      */
     override suspend fun initConnection(config: InitConnectionConfig?): Boolean = withContext(Dispatchers.Main) {
         connectionMutex.withLock {
@@ -166,9 +166,9 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
                 // A refused change throws, so the live connection and its program stay as they were.
                 openModule.initConnection(config?.toOpenIap()).also { connected ->
                     isConnected = connected
-                    when {
-                        !connected -> enabledBillingProgram = null
-                        config != null -> enabledBillingProgram = config.enableBillingProgramAndroid
+                    // Recorded even when the connect fails; openiap-google retries with it.
+                    if (config != null) {
+                        enabledBillingProgram = config.enableBillingProgramAndroid
                             ?.takeIf { it != BillingProgramAndroid.Unspecified }
                     }
                 }

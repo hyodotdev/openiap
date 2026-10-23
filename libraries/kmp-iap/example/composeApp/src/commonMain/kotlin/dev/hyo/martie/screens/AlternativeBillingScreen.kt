@@ -191,7 +191,7 @@ fun AlternativeBillingScreen(navController: NavController) {
 
                 connected = kmpIapInstance.initConnection(config)
 
-                purchaseResult = "✅ Connected with ${
+                purchaseResult = if (!connected) "❌ Could not connect to the store" else "✅ Connected with ${
                     when (program) {
                         BillingProgramAndroid.UserChoiceBilling -> "User Choice Billing"
                         BillingProgramAndroid.BillingChoice -> "Billing Choice"

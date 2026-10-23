@@ -34,6 +34,7 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 import kotlinx.serialization.json.longOrNull
 
 /** Runs the shared cases from specs/client/src/purchase-flow.vectors.json, as the TypeScript runner does. */
@@ -123,11 +124,14 @@ class PurchaseFlowVectorsTest {
     fun device() = runCases("device") { vector ->
         val item = purchaseOf(vector.obj("purchase"))
         val pending = vector["pending"]!!.jsonArray.map { purchaseOf(it.jsonObject) as PurchaseIOS }
+        val clock = vector["clock"]?.jsonObject
+        var now = clock?.long("beforeRead") ?: System.currentTimeMillis()
         var reads = 0
         var grants = 0
         val confirm = createDeviceConfirmationIOS(
-            { reads++; pending },
+            { reads++; clock?.let { now = it.long("afterRead") }; pending },
             grant = if (vector.bool("noGrant")) null else { _, _ -> grants++ },
+            clock = { now },
         )
 
         val answer = runCatching { confirm(item, vector.bool("isConsumable")) }
@@ -316,6 +320,7 @@ class PurchaseFlowVectorsTest {
     private fun JsonObject.obj(key: String): JsonObject = getValue(key).jsonObject
     private fun JsonObject.string(key: String): String? = (get(key) as? JsonPrimitive)?.takeIf { it.isString }?.content
     private fun JsonObject.bool(key: String): Boolean = (get(key) as? JsonPrimitive)?.booleanOrNull ?: false
+    private fun JsonObject.long(key: String): Long = getValue(key).jsonPrimitive.long
     private fun JsonObject.plain(key: String): Any? = plain(getValue(key))
     @Suppress("UNCHECKED_CAST")
     private fun JsonObject.plainObject(key: String): Map<String, Any?> = get(key)?.let { plain(it) as Map<String, Any?> }.orEmpty()

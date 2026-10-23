@@ -16,15 +16,25 @@ import kotlin.time.Clock
 fun createDeviceConfirmationIOS(
     getPendingTransactionsIOS: suspend () -> List<PurchaseIOS>,
     grant: (suspend (purchase: Purchase, isConsumable: Boolean) -> Unit)? = null,
+): suspend (purchase: Purchase, isConsumable: Boolean) -> PurchaseConfirmation =
+    createDeviceConfirmationIOS(getPendingTransactionsIOS, grant, clock = { Clock.System.now().toEpochMilliseconds() })
+
+// Reads the time in ms from [clock], so tests can set it.
+internal fun createDeviceConfirmationIOS(
+    getPendingTransactionsIOS: suspend () -> List<PurchaseIOS>,
+    grant: (suspend (purchase: Purchase, isConsumable: Boolean) -> Unit)?,
+    clock: () -> Long,
 ): suspend (purchase: Purchase, isConsumable: Boolean) -> PurchaseConfirmation = { purchase, isConsumable ->
     requireGrant("confirmOnDeviceIOS", purchase, isConsumable, grant)
     // A community provider may report store Apple under its own storeId.
     require(purchase.store == IapStore.Apple && purchase.storeId.ifEmpty { "apple" } == "apple") {
         "Device confirmation covers App Store purchases, not ${purchase.storeId.ifEmpty { purchase.store.rawValue }}"
     }
-    val now = Clock.System.now().toEpochMilliseconds()
+    val pending = getPendingTransactionsIOS()
+    // After the query: a transaction can expire while StoreKit answers.
+    val now = clock()
     val environment = (purchase as? PurchaseIOS)?.environmentIOS
-    val verified = getPendingTransactionsIOS().any { candidate ->
+    val verified = pending.any { candidate ->
         candidate.store == IapStore.Apple &&
             purchase.id.isNotEmpty() &&
             candidate.id == purchase.id &&
