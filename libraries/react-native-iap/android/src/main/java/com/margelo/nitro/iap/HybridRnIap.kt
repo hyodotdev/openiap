@@ -492,7 +492,6 @@ class HybridRnIap : HybridRnIapSpec() {
                         messageOverride = "Failed to register billing listeners: $errorMessage"
                     )
                 )
-                readiness.isInitialized = false
                 throw wrapped
             }
 
