@@ -4,11 +4,6 @@ ignoreUntil = 2026-12-15
 reason = "The fix is image-size 2.0.3, but Metro pins ^1.0.2 so the lock cannot take it; Metro uses it only during trusted Vega builds."
 
 [[IgnoredVulns]]
-id = "GHSA-vfj7-8cjw-p6xm"
-ignoreUntil = 2026-12-15
-reason = "No patched braces release exists; 3.0.3 is npm latest and still affected. Reached only via micromatch from Metro file-map and Jest tooling, which parse repository-controlled glob patterns during trusted Vega builds: https://github.com/advisories/GHSA-vfj7-8cjw-p6xm."
-
-[[IgnoredVulns]]
 id = "GHSA-w3rx-r6r6-pgpr"
 ignoreUntil = 2026-12-15
 reason = "The fix is image-size 2.0.3, but Metro pins ^1.0.2 so the lock cannot take it; Metro uses it only during trusted Vega builds."
