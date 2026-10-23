@@ -1465,10 +1465,6 @@ function SubscriptionFlowContainer() {
   const purchaseQueueTailRef = useRef<Promise<void>>(Promise.resolve());
   const taskOwnerRef = useRef({});
   const mountedRef = useRef(true);
-  // Latest pending plan change per purchase, kept across duplicate deliveries.
-  const pendingPlanChangesRef = useRef(new Map<string, string>());
-  // The last purchase list the restore scan read.
-  const scannedPurchasesRef = useRef<Purchase[] | null>(null);
 
   const reportStoreError = useCallback(
     (error: PurchaseError, requestTrace: string): void => {
@@ -1897,14 +1893,11 @@ function SubscriptionFlowContainer() {
           error,
           ErrorCode.PurchaseVerificationFinishFailed,
         );
-        const planChange =
-          pendingPlanChangesRef.current.get(purchaseCleanupKey);
         setPurchaseResult(
-          planChange
-            ? `${planChange} Finishing the current purchase failed: ${message}`
-            : `Subscription ${
-                isRestoration ? 'restored' : 'activated'
-              }, but finishTransaction failed: ${message}`,
+          `${
+            describePendingPlanChange(purchase) ??
+            `Subscription ${isRestoration ? 'restored' : 'activated'}, but`
+          } finishTransaction failed: ${message}`,
         );
         cleanupPurchaseKeysRef.current.delete(purchaseCleanupKey);
       }
@@ -1912,6 +1905,14 @@ function SubscriptionFlowContainer() {
     }
 
     if (!mountedRef.current) return;
+
+    const planChange = describePendingPlanChange(purchase);
+    setPurchaseResult(
+      planChange ??
+        (isRestoration
+          ? 'Subscription restored and finished successfully.'
+          : 'Subscription activated and finished successfully.'),
+    );
 
     if (Platform.OS === 'android' && iapkitVerifyRequest) {
       try {
@@ -1931,16 +1932,7 @@ function SubscriptionFlowContainer() {
 
     if (!mountedRef.current) return;
 
-    // Read once, after the refresh: a pending change can arrive while it runs.
-    const latestPlanChange =
-      pendingPlanChangesRef.current.get(purchaseCleanupKey);
-    setPurchaseResult(
-      latestPlanChange ??
-        (isRestoration
-          ? 'Subscription restored and finished successfully.'
-          : 'Subscription activated and finished successfully.'),
-    );
-    if (!latestPlanChange) {
+    if (!planChange) {
       showNativeAlert(
         'Success',
         isRestoration
@@ -1970,70 +1962,41 @@ function SubscriptionFlowContainer() {
     }
   };
 
-  // Every subscription delivery, repeats and restore scans included, records
-  // whether it carries a pending plan change, so a shared run reads the latest.
-  const notePlanChange = useCallback(
-    (
-      purchase: Purchase,
-      key: string,
-      {fromScan = false}: {fromScan?: boolean} = {},
-    ): void => {
-      if (
-        retainedPurchaseRef.current &&
-        getPurchaseCleanupKey(retainedPurchaseRef.current) === key
-      ) {
-        retainedPurchaseRef.current = purchase;
-      }
-      const planChange = describePendingPlanChange(purchase);
-      if (planChange) {
-        pendingPlanChangesRef.current.set(key, planChange);
-        if (!mountedRef.current) return;
-        // A run in flight keeps the controls disabled until it finishes.
-        if (
-          !fromScan &&
-          (!cleanupPurchaseKeysRef.current.has(key) ||
-            completedSubscriptionKeys.has(key))
-        ) {
-          setIsProcessing(false);
-        }
-        setPurchaseResult(planChange);
-      } else if (
-        pendingPlanChangesRef.current.delete(key) &&
-        mountedRef.current
-      ) {
-        setPurchaseResult(`${purchase.productId} has no pending plan change.`);
-      }
-    },
-    [],
-  );
+  const enqueuePurchase = useCallback((purchase: Purchase): Promise<void> => {
+    const cleanupKey = getPurchaseCleanupKey(purchase);
+    // Play resolves a plan change that waits for payment with the current
+    // purchase, which may already be finished; release the controls unless
+    // a run for it is still going.
+    const inFlight =
+      cleanupPurchaseKeysRef.current.has(cleanupKey) &&
+      !completedSubscriptionKeys.has(cleanupKey);
+    if (
+      describePendingPlanChange(purchase) &&
+      !inFlight &&
+      mountedRef.current
+    ) {
+      setIsProcessing(false);
+    }
+    if (completedSubscriptionKeys.has(cleanupKey)) {
+      return Promise.resolve();
+    }
+    if (cleanupPurchaseKeysRef.current.has(cleanupKey)) {
+      return Promise.resolve();
+    }
+    cleanupPurchaseKeysRef.current.add(cleanupKey);
 
-  const enqueuePurchase = useCallback(
-    (purchase: Purchase): Promise<void> => {
-      const cleanupKey = getPurchaseCleanupKey(purchase);
-      // Before the duplicate checks: the current purchase may already be finished.
-      notePlanChange(purchase, cleanupKey);
-      if (completedSubscriptionKeys.has(cleanupKey)) {
-        return Promise.resolve();
-      }
-      if (cleanupPurchaseKeysRef.current.has(cleanupKey)) {
-        return Promise.resolve();
-      }
-      cleanupPurchaseKeysRef.current.add(cleanupKey);
-
-      const queued = purchaseQueueTailRef.current.then(() =>
-        purchaseSuccessHandlerRef.current(purchase),
+    const queued = purchaseQueueTailRef.current.then(() =>
+      purchaseSuccessHandlerRef.current(purchase),
+    );
+    purchaseQueueTailRef.current = queued.catch((error) => {
+      cleanupPurchaseKeysRef.current.delete(cleanupKey);
+      console.log(
+        '[SubscriptionFlow] queued purchase handler failed unexpectedly:',
+        error,
       );
-      purchaseQueueTailRef.current = queued.catch((error) => {
-        cleanupPurchaseKeysRef.current.delete(cleanupKey);
-        console.log(
-          '[SubscriptionFlow] queued purchase handler failed unexpectedly:',
-          error,
-        );
-      });
-      return purchaseQueueTailRef.current;
-    },
-    [notePlanChange],
-  );
+    });
+    return purchaseQueueTailRef.current;
+  }, []);
 
   const {
     connected,
@@ -2054,6 +2017,16 @@ function SubscriptionFlowContainer() {
     onPurchaseError: (error: PurchaseError) =>
       reportStoreError(error, purchaseRequestTrace.current),
   });
+
+  // useIAP refreshes availablePurchases after every purchase, so a pending
+  // plan change shows here until the store applies it.
+  const pendingPlanChange = useMemo(
+    () =>
+      availablePurchases
+        .map(describePendingPlanChange)
+        .find((message) => message !== null) ?? null,
+    [availablePurchases],
+  );
 
   const activeSubscriptions = useMemo(
     () =>
@@ -2164,10 +2137,6 @@ function SubscriptionFlowContainer() {
 
   useEffect(() => {
     if (!connected || availablePurchases.length === 0) return;
-    // Reconnects and method changes rerun this over the last list; only a
-    // newly fetched one may update pending plan changes.
-    const freshList = availablePurchases !== scannedPurchasesRef.current;
-    scannedPurchasesRef.current = availablePurchases;
 
     for (const purchase of availablePurchases) {
       const productId = purchase.productId ?? '';
@@ -2179,17 +2148,13 @@ function SubscriptionFlowContainer() {
         continue;
       }
       const cleanupKey = getPurchaseCleanupKey(purchase);
-      if (completedSubscriptionKeys.has(cleanupKey)) {
-        if (freshList) notePlanChange(purchase, cleanupKey, {fromScan: true});
-        continue;
-      }
+      if (completedSubscriptionKeys.has(cleanupKey)) continue;
       void enqueuePurchase(purchase);
     }
   }, [
     availablePurchases,
     connected,
     enqueuePurchase,
-    notePlanChange,
     verificationMethod,
     verificationSelection,
   ]);
@@ -2452,7 +2417,7 @@ function SubscriptionFlowContainer() {
       connected={connected}
       subscriptions={subscriptions}
       activeSubscriptions={activeSubscriptions}
-      purchaseResult={purchaseResult}
+      purchaseResult={pendingPlanChange ?? purchaseResult}
       isProcessing={isProcessing}
       isCheckingStatus={isCheckingStatus}
       lastPurchase={lastPurchase}
