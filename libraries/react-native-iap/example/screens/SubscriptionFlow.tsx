@@ -425,12 +425,14 @@ function SubscriptionFlow({
                   request: {
                     google: {
                       skus: [targetProductId],
-                      subscriptionOffers: [
-                        {
-                          sku: targetProductId,
-                          offerToken: targetOffer.offerTokenAndroid ?? '',
-                        },
-                      ],
+                      subscriptionOffers: targetOffer.offerTokenAndroid
+                        ? [
+                            {
+                              sku: targetProductId,
+                              offerToken: targetOffer.offerTokenAndroid,
+                            },
+                          ]
+                        : undefined,
                       subscriptionProductReplacementParams: {
                         oldProductId: currentSub!.productId,
                         replacementMode: 'without-proration',
@@ -1776,28 +1778,15 @@ function SubscriptionFlowContainer() {
       setProcessingProductId(itemId);
       setPurchaseResult('Processing subscription...');
 
-      const subscription = subscriptions.find((sub) => sub.id === itemId);
-
       requestPurchase({
         request: {
           apple: {
             sku: itemId,
             appAccountToken: 'user-123',
           },
-          google: {
-            skus: [itemId],
-            subscriptionOffers:
-              subscription &&
-              'subscriptionOffers' in subscription &&
-              (subscription as ProductSubscriptionAndroid).subscriptionOffers
-                ? (
-                    subscription as ProductSubscriptionAndroid
-                  ).subscriptionOffers.map((offer) => ({
-                    sku: itemId,
-                    offerToken: offer.offerTokenAndroid ?? '',
-                  }))
-                : [],
-          },
+          // Without subscriptionOffers the store picks the default offer;
+          // Amazon subscriptions have none.
+          google: {skus: [itemId]},
         },
         type: 'subs',
       }).catch((err: PurchaseError) => {
@@ -1811,7 +1800,7 @@ function SubscriptionFlowContainer() {
         Alert.alert('Subscription Failed', err.message);
       });
     },
-    [subscriptions],
+    [],
   );
 
   // Retry loading subscriptions (useful when products fail to load initially)

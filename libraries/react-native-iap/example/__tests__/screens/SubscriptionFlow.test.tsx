@@ -157,10 +157,8 @@ describe('SubscriptionFlow Screen', () => {
           sku: 'dev.hyo.martie.premium',
           appAccountToken: 'user-123',
         },
-        google: {
-          skus: ['dev.hyo.martie.premium'],
-          subscriptionOffers: [],
-        },
+        // No offer: the store picks its default, and Amazon has none.
+        google: {skus: ['dev.hyo.martie.premium']},
       },
       type: 'subs',
     });
