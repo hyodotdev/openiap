@@ -1975,7 +1975,13 @@ function SubscriptionFlowContainer() {
     if (pendingPlanChange) {
       pendingPlanChangesRef.current.set(cleanupKey, pendingPlanChange);
       if (mountedRef.current) {
-        setIsProcessing(false);
+        // A run in flight keeps the controls disabled until it finishes.
+        if (
+          !cleanupPurchaseKeysRef.current.has(cleanupKey) ||
+          completedSubscriptionKeys.has(cleanupKey)
+        ) {
+          setIsProcessing(false);
+        }
         setPurchaseResult(pendingPlanChange);
       }
     } else {

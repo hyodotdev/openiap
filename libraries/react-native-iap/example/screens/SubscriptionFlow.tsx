@@ -1627,7 +1627,10 @@ function SubscriptionFlowContainer() {
     const pendingPlanChange = describePendingPlanChange(purchase);
     if (pendingPlanChange) {
       pendingPlanChangesRef.current.set(purchaseCleanupKey, pendingPlanChange);
-      setIsProcessing(false);
+      // A run in flight keeps the controls disabled until it finishes.
+      if (!inFlightSubscriptionTasks.has(purchaseCleanupKey)) {
+        setIsProcessing(false);
+      }
       setPurchaseResult(pendingPlanChange);
     } else {
       pendingPlanChangesRef.current.delete(purchaseCleanupKey);
