@@ -1,0 +1,2022 @@
+{
+  "$comment": "Shared cases for every purchase-flow port. process: one processPurchase call. iapkit: confirmWithIapkit with a fake verifyPurchaseWithProvider, apiKey \"pk\" unless the case sets apiKey (null: none passed); props null means building the request throws. sequences: deliveries through the flow's listener (listener), processPurchase (process), or recoverPurchases (recover); each step's deliveries start together and settle before the next step. answers: confirmWithBackend results per purchase id, used in order with the last repeating; the string \"throw\" throws. A port compares every listed field; error: true means a thrown error or a failed status, finishError: true a status carrying one, whatever the message.",
+  "schemaVersion": 1,
+  "process": [
+    {
+      "name": "finishes an entitled Apple purchase",
+      "purchase": {
+        "id": "tx-1",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "jws-1",
+        "store": "apple"
+      },
+      "isConsumable": false,
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "finishes": true,
+      "status": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "guidance": {
+        "key": "access_granted",
+        "offerPurchase": false
+      }
+    },
+    {
+      "name": "finishes a consumable as consumable",
+      "purchase": {
+        "id": "tx-2",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-2",
+        "store": "google"
+      },
+      "isConsumable": true,
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": true
+      },
+      "finishes": true,
+      "status": {
+        "status": "entitled",
+        "alreadyGranted": true
+      },
+      "guidance": {
+        "key": "access_granted",
+        "offerPurchase": false
+      }
+    },
+    {
+      "name": "marks a Play plan change that waits for payment",
+      "purchase": {
+        "id": "tx-3",
+        "productId": "premium_monthly",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-3",
+        "store": "google",
+        "pendingPurchaseUpdateAndroid": {
+          "products": ["premium_yearly"]
+        }
+      },
+      "isConsumable": false,
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": true
+      },
+      "finishes": true,
+      "status": {
+        "status": "entitled",
+        "alreadyGranted": true,
+        "changePending": true
+      },
+      "guidance": {
+        "key": "change_pending",
+        "offerPurchase": false
+      }
+    },
+    {
+      "name": "marks an Amazon term change that applies at renewal",
+      "purchase": {
+        "id": "receipt-4",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "receipt-4",
+        "store": "amazon",
+        "pendingPurchaseUpdateAndroid": {
+          "products": ["premium_yearly_term"]
+        }
+      },
+      "isConsumable": false,
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "finishes": true,
+      "status": {
+        "status": "entitled",
+        "alreadyGranted": false,
+        "changePending": true
+      },
+      "guidance": {
+        "key": "change_pending",
+        "offerPurchase": false
+      }
+    },
+    {
+      "name": "keeps access when finishing fails",
+      "purchase": {
+        "id": "tx-5",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-5",
+        "store": "horizon"
+      },
+      "isConsumable": false,
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "finishThrows": true,
+      "finishes": true,
+      "status": {
+        "status": "entitled",
+        "alreadyGranted": false,
+        "finishError": true
+      },
+      "guidance": {
+        "key": "access_granted",
+        "offerPurchase": false
+      }
+    },
+    {
+      "name": "answers a pending payment without confirming",
+      "purchase": {
+        "id": "tx-6",
+        "productId": "premium",
+        "purchaseState": "pending",
+        "purchaseToken": "token-6",
+        "store": "google"
+      },
+      "isConsumable": false,
+      "confirmation": null,
+      "confirms": false,
+      "finishes": false,
+      "status": {
+        "status": "store_pending"
+      },
+      "guidance": {
+        "key": "payment_pending",
+        "offerPurchase": false
+      }
+    },
+    {
+      "name": "finishes an invalid Apple purchase, which iOS would redeliver forever",
+      "purchase": {
+        "id": "tx-7",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "jws-7",
+        "store": "apple"
+      },
+      "isConsumable": false,
+      "confirmation": {
+        "status": "invalid",
+        "reason": "INAUTHENTIC"
+      },
+      "finishes": true,
+      "status": {
+        "status": "invalid",
+        "reason": "INAUTHENTIC"
+      },
+      "guidance": {
+        "key": "purchase_not_valid",
+        "offerPurchase": true
+      }
+    },
+    {
+      "name": "leaves an invalid Play purchase for Play to refund",
+      "purchase": {
+        "id": "tx-8",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-8",
+        "store": "google"
+      },
+      "isConsumable": false,
+      "confirmation": {
+        "status": "invalid"
+      },
+      "finishes": false,
+      "status": {
+        "status": "invalid"
+      },
+      "guidance": {
+        "key": "purchase_not_valid",
+        "offerPurchase": true
+      }
+    },
+    {
+      "name": "leaves an invalid Amazon purchase unfinished",
+      "purchase": {
+        "id": "receipt-9",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "receipt-9",
+        "store": "amazon"
+      },
+      "isConsumable": true,
+      "confirmation": {
+        "status": "test_account_restricted"
+      },
+      "finishes": false,
+      "status": {
+        "status": "test_account_restricted"
+      },
+      "guidance": {
+        "key": "test_purchase_not_accepted",
+        "offerPurchase": false
+      }
+    },
+    {
+      "name": "finishes a purchase another account already has",
+      "purchase": {
+        "id": "tx-10",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-10",
+        "store": "google"
+      },
+      "isConsumable": false,
+      "confirmation": {
+        "status": "ownership_conflict",
+        "alreadyGranted": true
+      },
+      "finishes": true,
+      "status": {
+        "status": "ownership_conflict",
+        "alreadyGranted": true
+      },
+      "guidance": {
+        "key": "owned_by_another_account",
+        "offerPurchase": false
+      }
+    },
+    {
+      "name": "keeps an ungranted conflict unfinished",
+      "purchase": {
+        "id": "tx-11",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "jws-11",
+        "store": "apple"
+      },
+      "isConsumable": false,
+      "confirmation": {
+        "status": "ownership_conflict",
+        "alreadyGranted": false
+      },
+      "finishes": false,
+      "status": {
+        "status": "ownership_conflict",
+        "alreadyGranted": false
+      },
+      "guidance": {
+        "key": "owned_by_another_account",
+        "offerPurchase": false
+      }
+    },
+    {
+      "name": "waits on a delayed verification",
+      "purchase": {
+        "id": "tx-12",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "jws-12",
+        "store": "apple"
+      },
+      "isConsumable": false,
+      "confirmation": {
+        "status": "verification_delayed",
+        "retryAfterMs": 5000
+      },
+      "finishes": false,
+      "status": {
+        "status": "verification_delayed",
+        "retryAfterMs": 5000
+      },
+      "guidance": {
+        "key": "verification_delayed",
+        "offerPurchase": false,
+        "retryAfterMs": 5000
+      }
+    },
+    {
+      "name": "waits on a linked purchase",
+      "purchase": {
+        "id": "tx-13",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-13",
+        "store": "google"
+      },
+      "isConsumable": false,
+      "confirmation": {
+        "status": "linked",
+        "retryAfterMs": 30000
+      },
+      "finishes": false,
+      "status": {
+        "status": "linked",
+        "retryAfterMs": 30000
+      },
+      "guidance": {
+        "key": "access_pending",
+        "offerPurchase": false,
+        "retryAfterMs": 30000
+      }
+    },
+    {
+      "name": "waits on a verified purchase without a retry hint",
+      "purchase": {
+        "id": "tx-14",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-14",
+        "store": "google"
+      },
+      "isConsumable": false,
+      "confirmation": {
+        "status": "verified",
+        "retryAfterMs": -1
+      },
+      "finishes": false,
+      "status": {
+        "status": "verified"
+      },
+      "guidance": {
+        "key": "access_pending",
+        "offerPurchase": false
+      }
+    },
+    {
+      "name": "fails on a malformed backend answer",
+      "purchase": {
+        "id": "tx-15",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "jws-15",
+        "store": "apple"
+      },
+      "isConsumable": false,
+      "confirmation": {
+        "status": "entitled"
+      },
+      "finishes": false,
+      "status": {
+        "status": "failed",
+        "error": true
+      },
+      "guidance": {
+        "key": "try_again_later",
+        "offerPurchase": false
+      }
+    },
+    {
+      "name": "fails on an unknown backend status",
+      "purchase": {
+        "id": "tx-16",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "jws-16",
+        "store": "apple"
+      },
+      "isConsumable": false,
+      "confirmation": {
+        "status": "granted"
+      },
+      "finishes": false,
+      "status": {
+        "status": "failed",
+        "error": true
+      },
+      "guidance": {
+        "key": "try_again_later",
+        "offerPurchase": false
+      }
+    },
+    {
+      "name": "fails when the backend call throws",
+      "purchase": {
+        "id": "tx-17",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-17",
+        "store": "google"
+      },
+      "isConsumable": false,
+      "confirmThrows": true,
+      "finishes": false,
+      "status": {
+        "status": "failed",
+        "error": true
+      },
+      "guidance": {
+        "key": "try_again_later",
+        "offerPurchase": false
+      }
+    },
+    {
+      "name": "leaves a multi-unit purchase unconfirmed",
+      "purchase": {
+        "id": "tx-18",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-18",
+        "store": "google",
+        "quantity": 2
+      },
+      "isConsumable": true,
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "confirms": false,
+      "finishes": false,
+      "status": {
+        "status": "failed",
+        "error": true
+      },
+      "guidance": {
+        "key": "try_again_later",
+        "offerPurchase": false
+      }
+    },
+    {
+      "name": "leaves a multi-product purchase unconfirmed",
+      "purchase": {
+        "id": "tx-19",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-19",
+        "store": "google",
+        "ids": ["premium", "coins_100"]
+      },
+      "isConsumable": false,
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "confirms": false,
+      "finishes": false,
+      "status": {
+        "status": "failed",
+        "error": true
+      },
+      "guidance": {
+        "key": "try_again_later",
+        "offerPurchase": false
+      }
+    },
+    {
+      "name": "skips finishing an acknowledged Play subscription again",
+      "purchase": {
+        "id": "tx-20",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-20",
+        "store": "google",
+        "isAcknowledgedAndroid": true
+      },
+      "isConsumable": false,
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": true
+      },
+      "finishes": false,
+      "status": {
+        "status": "entitled",
+        "alreadyGranted": true
+      },
+      "guidance": {
+        "key": "access_granted",
+        "offerPurchase": false
+      }
+    },
+    {
+      "name": "still consumes an acknowledged consumable",
+      "purchase": {
+        "id": "tx-21",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-21",
+        "store": "google",
+        "isAcknowledgedAndroid": true
+      },
+      "isConsumable": true,
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "finishes": true,
+      "status": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "guidance": {
+        "key": "access_granted",
+        "offerPurchase": false
+      }
+    }
+  ],
+  "iapkit": [
+    {
+      "name": "grants an Apple subscription",
+      "purchase": {
+        "id": "tx-1",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "jws-1",
+        "store": "apple",
+        "storeId": "apple",
+        "environmentIOS": "Sandbox"
+      },
+      "isConsumable": false,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "apple": {
+            "jws": "jws-1"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "apple",
+          "storeId": "apple",
+          "environment": "Sandbox",
+          "isValid": true,
+          "state": "entitled",
+          "productId": "premium"
+        }
+      },
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "granted": true
+    },
+    {
+      "name": "grants an Apple consumable ready to consume",
+      "purchase": {
+        "id": "tx-2",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "jws-2",
+        "store": "apple"
+      },
+      "isConsumable": true,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "apple": {
+            "jws": "jws-2"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "apple",
+          "storeId": "apple",
+          "environment": "Production",
+          "isValid": true,
+          "state": "ready-to-consume",
+          "productId": "coins_100"
+        }
+      },
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "granted": true
+    },
+    {
+      "name": "refuses an Apple consumable reported entitled",
+      "purchase": {
+        "id": "tx-3",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "jws-3",
+        "store": "apple"
+      },
+      "isConsumable": true,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "apple": {
+            "jws": "jws-3"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "apple",
+          "storeId": "apple",
+          "isValid": true,
+          "state": "entitled",
+          "productId": "coins_100"
+        }
+      },
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "refuses Apple evidence from another environment",
+      "purchase": {
+        "id": "tx-4",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "jws-4",
+        "store": "apple",
+        "environmentIOS": "Production"
+      },
+      "isConsumable": false,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "apple": {
+            "jws": "jws-4"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "apple",
+          "storeId": "apple",
+          "environment": "Sandbox",
+          "isValid": true,
+          "state": "entitled",
+          "productId": "premium"
+        }
+      },
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "refuses evidence for another product",
+      "purchase": {
+        "id": "tx-5",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-5",
+        "store": "google",
+        "storeId": "play"
+      },
+      "isConsumable": false,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "google": {
+            "purchaseToken": "token-5"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "google",
+          "storeId": "play",
+          "isValid": true,
+          "state": "entitled",
+          "productId": "premium_plus"
+        }
+      },
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "refuses evidence from another store",
+      "purchase": {
+        "id": "tx-6",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-6",
+        "store": "google"
+      },
+      "isConsumable": false,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "google": {
+            "purchaseToken": "token-6"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "apple",
+          "storeId": "apple",
+          "isValid": true,
+          "state": "entitled",
+          "productId": "premium"
+        }
+      },
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "refuses evidence from another store id",
+      "purchase": {
+        "id": "tx-7",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-7",
+        "store": "google",
+        "storeId": "play"
+      },
+      "isConsumable": false,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "google": {
+            "purchaseToken": "token-7"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "google",
+          "storeId": "other",
+          "isValid": true,
+          "state": "entitled",
+          "productId": "premium"
+        }
+      },
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "grants a Play purchase awaiting acknowledgment",
+      "purchase": {
+        "id": "tx-8",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-8",
+        "store": "google",
+        "storeId": "play"
+      },
+      "isConsumable": false,
+      "baseUrl": " http://localhost:3000 ",
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "baseUrl": "http://localhost:3000",
+          "google": {
+            "purchaseToken": "token-8"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "google",
+          "storeId": "play",
+          "isValid": true,
+          "state": "pending-acknowledgment",
+          "productId": "premium"
+        }
+      },
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "granted": true
+    },
+    {
+      "name": "grants a Play consumable ready to consume",
+      "purchase": {
+        "id": "tx-9",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-9",
+        "store": "google"
+      },
+      "isConsumable": true,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "google": {
+            "purchaseToken": "token-9"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "google",
+          "storeId": "play",
+          "isValid": true,
+          "state": "ready-to-consume",
+          "productId": "coins_100"
+        }
+      },
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "granted": true
+    },
+    {
+      "name": "refuses a Play subscription reported ready to consume",
+      "purchase": {
+        "id": "tx-10",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-10",
+        "store": "google"
+      },
+      "isConsumable": false,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "google": {
+            "purchaseToken": "token-10"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "google",
+          "storeId": "play",
+          "isValid": true,
+          "state": "ready-to-consume",
+          "productId": "premium"
+        }
+      },
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "verifies an Amazon term under its parent SKU in the sandbox",
+      "purchase": {
+        "id": "receipt-11",
+        "productId": "premium_monthly_term",
+        "purchaseState": "purchased",
+        "purchaseToken": "receipt-11",
+        "store": "amazon",
+        "storeId": "amazon",
+        "userIdAmazon": "amzn-user-1"
+      },
+      "isConsumable": false,
+      "amazon": {
+        "sandbox": true,
+        "verifiedProductIds": {
+          "premium_monthly_term": "premium"
+        }
+      },
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "amazon": {
+            "receiptId": "receipt-11",
+            "expectedProductId": "premium",
+            "sandbox": true,
+            "userId": "amzn-user-1"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "amazon",
+          "storeId": "amazon",
+          "environment": "Sandbox",
+          "isValid": true,
+          "state": "entitled",
+          "productId": "premium"
+        }
+      },
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "granted": true
+    },
+    {
+      "name": "refuses a sandbox Amazon receipt in production",
+      "purchase": {
+        "id": "receipt-12",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "receipt-12",
+        "store": "amazon"
+      },
+      "isConsumable": true,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "amazon": {
+            "receiptId": "receipt-12",
+            "expectedProductId": "coins_100",
+            "sandbox": false
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "amazon",
+          "storeId": "amazon",
+          "environment": "Sandbox",
+          "isValid": true,
+          "state": "ready-to-consume",
+          "productId": "coins_100"
+        }
+      },
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "grants a Horizon entitlement by SKU",
+      "purchase": {
+        "id": "tx-13",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-13",
+        "store": "horizon",
+        "storeId": "horizon"
+      },
+      "isConsumable": false,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "horizon": {
+            "sku": "premium"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "horizon",
+          "storeId": "horizon",
+          "isValid": true,
+          "state": "entitled",
+          "productId": "premium"
+        }
+      },
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "granted": true
+    },
+    {
+      "name": "answers a pending payment",
+      "purchase": {
+        "id": "tx-14",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-14",
+        "store": "google"
+      },
+      "isConsumable": false,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "google": {
+            "purchaseToken": "token-14"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "google",
+          "storeId": "play",
+          "isValid": false,
+          "state": "pending",
+          "productId": "premium"
+        }
+      },
+      "confirmation": {
+        "status": "store_pending"
+      },
+      "granted": false
+    },
+    {
+      "name": "retries when the store gave no usable answer",
+      "purchase": {
+        "id": "tx-15",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "jws-15",
+        "store": "apple"
+      },
+      "isConsumable": false,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "apple": {
+            "jws": "jws-15"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "apple",
+          "storeId": "apple",
+          "isValid": false,
+          "state": "unknown"
+        }
+      },
+      "confirmation": {
+        "status": "verification_delayed",
+        "retryAfterMs": 30000
+      },
+      "granted": false
+    },
+    {
+      "name": "rejects an expired subscription",
+      "purchase": {
+        "id": "tx-16",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "jws-16",
+        "store": "apple"
+      },
+      "isConsumable": false,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "apple": {
+            "jws": "jws-16"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "apple",
+          "storeId": "apple",
+          "isValid": false,
+          "state": "expired",
+          "productId": "premium"
+        }
+      },
+      "confirmation": {
+        "status": "invalid",
+        "reason": "expired"
+      },
+      "granted": false
+    },
+    {
+      "name": "fails with the provider errors when IAPKit returns no result",
+      "purchase": {
+        "id": "tx-17",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-17",
+        "store": "google"
+      },
+      "isConsumable": false,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "google": {
+            "purchaseToken": "token-17"
+          }
+        }
+      },
+      "result": {
+        "errors": [
+          {
+            "code": "UNAUTHORIZED",
+            "message": "Invalid API key"
+          }
+        ]
+      },
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "cannot build a request without a purchase token",
+      "purchase": {
+        "id": "tx-18",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "store": "apple"
+      },
+      "isConsumable": false,
+      "props": null,
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "cannot build a request for a store IAPKit does not verify",
+      "purchase": {
+        "id": "tx-19",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-19",
+        "store": "unknown",
+        "storeId": "community"
+      },
+      "isConsumable": false,
+      "props": null,
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "treats inauthentic as a possible configuration error",
+      "purchase": {
+        "id": "tx-30",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "jws-30",
+        "store": "apple"
+      },
+      "isConsumable": false,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "apple": {
+            "jws": "jws-30"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "apple",
+          "storeId": "apple",
+          "isValid": false,
+          "state": "inauthentic",
+          "productId": "premium"
+        }
+      },
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "rejects a refunded purchase",
+      "purchase": {
+        "id": "tx-31",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-31",
+        "store": "google"
+      },
+      "isConsumable": false,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "google": {
+            "purchaseToken": "token-31"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "google",
+          "storeId": "play",
+          "isValid": false,
+          "state": "canceled",
+          "productId": "premium"
+        }
+      },
+      "confirmation": {
+        "status": "invalid",
+        "reason": "canceled"
+      },
+      "granted": false
+    },
+    {
+      "name": "finishes a consumed purchase without granting it twice",
+      "purchase": {
+        "id": "tx-32",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "jws-32",
+        "store": "apple"
+      },
+      "isConsumable": true,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "apple": {
+            "jws": "jws-32"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "apple",
+          "storeId": "apple",
+          "isValid": false,
+          "state": "consumed",
+          "productId": "coins_100"
+        }
+      },
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": true
+      },
+      "granted": false
+    },
+    {
+      "name": "never rejects evidence for another product",
+      "purchase": {
+        "id": "tx-33",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "jws-33",
+        "store": "apple"
+      },
+      "isConsumable": false,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "apple": {
+            "jws": "jws-33"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "apple",
+          "storeId": "apple",
+          "isValid": false,
+          "state": "expired",
+          "productId": "premium_old"
+        }
+      },
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "refuses a consumable it could not credit",
+      "purchase": {
+        "id": "tx-34",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-34",
+        "store": "google"
+      },
+      "isConsumable": true,
+      "noGrant": true,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "google": {
+            "purchaseToken": "token-34"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "google",
+          "storeId": "play",
+          "isValid": true,
+          "state": "ready-to-consume",
+          "productId": "coins_100"
+        }
+      },
+      "verifies": false,
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "grants a subscription without a grant callback",
+      "purchase": {
+        "id": "tx-35",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-35",
+        "store": "google"
+      },
+      "isConsumable": false,
+      "noGrant": true,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "google": {
+            "purchaseToken": "token-35"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "google",
+          "storeId": "play",
+          "isValid": true,
+          "state": "entitled",
+          "productId": "premium"
+        }
+      },
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "granted": false
+    },
+    {
+      "name": "verifies a community store with the IAPKit store it maps to",
+      "purchase": {
+        "id": "receipt-36",
+        "productId": "premium_monthly_term",
+        "purchaseState": "purchased",
+        "purchaseToken": "receipt-36",
+        "store": "unknown",
+        "storeId": "amazon_example"
+      },
+      "isConsumable": false,
+      "verifyAs": {
+        "amazon_example": "amazon"
+      },
+      "amazon": {
+        "sandbox": true,
+        "verifiedProductIds": {
+          "premium_monthly_term": "premium"
+        }
+      },
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "amazon": {
+            "receiptId": "receipt-36",
+            "expectedProductId": "premium",
+            "sandbox": true
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "unknown",
+          "storeId": "amazon_example",
+          "environment": "Sandbox",
+          "isValid": true,
+          "state": "entitled",
+          "productId": "premium"
+        }
+      },
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "granted": true
+    },
+    {
+      "name": "leaves the key to the SDK's configuration when none is passed",
+      "purchase": {
+        "id": "tx-37",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-37",
+        "store": "google"
+      },
+      "isConsumable": false,
+      "apiKey": null,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "google": {
+            "purchaseToken": "token-37"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "google",
+          "storeId": "play",
+          "isValid": true,
+          "state": "entitled",
+          "productId": "premium"
+        }
+      },
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "granted": true
+    },
+    {
+      "name": "refuses a blank key",
+      "purchase": {
+        "id": "tx-38",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-38",
+        "store": "google"
+      },
+      "isConsumable": false,
+      "apiKey": "  ",
+      "props": null,
+      "error": true,
+      "granted": false
+    }
+  ],
+  "sequences": [
+    {
+      "name": "shares one confirmation between deliveries that arrive together",
+      "purchases": {
+        "p1": {
+          "purchaseState": "purchased",
+          "id": "p1",
+          "productId": "premium",
+          "purchaseToken": "t1",
+          "store": "google"
+        }
+      },
+      "answers": {
+        "p1": [
+          {
+            "status": "entitled",
+            "alreadyGranted": false
+          }
+        ]
+      },
+      "steps": [
+        {
+          "listener": ["p1", "p1"]
+        }
+      ],
+      "confirms": {
+        "p1": 1
+      },
+      "finishes": {
+        "p1": 1
+      },
+      "published": [
+        {
+          "id": "p1",
+          "status": {
+            "status": "entitled",
+            "alreadyGranted": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers a settled purchase delivered again without confirming it",
+      "purchases": {
+        "p1": {
+          "purchaseState": "purchased",
+          "id": "p1",
+          "productId": "premium",
+          "purchaseToken": "t1",
+          "store": "google"
+        }
+      },
+      "answers": {
+        "p1": [
+          {
+            "status": "entitled",
+            "alreadyGranted": false
+          }
+        ]
+      },
+      "steps": [
+        {
+          "listener": ["p1"]
+        },
+        {
+          "listener": ["p1"]
+        }
+      ],
+      "confirms": {
+        "p1": 1
+      },
+      "finishes": {
+        "p1": 1
+      },
+      "published": [
+        {
+          "id": "p1",
+          "status": {
+            "status": "entitled",
+            "alreadyGranted": false
+          }
+        },
+        {
+          "id": "p1",
+          "status": {
+            "status": "entitled",
+            "alreadyGranted": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "reports a pending plan change Play attaches to a finished purchase",
+      "purchases": {
+        "p1": {
+          "purchaseState": "purchased",
+          "id": "p1",
+          "productId": "premium_monthly",
+          "purchaseToken": "t1",
+          "store": "google"
+        },
+        "p1-change": {
+          "purchaseState": "purchased",
+          "id": "p1",
+          "productId": "premium_monthly",
+          "purchaseToken": "t1",
+          "store": "google",
+          "isAcknowledgedAndroid": true,
+          "pendingPurchaseUpdateAndroid": {
+            "products": ["premium_yearly"]
+          }
+        }
+      },
+      "answers": {
+        "p1": [
+          {
+            "status": "entitled",
+            "alreadyGranted": false
+          }
+        ]
+      },
+      "steps": [
+        {
+          "listener": ["p1"]
+        },
+        {
+          "listener": ["p1-change"]
+        }
+      ],
+      "confirms": {
+        "p1": 1
+      },
+      "finishes": {
+        "p1": 1
+      },
+      "published": [
+        {
+          "id": "p1",
+          "status": {
+            "status": "entitled",
+            "alreadyGranted": false
+          }
+        },
+        {
+          "id": "p1",
+          "status": {
+            "status": "entitled",
+            "alreadyGranted": false,
+            "changePending": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "confirms a failed purchase again on its next delivery",
+      "purchases": {
+        "p1": {
+          "purchaseState": "purchased",
+          "id": "p1",
+          "productId": "premium",
+          "purchaseToken": "t1",
+          "store": "google"
+        }
+      },
+      "answers": {
+        "p1": [
+          "throw",
+          {
+            "status": "entitled",
+            "alreadyGranted": false
+          }
+        ]
+      },
+      "steps": [
+        {
+          "listener": ["p1"]
+        },
+        {
+          "listener": ["p1"]
+        }
+      ],
+      "confirms": {
+        "p1": 2
+      },
+      "finishes": {
+        "p1": 1
+      },
+      "published": [
+        {
+          "id": "p1",
+          "status": {
+            "status": "failed",
+            "error": true
+          }
+        },
+        {
+          "id": "p1",
+          "status": {
+            "status": "entitled",
+            "alreadyGranted": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "offers buying again only for a requested purchase",
+      "purchases": {
+        "old": {
+          "purchaseState": "purchased",
+          "id": "old",
+          "productId": "premium",
+          "purchaseToken": "t-old",
+          "store": "apple"
+        },
+        "new": {
+          "purchaseState": "purchased",
+          "id": "new",
+          "productId": "premium",
+          "purchaseToken": "t-new",
+          "store": "apple"
+        }
+      },
+      "answers": {
+        "old": [
+          {
+            "status": "invalid",
+            "reason": "expired"
+          }
+        ],
+        "new": [
+          {
+            "status": "invalid",
+            "reason": "expired"
+          }
+        ]
+      },
+      "requested": ["new"],
+      "steps": [
+        {
+          "listener": ["old"]
+        },
+        {
+          "listener": ["new"]
+        }
+      ],
+      "confirms": {
+        "old": 1,
+        "new": 1
+      },
+      "finishes": {
+        "old": 1,
+        "new": 1
+      },
+      "published": [
+        {
+          "id": "old",
+          "status": {
+            "status": "invalid",
+            "reason": "expired",
+            "recovered": true
+          }
+        },
+        {
+          "id": "new",
+          "status": {
+            "status": "invalid",
+            "reason": "expired"
+          }
+        }
+      ]
+    },
+    {
+      "name": "recovers unfinished purchases by each store's rule",
+      "consumables": ["coins"],
+      "purchases": {
+        "play-new": {
+          "purchaseState": "purchased",
+          "id": "play-new",
+          "productId": "premium",
+          "purchaseToken": "t1",
+          "store": "google",
+          "isAcknowledgedAndroid": false
+        },
+        "play-done": {
+          "purchaseState": "purchased",
+          "id": "play-done",
+          "productId": "premium",
+          "purchaseToken": "t2",
+          "store": "google",
+          "isAcknowledgedAndroid": true
+        },
+        "amazon-sub": {
+          "purchaseState": "purchased",
+          "id": "amazon-sub",
+          "productId": "premium",
+          "purchaseToken": "r1",
+          "store": "amazon"
+        },
+        "horizon-coins": {
+          "purchaseState": "purchased",
+          "id": "horizon-coins",
+          "productId": "coins",
+          "purchaseToken": "t3",
+          "store": "horizon",
+          "isAcknowledgedAndroid": true
+        },
+        "horizon-done": {
+          "purchaseState": "purchased",
+          "id": "horizon-done",
+          "productId": "premium",
+          "purchaseToken": "t4",
+          "store": "horizon",
+          "isAcknowledgedAndroid": true
+        }
+      },
+      "answers": {
+        "*": [
+          {
+            "status": "entitled",
+            "alreadyGranted": true
+          }
+        ]
+      },
+      "available": [
+        "play-new",
+        "play-done",
+        "amazon-sub",
+        "horizon-coins",
+        "horizon-done"
+      ],
+      "steps": [
+        {
+          "recover": {},
+          "outcomes": [
+            {
+              "id": "play-new",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": true
+              }
+            },
+            {
+              "id": "amazon-sub",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": true
+              }
+            },
+            {
+              "id": "horizon-coins",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": true
+              }
+            }
+          ]
+        }
+      ],
+      "confirms": {
+        "play-new": 1,
+        "amazon-sub": 1,
+        "horizon-coins": 1
+      },
+      "finishes": {
+        "play-new": 1,
+        "amazon-sub": 1,
+        "horizon-coins": 1
+      }
+    },
+    {
+      "name": "recovers only unfinished StoreKit transactions",
+      "purchases": {
+        "a1": {
+          "purchaseState": "purchased",
+          "id": "a1",
+          "productId": "premium",
+          "purchaseToken": "j1",
+          "store": "apple"
+        },
+        "a2": {
+          "purchaseState": "purchased",
+          "id": "a2",
+          "productId": "premium",
+          "purchaseToken": "j2",
+          "store": "apple"
+        }
+      },
+      "answers": {
+        "*": [
+          {
+            "status": "entitled",
+            "alreadyGranted": false
+          }
+        ]
+      },
+      "pendingIOS": ["a1"],
+      "available": ["a1", "a2"],
+      "steps": [
+        {
+          "recover": {},
+          "outcomes": [
+            {
+              "id": "a1",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": false
+              }
+            }
+          ]
+        }
+      ],
+      "confirms": {
+        "a1": 1
+      },
+      "finishes": {
+        "a1": 1
+      }
+    },
+    {
+      "name": "confirms every owned Apple purchase when the pending list fails",
+      "purchases": {
+        "a1": {
+          "purchaseState": "purchased",
+          "id": "a1",
+          "productId": "premium",
+          "purchaseToken": "j1",
+          "store": "apple"
+        },
+        "a2": {
+          "purchaseState": "purchased",
+          "id": "a2",
+          "productId": "premium",
+          "purchaseToken": "j2",
+          "store": "apple"
+        }
+      },
+      "answers": {
+        "*": [
+          {
+            "status": "entitled",
+            "alreadyGranted": true
+          }
+        ]
+      },
+      "pendingIOS": "throw",
+      "available": ["a1", "a2"],
+      "steps": [
+        {
+          "recover": {},
+          "outcomes": [
+            {
+              "id": "a1",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": true
+              }
+            },
+            {
+              "id": "a2",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": true
+              }
+            }
+          ]
+        }
+      ],
+      "confirms": {
+        "a1": 1,
+        "a2": 1
+      },
+      "finishes": {
+        "a1": 1,
+        "a2": 1
+      }
+    },
+    {
+      "name": "skips what the listener already settled, then restores everything",
+      "purchases": {
+        "p1": {
+          "purchaseState": "purchased",
+          "id": "p1",
+          "productId": "premium",
+          "purchaseToken": "t1",
+          "store": "google",
+          "isAcknowledgedAndroid": false
+        },
+        "p1-done": {
+          "purchaseState": "purchased",
+          "id": "p1",
+          "productId": "premium",
+          "purchaseToken": "t1",
+          "store": "google",
+          "isAcknowledgedAndroid": true
+        }
+      },
+      "answers": {
+        "p1": [
+          {
+            "status": "entitled",
+            "alreadyGranted": false
+          },
+          {
+            "status": "entitled",
+            "alreadyGranted": true
+          }
+        ]
+      },
+      "available": ["p1-done"],
+      "steps": [
+        {
+          "listener": ["p1"]
+        },
+        {
+          "recover": {},
+          "outcomes": []
+        },
+        {
+          "recover": {
+            "includeFinished": true
+          },
+          "outcomes": [
+            {
+              "id": "p1",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": true
+              }
+            }
+          ]
+        }
+      ],
+      "confirms": {
+        "p1": 2
+      },
+      "finishes": {
+        "p1": 1
+      }
+    },
+    {
+      "name": "stops listening and publishing once disposed",
+      "purchases": {
+        "p1": {
+          "purchaseState": "purchased",
+          "id": "p1",
+          "productId": "premium",
+          "purchaseToken": "t1",
+          "store": "google"
+        },
+        "p2": {
+          "purchaseState": "purchased",
+          "id": "p2",
+          "productId": "premium",
+          "purchaseToken": "t2",
+          "store": "google"
+        },
+        "p3": {
+          "purchaseState": "purchased",
+          "id": "p3",
+          "productId": "premium",
+          "purchaseToken": "t3",
+          "store": "google"
+        }
+      },
+      "answers": {
+        "*": [
+          {
+            "status": "entitled",
+            "alreadyGranted": false
+          }
+        ]
+      },
+      "steps": [
+        {
+          "listener": ["p1"]
+        },
+        {
+          "dispose": true
+        },
+        {
+          "listener": ["p2"]
+        },
+        {
+          "process": ["p3"]
+        }
+      ],
+      "confirms": {
+        "p1": 1,
+        "p3": 1
+      },
+      "finishes": {
+        "p1": 1,
+        "p3": 1
+      },
+      "published": [
+        {
+          "id": "p1",
+          "status": {
+            "status": "entitled",
+            "alreadyGranted": false
+          }
+        }
+      ]
+    }
+  ]
+}

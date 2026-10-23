@@ -90,6 +90,30 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
       expo: target('libraries/expo-iap/src/purchase-flow.ts', 'purchase-flow → expo-iap'),
     },
   }),
+  purchaseFlowVectors: group({
+    source: 'specs/client/src/purchase-flow.vectors.json',
+    generated: false,
+    exportKey: './purchase-flow-vectors',
+    targets: {
+      flutter: target('libraries/flutter_inapp_purchase/test/fixtures/purchase-flow.vectors.json', 'purchase-flow vectors → flutter_inapp_purchase'),
+      godot: target('libraries/godot-iap/Example/tests/fixtures/purchase-flow.vectors.json', 'purchase-flow vectors → godot-iap'),
+      kmp: target(
+        'libraries/kmp-iap/library/src/androidUnitTest/resources/purchase-flow.vectors.json',
+        'purchase-flow vectors → kmp-iap',
+      ),
+      maui: target(
+        'libraries/maui-iap/tests/OpenIap.Maui.Tests/Fixtures/purchase-flow.vectors.json',
+        'purchase-flow vectors → maui-iap',
+      ),
+    },
+  }),
+  purchaseFlowBinding: group({
+    source: 'libraries/react-native-iap/src/utils/purchaseFlowBinding.ts',
+    generated: false,
+    targets: {
+      expo: target('libraries/expo-iap/src/utils/purchaseFlowBinding.ts', 'purchaseFlowBinding → expo-iap'),
+    },
+  }),
   errorMapping: group({
     source: 'libraries/react-native-iap/src/utils/errorMapping.ts',
     generated: false,
