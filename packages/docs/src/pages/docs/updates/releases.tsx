@@ -696,11 +696,14 @@ function Releases() {
                 </li>
                 <li>
                   takes <code>wasRequested</code>, which the SDKs answer from
-                  their own <code>requestPurchase</code> calls: only a delivery
-                  bought after the request, give or take ten minutes of device
-                  clock drift (<code>PURCHASE_REQUEST_CLOCK_SKEW_MS</code>),
-                  counts as the user&apos;s own, so only that one offers buying
-                  again after an <code>invalid</code> verdict;
+                  their own <code>requestPurchase</code> calls: a delivery
+                  counts as the user&apos;s own when it was bought after the
+                  request, give or take ten minutes of device clock drift (
+                  <code>PURCHASE_REQUEST_CLOCK_SKEW_MS</code>), or is the plan
+                  change the request asked for. A purchase error or{' '}
+                  <code>dispose</code> forgets the requests. Only the
+                  user&apos;s own purchase offers buying again after an{' '}
+                  <code>invalid</code> verdict;
                 </li>
                 <li>
                   confirms with IAPKit from the app through{' '}
@@ -736,16 +739,16 @@ function Releases() {
               of ignoring it, and an explicit empty config returns it to the
               standard client; programs queued with{' '}
               <code>enableBillingProgramAndroid</code> stay. A call without a
-              config keeps the live connection, and after a service drop
-              reconnects with the program the app chose last. A rebuild is
-              refused with <code>developer-error</code> while a purchase is in
-              progress, and every library then stays connected and reports the
-              error. A purchase requested while a rebuild is being prepared
-              fails with <code>service-disconnected</code>, and a failed rebuild
-              leaves the store disconnected. Both natives report Client Protocol
-              1.2.0; the natives the libraries shipped before reported 1.0.3, so
-              they rejected a community store provider built for Client Protocol
-              1.1.
+              config keeps the live connection, and after a service drop or a
+              failed connect reconnects with the program the app chose last;
+              only <code>endConnection</code> forgets it. A rebuild is refused
+              with <code>developer-error</code> while a purchase is in progress,
+              and every library then stays connected and reports the error. A
+              purchase requested while a rebuild is being prepared fails with{' '}
+              <code>service-disconnected</code>, and a failed rebuild leaves the
+              store disconnected. Both natives report Client Protocol 1.2.0; the
+              natives the libraries shipped before reported 1.0.3, so they
+              rejected a community store provider built for Client Protocol 1.1.
             </li>
             <li>
               <strong>openiap-apple 4.0.4</strong>: reports Client Protocol
