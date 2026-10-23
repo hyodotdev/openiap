@@ -174,6 +174,14 @@ export interface UseIAPOptions {
   billingChoiceScreenTypeAndroid?: BillingChoiceScreenTypeAndroid;
 }
 
+// The store refused a new billing program because a purchase is in progress;
+// the live connection stays up.
+const isRefusedRebuild = (error: unknown): boolean =>
+  typeof error === 'object' &&
+  error !== null &&
+  'code' in error &&
+  error.code === ErrorCode.DeveloperError;
+
 // A fetched item replaces the one it updates, keeping the list's order.
 function mergeByKey<T>(
   existingItems: T[],
@@ -790,8 +798,12 @@ export function useIAP(options?: UseIAPOptions): UseIap {
         ) {
           return;
         }
-        ExpoIapConsole.error('initConnection failed:', error);
         invokeOnError(error);
+        if (isRefusedRebuild(error)) {
+          setConnected(true);
+          return;
+        }
+        ExpoIapConsole.error('initConnection failed:', error);
         removePurchaseListeners();
       }
     },
@@ -816,7 +828,9 @@ export function useIAP(options?: UseIAPOptions): UseIap {
 
       return result;
     } catch (error) {
-      ExpoIapConsole.error('[useIAP] reconnect failed:', error);
+      if (!isRefusedRebuild(error)) {
+        ExpoIapConsole.error('[useIAP] reconnect failed:', error);
+      }
       invokeOnError(error);
       return false;
     }

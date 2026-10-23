@@ -747,6 +747,27 @@ describe("listening", () => {
   });
 });
 
+describe("createDeviceConfirmationIOS", () => {
+  it("refuses a transaction that expires while StoreKit answers", async () => {
+    vi.useFakeTimers({ now: 1_000 });
+    try {
+      const item = purchase({ store: "apple", storeId: "apple" });
+      const confirm = createDeviceConfirmationIOS<PurchaseFlowPurchase>(
+        async () => {
+          vi.setSystemTime(3_000);
+          return [{ ...item, expirationDateIOS: 2_000 }];
+        },
+      );
+
+      await expect(confirm(item, { isConsumable: false })).rejects.toThrow(
+        "StoreKit lists no valid unfinished transaction",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("confirmTimeoutMs", () => {
   it("treats a timeout too long for setTimeout as the longest one", async () => {
     const { flow } = flowWith(

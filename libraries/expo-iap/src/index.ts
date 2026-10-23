@@ -95,7 +95,9 @@ type ExpoIapEventPayloads = {
   [OpenIapEvent.PurchaseUpdated]: Purchase;
   [OpenIapEvent.PurchaseError]: PurchaseError;
   [OpenIapEvent.PromotedProductIOS]:
-    Product | string | {id?: string; productId?: string};
+    | Product
+    | string
+    | {id?: string; productId?: string};
   [OpenIapEvent.UserChoiceBillingAndroid]: UserChoiceBillingDetails;
   [OpenIapEvent.DeveloperProvidedBillingAndroid]: DeveloperProvidedBillingDetailsAndroid;
   [OpenIapEvent.SubscriptionBillingIssue]: Purchase;
@@ -397,7 +399,8 @@ export const promotedProductListenerIOS = (
     let pendingProduct: Promise<Product | null> | undefined;
     try {
       pendingProduct = ExpoIapModule.getPromotedProductIOS() as
-        Promise<Product | null> | undefined;
+        | Promise<Product | null>
+        | undefined;
     } catch {
       return Promise.resolve();
     }
@@ -898,7 +901,8 @@ function normalizeRequestProps(
 ): RequestSubscriptionAndroidProps | null | undefined;
 function normalizeRequestProps(
   request:
-    RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms,
+    | RequestPurchasePropsByPlatforms
+    | RequestSubscriptionPropsByPlatforms,
   platform: 'ios' | 'android',
 ) {
   if (platform === 'ios') {
@@ -947,8 +951,8 @@ export const verifyAppOwnership: QueryField<'verifyAppOwnership'> = async (
       storeId: isVegaOS()
         ? 'amazon'
         : ExpoIapModule.USING_ONSIDE_SDK
-          ? 'onside'
-          : 'unknown',
+        ? 'onside'
+        : 'unknown',
     };
   }
   return invokeNativeWithPurchaseError(
@@ -1066,7 +1070,8 @@ const requestPurchaseFromStore: MutationField<'requestPurchase'> = async (
     validateAndroidPurchaseBranchOptions(
       (
         request as
-          RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms
+          | RequestPurchasePropsByPlatforms
+          | RequestSubscriptionPropsByPlatforms
       )?.google,
       canonical,
     );

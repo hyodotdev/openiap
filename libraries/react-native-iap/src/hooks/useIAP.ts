@@ -341,6 +341,14 @@ function mergeByKey<T>(
   return Array.from(merged.values());
 }
 
+// The store refused a new billing program because a purchase is in progress;
+// the live connection stays up.
+const isRefusedRebuild = (error: unknown): boolean =>
+  typeof error === 'object' &&
+  error !== null &&
+  'code' in error &&
+  error.code === ErrorCode.DeveloperError;
+
 // Store reads can resolve out of order. A result publishes only when no newer
 // read has published, so a failed newer read lets an older result through,
 // and a purchase makes every read that started before it stale.
@@ -808,6 +816,12 @@ export function useIAP(options?: UseIapOptions): UseIap {
         ) {
           return;
         }
+        if (isRefusedRebuild(error)) {
+          registerListeners();
+          setConnected(true);
+          invokeOnError(error);
+          return;
+        }
         RnIapConsole.error('initConnection failed:', error);
         cleanupListeners();
         if (isMountedRef.current) {
@@ -846,6 +860,10 @@ export function useIAP(options?: UseIapOptions): UseIap {
         !isMountedRef.current ||
         initializationGenerationRef.current !== generation
       ) {
+        return false;
+      }
+      if (isRefusedRebuild(error)) {
+        invokeOnError(error);
         return false;
       }
       RnIapConsole.error('[useIAP] reconnect failed:', error);

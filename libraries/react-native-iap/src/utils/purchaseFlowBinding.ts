@@ -2,6 +2,7 @@
 // expo-iap; each entry point (index, index.kepler) passes its own functions.
 import {
   createPurchaseFlow,
+  PURCHASE_REQUEST_CLOCK_SKEW_MS,
   type PurchaseFlow,
   type PurchaseFlowOptions,
 } from '../purchase-flow';
@@ -10,8 +11,6 @@ import type {Purchase} from '../types';
 // When the app asked for each SKU, so the flow can tell the user's own
 // purchase from one the store redelivers.
 const requested = new Map<string, number>();
-// A store's purchase time may run slightly behind the device clock.
-const CLOCK_SKEW_MS = 60_000;
 
 export function markRequested(skus: (string | null | undefined)[]): void {
   const now = Date.now();
@@ -28,7 +27,7 @@ function takeRequested(purchase: Purchase): boolean {
   const askedAt = requested.get(purchase.productId);
   const bought =
     askedAt !== undefined &&
-    purchase.transactionDate >= askedAt - CLOCK_SKEW_MS &&
+    purchase.transactionDate >= askedAt - PURCHASE_REQUEST_CLOCK_SKEW_MS &&
     requested.delete(purchase.productId);
   const changed = (
     ('pendingPurchaseUpdateAndroid' in purchase &&
@@ -78,7 +77,7 @@ export function createSdkPurchaseFlow(
   options: SdkPurchaseFlowOptions,
 ): PurchaseFlow<Purchase> {
   const manual = options.finishTransaction !== undefined;
-  return createPurchaseFlow({
+  const flow = createPurchaseFlow({
     finishTransaction: sdk.finishTransaction,
     getAvailablePurchases: sdk.getAvailablePurchases,
     getPendingTransactionsIOS: sdk.getPendingTransactionsIOS,
@@ -93,7 +92,6 @@ export function createSdkPurchaseFlow(
               remove: () => {
                 updates.remove();
                 errors.remove();
-                clearRequested();
               },
             };
           },
@@ -101,4 +99,12 @@ export function createSdkPurchaseFlow(
         }),
     ...options,
   });
+  // Whatever listens, the next account's flow must not inherit requests.
+  return {
+    ...flow,
+    dispose: () => {
+      flow.dispose();
+      clearRequested();
+    },
+  };
 }

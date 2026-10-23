@@ -1755,6 +1755,28 @@ describe('hooks/useIAP (renderer)', () => {
       expect(onError).toHaveBeenCalledWith(expect.any(Error));
     });
   });
+  it('stays connected when the store refuses a rebuild mid-purchase', async () => {
+    const refusal = Object.assign(new Error('purchase in progress'), {
+      code: 'developer-error',
+    });
+    jest.spyOn(IAP, 'initConnection').mockRejectedValue(refusal);
+    const onError = jest.fn();
+    let api: any;
+    const Harness = () => {
+      api = useIAP({onError});
+      return null;
+    };
+
+    await act(async () => {
+      TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {});
+
+    expect(api.connected).toBe(true);
+    expect(IAP.purchaseUpdatedListener).toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(refusal);
+  });
+
   describe('purchaseFlow', () => {
     const purchase = {
       id: 't1',

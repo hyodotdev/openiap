@@ -704,6 +704,25 @@ describe('useIAP lifecycle', () => {
     ]);
   });
 
+  it('stays connected when the store refuses a rebuild mid-purchase', async () => {
+    const refusal = Object.assign(new Error('purchase in progress'), {
+      code: 'developer-error',
+    });
+    jest.mocked(ExpoIapModule.initConnection).mockRejectedValueOnce(refusal);
+    const onError = jest.fn();
+    let hook: Hook | undefined;
+
+    await mount(
+      <Harness options={{onError}} onHook={(value) => (hook = value)} />,
+    );
+
+    expect(hook!.connected).toBe(true);
+    expect(purchaseListenerRemovals[0]).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({code: 'developer-error'}),
+    );
+  });
+
   describe('purchaseFlow', () => {
     function fakeFlow() {
       const listeners = new Set<(outcome: unknown) => void>();

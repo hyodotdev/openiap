@@ -248,6 +248,35 @@ describe('Public API (src/index.ts)', () => {
       flow.dispose();
     });
 
+    it('forgets requests when a flow with its own listener is disposed', async () => {
+      await IAP.requestPurchase({
+        request: {apple: {sku: 'fresh'}},
+        type: 'in-app',
+      });
+      IAP.createPurchaseFlow({
+        confirmWithBackend: async () => ({status: 'invalid' as const}),
+        isConsumable: () => false,
+        listenForPurchases: () => ({remove: () => {}}),
+      }).dispose();
+      const flow = IAP.createPurchaseFlow({
+        confirmWithBackend: async () => ({status: 'invalid' as const}),
+        isConsumable: () => false,
+      });
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome: {status: unknown}) =>
+        statuses.push(outcome.status),
+      );
+
+      mockIap.addPurchaseUpdatedListener.mock.lastCall[0]({
+        ...nitroPurchase('fresh'),
+        transactionDate: Date.now(),
+      });
+      await settle();
+
+      expect(statuses).toEqual([{status: 'invalid', recovered: true}]);
+      flow.dispose();
+    });
+
     it('keeps the 17.1 manual delivery for a flow given its own store functions', async () => {
       const confirmWithBackend = jest.fn(async () => ({
         status: 'entitled' as const,

@@ -177,6 +177,13 @@ export interface PurchaseFlow<P extends PurchaseFlowPurchase> {
   dispose: () => void;
 }
 
+/**
+ * How far a store's purchase time may trail the moment the app asked for it
+ * and still count as that request: device clocks run ahead. A redelivered
+ * receipt is far older.
+ */
+export const PURCHASE_REQUEST_CLOCK_SKEW_MS = 600_000;
+
 interface PurchaseRun<P> {
   task: Promise<PurchaseFlowStatus>;
   latest: P;
@@ -605,8 +612,9 @@ export function createDeviceConfirmationIOS<P extends PurchaseFlowPurchase>(
         `Device confirmation covers App Store purchases, not ${purchase.storeId ?? purchase.store}`,
       );
     }
-    const now = Date.now();
     const pending = await getPendingTransactionsIOS();
+    // After the query: a transaction can expire while StoreKit answers.
+    const now = Date.now();
     const verified = pending.some(
       (candidate) =>
         candidate.store === "apple" &&
