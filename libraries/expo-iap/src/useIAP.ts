@@ -486,6 +486,9 @@ export function useIAP(options?: UseIAPOptions): UseIap {
       if (!subscriptionsRefState.current.some((sub) => sub.id === productId)) {
         return;
       }
+      // A read that started before this purchase is stale; the refresh below
+      // publishes a newer one.
+      availablePurchasesGenerationRef.current += 1;
       const generation = initializationGenerationRef.current;
       const isCurrent = (): boolean =>
         isMountedRef.current &&

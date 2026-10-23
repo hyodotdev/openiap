@@ -1011,6 +1011,54 @@ describe('hooks/useIAP (renderer)', () => {
       expect(api.availablePurchases).toEqual([listed('newer')]);
     });
 
+    it('drops a read that started before a purchase arrived', async () => {
+      let api: any;
+      const Harness = () => {
+        api = useIAP();
+        return null;
+      };
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      const listed = (id: string) => ({id, productId: id}) as Purchase;
+      let resolveOlder: (purchases: Purchase[]) => void = () => {};
+      let resolveActive: () => void = () => {};
+      mockGetAvailablePurchases
+        .mockImplementationOnce(
+          () =>
+            new Promise<Purchase[]>((resolve) => {
+              resolveOlder = resolve;
+            }),
+        )
+        .mockResolvedValueOnce([listed('after-purchase')]);
+      mockGetActiveSubscriptions.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveActive = () => resolve([]);
+          }),
+      );
+
+      let older: Promise<void> = Promise.resolve();
+      let delivery: Promise<void> = Promise.resolve();
+      await act(async () => {
+        older = api.getAvailablePurchases();
+        delivery = capturedPurchaseListener(listed('after-purchase'));
+      });
+      await act(async () => {
+        resolveOlder([listed('before-purchase')]);
+        await older;
+      });
+      expect(api.availablePurchases).toEqual([]);
+
+      await act(async () => {
+        resolveActive();
+        await delivery;
+      });
+      expect(api.availablePurchases).toEqual([listed('after-purchase')]);
+    });
+
     it('does not call onError when operations succeed', async () => {
       let api: any;
       const onError = jest.fn();

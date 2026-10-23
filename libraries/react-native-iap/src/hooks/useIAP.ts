@@ -609,6 +609,9 @@ export function useIAP(options?: UseIapOptions): UseIap {
     if (!subscriptionsRef.current.purchaseUpdate) {
       subscriptionsRef.current.purchaseUpdate = purchaseUpdatedListener(
         async (purchase: Purchase) => {
+          // A read that started before this purchase is stale; the refresh
+          // below publishes a newer one.
+          availablePurchasesGenerationRef.current += 1;
           // Deliver first so store refresh latency cannot delay verification
           // and transaction finalization in the host app.
           try {

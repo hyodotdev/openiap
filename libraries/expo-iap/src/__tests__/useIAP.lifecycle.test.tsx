@@ -268,6 +268,54 @@ describe('useIAP lifecycle', () => {
     expect(hook!.availablePurchases).toEqual([purchase({id: 'newer'})]);
   });
 
+  it('drops a read that started before a subscription purchase arrived', async () => {
+    const catalog = [{id: 'premium_monthly', platform: 'ios', type: 'subs'}];
+    jest.mocked(ExpoIapModule.fetchProducts).mockResolvedValue(catalog);
+    let hook: Hook | undefined;
+    await mount(<Harness onHook={(value) => (hook = value)} />);
+    await React.act(async () => {
+      await hook!.fetchProducts({skus: ['premium_monthly'], type: 'subs'});
+    });
+
+    let resolveOlder: (purchases: Purchase[]) => void = () => {};
+    let resolveCatalog: () => void = () => {};
+    jest
+      .mocked(ExpoIapModule.getAvailableItems)
+      .mockImplementationOnce(
+        () =>
+          new Promise<Purchase[]>((resolve) => {
+            resolveOlder = resolve;
+          }),
+      )
+      .mockResolvedValueOnce([purchase({id: 'after-purchase'})]);
+    jest.mocked(ExpoIapModule.fetchProducts).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveCatalog = () => resolve(catalog);
+        }),
+    );
+
+    let older: Promise<void> = Promise.resolve();
+    let delivery: Promise<void> = Promise.resolve();
+    await React.act(async () => {
+      older = hook!.getAvailablePurchases();
+      delivery = purchaseHandler!(purchase({id: 'after-purchase'}));
+    });
+    await React.act(async () => {
+      resolveOlder([purchase({id: 'before-purchase'})]);
+      await older;
+    });
+    expect(hook!.availablePurchases).toEqual([]);
+
+    await React.act(async () => {
+      resolveCatalog();
+      await delivery;
+    });
+    expect(hook!.availablePurchases).toEqual([
+      purchase({id: 'after-purchase'}),
+    ]);
+  });
+
   it.each(['resolves', 'rejects'])(
     'stops an old hook refresh that %s after switching purchase flows',
     async (completion) => {
