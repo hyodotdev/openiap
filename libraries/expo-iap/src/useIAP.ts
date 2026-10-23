@@ -610,15 +610,9 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   const handlePurchaseUpdate = useCallback(
     async (purchase: Purchase): Promise<void> => {
       // Before the callback, which may read again: a read that started before
-      // this purchase is stale, and the refresh below publishes a newer one.
-      if (
-        subscriptionsRefState.current.some(
-          (sub) => sub.id === purchase.productId,
-        )
-      ) {
-        invalidateReads(availablePurchasesReads.current);
-        invalidateReads(activeSubscriptionsReads.current);
-      }
+      // this purchase is stale.
+      invalidateReads(availablePurchasesReads.current);
+      invalidateReads(activeSubscriptionsReads.current);
       // Deliver first so a store refresh cannot delay finishing the transaction.
       try {
         const callbackResult: unknown =
