@@ -774,6 +774,39 @@ describe('useIAP lifecycle', () => {
       expect(first.recoverPurchases).toHaveBeenCalledTimes(1);
     });
 
+    it('reports a failed restore and recovery, and a throwing callback', async () => {
+      jest.mocked(ExpoIapModule.restorePurchases!).mockResolvedValue(true);
+      const flow = fakeFlow();
+      flow.recoverPurchases.mockRejectedValue(new Error('store down'));
+      const onError = jest.fn();
+      const onPurchaseFlowOutcome = jest.fn(() => {
+        throw new Error('callback failed');
+      });
+      let hook: Hook | undefined;
+      await mount(
+        <Harness
+          options={{purchaseFlow: flow, onPurchaseFlowOutcome, onError}}
+          onHook={(value) => (hook = value)}
+        />,
+      );
+      expect(onError).toHaveBeenCalledWith(expect.any(Error));
+
+      await React.act(async () => {
+        flow.emit({
+          purchase: purchase(),
+          status: {status: 'entitled', alreadyGranted: false},
+        });
+        await flush();
+      });
+      expect(onPurchaseFlowOutcome).toHaveBeenCalled();
+
+      onError.mockClear();
+      await React.act(async () => {
+        await expect(hook!.restorePurchases()).rejects.toThrow('store down');
+      });
+      expect(onError).toHaveBeenCalledWith(expect.any(Error));
+    });
+
     it('re-confirms every owned purchase on restore', async () => {
       jest.mocked(ExpoIapModule.restorePurchases!).mockResolvedValue(true);
       const flow = fakeFlow();

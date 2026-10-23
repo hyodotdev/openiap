@@ -79,6 +79,40 @@ describe('Amazon Vega public API', () => {
     expect(remove).toHaveBeenCalledTimes(2);
   });
 
+  it('restores and confirms with IAPKit through the Vega store', async () => {
+    const acknowledgePurchaseAndroid = jest.fn().mockResolvedValue(undefined);
+    (getVegaIapModule as jest.Mock).mockReturnValue({
+      getAvailableItems: jest
+        .fn()
+        .mockResolvedValue([vegaPurchase({purchaseToken: 'receipt'})]),
+      acknowledgePurchaseAndroid,
+      addListener: jest.fn(() => ({remove: jest.fn()})),
+      verifyPurchaseWithProvider: jest.fn().mockResolvedValue({
+        provider: 'iapkit',
+        iapkit: {
+          store: 'amazon',
+          storeId: 'amazon',
+          environment: 'Production',
+          isValid: true,
+          state: 'entitled',
+          productId: 'premium',
+        },
+      }),
+    });
+    const flow = Kepler.createPurchaseFlow({
+      confirmWithBackend: Kepler.confirmWithIapkit({apiKey: 'pk'}),
+      isConsumable: () => false,
+    });
+
+    const outcomes = await flow.recoverPurchases();
+
+    expect(outcomes.map(({status}) => status)).toEqual([
+      {status: 'entitled', alreadyGranted: false},
+    ]);
+    expect(acknowledgePurchaseAndroid).toHaveBeenCalledWith('receipt');
+    flow.dispose();
+  });
+
   it('resolves null for openRedeemOfferCode without launching anything', async () => {
     await expect(openRedeemOfferCode()).resolves.toBeNull();
   });

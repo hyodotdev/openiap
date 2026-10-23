@@ -47,7 +47,6 @@ describe('AlternativeBilling Screen', () => {
           store: 'apple',
           storeId: 'apple',
           transactionDate: 1,
-          platform: 'ios',
         },
         status: {status: 'entitled', alreadyGranted: false},
       });

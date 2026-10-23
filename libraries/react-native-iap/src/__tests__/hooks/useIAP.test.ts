@@ -1858,6 +1858,40 @@ describe('hooks/useIAP (renderer)', () => {
       expect(first.recoverPurchases).toHaveBeenCalledTimes(1);
     });
 
+    it('reports a failed restore and recovery, and a throwing callback', async () => {
+      const flow = fakeFlow();
+      flow.recoverPurchases.mockRejectedValue(new Error('store down'));
+      const onError = jest.fn();
+      const onPurchaseFlowOutcome = jest.fn(() => {
+        throw new Error('callback failed');
+      });
+      let api: any;
+      const Harness = () => {
+        api = useIAP({purchaseFlow: flow, onPurchaseFlowOutcome, onError});
+        return null;
+      };
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+      expect(onError).toHaveBeenCalledWith(expect.any(Error));
+      mockGetAvailablePurchases.mockRejectedValue(new Error('read failed'));
+
+      await act(async () => {
+        flow.emit({
+          purchase,
+          status: {status: 'entitled', alreadyGranted: false},
+        });
+      });
+      expect(onPurchaseFlowOutcome).toHaveBeenCalled();
+
+      onError.mockClear();
+      await act(async () => {
+        await expect(api.restorePurchases()).rejects.toThrow('store down');
+      });
+      expect(onError).toHaveBeenCalledWith(expect.any(Error));
+    });
+
     it('re-confirms every owned purchase on restore', async () => {
       const flow = fakeFlow();
       let api: any;

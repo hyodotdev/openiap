@@ -83,6 +83,46 @@ describe('Amazon Vega public API', () => {
     expect(vegaModule.removePurchaseUpdatedListener).toHaveBeenCalledWith(7);
   });
 
+  it('restores and confirms with IAPKit through the Vega store', async () => {
+    getAvailablePurchasesNative.mockResolvedValueOnce([
+      {
+        id: 'receipt-premium',
+        productId: 'premium',
+        transactionDate: 1720000000000,
+        purchaseToken: 'receipt-premium',
+        platform: 'android',
+        store: 'amazon',
+        storeId: 'amazon',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      },
+    ]);
+    vegaModule.verifyPurchaseWithProvider.mockResolvedValueOnce({
+      provider: 'iapkit',
+      iapkit: {
+        store: 'amazon',
+        storeId: 'amazon',
+        environment: 'Production',
+        isValid: true,
+        state: 'entitled',
+        productId: 'premium',
+      },
+    });
+    const flow = IAP.createPurchaseFlow({
+      confirmWithBackend: IAP.confirmWithIapkit({apiKey: 'pk'}),
+      isConsumable: () => false,
+    });
+
+    const outcomes = await flow.recoverPurchases();
+
+    expect(outcomes.map(({status}) => status)).toEqual([
+      {status: 'entitled', alreadyGranted: false},
+    ]);
+    expect(vegaModule.finishTransaction).toHaveBeenCalledTimes(1);
+    flow.dispose();
+  });
+
   it('resolves null from the unified openRedeemOfferCode API', async () => {
     await expect(IAP.openRedeemOfferCode()).resolves.toBeNull();
   });

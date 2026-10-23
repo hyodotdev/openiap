@@ -242,6 +242,30 @@ describe('Public API (src/index.ts)', () => {
       expect(statuses).toEqual([{status: 'invalid', recovered: true}]);
     });
 
+    it('restores through the SDK store reads and finishing', async () => {
+      mockIap.getPendingTransactionsIOS = jest.fn(async () => []);
+      mockIap.getAvailablePurchases = jest.fn(async () => [
+        nitroPurchase('premium'),
+      ]);
+      const confirmWithBackend = jest.fn(async () => ({
+        status: 'entitled' as const,
+        alreadyGranted: true,
+      }));
+      const flow = IAP.createPurchaseFlow({
+        confirmWithBackend,
+        isConsumable: () => false,
+      });
+
+      await expect(
+        flow.recoverPurchases({includeFinished: true}),
+      ).resolves.toHaveLength(1);
+
+      expect(mockIap.getPendingTransactionsIOS).toHaveBeenCalled();
+      expect(mockIap.getAvailablePurchases).toHaveBeenCalled();
+      expect(mockIap.finishTransaction).toHaveBeenCalledTimes(1);
+      flow.dispose();
+    });
+
     it('grants an IAPKit-confirmed consumable before consuming it', async () => {
       const order: string[] = [];
       mockIap.verifyPurchaseWithProvider = jest.fn(async () => ({
