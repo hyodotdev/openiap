@@ -658,6 +658,7 @@ describe('SubscriptionFlow Component', () => {
     });
     expect(screen.getByText('Plan change requested.')).toBeTruthy();
 
+    await fireEvent.press(screen.getByText('Subscribe'));
     await act(async () => {
       mockOptions?.onPurchaseError?.({
         code: ErrorCode.UserCancelled,

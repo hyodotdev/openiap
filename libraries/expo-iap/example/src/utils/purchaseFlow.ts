@@ -42,7 +42,12 @@ export function setVerificationMethod(method: VerificationMethod): void {
 // purchase again, and the flow finishes it right after the grant.
 const creditedPurchaseIds = new Set<string>();
 
-async function grant(purchase: Purchase): Promise<void> {
+async function grant(
+  purchase: Purchase,
+  {isConsumable}: {isConsumable: boolean},
+): Promise<void> {
+  // Ownership grants everything else; only consumables are credited.
+  if (!isConsumable) return;
   if (creditedPurchaseIds.has(purchase.id)) {
     console.log('[purchaseFlow] Already credited', purchase.id);
     return;

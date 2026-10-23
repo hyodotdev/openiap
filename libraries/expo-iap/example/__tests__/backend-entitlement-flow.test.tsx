@@ -910,7 +910,9 @@ describe('BackendEntitlementFlow', () => {
   );
 
   it('shows Ask to Buy as a pending payment', async () => {
-    const {findByText} = await renderReady();
+    const screen = await renderReady();
+    const {findByText} = screen;
+    await fireEvent.press(screen.getByRole('button', {name: 'Buy 10 Bulbs'}));
 
     await act(async () => {
       const error: ExpoPurchaseError = Object.assign(new Error('deferred'), {

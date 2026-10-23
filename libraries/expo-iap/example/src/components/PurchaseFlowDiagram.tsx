@@ -94,8 +94,10 @@ export function receiptOutcome(status: PurchaseFlowStatus): ObservedOutcome {
 export function usePurchaseFlowActivity() {
   const [activity, setActivity] = useState<PurchaseFlowActivity | null>(null);
   const requestNumber = useRef(0);
+  const currentRequest = useRef<string | null>(null);
   const startStore = useCallback((productId: string): string => {
     const key = `request-${++requestNumber.current}`;
+    currentRequest.current = key;
     setActivity({
       key,
       productId,
@@ -137,8 +139,16 @@ export function usePurchaseFlowActivity() {
     },
     [],
   );
+  /**
+   * Shows a store error on the current request, or on `key` while it is still
+   * current. False for a late error from an older request.
+   */
   const storeError = useCallback(
-    (key: string, code: string | undefined): void => {
+    (
+      code: string | undefined,
+      key: string | null = currentRequest.current,
+    ): boolean => {
+      if (key === null || key !== currentRequest.current) return false;
       update(
         key,
         'store',
@@ -153,10 +163,12 @@ export function usePurchaseFlowActivity() {
           ? 'Payment is pending at the store.'
           : 'The store reported a purchase error.',
       );
+      return true;
     },
     [update],
   );
   const reset = useCallback((): void => {
+    currentRequest.current = null;
     setActivity(null);
   }, []);
   return {

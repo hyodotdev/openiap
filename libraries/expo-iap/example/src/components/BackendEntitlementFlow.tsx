@@ -90,7 +90,6 @@ export default function BackendEntitlementFlow({
     onDiagramBodyLayout,
     onStepLayout,
   } = usePurchaseFlowScroll(activity);
-  const purchaseRequestTrace = useRef('');
   const backendUrl = appBackendUrl();
   const [account, setAccount] = useState('demo-user-1');
   const [flow, setFlow] = useState<PurchaseFlow<Purchase>>();
@@ -220,11 +219,10 @@ export default function BackendEntitlementFlow({
     [flow],
   );
 
-  const reportStoreError = (error: unknown, requestTrace: string) => {
-    // A late rejection of an older request, or another account's, is stale.
-    if (purchaseRequestTrace.current !== requestTrace) return;
+  const reportStoreError = (error: unknown, request?: string) => {
     const code = extractErrorCode(error, ErrorCode.PurchaseError);
-    storeError(requestTrace, code);
+    // A late error from an older request, or another account's, is stale.
+    if (!storeError(code, request)) return;
     if (code === ErrorCode.UserCancelled) return;
     setMessage(
       code === ErrorCode.DeferredPayment
@@ -238,8 +236,7 @@ export default function BackendEntitlementFlow({
     useIAP({
       purchaseFlow: flow,
       onPurchaseFlowOutcome: record,
-      onPurchaseError: (error) =>
-        reportStoreError(error, purchaseRequestTrace.current),
+      onPurchaseError: (error) => reportStoreError(error),
     });
 
   const buy = (
@@ -247,11 +244,10 @@ export default function BackendEntitlementFlow({
     productId: string,
   ) => {
     beginPurchase(productId);
-    const requestTrace = startStore(productId);
-    purchaseRequestTrace.current = requestTrace;
+    const storeRequest = startStore(productId);
     setMessage(null);
     return requestPurchase(request).catch((error: unknown) =>
-      reportStoreError(error, requestTrace),
+      reportStoreError(error, storeRequest),
     );
   };
 
@@ -374,7 +370,6 @@ export default function BackendEntitlementFlow({
             value={account}
             onChangeText={(value) => {
               if (value === account) return;
-              purchaseRequestTrace.current = '';
               reset();
               setAccount(value);
               setOutcomes([]);

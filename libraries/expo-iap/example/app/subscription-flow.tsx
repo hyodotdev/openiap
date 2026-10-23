@@ -1419,7 +1419,6 @@ function SubscriptionFlowContainer() {
     usePurchaseFlowActivity();
   const flowScroll = usePurchaseFlowScroll(activity);
   const {beginPurchase} = flowScroll;
-  const purchaseRequestTrace = useRef('');
   const [purchaseResult, setPurchaseResult] = useState<string>('');
   // From requestPurchase until that product's outcome or a purchase error.
   const [processingProductId, setProcessingProductId] = useState<string | null>(
@@ -1432,10 +1431,9 @@ function SubscriptionFlowContainer() {
   const isCheckingStatusRef = useRef(false);
 
   const reportStoreError = useCallback(
-    (error: PurchaseError, requestTrace: string): void => {
-      // A late rejection of an older request does not end the current one.
-      if (purchaseRequestTrace.current !== requestTrace) return;
-      storeError(requestTrace, error.code);
+    (error: PurchaseError, request?: string): void => {
+      // A late error from an older request leaves the current one alone.
+      if (!storeError(error.code, request)) return;
       setProcessingProductId(null);
       setPurchaseResult(
         error.code === ErrorCode.UserCancelled
@@ -1472,8 +1470,7 @@ function SubscriptionFlowContainer() {
       setPurchaseResult(describePurchaseOutcome(status));
       alertPurchaseOutcome(status);
     },
-    onPurchaseError: (error: PurchaseError) =>
-      reportStoreError(error, purchaseRequestTrace.current),
+    onPurchaseError: (error: PurchaseError) => reportStoreError(error),
   });
 
   // A requested upgrade, downgrade, or prepaid top-up the store has not
@@ -1640,8 +1637,7 @@ function SubscriptionFlowContainer() {
 
       const purchaseWithOffer = (offerToken?: string | null): void => {
         beginPurchase(itemId);
-        const requestTrace = startStore(itemId);
-        purchaseRequestTrace.current = requestTrace;
+        const request = startStore(itemId);
         requestPurchase({
           request: {
             // Apple subscription request
@@ -1657,9 +1653,7 @@ function SubscriptionFlowContainer() {
             },
           },
           type: 'subs',
-        }).catch((error: PurchaseError) =>
-          reportStoreError(error, requestTrace),
-        );
+        }).catch((error: PurchaseError) => reportStoreError(error, request));
       };
 
       if (androidOffers.length > 1) {

@@ -695,7 +695,6 @@ function PurchaseFlow({
 function PurchaseFlowContainer() {
   const {activity, startStore, observeOutcome, storeError} =
     usePurchaseFlowActivity();
-  const purchaseRequestTrace = useRef('');
   const purchaseRequestPendingRef = useRef(false);
   const [purchaseResult, setPurchaseResult] = useState<string>('');
   // From requestPurchase until that product's outcome or a purchase error.
@@ -712,8 +711,9 @@ function PurchaseFlowContainer() {
   const {showActionSheetWithOptions} = useActionSheet();
 
   const showPurchaseError = useCallback(
-    (error: PurchaseError, requestTrace: string): void => {
-      storeError(requestTrace, error.code);
+    (error: PurchaseError, request?: string): void => {
+      // A late error from an older request leaves the current one alone.
+      if (!storeError(error.code, request)) return;
       setProcessingProductId(null);
       setPurchaseResult(
         error.code === ErrorCode.UserCancelled
@@ -747,8 +747,7 @@ function PurchaseFlowContainer() {
       setPurchaseResult(describePurchaseOutcome(status));
       alertPurchaseOutcome(status);
     },
-    onPurchaseError: (error: PurchaseError) =>
-      showPurchaseError(error, purchaseRequestTrace.current),
+    onPurchaseError: (error: PurchaseError) => showPurchaseError(error),
   });
 
   useEffect(() => {
@@ -788,8 +787,7 @@ function PurchaseFlowContainer() {
       // Presses can arrive before the disabled button rerenders.
       if (purchaseRequestPendingRef.current) return;
       purchaseRequestPendingRef.current = true;
-      const requestTrace = startStore(productId);
-      purchaseRequestTrace.current = requestTrace;
+      const request = startStore(productId);
       setProcessingProductId(productId);
       setPurchaseResult('Processing purchase...');
 
@@ -800,7 +798,7 @@ function PurchaseFlowContainer() {
         },
         type: 'in-app',
       })
-        .catch((error: PurchaseError) => showPurchaseError(error, requestTrace))
+        .catch((error: PurchaseError) => showPurchaseError(error, request))
         .finally(() => {
           purchaseRequestPendingRef.current = false;
         });
