@@ -60,24 +60,23 @@ public partial class AvailablePurchasesPage : ContentPage
 
         try
         {
-            var query = (QueryResolver)OpenIapClient.Instance;
-            await query.FetchProductsAsync(new ProductRequest
+            await OpenIapClient.Query.FetchProductsAsync(new ProductRequest
             {
                 Skus = Constants.SubscriptionProductIds,
                 Type = ProductQueryType.Subs,
             }).WaitAsync(TimeSpan.FromSeconds(20));
 
-            var purchases = await query.GetAvailablePurchasesAsync(new PurchaseOptions
+            var purchases = await OpenIapClient.Query.GetAvailablePurchasesAsync(new PurchaseOptions
             {
                 OnlyIncludeActiveItemsIOS = true,
             }).WaitAsync(TimeSpan.FromSeconds(20));
             _purchases.Clear();
             _purchases.AddRange(purchases
-                .GroupBy(p => ((PurchaseCommon)p).ProductId)
-                .Select(g => g.OrderByDescending(p => ((PurchaseCommon)p).TransactionDate).First()));
+                .GroupBy(p => p.ProductId)
+                .Select(g => g.OrderByDescending(p => p.TransactionDate).First()));
             RenderPurchases();
 
-            var active = await query.GetActiveSubscriptionsAsync(Constants.SubscriptionProductIds)
+            var active = await OpenIapClient.Query.GetActiveSubscriptionsAsync(Constants.SubscriptionProductIds)
                 .WaitAsync(TimeSpan.FromSeconds(20));
             _active.Clear();
             _active.AddRange(active);
@@ -170,9 +169,8 @@ public partial class AvailablePurchasesPage : ContentPage
     {
         try
         {
-            var mutate = (MutationResolver)OpenIapClient.Instance;
             var sku = _active.FirstOrDefault()?.ProductId ?? Constants.DefaultSubscriptionProductId;
-            await mutate.DeepLinkToSubscriptionsAsync(new DeepLinkOptions
+            await OpenIapClient.Mutation.DeepLinkToSubscriptionsAsync(new DeepLinkOptions
             {
                 SkuAndroid = sku,
                 PackageNameAndroid = "dev.hyo.martie",
@@ -194,8 +192,7 @@ public partial class AvailablePurchasesPage : ContentPage
     {
         try
         {
-            var query = (QueryResolver)OpenIapClient.Instance;
-            var storefront = await query.GetStorefrontAsync();
+            var storefront = await OpenIapClient.Query.GetStorefrontAsync();
             StorefrontLabel.Text = $"Storefront: {storefront ?? string.Empty}";
             StorefrontLabel.IsVisible = !string.IsNullOrEmpty(storefront);
             if (showAlert)

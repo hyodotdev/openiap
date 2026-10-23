@@ -35,14 +35,14 @@ internal sealed partial class OpenIapAndroid
     // antecedent exceptions and produces a *canceled* continuation task —
     // callers then surface the misleading "A task was canceled." message
     // instead of the real BillingClient / Kotlin error from the module.
-    public async Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps @params)
+    public Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps @params) => PurchaseRequests.Track(@params, async () =>
     {
         ValidatePurchaseRequest(@params);
         RefreshCurrentActivity();
         var json = JsonSerializer.Serialize(@params, JsonOptions.Default);
         var result = await Invoke(cb => _module.RequestPurchase(json, cb));
         return DecodeRequestPurchaseResult(result);
-    }
+    });
 
     private static void ValidatePurchaseRequest(RequestPurchaseProps @params)
     {

@@ -69,11 +69,6 @@ internal static class Program
             receipt with { EnvironmentIOS = null }, receipt with { RevocationDateIOS = 1 },
             receipt with { ExpirationDateIOS = 1 }, receipt with { IsUpgradedIOS = true } })
             AssertEqual(false, IapKitSettings.MatchesVerifiedPendingPurchase(receipt, [other]), "unusable receipt");
-        var result = new RequestVerifyPurchaseWithIapkitResult { IsValid = true, ProductId = receipt.ProductId,
-            Store = IapStore.Apple, StoreId = "apple", State = IapkitPurchaseState.ReadyToConsume, Environment = "Sandbox" };
-        AssertEqual(true, IapKitSettings.AcceptsVerification(result, receipt), "matching environment");
-        AssertEqual(false, IapKitSettings.AcceptsVerification(result with { Environment = "Production" }, receipt), "wrong environment");
-        AssertEqual(false, IapKitSettings.AcceptsVerification(result with { Environment = null }, receipt), "missing environment");
         return Task.CompletedTask;
     }
 
@@ -366,7 +361,9 @@ internal static class Program
                 AssertEqual(term, IapKitSettings.SubscriptionProductId(purchase), "restored plan");
                 AssertEqual(restored.ProductId, purchase.ProductId, "raw receipt SKU");
                 AssertEqual(restored.PurchaseToken, purchase.PurchaseToken, "raw receipt token");
-                AssertEqual(restored.ProductId, IapKitSettings.CreateVerifyProps(purchase).Amazon?.ExpectedProductId, "RVS base SKU");
+                var props = IapkitConfirmation.ToVerificationProps(purchase, IapKitSettings.ConfirmationOptions(baseUrl: null));
+                AssertEqual(restored.ProductId, props.Iapkit?.Amazon?.ExpectedProductId, "RVS base SKU");
+                AssertEqual(restored.PurchaseToken, props.Iapkit?.Amazon?.ReceiptId, "RVS receipt");
             }
         }
         AssertEqual<string?>(null, IapKitSettings.SubscriptionProductId(restored), "missing term");

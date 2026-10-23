@@ -125,4 +125,47 @@ public class ObservableInfrastructureTests
         subject.OnNext(5);
         Assert.Empty(seen);
     }
+
+    [Fact]
+    public void ObserveOnCurrentContext_PostsToTheCallersContextUntilDisposed()
+    {
+        var subject = new Subject<int>();
+        var seen = new List<int>();
+        var context = new TestSupport.RecordingContext();
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(context);
+        IObservable<int> observed;
+        try
+        {
+            observed = subject.ObserveOnCurrentContext();
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+        var subscription = observed.Subscribe(seen.Add);
+
+        // Emitted off the context; delivered only when the context runs it.
+        subject.OnNext(1);
+        Assert.Empty(seen);
+        context.RunPosted();
+        Assert.Equal([1], seen);
+
+        subject.OnNext(2);
+        subscription.Dispose();
+        context.RunPosted();
+        Assert.Equal([1], seen);
+    }
+
+    [Fact]
+    public void ObserveOnCurrentContext_PassesThroughWithoutAContext()
+    {
+        var subject = new Subject<int>();
+        IObservable<int>? observed = null;
+        var thread = new Thread(() => observed = subject.ObserveOnCurrentContext());
+        thread.Start();
+        thread.Join();
+
+        Assert.Same(subject, observed);
+    }
 }

@@ -33,14 +33,12 @@ public partial class AllProductsPage : ContentPage
     {
         try
         {
-            var query = (QueryResolver)OpenIapClient.Instance;
-
             await IapLifecycle.InitConnectionAsync();
             ConnectionLabel.Text = "✅ Connected";
             ConnectionLabel.TextColor = Color.FromArgb("#4CAF50");
 
             var allSkus = Constants.ProductIds.Concat(Constants.SubscriptionProductIds).ToList();
-            var result = await query.FetchProductsAsync(new ProductRequest
+            var result = await OpenIapClient.Query.FetchProductsAsync(new ProductRequest
             {
                 Skus = allSkus,
                 Type = ProductQueryType.All,
@@ -105,27 +103,21 @@ public partial class AllProductsPage : ContentPage
 
     private static string GetInAppLabel(Product p)
     {
-        var c = (ProductCommon)p;
-        if (Constants.ConsumableProductIdSet.Contains(c.Id)) return "CONSUMABLE";
-        if (Constants.NonConsumableProductIdSet.Contains(c.Id)) return "NON-CONSUMABLE";
+        if (Constants.ConsumableProductIdSet.Contains(p.Id)) return "CONSUMABLE";
+        if (Constants.NonConsumableProductIdSet.Contains(p.Id)) return "NON-CONSUMABLE";
         return "IN-APP";
     }
 
     private static Color GetInAppBadgeColor(Product p)
     {
-        var c = (ProductCommon)p;
-        if (Constants.ConsumableProductIdSet.Contains(c.Id)) return Color.FromArgb("#FF9800");
-        if (Constants.NonConsumableProductIdSet.Contains(c.Id)) return Color.FromArgb("#3DDC84");
+        if (Constants.ConsumableProductIdSet.Contains(p.Id)) return Color.FromArgb("#FF9800");
+        if (Constants.NonConsumableProductIdSet.Contains(p.Id)) return Color.FromArgb("#3DDC84");
         return Color.FromArgb("#9E9E9E");
     }
 
-    private View BuildProductCard(object item, string badgeText, Color badgeColor)
+    private View BuildProductCard(ProductCommon item, string badgeText, Color badgeColor)
     {
-        // Both Product and ProductSubscription implement ProductCommon on
-        // every concrete leaf. ProductOrSubscription does too once cast to
-        // its concrete leaf, so go through that interface uniformly.
-        var c = (ProductCommon)item;
-        var (id, title, description, displayPrice) = (c.Id, c.Title, c.Description, c.DisplayPrice);
+        var (id, title, description, displayPrice) = (item.Id, item.Title, item.Description, item.DisplayPrice);
 
         var titleRow = new Grid
         {
@@ -202,20 +194,19 @@ public partial class AllProductsPage : ContentPage
         return card;
     }
 
-    private void ShowDetails(object item)
+    private void ShowDetails(ProductCommon item)
     {
         DetailsContent.Children.Clear();
         switch (item)
         {
             case Product p:
-                var pc = (ProductCommon)p;
-                AppendRow("Product ID:", pc.Id);
-                AppendRow("Title:", pc.Title);
-                AppendRow("Description:", pc.Description);
-                AppendRow("Price:", pc.DisplayPrice);
-                AppendRow("Currency:", pc.Currency ?? "N/A");
-                AppendRow("Type:", pc.Type.ToJson());
-                AppendRow("Platform:", pc.Platform.ToJson());
+                AppendRow("Product ID:", p.Id);
+                AppendRow("Title:", p.Title);
+                AppendRow("Description:", p.Description);
+                AppendRow("Price:", p.DisplayPrice);
+                AppendRow("Currency:", p.Currency ?? "N/A");
+                AppendRow("Type:", p.Type.ToJson());
+                AppendRow("Platform:", p.Platform.ToJson());
                 if (p is ProductIOS pios)
                 {
                     AppendRow("Is Family Shareable:", pios.IsFamilyShareableIOS ? "Yes" : "No");
@@ -229,14 +220,13 @@ public partial class AllProductsPage : ContentPage
                 }
                 break;
             case ProductSubscription s:
-                var sc = (ProductCommon)s;
-                AppendRow("Product ID:", sc.Id);
-                AppendRow("Title:", sc.Title);
-                AppendRow("Description:", sc.Description);
-                AppendRow("Price:", sc.DisplayPrice);
-                AppendRow("Currency:", sc.Currency ?? "N/A");
-                AppendRow("Type:", sc.Type.ToJson());
-                AppendRow("Platform:", sc.Platform.ToJson());
+                AppendRow("Product ID:", s.Id);
+                AppendRow("Title:", s.Title);
+                AppendRow("Description:", s.Description);
+                AppendRow("Price:", s.DisplayPrice);
+                AppendRow("Currency:", s.Currency ?? "N/A");
+                AppendRow("Type:", s.Type.ToJson());
+                AppendRow("Platform:", s.Platform.ToJson());
                 if (s is ProductSubscriptionIOS sios)
                 {
                     AppendRow("Is Family Shareable:", sios.IsFamilyShareableIOS ? "Yes" : "No");

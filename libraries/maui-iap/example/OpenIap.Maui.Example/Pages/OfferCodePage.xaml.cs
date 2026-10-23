@@ -59,8 +59,7 @@ public partial class OfferCodePage : ContentPage
 #if IOS || MACCATALYST || ANDROID
         try
         {
-            var mutate = (MutationResolver)OpenIapClient.Instance;
-            var purchase = await mutate.OpenRedeemOfferCodeAsync();
+            var purchase = await OpenIapClient.Mutation.OpenRedeemOfferCodeAsync();
             ResultPanel.IsVisible = true;
             ResultLabel.Text = purchase is not null
                 ? $"Verified redemption: {purchase.ProductId} ({purchase.Id})"

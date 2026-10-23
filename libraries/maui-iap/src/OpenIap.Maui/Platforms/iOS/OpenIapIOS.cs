@@ -258,10 +258,10 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         // The ObjC bridge has no config arg; iOS doesn't use the Android-only
         // billing-program/alternative-billing fields anyway.
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Console.WriteLine("[OpenIapIOS] InitConnectionAsync dispatch");
+        LogDebug("[OpenIapIOS] InitConnectionAsync dispatch");
         _module.InitConnection((ok, err) =>
         {
-            Console.WriteLine($"[OpenIapIOS] InitConnectionAsync callback: ok={ok}, err={err?.LocalizedDescription ?? "nil"}");
+            LogDebug($"[OpenIapIOS] InitConnectionAsync callback: ok={ok}, err={err?.LocalizedDescription ?? "nil"}");
             Complete(tcs, ok, err);
         });
         return tcs.Task;
@@ -274,7 +274,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         return tcs.Task;
     }
 
-    public Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps @params)
+    public Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps @params) => PurchaseRequests.Track(@params, () =>
     {
         var tcs = new TaskCompletionSource<RequestPurchaseResult?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -292,7 +292,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         }
 
         return tcs.Task;
-    }
+    });
 
     public Task<string> FinishTransactionAsync(PurchaseInput purchase, bool? isConsumable = null)
     {
@@ -305,7 +305,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
             return tcs.Task;
         }
 
-        Console.WriteLine($"[OpenIapIOS] FinishTransactionAsync dispatch: productId={p.ProductId}, consumable={isConsumable ?? false}");
+        LogDebug($"[OpenIapIOS] FinishTransactionAsync dispatch: productId={p.ProductId}, consumable={isConsumable ?? false}");
         _module.FinishTransactionWithPurchaseJSON(
             JsonSerializer.Serialize(p, JsonOptions.Default),
             isConsumable ?? false,
@@ -313,7 +313,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
             {
                 try
                 {
-                    Console.WriteLine($"[OpenIapIOS] FinishTransactionAsync callback: productId={p.ProductId}, hasError={err is not null}");
+                    LogDebug($"[OpenIapIOS] FinishTransactionAsync callback: productId={p.ProductId}, hasError={err is not null}");
                     if (err is not null) tcs.TrySetException(MapNSError(err));
                     else tcs.TrySetResult(p.Id);
                 }
@@ -426,22 +426,22 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     public Task<FetchProductsResult> FetchProductsAsync(ProductRequest @params)
     {
         var tcs = new TaskCompletionSource<FetchProductsResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Console.WriteLine($"[OpenIapIOS] FetchProductsAsync dispatch: skus={@params.Skus.Count}, type={@params.Type?.ToJson() ?? "null"}");
+        LogDebug($"[OpenIapIOS] FetchProductsAsync dispatch: skus={@params.Skus.Count}, type={@params.Type?.ToJson() ?? "null"}");
         _module.FetchProducts(@params.Skus.ToArray(), @params.Type?.ToJson(), (arr, err) =>
         {
             try
             {
-                Console.WriteLine($"[OpenIapIOS] FetchProductsAsync callback: arr.count={arr?.Count ?? 0}, err={err?.LocalizedDescription ?? "nil"}");
+                LogDebug($"[OpenIapIOS] FetchProductsAsync callback: arr.count={arr?.Count ?? 0}, err={err?.LocalizedDescription ?? "nil"}");
                 if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
                 var array = NSObjectJsonBridge.ArrayToArray(arr);
-                if (array is not null)
+                if (OpenIapClient.DebugLogging && array is not null)
                 {
                     for (int i = 0; i < array.Count; i++)
                     {
                         var item = array[i];
                         var id = item is JsonObject obj ? obj["id"]?.ToString() : "?";
                         var typename = item is JsonObject t ? t["__typename"]?.ToString() : "?";
-                        Console.WriteLine($"[OpenIapIOS]   item[{i}]: id={id} __typename={typename}");
+                        LogDebug($"[OpenIapIOS]   item[{i}]: id={id} __typename={typename}");
                     }
                 }
                 // The Swift bridge tags every encoded dict with `__typename` (the
@@ -460,12 +460,12 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
                     FetchProductsResultAll a => a.Value?.Count ?? 0,
                     _ => -1,
                 };
-                Console.WriteLine($"[OpenIapIOS] FetchProductsAsync deserialized → {result.GetType().Name} ({count} items)");
+                LogDebug($"[OpenIapIOS] FetchProductsAsync deserialized → {result.GetType().Name} ({count} items)");
                 tcs.TrySetResult(result);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[OpenIapIOS] FetchProductsAsync callback threw: {ex}");
+                LogDebug($"[OpenIapIOS] FetchProductsAsync callback threw: {ex}");
                 tcs.TrySetException(ex);
             }
         });
@@ -552,6 +552,11 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     // ====================================================================
     // Helpers
     // ====================================================================
+
+    private static void LogDebug(string message)
+    {
+        if (OpenIapClient.DebugLogging) Console.WriteLine(message);
+    }
 
     private static Task<T> NotSupportedAndroid<T>(string api)
         => Task.FromException<T>(OpenIapErrorMapper.Wrap(ErrorCode.FeatureNotSupported, $"{api} is Android-only"));
@@ -725,23 +730,23 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         string? operation = null)
     {
         var tcs = new TaskCompletionSource<IReadOnlyList<T>>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Console.WriteLine($"[OpenIapIOS] InvokeArray<{typeof(T).Name}> dispatch");
+        LogDebug($"[OpenIapIOS] InvokeArray<{typeof(T).Name}> dispatch");
         dispatch((arr, err) =>
         {
             try
             {
-                Console.WriteLine($"[OpenIapIOS] InvokeArray<{typeof(T).Name}> callback: arr.count={arr?.Count ?? 0}, err={err?.LocalizedDescription ?? "nil"}");
+                LogDebug($"[OpenIapIOS] InvokeArray<{typeof(T).Name}> callback: arr.count={arr?.Count ?? 0}, err={err?.LocalizedDescription ?? "nil"}");
                 if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
                 var node = NSObjectJsonBridge.ArrayToArray(arr);
                 var list = required
                     ? BridgePayloadDecoder.DecodeRequiredArray<T>(node, operation ?? typeof(T).Name)
                     : DeserializeArray<T>(node) ?? new List<T>();
-                Console.WriteLine($"[OpenIapIOS] InvokeArray<{typeof(T).Name}> deserialized {list.Count} items");
+                LogDebug($"[OpenIapIOS] InvokeArray<{typeof(T).Name}> deserialized {list.Count} items");
                 tcs.TrySetResult(list);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[OpenIapIOS] InvokeArray<{typeof(T).Name}> threw: {ex}");
+                LogDebug($"[OpenIapIOS] InvokeArray<{typeof(T).Name}> threw: {ex}");
                 tcs.TrySetException(ex);
             }
         });

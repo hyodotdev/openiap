@@ -18,7 +18,6 @@ public partial class AlternativeBillingPage : ContentPage
     private AndroidBillingFlow _androidBillingFlow = AndroidBillingFlow.BillingPrograms;
     private bool _isProcessing;
     private bool _isReconnecting;
-    private IDisposable? _purchaseSub;
     private IDisposable? _errorSub;
 
     public AlternativeBillingPage()
@@ -30,17 +29,17 @@ public partial class AlternativeBillingPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        _purchaseSub ??= OpenIapClient.Instance.PurchaseUpdated.Subscribe(p => MainThread.BeginInvokeOnMainThread(() => OnPurchase(p)));
-        _errorSub ??= OpenIapClient.Instance.PurchaseError.Subscribe(err => MainThread.BeginInvokeOnMainThread(() => OnPurchaseError(err)));
+        IapLifecycle.Flow.OutcomePublished += OnOutcome;
+        _errorSub ??= OpenIapClient.Instance.PurchaseError.ObserveOnCurrentContext().Subscribe(OnPurchaseError);
         await ConnectAndFetchAsync();
     }
 
     protected override async void OnDisappearing()
     {
         base.OnDisappearing();
-        _purchaseSub?.Dispose();
+        IapLifecycle.Flow.OutcomePublished -= OnOutcome;
         _errorSub?.Dispose();
-        _purchaseSub = _errorSub = null;
+        _errorSub = null;
         await IapLifecycle.EndConnectionQuietlyAsync(nameof(AlternativeBillingPage));
     }
 
@@ -75,8 +74,7 @@ public partial class AlternativeBillingPage : ContentPage
     {
         try
         {
-            var query = (QueryResolver)OpenIapClient.Instance;
-            var result = await query.FetchProductsAsync(new ProductRequest
+            var result = await OpenIapClient.Query.FetchProductsAsync(new ProductRequest
             {
                 Skus = Constants.ConsumableProductIds,
                 Type = ProductQueryType.InApp,
@@ -117,8 +115,7 @@ public partial class AlternativeBillingPage : ContentPage
 
         foreach (var product in _products)
         {
-            var common = (ProductCommon)product;
-            var selected = ReferenceEquals(product, _selectedProduct) || common.Id == (_selectedProduct as ProductCommon)?.Id;
+            var selected = ReferenceEquals(product, _selectedProduct) || product.Id == _selectedProduct?.Id;
             var card = new Border
             {
                 StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 },
@@ -135,14 +132,14 @@ public partial class AlternativeBillingPage : ContentPage
             };
             header.Children.Add(new Label
             {
-                Text = common.Title,
+                Text = product.Title,
                 FontAttributes = FontAttributes.Bold,
                 FontSize = 16,
                 TextColor = Color.FromArgb("#1A1A1A"),
             });
             var price = new Label
             {
-                Text = common.DisplayPrice,
+                Text = product.DisplayPrice,
                 FontAttributes = FontAttributes.Bold,
                 FontSize = 16,
                 TextColor = Color.FromArgb("#007AFF"),
@@ -152,7 +149,7 @@ public partial class AlternativeBillingPage : ContentPage
             stack.Children.Add(header);
             stack.Children.Add(new Label
             {
-                Text = common.Description,
+                Text = product.Description,
                 FontSize = 13,
                 TextColor = Color.FromArgb("#666666"),
             });
@@ -178,9 +175,8 @@ public partial class AlternativeBillingPage : ContentPage
     private void SelectProduct(Product product)
     {
         _selectedProduct = product;
-        var common = (ProductCommon)product;
         SelectedProductDetailsLabel.Text =
-            $"ID: {common.Id}\nTitle: {common.Title}\nPrice: {common.DisplayPrice}\nType: {common.Type.ToJson()}";
+            $"ID: {product.Id}\nTitle: {product.Title}\nPrice: {product.DisplayPrice}\nType: {product.Type.ToJson()}";
         SelectedProductPanel.IsVisible = true;
         UpdatePurchaseButton();
         RenderProducts();
@@ -295,7 +291,6 @@ public partial class AlternativeBillingPage : ContentPage
 
     private async Task HandleIOSAlternativeBillingPurchaseAsync(Product product)
     {
-        var common = (ProductCommon)product;
         var externalUrl = ExternalUrlEntry.Text?.Trim();
         if (string.IsNullOrWhiteSpace(externalUrl))
         {
@@ -307,8 +302,7 @@ public partial class AlternativeBillingPage : ContentPage
         ShowResult("🌐 Opening external purchase link...");
         try
         {
-            var mutate = (MutationResolver)OpenIapClient.Instance;
-            var result = await mutate.PresentExternalPurchaseLinkIOSAsync(externalUrl);
+            var result = await OpenIapClient.Mutation.PresentExternalPurchaseLinkIOSAsync(externalUrl);
             if (!string.IsNullOrEmpty(result.Error))
             {
                 ShowResult($"❌ Error: {result.Error}");
@@ -316,7 +310,7 @@ public partial class AlternativeBillingPage : ContentPage
             }
             else if (result.Success)
             {
-                ShowResult($"✅ External purchase link opened successfully\n\nProduct: {common.Id}\nURL: {externalUrl}\n\nUser was redirected to external website.\n\nNote: Complete purchase on your website and implement server-side validation.");
+                ShowResult($"✅ External purchase link opened successfully\n\nProduct: {product.Id}\nURL: {externalUrl}\n\nUser was redirected to external website.\n\nNote: Complete purchase on your website and implement server-side validation.");
                 await DisplayAlertAsync("Redirected", "User was redirected to your external purchase website. Complete the purchase there.", "OK");
             }
         }
@@ -333,14 +327,12 @@ public partial class AlternativeBillingPage : ContentPage
 
     private async Task HandleAndroidBillingProgramsAsync(Product product)
     {
-        var common = (ProductCommon)product;
         SetProcessing(true);
         ShowResult("Checking billing program availability...");
 
         try
         {
-            var mutate = (MutationResolver)OpenIapClient.Instance;
-            var availability = await mutate.IsBillingProgramAvailableAndroidAsync(_billingProgram);
+            var availability = await OpenIapClient.Mutation.IsBillingProgramAvailableAndroidAsync(_billingProgram);
             if (!availability.IsAvailable)
             {
                 ShowResult($"❌ Billing program not available\n\nProgram: {availability.BillingProgram.ToJson()}");
@@ -349,20 +341,20 @@ public partial class AlternativeBillingPage : ContentPage
             }
 
             ShowResult("Launching external link...");
-            await mutate.LaunchExternalLinkAndroidAsync(new LaunchExternalLinkParamsAndroid
+            await OpenIapClient.Mutation.LaunchExternalLinkAndroidAsync(new LaunchExternalLinkParamsAndroid
             {
                 BillingProgram = _billingProgram,
                 LaunchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
                 LinkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
-                LinkUri = $"https://openiap.dev/purchase/{common.Id}",
+                LinkUri = $"https://openiap.dev/purchase/{product.Id}",
             });
 
             ShowResult("Getting reporting token...");
-            var details = await mutate.CreateBillingProgramReportingDetailsAndroidAsync(_billingProgram);
+            var details = await OpenIapClient.Mutation.CreateBillingProgramReportingDetailsAndroidAsync(_billingProgram);
             var tokenStatus = string.IsNullOrEmpty(details.ExternalTransactionToken)
                 ? "missing"
                 : "present";
-            ShowResult($"✅ Billing Programs API flow completed\n\nProduct: {common.Id}\nProgram: {details.BillingProgram.ToJson()}\nToken: {tokenStatus}\n\n⚠️ Important:\n1. Report token to Google Play within 24 hours\n2. Process payment on your external site");
+            ShowResult($"✅ Billing Programs API flow completed\n\nProduct: {product.Id}\nProgram: {details.BillingProgram.ToJson()}\nToken: {tokenStatus}\n\n⚠️ Important:\n1. Report token to Google Play within 24 hours\n2. Process payment on your external site");
             await DisplayAlertAsync("Demo Complete", "Billing Programs API flow completed.\n\nIn production, report the token to Google Play backend within 24 hours.", "OK");
         }
         catch (Exception ex)
@@ -378,22 +370,20 @@ public partial class AlternativeBillingPage : ContentPage
 
     private async Task HandleAndroidUserChoiceBillingAsync(Product product)
     {
-        var common = (ProductCommon)product;
         SetProcessing(true);
         ShowResult("Showing user choice dialog...");
 
         try
         {
-            var mutate = (MutationResolver)OpenIapClient.Instance;
-            await mutate.RequestPurchaseAsync(new RequestPurchaseProps
+            await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
             {
                 RequestPurchase = new RequestPurchasePropsByPlatforms
                 {
-                    Google = new RequestPurchaseAndroidProps { Skus = new[] { common.Id } },
+                    Google = new RequestPurchaseAndroidProps { Skus = new[] { product.Id } },
                 },
                 Type = ProductQueryType.InApp,
             });
-            ShowResult($"🔄 User choice dialog shown\n\nProduct: {common.Id}\n\nIf user selects:\n- Google Play: PurchaseUpdated callback\n- Alternative: Manual flow required");
+            ShowResult($"🔄 User choice dialog shown\n\nProduct: {product.Id}\n\nIf user selects:\n- Google Play: PurchaseUpdated callback\n- Alternative: Manual flow required");
         }
         catch (Exception ex)
         {
@@ -407,16 +397,16 @@ public partial class AlternativeBillingPage : ContentPage
         }
     }
 
-    private void OnPurchase(Purchase purchase)
+    private void OnOutcome(object? sender, PurchaseFlowOutcome outcome)
     {
+        var purchase = outcome.Purchase;
         _lastPurchase = purchase;
         _isProcessing = false;
         UpdatePurchaseButton();
 
-        var common = (PurchaseCommon)purchase;
-        ShowResult($"Receipt received · verification required\nProduct: {common.ProductId}\nTransaction ID: {common.Id}\nDate: {FormatDate(common.TransactionDate)}");
+        ShowResult($"{IapLifecycle.Describe(outcome, "Purchase")}\nProduct: {purchase.ProductId}\nTransaction ID: {purchase.Id}\nDate: {FormatDate(purchase.TransactionDate)}");
         LastPurchasePanel.IsVisible = true;
-        LastPurchaseLabel.Text = $"Product: {common.ProductId}\nTransaction: {common.Id}\nDate: {FormatDate(common.TransactionDate)}";
+        LastPurchaseLabel.Text = $"Product: {purchase.ProductId}\nTransaction: {purchase.Id}\nDate: {FormatDate(purchase.TransactionDate)}";
     }
 
     private void OnPurchaseError(PurchaseError error)

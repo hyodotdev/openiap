@@ -7,11 +7,10 @@ namespace OpenIap.Maui.Example.Pages;
 
 // Mirrors libraries/expo-iap/example/app/subscription-flow.tsx — fetches
 // subscription products, passes Android subscription offer tokens, tracks
-// active subscription state, and exposes verification / management actions.
+// active subscription state, and confirms purchases through the app's
+// purchase flow.
 public partial class SubscriptionFlowPage : ContentPage
 {
-    private enum VerificationMethod { Ignore, Local, IapkitLocal, Iapkit }
-
     private sealed record UpgradeInfo(
         bool CanUpgrade,
         bool IsDowngrade,
@@ -27,57 +26,30 @@ public partial class SubscriptionFlowPage : ContentPage
 
     private readonly List<ProductSubscription> _subscriptions = new();
     private readonly List<ActiveSubscription> _active = new();
-    private VerificationMethod _verification = DefaultVerificationMethod();
     private Purchase? _lastPurchase;
     private string? _purchaseResult;
     private bool _isProcessing;
     private bool _isCheckingStatus;
     private bool _didFetch;
     private int _tapCount;
-    private readonly HashSet<string> _handledPurchaseIds = new(StringComparer.Ordinal);
-    private CancellationTokenSource? _purchaseTimeoutCts;
-    private IDisposable? _purchaseSub;
-    private IDisposable? _errorSub;
-
-    // Mirrors the other examples: no key skips, a local origin prefers it.
-    private static VerificationMethod DefaultVerificationMethod() =>
-        string.IsNullOrWhiteSpace(IapKitSettings.ApiKey)
-            ? VerificationMethod.Ignore
-            : string.IsNullOrWhiteSpace(IapKitSettings.LocalBaseUrl)
-                ? VerificationMethod.Iapkit
-                : VerificationMethod.IapkitLocal;
-
-    private static string VerificationLabel(VerificationMethod method) => method switch
-    {
-        VerificationMethod.Local => "📱 Local (Device)",
-        VerificationMethod.IapkitLocal => "🖥️ Local (IAPKit)",
-        VerificationMethod.Iapkit => "☁️ IAPKit (Server)",
-        _ => "❌ None (Skip)",
-    };
 
     public SubscriptionFlowPage()
     {
         InitializeComponent();
-        VerificationButton.Text = VerificationLabel(_verification);
     }
 
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        _purchaseSub ??= OpenIapClient.Instance.PurchaseUpdated.Subscribe(p => MainThread.BeginInvokeOnMainThread(async () => await OnPurchaseAsync(p)));
-        _errorSub ??= OpenIapClient.Instance.PurchaseError.Subscribe(err => MainThread.BeginInvokeOnMainThread(() => OnPurchaseError(err)));
+        VerificationButton.Text = IapLifecycle.Label(IapLifecycle.Verification);
+        IapLifecycle.Flow.OutcomePublished += OnOutcome;
         await ConnectAndFetchAsync();
     }
 
     protected override async void OnDisappearing()
     {
         base.OnDisappearing();
-        _purchaseTimeoutCts?.Cancel();
-        _purchaseTimeoutCts?.Dispose();
-        _purchaseTimeoutCts = null;
-        _purchaseSub?.Dispose();
-        _errorSub?.Dispose();
-        _purchaseSub = _errorSub = null;
+        IapLifecycle.Flow.OutcomePublished -= OnOutcome;
         await IapLifecycle.EndConnectionQuietlyAsync(nameof(SubscriptionFlowPage));
     }
 
@@ -95,11 +67,9 @@ public partial class SubscriptionFlowPage : ContentPage
             if (!_didFetch)
             {
                 _didFetch = true;
-
-            SubsCountLabel.Text = "Loading subscriptions...";
-            RenderActive();
-
-            _ = FetchSubscriptionsAsync();
+                SubsCountLabel.Text = "Loading subscriptions...";
+                RenderActive();
+                _ = FetchSubscriptionsAsync();
                 _ = RefreshActiveAsync(showAlert: false, renderSubscriptionCards: false);
             }
             await RecoverPurchasesAsync();
@@ -114,8 +84,7 @@ public partial class SubscriptionFlowPage : ContentPage
     {
         try
         {
-            var query = (QueryResolver)OpenIapClient.Instance;
-            var result = await query.FetchProductsAsync(new ProductRequest
+            var result = await OpenIapClient.Query.FetchProductsAsync(new ProductRequest
             {
                 Skus = Constants.SubscriptionProductIds,
                 Type = ProductQueryType.Subs,
@@ -144,8 +113,7 @@ public partial class SubscriptionFlowPage : ContentPage
         RefreshActiveButton.Text = "Refreshing status...";
         try
         {
-            var query = (QueryResolver)OpenIapClient.Instance;
-            var active = await query.GetActiveSubscriptionsAsync(IapKitSettings.SubscriptionQueryIds)
+            var active = await OpenIapClient.Query.GetActiveSubscriptionsAsync(IapKitSettings.SubscriptionQueryIds)
                 .WaitAsync(TimeSpan.FromSeconds(20));
             _active.Clear();
             _active.AddRange(active.Select(subscription =>
@@ -189,11 +157,10 @@ public partial class SubscriptionFlowPage : ContentPage
 
     private View BuildSubscriptionCard(ProductSubscription sub)
     {
-        var common = (ProductCommon)sub;
-        var isSubscribed = IsSubscribed(common.Id);
-        var isPending = IsPendingUpgrade(common.Id);
-        var upgradeInfo = GetUpgradeInfo(common.Id);
-        var isCancelled = IsCancelled(common.Id);
+        var isSubscribed = IsSubscribed(sub.Id);
+        var isPending = IsPendingUpgrade(sub.Id);
+        var upgradeInfo = GetUpgradeInfo(sub.Id);
+        var isCancelled = IsCancelled(sub.Id);
 
         var titleRow = new Grid
         {
@@ -202,7 +169,7 @@ public partial class SubscriptionFlowPage : ContentPage
         };
         var titleLabel = new Label
         {
-            Text = common.Title,
+            Text = sub.Title,
             FontSize = 16,
             FontAttributes = FontAttributes.Bold,
             TextColor = Color.FromArgb("#1A1A1A"),
@@ -222,7 +189,7 @@ public partial class SubscriptionFlowPage : ContentPage
 
         var description = new Label
         {
-            Text = common.Description,
+            Text = sub.Description,
             FontSize = 13,
             TextColor = Color.FromArgb("#5F6470"),
         };
@@ -265,11 +232,11 @@ public partial class SubscriptionFlowPage : ContentPage
             Padding = new Thickness(16, 8),
             IsEnabled = !_isProcessing && !isPending && !(isSubscribed && !isCancelled),
         };
-        subscribeButton.Pressed += (_, _) => SetActionStatus($"Subscribe press received: {common.Id}");
+        subscribeButton.Pressed += (_, _) => SetActionStatus($"Subscribe press received: {sub.Id}");
         subscribeButton.Clicked += (_, _) =>
         {
             _tapCount += 1;
-            SetActionStatus($"Subscribe tap #{_tapCount}: {common.Id}");
+            SetActionStatus($"Subscribe tap #{_tapCount}: {sub.Id}");
             _ = HandleSubscriptionTapAsync(sub);
         };
 
@@ -447,13 +414,12 @@ public partial class SubscriptionFlowPage : ContentPage
 
     private async Task HandleSubscriptionAsync(ProductSubscription sub)
     {
-        var common = (ProductCommon)sub;
-        SetActionStatus($"Handling subscription: {common.Id}");
+        SetActionStatus($"Handling subscription: {sub.Id}");
 
-        var upgradeInfo = GetUpgradeInfo(common.Id);
+        var upgradeInfo = GetUpgradeInfo(sub.Id);
         var currentSubscription = GetCurrentSubscription();
-        var isSubscribed = IsSubscribed(common.Id);
-        var isCancelled = IsCancelled(common.Id);
+        var isSubscribed = IsSubscribed(sub.Id);
+        var isCancelled = IsCancelled(sub.Id);
 
         if (isSubscribed && isCancelled)
         {
@@ -463,7 +429,7 @@ public partial class SubscriptionFlowPage : ContentPage
                 "Reactivate",
                 "Cancel");
             if (reactivate) await StartSubscriptionRequestAsync(sub);
-            else SetActionStatus($"Reactivate cancelled: {common.Id}");
+            else SetActionStatus($"Reactivate cancelled: {sub.Id}");
             return;
         }
 
@@ -486,7 +452,7 @@ public partial class SubscriptionFlowPage : ContentPage
             var title = upgradeInfo.CanUpgrade ? "Upgrade Subscription" : "Downgrade Subscription";
             var action = upgradeInfo.CanUpgrade ? "Upgrade Now" : "Downgrade";
             var currentTitle = currentSubscription is null ? "current plan" : GetSubscriptionTitle(currentSubscription.ProductId);
-            var targetTitle = common.Title;
+            var targetTitle = sub.Title;
             var detail = upgradeInfo.CanUpgrade
                 ? "Takes effect immediately. Pro-rated refund may apply."
                 : "Usually takes effect at the next renewal date.";
@@ -495,7 +461,7 @@ public partial class SubscriptionFlowPage : ContentPage
                 action,
                 "Cancel");
             if (proceed) await StartSubscriptionRequestAsync(sub);
-            else SetActionStatus($"{title} cancelled: {common.Id}");
+            else SetActionStatus($"{title} cancelled: {sub.Id}");
             return;
         }
 
@@ -504,272 +470,86 @@ public partial class SubscriptionFlowPage : ContentPage
 
     private async Task StartSubscriptionRequestAsync(ProductSubscription sub)
     {
-        var common = (ProductCommon)sub;
         if (_isProcessing)
         {
-            UpdateResult($"Subscription request already in progress for {common.Id}.");
+            UpdateResult($"Subscription request already in progress for {sub.Id}.");
             return;
         }
 
         _isProcessing = true;
-        UpdateResult($"Processing subscription: {common.Id}");
+        UpdateResult($"Processing subscription: {sub.Id}");
         RenderSubscriptions();
-
-        _purchaseTimeoutCts?.Cancel();
-        _purchaseTimeoutCts?.Dispose();
-        _purchaseTimeoutCts = new CancellationTokenSource();
-        _ = ReportIfStillWaitingAsync(common.Id, _purchaseTimeoutCts.Token);
-        _ = SubmitSubscriptionRequestAsync(sub, _purchaseTimeoutCts.Token);
-        await Task.CompletedTask;
-    }
-
-    private async Task SubmitSubscriptionRequestAsync(ProductSubscription sub, CancellationToken cancellationToken)
-    {
-        var common = (ProductCommon)sub;
         try
         {
-            SetActionStatus($"Dispatching StoreKit request: {common.Id}");
-            var mutate = (MutationResolver)OpenIapClient.Instance;
-            var requestTask = mutate.RequestPurchaseAsync(new RequestPurchaseProps
+            SetActionStatus($"Dispatching StoreKit request: {sub.Id}");
+            var playPlan = await CurrentPlayPlanAsync(sub);
+            // The flow confirms the delivered purchase and reports it to OnOutcome.
+            var result = await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
             {
                 RequestSubscription = new RequestSubscriptionPropsByPlatforms
                 {
-                    Apple = new RequestSubscriptionIosProps { Sku = common.Id },
+                    Apple = new RequestSubscriptionIosProps { Sku = sub.Id },
                     Google = new RequestSubscriptionAndroidProps
                     {
-                        Skus = new[] { common.Id },
+                        Skus = new[] { sub.Id },
                         SubscriptionOffers = BuildAndroidSubscriptionOffers(sub),
+                        // Without the current plan's token, Play sells a second subscription instead of changing plans.
+                        PurchaseToken = playPlan?.PurchaseToken,
+                        SubscriptionProductReplacementParams = playPlan is null ? null : new SubscriptionProductReplacementParamsAndroid
+                        {
+                            OldProductId = playPlan.ProductId,
+                            ReplacementMode = GetUpgradeInfo(sub.Id).IsDowngrade
+                                ? SubscriptionReplacementModeAndroid.Deferred
+                                : SubscriptionReplacementModeAndroid.WithTimeProration,
+                        },
                     },
                 },
                 Type = ProductQueryType.Subs,
             });
-
-            _ = ObserveSubscriptionRequestAsync(requestTask, cancellationToken);
-            await Task.CompletedTask;
+            if (result is null) UpdateResult("Subscription request completed without a purchase result.");
         }
         catch (Exception ex)
         {
-            MainThread.BeginInvokeOnMainThread(() =>
-            {
-                _isProcessing = false;
-                UpdateResult(ErrorUtils.FormatPurchaseFailure(ex, "Subscription"));
-                RenderSubscriptions();
-            });
+            UpdateResult(ErrorUtils.FormatPurchaseFailure(ex, "Subscription"));
+        }
+        finally
+        {
+            _isProcessing = false;
+            RenderSubscriptions();
         }
     }
 
-    private async Task ObserveSubscriptionRequestAsync(
-        Task<RequestPurchaseResult?> requestTask,
-        CancellationToken cancellationToken)
+    // The Play purchase a plan change replaces. Amazon rejects replacement params, and iOS changes plans within the group.
+    private async Task<Purchase?> CurrentPlayPlanAsync(ProductSubscription target)
     {
-        try
-        {
-            var result = await requestTask;
-            if (cancellationToken.IsCancellationRequested) return;
-            if (result is RequestPurchaseResultPurchase { Value: { } purchase })
-            {
-                MainThread.BeginInvokeOnMainThread(async () =>
-                {
-                    if (_isProcessing)
-                    {
-                        await OnPurchaseAsync(purchase);
-                    }
-                });
-            }
-            else
-            {
-                MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    if (!_isProcessing) return;
-                    _isProcessing = false;
-                    UpdateResult("Subscription request completed without a purchase result.");
-                    RenderSubscriptions();
-                });
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // Navigation away or purchase completed through the event listener.
-        }
-        catch (Exception ex)
-        {
-            MainThread.BeginInvokeOnMainThread(() =>
-            {
-                if (!_isProcessing) return;
-                _isProcessing = false;
-                UpdateResult(ErrorUtils.FormatPurchaseFailure(ex, "Subscription"));
-                RenderSubscriptions();
-            });
-        }
-    }
-
-    private async Task ReportIfStillWaitingAsync(string productId, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
-            if (cancellationToken.IsCancellationRequested) return;
-
-            MainThread.BeginInvokeOnMainThread(() =>
-            {
-                if (!_isProcessing) return;
-                UpdateResult($"Still waiting for App Store purchase sheet/result: {productId}");
-            });
-        }
-        catch (OperationCanceledException)
-        {
-        }
-    }
-
-    private void CancelPurchaseWatchdog()
-    {
-        _purchaseTimeoutCts?.Cancel();
-        _purchaseTimeoutCts?.Dispose();
-        _purchaseTimeoutCts = null;
+        var current = GetCurrentSubscription();
+        if (!IsAndroidPlatform || current is null || current.ProductId == target.Id) return null;
+        var purchases = await OpenIapClient.Query.GetAvailablePurchasesAsync();
+        return purchases.FirstOrDefault(purchase =>
+            purchase.Store == IapStore.Google &&
+            purchase.ProductId == current.ProductId &&
+            !string.IsNullOrEmpty(purchase.PurchaseToken));
     }
 
     private async Task RecoverPurchasesAsync()
     {
         try
         {
-            var query = (QueryResolver)OpenIapClient.Instance;
-#if IOS || MACCATALYST
-            var recovered = await query.GetPendingTransactionsIOSAsync().WaitAsync(TimeSpan.FromSeconds(15));
-#else
-            var recovered = await query.GetAvailablePurchasesAsync(new PurchaseOptions()).WaitAsync(TimeSpan.FromSeconds(15));
-#endif
-            foreach (var purchase in recovered) await OnPurchaseAsync(purchase);
+            await IapLifecycle.Flow.RecoverPurchasesAsync();
         }
-        catch (OpenIapException error) when (error.Error.Code == ErrorCode.FeatureNotSupported) { }
         catch (Exception error)
         {
             UpdateResult($"Purchase recovery failed; receipts retained: {error.Message}");
         }
     }
 
-    private async Task OnPurchaseAsync(Purchase purchase)
+    private async void OnOutcome(object? sender, PurchaseFlowOutcome outcome)
     {
-        var common = (PurchaseCommon)purchase;
-        if (IapKitSettings.SubscriptionProductId(purchase) is null) return;
-        _isProcessing = false;
-        CancelPurchaseWatchdog();
-        if (_verification == VerificationMethod.Ignore)
-        {
-            UpdateResult("Receipt retained. Choose verification to retry this receipt.");
-            RenderSubscriptions();
-            return;
-        }
-        _lastPurchase = purchase;
-        if (common.PurchaseState != PurchaseState.Purchased || string.IsNullOrEmpty(common.Id))
-        {
-            UpdateResult($"Subscription is not completed (state: {common.PurchaseState.ToJson()}).");
-            RenderSubscriptions();
-            return;
-        }
-        if (!_handledPurchaseIds.Add(common.Id)) return;
-        var method = _verification;
-        var finished = false;
-        try
-        {
-            if (!await VerifySubscriptionIfNeededAsync(purchase, method))
-            {
-                UpdateResult("Subscription verification failed; the transaction was not finalized.");
-                return;
-            }
-            if (purchase is not PurchaseAndroid { IsAcknowledgedAndroid: true })
-            {
-                var mutate = (MutationResolver)OpenIapClient.Instance;
-                await mutate.FinishTransactionAsync(new PurchaseInput(purchase), isConsumable: false)
-                    .WaitAsync(TimeSpan.FromSeconds(10));
-            }
-            finished = true;
-            UpdateResult(IsRestoration(purchase)
-                ? "Restored subscription verified and transaction finished."
-                : "Subscription verified and transaction finished.");
-            await RefreshActiveAsync(showAlert: false);
-        }
-        catch (Exception ex)
-        {
-            UpdateResult($"Subscription completion failed; receipt retained: {ErrorUtils.ExtractErrorMessage(ex)}");
-        }
-        finally
-        {
-            if (!finished) _handledPurchaseIds.Remove(common.Id);
-            RenderSubscriptions();
-        }
-    }
-
-    private async Task<bool> VerifySubscriptionIfNeededAsync(Purchase purchase, VerificationMethod method)
-    {
-        if (method == VerificationMethod.Ignore) return false;
-
-        var common = (PurchaseCommon)purchase;
-        if (string.IsNullOrEmpty(common.ProductId)) return false;
-
-        try
-        {
-            var mutate = (MutationResolver)OpenIapClient.Instance;
-            if (method == VerificationMethod.Local)
-            {
-#if IOS || MACCATALYST
-                var query = (QueryResolver)OpenIapClient.Instance;
-                var pending = await query.GetPendingTransactionsIOSAsync().WaitAsync(TimeSpan.FromSeconds(15));
-                return IapKitSettings.MatchesVerifiedPendingPurchase(common, pending);
-#else
-                UpdateResult("Local (Device) verification is unavailable here. Choose Local (IAPKit).");
-                return false;
-#endif
-            }
-            else if (method is VerificationMethod.IapkitLocal or VerificationMethod.Iapkit)
-            {
-                var token = common.PurchaseToken ?? string.Empty;
-                // Horizon identifies the entitlement by SKU and carries no token.
-                if (string.IsNullOrEmpty(token) && common.Store != IapStore.Horizon)
-                {
-                    await DisplayAlertAsync("Verification Failed", "No purchase token available for IAPKit verification", "OK");
-                    return false;
-                }
-
-                var localBaseUrl = method == VerificationMethod.IapkitLocal
-                    ? IapKitSettings.LocalBaseUrl
-                    : null;
-                if (method == VerificationMethod.IapkitLocal && string.IsNullOrWhiteSpace(localBaseUrl))
-                {
-                    await DisplayAlertAsync("Verification Failed", "IAPKit base URL not configured for Local (IAPKit)", "OK");
-                    return false;
-                }
-
-                var result = await mutate.VerifyPurchaseWithProviderAsync(new VerifyPurchaseWithProviderProps
-                {
-                    Provider = PurchaseVerificationProvider.Iapkit,
-                    Iapkit = IapKitSettings.CreateVerifyProps(purchase, localBaseUrl),
-                });
-
-                if (result.Iapkit is { } ik)
-                {
-                    return IapKitSettings.AcceptsVerification(ik, common);
-                }
-
-                return false;
-            }
-        }
-        catch (Exception ex)
-        {
-            await DisplayAlertAsync("Verification Failed",
-                $"Purchase verification failed: {ErrorUtils.ExtractErrorMessage(ex)}",
-                "OK");
-            return false;
-        }
-
-        return true;
-    }
-
-    private void OnPurchaseError(PurchaseError error)
-    {
-        CancelPurchaseWatchdog();
-        _isProcessing = false;
-        UpdateResult(ErrorUtils.FormatPurchaseFailure(error, "Subscription"));
+        if (IapKitSettings.SubscriptionProductId(outcome.Purchase) is null) return;
+        _lastPurchase = outcome.Purchase;
+        UpdateResult(IapLifecycle.Describe(outcome, "Subscription"));
         RenderSubscriptions();
+        if (outcome.Status is PurchaseFlowStatus.Entitled) await RefreshActiveAsync(showAlert: false);
     }
 
     private void SetActionStatus(string text)
@@ -800,12 +580,11 @@ public partial class SubscriptionFlowPage : ContentPage
     {
         try
         {
-            var mutate = (MutationResolver)OpenIapClient.Instance;
             if (IsApplePlatform)
             {
                 try
                 {
-                    await mutate.ShowManageSubscriptionsIOSAsync();
+                    await OpenIapClient.Mutation.ShowManageSubscriptionsIOSAsync();
                     await RefreshActiveAsync();
                     return;
                 }
@@ -815,10 +594,8 @@ public partial class SubscriptionFlowPage : ContentPage
                 }
             }
 
-            var sku = _subscriptions.FirstOrDefault() is ProductCommon c
-                ? c.Id
-                : Constants.DefaultSubscriptionProductId;
-            await mutate.DeepLinkToSubscriptionsAsync(IsAndroidPlatform
+            var sku = _subscriptions.FirstOrDefault()?.Id ?? Constants.DefaultSubscriptionProductId;
+            await OpenIapClient.Mutation.DeepLinkToSubscriptionsAsync(IsAndroidPlatform
                 ? new DeepLinkOptions { SkuAndroid = sku, PackageNameAndroid = "dev.hyo.martie" }
                 : null);
         }
@@ -830,22 +607,9 @@ public partial class SubscriptionFlowPage : ContentPage
 
     private async void OnChangeVerificationClicked(object sender, EventArgs e)
     {
-        var methods = new[]
-        {
-            VerificationMethod.Ignore,
-            VerificationMethod.Local,
-            VerificationMethod.IapkitLocal,
-            VerificationMethod.Iapkit,
-        };
-        var choice = await DisplayActionSheetAsync(
-            "Select verification method", "Cancel", null,
-            methods.Select(VerificationLabel).ToArray());
-        var selected = Array.FindIndex(methods, method => VerificationLabel(method) == choice);
-        if (selected < 0) return;
-
-        _verification = methods[selected];
-        VerificationButton.Text = VerificationLabel(_verification);
-        if (_verification != VerificationMethod.Ignore) await RecoverPurchasesAsync();
+        if (!await IapLifecycle.ChooseVerificationAsync(this)) return;
+        VerificationButton.Text = IapLifecycle.Label(IapLifecycle.Verification);
+        if (IapLifecycle.Verification != VerificationMethod.Ignore) await RecoverPurchasesAsync();
     }
 
     private async void OnCopyResultClicked(object sender, EventArgs e)
@@ -858,15 +622,14 @@ public partial class SubscriptionFlowPage : ContentPage
     private void ShowDetails(ProductSubscription sub)
     {
         DetailsContent.Children.Clear();
-        var c = (ProductCommon)sub;
-        AppendDetail("Product ID:", c.Id);
-        AppendDetail("Title:", c.Title);
-        AppendDetail("Description:", c.Description);
+        AppendDetail("Product ID:", sub.Id);
+        AppendDetail("Title:", sub.Title);
+        AppendDetail("Description:", sub.Description);
         AppendDetail("Price:", GetSubscriptionDisplayPrice(sub));
         AppendDetail("Period:", GetSubscriptionPeriod(sub));
-        AppendDetail("Currency:", c.Currency);
-        AppendDetail("Type:", c.Type.ToJson());
-        AppendDetail("Platform:", c.Platform.ToJson());
+        AppendDetail("Currency:", sub.Currency);
+        AppendDetail("Type:", sub.Type.ToJson());
+        AppendDetail("Platform:", sub.Platform.ToJson());
 
         if (sub is ProductSubscriptionIOS sios)
         {
@@ -990,8 +753,7 @@ public partial class SubscriptionFlowPage : ContentPage
     private string GetSubscriptionTitle(string? productId)
     {
         if (string.IsNullOrEmpty(productId)) return "Unknown";
-        var sub = _subscriptions.FirstOrDefault(s => ((ProductCommon)s).Id == productId);
-        return sub is ProductCommon c ? c.Title : productId;
+        return _subscriptions.FirstOrDefault(s => s.Id == productId)?.Title ?? productId;
     }
 
     private static int GetSubscriptionTier(string productId)
@@ -1015,7 +777,6 @@ public partial class SubscriptionFlowPage : ContentPage
 
     private static string GetSubscriptionDisplayPrice(ProductSubscription sub)
     {
-        var common = (ProductCommon)sub;
         var offers = GetSubscriptionOffers(sub);
         var first = offers.FirstOrDefault();
         if (first is not null)
@@ -1024,7 +785,7 @@ public partial class SubscriptionFlowPage : ContentPage
             var phase = first.PricingPhasesAndroid?.PricingPhaseList.FirstOrDefault();
             if (!string.IsNullOrEmpty(phase?.FormattedPrice)) return phase.FormattedPrice;
         }
-        return common.DisplayPrice;
+        return sub.DisplayPrice;
     }
 
     private static string GetSubscriptionPeriod(ProductSubscription sub)
@@ -1119,15 +880,6 @@ public partial class SubscriptionFlowPage : ContentPage
         if (isPending) return "Subscription change is already scheduled.";
         if (isSubscribed && !isCancelled) return "Already subscribed to this product.";
         return null;
-    }
-
-    private static bool IsRestoration(Purchase purchase)
-    {
-        if (purchase is not PurchaseIOS ios) return false;
-        return !string.IsNullOrEmpty(ios.OriginalTransactionIdentifierIOS)
-            && ios.OriginalTransactionIdentifierIOS != ios.Id
-            && !string.IsNullOrEmpty(ios.TransactionReasonIOS)
-            && !string.Equals(ios.TransactionReasonIOS, "PURCHASE", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string FormatDate(double milliseconds)
