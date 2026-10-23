@@ -200,6 +200,8 @@ Important:
       if (!mounted) return;
       setState(() {
         _connected = connected;
+        // Only a program native applied is shown and bought with.
+        if (connected) _billingProgram = newProgram;
         _purchaseResult = connected
             ? 'Reconnected with ${newProgram.name} program'
             : 'IAP unavailable for this build';
@@ -482,8 +484,9 @@ If user selects:
                   setState(() => _androidBillingMode = 'billing-programs');
                   if (_billingProgram ==
                       BillingProgramAndroid.ExternalPayments) {
-                    _billingProgram = BillingProgramAndroid.ExternalOffer;
-                    _reconnectWithBillingProgram(_billingProgram);
+                    _reconnectWithBillingProgram(
+                      BillingProgramAndroid.ExternalOffer,
+                    );
                   }
                   Navigator.pop(context);
                 },
@@ -495,10 +498,7 @@ If user selects:
                     'Side-by-side choice in purchase dialog. User sees both Google Play and developer billing options.',
                 isSelected: _androidBillingMode == 'external-payments',
                 onTap: () {
-                  setState(() {
-                    _androidBillingMode = 'external-payments';
-                    _billingProgram = BillingProgramAndroid.ExternalPayments;
-                  });
+                  setState(() => _androidBillingMode = 'external-payments');
                   _reconnectWithBillingProgram(
                     BillingProgramAndroid.ExternalPayments,
                   );
@@ -535,9 +535,6 @@ If user selects:
                 isSelected:
                     _billingProgram == BillingProgramAndroid.ExternalOffer,
                 onTap: () {
-                  setState(
-                    () => _billingProgram = BillingProgramAndroid.ExternalOffer,
-                  );
                   _reconnectWithBillingProgram(
                     BillingProgramAndroid.ExternalOffer,
                   );
@@ -552,10 +549,6 @@ If user selects:
                 isSelected: _billingProgram ==
                     BillingProgramAndroid.ExternalContentLink,
                 onTap: () {
-                  setState(
-                    () => _billingProgram =
-                        BillingProgramAndroid.ExternalContentLink,
-                  );
                   _reconnectWithBillingProgram(
                     BillingProgramAndroid.ExternalContentLink,
                   );
@@ -570,10 +563,6 @@ If user selects:
                 isSelected:
                     _billingProgram == BillingProgramAndroid.UserChoiceBilling,
                 onTap: () {
-                  setState(
-                    () => _billingProgram =
-                        BillingProgramAndroid.UserChoiceBilling,
-                  );
                   _reconnectWithBillingProgram(
                     BillingProgramAndroid.UserChoiceBilling,
                   );

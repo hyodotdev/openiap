@@ -141,6 +141,8 @@ function AlternativeBillingScreen() {
             ? {enableBillingProgramAndroid: newProgram}
             : undefined;
         await initConnection(config);
+        // Only a program native applied is shown and bought with.
+        setBillingProgram(newProgram);
 
         const programNames: Record<BillingProgramAndroid, string> = {
           unspecified: 'Unspecified',
@@ -652,7 +654,6 @@ function AlternativeBillingScreen() {
                 setAndroidBillingFlow('billing-programs');
                 // Reset to default external billing program when switching from user-choice
                 if (billingProgram === 'user-choice-billing') {
-                  setBillingProgram('external-offer');
                   void reconnectWithProgram('external-offer');
                 }
                 setShowModeSelector(false);
@@ -675,7 +676,6 @@ function AlternativeBillingScreen() {
               ]}
               onPress={() => {
                 setAndroidBillingFlow('user-choice-billing');
-                setBillingProgram('user-choice-billing');
                 setShowModeSelector(false);
                 void reconnectWithProgram('user-choice-billing');
               }}
@@ -716,7 +716,6 @@ function AlternativeBillingScreen() {
                   billingProgram === program && styles.modeOptionSelected,
                 ]}
                 onPress={() => {
-                  setBillingProgram(program);
                   setShowProgramSelector(false);
                   void reconnectWithProgram(program);
                 }}

@@ -184,6 +184,8 @@ function AlternativeBillingScreen() {
             ? {enableBillingProgramAndroid: newProgram}
             : undefined;
         await initConnection(config);
+        // Only a program native applied is shown and bought with.
+        setBillingProgram(newProgram);
 
         setPurchaseResult(`✅ Reconnected with ${newProgram} program`);
 
@@ -723,7 +725,6 @@ function AlternativeBillingScreen() {
                   setAndroidBillingMode('billing-programs');
                   // Keep current billing program if already set to a billing-programs option
                   if (billingProgram === 'external-payments') {
-                    setBillingProgram('external-offer');
                     void reconnectWithBillingProgram('external-offer');
                   }
                   setShowModeSelector(false);
@@ -747,7 +748,6 @@ function AlternativeBillingScreen() {
                 ]}
                 onPress={() => {
                   setAndroidBillingMode('external-payments');
-                  setBillingProgram('external-payments');
                   void reconnectWithBillingProgram('external-payments');
                   setShowModeSelector(false);
                 }}
@@ -792,7 +792,6 @@ function AlternativeBillingScreen() {
                     styles.modeOptionSelected,
                 ]}
                 onPress={() => {
-                  setBillingProgram('external-offer');
                   void reconnectWithBillingProgram('external-offer');
                   setShowProgramSelector(false);
                 }}
@@ -814,7 +813,6 @@ function AlternativeBillingScreen() {
                     styles.modeOptionSelected,
                 ]}
                 onPress={() => {
-                  setBillingProgram('external-content-link');
                   void reconnectWithBillingProgram('external-content-link');
                   setShowProgramSelector(false);
                 }}
@@ -836,7 +834,6 @@ function AlternativeBillingScreen() {
                     styles.modeOptionSelected,
                 ]}
                 onPress={() => {
-                  setBillingProgram('user-choice-billing');
                   void reconnectWithBillingProgram('user-choice-billing');
                   setShowProgramSelector(false);
                 }}

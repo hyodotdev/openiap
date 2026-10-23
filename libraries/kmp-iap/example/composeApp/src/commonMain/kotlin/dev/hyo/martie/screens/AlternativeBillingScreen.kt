@@ -190,6 +190,8 @@ fun AlternativeBillingScreen(navController: NavController) {
                 } else null
 
                 connected = kmpIapInstance.initConnection(config)
+                // Only a program native applied is shown and bought with.
+                if (connected) billingProgram = program
 
                 purchaseResult = if (!connected) "❌ Could not connect to the store" else "✅ Connected with ${
                     when (program) {
@@ -699,7 +701,6 @@ fun AlternativeBillingScreen(navController: NavController) {
                         description = "Users choose between Google Play and your payment system via dialog.",
                         isSelected = billingProgram == BillingProgramAndroid.UserChoiceBilling,
                         onClick = {
-                            billingProgram = BillingProgramAndroid.UserChoiceBilling
                             showModeSelector = false
                             reconnectWithProgram(BillingProgramAndroid.UserChoiceBilling)
                         }
@@ -710,7 +711,6 @@ fun AlternativeBillingScreen(navController: NavController) {
                         description = "Use Google or developer-rendered billing choice screens.",
                         isSelected = billingProgram == BillingProgramAndroid.BillingChoice,
                         onClick = {
-                            billingProgram = BillingProgramAndroid.BillingChoice
                             showModeSelector = false
                             reconnectWithProgram(BillingProgramAndroid.BillingChoice)
                         }
@@ -721,7 +721,6 @@ fun AlternativeBillingScreen(navController: NavController) {
                         description = "Launch an external offer and create reporting details.",
                         isSelected = billingProgram == BillingProgramAndroid.ExternalOffer,
                         onClick = {
-                            billingProgram = BillingProgramAndroid.ExternalOffer
                             showModeSelector = false
                             reconnectWithProgram(BillingProgramAndroid.ExternalOffer)
                         }
@@ -732,7 +731,6 @@ fun AlternativeBillingScreen(navController: NavController) {
                         description = "External payments program with reporting details. Japan users only.",
                         isSelected = billingProgram == BillingProgramAndroid.ExternalPayments,
                         onClick = {
-                            billingProgram = BillingProgramAndroid.ExternalPayments
                             showModeSelector = false
                             reconnectWithProgram(BillingProgramAndroid.ExternalPayments)
                         }
@@ -743,7 +741,6 @@ fun AlternativeBillingScreen(navController: NavController) {
                         description = "Launch an external content link and create reporting details.",
                         isSelected = billingProgram == BillingProgramAndroid.ExternalContentLink,
                         onClick = {
-                            billingProgram = BillingProgramAndroid.ExternalContentLink
                             showModeSelector = false
                             reconnectWithProgram(BillingProgramAndroid.ExternalContentLink)
                         }

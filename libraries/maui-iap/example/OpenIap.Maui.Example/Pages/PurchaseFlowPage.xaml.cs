@@ -43,7 +43,7 @@ public partial class PurchaseFlowPage : ContentPage
     {
         try
         {
-            await OpenIapClient.Mutation.InitConnectionAsync();
+            await IapLifecycle.ConnectAsync();
             ConnectionLabel.Text = "✅ Connected";
             ConnectionLabel.TextColor = Color.FromArgb("#4CAF50");
 

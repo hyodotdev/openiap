@@ -23,6 +23,13 @@ internal static class IapLifecycle
 
     public static PurchaseFlow Flow => _flow ?? throw new InvalidOperationException("App creates the purchase flow at startup.");
 
+    /// <summary>Connects the store; throws when it cannot, so the page's catch reports it.</summary>
+    public static async Task ConnectAsync(InitConnectionConfig? config = null)
+    {
+        if (!await OpenIapClient.Mutation.InitConnectionAsync(config))
+            throw new InvalidOperationException("Could not connect to the store");
+    }
+
     /// <summary>Creates the app's one purchase flow; App calls it on the UI thread so outcomes arrive there.</summary>
     public static void StartPurchaseFlow() => _flow ??= OpenIapClient.CreatePurchaseFlow(new PurchaseFlowOptions
     {

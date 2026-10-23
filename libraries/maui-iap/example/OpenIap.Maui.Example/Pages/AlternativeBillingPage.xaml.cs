@@ -51,7 +51,7 @@ public partial class AlternativeBillingPage : ContentPage
     {
         try
         {
-            await OpenIapClient.Mutation.InitConnectionAsync(new InitConnectionConfig());
+            await IapLifecycle.ConnectAsync(new InitConnectionConfig());
         }
         catch (Exception ex)
         {
@@ -64,7 +64,7 @@ public partial class AlternativeBillingPage : ContentPage
     {
         try
         {
-            await OpenIapClient.Mutation.InitConnectionAsync(BuildConnectionConfig());
+            await IapLifecycle.ConnectAsync(BuildConnectionConfig());
             ConnectionLabel.Text = "✅ Connected";
             ConnectionLabel.TextColor = Color.FromArgb("#4CAF50");
             UpdateModeLabels();
@@ -259,12 +259,7 @@ public partial class AlternativeBillingPage : ContentPage
             ShowResult("Reconnecting with new billing program...");
 
             // A changed config reconnects natively; a refusal keeps the live program, so commit only on success.
-            var connected = await OpenIapClient.Mutation.InitConnectionAsync(new InitConnectionConfig { EnableBillingProgramAndroid = program });
-            if (!connected)
-            {
-                ShowResult("❌ Could not connect to the store");
-                return;
-            }
+            await IapLifecycle.ConnectAsync(new InitConnectionConfig { EnableBillingProgramAndroid = program });
             _billingProgram = program;
             _androidBillingFlow = flow;
             ShowResult($"✅ Reconnected with {ProgramName(program)} program");

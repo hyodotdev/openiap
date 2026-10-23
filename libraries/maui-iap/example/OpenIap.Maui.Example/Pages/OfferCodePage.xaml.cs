@@ -25,7 +25,7 @@ public partial class OfferCodePage : ContentPage
 
         try
         {
-            await OpenIapClient.Mutation.InitConnectionAsync();
+            await IapLifecycle.ConnectAsync();
             _connected = true;
             SetStatus("Connected to Store", Color.FromArgb("#28A745"));
         }
