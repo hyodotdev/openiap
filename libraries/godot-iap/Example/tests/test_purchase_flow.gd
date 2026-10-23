@@ -570,6 +570,9 @@ func _test_custom_listener_forgets_requests() -> void:
 	listeners.back().call(_android_purchase("GPA.redelivered", "premium"))
 	await _settle(next)
 	_check(published.size() == 2 and published[1].recovered, "The next flow's redelivery does not count as requested")
+	wrapper.request_purchase(_purchase_props("premium"))
+	flow.dispose()
+	_check(not wrapper._requested_skus.is_empty(), "A second dispose leaves the next flow's requests alone")
 	next.dispose()
 	wrapper.queue_free()
 

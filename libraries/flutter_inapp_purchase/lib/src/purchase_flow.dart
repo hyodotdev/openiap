@@ -267,6 +267,8 @@ final class PurchaseFlow {
   /// already running still finish. Call it when the signed-in account
   /// changes, then create the next account's flow.
   void dispose() {
+    // A second dispose must not clear the next account's requests.
+    if (_disposed) return;
     _disposed = true;
     _onDispose?.call();
     unawaited(_subscription?.cancel());

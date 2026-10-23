@@ -11,6 +11,7 @@ import io.github.hyochan.kmpiap.openiap.RequestPurchasePropsByPlatforms
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -71,6 +72,11 @@ class PurchaseFlowBindingTest {
             transactionDate = System.currentTimeMillis().toDouble(),
         )
         assertFalse(iap.purchaseRequests.wasRequested(afterDispose))
+
+        // A second dispose leaves the next flow's requests alone.
+        iap.requestPurchase(premiumRequest())
+        flow.dispose()
+        assertTrue(iap.purchaseRequests.wasRequested(afterDispose))
     }
 
     private fun premiumRequest() = RequestPurchaseProps(

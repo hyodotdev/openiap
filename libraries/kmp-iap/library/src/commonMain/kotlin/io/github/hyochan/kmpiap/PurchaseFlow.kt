@@ -243,6 +243,8 @@ class PurchaseFlow internal constructor(
      * create the next account's flow.
      */
     fun dispose() {
+        // A second dispose must not clear the next account's requests.
+        if (disposed) return
         disposed = true
         listening.cancel()
         onDispose()

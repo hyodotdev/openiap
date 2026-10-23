@@ -821,6 +821,12 @@ void main() {
         final asked = requestPurchase(iap, 'premium');
         expect(await requested('GPA.2'), isTrue);
         await asked;
+        // A second dispose leaves the next flow's requests alone.
+        final old = create(listen)..dispose();
+        final askedAgain = requestPurchase(iap, 'premium');
+        old.dispose();
+        expect(await requested('GPA.3'), isTrue);
+        await askedAgain;
       }
     });
 

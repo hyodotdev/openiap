@@ -67,6 +67,9 @@ class _SdkPurchaseFlow:
 		_on_dispose = on_dispose
 
 	func dispose() -> void:
+		# A second dispose must not clear the next account's requests.
+		if _disposed:
+			return
 		super()
 		_on_dispose.call()
 
