@@ -19,7 +19,8 @@ export 'builders.dart';
 export 'utils.dart';
 export 'helpers.dart';
 export 'extensions/purchase_helpers.dart';
-export 'src/purchase_flow.dart';
+export 'src/purchase_flow.dart'
+    hide deviceConfirmationIOS, onPurchaseFlowDispose;
 export 'enums.dart' hide IapPlatform, PurchaseState;
 export 'errors.dart'
     show
@@ -2142,23 +2143,26 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
       void Function(gentype.Purchase) onPurchase,
     )? listenForPurchases,
     bool Function(gentype.Purchase purchase)? wasRequested,
-  }) =>
-      PurchaseFlow(
-        confirmWithBackend: confirmWithBackend,
-        finishTransaction: finishTransaction ?? this.finishTransaction,
-        isConsumable: isConsumable,
-        getAvailablePurchases:
-            getAvailablePurchases ?? this.getAvailablePurchases,
-        getPendingTransactionsIOS: getPendingTransactionsIOS ??
-            (isIOS ? this.getPendingTransactionsIOS : null),
-        confirmTimeout: confirmTimeout,
-        listenForPurchases: listenForPurchases ?? _flowDeliveries().listen,
-        wasRequested: wasRequested ?? _shared.wasRequested,
-      );
+  }) {
+    final flow = PurchaseFlow(
+      confirmWithBackend: confirmWithBackend,
+      finishTransaction: finishTransaction ?? this.finishTransaction,
+      isConsumable: isConsumable,
+      getAvailablePurchases:
+          getAvailablePurchases ?? this.getAvailablePurchases,
+      getPendingTransactionsIOS: getPendingTransactionsIOS ??
+          (isIOS ? this.getPendingTransactionsIOS : null),
+      confirmTimeout: confirmTimeout,
+      listenForPurchases: listenForPurchases ?? _flowDeliveries().listen,
+      wasRequested: wasRequested ?? _shared.wasRequested,
+    );
+    // Whatever listens, the next account's flow must not inherit requests.
+    onPurchaseFlowDispose(flow, _shared.requestedProductIds.clear);
+    return flow;
+  }
 
   /// Every delivery, iOS replays included: the flow deduplicates itself, and a
-  /// redelivery is how a failed confirmation retries. Ending it drops the
-  /// request marks.
+  /// redelivery is how a failed confirmation retries.
   Stream<gentype.Purchase> _flowDeliveries() =>
       Stream<gentype.Purchase>.multi((controller) {
         final subscription = purchaseUpdatedListenerWithOptions(
@@ -2170,10 +2174,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           onError: controller.addError,
           onDone: controller.close,
         );
-        controller.onCancel = () {
-          _shared.requestedProductIds.clear();
-          return subscription.cancel();
-        };
+        controller.onCancel = subscription.cancel;
       });
 
   /// Confirms iOS purchases on the device from StoreKit's unfinished

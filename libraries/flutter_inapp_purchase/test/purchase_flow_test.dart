@@ -7,6 +7,8 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+import 'package:flutter_inapp_purchase/src/purchase_flow.dart'
+    show deviceConfirmationIOS;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:platform/platform.dart';
 
@@ -225,9 +227,12 @@ void main() {
       test(vector['name'] as String, () async {
         var reads = 0;
         var grants = 0;
-        final confirm = createDeviceConfirmationIOS(
+        final clock = vector['clock'] as Map<String, dynamic>?;
+        var now = clock?['beforeRead'] as int?;
+        final confirm = deviceConfirmationIOS(
           () async {
             reads++;
+            if (clock != null) now = clock['afterRead'] as int;
             return [
               for (final pending in vector['pending'] as List<dynamic>)
                 purchaseFromVector(pending as Map<String, dynamic>),
@@ -236,6 +241,7 @@ void main() {
           grant: vector['noGrant'] == true
               ? null
               : (purchase, {required isConsumable}) async => grants++,
+          clock: () => now ?? DateTime.now().millisecondsSinceEpoch,
         );
 
         final answer = confirm(
@@ -785,25 +791,37 @@ void main() {
       flow.dispose();
     });
 
-    test('drops request marks on dispose', () async {
+    test('drops request marks on dispose, whatever listens', () async {
       final iap = await connected('android');
-      PurchaseFlow create() => iap.createPurchaseFlow(
+      PurchaseFlow create([
+        StreamSubscription<Purchase> Function(void Function(Purchase))? listen,
+      ]) =>
+          iap.createPurchaseFlow(
             confirmWithBackend: (purchase, {required isConsumable}) async =>
                 const PurchaseInvalid(reason: 'expired'),
             isConsumable: (_) => false,
+            listenForPurchases: listen,
           );
-      final first = create();
-      await requestPurchase(iap, 'premium');
-      first.dispose();
-      await pumpEventQueue();
+      Future<bool> requested(String id) async {
+        final flow = create();
+        final outcome = flow.outcomes.first;
+        final now = DateTime.now().millisecondsSinceEpoch.toDouble();
+        await deliver(_play(id, transactionDate: now));
+        final status = (await outcome).status as PurchaseInvalid;
+        flow.dispose();
+        return !status.recovered;
+      }
 
-      final second = create();
-      final outcome = second.outcomes.first;
-      final now = DateTime.now().millisecondsSinceEpoch.toDouble();
-      await deliver(_play('GPA.1', transactionDate: now));
-
-      expect(((await outcome).status as PurchaseInvalid).recovered, isTrue);
-      second.dispose();
+      for (final listen in [null, iap.purchaseUpdatedListener.listen]) {
+        await requestPurchase(iap, 'premium');
+        create(listen).dispose();
+        expect(await requested('GPA.1'), isFalse);
+        // Cleared synchronously: a request right after dispose survives it.
+        create(listen).dispose();
+        final asked = requestPurchase(iap, 'premium');
+        expect(await requested('GPA.2'), isTrue);
+        await asked;
+      }
     });
 
     test('passes iOS replays to the flow, which retries a failed one',

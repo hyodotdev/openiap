@@ -3,6 +3,8 @@
 // Guide: https://kit.openiap.dev/docs/purchase-flow
 import 'dart:async';
 
+import 'package:meta/meta.dart' show visibleForTesting;
+
 import '../errors.dart' show PurchaseError;
 import '../types.dart' hide PurchaseError;
 
@@ -224,6 +226,7 @@ final class PurchaseFlow {
   final Future<List<Purchase>> Function()? _getPendingTransactionsIOS;
   final Duration _confirmTimeout;
   StreamSubscription<Purchase>? _subscription;
+  void Function()? _onDispose;
 
   // A listener and a recovery pass can deliver the same transaction at once.
   final _runs = <String, _PurchaseRun>{};
@@ -265,6 +268,7 @@ final class PurchaseFlow {
   /// changes, then create the next account's flow.
   void dispose() {
     _disposed = true;
+    _onDispose?.call();
     unawaited(_subscription?.cancel());
     unawaited(_outcomes.close());
   }
@@ -478,6 +482,12 @@ final class PurchaseFlow {
       _isConsumable(purchase.productId);
 }
 
+/// Runs [onDispose] when [flow] is disposed, for the SDK's own state; not
+/// exported.
+void onPurchaseFlowDispose(PurchaseFlow flow, void Function() onDispose) {
+  flow._onDispose = onDispose;
+}
+
 bool? _isAcknowledgedAndroid(Purchase purchase) =>
     purchase is PurchaseAndroid ? purchase.isAcknowledgedAndroid : null;
 
@@ -655,6 +665,15 @@ PurchaseConfirmer createDeviceConfirmationIOS(
   Future<List<Purchase>> Function() getPendingTransactionsIOS, {
   PurchaseGrant? grant,
 }) =>
+    deviceConfirmationIOS(getPendingTransactionsIOS, grant: grant);
+
+/// [createDeviceConfirmationIOS] reading the time from [clock]; not exported.
+@visibleForTesting
+PurchaseConfirmer deviceConfirmationIOS(
+  Future<List<Purchase>> Function() getPendingTransactionsIOS, {
+  PurchaseGrant? grant,
+  int Function() clock = _epochMs,
+}) =>
     (purchase, {required isConsumable}) async {
       _requireGrant('confirmOnDeviceIOS', purchase, isConsumable, grant);
       if (purchase.store != IapStore.Apple || purchase.storeId != 'apple') {
@@ -666,7 +685,7 @@ PurchaseConfirmer createDeviceConfirmationIOS(
       }
       final pending = await getPendingTransactionsIOS();
       // After the query: a transaction can expire while StoreKit answers.
-      final now = DateTime.now().millisecondsSinceEpoch;
+      final now = clock();
       final verified = pending.any(
         (candidate) =>
             candidate is PurchaseIOS &&
@@ -693,6 +712,8 @@ PurchaseConfirmer createDeviceConfirmationIOS(
       await grant?.call(purchase, isConsumable: isConsumable);
       return const PurchaseEntitled(alreadyGranted: false);
     };
+
+int _epochMs() => DateTime.now().millisecondsSinceEpoch;
 
 // Checked before verifying: a consumable must never pass without a way to
 // credit it.
