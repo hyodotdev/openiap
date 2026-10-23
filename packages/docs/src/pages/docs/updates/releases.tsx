@@ -804,6 +804,12 @@ function Releases() {
                   expo-iap replaces a product or subscription fetched again with
                   its new details instead of keeping the stale entry.
                 </li>
+                <li>
+                  When expo-iap cannot read <code>iapkitApiKey</code> from the
+                  app config, <code>verifyPurchaseWithProvider</code> says so
+                  and keeps the underlying error as its <code>cause</code>,
+                  instead of always reporting that expo-constants is missing.
+                </li>
               </ul>
             </li>
             <li>
@@ -851,7 +857,8 @@ function Releases() {
               <code>initConnection</code> with a config now reaches
               openiap-google even when connected; without one it keeps the
               connection. On iOS, <code>getAvailablePurchases</code> and{' '}
-              <code>verifyAppOwnership</code> with options no longer fail with
+              <code>verifyAppOwnership</code> with a boolean option such as{' '}
+              <code>onlyIncludeActiveItemsIOS</code> no longer fail with
               &quot;The data couldn&apos;t be read because it isn&apos;t in the
               correct format&quot;.
             </li>
