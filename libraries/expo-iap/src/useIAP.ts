@@ -505,22 +505,25 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   );
 
   // Replaces the reads a purchase invalidated; a known subscription also
-  // refreshes its catalog entry and the active subscriptions.
+  // refreshes its catalog entry first.
   const refreshAfterPurchase = useCallback(
     async (productId: string) => {
       const generation = initializationGenerationRef.current;
       const isCurrent = (): boolean =>
         isMountedRef.current &&
         initializationGenerationRef.current === generation;
+      const ownership = [
+        getAvailablePurchasesInternal,
+        getActiveSubscriptionsInternal,
+      ];
       const refreshes = subscriptionsRefState.current.some(
         (sub) => sub.id === productId,
       )
         ? [
             () => fetchProductsInternal({skus: [productId], type: 'subs'}),
-            getAvailablePurchasesInternal,
-            getActiveSubscriptionsInternal,
+            ...ownership,
           ]
-        : [getAvailablePurchasesInternal];
+        : ownership;
       for (const refresh of refreshes) {
         if (!isCurrent()) return;
         try {

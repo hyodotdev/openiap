@@ -693,9 +693,8 @@ function Releases() {
               lets a store read that answers late overwrite newer{' '}
               <code>availablePurchases</code> or{' '}
               <code>activeSubscriptions</code>, such as a read that started
-              before a purchase arrived. expo-iap now refreshes{' '}
-              <code>availablePurchases</code> after every purchase, as
-              react-native-iap does.
+              before a purchase arrived. expo-iap now refreshes both after every
+              purchase, as react-native-iap does.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
