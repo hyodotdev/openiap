@@ -161,6 +161,31 @@ class SharedProviderTest {
         dispose(engine)
     }
 
+    @Test fun `a reconnect after a drop leaves the program to the store module`() {
+        val configs = mutableListOf<InitConnectionConfig?>()
+        val record: MutationInitConnectionHandler = { config ->
+            configs.add(config)
+            FakeProviderFactory.serviceDropped = false
+            true
+        }
+        FakeProviderFactory.handlers["getInitConnection"] = record
+        val engine = fakeEngine()
+        assertEquals(
+            "Billing client ready",
+            engine.call("initConnection", mapOf("enableBillingProgramAndroid" to "external-offer")),
+        )
+        FakeProviderFactory.dropService()
+        settle()
+
+        val purchase = mapOf("id" to "order", "productId" to "premium", "purchaseToken" to "opaque", "store" to "google", "storeId" to "play")
+        assertEquals(null, engine.call("finishTransaction", mapOf("purchase" to purchase, "isConsumable" to false)))
+
+        // No config, so the module reconnects with the program it had.
+        assertEquals(2, configs.size)
+        assertEquals(null, configs[1])
+        dispose(engine)
+    }
+
     @Test fun `a dropped billing service requires initConnection again`() {
         val sent = mutableListOf<MethodCall>()
         val engine = fakeEngine(sent)

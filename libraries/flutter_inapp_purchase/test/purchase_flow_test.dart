@@ -755,10 +755,19 @@ void main() {
 
       final now = DateTime.now().millisecondsSinceEpoch.toDouble();
 
+      const minute = 60000;
+
       await requestPurchase(iap, 'premium');
-      // A receipt older than the request is a redelivery and keeps the mark.
-      expect(await recovered(_play('GPA.0')), isTrue);
-      expect(await recovered(_play('GPA.1', transactionDate: now)), isFalse);
+      // A receipt long before the request is a redelivery and keeps the mark.
+      expect(
+        await recovered(_play('GPA.0', transactionDate: now - 11 * minute)),
+        isTrue,
+      );
+      // A device clock running ahead still leaves the user's own purchase.
+      expect(
+        await recovered(_play('GPA.1', transactionDate: now - 9 * minute)),
+        isFalse,
+      );
       // The delivery cleared the mark.
       expect(await recovered(_play('GPA.2', transactionDate: now)), isTrue);
       await requestPurchase(iap, 'premium_yearly');
@@ -954,6 +963,40 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('a refused rebuild keeps the store connected', () async {
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      await iap.initConnection();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(_channel, (call) async {
+        calls.add(call);
+        if (call.method == 'initConnection') {
+          throw PlatformException(
+            code: 'developer-error',
+            message: 'initConnection cannot change the billing program while '
+                'a purchase is in progress',
+          );
+        }
+        return <Object?>[];
+      });
+
+      await expectLater(
+        iap.initConnection(
+          enableBillingProgramAndroid: BillingProgramAndroid.ExternalOffer,
+        ),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            ErrorCode.DeveloperError,
+          ),
+        ),
+      );
+
+      expect(await iap.getAvailablePurchases(), isEmpty);
     });
 
     test('iOS ignores the config once connected', () async {

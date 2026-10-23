@@ -79,10 +79,13 @@ class _AlternativeBillingScreenState extends State<AlternativeBillingScreen> {
     _userChoiceBillingSubscription?.cancel();
     _urlController.dispose();
 
-    // The app shares one connection; leave it on a standard client.
+    // Back to the standard client without disconnecting the app-wide flow.
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      final iap = FlutterInappPurchase.instance;
-      iap.endConnection().then((_) => iap.initConnection()).catchError((e) {
+      FlutterInappPurchase.instance
+          .initConnection(
+        enableBillingProgramAndroid: BillingProgramAndroid.Unspecified,
+      )
+          .catchError((Object e) {
         debugPrint('[AlternativeBilling] Error restoring the connection: $e');
         return false;
       });

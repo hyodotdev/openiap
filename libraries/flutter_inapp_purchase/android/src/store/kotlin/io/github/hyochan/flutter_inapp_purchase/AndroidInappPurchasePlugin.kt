@@ -1038,7 +1038,8 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler {
                 if (!connectionReady) {
                     if (autoInit) {
                         // Join a connection another engine holds instead of starting a second one.
-                        val ok = providerReady || iap.initConnection(InitConnectionConfig())
+                        // No config: after a drop the store module restores the last program.
+                        val ok = providerReady || iap.initConnection(null)
                         markConnected(ok)
                         emitConnectionUpdated(ok)
                         if (!ok) {

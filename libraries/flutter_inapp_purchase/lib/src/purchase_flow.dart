@@ -664,8 +664,9 @@ PurchaseConfirmer createDeviceConfirmationIOS(
               '${purchase.storeId}',
         );
       }
-      final now = DateTime.now().millisecondsSinceEpoch;
       final pending = await getPendingTransactionsIOS();
+      // After the query: a transaction can expire while StoreKit answers.
+      final now = DateTime.now().millisecondsSinceEpoch;
       final verified = pending.any(
         (candidate) =>
             candidate is PurchaseIOS &&

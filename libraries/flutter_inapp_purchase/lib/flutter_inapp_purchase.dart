@@ -62,6 +62,9 @@ class _PurchaseUpdatedDedupeHistoryIOS {
   }
 }
 
+// PURCHASE_REQUEST_CLOCK_SKEW_MS in specs/client/src/purchase-flow.ts.
+const _purchaseRequestClockSkewMs = 600000;
+
 /// Runs tasks one after another, whatever the previous one's outcome.
 class _SerialTasks {
   // Null once idle, so no settled future outlives its zone (a widget test).
@@ -131,9 +134,8 @@ class _SharedNativeState {
   /// plan change to what it asked for. Clears the mark.
   bool wasRequested(gentype.Purchase purchase) {
     final askedAt = requestedProductIds[purchase.productId];
-    // A store's purchase time may run slightly behind the device clock.
-    final bought =
-        askedAt != null && purchase.transactionDate >= askedAt - 60000;
+    final bought = askedAt != null &&
+        purchase.transactionDate >= askedAt - _purchaseRequestClockSkewMs;
     if (bought) requestedProductIds.remove(purchase.productId);
     final changeTargets = purchase is gentype.PurchaseAndroid
         ? purchase.pendingPurchaseUpdateAndroid?.products
@@ -532,10 +534,12 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   ///
   /// Returns `true` once the platform billing client is connected. Calls
   /// queue behind any initConnection or endConnection still running. While
-  /// connected, a call without a config returns `true`, and an explicitly
-  /// empty config cannot be told apart from none, so it keeps the connection
-  /// too. On Android a config is always passed to native, which rebuilds the
-  /// client only when it differs from the live one.
+  /// connected, a call without a config returns `true`; an empty config cannot
+  /// be told apart from none, so pass `BillingProgramAndroid.Unspecified` to
+  /// return to the standard client. On Android a config is always passed to
+  /// native, which rebuilds the client only when it differs from the live one
+  /// and refuses with `DeveloperError` while a purchase is in progress, staying
+  /// connected.
   /// Throws when the billing client fails to initialize.
   ///
   /// ```dart
@@ -582,11 +586,15 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               _isIapUnavailable = !connected;
               return connected;
             } on PlatformException catch (error) {
-              forgetFailedConnection();
-              throw _purchaseErrorFromPlatformException(
+              final failure = _purchaseErrorFromPlatformException(
                 error,
                 'initialize IAP connection',
               );
+              // Native refuses a rebuild during a purchase and keeps the client.
+              if (failure.code != gentype.ErrorCode.DeveloperError) {
+                forgetFailedConnection();
+              }
+              throw failure;
             } catch (error) {
               forgetFailedConnection();
               throw PurchaseError(
