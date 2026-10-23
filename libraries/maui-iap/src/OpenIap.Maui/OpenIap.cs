@@ -155,6 +155,10 @@ public static class OpenIapClient
     {
         ArgumentNullException.ThrowIfNull(options);
         var instance = Instance;
+        // iOS replays reach the flow, which deduplicates itself; a redelivery retries a failed confirmation.
+        var listen = options.ListenForPurchases ?? (onPurchase => instance
+            .PurchaseUpdatedWithOptions(new PurchaseUpdatedListenerOptions { DedupeTransactionIOS = false })
+            .Subscribe(onPurchase));
         return new PurchaseFlow(options with
         {
             FinishTransaction = options.FinishTransaction
@@ -166,13 +170,10 @@ public static class OpenIapClient
             GetPendingTransactionsIOS = options.GetPendingTransactionsIOS
                 ?? (async () => await Resolver<QueryResolver>(instance).GetPendingTransactionsIOSAsync()),
 #endif
-            ListenForPurchases = options.ListenForPurchases ?? (onPurchase =>
+            ListenForPurchases = onPurchase =>
             {
-                // iOS replays reach the flow, which deduplicates itself; a redelivery retries a failed confirmation.
-                var updates = instance
-                    .PurchaseUpdatedWithOptions(new PurchaseUpdatedListenerOptions { DedupeTransactionIOS = false })
-                    .Subscribe(onPurchase);
-                // A failed or cancelled request ends what the user asked for.
+                var updates = listen(onPurchase);
+                // Whatever listens, a failed or cancelled request ends what the user asked for, and disposing ends them all.
                 var errors = instance.PurchaseError.Subscribe(_ => PurchaseRequests.Clear());
                 return new DisposableAction(() =>
                 {
@@ -180,7 +181,7 @@ public static class OpenIapClient
                     errors.Dispose();
                     PurchaseRequests.Clear();
                 });
-            }),
+            },
             WasRequested = options.WasRequested ?? PurchaseRequests.Take,
             OutcomeContext = options.OutcomeContext ?? SynchronizationContext.Current,
         });

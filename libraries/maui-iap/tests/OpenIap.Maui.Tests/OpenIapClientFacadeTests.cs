@@ -214,6 +214,67 @@ public class OpenIapClientFacadeTests
     }
 
     [Fact]
+    public async Task CreatePurchaseFlow_ForgetsRequestsOnAPurchaseErrorWhateverListens()
+    {
+        var store = new StreamingFakeIap();
+        var deliveries = new Subject<Purchase>();
+        var context = new RecordingContext();
+        var published = new List<PurchaseFlowOutcome>();
+        try
+        {
+            OpenIapClient.OverrideInstance(store);
+            using var flow = OpenIapClient.CreatePurchaseFlow(InvalidFlow(context) with
+            {
+                ListenForPurchases = onPurchase => deliveries.Subscribe(onPurchase),
+            });
+            flow.OutcomePublished += (_, outcome) => published.Add(outcome);
+
+            await PurchaseRequests.Track(SubscriptionRequest("premium_yearly"), () => Task.FromResult(0));
+            store.Errors.OnNext(new PurchaseError { Code = ErrorCode.UserCancelled, Message = "cancelled" });
+            deliveries.OnNext(Bought("GPA.1", "premium_yearly"));
+            context.RunPosted();
+
+            Assert.True(Assert.IsType<PurchaseFlowStatus.Invalid>(Assert.Single(published).Status).Recovered);
+        }
+        finally
+        {
+            PurchaseRequests.Clear();
+            OpenIapClient.OverrideInstance(new UnsupportedOpenIap());
+        }
+    }
+
+    [Fact]
+    public async Task CreatePurchaseFlow_DisposeForgetsRequestsWhateverListens()
+    {
+        var store = new StreamingFakeIap();
+        var deliveries = new Subject<Purchase>();
+        var context = new RecordingContext();
+        var published = new List<PurchaseFlowOutcome>();
+        try
+        {
+            OpenIapClient.OverrideInstance(store);
+            await PurchaseRequests.Track(SubscriptionRequest("premium_yearly"), () => Task.FromResult(0));
+            OpenIapClient.CreatePurchaseFlow(InvalidFlow(context) with
+            {
+                ListenForPurchases = onPurchase => deliveries.Subscribe(onPurchase),
+            }).Dispose();
+
+            // The next account's flow sees a redelivery, not the request.
+            using var next = OpenIapClient.CreatePurchaseFlow(InvalidFlow(context));
+            next.OutcomePublished += (_, outcome) => published.Add(outcome);
+            store.Updates.OnNext(Bought("GPA.1", "premium_yearly"));
+            context.RunPosted();
+
+            Assert.True(Assert.IsType<PurchaseFlowStatus.Invalid>(Assert.Single(published).Status).Recovered);
+        }
+        finally
+        {
+            PurchaseRequests.Clear();
+            OpenIapClient.OverrideInstance(new UnsupportedOpenIap());
+        }
+    }
+
+    [Fact]
     public async Task CreatePurchaseFlow_FinishesAndRecoversThroughTheInstance()
     {
         try
@@ -249,6 +310,13 @@ public class OpenIapClientFacadeTests
 
     private static PurchaseAndroid Bought(string id, string productId) =>
         PurchaseFlowTests.Play(id, productId) with { TransactionDate = Now() };
+
+    private static PurchaseFlowOptions InvalidFlow(SynchronizationContext context) => new()
+    {
+        ConfirmWithBackend = PurchaseFlowTests.Answer(new PurchaseConfirmation.Invalid("expired")),
+        IsConsumable = _ => false,
+        OutcomeContext = context,
+    };
 
     private static RequestPurchaseProps SubscriptionRequest(string sku) => new()
     {

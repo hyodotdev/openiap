@@ -143,10 +143,13 @@ public class PurchaseFlowVectorTests
         var grants = 0;
         var reads = 0;
         var pending = vector["pending"]!.AsArray().Select(entry => (PurchaseIOS)ToPurchase(entry!)).ToList();
+        var clock = vector["clock"];
+        var now = (long?)clock?["beforeRead"];
         var confirm = DeviceConfirmationIOS.Create(
             () =>
             {
                 reads++;
+                if (clock is not null) now = (long)clock["afterRead"]!;
                 return Task.FromResult<IReadOnlyList<PurchaseIOS>>(pending);
             },
             vector["noGrant"] is null
@@ -155,7 +158,8 @@ public class PurchaseFlowVectorTests
                     grants++;
                     return Task.CompletedTask;
                 }
-                : null);
+                : null,
+            () => now ?? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
         var answer = confirm(ToPurchase(vector["purchase"]!), (bool)vector["isConsumable"]!);
 

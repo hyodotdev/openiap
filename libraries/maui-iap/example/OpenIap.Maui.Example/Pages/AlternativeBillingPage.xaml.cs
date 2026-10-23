@@ -268,7 +268,7 @@ public partial class AlternativeBillingPage : ContentPage
         }
         catch (Exception ex)
         {
-            ShowResult($"❌ Still on {ProgramName(_billingProgram)}: {ErrorUtils.ExtractErrorMessage(ex)}");
+            ShowResult($"❌ Reconnection failed: {ErrorUtils.ExtractErrorMessage(ex)}");
         }
         finally
         {

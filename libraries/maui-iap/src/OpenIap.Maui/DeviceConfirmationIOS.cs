@@ -21,7 +21,14 @@ public static class DeviceConfirmationIOS
     /// </summary>
     public static PurchaseConfirmer Create(
         Func<Task<IReadOnlyList<PurchaseIOS>>> getPendingTransactionsIOS,
-        PurchaseGranter? grant = null)
+        PurchaseGranter? grant = null) =>
+        Create(getPendingTransactionsIOS, grant, () => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+
+    // Tests pass their own clock, in Unix ms.
+    internal static PurchaseConfirmer Create(
+        Func<Task<IReadOnlyList<PurchaseIOS>>> getPendingTransactionsIOS,
+        PurchaseGranter? grant,
+        Func<long> clock)
     {
         ArgumentNullException.ThrowIfNull(getPendingTransactionsIOS);
         return async (purchase, isConsumable) =>
@@ -33,9 +40,10 @@ public static class DeviceConfirmationIOS
                 throw new InvalidOperationException(
                     $"Device confirmation covers App Store purchases, not {purchase.StoreId}");
             }
-            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             var environment = (purchase as PurchaseIOS)?.EnvironmentIOS;
             var pending = await getPendingTransactionsIOS().ConfigureAwait(false);
+            // After the query: a transaction can expire while StoreKit answers.
+            var now = clock();
             var verified = !string.IsNullOrEmpty(purchase.Id) && pending.Any(candidate =>
                 candidate.Store == IapStore.Apple &&
                 candidate.Id == purchase.Id &&
