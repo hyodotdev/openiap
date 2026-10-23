@@ -35,8 +35,8 @@ class InitConnectionStoreHintTest {
     fun `a refused rebuild keeps the connection and a failed connect does not`() {
         val refused = OpenIapError.DeveloperError("initConnection cannot change the billing program while a purchase is in progress")
 
-        assertTrue(isRefusedRebuild(OpenIapException("{}", cause = refused)))
-        assertFalse(isRefusedRebuild(OpenIapException("{}", cause = OpenIapError.InitConnection)))
+        assertTrue(isRefusedRebuild(nativeInitFailure(refused, null)))
+        assertFalse(isRefusedRebuild(nativeInitFailure(IllegalStateException("setup failed"), null)))
         assertFalse(isRefusedRebuild(OpenIapException("{}")))
     }
 }

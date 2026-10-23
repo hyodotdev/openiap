@@ -148,6 +148,67 @@ internal fun mapEndConnectionError(error: Exception): OpenIapError =
 internal fun mapInitConnectionError(error: Exception, context: Context?): OpenIapError =
     error as? OpenIapError ?: (context?.let { OpenIapError.InitConnection.forProvider(it) } ?: OpenIapError.InitConnection)
 
+/** The JS-facing error for a failed native initConnection; the native error stays as its cause. */
+internal fun nativeInitFailure(err: Exception, context: Context?): OpenIapException {
+    val error = mapInitConnectionError(err, context)
+    return OpenIapException(
+        toErrorJson(
+            error = error,
+            debugMessage = err.message,
+            messageOverride = err.message
+        ),
+        cause = error,
+    )
+}
+
+internal fun toErrorJson(
+    error: OpenIapError,
+    productId: String? = null,
+    debugMessage: String? = null,
+    messageOverride: String? = null
+): String {
+    val code = OpenIapError.Companion.toCode(error)
+    val message = messageOverride?.takeIf { it.isNotBlank() }
+        ?: error.message.takeIf { it.isNotBlank() }
+        ?: OpenIapError.Companion.defaultMessage(code)
+    val diagnostics = error.toJSON()
+    val responseCode = (diagnostics["responseCode"] as? Number)?.toInt()
+    val diagnosticProductId = productId
+        ?: diagnostics["productId"] as? String
+        ?: when (error) {
+            is OpenIapError.ProductNotFound -> error.productId
+            is OpenIapError.SkuNotFound -> error.sku
+            else -> null
+        }
+    val productIds = diagnostics["productIds"] as? List<*>
+    val productType = diagnostics["productType"] as? String
+    val isEmptyProductList = diagnostics["isEmptyProductList"] as? Boolean
+
+    val errorMap = mutableMapOf<String, Any?>(
+        "code" to code,
+        "message" to message
+    )
+
+    responseCode?.let { errorMap["responseCode"] = it }
+    debugMessage
+        ?.let { errorMap["debugMessage"] = it }
+        ?: (diagnostics["debugMessage"] as? String)?.let { errorMap["debugMessage"] = it }
+        ?: error.message.let { errorMap["debugMessage"] = it }
+    diagnosticProductId?.let { errorMap["productId"] = it }
+    if (!productIds.isNullOrEmpty()) errorMap["productIds"] = productIds
+    productType?.let { errorMap["productType"] = it }
+    isEmptyProductList?.let { errorMap["isEmptyProductList"] = it }
+    (diagnostics["subResponseCodeAndroid"] as? String)?.let {
+        errorMap["subResponseCodeAndroid"] = it
+    }
+
+    return try {
+        JSONObject(errorMap).toString()
+    } catch (e: Exception) {
+        "$code: $message"
+    }
+}
+
 /** openiap-google refuses a rebuild during a purchase and keeps the live client. */
 internal fun isRefusedRebuild(error: Throwable): Boolean =
     generateSequence(error) { it.cause }.any { it is OpenIapError.DeveloperError }
@@ -441,16 +502,8 @@ class HybridRnIap : HybridRnIapSpec() {
                 } catch (err: CancellationException) {
                     throw err
                 } catch (err: Exception) {
-                    val error = mapInitConnectionError(err, context)
                     RnIapLog.failure("initConnection.native", err)
-                    throw OpenIapException(
-                        toErrorJson(
-                            error = error,
-                            debugMessage = err.message,
-                            messageOverride = err.message
-                        ),
-                        cause = error,
-                    )
+                    throw nativeInitFailure(err, context)
                 }
                 if (!ok) {
                     val error = OpenIapError.InitConnection.forProvider(context)
@@ -2356,54 +2409,6 @@ class HybridRnIap : HybridRnIapSpec() {
     override fun showExternalPurchaseCustomLinkNoticeIOS(noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS): Promise<ExternalPurchaseCustomLinkNoticeResultIOS> {
         return Promise.async {
             throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
-        }
-    }
-
-    private fun toErrorJson(
-        error: OpenIapError,
-        productId: String? = null,
-        debugMessage: String? = null,
-        messageOverride: String? = null
-    ): String {
-        val code = OpenIapError.Companion.toCode(error)
-        val message = messageOverride?.takeIf { it.isNotBlank() }
-            ?: error.message.takeIf { it.isNotBlank() }
-            ?: OpenIapError.Companion.defaultMessage(code)
-        val diagnostics = error.toJSON()
-        val responseCode = (diagnostics["responseCode"] as? Number)?.toInt()
-        val diagnosticProductId = productId
-            ?: diagnostics["productId"] as? String
-            ?: when (error) {
-                is OpenIapError.ProductNotFound -> error.productId
-                is OpenIapError.SkuNotFound -> error.sku
-                else -> null
-            }
-        val productIds = diagnostics["productIds"] as? List<*>
-        val productType = diagnostics["productType"] as? String
-        val isEmptyProductList = diagnostics["isEmptyProductList"] as? Boolean
-
-        val errorMap = mutableMapOf<String, Any?>(
-            "code" to code,
-            "message" to message
-        )
-
-        responseCode?.let { errorMap["responseCode"] = it }
-        debugMessage
-            ?.let { errorMap["debugMessage"] = it }
-            ?: (diagnostics["debugMessage"] as? String)?.let { errorMap["debugMessage"] = it }
-            ?: error.message.let { errorMap["debugMessage"] = it }
-        diagnosticProductId?.let { errorMap["productId"] = it }
-        if (!productIds.isNullOrEmpty()) errorMap["productIds"] = productIds
-        productType?.let { errorMap["productType"] = it }
-        isEmptyProductList?.let { errorMap["isEmptyProductList"] = it }
-        (diagnostics["subResponseCodeAndroid"] as? String)?.let {
-            errorMap["subResponseCodeAndroid"] = it
-        }
-
-        return try {
-            JSONObject(errorMap).toString()
-        } catch (e: Exception) {
-            "$code: $message"
         }
     }
 
