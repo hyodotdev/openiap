@@ -679,6 +679,11 @@ function Releases() {
             </a>
             .
           </p>
+          <p>
+            Request parsing and showcase validation use patched dependencies
+            that prevent excessive memory use on malformed input. Development
+            tooling also picks up the corresponding security fixes.
+          </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
             Protocols and native packages
           </h5>

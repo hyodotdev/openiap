@@ -26,6 +26,28 @@ describe("public showcase MCP", () => {
       ).toBe(false);
     }
   });
+  it("rejects oversized library lists before validating their elements", () => {
+    const schema = createShowcaseSubmissionSchema({
+      categories: ["Education"],
+      libraries: ["expo-iap"],
+    });
+    const parsed = schema.safeParse({
+      name: "Test app",
+      tagline: "Learn something every day",
+      category: "Education",
+      logo: "https://example.com/icon.png",
+      library: Array(2000).fill("invalid"),
+      web: "https://example.com",
+      contactEmail: "owner@example.com",
+      ownershipConfirmed: true,
+    });
+    expect(parsed.success).toBe(false);
+    if (parsed.success) throw new Error("Expected oversized list rejection");
+    expect(parsed.error.issues).toMatchObject([
+      { code: "too_big", path: ["library"] },
+    ]);
+    expect(parsed.error.issues).toHaveLength(1);
+  });
   it("offers submission and status tools without administrative capabilities", async () => {
     const server = createShowcaseMcpServer({
       categories: ["Education"],
