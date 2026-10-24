@@ -81,7 +81,7 @@ describe("local project and patch coverage", () => {
   });
 
   it("rejects uncovered branch-only default arguments in the patch", () => {
-    for (const taken of ["0", "-"]) {
+    for (const taken of ["0", "-", "-37"]) {
       const source = record("src/index.ts", Array(10).fill(1)).replace(
         "end_of_record",
         `BRDA:11,0,0,${taken}\nend_of_record`,
@@ -114,6 +114,61 @@ describe("local project and patch coverage", () => {
     );
     assert.deepEqual(coverage.project, { found: 11, hit: 11, percentage: 100 });
     assert.deepEqual(coverage.patch, { found: 1, hit: 1, percentage: 100 });
+  });
+
+  it("lets branch misses override positive line counters", () => {
+    for (const taken of ["0", "-37"]) {
+      const source = record("src/index.ts", Array(11).fill(1)).replace(
+        "end_of_record",
+        `BRDA:2,36,1,${taken}\nend_of_record`,
+      );
+      assert.throws(
+        () =>
+          readComponentCoverage(
+            source,
+            patch(filename, 2, 1),
+            policy,
+            directory,
+            root,
+          ),
+        /Patch coverage 0\.00%.*below 90\.00%/,
+      );
+    }
+  });
+
+  it("uses the last counter for each repeated branch identity", () => {
+    const source = record("src/index.ts", Array(11).fill(1)).replace(
+      "end_of_record",
+      "BRDA:2,0,0,1\nBRDA:2,0,0,0\nend_of_record",
+    );
+    assert.throws(
+      () =>
+        readComponentCoverage(
+          source,
+          patch(filename, 2, 1),
+          policy,
+          directory,
+          root,
+        ),
+      /Patch coverage 0\.00%.*below 90\.00%/,
+    );
+  });
+
+  it("keeps JavaScript branches and TypeScript line-one branches out of line totals", () => {
+    for (const extension of ["js", "ts"]) {
+      const source = record(`src/index.${extension}`, [1]).replace(
+        "end_of_record",
+        "BRDA:1,0,0,0\nend_of_record",
+      );
+      const coverage = readComponentCoverage(
+        source,
+        patch(filename.replace(/ts$/, extension), 1, 1),
+        policy,
+        directory,
+        root,
+      );
+      assert.deepEqual(coverage.patch, { found: 1, hit: 1, percentage: 100 });
+    }
   });
 
   it("accepts exact thresholds and positive partial hits", () => {
@@ -208,7 +263,7 @@ describe("local project and patch coverage", () => {
       ),
       record("src/index.ts", [1]).replace(
         "end_of_record",
-        "BRDA:2,0,0,-1\nend_of_record",
+        "BRDA:2,0,0,-1.5\nend_of_record",
       ),
       record("src/index.ts", [1]).replace("end_of_record", ""),
       record("/another/repo/src/index.ts", [1]),

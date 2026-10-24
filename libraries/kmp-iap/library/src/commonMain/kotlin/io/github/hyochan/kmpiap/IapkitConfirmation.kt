@@ -52,14 +52,13 @@ private const val IAPKIT_UNKNOWN_RETRY_MS = 30_000L
  * the purchase, then runs `grant` before the flow finishes it. Apps pass
  * [confirmWithIapkit], which binds this SDK's.
  */
-@Deprecated("Use confirmWithIapkit. Removed in the next major release.")
-public fun createIapkitConfirmation(
+internal fun iapkitConfirmation(
     verifyPurchaseWithProvider: suspend (VerifyPurchaseWithProviderProps) -> VerifyPurchaseWithProviderResult,
     options: IapkitConfirmationOptions,
 ): PurchaseConfirmer = { purchase, isConsumable ->
     requireGrant("confirmWithIapkit", purchase, isConsumable, options.grant)
-    val confirmation = readIapkitVerification(
-        verifyPurchaseWithProvider(toIapkitVerificationProps(purchase, options)),
+    val confirmation = iapkitVerification(
+        verifyPurchaseWithProvider(iapkitVerificationProps(purchase, options)),
         purchase,
         isConsumable,
         options,
@@ -77,11 +76,10 @@ public fun createIapkitConfirmation(
 fun KmpInAppPurchase.confirmWithIapkit(
     options: IapkitConfirmationOptions,
 ): PurchaseConfirmer =
-    createIapkitConfirmation(::verifyPurchaseWithProvider, options)
+    iapkitConfirmation(::verifyPurchaseWithProvider, options)
 
 /** Builds the IAPKit request for a purchase; throws for a store IAPKit cannot verify. */
-@Deprecated("Use confirmWithIapkit. Removed in the next major release.")
-public fun toIapkitVerificationProps(purchase: Purchase, options: IapkitConfirmationOptions): VerifyPurchaseWithProviderProps {
+internal fun iapkitVerificationProps(purchase: Purchase, options: IapkitConfirmationOptions): VerifyPurchaseWithProviderProps {
     val apiKey = options.apiKey?.trim()
     // An unset environment variable, not a deliberate fallback to the SDK's key.
     require(apiKey != "") { "IAPKit apiKey is empty" }
@@ -127,8 +125,7 @@ public fun toIapkitVerificationProps(purchase: Purchase, options: IapkitConfirma
  * or package mismatch, and to every Horizon rejection), and a valid state this
  * product type cannot be granted from.
  */
-@Deprecated("Use confirmWithIapkit. Removed in the next major release.")
-public fun readIapkitVerification(
+internal fun iapkitVerification(
     result: VerifyPurchaseWithProviderResult,
     purchase: Purchase,
     isConsumable: Boolean,
@@ -206,3 +203,24 @@ internal fun requireGrant(
         "$name needs grant to credit consumable ${purchase.productId} before it is consumed"
     }
 }
+
+
+@Deprecated("Use confirmWithIapkit. Removed in the next major release.")
+public fun createIapkitConfirmation(
+    verifyPurchaseWithProvider: suspend (VerifyPurchaseWithProviderProps) -> VerifyPurchaseWithProviderResult,
+    options: IapkitConfirmationOptions,
+): PurchaseConfirmer = iapkitConfirmation(verifyPurchaseWithProvider, options)
+
+@Deprecated("Use confirmWithIapkit. Removed in the next major release.")
+public fun toIapkitVerificationProps(
+    purchase: Purchase,
+    options: IapkitConfirmationOptions,
+): VerifyPurchaseWithProviderProps = iapkitVerificationProps(purchase, options)
+
+@Deprecated("Use confirmWithIapkit. Removed in the next major release.")
+public fun readIapkitVerification(
+    result: VerifyPurchaseWithProviderResult,
+    purchase: Purchase,
+    isConsumable: Boolean,
+    options: IapkitConfirmationOptions = IapkitConfirmationOptions(),
+): PurchaseConfirmation = iapkitVerification(result, purchase, isConsumable, options)

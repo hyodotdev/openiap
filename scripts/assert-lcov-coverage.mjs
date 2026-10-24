@@ -165,19 +165,24 @@ function readLcovRecords(source) {
       }
       record.lines.set(number, Math.max(record.lines.get(number) ?? 0, hits));
     } else if (line.startsWith("BRDA:")) {
-      const match = line.match(/^BRDA:(\d+),[^,]+,[^,]+,(\d+|-)$/u);
+      const match = line.match(/^BRDA:(\d+),([^,]+),([^,]+),(-?\d+|-)$/u);
       if (!record || !match || Number(match[1]) < 1) {
         throw new Error(`Invalid LCOV branch data: ${line}`);
       }
       const number = Number(match[1]);
-      const hits = match[2] === "-" ? 0 : Number(match[2]);
+      const hits = match[4] === "-" ? 0 : Number(match[4]);
       if (!Number.isSafeInteger(number) || !Number.isSafeInteger(hits)) {
         throw new Error(`Invalid LCOV branch data: ${line}`);
       }
-      record.branches.set(
-        number,
-        Math.max(record.branches.get(number) ?? 0, hits),
-      );
+      if (
+        record.filename.endsWith(".js") ||
+        (number === 1 && record.filename.endsWith(".ts"))
+      )
+        continue;
+      const branches = record.branches.get(number) ?? new Map();
+      // Negative V8 counters never establish a hit (LCOV's zero fallback).
+      branches.set(`${match[2]}:${match[3]}`, Math.max(0, hits));
+      record.branches.set(number, branches);
     } else if (/^(LF|LH):/u.test(line)) {
       const match = line.match(/^(LF|LH):(\d+)$/u);
       if (!record || !match)
@@ -192,9 +197,12 @@ function readLcovRecords(source) {
       ) {
         throw new Error("LCOV LF/LH totals disagree with executable line data");
       }
-      // Codecov includes branch-only lines and treats positive partials as hits.
-      for (const [number, hits] of record.branches) {
-        record.lines.set(number, Math.max(record.lines.get(number) ?? 0, hits));
+      // Codecov lets branch data override DA, including branch-only lines.
+      for (const [number, branches] of record.branches) {
+        record.lines.set(
+          number,
+          [...branches.values()].some((hits) => hits > 0) ? 1 : 0,
+        );
       }
       records.push(record);
       record = undefined;
