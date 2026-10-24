@@ -597,6 +597,12 @@ function Migration() {
           </Link>
           .
         </p>
+        <p>
+          Keep new Expo app imports on <code>expo-iap</code>. The extracted{' '}
+          <code>purchase-flow-core</code> and{' '}
+          <code>purchase-flow-confirmers</code> modules are internal
+          implementations.
+        </p>
         {scheduledRemovals.map((group) => (
           <div key={group.title}>
             <h4>{group.title}</h4>

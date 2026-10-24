@@ -1,6 +1,5 @@
-// Confirmers the SDKs build their `confirmWithIapkit` and `confirmOnDeviceIOS`
-// from. They use only the purchase flow's public contract, as any other
-// verification service's confirmer would.
+// Internal adapters for SDK confirmation helpers; apps use SDK root imports.
+// Each adapter uses the same lifecycle contract as other verification services.
 import type {
   PurchaseConfirmation,
   PurchaseFlowOptions,
@@ -67,6 +66,7 @@ export interface IapkitVerificationResult {
 const IAPKIT_UNKNOWN_RETRY_MS = 30_000;
 
 /**
+ * @internal Use the SDK's confirmWithIapkit.
  * The SDK's `confirmWithIapkit`, given its `verifyPurchaseWithProvider`:
  * verifies the purchase with IAPKit, then runs `grant` before the flow
  * finishes it.
@@ -95,6 +95,7 @@ export function createIapkitConfirmation<P extends PurchaseFlowPurchase>(
 }
 
 /**
+ * @internal Use the SDK's confirmOnDeviceIOS.
  * The SDK's `confirmOnDeviceIOS`, given its `getPendingTransactionsIOS`, for an
  * app with neither a backend nor IAPKit. StoreKit verified the transaction if
  * it is still unfinished, unrevoked, not upgraded, unexpired, and from the
@@ -158,7 +159,7 @@ function requireGrant<P extends PurchaseFlowPurchase>(
   }
 }
 
-/** Builds the IAPKit request for a purchase; throws for a store IAPKit cannot verify. */
+/** @internal Builds the IAPKit request; throws for a store IAPKit cannot verify. */
 export function toIapkitVerificationProps<P extends PurchaseFlowPurchase>(
   purchase: P,
   options: IapkitConfirmationOptions<P>,
@@ -215,6 +216,7 @@ export function toIapkitVerificationProps<P extends PurchaseFlowPurchase>(
 }
 
 /**
+ * @internal Use the SDK's confirmWithIapkit.
  * Turns IAPKit's answer into the flow's confirmation. Anything that may be a
  * configuration error rather than a rejected payment throws, so the flow
  * reports `failed` and leaves the purchase unfinished: evidence for another

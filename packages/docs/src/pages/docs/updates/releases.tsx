@@ -666,14 +666,14 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
-      id: 'purchase-confirmers-2026-10-24',
+      id: 'purchase-confirmers-2026-10-25',
       date: new Date('2026-10-25'),
       element: (
-        <div key="purchase-confirmers-2026-10-24" style={noteCardStyle}>
+        <div key="purchase-confirmers-2026-10-25" style={noteCardStyle}>
           {PURCHASE_CONFIRMER_RELEASES.map((release) => (
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
-          <AnchorLink id="purchase-confirmers-2026-10-24" level="h4">
+          <AnchorLink id="purchase-confirmers-2026-10-25" level="h4">
             October 25, 2026 - Any verification service in the purchase flow
           </AnchorLink>
           <p>
@@ -683,6 +683,10 @@ function Releases() {
             <Link to="/docs/features/validation">Validation</Link>. Apps keep
             calling <code>confirmWithIapkit</code> and{' '}
             <code>confirmOnDeviceIOS</code>.
+          </p>
+          <p>
+            The native SwiftUI example now displays available subscription
+            prices and purchase options correctly.
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
             Protocols and native packages
@@ -697,11 +701,6 @@ function Releases() {
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
           <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
-            <li>
-              <strong>react-native-iap 17.2.1</strong>: keeps the existing SDK
-              confirmation helpers and callback contract while separating
-              verification services from the purchase lifecycle.
-            </li>
             <li>
               <strong>expo-iap 6.3.0</strong>: deprecates the low-level helpers
               and verification types under{' '}
@@ -721,8 +720,7 @@ function Releases() {
               deprecates <code>create_iapkit_confirmation</code>,{' '}
               <code>create_device_confirmation_ios</code>,{' '}
               <code>to_iapkit_verification_props</code>, and{' '}
-              <code>read_iapkit_verification</code>. Compatibility helpers also
-              work when the addon is installed outside its default path.
+              <code>read_iapkit_verification</code>.
             </li>
             <li>
               <strong>kmp-iap 4.2.0</strong>:{' '}

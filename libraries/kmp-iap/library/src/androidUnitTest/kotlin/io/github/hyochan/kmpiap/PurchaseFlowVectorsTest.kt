@@ -98,7 +98,7 @@ class PurchaseFlowVectorsTest {
             grant = if (vector.bool("noGrant")) null else { _, _ -> grants++ },
         )
         val requests = mutableListOf<VerifyPurchaseWithProviderProps>()
-        val confirm = createIapkitConfirmation({ props ->
+        val confirm = iapkitConfirmation({ props ->
             requests += props
             // The SDK's result type refuses some evidence, such as another official store id; that throws here.
             VerifyPurchaseWithProviderResult.fromJson(vector.plainObject("result") + ("provider" to "iapkit"))

@@ -23,6 +23,10 @@ Before changing the public contract, follow the
 Hyo approves the concrete design before implementation; IAPKit uses the same
 vendor-independent contract as other verification services.
 
+Keep the published `/purchase-flow-vectors` keys and optional adapter-evidence
+fields in `PurchaseFlowPurchase` compatible through minor releases. Removing
+them requires a separately reviewed major design.
+
 - `schema-files.mjs` is the ordered production schema inventory SSOT. Generator
   code must import it directly. Do not add parallel schema lists or external
   generator manifests.
@@ -38,6 +42,8 @@ vendor-independent contract as other verification services.
   used by platform sync and commit-time drift checks. Groups without an
   `exportKey` are library-to-library mirrors (such as react-native-iap's
   `errorMapping.ts` into expo-iap) that the client package does not publish.
+  Expo owns its `src/purchase-flow.ts` compatibility facade so its deep imports
+  can retire independently; its core and adapters remain generated mirrors.
 - `src/store-registry.json` owns provider ids, aliases, tiers, and reports; see
   [02-architecture.md](../../knowledge/internal/02-architecture.md#store-providers)
   and regenerate consumers with `bun run stores:generate` from the repo root.

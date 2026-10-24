@@ -42,6 +42,10 @@ Generated native types are
 available at `/swift`, `/kotlin`, `/dart`, `/gdscript`, and `/csharp`.
 For a working purchase integration, choose a [framework SDK](https://openiap.dev/languages).
 
+The `/purchase-flow-vectors` fixture covers the shared lifecycle and built-in
+adapters. Adapter cases describe that implementation, not requirements for
+other verification services.
+
 This package's npm version _is_ the Client Protocol version. It is mirrored
 into `openiap-versions.json` as `clientProtocol`, alongside the independent
 `openiap-apple` and `openiap-google` native package versions.
@@ -201,9 +205,3 @@ Supported the project before the OpenIAP sponsor program.
 [openiap-company-contact]: mailto:hyo@hyo.dev
 
 <!-- sponsors:end -->
-
-The published `/purchase-flow-vectors` fixture includes lifecycle, IAPKit, and
-on-device adapter cases. Adapter cases describe that implementation, not a
-requirement for other verification services. Keep its existing keys and the
-optional adapter-evidence fields in `PurchaseFlowPurchase` compatible through
-minor releases; removing them requires a separately reviewed major change.

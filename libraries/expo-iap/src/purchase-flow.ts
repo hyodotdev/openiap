@@ -1,9 +1,9 @@
-// Published purchase-flow entry point: keep legacy helpers outside the core.
+// Expo owns this published compatibility facade; sync only its core and confirmers.
 import type {
   PurchaseFlowPurchase,
   PurchaseFlowOptions,
   PurchaseConfirmation,
-} from "./purchase-flow-core";
+} from './purchase-flow-core';
 
 import {
   createDeviceConfirmationIOS as deviceConfirmation,
@@ -13,9 +13,9 @@ import {
   type IapkitConfirmationOptions as ConfirmationOptions,
   type IapkitVerificationProps as VerificationProps,
   type IapkitVerificationResult as VerificationResult,
-} from "./purchase-flow-confirmers";
+} from './purchase-flow-confirmers';
 
-export * from "./purchase-flow-core";
+export * from './purchase-flow-core';
 
 /* eslint-disable @typescript-eslint/no-empty-object-type -- Preserve the published mergeable interfaces. */
 /** @deprecated Use the SDK's IapkitConfirmationOptions. Removed in the next major release. */
@@ -34,7 +34,7 @@ export interface IapkitVerificationResult extends VerificationResult {}
 export function createIapkitConfirmation<P extends PurchaseFlowPurchase>(
   verify: (props: IapkitVerificationProps) => Promise<IapkitVerificationResult>,
   options: IapkitConfirmationOptions<P>,
-): PurchaseFlowOptions<P>["confirmWithBackend"] {
+): PurchaseFlowOptions<P>['confirmWithBackend'] {
   return iapkitConfirmation(verify, options);
 }
 
@@ -42,9 +42,9 @@ export function createIapkitConfirmation<P extends PurchaseFlowPurchase>(
 export function createDeviceConfirmationIOS<P extends PurchaseFlowPurchase>(
   getPendingTransactionsIOS: () => Promise<P[]>,
   options: {
-    grant?: (purchase: P, context: { isConsumable: boolean }) => Promise<void>;
+    grant?: (purchase: P, context: {isConsumable: boolean}) => Promise<void>;
   } = {},
-): PurchaseFlowOptions<P>["confirmWithBackend"] {
+): PurchaseFlowOptions<P>['confirmWithBackend'] {
   return deviceConfirmation(getPendingTransactionsIOS, options);
 }
 
@@ -60,8 +60,8 @@ export function toIapkitVerificationProps<P extends PurchaseFlowPurchase>(
 export function readIapkitVerification<P extends PurchaseFlowPurchase>(
   result: IapkitVerificationResult,
   purchase: P,
-  context: { isConsumable: boolean },
-  options: Omit<IapkitConfirmationOptions<P>, "apiKey"> = {},
+  context: {isConsumable: boolean},
+  options: Omit<IapkitConfirmationOptions<P>, 'apiKey'> = {},
 ): PurchaseConfirmation {
   return readVerification(result, purchase, context, options);
 }

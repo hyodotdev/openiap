@@ -87,7 +87,6 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
     exportKey: './purchase-flow',
     targets: {
       reactNative: target('libraries/react-native-iap/src/purchase-flow.ts', 'purchase-flow → react-native-iap', 'typescript-bundler'),
-      expo: target('libraries/expo-iap/src/purchase-flow.ts', 'purchase-flow → expo-iap', 'typescript-bundler'),
     },
   }),
   purchaseFlowCore: group({

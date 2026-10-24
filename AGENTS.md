@@ -193,7 +193,8 @@ them and syncs every target in `specs/client/generated-sync-manifest.mjs`:
 - `libraries/godot-iap/addons/godot-iap/types.gd`
 - `libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt`
 - `libraries/maui-iap/src/OpenIap.Maui/Types.cs`
-- `libraries/{react-native-iap,expo-iap}/src/{kit-api,purchase-flow,purchase-flow-core,purchase-flow-confirmers}.ts`
+- `libraries/{react-native-iap,expo-iap}/src/{kit-api,purchase-flow-core,purchase-flow-confirmers}.ts`
+- `libraries/react-native-iap/src/purchase-flow.ts` (Expo owns its compatibility facade independently)
 - `libraries/expo-iap/src/utils/errorMapping.ts` and its
   `__tests__/errorMapping.shared.test.ts`, and
   `libraries/expo-iap/src/utils/purchaseFlowBinding.ts` (mirrored from

@@ -1,3 +1,4 @@
+// Internal module; apps use the SDK root or Client Protocol /purchase-flow.
 // Purchase flow shared by every OpenIAP SDK. A confirmer (the app's backend,
 // IAPKit, or any other verification service) confirms each purchase; this
 // module decides when the app may finish a transaction, and makes no network
