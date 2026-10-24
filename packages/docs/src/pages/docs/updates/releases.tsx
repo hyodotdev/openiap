@@ -667,14 +667,14 @@ function Releases() {
   const allNotes: Note[] = [
     {
       id: 'purchase-confirmers-2026-10-24',
-      date: new Date('2026-10-24'),
+      date: new Date('2026-10-25'),
       element: (
         <div key="purchase-confirmers-2026-10-24" style={noteCardStyle}>
           {PURCHASE_CONFIRMER_RELEASES.map((release) => (
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
           <AnchorLink id="purchase-confirmers-2026-10-24" level="h4">
-            October 24, 2026 - Any verification service in the purchase flow
+            October 25, 2026 - Any verification service in the purchase flow
           </AnchorLink>
           <p>
             IAPKit and on-device confirmation are now two confirmers built on
