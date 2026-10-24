@@ -373,14 +373,14 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
           enforce the same policy.
         </p>
         <p>
-          <code>confirmWithBackend</code> takes a <code>PurchaseConfirmer</code>
-          : a function that receives the purchase and whether it is consumable,
-          and answers its confirmation. Answer <code>entitled</code> once access
-          is granted, crediting a consumable first,{' '}
-          <code>verification_delayed</code> for an answer that may still change,
-          and <code>invalid</code> only for a settled rejection, which iOS then
-          finishes. A confirmer that throws or times out leaves the purchase
-          unfinished, and the next delivery or recovery confirms it again.
+          <code>confirmWithBackend</code> receives the purchase and whether it
+          is consumable, then returns its confirmation. Answer{' '}
+          <code>entitled</code> once access is granted, crediting a consumable
+          first, <code>verification_delayed</code> for an answer that may still
+          change, and <code>invalid</code> only for a settled rejection, which
+          iOS then finishes. A confirmer that throws or times out leaves the
+          purchase unfinished, and the next delivery or recovery confirms it
+          again.
         </p>
         <CodeBlock language="typescript">{`const allowedEnvironments = new Set(['Production']);
 const flow = createPurchaseFlow({

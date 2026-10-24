@@ -90,11 +90,9 @@ import {
   type SdkPurchaseFlowOptions,
 } from './utils/purchaseFlowBinding';
 import {
-  type PurchaseConfirmer,
   type PurchaseFlow,
   type PurchaseFlowOptions,
   type PurchaseFlowPurchase,
-  type PurchaseGrant,
 } from './purchase-flow-core';
 import {
   createDeviceConfirmationIOS,
@@ -184,7 +182,6 @@ export {
 export type {
   PurchaseConfirmation,
   PurchaseConfirmationRequest,
-  PurchaseConfirmer,
   PurchaseFlow,
   PurchaseFlowGuidance,
   PurchaseFlowGuidanceKey,
@@ -192,7 +189,6 @@ export type {
   PurchaseFlowOutcome,
   PurchaseFlowPurchase,
   PurchaseFlowStatus,
-  PurchaseGrant,
   RecoverPurchasesOptions,
 } from './purchase-flow-core';
 export type {IapkitConfirmationOptions} from './purchase-flow-confirmers';
@@ -2393,7 +2389,7 @@ export function createPurchaseFlow(
  */
 export function confirmWithIapkit(
   options: IapkitConfirmationOptions<Purchase>,
-): PurchaseConfirmer<Purchase> {
+): PurchaseFlowOptions<Purchase>['confirmWithBackend'] {
   return createIapkitConfirmation(verifyPurchaseWithProvider, options);
 }
 
@@ -2404,10 +2400,13 @@ export function confirmWithIapkit(
  */
 export function confirmOnDeviceIOS(
   options: {
-    /** See {@link PurchaseGrant}; required for consumables. */
-    grant?: PurchaseGrant<Purchase>;
+    /** Required for consumables; credit each purchase.id only once. */
+    grant?: (
+      purchase: Purchase,
+      context: {isConsumable: boolean},
+    ) => Promise<void>;
   } = {},
-): PurchaseConfirmer<Purchase> {
+): PurchaseFlowOptions<Purchase>['confirmWithBackend'] {
   return createDeviceConfirmationIOS<Purchase>(
     () => getPendingTransactionsIOS(),
     options,

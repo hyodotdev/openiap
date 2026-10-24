@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-24T16:16:17.470Z
+> Last updated: 2026-10-24T18:16:22.728Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1796,15 +1796,15 @@ in an example is the signal to stop and move the logic.
 The purchase flow is the worked example. `createPurchaseFlow`,
 `confirmWithIapkit`, and `confirmOnDeviceIOS` own duplicate deliveries,
 finishing, recovery, store and on-device verdicts, and pending plan changes,
-so purchase screens only subscribe to outcomes. Every SDK's flow passes
-`specs/client/src/purchase-flow.vectors.json`: React Native and Expo through
-the spec they sync, the other four through their own runners.
+so purchase screens only subscribe to outcomes. Every SDK runs
+`specs/client/src/purchase-flow.vectors.json` against its own implementation,
+including the generated React Native and Expo core mirrors.
 
 The TypeScript SDKs import the dependency-free `purchase-flow-core.ts` directly.
 The published `purchase-flow.ts` entry point re-exports that core and retains
 legacy compatibility delegates.
 
-The flow core is vendor-neutral: it takes one `PurchaseConfirmer` and holds no
+The flow core is vendor-neutral: it takes one confirmation callback and holds no
 code for a particular verification service. The confirmers the SDKs ship (IAPKit
 and on-device iOS) live beside it, in
 `specs/client/src/purchase-flow-confirmers.ts` and each port's own file, and use

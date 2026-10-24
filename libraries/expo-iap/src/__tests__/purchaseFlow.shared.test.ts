@@ -4,7 +4,9 @@ import {
   createPurchaseFlow,
   describePurchaseFlowStatus,
   type PurchaseConfirmation,
+  type PurchaseFlowOutcome,
   type PurchaseFlowPurchase,
+  type PurchaseFlowStatus,
 } from '../purchase-flow-core';
 import {
   createDeviceConfirmationIOS,
@@ -206,6 +208,94 @@ describe('shared vectors', () => {
         expect(grant).toHaveBeenCalledTimes(vector.granted ? 1 : 0);
       } finally {
         jest.useRealTimers();
+      }
+    },
+  );
+
+  it.each(vectors.sequences.map((v) => [v.name, v] as const))(
+    'sequence: %s',
+    async (_, vector) => {
+      const {purchases, answers, pendingIOS} = vector;
+      const confirms: Record<string, number> = {};
+      const finishes: Record<string, number> = {};
+      const published: PurchaseFlowOutcome<PurchaseFlowPurchase>[] = [];
+      const consumables = new Set(vector.consumables);
+      const requested = new Set(vector.requested);
+      const store: {deliver?: (purchase: PurchaseFlowPurchase) => void} = {};
+      const flow = createPurchaseFlow<PurchaseFlowPurchase>({
+        confirmWithBackend: async (purchase) => {
+          const count = (confirms[purchase.id] =
+            (confirms[purchase.id] ?? 0) + 1);
+          const list = answers[purchase.id] ?? answers['*'];
+          const answer = list[Math.min(count, list.length) - 1];
+          if (answer === 'throw') throw new Error('backend down');
+          return answer;
+        },
+        finishTransaction: async ({purchase}) => {
+          finishes[purchase.id] = (finishes[purchase.id] ?? 0) + 1;
+        },
+        isConsumable: (productId) => consumables.has(productId),
+        getAvailablePurchases: async () =>
+          (vector.available ?? []).map((key) => purchases[key]),
+        getPendingTransactionsIOS:
+          pendingIOS === undefined
+            ? undefined
+            : async () => {
+                if (pendingIOS === 'throw') throw new Error('unverified');
+                return pendingIOS.map((key) => purchases[key]);
+              },
+        listenForPurchases: (onPurchase) => {
+          store.deliver = onPurchase;
+          return {
+            remove: () => {
+              store.deliver = undefined;
+            },
+          };
+        },
+        wasRequested: (purchase) =>
+          vector.requestedOnce
+            ? requested.delete(purchase.id)
+            : requested.has(purchase.id),
+      });
+      flow.subscribe((outcome) => published.push(outcome));
+      const comparable = (status: PurchaseFlowStatus) => {
+        const {error, finishError, ...rest} = status as Record<string, unknown>;
+        return {
+          ...rest,
+          ...(error === undefined ? {} : {error: true}),
+          ...(finishError === undefined ? {} : {finishError: true}),
+        };
+      };
+      const byId = (outcomes: PurchaseFlowOutcome<PurchaseFlowPurchase>[]) =>
+        outcomes.map(({purchase, status}) => ({
+          id: purchase.id,
+          status: comparable(status),
+        }));
+
+      try {
+        for (const step of vector.steps) {
+          if (step.dispose) flow.dispose();
+          for (const key of step.listener ?? [])
+            store.deliver?.(purchases[key]);
+          const processed = (step.process ?? []).map((key) =>
+            flow.processPurchase(purchases[key]),
+          );
+          const recovered = step.recover
+            ? flow.recoverPurchases(step.recover)
+            : undefined;
+          await Promise.all(processed);
+          if (recovered) expect(byId(await recovered)).toEqual(step.outcomes);
+          // Listener deliveries settle without a promise to wait on.
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+
+        expect(confirms).toEqual(vector.confirms);
+        expect(finishes).toEqual(vector.finishes);
+        if (vector.published) {
+          expect(byId(published)).toEqual(vector.published);
+        }
+      } finally {
+        flow.dispose();
       }
     },
   );

@@ -1,8 +1,7 @@
 // Published purchase-flow entry point: keep legacy helpers outside the core.
 import type {
   PurchaseFlowPurchase,
-  PurchaseConfirmer,
-  PurchaseGrant,
+  PurchaseFlowOptions,
   PurchaseConfirmation,
 } from "./purchase-flow-core";
 
@@ -35,15 +34,17 @@ export interface IapkitVerificationResult extends VerificationResult {}
 export function createIapkitConfirmation<P extends PurchaseFlowPurchase>(
   verify: (props: IapkitVerificationProps) => Promise<IapkitVerificationResult>,
   options: IapkitConfirmationOptions<P>,
-): PurchaseConfirmer<P> {
+): PurchaseFlowOptions<P>["confirmWithBackend"] {
   return iapkitConfirmation(verify, options);
 }
 
 /** @deprecated Use the SDK's confirmOnDeviceIOS. Removed in the next major release. */
 export function createDeviceConfirmationIOS<P extends PurchaseFlowPurchase>(
   getPendingTransactionsIOS: () => Promise<P[]>,
-  options: { grant?: PurchaseGrant<P> } = {},
-): PurchaseConfirmer<P> {
+  options: {
+    grant?: (purchase: P, context: { isConsumable: boolean }) => Promise<void>;
+  } = {},
+): PurchaseFlowOptions<P>["confirmWithBackend"] {
   return deviceConfirmation(getPendingTransactionsIOS, options);
 }
 

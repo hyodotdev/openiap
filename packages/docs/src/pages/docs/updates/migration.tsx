@@ -266,6 +266,14 @@ const scheduledRemovals = [
     title: 'Removal in expo-iap 7.0',
     rows: [
       [
+        'createIapkitConfirmation / createDeviceConfirmationIOS / toIapkitVerificationProps / readIapkitVerification from expo-iap/build/purchase-flow or expo-iap/src/purchase-flow',
+        'confirmWithIapkit / confirmOnDeviceIOS from expo-iap, or a vendor-independent confirmWithBackend callback',
+      ],
+      [
+        'IapkitConfirmationOptions / IapkitVerificationProps / IapkitVerificationResult from the Expo purchase-flow deep imports',
+        'IapkitConfirmationOptions / VerifyPurchaseWithProviderProps / VerifyPurchaseWithProviderResult from expo-iap; the root types remain supported',
+      ],
+      [
         'modules.horizon / EXPO_IAP_HORIZON=1',
         'ORG_GRADLE_PROJECT_openiapStore=horizon in the EAS profile env; a local debug build follows the connected Quest',
       ],
@@ -570,9 +578,8 @@ function Migration() {
 
       <h1>Migration</h1>
       <p className="lead">
-        One section per coordinated major train. Each train lists the versions
-        that drop the previously deprecated, OpenIAP-owned compatibility surface
-        and the canonical call to use instead.
+        Find replacements for deprecated APIs and the package versions scheduled
+        to remove them.
       </p>
 
       <section>
@@ -581,9 +588,10 @@ function Migration() {
         </AnchorLink>
         <p>
           These deprecated APIs, keys, and fields remain available through patch
-          and minor releases. Their removal moves to the versions below; shared
-          Gradle flags are removed together across the packages that read them.
-          Migrate using{' '}
+          and minor releases. Each package removes its own confirmation helpers
+          in its next major independently. Shared Gradle flags are removed
+          together across the packages that read them. For store configuration,
+          see{' '}
           <Link to="/docs/setup/store#selection">
             How the Store Is Selected
           </Link>

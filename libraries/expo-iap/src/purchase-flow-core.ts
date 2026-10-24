@@ -57,28 +57,6 @@ export type PurchaseConfirmation =
   | { status: "linked"; retryAfterMs?: number }
   | { status: "entitled"; alreadyGranted: boolean };
 
-/**
- * Gives the user what they bought, before the flow finishes (and so consumes)
- * the purchase. Must be idempotent per `purchase.id`: after a crash the same
- * purchase is confirmed again.
- */
-export type PurchaseGrant<
-  P extends PurchaseFlowPurchase = PurchaseFlowPurchase,
-> = (purchase: P, context: { isConsumable: boolean }) => Promise<void>;
-
-/**
- * Confirms one purchase and grants access before it resolves `entitled`: the
- * flow finishes, and so consumes, the purchase right after. A confirmer that
- * throws or times out leaves the purchase unfinished for the next delivery or
- * recovery. Any verification service plugs in here.
- */
-export type PurchaseConfirmer<
-  P extends PurchaseFlowPurchase = PurchaseFlowPurchase,
-> = (
-  purchase: P,
-  context: { isConsumable: boolean },
-) => Promise<PurchaseConfirmation>;
-
 type Finishable = "entitled" | "ownership_conflict" | "test_account_restricted";
 
 /**
@@ -115,10 +93,14 @@ export interface PurchaseFlowOutcome<P extends PurchaseFlowPurchase> {
 
 export interface PurchaseFlowOptions<P extends PurchaseFlowPurchase> {
   /**
-   * Usually a call to the app backend. An app without one passes the SDK's
-   * `confirmWithIapkit`, `confirmOnDeviceIOS`, or another service's confirmer.
+   * Confirms and grants access before returning `entitled`; the flow finishes
+   * the purchase immediately after. Throws or timeouts leave it unfinished
+   * for recovery. An app backend or any verification service can answer here.
    */
-  confirmWithBackend: PurchaseConfirmer<P>;
+  confirmWithBackend: (
+    purchase: P,
+    context: { isConsumable: boolean },
+  ) => Promise<PurchaseConfirmation>;
   /**
    * Milliseconds `confirmWithBackend` may take before the purchase ends as
    * `failed`, so a hung call cannot hold it for the session. Default 30000.

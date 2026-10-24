@@ -41,8 +41,8 @@ const PURCHASE_CONFIRMER_RELEASES: readonly ReleaseMetadata[] = [
   },
   {
     name: 'react-native-iap',
-    version: '17.3.0',
-    tag: 'react-native-iap-17.3.0',
+    version: '17.2.1',
+    tag: 'react-native-iap-17.2.1',
   },
   { name: 'expo-iap', version: '6.3.0', tag: 'expo-iap-6.3.0' },
   {
@@ -690,8 +690,7 @@ function Releases() {
           <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
             <li>
               <strong>Client Protocol 1.3.0</strong>: <code>purchase-flow</code>{' '}
-              exports the <code>PurchaseConfirmer</code> and{' '}
-              <code>PurchaseGrant</code> types. Existing helpers and
+              keeps its existing callback contract. Existing helpers and
               verification types remain available but deprecated until Client
               Protocol 2.0.
             </li>
@@ -699,10 +698,16 @@ function Releases() {
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
           <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
             <li>
-              <strong>react-native-iap 17.3.0</strong> and{' '}
-              <strong>expo-iap 6.3.0</strong>: export the{' '}
-              <code>PurchaseConfirmer</code> and <code>PurchaseGrant</code>{' '}
-              types.
+              <strong>react-native-iap 17.2.1</strong>: keeps the existing SDK
+              confirmation helpers and callback contract while separating
+              verification services from the purchase lifecycle.
+            </li>
+            <li>
+              <strong>expo-iap 6.3.0</strong>: deprecates the low-level helpers
+              and verification types under{' '}
+              <code>expo-iap/build/purchase-flow</code> and{' '}
+              <code>expo-iap/src/purchase-flow</code> until Expo 7.0. Root
+              imports remain supported.
             </li>
             <li>
               <strong>flutter_inapp_purchase 11.2.0</strong>: deprecates{' '}

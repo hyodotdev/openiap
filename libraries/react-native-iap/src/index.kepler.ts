@@ -1,7 +1,6 @@
 import {getVegaIapModule as getVegaAdapter} from './vega';
 import {ErrorCode} from './types';
 import {
-  type PurchaseConfirmer,
   type PurchaseFlow,
   type PurchaseFlowOptions,
   type PurchaseFlowPurchase,
@@ -84,7 +83,6 @@ export {
 export type {
   PurchaseConfirmation,
   PurchaseConfirmationRequest,
-  PurchaseConfirmer,
   PurchaseFlow,
   PurchaseFlowGuidance,
   PurchaseFlowGuidanceKey,
@@ -92,7 +90,6 @@ export type {
   PurchaseFlowOutcome,
   PurchaseFlowPurchase,
   PurchaseFlowStatus,
-  PurchaseGrant,
   RecoverPurchasesOptions,
 } from './purchase-flow-core';
 export type {IapkitConfirmationOptions} from './purchase-flow-confirmers';
@@ -426,6 +423,6 @@ export function createPurchaseFlow(
  */
 export function confirmWithIapkit(
   options: IapkitConfirmationOptions<Purchase>,
-): PurchaseConfirmer<Purchase> {
+): PurchaseFlowOptions<Purchase>['confirmWithBackend'] {
   return createIapkitConfirmation(verifyPurchaseWithProvider, options);
 }

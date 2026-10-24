@@ -112,11 +112,11 @@ describe("published package", () => {
       [
         'import { ErrorCode } from "@hyodotdev/openiap-client-protocol";',
         'import { kitApi } from "@hyodotdev/openiap-client-protocol/kit-api";',
-        'import type { PurchaseConfirmation, PurchaseConfirmer, PurchaseFlowPurchase } from "@hyodotdev/openiap-client-protocol/purchase-flow";',
+        'import type { PurchaseConfirmation, PurchaseFlowOptions, PurchaseFlowPurchase } from "@hyodotdev/openiap-client-protocol/purchase-flow";',
         'import { createIapkitConfirmation, createDeviceConfirmationIOS, toIapkitVerificationProps, readIapkitVerification, type IapkitConfirmationOptions, type IapkitVerificationProps, type IapkitVerificationResult } from "@hyodotdev/openiap-client-protocol/purchase-flow";',
         "const code: ErrorCode = ErrorCode.Unknown;",
         'const confirmation: PurchaseConfirmation = { status: "linked" };',
-        "const confirm: PurchaseConfirmer = async () => confirmation;",
+        'const confirm: PurchaseFlowOptions<PurchaseFlowPurchase>["confirmWithBackend"] = async () => confirmation;',
         "const options: IapkitConfirmationOptions = {};",
         "void code;",
         "void kitApi;",
@@ -124,7 +124,7 @@ describe("published package", () => {
         "const props: IapkitVerificationProps = { provider: 'iapkit', iapkit: {} };",
         "const result: IapkitVerificationResult = {};",
         "const verify = async (_props: IapkitVerificationProps) => result;",
-        "const legacy: PurchaseConfirmer[] = [createIapkitConfirmation(verify, options), createDeviceConfirmationIOS<PurchaseFlowPurchase>(async () => [])];",
+        'const legacy: (PurchaseFlowOptions<PurchaseFlowPurchase>["confirmWithBackend"])[] = [createIapkitConfirmation(verify, options), createDeviceConfirmationIOS<PurchaseFlowPurchase>(async () => [])];',
         "void props; void legacy; void toIapkitVerificationProps; void readIapkitVerification;",
       ].join("\n"),
     );

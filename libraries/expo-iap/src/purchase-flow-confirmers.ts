@@ -3,9 +3,8 @@
 // verification service's confirmer would.
 import type {
   PurchaseConfirmation,
-  PurchaseConfirmer,
+  PurchaseFlowOptions,
   PurchaseFlowPurchase,
-  PurchaseGrant,
 } from "./purchase-flow-core";
 
 type IapkitStore = "apple" | "google" | "amazon" | "horizon";
@@ -30,8 +29,8 @@ export interface IapkitConfirmationOptions<
   };
   /** The IAPKit store that verifies a community store's evidence, such as an Amazon RVS adapter. */
   verifyAs?: (purchase: P) => IapkitStore | undefined;
-  /** See {@link PurchaseGrant}; required for consumables. */
-  grant?: PurchaseGrant<P>;
+  /** Credits consumables before finishing; must be idempotent per purchase.id. */
+  grant?: (purchase: P, context: { isConsumable: boolean }) => Promise<void>;
 }
 
 /** The SDK's `VerifyPurchaseWithProviderProps` for IAPKit. */
@@ -77,7 +76,7 @@ export function createIapkitConfirmation<P extends PurchaseFlowPurchase>(
     props: IapkitVerificationProps,
   ) => Promise<IapkitVerificationResult>,
   options: IapkitConfirmationOptions<P>,
-): PurchaseConfirmer<P> {
+): PurchaseFlowOptions<P>["confirmWithBackend"] {
   return async (purchase, context) => {
     requireGrant("confirmWithIapkit", purchase, context, options);
     const confirmation = readIapkitVerification(
@@ -104,10 +103,10 @@ export function createIapkitConfirmation<P extends PurchaseFlowPurchase>(
 export function createDeviceConfirmationIOS<P extends PurchaseFlowPurchase>(
   getPendingTransactionsIOS: () => Promise<P[]>,
   options: {
-    /** See {@link PurchaseGrant}; required for consumables. */
-    grant?: PurchaseGrant<P>;
+    /** Required for consumables; credit each purchase.id only once. */
+    grant?: (purchase: P, context: { isConsumable: boolean }) => Promise<void>;
   } = {},
-): PurchaseConfirmer<P> {
+): PurchaseFlowOptions<P>["confirmWithBackend"] {
   return async (purchase, context) => {
     requireGrant("confirmOnDeviceIOS", purchase, context, options);
     // A community provider may report store "apple" under its own storeId.
@@ -150,7 +149,7 @@ function requireGrant<P extends PurchaseFlowPurchase>(
   name: string,
   purchase: P,
   context: { isConsumable: boolean },
-  options: { grant?: PurchaseGrant<P> },
+  options: Pick<IapkitConfirmationOptions<P>, "grant">,
 ): void {
   if (context.isConsumable && !options.grant) {
     throw new Error(

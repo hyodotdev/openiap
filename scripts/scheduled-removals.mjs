@@ -26,59 +26,62 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PACKAGE_JSON_VERSION = /"version":\s*"([^"]+)"/;
 const NEXT_MAJOR_NOTICE = /removed in the next major release/i;
 const MIGRATION_PAGE = "packages/docs/src/pages/docs/updates/migration.tsx";
+const LEGACY_CONFIRMATION_EXPORTS = [
+  "export function createIapkitConfirmation",
+  "export function createDeviceConfirmationIOS",
+  "export function toIapkitVerificationProps",
+  "export function readIapkitVerification",
+  "export interface IapkitConfirmationOptions",
+  "export interface IapkitVerificationProps",
+  "export interface IapkitVerificationResult",
+];
 
-export const scheduledRemovalRules = [
+const confirmationHelperRules = [
   {
-    label: "low-level purchase confirmation helpers",
-    packages: [
+    package: {
+      name: "@hyodotdev/openiap-client-protocol",
+      major: 1,
+      file: "specs/client/package.json",
+      pattern: PACKAGE_JSON_VERSION,
+    },
+    sources: [
       {
-        name: "@hyodotdev/openiap-client-protocol",
-        major: 1,
-        file: "specs/client/package.json",
-        pattern: PACKAGE_JSON_VERSION,
-      },
-      {
-        name: "flutter_inapp_purchase",
-        major: 11,
-        file: "libraries/flutter_inapp_purchase/pubspec.yaml",
-        pattern: /^version:\s*(\S+)/m,
-      },
-      {
-        name: "godot-iap",
-        major: 4,
-        file: "libraries/godot-iap/addons/godot-iap/plugin.cfg",
-        pattern: /^version="([^"]+)"/m,
-      },
-      {
-        name: "kmp-iap",
-        major: 4,
-        file: "libraries/kmp-iap/gradle.properties",
-        pattern: /^libraryVersion=(\S+)/m,
-      },
-      {
-        name: "OpenIap.Maui",
-        major: 3,
-        file: "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
-        pattern: /<PackageVersion>([^<]+)<\/PackageVersion>/,
+        file: "specs/client/src/purchase-flow.ts",
+        tokens: LEGACY_CONFIRMATION_EXPORTS,
       },
     ],
+    catalog: [
+      "createIapkitConfirmation",
+      "createDeviceConfirmationIOS",
+      "toIapkitVerificationProps",
+      "readIapkitVerification",
+      "IapkitVerificationProps",
+      "IapkitVerificationResult",
+    ],
+  },
+  {
+    package: {
+      name: "expo-iap",
+      major: 6,
+      file: "libraries/expo-iap/package.json",
+      pattern: PACKAGE_JSON_VERSION,
+    },
     sources: [
-      ...[
-        "specs/client/src/purchase-flow.ts",
-        "libraries/react-native-iap/src/purchase-flow.ts",
-        "libraries/expo-iap/src/purchase-flow.ts",
-      ].map((file) => ({
-        file,
-        tokens: [
-          "export function createIapkitConfirmation",
-          "export function createDeviceConfirmationIOS",
-          "export function toIapkitVerificationProps",
-          "export function readIapkitVerification",
-          "export interface IapkitConfirmationOptions",
-          "export interface IapkitVerificationProps",
-          "export interface IapkitVerificationResult",
-        ],
-      })),
+      {
+        file: "libraries/expo-iap/src/purchase-flow.ts",
+        tokens: LEGACY_CONFIRMATION_EXPORTS,
+      },
+    ],
+    catalog: ["expo-iap/build/purchase-flow", "expo-iap/src/purchase-flow"],
+  },
+  {
+    package: {
+      name: "flutter_inapp_purchase",
+      major: 11,
+      file: "libraries/flutter_inapp_purchase/pubspec.yaml",
+      pattern: /^version:\s*(\S+)/m,
+    },
+    sources: [
       {
         file: "libraries/flutter_inapp_purchase/lib/src/purchase_flow.dart",
         tokens: [
@@ -88,6 +91,49 @@ export const scheduledRemovalRules = [
           "PurchaseConfirmation readIapkitVerification",
         ],
       },
+    ],
+    catalog: [
+      "createIapkitConfirmation",
+      "createDeviceConfirmationIOS",
+      "toIapkitVerificationProps",
+      "readIapkitVerification",
+    ],
+  },
+  {
+    package: {
+      name: "godot-iap",
+      major: 4,
+      file: "libraries/godot-iap/addons/godot-iap/plugin.cfg",
+      pattern: /^version="([^"]+)"/m,
+    },
+    sources: [
+      {
+        file: "libraries/godot-iap/addons/godot-iap/purchase_flow.gd",
+        tokens: [
+          "static func create_iapkit_confirmation",
+          "static func create_device_confirmation_ios",
+          "static func to_iapkit_verification_props",
+          "static func read_iapkit_verification",
+          "const IAPKIT_UNKNOWN_RETRY_MS",
+        ],
+      },
+    ],
+    catalog: [
+      "create_iapkit_confirmation",
+      "create_device_confirmation_ios",
+      "to_iapkit_verification_props",
+      "read_iapkit_verification",
+      "IAPKIT_UNKNOWN_RETRY_MS",
+    ],
+  },
+  {
+    package: {
+      name: "kmp-iap",
+      major: 4,
+      file: "libraries/kmp-iap/gradle.properties",
+      pattern: /^libraryVersion=(\S+)/m,
+    },
+    sources: [
       {
         file: "libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/IapkitConfirmation.kt",
         tokens: [
@@ -100,6 +146,22 @@ export const scheduledRemovalRules = [
         file: "libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/DeviceConfirmationIOS.kt",
         tokens: ["public fun createDeviceConfirmationIOS"],
       },
+    ],
+    catalog: [
+      "createIapkitConfirmation",
+      "createDeviceConfirmationIOS",
+      "toIapkitVerificationProps",
+      "readIapkitVerification",
+    ],
+  },
+  {
+    package: {
+      name: "OpenIap.Maui",
+      major: 3,
+      file: "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+      pattern: /<PackageVersion>([^<]+)<\/PackageVersion>/,
+    },
+    sources: [
       {
         file: "libraries/maui-iap/src/OpenIap.Maui/IapkitConfirmation.cs",
         tokens: [
@@ -116,33 +178,17 @@ export const scheduledRemovalRules = [
           "public static PurchaseConfirmer Create",
         ],
       },
-      {
-        file: "libraries/godot-iap/addons/godot-iap/purchase_flow.gd",
-        tokens: [
-          "static func create_iapkit_confirmation",
-          "static func create_device_confirmation_ios",
-          "static func to_iapkit_verification_props",
-          "static func read_iapkit_verification",
-          "const IAPKIT_UNKNOWN_RETRY_MS",
-        ],
-      },
     ],
-    catalog: [
-      "createIapkitConfirmation",
-      "createDeviceConfirmationIOS",
-      "toIapkitVerificationProps",
-      "readIapkitVerification",
-      "IapkitVerificationProps",
-      "IapkitVerificationResult",
-      "IapkitConfirmation",
-      "DeviceConfirmationIOS",
-      "create_iapkit_confirmation",
-      "create_device_confirmation_ios",
-      "to_iapkit_verification_props",
-      "read_iapkit_verification",
-      "IAPKIT_UNKNOWN_RETRY_MS",
-    ],
+    catalog: ["IapkitConfirmation", "DeviceConfirmationIOS"],
   },
+].map(({ package: pkg, ...rule }) => ({
+  label: `${pkg.name} low-level purchase confirmation helpers`,
+  packages: [pkg],
+  ...rule,
+}));
+
+export const scheduledRemovalRules = [
+  ...confirmationHelperRules,
   {
     label: "legacy Gradle store flags",
     packages: [
