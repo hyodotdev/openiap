@@ -717,7 +717,8 @@ function Releases() {
               deprecates <code>create_iapkit_confirmation</code>,{' '}
               <code>create_device_confirmation_ios</code>,{' '}
               <code>to_iapkit_verification_props</code>, or{' '}
-              <code>read_iapkit_verification</code>.
+              <code>read_iapkit_verification</code>. Compatibility helpers also
+              work when the addon is installed outside its default path.
             </li>
             <li>
               <strong>kmp-iap 4.1.1</strong>:{' '}

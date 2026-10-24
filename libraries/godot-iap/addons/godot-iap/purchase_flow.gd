@@ -13,6 +13,8 @@ extends RefCounted
 ##
 ## See: https://kit.openiap.dev/docs/purchase-flow
 
+const _Confirmers = preload("purchase_confirmers.gd")
+
 ## Every outcome: once per confirmation, however many deliveries shared it,
 ## and once per delivery of an already settled purchase.
 signal purchase_processed(purchase: Dictionary, status: Status)
@@ -77,15 +79,7 @@ class Status:
 
 
 ## An error a callback returns in place of its result.
-class Failure:
-	extends RefCounted
-	var message: String
-
-	func _init(text: String) -> void:
-		message = text
-
-	func _to_string() -> String:
-		return message
+const Failure = preload("purchase_flow_failure.gd")
 
 
 # A result callers wait for; the coroutine may finish before anyone awaits it.
@@ -448,22 +442,22 @@ const IAPKIT_UNKNOWN_RETRY_MS = 30000
 ## @deprecated: Use GodotIapWrapper.confirm_with_iapkit. Removed in the next major release.
 static func create_iapkit_confirmation(verify: Callable, options: Dictionary) -> Callable:
 	push_warning("Use confirm_with_iapkit. Removed in the next major release.")
-	return load("res://addons/godot-iap/purchase_confirmers.gd").create_iapkit_confirmation(verify, options)
+	return _Confirmers.create_iapkit_confirmation(verify, options)
 
 
 ## @deprecated: Use GodotIapWrapper.confirm_on_device_ios. Removed in the next major release.
 static func create_device_confirmation_ios(get_pending_transactions_ios: Callable, options := {}) -> Callable:
 	push_warning("Use confirm_on_device_ios. Removed in the next major release.")
-	return load("res://addons/godot-iap/purchase_confirmers.gd").create_device_confirmation_ios(get_pending_transactions_ios, options)
+	return _Confirmers.create_device_confirmation_ios(get_pending_transactions_ios, options)
 
 
 ## @deprecated: Use GodotIapWrapper.confirm_with_iapkit. Removed in the next major release.
 static func to_iapkit_verification_props(purchase: Dictionary, options: Dictionary) -> Variant:
 	push_warning("Use confirm_with_iapkit. Removed in the next major release.")
-	return load("res://addons/godot-iap/purchase_confirmers.gd").to_iapkit_verification_props(purchase, options)
+	return _Confirmers.to_iapkit_verification_props(purchase, options)
 
 
 ## @deprecated: Use GodotIapWrapper.confirm_with_iapkit. Removed in the next major release.
 static func read_iapkit_verification(result: Dictionary, purchase: Dictionary, is_consumable: bool, options := {}) -> Variant:
 	push_warning("Use confirm_with_iapkit. Removed in the next major release.")
-	return load("res://addons/godot-iap/purchase_confirmers.gd").read_iapkit_verification(result, purchase, is_consumable, options)
+	return _Confirmers.read_iapkit_verification(result, purchase, is_consumable, options)

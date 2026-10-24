@@ -4,7 +4,7 @@ extends RefCounted
 ## specs/client/src/purchase-flow-confirmers.ts. They use only the purchase
 ## flow's public contract, as any other verification service's confirmer would.
 
-const PurchaseFlow = preload("purchase_flow.gd")
+const Failure = preload("purchase_flow_failure.gd")
 const IAPKIT_UNKNOWN_RETRY_MS := 30000
 
 # Unix time in ms that tests set; null reads the system clock.
@@ -20,10 +20,10 @@ static func create_iapkit_confirmation(verify: Callable, options: Dictionary) ->
 		if missing_grant != null:
 			return missing_grant
 		var props = to_iapkit_verification_props(purchase, options)
-		if props is PurchaseFlow.Failure:
+		if props is Failure:
 			return props
 		var result = await verify.call(props)
-		if result is PurchaseFlow.Failure:
+		if result is Failure:
 			return result
 		var confirmation = read_iapkit_verification(result, purchase, is_consumable, options)
 		if confirmation is Dictionary and confirmation.status == "entitled" and not confirmation.alreadyGranted:
@@ -46,9 +46,9 @@ static func create_device_confirmation_ios(get_pending_transactions_ios: Callabl
 		# A community provider may report store "apple" under its own storeId.
 		var store_id = purchase.get("storeId")
 		if purchase.get("store") != "apple" or (store_id != null and store_id != "apple"):
-			return PurchaseFlow.Failure.new("Device confirmation covers App Store purchases, not %s" % (purchase.get("store") if store_id == null else store_id))
+			return Failure.new("Device confirmation covers App Store purchases, not %s" % (purchase.get("store") if store_id == null else store_id))
 		var pending = await get_pending_transactions_ios.call()
-		if pending is PurchaseFlow.Failure:
+		if pending is Failure:
 			return pending
 		# After the query: a transaction can expire while StoreKit answers.
 		var now := _now_ms()
@@ -64,7 +64,7 @@ static func create_device_confirmation_ios(get_pending_transactions_ios: Callabl
 				and (expiration == null or expiration > now) \
 				and (environment == null or candidate.get("environmentIOS") == environment))
 		if not verified:
-			return PurchaseFlow.Failure.new("StoreKit lists no valid unfinished transaction for %s" % purchase.productId)
+			return Failure.new("StoreKit lists no valid unfinished transaction for %s" % purchase.productId)
 		var failed_grant := await _grant(purchase, is_consumable, options)
 		if failed_grant != null:
 			return failed_grant
@@ -76,26 +76,26 @@ static func _now_ms() -> float:
 
 
 # Checked before verifying: a consumable must never pass without a way to credit it.
-static func _missing_grant(name: String, purchase: Dictionary, is_consumable: bool, options: Dictionary) -> PurchaseFlow.Failure:
+static func _missing_grant(name: String, purchase: Dictionary, is_consumable: bool, options: Dictionary) -> Failure:
 	if is_consumable and options.get("grant") == null:
-		return PurchaseFlow.Failure.new("%s needs grant to credit consumable %s before it is consumed" % [name, purchase.productId])
+		return Failure.new("%s needs grant to credit consumable %s before it is consumed" % [name, purchase.productId])
 	return null
 
 
 # A grant that hit a script error answers null, so only true counts as credited.
-static func _grant(purchase: Dictionary, is_consumable: bool, options: Dictionary) -> PurchaseFlow.Failure:
+static func _grant(purchase: Dictionary, is_consumable: bool, options: Dictionary) -> Failure:
 	var grant = options.get("grant")
 	if grant == null:
 		return null
 	var granted = await grant.call(purchase, is_consumable)
-	if granted is PurchaseFlow.Failure:
+	if granted is Failure:
 		return granted
 	if not _same(granted, true):
-		return PurchaseFlow.Failure.new("grant did not return true for %s" % purchase.productId)
+		return Failure.new("grant did not return true for %s" % purchase.productId)
 	return null
 
 
-## Builds the IAPKit request for a purchase; returns a PurchaseFlow.Failure for a store
+## Builds the IAPKit request for a purchase; returns a Failure for a store
 ## IAPKit cannot verify.
 static func to_iapkit_verification_props(purchase: Dictionary, options: Dictionary) -> Variant:
 	var iapkit := {}
@@ -104,7 +104,7 @@ static func to_iapkit_verification_props(purchase: Dictionary, options: Dictiona
 		# A blank key is a missing setting, not a choice to leave the key out.
 		api_key = String(api_key).strip_edges()
 		if api_key.is_empty():
-			return PurchaseFlow.Failure.new("IAPKit api_key is empty")
+			return Failure.new("IAPKit api_key is empty")
 		iapkit["apiKey"] = api_key
 	var base_url = options.get("base_url")
 	base_url = "" if base_url == null else String(base_url).strip_edges()
@@ -115,10 +115,10 @@ static func to_iapkit_verification_props(purchase: Dictionary, options: Dictiona
 		iapkit["horizon"] = {"sku": purchase.productId}
 		return {"provider": "iapkit", "iapkit": iapkit}
 	if store not in ["apple", "google", "amazon"]:
-		return PurchaseFlow.Failure.new("IAPKit cannot verify store %s" % purchase.get("store"))
+		return Failure.new("IAPKit cannot verify store %s" % purchase.get("store"))
 	var token = purchase.get("purchaseToken")
 	if not token is String or token.is_empty():
-		return PurchaseFlow.Failure.new("Purchase %s has no purchase token to verify" % purchase.productId)
+		return Failure.new("Purchase %s has no purchase token to verify" % purchase.productId)
 	match store:
 		"apple":
 			iapkit["apple"] = {"jws": token}
@@ -137,7 +137,7 @@ static func to_iapkit_verification_props(purchase: Dictionary, options: Dictiona
 
 
 ## Turns IAPKit's answer into the flow's confirmation. Anything that may be a
-## configuration error rather than a rejected payment is a PurchaseFlow.Failure, so the flow
+## configuration error rather than a rejected payment is a Failure, so the flow
 ## reports failed and leaves the purchase unfinished: evidence for another
 ## store, product, or environment, inauthentic (IAPKit's answer to a product or
 ## package mismatch, and to every Horizon rejection), and a valid state this
@@ -150,7 +150,7 @@ static func read_iapkit_verification(result: Dictionary, purchase: Dictionary, i
 		for error in (errors if errors is Array else []):
 			var code = error.get("code")
 			messages.append("[%s] %s" % [code, error.get("message")] if code else str(error.get("message")))
-		return PurchaseFlow.Failure.new("\n".join(messages) if not messages.is_empty() else "IAPKit returned no verification result")
+		return Failure.new("\n".join(messages) if not messages.is_empty() else "IAPKit returned no verification result")
 	var state = verified.get("state")
 	match state:
 		"pending":
@@ -171,7 +171,7 @@ static func read_iapkit_verification(result: Dictionary, purchase: Dictionary, i
 	else:
 		mismatch = _environment_mismatch(verified.get("environment"), store, purchase, options)
 	if not mismatch.is_empty():
-		return PurchaseFlow.Failure.new("IAPKit verified " + mismatch)
+		return Failure.new("IAPKit verified " + mismatch)
 	if not _same(verified.get("isValid"), true):
 		match state:
 			"canceled", "expired":
@@ -179,9 +179,9 @@ static func read_iapkit_verification(result: Dictionary, purchase: Dictionary, i
 			# Only a granted purchase is consumed; the flow grants before finishing.
 			"consumed":
 				return {"status": "entitled", "alreadyGranted": true}
-		return PurchaseFlow.Failure.new("IAPKit rejected the purchase: %s" % state)
+		return Failure.new("IAPKit rejected the purchase: %s" % state)
 	if not _grants_access(store, state, is_consumable):
-		return PurchaseFlow.Failure.new("IAPKit state %s cannot grant this %s %s purchase" % [
+		return Failure.new("IAPKit state %s cannot grant this %s %s purchase" % [
 			state, "consumable" if is_consumable else "non-consumable", purchase.get("store"),
 		])
 	return {"status": "entitled", "alreadyGranted": false}

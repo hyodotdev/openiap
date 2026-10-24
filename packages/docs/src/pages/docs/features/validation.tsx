@@ -357,9 +357,18 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
           .
         </p>
         <p>
-          Any other verification service plugs in the same way. The verifier
-          must compare the store-verified product with{' '}
-          <code>purchase.productId</code> before returning a valid verdict.{' '}
+          Any other verification service plugs in the same way. Before reporting
+          a valid verdict, your backend must bind the store-verified evidence to
+          the intended store and provider, the expected product, and an allowed
+          environment. Use the adapter&apos;s documented product mapping, such
+          as a subscription term to its parent SKU. Choose allowed stores,
+          providers, and environments from trusted backend configuration;
+          client-supplied values are not proof. Missing or mismatched evidence
+          must throw, leaving the purchase unfinished for investigation and
+          retry. In the example below, <code>myVerifier.verify</code> performs
+          these checks before returning <code>valid</code>.
+        </p>
+        <p>
           <code>confirmWithBackend</code> takes a <code>PurchaseConfirmer</code>
           : a function that receives the purchase and whether it is consumable,
           and answers its confirmation. Answer <code>entitled</code> once access

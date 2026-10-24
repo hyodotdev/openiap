@@ -71,18 +71,57 @@ void main() {
         storeId: storeId,
       );
 
-      // The flow's shared vectors cover how these options verify a receipt.
-      expect(options.apiKey, 'openiap-kit_pk_test');
-      expect(options.baseUrl, isNull);
-      expect(options.amazon?.sandbox, IapConstants.amazonRvsSandbox);
+      // Exercise the published compatibility helpers with the example's options.
+      // ignore: deprecated_member_use
+      final props = toIapkitVerificationProps(purchase, options).iapkit!;
+
+      expect(props.apiKey, 'openiap-kit_pk_test');
+      expect(props.baseUrl, isNull);
+      expect(props.amazon?.receiptId, 'receipt');
+      expect(props.amazon?.expectedProductId, 'dev.hyo.martie.premium.base');
+      expect(props.amazon?.sandbox, IapConstants.amazonRvsSandbox);
+      final environment =
+          IapConstants.amazonRvsSandbox ? 'Sandbox' : 'Production';
+      VerifyPurchaseWithProviderResult result({
+        String productId = 'dev.hyo.martie.premium.base',
+        String? env,
+      }) =>
+          VerifyPurchaseWithProviderResult(
+            provider: PurchaseVerificationProvider.Iapkit,
+            iapkit: RequestVerifyPurchaseWithIapkitResult(
+              isValid: true,
+              productId: productId,
+              state: IapkitPurchaseState.Entitled,
+              store: purchase.store,
+              storeId: storeId,
+              environment: env ?? environment,
+            ),
+          );
       expect(
-        options.amazon?.verifiedProductId?.call(purchase.productId),
-        'dev.hyo.martie.premium.base',
+        // ignore: deprecated_member_use
+        readIapkitVerification(
+          result(),
+          purchase,
+          isConsumable: false,
+          options: options,
+        ),
+        isA<PurchaseEntitled>(),
       );
-      expect(
-        options.verifyAs?.call(purchase) ?? purchase.store,
-        IapStore.Amazon,
-      );
+      for (final foreign in [
+        result(productId: 'foreign.base'),
+        result(env: environment == 'Sandbox' ? 'Production' : 'Sandbox'),
+      ]) {
+        expect(
+          // ignore: deprecated_member_use
+          () => readIapkitVerification(
+            foreign,
+            purchase,
+            isConsumable: false,
+            options: options,
+          ),
+          throwsA(isA<PurchaseError>()),
+        );
+      }
     });
   }
 
