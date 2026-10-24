@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+import '../app_purchase_flow.dart';
 import '../constants.dart';
 
 /// Alternative Billing Example
@@ -78,10 +79,17 @@ class _AlternativeBillingScreenState extends State<AlternativeBillingScreen> {
     _userChoiceBillingSubscription?.cancel();
     _urlController.dispose();
 
-    FlutterInappPurchase.instance.endConnection().catchError((e) {
-      debugPrint('[AlternativeBilling] Error ending connection: $e');
-      return false;
-    });
+    // Back to the standard client without disconnecting the app-wide flow.
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      FlutterInappPurchase.instance
+          .initConnection(
+        enableBillingProgramAndroid: BillingProgramAndroid.Unspecified,
+      )
+          .catchError((Object e) {
+        debugPrint('[AlternativeBilling] Error restoring the connection: $e');
+        return false;
+      });
+    }
 
     super.dispose();
   }
@@ -104,27 +112,13 @@ class _AlternativeBillingScreenState extends State<AlternativeBillingScreen> {
   }
 
   void _setupListeners() {
-    _purchaseUpdatedSubscription = FlutterInappPurchase
-        .instance.purchaseUpdatedListener
-        .listen((purchase) {
-      debugPrint(
-        '[AlternativeBilling] Purchase received: ${purchase.productId}',
-      );
-
-      if (!mounted) return;
+    // The app-wide flow confirms every purchase; show what it decided.
+    _purchaseUpdatedSubscription =
+        AppPurchaseFlow.instance.flow.outcomes.listen((outcome) {
       setState(() {
         _isProcessing = false;
-        _purchaseResult = '''
-Receipt received · verification required
-Product: ${purchase.productId}
-Transaction ID: ${purchase.id}
-''';
+        _purchaseResult = describeOutcome(outcome);
       });
-
-      _showAlert(
-        'Receipt retained',
-        'Open Purchase Flow or Subscription Flow to verify and complete this receipt.',
-      );
     });
 
     _purchaseErrorSubscription =
@@ -190,17 +184,16 @@ Important:
   }
 
   Future<void> _reconnectWithBillingProgram(
-    BillingProgramAndroid newProgram,
-  ) async {
+    BillingProgramAndroid newProgram, {
+    String? mode,
+  }) async {
     try {
       setState(() {
         _isReconnecting = true;
         _purchaseResult = 'Reconnecting with new billing program...';
       });
 
-      await FlutterInappPurchase.instance.endConnection();
-      await Future.delayed(const Duration(milliseconds: 500));
-
+      // Native rebuilds the client for a different program.
       final connected = await FlutterInappPurchase.instance.initConnection(
         enableBillingProgramAndroid: newProgram,
       );
@@ -208,6 +201,11 @@ Important:
       if (!mounted) return;
       setState(() {
         _connected = connected;
+        // Only a program and mode native applied are shown and bought with.
+        if (connected) {
+          _billingProgram = newProgram;
+          _androidBillingMode = mode ?? _androidBillingMode;
+        }
         _purchaseResult = connected
             ? 'Reconnected with ${newProgram.name} program'
             : 'IAP unavailable for this build';
@@ -487,11 +485,15 @@ If user selects:
                     'Recommended. Includes external-offer, external-content-link, and user-choice-billing.',
                 isSelected: _androidBillingMode == 'billing-programs',
                 onTap: () {
-                  setState(() => _androidBillingMode = 'billing-programs');
+                  // Keep the current program unless it is External Payments.
                   if (_billingProgram ==
                       BillingProgramAndroid.ExternalPayments) {
-                    _billingProgram = BillingProgramAndroid.ExternalOffer;
-                    _reconnectWithBillingProgram(_billingProgram);
+                    _reconnectWithBillingProgram(
+                      BillingProgramAndroid.ExternalOffer,
+                      mode: 'billing-programs',
+                    );
+                  } else {
+                    setState(() => _androidBillingMode = 'billing-programs');
                   }
                   Navigator.pop(context);
                 },
@@ -503,12 +505,9 @@ If user selects:
                     'Side-by-side choice in purchase dialog. User sees both Google Play and developer billing options.',
                 isSelected: _androidBillingMode == 'external-payments',
                 onTap: () {
-                  setState(() {
-                    _androidBillingMode = 'external-payments';
-                    _billingProgram = BillingProgramAndroid.ExternalPayments;
-                  });
                   _reconnectWithBillingProgram(
                     BillingProgramAndroid.ExternalPayments,
+                    mode: 'external-payments',
                   );
                   Navigator.pop(context);
                 },
@@ -543,9 +542,6 @@ If user selects:
                 isSelected:
                     _billingProgram == BillingProgramAndroid.ExternalOffer,
                 onTap: () {
-                  setState(
-                    () => _billingProgram = BillingProgramAndroid.ExternalOffer,
-                  );
                   _reconnectWithBillingProgram(
                     BillingProgramAndroid.ExternalOffer,
                   );
@@ -560,10 +556,6 @@ If user selects:
                 isSelected: _billingProgram ==
                     BillingProgramAndroid.ExternalContentLink,
                 onTap: () {
-                  setState(
-                    () => _billingProgram =
-                        BillingProgramAndroid.ExternalContentLink,
-                  );
                   _reconnectWithBillingProgram(
                     BillingProgramAndroid.ExternalContentLink,
                   );
@@ -578,10 +570,6 @@ If user selects:
                 isSelected:
                     _billingProgram == BillingProgramAndroid.UserChoiceBilling,
                 onTap: () {
-                  setState(
-                    () => _billingProgram =
-                        BillingProgramAndroid.UserChoiceBilling,
-                  );
                   _reconnectWithBillingProgram(
                     BillingProgramAndroid.UserChoiceBilling,
                   );

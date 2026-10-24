@@ -28,7 +28,6 @@ class _OfferCodeScreenState extends State<OfferCodeScreen> {
   @override
   void dispose() {
     _codeController.dispose();
-    _iap.endConnection();
     super.dispose();
   }
 

@@ -106,7 +106,7 @@ if (Platform.OS === 'ios') {
 using OpenIap.Maui;
 
 // Returns false on Android
-var ok = await ((QueryResolver)OpenIapClient.Instance).IsEligibleForExternalPurchaseCustomLinkIOSAsync();`}</CodeBlock>
+var ok = await OpenIapClient.Query.IsEligibleForExternalPurchaseCustomLinkIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

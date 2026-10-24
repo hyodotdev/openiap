@@ -424,7 +424,7 @@ using System;
 using OpenIap.Maui;
 using System.Linq;
 
-var result = await ((QueryResolver)OpenIapClient.Instance).FetchProductsAsync(new ProductRequest
+var result = await OpenIapClient.Query.FetchProductsAsync(new ProductRequest
 {
     Skus = new[] { "premium_feature", "coins_100" },
     Type = ProductQueryType.InApp,
@@ -466,7 +466,7 @@ foreach (var product in products)
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`var request = ProductRequest.new()
-request.skus = ["premium_feature", "coins_100"]
+request.skus.assign(["premium_feature", "coins_100"])
 request.type = ProductQueryType.IN_APP
 var products = await iap.fetch_products(request)
 
@@ -856,7 +856,7 @@ ProductCardViewModel BuildProductCard(ProductAndroid product)
 
 async Task PurchaseAsync(ProductAndroid product)
 {
-    await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
     {
         RequestPurchase = new RequestPurchasePropsByPlatforms
         {
@@ -1386,7 +1386,7 @@ async Task PurchaseWithOfferAsync(ProductAndroid product, int offerIndex = 0)
         ?? throw new InvalidOperationException(
             "Selected offer has no Android offer token");
 
-    await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
     {
         Type = ProductQueryType.InApp,
         RequestPurchase = new RequestPurchasePropsByPlatforms
@@ -1422,7 +1422,7 @@ async Task PurchaseWithOfferAsync(ProductAndroid product, int offerIndex = 0)
     props.type = ProductQueryType.IN_APP
     props.request = RequestPurchasePropsByPlatforms.new()
     props.request.google = RequestPurchaseAndroidProps.new()
-    props.request.google.skus = [product.id]
+    props.request.google.skus.assign([product.id])
     props.request.google.offer_token = selected_offer.offer_token_android
 
     await iap.request_purchase(props)`}</CodeBlock>

@@ -25,6 +25,7 @@ namespace OpenIap.Maui.Platforms.Android;
 internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, MutationResolver, IDisposable
 {
     private readonly OpenIapMauiModule _module;
+    private readonly CallQueue _connection = new();
     private readonly long[] _listenerTokens;
     private int _disposed;
     private readonly FirstPurchaseNotice _firstPurchaseNotice;

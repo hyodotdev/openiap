@@ -208,14 +208,12 @@ await sub.cancel();`}</CodeBlock>
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var mutate = (MutationResolver)OpenIapClient.Instance;
-
 async Task OpenSubscriptionSettingsSafelyAsync(Purchase purchase)
 {
     if (purchase is not PurchaseCommon info) return;
     try
     {
-        await mutate.DeepLinkToSubscriptionsAsync(new DeepLinkOptions
+        await OpenIapClient.Mutation.DeepLinkToSubscriptionsAsync(new DeepLinkOptions
         {
             SkuAndroid = info.ProductId,
             PackageNameAndroid = "com.example.app",

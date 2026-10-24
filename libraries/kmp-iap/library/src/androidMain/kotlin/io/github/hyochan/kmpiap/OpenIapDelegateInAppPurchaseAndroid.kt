@@ -111,7 +111,7 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
     // Cleared when the store drops the billing service so the next initConnection reconnects.
     @Volatile
     private var isConnected = false
-    // The program the live connection enabled; null when none or disconnected.
+    // The program the app chose last; as in openiap-google, only endConnection forgets it.
     @Volatile
     private var enabledBillingProgram: BillingProgramAndroid? = null
     // The Play requestPurchase call running on this thread, so each call keeps only its own errors.
@@ -151,16 +151,26 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
     private var billingIssueListener: OpenIapSubscriptionBillingIssueListener? = null
     private var connectionStateListener: OpenIapConnectionStateListener? = null
 
+    /**
+     * Connects to the store's billing service, serialized with [endConnection].
+     * Without a config a live connection is kept, and a dropped or failed one
+     * comes back with its last program. A config always reaches openiap-google,
+     * which decides whether the live connection must change; a refusal keeps it.
+     */
     override suspend fun initConnection(config: InitConnectionConfig?): Boolean = withContext(Dispatchers.Main) {
         connectionMutex.withLock {
-            if (isConnected) return@withLock true
+            if (isConnected && config == null) return@withLock true
             withMappedOpenIapError {
                 val openModule = ensureModuleLocked()
                 openModule.setActivity(currentActivity)
+                // A refused change throws, so the live connection and its program stay as they were.
                 openModule.initConnection(config?.toOpenIap()).also { connected ->
                     isConnected = connected
-                    enabledBillingProgram = config?.enableBillingProgramAndroid
-                        ?.takeIf { connected && it != BillingProgramAndroid.Unspecified }
+                    // Recorded even when the connect fails; openiap-google retries with it.
+                    if (config != null) {
+                        enabledBillingProgram = config.enableBillingProgramAndroid
+                            ?.takeIf { it != BillingProgramAndroid.Unspecified }
+                    }
                 }
             }
         }
@@ -529,12 +539,10 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
             _purchaseErrorListener.tryEmit(error.toKmpPurchaseError())
         }
         // Locked so an in-flight initConnection cannot overwrite the drop; runs inline when uncontended.
+        // The program stays: reconnecting without a config restores it.
         val connectionState = OpenIapConnectionStateListener {
             scope.launch(start = CoroutineStart.UNDISPATCHED) {
-                connectionMutex.withLock {
-                    isConnected = false
-                    enabledBillingProgram = null
-                }
+                connectionMutex.withLock { isConnected = false }
             }
         }
         openModule.addPurchaseUpdateListener(purchaseUpdate)

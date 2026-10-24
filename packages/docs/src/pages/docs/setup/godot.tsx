@@ -645,7 +645,7 @@ func _on_purchase_error(error):
         <CodeBlock language="gdscript">
           {`func _load_products():
     var request = Types.ProductRequest.new()
-    request.skus = ["premium", "coins_100"]
+    request.skus.assign(["premium", "coins_100"])
     request.type = Types.ProductQueryType.IN_APP
 
     var products: Array = await iap.fetch_products(request)

@@ -114,7 +114,7 @@ if (Platform.OS === 'ios') {
 using OpenIap.Maui;
 
 // OpenIap.Maui (iOS targets only)
-var ok = await ((QueryResolver)OpenIapClient.Instance).IsEligibleForIntroOfferIOSAsync(groupId: "com.app.subgroup");`}</CodeBlock>
+var ok = await OpenIapClient.Query.IsEligibleForIntroOfferIOSAsync(groupId: "com.app.subgroup");`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

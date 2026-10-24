@@ -3,6 +3,7 @@ package io.github.hyochan.kmpiap
 import android.content.ContextWrapper
 import dev.hyo.openiap.MutationAcknowledgePurchaseAndroidHandler
 import dev.hyo.openiap.MutationConsumePurchaseAndroidHandler
+import dev.hyo.openiap.MutationEndConnectionHandler
 import dev.hyo.openiap.MutationInitConnectionHandler
 import dev.hyo.openiap.MutationRequestPurchaseHandler
 import dev.hyo.openiap.OpenIapError
@@ -49,6 +50,7 @@ import kotlinx.coroutines.yield
 import java.util.concurrent.CopyOnWriteArraySet
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
@@ -439,6 +441,125 @@ class OpenIapDelegateTest {
             Dispatchers.resetMain()
         }
     }
+
+    @Test
+    fun `initConnection forwards every config and keeps a live connection without one`() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        try {
+            val configs = mutableListOf<String>()
+            val init: MutationInitConnectionHandler = { config ->
+                configs += config?.enableBillingProgramAndroid?.toJson() ?: "none"
+                true
+            }
+            val module = fakeModule { method, _ ->
+                when (method) {
+                    "setActivity" -> null
+                    "getInitConnection" -> init
+                    else -> error("Unexpected call: $method")
+                }
+            }
+            val play = delegateFor(Store.PLAY_STORE, module, context = ContextWrapper(null))
+            val externalPayments = InitConnectionConfig(enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments)
+
+            for (config in listOf(null, null, externalPayments, externalPayments, null)) {
+                assertTrue(play.initConnection(config))
+            }
+
+            // openiap-google decides whether a config changes the live connection.
+            assertEquals(listOf("none", "external-payments", "external-payments"), configs)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun `a refused program change keeps the live connection, its program, and its listeners`() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        try {
+            val configs = mutableListOf<String>()
+            val attached = AttachedListeners()
+            val init: MutationInitConnectionHandler = { config ->
+                configs += config?.enableBillingProgramAndroid?.toJson() ?: "none"
+                if (configs.size > 1) {
+                    throw OpenIapError.DeveloperError(
+                        "initConnection cannot change the billing program while a purchase is in progress"
+                    )
+                }
+                true
+            }
+            val module = fakeModule { method, args ->
+                when {
+                    attached.record(method, args) -> null
+                    method == "setActivity" -> null
+                    method == "getInitConnection" -> init
+                    else -> error("Unexpected call: $method")
+                }
+            }
+            val play = delegateFor(Store.PLAY_STORE, module, context = ContextWrapper(null), registerListeners = true)
+            val externalPayments = InitConnectionConfig(enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments)
+            assertTrue(play.initConnection(externalPayments))
+
+            val refused = assertFailsWith<PurchaseException> { play.initConnection(InitConnectionConfig()) }
+
+            assertEquals(ErrorCode.DeveloperError, refused.error.code)
+            assertTrue(play.initConnection(null))
+            assertEquals(listOf("external-payments", "none"), configs)
+            assertEquals(BillingProgramAndroid.ExternalPayments, enabledProgram(play))
+            assertTrue("PurchaseUpdateListener" in attached.byType)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun `a failed connect or a drop keeps the program for a reconnect without a config, and endConnection forgets it`() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        try {
+            val configs = mutableListOf<String>()
+            var connects = false
+            val attached = AttachedListeners()
+            val init: MutationInitConnectionHandler = { config ->
+                configs += config?.enableBillingProgramAndroid?.toJson() ?: "none"
+                connects
+            }
+            val end: MutationEndConnectionHandler = { true }
+            val module = fakeModule { method, args ->
+                when {
+                    attached.record(method, args) -> null
+                    method == "setActivity" -> null
+                    method == "getInitConnection" -> init
+                    method == "getEndConnection" -> end
+                    else -> error("Unexpected call: $method")
+                }
+            }
+            val play = delegateFor(Store.PLAY_STORE, module, context = ContextWrapper(null), registerListeners = true)
+            val drop = { attached.get<OpenIapConnectionStateListener>("ConnectionStateListener").onBillingServiceDisconnected() }
+            assertFalse(play.initConnection(InitConnectionConfig(enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments)))
+
+            connects = true
+            assertTrue(play.initConnection(null))
+            drop()
+            assertTrue(play.initConnection(null))
+
+            // openiap-google restores the program itself when no config is passed.
+            assertEquals(listOf("external-payments", "none", "none"), configs)
+            val resolved = async(start = CoroutineStart.UNDISPATCHED) { play.developerProvidedBillingAndroid() }
+            attached.get<OpenIapDeveloperProvidedBillingListener>("DeveloperProvidedBillingListener").onDeveloperProvidedBilling(
+                dev.hyo.openiap.DeveloperProvidedBillingDetailsAndroid.fromJson(
+                    mapOf("externalTransactionToken" to "developer-token", "products" to emptyList<Any>())
+                )
+            )
+            assertEquals("developer-token", resolved.await().externalTransactionToken)
+
+            assertTrue(play.endConnection())
+            assertNull(enabledProgram(play))
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    private fun enabledProgram(delegate: OpenIapDelegateInAppPurchaseAndroid): Any? =
+        delegate.javaClass.getDeclaredField("enabledBillingProgram").apply { isAccessible = true }.get(delegate)
 
     @Test
     fun `a drop while initConnection is still resuming survives its success`() = runTest {

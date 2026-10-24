@@ -14,7 +14,6 @@ import {
   useIAP,
   requestPurchase,
   initConnection,
-  endConnection,
   presentExternalPurchaseLinkIOS,
   isBillingProgramAvailableAndroid,
   launchExternalLinkAndroid,
@@ -26,6 +25,11 @@ import {
 } from 'expo-iap';
 import Loading from '../src/components/Loading';
 import {CONSUMABLE_PRODUCT_IDS} from '../src/utils/constants';
+import {
+  alertPurchaseOutcome,
+  describePurchaseOutcome,
+  getReceiptPurchaseFlow,
+} from '../src/utils/purchaseFlow';
 
 /**
  * Alternative Billing Example
@@ -82,25 +86,13 @@ function AlternativeBillingScreen() {
   const {connected, products, fetchProducts} = useIAP({
     enableBillingProgramAndroid:
       Platform.OS === 'android' ? billingProgram : undefined,
-    onPurchaseSuccess: (purchase: Purchase) => {
-      console.log('Purchase received:', {
-        productId: purchase.productId,
-        transactionId: purchase.id,
-        store: purchase.store,
-      });
+    purchaseFlow: getReceiptPurchaseFlow(),
+    onPurchaseFlowOutcome: ({purchase, status}) => {
+      if (!CONSUMABLE_PRODUCT_IDS.includes(purchase.productId)) return;
       setLastPurchase(purchase);
       setIsProcessing(false);
-
-      setPurchaseResult(
-        `Receipt received · verification required\nProduct: ${purchase.productId}\nTransaction ID: ${
-          purchase.id
-        }\nDate: ${new Date(purchase.transactionDate).toLocaleString()}`,
-      );
-
-      Alert.alert(
-        'Receipt retained',
-        'Open Purchase Flow or Subscription Flow to verify and complete this receipt.',
-      );
+      setPurchaseResult(describePurchaseOutcome(status));
+      alertPurchaseOutcome(status);
     },
     onPurchaseError: (error: PurchaseError) => {
       console.log('Purchase failed:', error);
@@ -114,6 +106,17 @@ function AlternativeBillingScreen() {
   });
 
   // Load products when connected
+  // This screen's billing program applies only here; the others use the
+  // standard client.
+  useEffect(() => {
+    if (Platform.OS !== 'android' || isVega) return;
+    return () => {
+      initConnection({}).catch((error: unknown) => {
+        console.log('Failed to restore the standard client:', error);
+      });
+    };
+  }, [isVega]);
+
   useEffect(() => {
     if (connected && !isVega) {
       fetchProducts({skus: CONSUMABLE_PRODUCT_IDS, type: 'in-app'}).catch(
@@ -127,23 +130,20 @@ function AlternativeBillingScreen() {
 
   // Reconnect with new billing program
   const reconnectWithProgram = useCallback(
-    async (newProgram: BillingProgramAndroid) => {
+    async (newProgram: BillingProgramAndroid, newFlow?: AndroidBillingFlow) => {
       try {
         setIsReconnecting(true);
         setPurchaseResult('Reconnecting with new billing program...');
 
-        // End current connection
-        await endConnection();
-
-        // Wait a bit for cleanup
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        // Reinitialize with new program
+        // A connected store reconnects itself for a different program.
         const config =
           Platform.OS === 'android'
             ? {enableBillingProgramAndroid: newProgram}
             : undefined;
         await initConnection(config);
+        // Only a program and flow native applied are shown and bought with.
+        setBillingProgram(newProgram);
+        if (newFlow) setAndroidBillingFlow(newFlow);
 
         const programNames: Record<BillingProgramAndroid, string> = {
           unspecified: 'Unspecified',
@@ -618,10 +618,6 @@ function AlternativeBillingScreen() {
               <Text style={styles.purchaseText}>
                 Date: {new Date(lastPurchase.transactionDate).toLocaleString()}
               </Text>
-              <Text style={styles.purchaseWarning}>
-                ℹ️ Receipt retained pending verification.{'\n'}
-                PRODUCTION: Validate on backend first!
-              </Text>
             </View>
           </View>
         ) : null}
@@ -656,11 +652,14 @@ function AlternativeBillingScreen() {
                   styles.modeOptionSelected,
               ]}
               onPress={() => {
-                setAndroidBillingFlow('billing-programs');
-                // Reset to default external billing program when switching from user-choice
+                // Leaving user choice resets to the default external program.
                 if (billingProgram === 'user-choice-billing') {
-                  setBillingProgram('external-offer');
-                  void reconnectWithProgram('external-offer');
+                  void reconnectWithProgram(
+                    'external-offer',
+                    'billing-programs',
+                  );
+                } else {
+                  setAndroidBillingFlow('billing-programs');
                 }
                 setShowModeSelector(false);
               }}
@@ -681,10 +680,11 @@ function AlternativeBillingScreen() {
                   styles.modeOptionSelected,
               ]}
               onPress={() => {
-                setAndroidBillingFlow('user-choice-billing');
-                setBillingProgram('user-choice-billing');
                 setShowModeSelector(false);
-                void reconnectWithProgram('user-choice-billing');
+                void reconnectWithProgram(
+                  'user-choice-billing',
+                  'user-choice-billing',
+                );
               }}
             >
               <Text style={styles.modeOptionTitle}>
@@ -723,7 +723,6 @@ function AlternativeBillingScreen() {
                   billingProgram === program && styles.modeOptionSelected,
                 ]}
                 onPress={() => {
-                  setBillingProgram(program);
                   setShowProgramSelector(false);
                   void reconnectWithProgram(program);
                 }}

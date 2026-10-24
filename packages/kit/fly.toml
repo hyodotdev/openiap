@@ -21,6 +21,15 @@ primary_region = 'iad'
     soft_limit = 80
     hard_limit = 120
 
+  # The proxy stops routing to a machine that fails this, such as one on a
+  # host under maintenance, while the other machine keeps serving.
+  [[http_service.checks]]
+    grace_period = '30s'
+    interval = '15s'
+    method = 'GET'
+    path = '/health'
+    timeout = '5s'
+
 [[vm]]
   size = 'shared-cpu-1x'
   memory = '512mb'

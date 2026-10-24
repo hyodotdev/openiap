@@ -312,8 +312,9 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler {
                 params?.get("billingChoiceScreenTypeAndroid")?.let {
                     configMap["billingChoiceScreenTypeAndroid"] = it
                 }
+                // No config keeps a live client as it is.
                 val newConfig = if (configMap.isEmpty()) {
-                    InitConnectionConfig()
+                    null
                 } else {
                     InitConnectionConfig.fromJson(configMap)
                 }
@@ -324,7 +325,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler {
                     lifecycle.withLock {
                         try {
                             val iap = attachListenersLocked()
-                            // Another engine already holds the connection; restarting would drop it.
+                            // Another engine already holds the connection; keep it as that engine set it up.
                             if (providerReady && (connectedEngines - this@AndroidInappPurchasePlugin).isNotEmpty()) {
                                 connectedEngines.add(this@AndroidInappPurchasePlugin)
                                 emitConnectionUpdated(true)
@@ -332,18 +333,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler {
                                 return@withLock
                             }
 
-                            // Restart the connection to apply billing configuration.
-                            try {
-                                OpenIapLog.debug("Ending connection before reinitializing (current ready state: $connectionReady)", TAG)
-                                iap.endConnection()
-                                providerReady = false
-
-                                // Let Play finish asynchronous disconnection before reconnecting.
-                                kotlinx.coroutines.delay(300)
-                            } catch (e: Exception) {
-                                OpenIapLog.warn("Error ending connection: ${e.message}", TAG)
-                            }
-
+                            // The store module keeps a live client unless the config needs a new one.
                             OpenIapLog.debug("Initializing connection with config: $configMap", TAG)
                             val ok = iap.initConnection(newConfig)
                             markConnected(ok)
@@ -1048,7 +1038,8 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler {
                 if (!connectionReady) {
                     if (autoInit) {
                         // Join a connection another engine holds instead of starting a second one.
-                        val ok = providerReady || iap.initConnection(InitConnectionConfig())
+                        // No config: after a drop the store module restores the last program.
+                        val ok = providerReady || iap.initConnection(null)
                         markConnected(ok)
                         emitConnectionUpdated(ok)
                         if (!ok) {

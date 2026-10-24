@@ -2888,21 +2888,6 @@ function checkMaui() {
     "MAUI product constants",
   );
   expectIncludes(
-    rel(base, "Utils/IapKitSettings.cs"),
-    [
-      "CreateVerifyProps(",
-      "string? baseUrl = null",
-      "BaseUrl = endpoint",
-      "IapStore.Apple",
-      "IapStore.Google",
-      "IapStore.Amazon",
-      "RequestVerifyPurchaseWithIapkitAmazonProps",
-      "UserId = (purchase as PurchaseAndroid)?.UserIdAmazon",
-      "ReceiptId = storeToken",
-    ],
-    "MAUI IAPKit verification must select one store payload and preserve the configured endpoint",
-  );
-  expectIncludes(
     rel(base, "Platforms/Android/AndroidManifest.xml"),
     ['android:networkSecurityConfig="@xml/network_security_config"'],
     "MAUI example Android manifest must allow local IAPKit E2E endpoints",
@@ -2912,22 +2897,6 @@ function checkMaui() {
     rel(base, "Platforms/Android/AndroidManifest.xml"),
     ["usesCleartextTraffic"],
     "MAUI example must not permit cleartext to every host",
-  );
-  expectIncludes(
-    rel(base, "Pages/PurchaseFlowPage.xaml.cs"),
-    [
-      "if (!verificationPassed)",
-      "Purchase verification failed; the transaction was not finalized.",
-    ],
-    "MAUI purchase flow must not finalize purchases that fail verification",
-  );
-  expectIncludes(
-    rel(base, "Pages/SubscriptionFlowPage.xaml.cs"),
-    [
-      "Task<bool> VerifySubscriptionIfNeededAsync",
-      "Subscription verification failed; the transaction was not finalized.",
-    ],
-    "MAUI subscription flow must not finalize purchases that fail verification",
   );
   expectIncludes(
     "libraries/maui-iap/src/OpenIap.Maui.Bindings.iOS/ApiDefinition.cs",
@@ -2994,6 +2963,90 @@ function checkMaui() {
     ],
     "MAUI Android listener failure visibility",
   );
+}
+
+// Each SDK ports specs/client/src/purchase-flow.ts and proves it on the shared
+// vectors; examples confirm and finish through that flow instead of by hand.
+function checkPurchaseFlowPorts() {
+  for (const [library, runner] of [
+    [
+      "flutter_inapp_purchase",
+      "libraries/flutter_inapp_purchase/test/purchase_flow_test.dart",
+    ],
+    [
+      "kmp-iap",
+      "libraries/kmp-iap/library/src/androidUnitTest/kotlin/io/github/hyochan/kmpiap/PurchaseFlowVectorsTest.kt",
+    ],
+    ["godot-iap", "libraries/godot-iap/Example/tests/test_purchase_flow.gd"],
+    [
+      "maui-iap",
+      "libraries/maui-iap/tests/OpenIap.Maui.Tests/PurchaseFlowVectorTests.cs",
+    ],
+  ]) {
+    expectIncludes(
+      runner,
+      ["purchase-flow.vectors.json"],
+      `${library} must run the shared purchase-flow vectors`,
+    );
+  }
+  for (const [library, wiring, needles] of [
+    [
+      "react-native-iap",
+      "libraries/react-native-iap/example/src/utils/purchaseFlow.ts",
+      ["createPurchaseFlow(", "confirmWithIapkit("],
+    ],
+    [
+      "expo-iap",
+      "libraries/expo-iap/example/src/utils/purchaseFlow.ts",
+      ["createPurchaseFlow(", "confirmWithIapkit("],
+    ],
+    [
+      "flutter_inapp_purchase",
+      "libraries/flutter_inapp_purchase/example/lib/src/app_purchase_flow.dart",
+      ["createPurchaseFlow(", "confirmWithIapkit("],
+    ],
+    [
+      "kmp-iap",
+      "libraries/kmp-iap/example/composeApp/src/commonMain/kotlin/dev/hyo/martie/screens/ExamplePurchaseFlow.kt",
+      ["createPurchaseFlow(", "confirmWithIapkit("],
+    ],
+    [
+      "godot-iap",
+      "libraries/godot-iap/Example/iap_manager.gd",
+      ["create_purchase_flow(", "confirm_with_iapkit("],
+    ],
+    [
+      "maui-iap",
+      "libraries/maui-iap/example/OpenIap.Maui.Example/Utils/IapLifecycle.cs",
+      ["OpenIapClient.CreatePurchaseFlow(", "OpenIapClient.ConfirmWithIapkit("],
+    ],
+  ]) {
+    expectIncludes(
+      wiring,
+      needles,
+      `${library} example must confirm purchases through the library's purchase flow`,
+    );
+  }
+  const flowScreens = [
+    "libraries/react-native-iap/example/screens/PurchaseFlow.tsx",
+    "libraries/react-native-iap/example/screens/SubscriptionFlow.tsx",
+    "libraries/expo-iap/example/app/purchase-flow.tsx",
+    "libraries/expo-iap/example/app/subscription-flow.tsx",
+    "libraries/flutter_inapp_purchase/example/lib/src/screens/purchase_flow_screen.dart",
+    "libraries/flutter_inapp_purchase/example/lib/src/screens/subscription_flow_screen.dart",
+    "libraries/kmp-iap/example/composeApp/src/commonMain/kotlin/dev/hyo/martie/screens/PurchaseFlowScreen.kt",
+    "libraries/kmp-iap/example/composeApp/src/commonMain/kotlin/dev/hyo/martie/screens/SubscriptionFlowScreen.kt",
+    "libraries/godot-iap/Example/iap_manager.gd",
+    "libraries/maui-iap/example/OpenIap.Maui.Example/Pages/PurchaseFlowPage.xaml.cs",
+    "libraries/maui-iap/example/OpenIap.Maui.Example/Pages/SubscriptionFlowPage.xaml.cs",
+  ];
+  for (const screen of flowScreens) {
+    expectNotIncludes(
+      screen,
+      ["finishTransaction(", "finish_transaction(", "FinishTransactionAsync("],
+      `${screen} must leave finishing to the purchase flow`,
+    );
+  }
 }
 
 function checkNativeApis() {
@@ -8449,6 +8502,7 @@ checkIapkitAmazonContractWiring();
 checkApple();
 checkGoogle();
 checkMaui();
+checkPurchaseFlowPorts();
 checkNativeApis();
 checkBillingChoiceFieldBindings();
 checkCoverageReporting();

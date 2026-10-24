@@ -609,6 +609,27 @@ screens a user sees. Record the source revision, build entry point, and installe
 app identity with device evidence. Leave the normal example installed after
 the run, preserving any store-installed test build that must be restored.
 
+### Examples Show Clean Library Usage
+
+Example code is what users copy, so it must read like plain library usage:
+calls, values derived from library state, and per-event UI. No spaghetti: no
+refs, maps, queues, timers, retries, or ordering patches that exist only to
+keep the example correct.
+
+When an example needs that bookkeeping, the gap is in the library. Design the
+abstraction there, the same way in every framework, test it, and cut the
+example back to plain usage. Shared behavior is specified once in
+`specs/client` and checked in every port by shared vectors. Patching the
+example is the wrong fix. A review loop that keeps finding new race conditions
+in an example is the signal to stop and move the logic.
+
+The purchase flow is the worked example. `createPurchaseFlow`,
+`confirmWithIapkit`, and `confirmOnDeviceIOS` own duplicate deliveries,
+finishing, recovery, store and on-device verdicts, and pending plan changes,
+so purchase screens only subscribe to outcomes. Every SDK's flow passes
+`specs/client/src/purchase-flow.vectors.json`: React Native and Expo through
+the spec they sync, the other four through their own runners.
+
 ## Cross-Library Verification for Shared-Package Changes (MANDATORY)
 
 > **When:** any change to `packages/google` or `packages/apple` that modifies

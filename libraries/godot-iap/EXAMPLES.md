@@ -37,13 +37,8 @@ const Types = preload("res://addons/godot-iap/types.gd")
 @onready var iap = $GodotIapWrapper
 
 func _ready():
-    # Connect signals
-    iap.purchase_updated.connect(_on_purchase_updated)
-    iap.purchase_error.connect(_on_purchase_error)
-    iap.products_fetched.connect(_on_products_fetched)
-
-    # Initialize connection
-    if iap.init_connection():
+    # Purchases go through the purchase flow in 2.3.
+    if await iap.init_connection():
         print("IAP connected!")
 ```
 
@@ -72,11 +67,8 @@ func _setup_iap_node():
     iap = wrapper
 
 func _initialize_iap():
-    iap.purchase_updated.connect(_on_purchase_updated)
-    iap.purchase_error.connect(_on_purchase_error)
-    iap.products_fetched.connect(_on_products_fetched)
-
-    is_connected = iap.init_connection()
+    # Purchases go through the purchase flow in 2.3.
+    is_connected = await iap.init_connection()
 ```
 
 ---
@@ -97,11 +89,14 @@ var products: Dictionary = {}  # product_id -> product object
 func fetch_products():
     # Create typed ProductRequest
     var request = Types.ProductRequest.new()
-    request.skus = PRODUCT_IDS.values()
+    var skus: Array[String] = []
+    for sku in PRODUCT_IDS.values():
+        skus.append(sku)
+    request.skus = skus
     request.type = Types.ProductQueryType.ALL
 
     # Returns Array of Types.ProductAndroid or Types.ProductIOS
-    var fetched = iap.fetch_products(request)
+    var fetched = await iap.fetch_products(request)
 
     for product in fetched:
         # Access typed properties directly
@@ -123,7 +118,8 @@ func buy_product(product_id: String):
 
     # Android configuration
     props.request.google = Types.RequestPurchaseAndroidProps.new()
-    props.request.google.skus = [product_id]
+    var skus: Array[String] = [product_id]
+    props.request.google.skus = skus
 
     # iOS configuration
     props.request.apple = Types.RequestPurchaseIosProps.new()
@@ -139,56 +135,59 @@ func buy_product(product_id: String):
 
 ### 2.3 Handling Purchase Results
 
+The purchase flow confirms each purchase the store delivers, credits it, and
+then finishes it. Create one for the whole app, then recover what a crash or an
+offline backend left unfinished:
+
 ```gdscript
-func _on_purchase_updated(purchase: Dictionary):
-    var product_id = purchase.get("productId", "")
-    var state = purchase.get("purchaseState", "")
+const PurchaseFlow = preload("res://addons/godot-iap/purchase_flow.gd")
+const CONSUMABLES = ["com.yourgame.coins_100", "com.yourgame.coins_500"]
 
-    print("Purchase updated: %s (state: %s)" % [product_id, state])
+var flow: PurchaseFlow
 
-    match state:
-        "Purchased", "purchased":
-            await _process_successful_purchase(purchase)
-        "Pending", "pending":
-            print("Purchase pending approval")
-        _:
-            print("Purchase state: ", state)
+func _ready():
+    flow = iap.create_purchase_flow({
+        # An app with a backend calls it here instead.
+        "confirm_with_backend": iap.confirm_with_iapkit({
+            "api_key": "openiap-kit_pk_...",
+            "grant": _grant_purchase,
+        }),
+        "is_consumable": func(product_id): return product_id in CONSUMABLES,
+    })
+    flow.purchase_processed.connect(_on_purchase_processed)
+    iap.purchase_error.connect(_on_purchase_error)
+    if await iap.init_connection():
+        await flow.recover_purchases()
+
+func _on_purchase_processed(purchase: Dictionary, status):
+    var guidance = PurchaseFlow.describe_purchase_flow_status(status)
+    print("%s: %s" % [purchase.productId, guidance.key])
 
 func _on_purchase_error(error: Dictionary):
-    var code = error.get("code", "")
-    var message = error.get("message", "")
+    if error.get("code", "") != "user-cancelled":
+        print("Purchase error: %s - %s" % [error.get("code", ""), error.get("message", "")])
 
-    if code == "USER_CANCELED":
-        print("User cancelled purchase")
-    else:
-        print("Purchase error: %s - %s" % [code, message])
-
-func _process_successful_purchase(purchase: Dictionary):
-    var product_id = purchase.get("productId", "")
-
-    # Grant content to user
-    _grant_purchase(product_id)
-
-    # Finish the transaction
-    var is_consumable = _is_consumable(product_id)
-    var result = iap.finish_transaction_dict(purchase, is_consumable)
-
-    if result.success:
-        print("Transaction finished for: ", product_id)
-
-func _grant_purchase(product_id: String):
-    match product_id:
+# Runs before the flow consumes the purchase, and must return true. Credit each
+# purchase id once: recovery confirms a purchase again after a failed finish.
+func _grant_purchase(purchase: Dictionary, _is_consumable: bool) -> bool:
+    if GameState.credited_purchase_ids.has(purchase.id):
+        return true
+    GameState.credited_purchase_ids[purchase.id] = true
+    match purchase.productId:
         "com.yourgame.coins_100":
             GameState.add_coins(100)
         "com.yourgame.coins_500":
             GameState.add_coins(500)
         "com.yourgame.remove_ads":
             GameState.set_ads_removed(true)
-
-func _is_consumable(product_id: String) -> bool:
-    var consumables = ["com.yourgame.coins_100", "com.yourgame.coins_500"]
-    return product_id in consumables
+    return true
 ```
+
+`guidance.key` is one of `payment_pending`, `change_pending`,
+`verification_delayed`, `owned_by_another_account`,
+`test_purchase_not_accepted`, `purchase_not_valid`, `access_pending`,
+`access_granted`, or `try_again_later`. Offer buying again only when
+`guidance.offerPurchase` is true.
 
 ---
 
@@ -212,7 +211,7 @@ func fetch_subscriptions():
     request.skus = skus
     request.type = Types.ProductQueryType.SUBS
 
-    subscriptions = iap.fetch_products(request)
+    subscriptions = await iap.fetch_products(request)
 
     for sub in subscriptions:
         print("Subscription: %s - %s" % [sub.title, get_subscription_price(sub)])
@@ -252,7 +251,8 @@ func purchase_subscription(subscription_id: String):
 
     # Android configuration with offer token (required for subscriptions)
     props.request.google = Types.RequestPurchaseAndroidProps.new()
-    props.request.google.skus = [subscription_id]
+    var skus: Array[String] = [subscription_id]
+    props.request.google.skus = skus
 
     # Use cross-platform subscription_offers field
     if subscription.subscription_offers and subscription.subscription_offers.size() > 0:
@@ -283,60 +283,16 @@ func _find_subscription(subscription_id: String):
 
 ```gdscript
 func check_subscription_status() -> Variant:
-    var available_result = await iap.get_available_purchases_result()
-    if not available_result.get("success", false):
-        push_error(
-            "Subscription query failed: %s (%s)"
-            % [available_result.get("error"), available_result.get("code")]
-        )
+    var ids: Array[String] = []
+    for sku in SUBSCRIPTION_IDS.values():
+        ids.append(sku)
+    var result = await iap.get_active_subscriptions_result(ids)
+    if not result.get("success", false):
         # Leave the existing entitlement state unchanged on store failure.
         return null
-    var purchases: Array = available_result.get("purchases", [])
-
-    for purchase in purchases:
-        var product_id = purchase.product_id if purchase is Object else purchase.get("productId", "")
-
-        if product_id in SUBSCRIPTION_IDS.values():
-            if _is_subscription_active(purchase):
-                GameState.set_premium(true)
-                return true
-
-    GameState.set_premium(false)
-    return false
-
-func _is_subscription_active(purchase) -> bool:
-    var current_time = Time.get_unix_time_from_system() * 1000
-
-    if OS.get_name() == "iOS":
-        var expiration = 0
-        if purchase is Object:
-            expiration = purchase.expiration_date if "expiration_date" in purchase else 0
-        else:
-            expiration = purchase.get("expirationDateIOS", 0)
-
-        if expiration > 0:
-            return expiration > current_time
-
-        # Sandbox testing: Consider recent purchases as active
-        var environment = purchase.get("environmentIOS", "") if purchase is Dictionary else ""
-        if environment == "Sandbox":
-            var tx_date = purchase.get("transactionDate", 0)
-            return (current_time - tx_date) < (24 * 60 * 60 * 1000)  # 1 day
-
-    elif OS.get_name() == "Android":
-        var auto_renewing = null
-        if purchase is Object:
-            auto_renewing = purchase.auto_renewing if "auto_renewing" in purchase else null
-        else:
-            auto_renewing = purchase.get("autoRenewingAndroid", null)
-
-        if auto_renewing != null:
-            return auto_renewing
-
-        var state = purchase.get("purchaseState", "") if purchase is Dictionary else ""
-        return state == "purchased" or state == "Purchased"
-
-    return false
+    var active = result.subscriptions.any(func(subscription): return subscription.is_active)
+    GameState.set_premium(active)
+    return active
 ```
 
 ### 3.5 Opening Subscription Management
@@ -392,10 +348,11 @@ Products now include discount and subscription offers:
 ```gdscript
 func fetch_products_with_offers():
     var request = Types.ProductRequest.new()
-    request.skus = ["com.yourgame.premium_monthly", "com.yourgame.coins_100"]
+    var skus: Array[String] = ["com.yourgame.premium_monthly", "com.yourgame.coins_100"]
+    request.skus = skus
     request.type = Types.ProductQueryType.ALL
 
-    var products = iap.fetch_products(request)
+    var products = await iap.fetch_products(request)
 
     for product in products:
         print("Product: %s" % product.id)
@@ -476,7 +433,8 @@ func purchase_subscription_with_offer(subscription_id: String, offer: Types.Subs
 
     # Android configuration with offer
     props.request.google = Types.RequestPurchaseAndroidProps.new()
-    props.request.google.skus = [subscription_id]
+    var skus: Array[String] = [subscription_id]
+    props.request.google.skus = skus
 
     # Add subscription offer with token
     var sub_offers: Array[Types.AndroidSubscriptionOfferInput] = []
@@ -587,110 +545,20 @@ func _find_best_offer(product) -> Variant:
 
 ### 5.1 Basic Restore
 
-```gdscript
-func restore_purchases():
-    if not is_connected:
-        push_error("IAP not connected")
-        return
-
-    # Use the structured result so a store failure is not mistaken for an
-    # authoritative empty purchase list.
-    var available_result = await iap.get_available_purchases_result()
-    if not available_result.get("success", false):
-        push_error(
-            "Restore query failed: %s (%s)"
-            % [available_result.get("error"), available_result.get("code")]
-        )
-        return
-    var purchases: Array = available_result.get("purchases", [])
-
-    print("Found %d purchases to restore" % purchases.size())
-
-    for purchase in purchases:
-        await _process_restore(purchase)
-
-func _process_restore(purchase):
-    var product_id = purchase.product_id if purchase is Object else purchase.get("productId", "")
-
-    print("Restoring: ", product_id)
-
-    # Skip consumables (they can't be restored)
-    if _is_consumable(product_id):
-        return
-
-    # Check subscriptions
-    if _is_subscription(product_id):
-        if not _is_subscription_active(purchase):
-            print("Subscription expired, skipping")
-            return
-
-    # Grant content
-    _grant_purchase(product_id)
-    print("Restored: ", product_id)
-
-func _is_subscription(product_id: String) -> bool:
-    return product_id in SUBSCRIPTION_IDS.values()
-```
-
-### 5.2 Restore with UI Feedback
+Restoring runs every owned purchase through the purchase flow from 2.3 again,
+so `grant` and `purchase_processed` report what came back:
 
 ```gdscript
-signal restore_completed(count: int)
-signal restore_failed(error: String)
-
-func restore_with_feedback():
-    if not is_connected:
-        restore_failed.emit("Store not available")
-        return
-
-    var available_result = await iap.get_available_purchases_result()
-    if not available_result.get("success", false):
-        restore_failed.emit(
-            "%s (%s)"
-            % [available_result.get("error"), available_result.get("code")]
-        )
-        return
-    var purchases: Array = available_result.get("purchases", [])
-
-    if purchases.size() == 0:
-        restore_completed.emit(0)
-        return
-
-    var restored_count = 0
-
-    for purchase in purchases:
-        var product_id = purchase.product_id if purchase is Object else purchase.get("productId", "")
-
-        if _is_consumable(product_id):
-            continue
-
-        if _is_subscription(product_id) and not _is_subscription_active(purchase):
-            continue
-
-        _grant_purchase(product_id)
-        restored_count += 1
-
-    restore_completed.emit(restored_count)
-
-# In your UI:
-func _on_restore_button_pressed():
-    restore_button.disabled = true
-    status_label.text = "Restoring..."
-
-    IapManager.restore_completed.connect(_on_restore_done)
-    IapManager.restore_failed.connect(_on_restore_error)
-    IapManager.restore_with_feedback()
-
-func _on_restore_done(count: int):
-    restore_button.disabled = false
-    if count > 0:
-        status_label.text = "Restored %d purchases!" % count
-    else:
-        status_label.text = "No purchases to restore"
-
-func _on_restore_error(error: String):
-    restore_button.disabled = false
-    status_label.text = "Restore failed: " + error
+func restore_purchases() -> bool:
+    var restored = await iap.restore_purchases()
+    if not restored.success:
+        return false
+    var outcomes = await flow.recover_purchases(true)
+    if outcomes is PurchaseFlow.Failure:
+        push_error("Restore failed: %s" % outcomes.message)
+        return false
+    print("Restored %d purchases" % outcomes.size())
+    return true
 ```
 
 ---
@@ -704,8 +572,10 @@ func _on_restore_error(error: String):
 extends Node
 
 const Types = preload("res://addons/godot-iap/types.gd")
+const PurchaseFlow = preload("res://addons/godot-iap/purchase_flow.gd")
 
 var iap: Node
+var flow: PurchaseFlow
 var is_connected: bool = false
 var products: Dictionary = {}
 
@@ -722,90 +592,54 @@ signal purchase_completed(product_id: String)
 signal purchase_failed(error: Dictionary)
 
 func _ready():
-    _setup_iap()
-
-func _setup_iap():
     var wrapper = preload("res://addons/godot-iap/godot_iap.gd").new()
     wrapper.name = "GodotIapWrapper"
     add_child(wrapper)
     iap = wrapper
 
-    iap.purchase_updated.connect(_on_purchase_updated)
+    flow = iap.create_purchase_flow({
+        "confirm_with_backend": iap.confirm_with_iapkit({
+            "api_key": "openiap-kit_pk_...",
+            "grant": _grant_purchase,
+        }),
+        "is_consumable": func(product_id): return product_id in [PRODUCT_IDS.coins_100, PRODUCT_IDS.coins_500],
+    })
+    flow.purchase_processed.connect(_on_purchase_processed)
     iap.purchase_error.connect(_on_purchase_error)
-    iap.products_fetched.connect(_on_products_fetched)
 
-    is_connected = iap.init_connection()
+    is_connected = await iap.init_connection()
     connection_changed.emit(is_connected)
 
     if is_connected:
+        await flow.recover_purchases()
         _fetch_products()
-        _check_pending_purchases()
 
 func _fetch_products():
     var request = Types.ProductRequest.new()
-    request.skus = PRODUCT_IDS.values()
+    var skus: Array[String] = []
+    for sku in PRODUCT_IDS.values():
+        skus.append(sku)
+    request.skus = skus
     request.type = Types.ProductQueryType.ALL
 
-    var fetched = iap.fetch_products(request)
-    _process_fetched_products(fetched)
-
-func _process_fetched_products(fetched: Array):
-    for product in fetched:
+    for product in await iap.fetch_products(request):
         products[product.id] = product
     products_loaded.emit(products.values())
 
-func _check_pending_purchases():
-    var available_result = await iap.get_available_purchases_result()
-    if not available_result.get("success", false):
-        push_warning(
-            "Pending purchase query failed: %s (%s)"
-            % [available_result.get("error"), available_result.get("code")]
-        )
-        return
-    var purchases: Array = available_result.get("purchases", [])
-    for purchase in purchases:
-        await _process_purchase(purchase)
-
-func _on_products_fetched(result: Dictionary):
-    if result.has("products"):
-        for product_dict in result["products"]:
-            products[product_dict.get("id", "")] = product_dict
-        products_loaded.emit(products.values())
-
-func _on_purchase_updated(purchase: Dictionary):
-    await _process_purchase_dict(purchase)
+func _on_purchase_processed(purchase: Dictionary, status):
+    if status.status == "entitled":
+        purchase_completed.emit(purchase.productId)
 
 func _on_purchase_error(error: Dictionary):
-    if error.get("code", "") != "USER_CANCELED":
+    if error.get("code", "") != "user-cancelled":
         purchase_failed.emit(error)
 
-func _process_purchase(purchase):
-    var product_id = purchase.product_id if purchase is Object else purchase.get("productId", "")
-    var state = purchase.purchase_state if purchase is Object else purchase.get("purchaseState", "")
-
-    if state != "Purchased" and state != "purchased":
-        return
-
-    _grant_purchase(product_id)
-
-    var is_consumable = _is_consumable(product_id)
-
-    if purchase is Object:
-        var input = Types.PurchaseInput.new()
-        input.product_id = purchase.product_id
-        input.purchase_token = purchase.purchase_token if "purchase_token" in purchase else ""
-        input.transaction_id = purchase.transaction_id if "transaction_id" in purchase else ""
-        iap.finish_transaction(input, is_consumable)
-    else:
-        iap.finish_transaction_dict(purchase, is_consumable)
-
-    purchase_completed.emit(product_id)
-
-func _process_purchase_dict(purchase: Dictionary):
-    await _process_purchase(purchase)
-
-func _grant_purchase(product_id: String):
-    match product_id:
+# Must return true; credits each purchase id once, as in 2.3.
+func _grant_purchase(purchase: Dictionary, _is_consumable: bool) -> bool:
+    if GameState.credited_purchase_ids.has(purchase.id):
+        return true
+    GameState.credited_purchase_ids[purchase.id] = true
+    match purchase.productId:
         "com.yourgame.coins_100":
             GameState.add_coins(100)
         "com.yourgame.coins_500":
@@ -814,21 +648,20 @@ func _grant_purchase(product_id: String):
             GameState.set_ads_removed(true)
         "com.yourgame.premium_monthly":
             GameState.set_premium(true)
-
-func _is_consumable(product_id: String) -> bool:
-    return product_id in [PRODUCT_IDS.coins_100, PRODUCT_IDS.coins_500]
+    return true
 
 # Public API
 func buy(product_id: String):
     if not is_connected:
-        purchase_failed.emit({"code": "NOT_CONNECTED", "message": "Store not available"})
+        purchase_failed.emit({"code": "not-prepared", "message": "Store not available"})
         return
 
     var props = Types.RequestPurchaseProps.new()
     props.request = Types.RequestPurchasePropsByPlatforms.new()
 
     props.request.google = Types.RequestPurchaseAndroidProps.new()
-    props.request.google.skus = [product_id]
+    var skus: Array[String] = [product_id]
+    props.request.google.skus = skus
 
     props.request.apple = Types.RequestPurchaseIosProps.new()
     props.request.apple.sku = product_id
@@ -842,13 +675,13 @@ func get_product(product_id: String):
 
 func get_price(product_id: String) -> String:
     var product = get_product(product_id)
-    if product == null:
-        return "$0.99"
-    return product.display_price if product is Object else product.get("displayPrice", "$0.99")
+    return product.display_price if product != null else "$0.99"
 
 func restore():
     var result = await iap.restore_purchases()
-    return result.success if result else false
+    if result.success:
+        await flow.recover_purchases(true)
+    return result.success
 ```
 
 ### 6.2 Store UI
@@ -954,10 +787,10 @@ func setup(id: String, title: String, price: String):
 
 ## Best Practices
 
-1. **Always finish transactions**: Call `finish_transaction` or `finish_transaction_dict` after processing purchases
-2. **Check pending purchases on startup**: Process any purchases that weren't finished
+1. **Let the purchase flow finish transactions**: it finishes a purchase only after your backend or IAPKit confirms it
+2. **Recover on startup**: call `flow.recover_purchases()` after connecting
 3. **Include restore button**: Required by Apple for non-consumable purchases
-4. **Verify purchases server-side**: For production apps, verify receipts on your server
+4. **Confirm purchases server-side**: pass your backend call as `confirm_with_backend`; apps without one use `confirm_with_iapkit`
 5. **Handle errors gracefully**: Show user-friendly messages for failures
 6. **Test on real devices**: Sandbox/test mode required for IAP testing
 

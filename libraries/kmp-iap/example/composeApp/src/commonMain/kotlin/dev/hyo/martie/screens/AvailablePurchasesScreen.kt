@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import dev.hyo.martie.utils.swipeToBack
 import dev.hyo.martie.theme.AppColors
+import io.github.hyochan.kmpiap.getCurrentPlatform
 import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.openiap.*
 import kotlin.time.Instant
@@ -38,48 +39,15 @@ fun AvailablePurchasesScreen(navController: NavController) {
     var isRefreshing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Filter active purchases - unique by productId, showing only active items
-    fun filterActivePurchases(purchases: List<Purchase>): List<Purchase> {
-        return purchases
-            .filter { purchase ->
-                // Show active purchases (purchased or restored state)
-                when (purchase) {
-                    is PurchaseIOS -> {
-                        val isPurchased = purchase.purchaseState == PurchaseState.Purchased
-                        if (!isPurchased) return@filter false
-
-                        val isSubscription = purchase.productId in SubscriptionProductIds
-
-                        if (isSubscription) {
-                            // Active subscriptions: check auto-renewing or expiry time
-                            if (purchase.isAutoRenewing) {
-                                return@filter true  // Always show auto-renewing subscriptions
-                            }
-                            // For non-auto-renewing, check expiry time
-                            purchase.expirationDateIOS?.let { expiryTime ->
-                                val expiryDate = Instant.fromEpochMilliseconds(expiryTime.toLong())
-                                val now = Instant.fromEpochMilliseconds(currentTimeMillis())
-                                return@filter expiryDate > now  // Only show if not expired
-                            }
-                            return@filter true  // Show if no expiry info
-                        } else {
-                            // Consumables: always show purchased items that need to be finished
-                            return@filter true
-                        }
-                    }
-                    is PurchaseAndroid -> {
-                        if (purchase.purchaseState != PurchaseState.Purchased) return@filter false
-
-                        if (purchase.productId in SubscriptionProductIds) {
-                            return@filter purchase.autoRenewingAndroid == true || purchase.isAcknowledgedAndroid == true
-                        } else {
-                            return@filter purchase.productId !in ConsumableProductIds || purchase.isAcknowledgedAndroid != true
-                        }
-                    }
-                }
-            }
-            .sortedByDescending { it.transactionDate }
-            .distinctBy { it.productId }  // Keep only the latest purchase per product (remove duplicates)
+    suspend fun loadPurchases() {
+        availablePurchases = kmpIapInstance.getAvailablePurchases()
+        // StoreKit lists every past transaction unless asked for active items; Play lists only owned ones.
+        activePurchases = if (getCurrentPlatform() == IapPlatform.Ios) {
+            kmpIapInstance.getAvailablePurchases(PurchaseOptions(onlyIncludeActiveItemsIOS = true))
+        } else {
+            availablePurchases
+        }
+        errorMessage = if (activePurchases.isEmpty()) "No active purchases found" else null
     }
 
     // Initialize connection and load available purchases
@@ -88,7 +56,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
             isConnecting = true
             isLoading = true
             try {
-                val connectionResult = ensureExampleConnection()
+                val connectionResult = kmpIapInstance.initConnection()
                 connected = connectionResult
                 
                 if (!connectionResult) {
@@ -100,21 +68,11 @@ fun AvailablePurchasesScreen(navController: NavController) {
                 isConnecting = false
                 
                 // Load purchases with timeout
-                val purchasesResult = withTimeoutOrNull(10000) {
-                    kmpIapInstance.getAvailablePurchases()
+                val loaded = withTimeoutOrNull(10000) {
+                    loadPurchases()
+                    true
                 }
-                
-                if (purchasesResult != null) {
-                    availablePurchases = purchasesResult
-                    activePurchases = filterActivePurchases(purchasesResult)
-                    if (activePurchases.isEmpty()) {
-                        errorMessage = "No active purchases found"
-                    } else {
-                        errorMessage = null
-                    }
-                } else {
-                    errorMessage = "Loading purchases timed out"
-                }
+                if (loaded == null) errorMessage = "Loading purchases timed out"
                 
             } catch (e: Exception) {
                 errorMessage = "Failed to initialize: ${e.message}"
@@ -220,14 +178,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
                             scope.launch {
                                 isRefreshing = true
                                 try {
-                                    val purchases = kmpIapInstance.getAvailablePurchases()
-                                    availablePurchases = purchases
-                                    activePurchases = filterActivePurchases(purchases)
-                                    if (activePurchases.isEmpty()) {
-                                        errorMessage = "No active purchases found"
-                                    } else {
-                                        errorMessage = null
-                                    }
+                                    loadPurchases()
                                 } catch (e: Exception) {
                                     errorMessage = "Failed to refresh: ${e.message}"
                                 } finally {
@@ -391,7 +342,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
             }
 
             Text(
-                text = "Receipts are retained. Open Purchase Flow or Subscription Flow to verify and finish them.",
+                text = "The app's purchase flow confirms and finishes unfinished purchases.",
                 modifier = Modifier.padding(vertical = 16.dp),
                 color = AppColors.Secondary
             )

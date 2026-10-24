@@ -1,6 +1,7 @@
 import {useState, type ReactNode} from 'react';
 import {Platform, StyleSheet, Text, View} from 'react-native';
 import {useActionSheet} from '@expo/react-native-action-sheet';
+import {disposeReceiptPurchaseFlow} from '../utils/purchaseFlow';
 import BackendEntitlementFlow from './BackendEntitlementFlow';
 import ExampleButton from './ExampleButton';
 
@@ -25,6 +26,7 @@ export default function PurchaseConfirmationScreen({
         cancelButtonIndex: 2,
       },
       (index) => {
+        if (index === 1) disposeReceiptPurchaseFlow();
         if (index === 0 || index === 1) setAppBackend(index === 1);
       },
     );

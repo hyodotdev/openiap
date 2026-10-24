@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // Product IDs for testing in the example app
@@ -63,88 +62,28 @@ class IapConstants {
 
   static const amazonSubscriptionBaseId = 'dev.hyo.martie.premium.base';
 
-  static String? subscriptionProductId(Purchase purchase) {
-    if (subscriptionProductIds.contains(purchase.productId)) {
-      return purchase.productId;
-    }
-    final planId = purchase.currentPlanId;
-    return verificationStore(purchase) == IapStore.Amazon &&
-            purchase.productId == amazonSubscriptionBaseId &&
-            subscriptionProductIds.contains(planId)
-        ? planId
+  /// Amazon lists a restored term under its base SKU and the term as its plan.
+  static String? subscriptionProductId(
+    String productId,
+    String? currentPlanId,
+  ) {
+    if (subscriptionProductIds.contains(productId)) return productId;
+    return productId == amazonSubscriptionBaseId &&
+            subscriptionProductIds.contains(currentPlanId)
+        ? currentPlanId
         : null;
   }
 
+  static final List<String> subscriptionQueryIds = [
+    ...subscriptionProductIds,
+    amazonSubscriptionBaseId,
+  ];
+
   // These term-to-base IDs belong to Martie's Amazon catalog.
-  static String verificationProductId(String productId, IapStore store) =>
-      store == IapStore.Amazon && subscriptionProductIds.contains(productId)
+  static String amazonVerifiedProductId(String productId) =>
+      subscriptionProductIds.contains(productId)
           ? amazonSubscriptionBaseId
           : productId;
-
-  // Only this known community adapter uses Amazon's server verification.
-  static IapStore verificationStore(Purchase purchase) =>
-      purchase.store == IapStore.Unknown && purchase.storeId == 'amazon_example'
-          ? IapStore.Amazon
-          : purchase.store;
-
-  static bool matchesVerifiedPendingPurchase(
-          Purchase purchase, List<Purchase> pending) =>
-      purchase is PurchaseIOS &&
-      purchase.store == IapStore.Apple &&
-      purchase.storeId == 'apple' &&
-      purchase.id.isNotEmpty &&
-      pending.any((candidate) =>
-          candidate is PurchaseIOS &&
-          candidate.store == IapStore.Apple &&
-          candidate.storeId == 'apple' &&
-          candidate.id == purchase.id &&
-          candidate.productId == purchase.productId &&
-          candidate.revocationDateIOS == null &&
-          candidate.isUpgradedIOS != true &&
-          (candidate.expirationDateIOS == null ||
-              candidate.expirationDateIOS! >
-                  DateTime.now().millisecondsSinceEpoch) &&
-          (purchase.environmentIOS == null ||
-              candidate.environmentIOS == purchase.environmentIOS));
-
-  static bool acceptsVerification(
-      RequestVerifyPurchaseWithIapkitResult? result, Purchase purchase) {
-    if (result == null ||
-        !result.isValid ||
-        result.store != purchase.store ||
-        result.storeId != purchase.storeId ||
-        result.productId !=
-            verificationProductId(
-                purchase.productId, verificationStore(purchase))) {
-      return false;
-    }
-    if (purchase is PurchaseIOS &&
-        purchase.environmentIOS != null &&
-        result.environment != purchase.environmentIOS) {
-      return false;
-    }
-    final consumable = consumableProductIds.contains(purchase.productId);
-    final store = verificationStore(purchase);
-    switch (store) {
-      case IapStore.Apple:
-      case IapStore.Amazon:
-        return (store != IapStore.Amazon ||
-                result.environment ==
-                    (amazonRvsSandbox ? 'Sandbox' : 'Production')) &&
-            result.state ==
-                (consumable
-                    ? IapkitPurchaseState.ReadyToConsume
-                    : IapkitPurchaseState.Entitled);
-      case IapStore.Google:
-        return result.state == IapkitPurchaseState.Entitled ||
-            result.state == IapkitPurchaseState.PendingAcknowledgment ||
-            (consumable && result.state == IapkitPurchaseState.ReadyToConsume);
-      case IapStore.Horizon:
-        return result.state == IapkitPurchaseState.Entitled;
-      case IapStore.Unknown:
-        return false;
-    }
-  }
 
   // Consumable Product IDs
   static const List<String> consumableProductIds = [

@@ -1,14 +1,90 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  createDeviceConfirmationIOS,
+  createIapkitConfirmation,
   createPurchaseFlow,
   describePurchaseFlowStatus,
   toPurchaseConfirmationRequest,
+  type IapkitVerificationProps,
+  type IapkitVerificationResult,
+  type PurchaseFlowOutcome,
   type PurchaseConfirmation,
   type PurchaseFlowOptions,
   type PurchaseFlowPurchase,
   type PurchaseFlowStatus,
 } from "./purchase-flow";
+
+interface StepVector {
+  listener?: string[];
+  process?: string[];
+  recover?: { includeFinished?: boolean };
+  outcomes?: { id: string; status: unknown }[];
+  dispose?: boolean;
+}
+
+// The cases every port runs; see the file's $comment.
+const vectors: {
+  process: {
+    name: string;
+    purchase: PurchaseFlowPurchase;
+    isConsumable: boolean;
+    confirmation?: unknown;
+    confirmThrows?: true;
+    finishThrows?: true;
+    confirms?: boolean;
+    finishes: boolean;
+    status: unknown;
+    guidance: unknown;
+  }[];
+  iapkit: {
+    name: string;
+    purchase: PurchaseFlowPurchase;
+    isConsumable: boolean;
+    apiKey?: string | null;
+    baseUrl?: string;
+    amazon?: { sandbox: boolean; verifiedProductIds: Record<string, string> };
+    verifyAs?: Record<string, "apple" | "google" | "amazon" | "horizon">;
+    noGrant?: true;
+    props: IapkitVerificationProps | null;
+    result?: IapkitVerificationResult;
+    verifies?: boolean;
+    confirmation?: PurchaseConfirmation;
+    error?: true;
+    granted: boolean;
+  }[];
+  device: {
+    name: string;
+    clock?: { beforeRead: number; afterRead: number };
+    purchase: PurchaseFlowPurchase;
+    pending: PurchaseFlowPurchase[];
+    isConsumable: boolean;
+    noGrant?: true;
+    reads?: boolean;
+    confirmation?: PurchaseConfirmation;
+    error?: true;
+    granted: boolean;
+  }[];
+  sequences: {
+    name: string;
+    consumables?: string[];
+    purchases: Record<string, PurchaseFlowPurchase>;
+    answers: Record<string, (PurchaseConfirmation | "throw")[]>;
+    requested?: string[];
+    requestedOnce?: true;
+    pendingIOS?: string[] | "throw";
+    available?: string[];
+    steps: StepVector[];
+    confirms: Record<string, number>;
+    finishes: Record<string, number>;
+    published?: { id: string; status: unknown }[];
+  }[];
+} = JSON.parse(
+  readFileSync(
+    new URL("./purchase-flow.vectors.json", import.meta.url),
+    "utf8",
+  ),
+);
 
 const CONSUMABLES = new Set(["coins_100"]);
 
@@ -100,19 +176,24 @@ describe("processPurchase", () => {
     expect(options.finishTransaction).not.toHaveBeenCalled();
   });
   it.each(["amazon", "horizon", "unknown"])(
-    "rejects unsupported %s purchases before calling the backend",
+    "confirms and finishes an entitled %s purchase",
     async (store) => {
       const { flow, options } = flowWith(async () => ({
         status: "entitled",
         alreadyGranted: false,
       }));
-      await expect(
-        flow.processPurchase(purchase({ store })),
-      ).resolves.toMatchObject({ status: "failed", error: expect.any(Error) });
-      expect(options.confirmWithBackend).not.toHaveBeenCalled();
-      expect(options.finishTransaction).not.toHaveBeenCalled();
+      const item = purchase({ store });
+      await expect(flow.processPurchase(item)).resolves.toEqual({
+        status: "entitled",
+        alreadyGranted: false,
+      });
+      expect(options.confirmWithBackend).toHaveBeenCalledWith(item, {
+        isConsumable: false,
+      });
+      expect(options.finishTransaction).toHaveBeenCalledOnce();
     },
   );
+
   it("returns store_pending for a pending payment without calling the backend", async () => {
     const { flow, options } = flowWith(async () => ({
       status: "entitled",
@@ -247,6 +328,112 @@ describe("processPurchase", () => {
       alreadyGranted: true,
     });
     expect(options.finishTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("finishes the current Play purchase and marks a change that waits for payment", async () => {
+    const { flow, options } = flowWith(async () => ({
+      status: "entitled",
+      alreadyGranted: true,
+    }));
+    const current = purchase({
+      store: "google",
+      pendingPurchaseUpdateAndroid: { products: ["premium_yearly"] },
+    });
+
+    await expect(flow.processPurchase(current)).resolves.toEqual({
+      status: "entitled",
+      alreadyGranted: true,
+      changePending: true,
+    });
+    expect(options.confirmWithBackend).toHaveBeenCalledWith(current, {
+      isConsumable: false,
+    });
+    expect(options.finishTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it.each<PurchaseConfirmation>([
+    { status: "verified" },
+    { status: "ownership_conflict", alreadyGranted: true },
+  ])(
+    "marks a pending change only on an entitled purchase: %j",
+    async (confirmation) => {
+      const { flow } = flowWith(async () => confirmation);
+      const status = await flow.processPurchase(
+        purchase({
+          store: "google",
+          pendingPurchaseUpdateAndroid: { products: ["premium_yearly"] },
+        }),
+      );
+      expect(status).not.toHaveProperty("changePending");
+    },
+  );
+
+  it("keeps the pending change when finishing fails", async () => {
+    const finishError = new Error("store unavailable");
+    const { flow } = flowWith(
+      async () => ({ status: "entitled", alreadyGranted: true }),
+      {
+        finishTransaction: vi.fn(async () => {
+          throw finishError;
+        }),
+      },
+    );
+
+    await expect(
+      flow.processPurchase(
+        purchase({
+          store: "google",
+          pendingPurchaseUpdateAndroid: { products: ["premium_yearly"] },
+        }),
+      ),
+    ).resolves.toEqual({
+      status: "entitled",
+      alreadyGranted: true,
+      finishError,
+      changePending: true,
+    });
+  });
+
+  it("marks the pending change on a delivery that shares an earlier run", async () => {
+    let answer: (confirmation: PurchaseConfirmation) => void = () => {};
+    const { flow, options } = flowWith(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    const before = flow.processPurchase(purchase({ store: "google" }));
+    const after = flow.processPurchase(
+      purchase({
+        store: "google",
+        pendingPurchaseUpdateAndroid: { products: ["premium_yearly"] },
+      }),
+    );
+    answer({ status: "entitled", alreadyGranted: true });
+
+    await expect(before).resolves.toEqual({
+      status: "entitled",
+      alreadyGranted: true,
+    });
+    await expect(after).resolves.toEqual({
+      status: "entitled",
+      alreadyGranted: true,
+      changePending: true,
+    });
+    expect(options.confirmWithBackend).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not mark a change when the purchase has no pending update", async () => {
+    const { flow } = flowWith(async () => ({
+      status: "entitled",
+      alreadyGranted: false,
+    }));
+
+    await expect(
+      flow.processPurchase(
+        purchase({ store: "google", pendingPurchaseUpdateAndroid: null }),
+      ),
+    ).resolves.toEqual({ status: "entitled", alreadyGranted: false });
   });
 
   it("keeps access granted when finishing fails", async () => {
@@ -384,6 +571,24 @@ describe("processPurchase", () => {
     }
   });
 
+  it("finishes with the product type confirmation was given", async () => {
+    const isConsumable = vi
+      .fn()
+      .mockReturnValueOnce(false)
+      .mockReturnValue(true);
+    const { flow, options } = flowWith(
+      async () => ({ status: "entitled", alreadyGranted: false }),
+      { isConsumable },
+    );
+
+    await flow.processPurchase(purchase({ store: "google" }));
+
+    expect(isConsumable).toHaveBeenCalledOnce();
+    expect(options.finishTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ isConsumable: false }),
+    );
+  });
+
   it("shares one backend call between concurrent deliveries of a transaction", async () => {
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
@@ -400,8 +605,146 @@ describe("processPurchase", () => {
 
     expect(await first).toBe(await second);
     expect(options.confirmWithBackend).toHaveBeenCalledTimes(1);
-    await flow.processPurchase(purchase());
-    expect(options.confirmWithBackend).toHaveBeenCalledTimes(2);
+    // A later delivery of the finished purchase is answered without a call.
+    await expect(flow.processPurchase(purchase())).resolves.toBe(await first);
+    expect(options.confirmWithBackend).toHaveBeenCalledTimes(1);
+    expect(options.finishTransaction).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("listening", () => {
+  function listeningFlow(
+    confirm: () => Promise<PurchaseConfirmation>,
+    overrides: Partial<PurchaseFlowOptions<PurchaseFlowPurchase>> = {},
+  ) {
+    const store: { deliver?: (p: PurchaseFlowPurchase) => void } = {};
+    const published: PurchaseFlowOutcome<PurchaseFlowPurchase>[] = [];
+    const { flow, options } = flowWith(confirm, {
+      listenForPurchases: (onPurchase) => {
+        store.deliver = onPurchase;
+        return { remove: () => (store.deliver = undefined) };
+      },
+      wasRequested: () => false,
+      ...overrides,
+    });
+    flow.subscribe((outcome) => published.push(outcome));
+    return { flow, options, store, published };
+  }
+
+  function gate() {
+    let open!: () => void;
+    const opened = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    return { open, opened };
+  }
+
+  it("publishes a shared run as requested when the user's request joined it", async () => {
+    const { opened, open } = gate();
+    const { flow, store, published } = listeningFlow(async () => {
+      await opened;
+      return { status: "invalid" };
+    });
+
+    store.deliver?.(purchase());
+    const requested = flow.processPurchase(purchase());
+    open();
+
+    await expect(requested).resolves.toEqual({ status: "invalid" });
+    expect(published.map(({ status }) => status)).toEqual([
+      { status: "invalid" },
+    ]);
+  });
+
+  it("publishes a shared run with its latest delivery", async () => {
+    const { opened, open } = gate();
+    const { store, published } = listeningFlow(async () => {
+      await opened;
+      return { status: "entitled", alreadyGranted: false };
+    });
+    const changed = purchase({
+      store: "google",
+      pendingPurchaseUpdateAndroid: { products: ["premium_yearly"] },
+    });
+
+    store.deliver?.(purchase({ store: "google" }));
+    store.deliver?.(changed);
+    open();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(published).toEqual([
+      {
+        purchase: changed,
+        status: {
+          status: "entitled",
+          alreadyGranted: false,
+          changePending: true,
+        },
+      },
+    ]);
+  });
+
+  it("shares a recovery pass that is still running", async () => {
+    const { flow, options } = listeningFlow(
+      async () => ({ status: "entitled", alreadyGranted: false }),
+      {
+        getAvailablePurchases: vi.fn(async () => [
+          purchase({ store: "google", isAcknowledgedAndroid: false }),
+        ]),
+      },
+    );
+
+    const [first, second] = await Promise.all([
+      flow.recoverPurchases(),
+      flow.recoverPurchases(),
+    ]);
+
+    expect(first).toBe(second);
+    expect(options.getAvailablePurchases).toHaveBeenCalledTimes(1);
+  });
+
+  it("confirms nothing more for a recovery pass once disposed", async () => {
+    const { opened, open } = gate();
+    const { flow, options } = listeningFlow(
+      async () => {
+        await opened;
+        return { status: "entitled", alreadyGranted: false };
+      },
+      {
+        getAvailablePurchases: vi.fn(async () => [
+          purchase({ id: "a", store: "google", isAcknowledgedAndroid: false }),
+          purchase({ id: "b", store: "google", isAcknowledgedAndroid: false }),
+        ]),
+      },
+    );
+
+    const recovery = flow.recoverPurchases();
+    await vi.waitFor(() =>
+      expect(options.confirmWithBackend).toHaveBeenCalledTimes(1),
+    );
+    flow.dispose();
+    open();
+
+    await expect(recovery).resolves.toHaveLength(1);
+    expect(options.confirmWithBackend).toHaveBeenCalledTimes(1);
+  });
+
+  it("publishes nothing after dispose, even to a later subscriber", async () => {
+    const { opened, open } = gate();
+    const { flow, store } = listeningFlow(async () => {
+      await opened;
+      return { status: "entitled", alreadyGranted: false };
+    });
+    const late = vi.fn();
+
+    store.deliver?.(purchase());
+    flow.dispose();
+    flow.subscribe(late);
+    open();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(late).not.toHaveBeenCalled();
+    expect(store.deliver).toBeUndefined();
   });
 });
 
@@ -635,6 +978,31 @@ describe("recoverPurchases", () => {
     },
   );
 
+  it("restores a Play purchase whose change still waits for payment", async () => {
+    const current = purchase({
+      store: "google",
+      isAcknowledgedAndroid: true,
+      pendingPurchaseUpdateAndroid: { products: ["premium_yearly"] },
+    });
+    const { flow } = flowWith(
+      async () => ({ status: "entitled", alreadyGranted: true }),
+      { getAvailablePurchases: vi.fn(async () => [current]) },
+    );
+
+    await expect(
+      flow.recoverPurchases({ includeFinished: true }),
+    ).resolves.toEqual([
+      {
+        purchase: current,
+        status: {
+          status: "entitled",
+          alreadyGranted: true,
+          changePending: true,
+        },
+      },
+    ]);
+  });
+
   it("confirms purchases one at a time", async () => {
     let active = 0;
     let maxActive = 0;
@@ -713,6 +1081,10 @@ describe("describePurchaseFlowStatus", () => {
       { key: "access_granted", offerPurchase: false },
     ],
     [
+      { status: "entitled", alreadyGranted: true, changePending: true },
+      { key: "change_pending", offerPurchase: false },
+    ],
+    [
       { status: "failed", error: new Error("offline") },
       { key: "try_again_later", offerPurchase: false },
     ],
@@ -743,6 +1115,217 @@ describe("toPurchaseConfirmationRequest", () => {
       "has no Apple or Google purchase token",
     );
   });
+});
+
+// The same cases run in every port, so all SDKs make the same decisions.
+describe("shared vectors", () => {
+  it.each(vectors.process.map((v) => [v.name, v] as const))(
+    "process: %s",
+    async (_, vector) => {
+      const confirmWithBackend = vi.fn(async () => {
+        if (vector.confirmThrows) throw new Error("backend down");
+        // Raw JSON on purpose: the flow must reject malformed answers itself.
+        return vector.confirmation as PurchaseConfirmation;
+      });
+      const finishTransaction = vi.fn(
+        async (_args: {
+          purchase: PurchaseFlowPurchase;
+          isConsumable: boolean;
+        }) => {
+          if (vector.finishThrows) throw new Error("store down");
+        },
+      );
+      const flow = createPurchaseFlow({
+        confirmWithBackend,
+        finishTransaction,
+        isConsumable: () => vector.isConsumable,
+        getAvailablePurchases: async () => [],
+        getPendingTransactionsIOS: undefined,
+      });
+      const item = vector.purchase;
+
+      const status = await flow.processPurchase(item);
+
+      expect(confirmWithBackend).toHaveBeenCalledTimes(
+        vector.confirms === false ? 0 : 1,
+      );
+      if (vector.finishes) {
+        expect(finishTransaction).toHaveBeenCalledExactlyOnceWith({
+          purchase: item,
+          isConsumable: vector.isConsumable,
+        });
+      } else {
+        expect(finishTransaction).not.toHaveBeenCalled();
+      }
+      const { error, finishError, ...rest } = status as Record<string, unknown>;
+      expect({
+        ...rest,
+        ...(error === undefined ? {} : { error: true }),
+        ...(finishError === undefined ? {} : { finishError: true }),
+      }).toEqual(vector.status);
+      expect(describePurchaseFlowStatus(status)).toEqual(vector.guidance);
+    },
+  );
+
+  it.each(vectors.iapkit.map((v) => [v.name, v] as const))(
+    "iapkit: %s",
+    async (_, vector) => {
+      const item = vector.purchase;
+      const { amazon } = vector;
+      const productIds = amazon?.verifiedProductIds ?? {};
+      const stores = vector.verifyAs ?? {};
+      const grant = vi.fn(async () => {});
+      const apiKey = vector.apiKey === undefined ? "pk" : vector.apiKey;
+      const options = {
+        ...(apiKey === null ? {} : { apiKey }),
+        baseUrl: vector.baseUrl,
+        ...(amazon
+          ? {
+              amazon: {
+                sandbox: amazon.sandbox,
+                verifiedProductId: (id: string) => productIds[id] ?? id,
+              },
+            }
+          : {}),
+        verifyAs: (p: PurchaseFlowPurchase) => stores[p.storeId ?? ""],
+        ...(vector.noGrant ? {} : { grant }),
+      };
+      const verify = vi.fn(
+        async (_props: IapkitVerificationProps) => vector.result ?? {},
+      );
+      const confirm = createIapkitConfirmation(verify, options);
+
+      const answer = confirm(item, { isConsumable: vector.isConsumable });
+
+      if (vector.error) {
+        await expect(answer).rejects.toThrow();
+      } else {
+        await expect(answer).resolves.toEqual(vector.confirmation);
+      }
+      if (vector.props === null || vector.verifies === false) {
+        expect(verify).not.toHaveBeenCalled();
+      } else {
+        expect(verify).toHaveBeenCalledExactlyOnceWith(vector.props);
+      }
+      expect(grant).toHaveBeenCalledTimes(vector.granted ? 1 : 0);
+    },
+  );
+
+  it.each(vectors.device.map((v) => [v.name, v] as const))(
+    "device: %s",
+    async (_, vector) => {
+      const { clock } = vector;
+      if (clock) vi.useFakeTimers({ now: clock.beforeRead });
+      try {
+        const grant = vi.fn(async () => {});
+        const read = vi.fn(async () => {
+          if (clock) vi.setSystemTime(clock.afterRead);
+          return vector.pending;
+        });
+        const confirm = createDeviceConfirmationIOS(
+          read,
+          vector.noGrant ? {} : { grant },
+        );
+
+        const answer = confirm(vector.purchase, {
+          isConsumable: vector.isConsumable,
+        });
+
+        if (vector.error) {
+          await expect(answer).rejects.toThrow();
+        } else {
+          await expect(answer).resolves.toEqual(vector.confirmation);
+        }
+        expect(read).toHaveBeenCalledTimes(vector.reads === false ? 0 : 1);
+        expect(grant).toHaveBeenCalledTimes(vector.granted ? 1 : 0);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it.each(vectors.sequences.map((v) => [v.name, v] as const))(
+    "sequence: %s",
+    async (_, vector) => {
+      const { purchases, answers, pendingIOS } = vector;
+      const confirms: Record<string, number> = {};
+      const finishes: Record<string, number> = {};
+      const published: PurchaseFlowOutcome<PurchaseFlowPurchase>[] = [];
+      const consumables = new Set(vector.consumables);
+      const requested = new Set(vector.requested);
+      const store: { deliver?: (purchase: PurchaseFlowPurchase) => void } = {};
+      const flow = createPurchaseFlow<PurchaseFlowPurchase>({
+        confirmWithBackend: async (p) => {
+          const count = (confirms[p.id] = (confirms[p.id] ?? 0) + 1);
+          const list = answers[p.id] ?? answers["*"];
+          const answer = list[Math.min(count, list.length) - 1];
+          if (answer === "throw") throw new Error("backend down");
+          return answer;
+        },
+        finishTransaction: async ({ purchase: p }) => {
+          finishes[p.id] = (finishes[p.id] ?? 0) + 1;
+        },
+        isConsumable: (productId) => consumables.has(productId),
+        getAvailablePurchases: async () =>
+          (vector.available ?? []).map((key) => purchases[key]),
+        getPendingTransactionsIOS:
+          pendingIOS === undefined
+            ? undefined
+            : async () => {
+                if (pendingIOS === "throw") throw new Error("unverified");
+                return pendingIOS.map((key) => purchases[key]);
+              },
+        listenForPurchases: (onPurchase) => {
+          store.deliver = onPurchase;
+          return {
+            remove: () => {
+              store.deliver = undefined;
+            },
+          };
+        },
+        wasRequested: (p) =>
+          vector.requestedOnce ? requested.delete(p.id) : requested.has(p.id),
+      });
+      flow.subscribe((outcome) => published.push(outcome));
+      const comparable = (status: PurchaseFlowStatus) => {
+        const { error, finishError, ...rest } = status as Record<
+          string,
+          unknown
+        >;
+        return {
+          ...rest,
+          ...(error === undefined ? {} : { error: true }),
+          ...(finishError === undefined ? {} : { finishError: true }),
+        };
+      };
+      const byId = (outcomes: PurchaseFlowOutcome<PurchaseFlowPurchase>[]) =>
+        outcomes.map(({ purchase: p, status }) => ({
+          id: p.id,
+          status: comparable(status),
+        }));
+
+      for (const step of vector.steps) {
+        if (step.dispose) flow.dispose();
+        for (const key of step.listener ?? []) store.deliver?.(purchases[key]);
+        const processed = (step.process ?? []).map((key) =>
+          flow.processPurchase(purchases[key]),
+        );
+        const recovered = step.recover
+          ? flow.recoverPurchases(step.recover)
+          : undefined;
+        await Promise.all(processed);
+        if (recovered) expect(byId(await recovered)).toEqual(step.outcomes);
+        // Listener deliveries settle without a promise to wait on.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+
+      expect(confirms).toEqual(vector.confirms);
+      expect(finishes).toEqual(vector.finishes);
+      if (vector.published) {
+        expect(byId(published)).toEqual(vector.published);
+      }
+    },
+  );
 });
 
 describe("isolation", () => {

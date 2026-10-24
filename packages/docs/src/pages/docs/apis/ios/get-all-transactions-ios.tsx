@@ -105,7 +105,7 @@ if (Platform.OS === 'ios') {
 using OpenIap.Maui;
 
 // Returns an empty list on Android
-var txs = await ((QueryResolver)OpenIapClient.Instance).GetAllTransactionsIOSAsync();`}</CodeBlock>
+var txs = await OpenIapClient.Query.GetAllTransactionsIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

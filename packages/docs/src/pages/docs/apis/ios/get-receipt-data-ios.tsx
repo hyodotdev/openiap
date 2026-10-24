@@ -98,7 +98,7 @@ if (Platform.OS === 'ios') {
 using OpenIap.Maui;
 
 // Returns null on Android
-var data = await ((QueryResolver)OpenIapClient.Instance).GetReceiptDataIOSAsync();`}</CodeBlock>
+var data = await OpenIapClient.Query.GetReceiptDataIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

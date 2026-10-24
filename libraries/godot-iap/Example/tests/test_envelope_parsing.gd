@@ -99,7 +99,7 @@ class FakeAndroidJsonPlugin:
 
 	func verifyPurchaseWithProvider(props_json: String) -> String:
 		last_args = [props_json]
-		return _respond("verifyPurchaseWithProvider", JSON.stringify({"provider": "iapkit"}))
+		return _respond("verifyPurchaseWithProvider", JSON.stringify({"success": true, "resultJson": JSON.stringify({"provider": "iapkit"})}))
 
 	func deepLinkToSubscriptions(options_json: String) -> String:
 		last_args = [options_json]

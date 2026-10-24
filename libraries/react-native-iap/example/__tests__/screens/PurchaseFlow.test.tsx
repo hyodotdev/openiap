@@ -1,15 +1,18 @@
 import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
-import {ActionSheetIOS, Alert, Platform} from 'react-native';
+import {Alert, Platform} from 'react-native';
 import PurchaseFlow from '../../screens/PurchaseFlow';
 import * as RNIap from 'react-native-iap';
 import {PRODUCT_IDS} from '../../src/utils/constants';
+import {
+  purchaseFlow,
+  setVerificationMethod,
+} from '../../src/utils/purchaseFlow';
 import {ErrorCode} from 'react-native-iap';
 import type {
-  MutationFinishTransactionArgs,
   Purchase,
-  PurchaseIOS,
-  VerifyPurchaseWithProviderProps,
-  VerifyPurchaseWithProviderResult,
+  PurchaseError,
+  PurchaseFlowOutcome,
+  PurchaseFlowStatus,
 } from 'react-native-iap';
 
 jest.mock(
@@ -204,8 +207,19 @@ describe('PurchaseFlow Screen', () => {
     ],
   };
 
-  let onPurchaseSuccess: ((purchase: any) => Promise<void> | void) | undefined;
-  let onPurchaseError: ((error: any) => void) | undefined;
+  const bulbs: Purchase = {
+    id: 'transaction-1',
+    productId: 'dev.hyo.martie.10bulbs',
+    purchaseToken: 'apple-jws',
+    purchaseState: 'purchased',
+    quantity: 1,
+    isAutoRenewing: false,
+    transactionDate: 1,
+    store: 'apple',
+    storeId: 'apple',
+  };
+
+  let options: Parameters<typeof RNIap.useIAP>[0];
 
   const mockIapState = (
     overrides: Partial<ReturnType<typeof RNIap.useIAP>> & {
@@ -213,56 +227,38 @@ describe('PurchaseFlow Screen', () => {
     } = {},
   ) => {
     const fetchProducts = jest.fn(() => Promise.resolve());
-    const getAvailablePurchases = jest.fn(() => Promise.resolve());
-    const finishTransaction = jest.fn(() => Promise.resolve());
-    const verifyPurchase = jest.fn(() =>
-      Promise.resolve({
-        isValid: true,
-        jwsRepresentation: 'test-jws',
-        receiptData: 'test-receipt',
-      }),
-    );
-    const verifyPurchaseWithProvider = jest.fn(() =>
-      Promise.resolve<VerifyPurchaseWithProviderResult>({
-        provider: 'iapkit',
-        iapkit: {
-          isValid: true,
-          productId: 'dev.hyo.martie.10bulbs',
-          state: 'ready-to-consume',
-          store: Platform.OS === 'ios' ? 'apple' : 'google',
-          storeId: Platform.OS === 'ios' ? 'apple' : 'play',
-        },
-      }),
-    );
 
-    (RNIap.useIAP as jest.Mock).mockImplementation((options) => {
-      onPurchaseSuccess = options?.onPurchaseSuccess;
-      onPurchaseError = options?.onPurchaseError;
-
+    (RNIap.useIAP as jest.Mock).mockImplementation((hookOptions) => {
+      options = hookOptions;
       return {
         connected: true,
         products: sampleProducts,
-        availablePurchases: [],
-        activeSubscriptions: [],
         fetchProducts,
-        finishTransaction,
-        getAvailablePurchases,
-        verifyPurchase,
-        verifyPurchaseWithProvider,
         ...overrides,
       };
     });
 
-    return {
-      fetchProducts,
-      getAvailablePurchases,
-      finishTransaction,
-      verifyPurchase,
-      verifyPurchaseWithProvider,
-    };
+    return {fetchProducts};
+  };
+
+  const report = async (
+    purchase: Purchase,
+    status: PurchaseFlowStatus,
+  ): Promise<void> => {
+    const outcome: PurchaseFlowOutcome<Purchase> = {purchase, status};
+    await act(async () => {
+      options?.onPurchaseFlowOutcome?.(outcome);
+    });
+  };
+
+  const fail = async (error: PurchaseError): Promise<void> => {
+    await act(async () => {
+      options?.onPurchaseError?.(error);
+    });
   };
 
   beforeEach(() => {
+    setVerificationMethod('iapkit-localhost');
     jest.clearAllMocks();
     Platform.OS = 'ios';
     mockIapState();
@@ -289,128 +285,10 @@ describe('PurchaseFlow Screen', () => {
     });
   });
 
-  it('verifies a retained iOS consumable before finishing it when active ownership is empty', async () => {
-    const purchase: PurchaseIOS = {
-      id: 'retained-ios-consumable',
-      transactionId: 'retained-ios-consumable',
-      productId: 'dev.hyo.martie.10bulbs',
-      purchaseToken: 'retained-ios-receipt',
-      purchaseState: 'purchased',
-      quantity: 1,
-      isAutoRenewing: false,
-      store: 'apple',
-      storeId: 'apple',
-      transactionDate: 1,
-    };
-    jest.mocked(RNIap.getPendingTransactionsIOS).mockResolvedValueOnce([
-      purchase,
-      {
-        ...purchase,
-        id: 'retained-ios-subscription',
-        transactionId: 'retained-ios-subscription',
-        productId: 'dev.hyo.martie.premium',
-      },
-    ]);
-    const {finishTransaction, verifyPurchaseWithProvider} = mockIapState();
-    verifyPurchaseWithProvider.mockResolvedValueOnce({
-      provider: 'iapkit',
-      iapkit: {
-        isValid: true,
-        productId: purchase.productId,
-        state: 'ready-to-consume',
-        store: 'apple',
-        storeId: 'apple',
-      },
-    });
+  it('hands the app purchase flow to useIAP', async () => {
     await render(<PurchaseFlow />);
-    await waitFor(() => expect(finishTransaction).toHaveBeenCalledTimes(1));
-    expect(RNIap.getPendingTransactionsIOS).toHaveBeenCalledTimes(1);
-    expect(finishTransaction).toHaveBeenCalledWith({
-      purchase,
-      isConsumable: true,
-    });
-    expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-    expect(verifyPurchaseWithProvider.mock.invocationCallOrder[0]).toBeLessThan(
-      finishTransaction.mock.invocationCallOrder[0]!,
-    );
-  });
 
-  it('retains a receipt in None mode and retries the same receipt after selecting verification', async () => {
-    Platform.OS = 'android';
-    const purchase: Purchase = {
-      id: 'none-then-verified-rn',
-      productId: 'dev.hyo.martie.10bulbs',
-      purchaseToken: 'none-then-verified-token',
-      purchaseState: 'purchased',
-      quantity: 1,
-      isAutoRenewing: false,
-      transactionDate: 1,
-      store: 'google',
-      storeId: 'play',
-    };
-    const methods = mockIapState();
-    const screen = await render(<PurchaseFlow />);
-    await fireEvent.press(screen.getByText('Local (IAPKit)'));
-    await fireEvent.press(
-      screen.getAllByTestId('verification-method-option')[3]!,
-    );
-    await act(async () => {
-      await onPurchaseSuccess?.(purchase);
-    });
-    expect(methods.verifyPurchaseWithProvider).not.toHaveBeenCalled();
-    expect(methods.finishTransaction).not.toHaveBeenCalled();
-    expect(screen.getByText(/Receipt retained/)).toBeTruthy();
-
-    await fireEvent.press(screen.getByText('None (Skip)'));
-    await fireEvent.press(
-      screen.getAllByTestId('verification-method-option')[1]!,
-    );
-    await waitFor(() =>
-      expect(methods.finishTransaction).toHaveBeenCalledTimes(1),
-    );
-    await act(async () => {
-      await onPurchaseSuccess?.(purchase);
-    });
-    expect(methods.verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-    expect(methods.finishTransaction).toHaveBeenCalledWith({
-      purchase,
-      isConsumable: true,
-    });
-  });
-
-  it('retries a retained failed receipt when the same verification method is selected again', async () => {
-    Platform.OS = 'android';
-    const purchase: Purchase = {
-      id: 'same-method-retry-rn',
-      productId: 'dev.hyo.martie.10bulbs',
-      purchaseToken: 'same-method-retry-token',
-      purchaseState: 'purchased',
-      quantity: 1,
-      isAutoRenewing: false,
-      transactionDate: 1,
-      store: 'google',
-      storeId: 'play',
-    };
-    const methods = mockIapState();
-    methods.verifyPurchaseWithProvider.mockRejectedValueOnce(
-      new Error('offline'),
-    );
-    mockIapState({...methods, availablePurchases: [purchase]});
-    const screen = await render(<PurchaseFlow />);
-    await waitFor(() =>
-      expect(
-        screen.getByText(/Purchase verification failed: offline/),
-      ).toBeTruthy(),
-    );
-    expect(methods.finishTransaction).not.toHaveBeenCalled();
-    await fireEvent.press(screen.getByText('Local (IAPKit)'));
-    await fireEvent.press(
-      screen.getAllByTestId('verification-method-option')[1]!,
-    );
-    await waitFor(() =>
-      expect(methods.finishTransaction).toHaveBeenCalledTimes(1),
-    );
-    expect(methods.verifyPurchaseWithProvider).toHaveBeenCalledTimes(2);
+    expect(options?.purchaseFlow).toBe(purchaseFlow);
   });
 
   it('displays fetched products', async () => {
@@ -441,861 +319,73 @@ describe('PurchaseFlow Screen', () => {
     });
   });
 
-  it('routes Local (IAPKit) through the configured local server', async () => {
-    const {finishTransaction, verifyPurchase, verifyPurchaseWithProvider} =
-      mockIapState();
+  it('stays processing until the requested product has an outcome', async () => {
+    const screen = await render(<PurchaseFlow />);
 
-    await render(<PurchaseFlow />);
+    await fireEvent.press(screen.getAllByText('Purchase')[0]!);
+    expect(screen.getAllByText('Processing...')).toHaveLength(2);
 
-    await act(async () => {
-      await onPurchaseSuccess?.({
-        id: 'transaction-1',
-        productId: 'dev.hyo.martie.10bulbs',
-        purchaseToken: 'apple-jws',
-        store: 'apple',
-        storeId: 'apple',
-        transactionDate: Date.now(),
-        purchaseState: 'purchased',
-      });
-    });
-
-    expect(verifyPurchase).not.toHaveBeenCalled();
-    expect(verifyPurchaseWithProvider).toHaveBeenCalledWith({
-      provider: 'iapkit',
-      iapkit: {
-        apiKey: 'test-api-key',
-        baseUrl: 'http://192.168.0.10:3100',
-        apple: {jws: 'apple-jws'},
-      },
-    });
-    expect(verifyPurchaseWithProvider.mock.invocationCallOrder[0]).toBeLessThan(
-      finishTransaction.mock.invocationCallOrder[0]!,
+    await report(
+      {...bulbs, id: 'recovered', productId: 'dev.hyo.martie.30bulbs'},
+      {status: 'entitled', alreadyGranted: false},
     );
-  });
+    expect(screen.getAllByText('Processing...')).toHaveLength(2);
 
-  it('verifies and finishes a restored ready-to-consume Google purchase exactly once', async () => {
-    Platform.OS = 'android';
-    const restoredPurchase: Purchase = {
-      id: 'transaction-restored-1',
-      isAutoRenewing: false,
-      productId: 'dev.hyo.martie.10bulbs',
-      purchaseState: 'purchased',
-      purchaseToken: 'google-token-restored-1',
-      quantity: 1,
-      store: 'google',
-      storeId: 'play',
-      transactionDate: Date.now(),
-    };
-    const verificationResult: VerifyPurchaseWithProviderResult = {
-      provider: 'iapkit',
-      iapkit: {
-        isValid: true,
-        productId: restoredPurchase.productId,
-        state: 'ready-to-consume',
-        store: 'google',
-        storeId: 'play',
-      },
-    };
-    const finishTransaction = jest.fn(
-      (_options: MutationFinishTransactionArgs): Promise<void> =>
-        Promise.resolve(),
-    );
-    const verifyPurchaseWithProvider = jest.fn(
-      (
-        _options: VerifyPurchaseWithProviderProps,
-      ): Promise<VerifyPurchaseWithProviderResult> =>
-        Promise.resolve(verificationResult),
-    );
-
-    mockIapState({
-      availablePurchases: [restoredPurchase],
-      finishTransaction,
-      verifyPurchaseWithProvider,
-    });
-    const {rerender} = await render(<PurchaseFlow />);
-
-    await waitFor(() => {
-      expect(verifyPurchaseWithProvider).toHaveBeenCalledWith({
-        provider: 'iapkit',
-        iapkit: {
-          apiKey: 'test-api-key',
-          baseUrl: 'http://192.168.0.10:3100',
-          google: {purchaseToken: 'google-token-restored-1'},
-        },
-      });
-      expect(finishTransaction).toHaveBeenCalledWith({
-        purchase: restoredPurchase,
-        isConsumable: true,
-      });
-    });
-
-    mockIapState({
-      availablePurchases: [{...restoredPurchase}],
-      finishTransaction,
-      verifyPurchaseWithProvider,
-    });
-    await rerender(<PurchaseFlow />);
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-    expect(finishTransaction).toHaveBeenCalledTimes(1);
-    expect(verifyPurchaseWithProvider.mock.invocationCallOrder[0]).toBeLessThan(
-      finishTransaction.mock.invocationCallOrder[0]!,
-    );
-  });
-
-  it.each<{
-    expectedMessage: string;
-    label: string;
-    result: VerifyPurchaseWithProviderResult;
-  }>([
-    {
-      expectedMessage:
-        'IAPKit rejected the purchase (state: consumed, store: google)',
-      label: 'invalid',
-      result: {
-        provider: 'iapkit',
-        iapkit: {
-          isValid: false,
-          productId: 'dev.hyo.martie.10bulbs',
-          state: 'consumed',
-          store: 'google',
-          storeId: 'play',
-        },
-      },
-    },
-    {
-      expectedMessage:
-        'IAPKit verified dev.hyo.martie.30bulbs, expected dev.hyo.martie.10bulbs',
-      label: 'for a different product',
-      result: {
-        provider: 'iapkit',
-        iapkit: {
-          isValid: true,
-          productId: 'dev.hyo.martie.30bulbs',
-          state: 'entitled',
-          store: 'google',
-          storeId: 'play',
-        },
-      },
-    },
-  ])(
-    'does not finish a restored Local IAPKit consumable when verification is $label',
-    async ({expectedMessage, result}) => {
-      Platform.OS = 'android';
-      const restoredPurchase: Purchase = {
-        id: `transaction-restored-${result.iapkit?.productId}`,
-        isAutoRenewing: false,
-        productId: 'dev.hyo.martie.10bulbs',
-        purchaseState: 'purchased',
-        purchaseToken: `google-token-restored-${result.iapkit?.productId}`,
-        quantity: 1,
-        store: 'google',
-        storeId: 'play',
-        transactionDate: Date.now(),
-      };
-      const finishTransaction = jest.fn(
-        (_options: MutationFinishTransactionArgs): Promise<void> =>
-          Promise.resolve(),
-      );
-      const verifyPurchaseWithProvider = jest.fn(
-        (
-          _options: VerifyPurchaseWithProviderProps,
-        ): Promise<VerifyPurchaseWithProviderResult> => Promise.resolve(result),
-      );
-
-      mockIapState({
-        availablePurchases: [restoredPurchase],
-        finishTransaction,
-        verifyPurchaseWithProvider,
-      });
-      const {getByText, queryByText} = await render(<PurchaseFlow />);
-
-      await waitFor(() => {
-        expect(
-          getByText(`Purchase verification failed: ${expectedMessage}`),
-        ).toBeTruthy();
-      });
-
-      expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-      expect(finishTransaction).not.toHaveBeenCalled();
-      expect(
-        queryByText(/Purchase completed and finished successfully/),
-      ).toBeNull();
-    },
-  );
-
-  it.each([
-    ['dev.hyo.martie.certified', false],
-    ['dev.hyo.martie.10bulbs', true],
-  ])(
-    'verifies an acknowledged %s and consumes only consumables',
-    async (productId, isConsumable) => {
-      Platform.OS = 'android';
-      const purchase: Purchase = {
-        id: `acknowledged-rn-${productId}`,
-        productId,
-        purchaseToken: `acknowledged-rn-token-${productId}`,
-        purchaseState: 'purchased',
-        transactionDate: 1,
-        quantity: 1,
-        isAutoRenewing: false,
-        isAcknowledgedAndroid: true,
-        store: 'google',
-        storeId: 'play',
-      };
-      const verifyPurchaseWithProvider = jest.fn(() =>
-        Promise.resolve<VerifyPurchaseWithProviderResult>({
-          provider: 'iapkit',
-          iapkit: {
-            isValid: true,
-            productId,
-            state: isConsumable ? 'ready-to-consume' : 'entitled',
-            store: 'google',
-            storeId: 'play',
-          },
-        }),
-      );
-      const finishTransaction = jest.fn(() => Promise.resolve());
-      mockIapState({
-        availablePurchases: [purchase],
-        verifyPurchaseWithProvider,
-        finishTransaction,
-      });
-      const screen = await render(<PurchaseFlow />);
-      await waitFor(() =>
-        expect(
-          screen.getByText(/Purchase completed and finished successfully/),
-        ).toBeTruthy(),
-      );
-      expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-      expect(finishTransaction).toHaveBeenCalledTimes(isConsumable ? 1 : 0);
-      if (isConsumable)
-        expect(finishTransaction).toHaveBeenCalledWith({
-          purchase,
-          isConsumable: true,
-        });
-      await act(async () => {
-        await onPurchaseSuccess?.({...purchase});
-      });
-      expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-      expect(finishTransaction).toHaveBeenCalledTimes(isConsumable ? 1 : 0);
-    },
-  );
-
-  it('deduplicates reconnect restoration and callback replay while verification is pending', async () => {
-    Platform.OS = 'android';
-    const purchase: Purchase = {
-      id: 'transaction-reconnect-1',
-      isAutoRenewing: false,
-      productId: 'dev.hyo.martie.10bulbs',
-      purchaseState: 'purchased',
-      purchaseToken: 'google-token-reconnect-1',
-      quantity: 1,
-      store: 'google',
-      storeId: 'play',
-      transactionDate: Date.now(),
-    };
-    const verificationResult: VerifyPurchaseWithProviderResult = {
-      provider: 'iapkit',
-      iapkit: {
-        isValid: true,
-        productId: purchase.productId,
-        state: 'entitled',
-        store: 'google',
-        storeId: 'play',
-      },
-    };
-    const finishTransaction = jest.fn(
-      (_options: MutationFinishTransactionArgs): Promise<void> =>
-        Promise.resolve(),
-    );
-    let resolveVerification:
-      ((value: VerifyPurchaseWithProviderResult) => void) | undefined;
-    const verificationPromise = new Promise<VerifyPurchaseWithProviderResult>(
-      (resolve) => {
-        resolveVerification = resolve;
-      },
-    );
-    const verifyPurchaseWithProvider = jest.fn(
-      (
-        _options: VerifyPurchaseWithProviderProps,
-      ): Promise<VerifyPurchaseWithProviderResult> => verificationPromise,
-    );
-
-    mockIapState({
-      availablePurchases: [],
-      finishTransaction,
-      verifyPurchaseWithProvider,
-    });
-    const {rerender} = await render(<PurchaseFlow />);
-    const initialPurchaseSuccessHandler = onPurchaseSuccess;
-    if (!initialPurchaseSuccessHandler) {
-      throw new Error('Purchase success handler was not registered');
-    }
-
-    let initialProcessingPromise: Promise<void> | undefined;
-    await act(async () => {
-      initialProcessingPromise = Promise.resolve(
-        initialPurchaseSuccessHandler(purchase),
-      );
-      await Promise.resolve();
-    });
-
-    expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-    expect(finishTransaction).not.toHaveBeenCalled();
-
-    mockIapState({
-      connected: false,
-      availablePurchases: [purchase],
-      finishTransaction,
-      verifyPurchaseWithProvider,
-    });
-    await rerender(<PurchaseFlow />);
-
-    mockIapState({
-      connected: true,
-      availablePurchases: [{...purchase}],
-      finishTransaction,
-      verifyPurchaseWithProvider,
-    });
-    await rerender(<PurchaseFlow />);
-    const replayedPurchaseSuccessHandler = onPurchaseSuccess;
-    if (!replayedPurchaseSuccessHandler) {
-      throw new Error('Purchase success handler was not registered');
-    }
-
-    let replayProcessingPromise: Promise<void> | undefined;
-    await act(async () => {
-      replayProcessingPromise = Promise.resolve(
-        replayedPurchaseSuccessHandler({...purchase}),
-      );
-      await Promise.resolve();
-    });
-
-    expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-    expect(finishTransaction).not.toHaveBeenCalled();
-
-    if (
-      !resolveVerification ||
-      !initialProcessingPromise ||
-      !replayProcessingPromise
-    ) {
-      throw new Error('Pending verification was not initialized');
-    }
-    const settleVerification = resolveVerification;
-    const initialPromise = initialProcessingPromise;
-    const replayPromise = replayProcessingPromise;
-
-    await act(async () => {
-      settleVerification(verificationResult);
-      await Promise.all([initialPromise, replayPromise]);
-    });
-
-    mockIapState({
-      connected: true,
-      availablePurchases: [{...purchase}],
-      finishTransaction,
-      verifyPurchaseWithProvider,
-    });
-    await rerender(<PurchaseFlow />);
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-    expect(finishTransaction).toHaveBeenCalledTimes(1);
-    expect(finishTransaction).toHaveBeenCalledWith({
-      purchase,
-      isConsumable: true,
-    });
-    expect(verifyPurchaseWithProvider.mock.invocationCallOrder[0]).toBeLessThan(
-      finishTransaction.mock.invocationCallOrder[0]!,
-    );
-  });
-
-  it('does not finish after unmounting while IAPKit verification is pending', async () => {
-    Platform.OS = 'android';
-    const purchase: Purchase = {
-      id: 'transaction-unmount-1',
-      isAutoRenewing: false,
-      productId: 'dev.hyo.martie.10bulbs',
-      purchaseState: 'purchased',
-      purchaseToken: 'google-token-unmount-1',
-      quantity: 1,
-      store: 'google',
-      storeId: 'play',
-      transactionDate: Date.now(),
-    };
-    const finishTransaction = jest.fn(
-      (_options: MutationFinishTransactionArgs): Promise<void> =>
-        Promise.resolve(),
-    );
-    let resolveVerification:
-      ((value: VerifyPurchaseWithProviderResult) => void) | undefined;
-    const verificationPromise = new Promise<VerifyPurchaseWithProviderResult>(
-      (resolve) => {
-        resolveVerification = resolve;
-      },
-    );
-    const verifyPurchaseWithProvider = jest.fn(
-      (
-        _options: VerifyPurchaseWithProviderProps,
-      ): Promise<VerifyPurchaseWithProviderResult> => verificationPromise,
-    );
-
-    mockIapState({
-      availablePurchases: [],
-      finishTransaction,
-      verifyPurchaseWithProvider,
-    });
-    const {unmount} = await render(<PurchaseFlow />);
-    const purchaseSuccessHandler = onPurchaseSuccess;
-    if (!purchaseSuccessHandler) {
-      throw new Error('Purchase success handler was not registered');
-    }
-
-    let processingPromise: Promise<void> | undefined;
-    await act(async () => {
-      processingPromise = Promise.resolve(purchaseSuccessHandler(purchase));
-      await Promise.resolve();
-    });
-
-    expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-    expect(finishTransaction).not.toHaveBeenCalled();
-
-    await unmount();
-
-    if (!resolveVerification || !processingPromise) {
-      throw new Error('Pending verification was not initialized');
-    }
-    const settleVerification = resolveVerification;
-    const pendingProcessing = processingPromise;
-
-    await act(async () => {
-      settleVerification({
-        provider: 'iapkit',
-        iapkit: {
-          isValid: true,
-          productId: purchase.productId,
-          state: 'entitled',
-          store: 'google',
-          storeId: 'play',
-        },
-      });
-      await pendingProcessing;
-    });
-
-    expect(finishTransaction).not.toHaveBeenCalled();
-    expect(alertSpy).not.toHaveBeenCalledWith(
-      '✅ Local (IAPKit) Verification',
-      expect.any(String),
-    );
-  });
-
-  it('does not duplicate verification or finish across a remount while native finish is pending', async () => {
-    Platform.OS = 'android';
-    const purchase: Purchase = {
-      id: 'transaction-remount-pending-finish-1',
-      isAutoRenewing: false,
-      productId: 'dev.hyo.martie.10bulbs',
-      purchaseState: 'purchased',
-      purchaseToken: 'google-token-remount-pending-finish-1',
-      quantity: 1,
-      store: 'google',
-      storeId: 'play',
-      transactionDate: Date.now(),
-    };
-    let resolveFinish!: () => void;
-    const pendingFinish = new Promise<void>((resolve) => {
-      resolveFinish = resolve;
-    });
-    const finishTransaction = jest.fn(
-      (_options: MutationFinishTransactionArgs): Promise<void> => pendingFinish,
-    );
-    const verifyPurchaseWithProvider = jest.fn(
-      (
-        _options: VerifyPurchaseWithProviderProps,
-      ): Promise<VerifyPurchaseWithProviderResult> =>
-        Promise.resolve({
-          provider: 'iapkit',
-          iapkit: {
-            isValid: true,
-            productId: purchase.productId,
-            state: 'entitled',
-            store: 'google',
-            storeId: 'play',
-          },
-        }),
-    );
-
-    mockIapState({
-      availablePurchases: [],
-      finishTransaction,
-      verifyPurchaseWithProvider,
-    });
-    const firstMount = await render(<PurchaseFlow />);
-    const purchaseSuccessHandler = onPurchaseSuccess;
-    if (!purchaseSuccessHandler) {
-      throw new Error('Purchase success handler was not registered');
-    }
-
-    let processingPromise!: Promise<void>;
-    await act(async () => {
-      processingPromise = Promise.resolve(purchaseSuccessHandler(purchase));
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-    expect(finishTransaction).toHaveBeenCalledTimes(1);
-    await firstMount.unmount();
-
-    mockIapState({
-      availablePurchases: [purchase],
-      finishTransaction,
-      verifyPurchaseWithProvider,
-    });
-    const secondMount = await render(<PurchaseFlow />);
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-    expect(finishTransaction).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      resolveFinish();
-      await processingPromise;
-      await Promise.resolve();
-    });
-
-    const remountedPurchaseSuccessHandler = onPurchaseSuccess;
-    if (!remountedPurchaseSuccessHandler) {
-      throw new Error('Remounted purchase success handler was not registered');
-    }
-    await act(async () => {
-      await remountedPurchaseSuccessHandler({...purchase});
-    });
-
-    expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-    expect(finishTransaction).toHaveBeenCalledTimes(1);
-    await secondMount.unmount();
-  });
-
-  it('remembers a finished purchase after its unmounted owner task fully settles', async () => {
-    Platform.OS = 'android';
-    const purchase: Purchase = {
-      id: 'transaction-remount-after-owner-finish-1',
-      isAutoRenewing: false,
-      productId: 'dev.hyo.martie.10bulbs',
-      purchaseState: 'purchased',
-      purchaseToken: 'google-token-remount-after-owner-finish-1',
-      quantity: 1,
-      store: 'google',
-      storeId: 'play',
-      transactionDate: Date.now(),
-    };
-    let resolveFinish!: () => void;
-    let finishSettled = false;
-    const pendingFinish = new Promise<void>((resolve) => {
-      resolveFinish = resolve;
-    });
-    const finishTransaction = jest.fn(
-      (_options: MutationFinishTransactionArgs): Promise<void> => pendingFinish,
-    );
-    const verifyPurchaseWithProvider = jest.fn(
-      (
-        _options: VerifyPurchaseWithProviderProps,
-      ): Promise<VerifyPurchaseWithProviderResult> =>
-        Promise.resolve({
-          provider: 'iapkit',
-          iapkit: {
-            isValid: true,
-            productId: purchase.productId,
-            state: 'entitled',
-            store: 'google',
-            storeId: 'play',
-          },
-        }),
-    );
-    let firstUnmount: (() => Promise<void>) | undefined;
-    let secondUnmount: (() => Promise<void>) | undefined;
-    let ownerTask: Promise<void> | undefined;
-
-    try {
-      mockIapState({
-        availablePurchases: [],
-        finishTransaction,
-        verifyPurchaseWithProvider,
-      });
-      const firstMount = await render(<PurchaseFlow />);
-      firstUnmount = firstMount.unmount;
-      const firstPurchaseSuccessHandler = onPurchaseSuccess;
-      if (!firstPurchaseSuccessHandler) {
-        throw new Error('Purchase success handler was not registered');
-      }
-
-      await act(async () => {
-        ownerTask = Promise.resolve(firstPurchaseSuccessHandler(purchase));
-        await Promise.resolve();
-        await Promise.resolve();
-      });
-
-      await waitFor(() => {
-        expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-        expect(finishTransaction).toHaveBeenCalledTimes(1);
-      });
-
-      await firstMount.unmount();
-      firstUnmount = undefined;
-
-      await act(async () => {
-        resolveFinish();
-        finishSettled = true;
-        await ownerTask;
-      });
-      ownerTask = undefined;
-
-      mockIapState({
-        availablePurchases: [{...purchase}],
-        finishTransaction,
-        verifyPurchaseWithProvider,
-      });
-      const secondMount = await render(<PurchaseFlow />);
-      secondUnmount = secondMount.unmount;
-      const secondPurchaseSuccessHandler = onPurchaseSuccess;
-      if (!secondPurchaseSuccessHandler) {
-        throw new Error(
-          'Remounted purchase success handler was not registered',
-        );
-      }
-
-      await act(async () => {
-        await secondPurchaseSuccessHandler({...purchase});
-        await Promise.resolve();
-      });
-
-      expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-      expect(finishTransaction).toHaveBeenCalledTimes(1);
-    } finally {
-      await firstUnmount?.();
-      await secondUnmount?.();
-      if (!finishSettled) {
-        resolveFinish();
-        await ownerTask;
-      }
-    }
-  });
-
-  it('does not consume while IAPKit verification is pending', async () => {
-    Platform.OS = 'android';
-    const purchase: Purchase = {
-      id: 'transaction-race-1',
-      isAutoRenewing: false,
-      productId: 'dev.hyo.martie.10bulbs',
-      purchaseToken: 'google-token-race-1',
-      quantity: 1,
-      store: 'google',
-      storeId: 'play',
-      transactionDate: Date.now(),
-      purchaseState: 'purchased',
-    };
-    const finishTransaction = jest.fn(() => Promise.resolve());
-    let resolveVerification!: (value: VerifyPurchaseWithProviderResult) => void;
-    const verificationPromise = new Promise<VerifyPurchaseWithProviderResult>(
-      (resolve) => {
-        resolveVerification = resolve;
-      },
-    );
-    const verifyPurchaseWithProvider = jest.fn(
-      (_options: unknown): Promise<VerifyPurchaseWithProviderResult> =>
-        verificationPromise,
-    );
-
-    mockIapState({
-      availablePurchases: [],
-      finishTransaction,
-      verifyPurchaseWithProvider,
-    });
-    const {rerender} = await render(<PurchaseFlow />);
-    const purchaseSuccessHandler = onPurchaseSuccess;
-    if (!purchaseSuccessHandler) {
-      throw new Error('Purchase success handler was not registered');
-    }
-
-    let purchasePromise!: Promise<void>;
-    await act(async () => {
-      purchasePromise = Promise.resolve(purchaseSuccessHandler(purchase));
-      await Promise.resolve();
-    });
-
-    expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
-
-    mockIapState({
-      availablePurchases: [purchase],
-      finishTransaction,
-      verifyPurchaseWithProvider,
-    });
-    await rerender(<PurchaseFlow />);
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(finishTransaction).not.toHaveBeenCalled();
-
-    await act(async () => {
-      resolveVerification({
-        provider: 'iapkit',
-        iapkit: {
-          isValid: true,
-          productId: 'dev.hyo.martie.10bulbs',
-          state: 'entitled',
-          store: 'google',
-          storeId: 'play',
-        },
-      });
-      await purchasePromise;
-    });
-
-    expect(finishTransaction).toHaveBeenCalledTimes(1);
-    expect(finishTransaction).toHaveBeenCalledWith({
-      purchase,
-      isConsumable: true,
-    });
-  });
-
-  it('does not finish or report success when IAPKit rejects a purchase', async () => {
-    Platform.OS = 'android';
-    const purchase = {
-      id: 'transaction-invalid-1',
-      productId: 'dev.hyo.martie.10bulbs',
-      purchaseToken: 'google-token-invalid-1',
-      store: 'google',
-      storeId: 'play',
-      transactionDate: Date.now(),
-      purchaseState: 'purchased',
-    };
-    const finishTransaction = jest.fn(() => Promise.resolve());
-    const verifyPurchaseWithProvider = jest.fn(
-      (_options: unknown): Promise<VerifyPurchaseWithProviderResult> =>
-        Promise.resolve({
-          provider: 'iapkit',
-          iapkit: {
-            isValid: false,
-            productId: 'dev.hyo.martie.10bulbs',
-            state: 'consumed',
-            store: 'google',
-            storeId: 'play',
-          },
-        }),
-    );
-
-    mockIapState({
-      availablePurchases: [],
-      finishTransaction,
-      verifyPurchaseWithProvider,
-    });
-    await render(<PurchaseFlow />);
-    const purchaseSuccessHandler = onPurchaseSuccess;
-    if (!purchaseSuccessHandler) {
-      throw new Error('Purchase success handler was not registered');
-    }
-
-    await act(async () => {
-      await purchaseSuccessHandler(purchase);
-    });
-
-    expect(finishTransaction).not.toHaveBeenCalled();
+    await report(bulbs, {status: 'entitled', alreadyGranted: false});
+    expect(screen.queryByText('Processing...')).toBeNull();
+    expect(screen.getByText('Purchase verified. Access granted.')).toBeTruthy();
     expect(alertSpy).toHaveBeenCalledWith(
-      'Verification Failed',
-      expect.stringContaining('state: consumed'),
-    );
-    expect(alertSpy).not.toHaveBeenCalledWith(
       'Success',
       'Purchase completed successfully!',
     );
   });
 
-  it.each([true, false])(
-    'Local (Device) completes only the exact verified pending receipt (%s)',
-    async (matches) => {
-      const selectorSpy = jest
-        .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
-        .mockImplementation((_options, callback) => callback(0));
-      const {finishTransaction, verifyPurchase, verifyPurchaseWithProvider} =
-        mockIapState();
-      const purchase: PurchaseIOS = {
-        id: `transaction-device-${matches}`,
-        transactionId: `transaction-device-${matches}`,
-        productId: 'dev.hyo.martie.10bulbs',
-        purchaseToken: 'device-apple-jws',
-        store: 'apple',
-        storeId: 'apple',
-        transactionDate: 1,
-        purchaseState: 'purchased',
-        quantity: 1,
-        isAutoRenewing: false,
-      };
-      try {
-        const screen = await render(<PurchaseFlow />);
-        await fireEvent.press(screen.getByText('Local (IAPKit)'));
-        await waitFor(() =>
-          expect(screen.getByText('Local (Device)')).toBeTruthy(),
-        );
-        (RNIap.getPendingTransactionsIOS as jest.Mock).mockResolvedValue([
-          {
-            ...purchase,
-            id: matches ? purchase.id : 'another-transaction-for-the-same-sku',
-          },
-        ]);
-        await act(async () => {
-          await onPurchaseSuccess?.(purchase);
-        });
-        expect(finishTransaction).toHaveBeenCalledTimes(matches ? 1 : 0);
-        expect(verifyPurchase).not.toHaveBeenCalled();
-        expect(verifyPurchaseWithProvider).not.toHaveBeenCalled();
-      } finally {
-        selectorSpy.mockRestore();
-      }
-    },
-  );
+  it('ignores outcomes for products outside this screen', async () => {
+    const screen = await render(<PurchaseFlow />);
 
-  it('omits the local base URL when hosted IAPKit is selected', async () => {
-    const selectorSpy = jest
-      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
-      .mockImplementation((_options, callback) => callback(2));
-    const {verifyPurchaseWithProvider} = mockIapState();
-    const {getByText} = await render(<PurchaseFlow />);
+    await fireEvent.press(screen.getAllByText('Purchase')[0]!);
+    await report(
+      {...bulbs, productId: 'dev.hyo.martie.premium'},
+      {status: 'failed', error: new Error('offline')},
+    );
 
-    await fireEvent.press(getByText('Local (IAPKit)'));
-    await waitFor(() => {
-      expect(getByText('IAPKit')).toBeTruthy();
-    });
+    expect(screen.getByText('Processing purchase...')).toBeTruthy();
+    expect(screen.getAllByText('Processing...')).toHaveLength(2);
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
 
-    await act(async () => {
-      await onPurchaseSuccess?.({
-        id: 'transaction-2',
-        productId: 'dev.hyo.martie.10bulbs',
-        purchaseToken: 'hosted-apple-jws',
-        store: 'apple',
-        storeId: 'apple',
-        transactionDate: Date.now(),
-        purchaseState: 'purchased',
-      });
-    });
+  it('shows a failed verification and leaves the purchase to recovery', async () => {
+    const screen = await render(<PurchaseFlow />);
 
-    expect(verifyPurchaseWithProvider).toHaveBeenCalledWith({
-      provider: 'iapkit',
-      iapkit: {
-        apiKey: 'test-api-key',
-        apple: {jws: 'hosted-apple-jws'},
-      },
-    });
+    await report(bulbs, {status: 'failed', error: new Error('offline')});
 
-    selectorSpy.mockRestore();
+    expect(
+      screen.getByText('Purchase verification failed: offline'),
+    ).toBeTruthy();
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Verification Failed',
+      'Purchase verification failed: offline',
+    );
+  });
+
+  it('retains a receipt in None mode and recovers it after a method is chosen', async () => {
+    Platform.OS = 'android';
+    const screen = await render(<PurchaseFlow />);
+
+    await fireEvent.press(screen.getByText('Local (IAPKit)'));
+    await fireEvent.press(
+      screen.getAllByTestId('verification-method-option')[3]!,
+    );
+    expect(purchaseFlow.recoverPurchases).not.toHaveBeenCalled();
+    await report(bulbs, {status: 'verified'});
+    expect(screen.getByText(/Receipt retained/)).toBeTruthy();
+
+    await fireEvent.press(screen.getByText('None (Skip)'));
+    await fireEvent.press(
+      screen.getAllByTestId('verification-method-option')[1]!,
+    );
+    expect(screen.getByText('Local (IAPKit)')).toBeTruthy();
+    expect(purchaseFlow.recoverPurchases).toHaveBeenCalledTimes(1);
   });
 
   it('renders Android verification choices together in the requested order', async () => {
@@ -1304,97 +394,59 @@ describe('PurchaseFlow Screen', () => {
 
     await fireEvent.press(getByText('Local (IAPKit)'));
 
-    const options = getAllByTestId('verification-method-option');
-    expect(options.map((option) => option.props.accessibilityLabel)).toEqual([
+    const choices = getAllByTestId('verification-method-option');
+    expect(choices.map((choice) => choice.props.accessibilityLabel)).toEqual([
       'Local (Device)',
       'Local (IAPKit)',
       'IAPKit',
       'None (Skip)',
     ]);
 
-    await fireEvent.press(options[3]!);
+    await fireEvent.press(choices[3]!);
     await waitFor(() => {
       expect(getByText('None (Skip)')).toBeTruthy();
     });
   });
 
-  it('updates state on purchase success callback', async () => {
-    const {finishTransaction} = mockIapState();
+  it('releases processing and reports a purchase error', async () => {
+    const screen = await render(<PurchaseFlow />);
 
-    const {getByText, queryByText} = await render(<PurchaseFlow />);
+    await fireEvent.press(screen.getAllByText('Purchase')[0]!);
+    await fail({
+      code: ErrorCode.NetworkError,
+      message: 'Something went wrong',
+    });
 
+    expect(screen.queryByText('Processing...')).toBeNull();
     expect(
-      queryByText(/Purchase completed and finished successfully/),
-    ).toBeNull();
-
-    await act(async () => {
-      await onPurchaseSuccess?.({
-        productId: 'dev.hyo.martie.10bulbs',
-        purchaseToken: 'token-123',
-        store: 'apple',
-        storeId: 'apple',
-        purchaseState: 'purchased',
-        transactionDate: Date.now(),
-      });
-    });
-
-    await waitFor(() => {
-      expect(
-        getByText(/Purchase completed and finished successfully/),
-      ).toBeTruthy();
-    });
-    expect(finishTransaction).toHaveBeenCalledWith({
-      purchase: expect.objectContaining({
-        productId: 'dev.hyo.martie.10bulbs',
-        purchaseToken: 'token-123',
-        store: 'apple',
-        storeId: 'apple',
-      }),
-      isConsumable: true,
-    });
-
-    expect(alertSpy).toHaveBeenCalledWith(
-      'Success',
-      'Purchase completed successfully!',
-    );
-  });
-
-  it('updates message on purchase error callback', async () => {
-    mockIapState();
-
-    const {getByText} = await render(<PurchaseFlow />);
-
-    await act(async () => {
-      onPurchaseError?.({
-        code: ErrorCode.NetworkError,
-        message: 'Something went wrong',
-      });
-    });
-
-    await waitFor(() => {
-      expect(
-        getByText(
-          `Purchase failed: Something went wrong (code: ${ErrorCode.NetworkError})`,
-        ),
-      ).toBeTruthy();
-    });
+      screen.getByText(
+        `Purchase failed: Something went wrong (code: ${ErrorCode.NetworkError})`,
+      ),
+    ).toBeTruthy();
   });
 
   it('handles user cancelled error correctly', async () => {
-    mockIapState();
-
     const {getByText} = await render(<PurchaseFlow />);
 
-    await act(async () => {
-      onPurchaseError?.({
-        code: ErrorCode.UserCancelled,
-        message: 'User cancelled the purchase',
-      });
+    await fail({
+      code: ErrorCode.UserCancelled,
+      message: 'User cancelled the purchase',
     });
 
-    await waitFor(() => {
-      expect(getByText('Purchase cancelled by user')).toBeTruthy();
+    expect(getByText('Purchase cancelled by user')).toBeTruthy();
+  });
+
+  it('releases processing when the request itself fails', async () => {
+    requestPurchaseMock.mockRejectedValueOnce({
+      code: ErrorCode.ServiceError,
+      message: 'Store unavailable',
     });
+    const screen = await render(<PurchaseFlow />);
+
+    await fireEvent.press(screen.getAllByText('Purchase')[0]!);
+
+    expect(screen.queryByText('Processing...')).toBeNull();
+    expect(screen.getByText('Purchase failed: Store unavailable')).toBeTruthy();
   });
 
   // Android discount offers tests (cross-platform)

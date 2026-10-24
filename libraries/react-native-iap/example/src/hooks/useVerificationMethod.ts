@@ -1,77 +1,34 @@
-import {useState, useCallback, useRef, useEffect} from 'react';
+import {useState, useCallback} from 'react';
 import {Platform, ActionSheetIOS} from 'react-native';
-
-export type VerificationMethod =
-  'ignore' | 'local' | 'iapkit-localhost' | 'iapkit';
-
-export function getDefaultVerificationMethod(
-  iapkitApiKey?: string | null,
-  iapkitBaseUrl?: string | null,
-): VerificationMethod {
-  if (!iapkitApiKey?.trim()) {
-    return 'ignore';
-  }
-
-  return iapkitBaseUrl?.trim() ? 'iapkit-localhost' : 'iapkit';
-}
+import {
+  getVerificationMethod,
+  setVerificationMethod,
+  type VerificationMethod,
+} from '../utils/purchaseFlow';
 
 interface UseVerificationMethodReturn {
   verificationMethod: VerificationMethod;
-  verificationSelection: number;
-  verificationMethodRef: React.MutableRefObject<VerificationMethod>;
-  setVerificationMethod: React.Dispatch<
-    React.SetStateAction<VerificationMethod>
-  >;
   verificationMethodSelectorVisible: boolean;
   hideVerificationMethodSelector: () => void;
   selectVerificationMethod: (method: VerificationMethod) => void;
   showVerificationMethodSelector: () => void;
-  getVerificationMethodLabel: () => string;
 }
 
-/**
- * Hook to manage verification method selection with platform-specific UI
- */
-export function useVerificationMethod(
-  initialMethod: VerificationMethod = 'ignore',
-): UseVerificationMethodReturn {
-  const [verificationMethod, setVerificationMethod] =
-    useState<VerificationMethod>(initialMethod);
+/** The verification method selector; the app's purchase flow reads the choice. */
+export function useVerificationMethod(): UseVerificationMethodReturn {
+  const [verificationMethod, setMethod] = useState(getVerificationMethod);
   const [verificationMethodSelectorVisible, setSelectorVisible] =
     useState(false);
-  const [verificationSelection, setVerificationSelection] = useState(0);
-  const verificationMethodRef = useRef<VerificationMethod>(verificationMethod);
-
-  // Keep ref in sync with state
-  useEffect(() => {
-    verificationMethodRef.current = verificationMethod;
-  }, [verificationMethod]);
 
   const hideVerificationMethodSelector = useCallback(() => {
     setSelectorVisible(false);
   }, []);
 
   const selectVerificationMethod = useCallback((method: VerificationMethod) => {
-    verificationMethodRef.current = method;
     setVerificationMethod(method);
-    setVerificationSelection((selection) => selection + 1);
+    setMethod(method);
     setSelectorVisible(false);
   }, []);
-
-  const getVerificationMethodLabel = useCallback((): string => {
-    switch (verificationMethod) {
-      case 'ignore':
-        return 'None (Skip)';
-      case 'local':
-        return 'Local (Device)';
-      case 'iapkit-localhost':
-        return 'Local (IAPKit)';
-      case 'iapkit':
-        return 'IAPKit';
-      default:
-        return 'Unknown';
-    }
-  }, [verificationMethod]);
 
   const showVerificationMethodSelector = useCallback(() => {
     if (Platform.OS === 'ios') {
@@ -108,13 +65,9 @@ export function useVerificationMethod(
 
   return {
     verificationMethod,
-    verificationSelection,
-    verificationMethodRef,
-    setVerificationMethod,
     verificationMethodSelectorVisible,
     hideVerificationMethodSelector,
     selectVerificationMethod,
     showVerificationMethodSelector,
-    getVerificationMethodLabel,
   };
 }

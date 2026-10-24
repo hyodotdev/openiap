@@ -314,7 +314,7 @@ for (final item in items) {
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var request = ProductRequest.new()
-request.skus = ["com.app.coins_100", "com.app.monthly"]
+request.skus.assign(["com.app.coins_100", "com.app.monthly"])
 request.type = ProductQueryType.ALL
 var items = await iap.fetch_products(request)
 
@@ -325,7 +325,7 @@ for item in items:
         print("in-app product ", item.id)`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`var result = await iap.FetchProductsAsync(new ProductRequest {
+            <CodeBlock language="csharp">{`var result = await OpenIapClient.Query.FetchProductsAsync(new ProductRequest {
     Skus = new[] { "com.app.coins_100", "com.app.monthly" },
     Type = ProductQueryType.All,
 });
@@ -440,7 +440,7 @@ for (final product in products) {
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var request = ProductRequest.new()
-request.skus = ["com.app.coins_100", "com.app.premium"]
+request.skus.assign(["com.app.coins_100", "com.app.premium"])
 request.type = ProductQueryType.IN_APP
 var products = await iap.fetch_products(request)`}</CodeBlock>
           ),
@@ -448,9 +448,7 @@ var products = await iap.fetch_products(request)`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var iap = (QueryResolver)OpenIapClient.Instance;
-
-var result = await iap.FetchProductsAsync(new ProductRequest {
+var result = await OpenIapClient.Query.FetchProductsAsync(new ProductRequest {
     Skus = new[] { "com.app.coins_100", "com.app.premium" },
     Type = ProductQueryType.InApp,
 });

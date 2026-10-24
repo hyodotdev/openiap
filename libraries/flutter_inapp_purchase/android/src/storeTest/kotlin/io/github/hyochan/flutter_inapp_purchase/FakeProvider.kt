@@ -186,5 +186,5 @@ fun AndroidInappPurchasePlugin.call(
     return replies.single()
 }
 
-/** Runs queued main-thread work, including the init restart delay. */
+/** Runs queued main-thread work. */
 fun settle() = shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(2))

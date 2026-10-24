@@ -186,7 +186,8 @@ public enum class BillingChoiceScreenTypeAndroid(val rawValue: String) {
  */
 public enum class BillingProgramAndroid(val rawValue: String) {
     /**
-     * Unspecified billing program. Do not use.
+     * No billing program. In InitConnectionConfig, it selects the standard client,
+     * and programs queued with enableBillingProgramAndroid stay.
      */
     Unspecified("unspecified"),
     /**

@@ -40,8 +40,82 @@ describe('Amazon Vega public API', () => {
     });
   });
 
-  it('leaves out the purchase flow, which supports only Apple and Google Play', () => {
-    expect('createPurchaseFlow' in Kepler).toBe(false);
+  it('tells a requested Amazon purchase from a redelivery', async () => {
+    const listeners: Record<string, (payload: unknown) => void> = {};
+    const remove = jest.fn();
+    (getVegaIapModule as jest.Mock).mockReturnValue({
+      requestPurchase: requestPurchaseNative,
+      addListener: jest.fn(
+        (event: string, listener: (payload: unknown) => void) => {
+          listeners[event] = listener;
+          return {remove};
+        },
+      ),
+    });
+    const statuses: unknown[] = [];
+    const flow = Kepler.createPurchaseFlow({
+      confirmWithBackend: async () => ({status: 'invalid'}),
+      isConsumable: () => true,
+    });
+    flow.subscribe((outcome) => statuses.push(outcome.status));
+
+    await requestPurchase({
+      request: {google: {skus: ['fresh']}},
+      type: 'in-app',
+    });
+    const deliver = listeners[Kepler.OpenIapEvent.PurchaseUpdated];
+    deliver(vegaPurchase({id: 'old', productId: 'old', purchaseToken: 'r1'}));
+    deliver(
+      vegaPurchase({
+        id: 'fresh',
+        productId: 'fresh',
+        purchaseToken: 'r2',
+        transactionDate: Date.now(),
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Amazon keeps a rejected purchase unfinished; only the request offers a rebuy.
+    expect(statuses).toEqual([
+      {status: 'invalid', recovered: true},
+      {status: 'invalid'},
+    ]);
+    flow.dispose();
+    expect(remove).toHaveBeenCalledTimes(2);
+  });
+
+  it('restores and confirms with IAPKit through the Vega store', async () => {
+    const acknowledgePurchaseAndroid = jest.fn().mockResolvedValue(undefined);
+    (getVegaIapModule as jest.Mock).mockReturnValue({
+      getAvailableItems: jest
+        .fn()
+        .mockResolvedValue([vegaPurchase({purchaseToken: 'receipt'})]),
+      acknowledgePurchaseAndroid,
+      addListener: jest.fn(() => ({remove: jest.fn()})),
+      verifyPurchaseWithProvider: jest.fn().mockResolvedValue({
+        provider: 'iapkit',
+        iapkit: {
+          store: 'amazon',
+          storeId: 'amazon',
+          environment: 'Production',
+          isValid: true,
+          state: 'entitled',
+          productId: 'premium',
+        },
+      }),
+    });
+    const flow = Kepler.createPurchaseFlow({
+      confirmWithBackend: Kepler.confirmWithIapkit({apiKey: 'pk'}),
+      isConsumable: () => false,
+    });
+
+    const outcomes = await flow.recoverPurchases();
+
+    expect(outcomes.map(({status}) => status)).toEqual([
+      {status: 'entitled', alreadyGranted: false},
+    ]);
+    expect(acknowledgePurchaseAndroid).toHaveBeenCalledWith('receipt');
+    flow.dispose();
   });
 
   it('resolves null for openRedeemOfferCode without launching anything', async () => {

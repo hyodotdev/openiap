@@ -182,7 +182,7 @@ if (Platform.OS === 'android') {
 }`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`var info = await ((QueryResolver)OpenIapClient.Instance).GetBillingChoiceInfoAndroidAsync(
+            <CodeBlock language="csharp">{`var info = await OpenIapClient.Query.GetBillingChoiceInfoAndroidAsync(
     new GetBillingChoiceInfoParamsAndroid
     {
         BillingProgram = BillingProgramAndroid.BillingChoice,

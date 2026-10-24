@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+import '../app_purchase_flow.dart';
 import '../constants.dart';
 
 /// Demo screen showing DSL-like builder pattern for purchases/subscriptions
@@ -18,7 +19,7 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
   String _status = 'Ready';
   bool _connected = false;
   bool _isProcessing = false;
-  StreamSubscription<Purchase>? _purchaseUpdatedSubscription;
+  StreamSubscription<PurchaseFlowOutcome>? _outcomeSubscription;
   StreamSubscription<PurchaseError>? _purchaseErrorSubscription;
 
   @override
@@ -29,23 +30,13 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
 
   @override
   void dispose() {
-    _purchaseUpdatedSubscription?.cancel();
+    _outcomeSubscription?.cancel();
     _purchaseErrorSubscription?.cancel();
     super.dispose();
   }
 
   Future<void> _initConnection() async {
     try {
-      // End any existing connection first to reset configuration
-      // This ensures we start fresh without alternative billing settings
-      try {
-        await _iap.endConnection();
-        await Future.delayed(const Duration(milliseconds: 100));
-      } catch (e) {
-        debugPrint('Note: endConnection failed (might not be connected): $e');
-      }
-
-      // Initialize with default settings (no alternative billing)
       final connected = await _iap.initConnection();
       if (!connected) {
         setState(() {
@@ -68,24 +59,14 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
   }
 
   void _setupPurchaseListeners() {
-    _purchaseUpdatedSubscription = _iap.purchaseUpdatedListener.listen(
-      (purchase) {
-        if (!mounted) return;
-        debugPrint('Purchase received: ${purchase.productId}');
-        setState(() {
-          _status =
-              'Receipt retained; verify in Purchase Flow or Subscription Flow: ${purchase.productId}';
-          _isProcessing = false;
-        });
-      },
-      onError: (error) {
-        debugPrint('Purchase stream error: $error');
-        setState(() {
-          _status = 'Stream error: $error';
-          _isProcessing = false;
-        });
-      },
-    );
+    // The app-wide flow confirms every purchase; show what it decided.
+    _outcomeSubscription =
+        AppPurchaseFlow.instance.flow.outcomes.listen((outcome) {
+      setState(() {
+        _status = describeOutcome(outcome);
+        _isProcessing = false;
+      });
+    });
 
     _purchaseErrorSubscription = _iap.purchaseErrorListener.listen(
       (error) {

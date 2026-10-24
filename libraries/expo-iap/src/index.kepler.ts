@@ -1,5 +1,20 @@
 import {getVegaIapModule} from './vega';
 import {ErrorCode} from './types';
+import {
+  createIapkitConfirmation,
+  type IapkitConfirmationOptions,
+  type PurchaseConfirmation,
+  type PurchaseFlow,
+  type PurchaseFlowOptions,
+  type PurchaseFlowPurchase,
+} from './purchase-flow';
+import {
+  clearRequested,
+  createSdkPurchaseFlow,
+  markRequested,
+  type PurchaseFlowSdk,
+  type SdkPurchaseFlowOptions,
+} from './utils/purchaseFlowBinding';
 import type {
   MutationField,
   ProductQueryType,
@@ -37,6 +52,24 @@ export type {
   KitSubscription,
   StatusResponse,
 } from './kit-api';
+export {
+  describePurchaseFlowStatus,
+  toPurchaseConfirmationRequest,
+} from './purchase-flow';
+export type {
+  IapkitConfirmationOptions,
+  PurchaseConfirmation,
+  PurchaseConfirmationRequest,
+  PurchaseFlow,
+  PurchaseFlowGuidance,
+  PurchaseFlowGuidanceKey,
+  PurchaseFlowOptions,
+  PurchaseFlowOutcome,
+  PurchaseFlowPurchase,
+  PurchaseFlowStatus,
+  RecoverPurchasesOptions,
+} from './purchase-flow';
+export type {SdkPurchaseFlowOptions} from './utils/purchaseFlowBinding';
 
 export enum OpenIapEvent {
   PurchaseUpdated = 'purchase-updated',
@@ -152,6 +185,18 @@ export const fetchProducts = async (
 export const requestPurchase: MutationField<'requestPurchase'> = async (
   args,
 ) => {
+  markRequested(args.request.google?.skus ?? []);
+  try {
+    return await requestPurchaseFromStore(args);
+  } catch (error) {
+    clearRequested();
+    throw error;
+  }
+};
+
+const requestPurchaseFromStore: MutationField<'requestPurchase'> = async (
+  args,
+) => {
   const type = normalizeProductType(args.type);
   if (type === 'all') {
     throw createPurchaseError({
@@ -246,7 +291,9 @@ export const consumePurchaseAndroid: MutationField<
 
 export const syncIOS: MutationField<'syncIOS'> = async () =>
   unsupported('syncIOS');
-export const verifyAppOwnership: QueryField<'verifyAppOwnership'> = async () => ({status: 'unknown', reason: 'unsupported', storeId: 'amazon'});
+export const verifyAppOwnership: QueryField<
+  'verifyAppOwnership'
+> = async () => ({status: 'unknown', reason: 'unsupported', storeId: 'amazon'});
 
 export const getAppTransactionIOS: QueryField<
   'getAppTransactionIOS'
@@ -302,3 +349,43 @@ export const showBillingProgramInformationDialogAndroid: MutationField<
 export const showInAppMessagesAndroid: MutationField<
   'showInAppMessagesAndroid'
 > = async () => unsupported('showInAppMessagesAndroid');
+
+const purchaseFlowSdk: PurchaseFlowSdk = {
+  finishTransaction: (args) => finishTransaction(args),
+  getAvailablePurchases: () => getAvailablePurchases(),
+  getPendingTransactionsIOS: undefined,
+  purchaseUpdatedListener: (listener) => purchaseUpdatedListener(listener),
+  purchaseErrorListener: (listener) => purchaseErrorListener(listener),
+};
+
+/**
+ * Creates the app's purchase flow on Amazon Vega. Create one per signed-in
+ * account, dispose it when the account changes, and pass it to
+ * `useIAP({purchaseFlow})`.
+ * @see {@link https://kit.openiap.dev/docs/purchase-flow}
+ */
+export function createPurchaseFlow(
+  options: SdkPurchaseFlowOptions,
+): PurchaseFlow<Purchase>;
+export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
+  options: PurchaseFlowOptions<P>,
+): PurchaseFlow<P>;
+export function createPurchaseFlow(
+  options: SdkPurchaseFlowOptions,
+): PurchaseFlow<Purchase> {
+  return createSdkPurchaseFlow(purchaseFlowSdk, options);
+}
+
+/**
+ * Confirms purchases with IAPKit from the app, for apps without a backend:
+ * pass it as `confirmWithBackend` with a publishable key. Credit consumables
+ * in `grant`, which runs before the purchase is consumed.
+ */
+export function confirmWithIapkit(
+  options: IapkitConfirmationOptions<Purchase>,
+): (
+  purchase: Purchase,
+  context: {isConsumable: boolean},
+) => Promise<PurchaseConfirmation> {
+  return createIapkitConfirmation(verifyPurchaseWithProvider, options);
+}

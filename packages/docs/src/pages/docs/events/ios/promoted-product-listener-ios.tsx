@@ -304,14 +304,12 @@ func _on_promoted_product_ios(product_id: String) -> void:
 using OpenIap.Maui;
 
 var iap = OpenIapClient.Instance;
-var query = (QueryResolver)iap;
-var mutate = (MutationResolver)iap;
 
 async Task HandlePromotedProductAsync(string productId)
 {
     try
     {
-        var result = await query.FetchProductsAsync(new ProductRequest
+        var result = await OpenIapClient.Query.FetchProductsAsync(new ProductRequest
         {
             Skus = new[] { productId },
             Type = ProductQueryType.All,
@@ -338,7 +336,7 @@ async Task HandlePromotedProductAsync(string productId)
                 Type = ProductQueryType.InApp,
             };
 
-        await mutate.RequestPurchaseAsync(props);
+        await OpenIapClient.Mutation.RequestPurchaseAsync(props);
     }
     catch (Exception error)
     {

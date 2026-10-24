@@ -133,7 +133,7 @@ if (Platform.OS === 'ios') {
 using OpenIap.Maui;
 
 // Throws FeatureNotSupported on Android
-var result = await ((MutationResolver)OpenIapClient.Instance).PresentExternalPurchaseNoticeSheetIOSAsync();`}</CodeBlock>
+var result = await OpenIapClient.Mutation.PresentExternalPurchaseNoticeSheetIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

@@ -25,7 +25,7 @@ public partial class OfferCodePage : ContentPage
 
         try
         {
-            await IapLifecycle.InitConnectionAsync();
+            await IapLifecycle.ConnectAsync();
             _connected = true;
             SetStatus("Connected to Store", Color.FromArgb("#28A745"));
         }
@@ -36,13 +36,6 @@ public partial class OfferCodePage : ContentPage
         }
 
         UpdateButtonState();
-    }
-
-    protected override async void OnDisappearing()
-    {
-        base.OnDisappearing();
-        _connected = false;
-        await IapLifecycle.EndConnectionQuietlyAsync(nameof(OfferCodePage));
     }
 
     private async void OnPresentClicked(object sender, EventArgs e)
@@ -59,8 +52,7 @@ public partial class OfferCodePage : ContentPage
 #if IOS || MACCATALYST || ANDROID
         try
         {
-            var mutate = (MutationResolver)OpenIapClient.Instance;
-            var purchase = await mutate.OpenRedeemOfferCodeAsync();
+            var purchase = await OpenIapClient.Mutation.OpenRedeemOfferCodeAsync();
             ResultPanel.IsVisible = true;
             ResultLabel.Text = purchase is not null
                 ? $"Verified redemption: {purchase.ProductId} ({purchase.Id})"

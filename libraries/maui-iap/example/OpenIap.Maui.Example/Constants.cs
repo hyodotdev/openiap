@@ -6,12 +6,15 @@ namespace OpenIap.Maui.Example;
 
 public static class Constants
 {
-    // One-time purchase product IDs split by consumption behavior.
-    public static readonly string[] ConsumableProductIds = new[]
+    // One-time purchase product IDs split by consumption behavior; each
+    // consumable credits its bulbs.
+    public static readonly IReadOnlyDictionary<string, int> ConsumableBulbs = new Dictionary<string, int>
     {
-        "dev.hyo.martie.10bulbs",
-        "dev.hyo.martie.30bulbs",
+        ["dev.hyo.martie.10bulbs"] = 10,
+        ["dev.hyo.martie.30bulbs"] = 30,
     };
+
+    public static readonly string[] ConsumableProductIds = ConsumableBulbs.Keys.ToArray();
 
     public static readonly string[] NonConsumableProductIds = new[]
     {

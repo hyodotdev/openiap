@@ -152,6 +152,93 @@ internal enum class BillingClientMode {
     UserChoice,
 }
 
+internal data class BillingConnectionConfiguration(
+    val billingClientMode: BillingClientMode,
+    val billingPrograms: Set<BillingProgramAndroid>,
+    val billingChoiceScreenType: BillingChoiceScreenTypeAndroid,
+)
+
+internal fun playConnectionConfiguration(
+    pendingPrograms: Set<BillingProgramAndroid>,
+    config: InitConnectionConfig?,
+): BillingConnectionConfiguration {
+    val programs = resolveBillingProgramsForConnection(
+        pendingPrograms,
+        config?.enableBillingProgramAndroid,
+    )
+    return BillingConnectionConfiguration(
+        billingClientMode = if (BillingProgramAndroid.UserChoiceBilling in programs) {
+            BillingClientMode.UserChoice
+        } else {
+            BillingClientMode.Standard
+        },
+        billingPrograms = programs,
+        // Play reads the renderer only for Billing Choice.
+        billingChoiceScreenType = config?.billingChoiceScreenTypeAndroid
+            ?.takeIf { BillingProgramAndroid.BillingChoice in programs }
+            ?.takeUnless { it == BillingChoiceScreenTypeAndroid.Unspecified }
+            ?: BillingChoiceScreenTypeAndroid.GoogleRendered,
+    )
+}
+
+/**
+ * The configuration a connect asks Play for. Programs queued for the live
+ * connection stay; without a config, a reconnect after a service drop keeps
+ * the program the app chose last.
+ */
+internal fun requestedConnectionConfiguration(
+    pendingPrograms: Set<BillingProgramAndroid>,
+    config: InitConnectionConfig?,
+    live: BillingConnectionConfiguration?,
+    liveQueuedPrograms: Set<BillingProgramAndroid>,
+): BillingConnectionConfiguration = when {
+    config != null -> playConnectionConfiguration(pendingPrograms + liveQueuedPrograms, config)
+    live != null -> playConnectionConfiguration(
+        pendingPrograms + live.billingPrograms,
+        InitConnectionConfig(
+            billingChoiceScreenTypeAndroid = live.billingChoiceScreenType,
+            enableBillingProgramAndroid = null,
+        ),
+    )
+    else -> playConnectionConfiguration(pendingPrograms, null)
+}
+
+/**
+ * Why a purchase cannot start now, or null. A rebuild for another billing
+ * program would replace the client mid-purchase, so none starts during one.
+ */
+internal fun purchaseAdmissionError(
+    clientReady: Boolean,
+    purchaseInProgress: Boolean,
+    reconnecting: Boolean,
+): OpenIapError? = when {
+    !clientReady -> OpenIapError.ServiceDisconnected(
+        "Billing connection ended before the purchase request could start"
+    )
+    purchaseInProgress -> OpenIapError.DeveloperError("Another purchase is already in progress")
+    reconnecting -> OpenIapError.ServiceDisconnected(
+        "Billing connection is reconnecting; request the purchase again"
+    )
+    else -> null
+}
+
+/** A caller that joined another caller's attempt still needs its own config applied. */
+internal fun reconnectsAfterJoin(
+    hasConfig: Boolean,
+    joined: BillingConnectionConfiguration,
+    requested: BillingConnectionConfiguration,
+): Boolean = hasConfig && joined != requested
+
+/**
+ * A ready client stays unless the caller passed a config that asks Play for
+ * something else; `requested` is null when no config was passed.
+ */
+internal fun keepsLiveConnection(
+    ready: Boolean,
+    live: BillingConnectionConfiguration?,
+    requested: BillingConnectionConfiguration?,
+): Boolean = ready && (requested == null || requested == live)
+
 /**
  * Main OpenIapModule implementation for Android
  *
@@ -199,12 +286,10 @@ class OpenIapModule(
     private var connectionAttempt: ConnectionAttempt? = null
     @Volatile
     private var activeBillingClientMode = BillingClientMode.Standard
-
-    private data class BillingConnectionConfiguration(
-        val billingClientMode: BillingClientMode,
-        val billingPrograms: Set<BillingProgramAndroid>,
-        val billingChoiceScreenType: BillingChoiceScreenTypeAndroid,
-    )
+    // The config the app chose last, even if that connect failed. A call without
+    // a config reconnects with it; a different config rebuilds the client.
+    private var liveConnectionConfiguration: BillingConnectionConfiguration? = null
+    private var liveQueuedPrograms: Set<BillingProgramAndroid> = emptySet()
 
     private data class ConnectionAttempt(
         val generation: Long,
@@ -216,6 +301,7 @@ class OpenIapModule(
     private data class ConnectionStart(
         val attempt: ConnectionAttempt,
         val isOwner: Boolean,
+        val requested: BillingConnectionConfiguration,
     )
 
     private data class ConnectionEnd(
@@ -380,25 +466,21 @@ class OpenIapModule(
         errorEventGate: PurchaseErrorEventGate,
         callback: (Result<List<Purchase>>) -> Unit
     ): OpenIapError? = synchronized(connectionLifecycleLock) {
-        when {
-            billingClient !== expectedClient || !expectedClient.isReady ->
-                OpenIapError.ServiceDisconnected(
-                    "Billing connection ended before the purchase request could start"
-                )
-            pendingPurchase != null ->
-                OpenIapError.DeveloperError("Another purchase is already in progress")
-            else -> {
-                pendingPurchase = PendingPurchaseSnapshot(
-                    client = expectedClient,
-                    generation = connectionGeneration,
-                    callback = callback,
-                    errorEventGate = errorEventGate,
-                    requestedSkus = requestedSkus.toSet(),
-                    requestedProductType = requestedProductType,
-                    tokensBeforeLaunch = tokensBeforeLaunch,
-                )
-                null
-            }
+        purchaseAdmissionError(
+            clientReady = billingClient === expectedClient && expectedClient.isReady,
+            purchaseInProgress = pendingPurchase != null,
+            reconnecting = connectionAttempt != null,
+        ) ?: run {
+            pendingPurchase = PendingPurchaseSnapshot(
+                client = expectedClient,
+                generation = connectionGeneration,
+                callback = callback,
+                errorEventGate = errorEventGate,
+                requestedSkus = requestedSkus.toSet(),
+                requestedProductType = requestedProductType,
+                tokensBeforeLaunch = tokensBeforeLaunch,
+            )
+            null
         }
     }
 
@@ -533,47 +615,60 @@ class OpenIapModule(
     override val initConnection: MutationInitConnectionHandler = { config ->
         withContext(Dispatchers.IO) {
             val start = synchronized(connectionLifecycleLock) {
-                if (billingClient?.isReady == true) return@withContext true
-                connectionAttempt?.let { existing ->
-                    return@synchronized ConnectionStart(existing, isOwner = false)
-                }
-
                 val attemptedPendingPrograms = pendingBillingPrograms.toSet()
-                val requestedBillingPrograms = resolveBillingProgramsForConnection(
+                val configuration = requestedConnectionConfiguration(
                     attemptedPendingPrograms,
-                    config?.enableBillingProgramAndroid,
+                    config,
+                    liveConnectionConfiguration,
+                    liveQueuedPrograms,
                 )
-                val requestedBillingClientMode =
-                    if (BillingProgramAndroid.UserChoiceBilling in requestedBillingPrograms) {
-                        BillingClientMode.UserChoice
-                    } else {
-                        BillingClientMode.Standard
-                    }
-                val configuration = BillingConnectionConfiguration(
-                    billingClientMode = requestedBillingClientMode,
-                    billingPrograms = requestedBillingPrograms.toSet(),
-                    billingChoiceScreenType = config?.billingChoiceScreenTypeAndroid
-                        ?.takeUnless { it == BillingChoiceScreenTypeAndroid.Unspecified }
-                        ?: BillingChoiceScreenTypeAndroid.GoogleRendered,
-                )
+                val ready = billingClient?.isReady == true
+                if (keepsLiveConnection(
+                        ready = ready,
+                        live = liveConnectionConfiguration,
+                        requested = config?.let { configuration },
+                    )
+                ) {
+                    return@withContext true
+                }
+                // Rebuilding the client would drop the purchase the user is paying for.
+                if (ready && pendingPurchase != null) {
+                    throw OpenIapError.DeveloperError(
+                        "initConnection cannot change the billing program while a purchase is in progress",
+                    )
+                }
+                connectionAttempt?.let { existing ->
+                    return@synchronized ConnectionStart(existing, isOwner = false, configuration)
+                }
                 val attempt = ConnectionAttempt(
                     connectionGeneration,
                     configuration,
                     attemptedPendingPrograms,
                 )
                 connectionAttempt = attempt
-                ConnectionStart(attempt, isOwner = true)
+                ConnectionStart(attempt, isOwner = true, configuration)
             }
             val attempt = start.attempt
             if (!start.isOwner) {
-                return@withContext withTimeoutOrNull(15_000) {
+                val joined = withTimeoutOrNull(15_000) {
                     attempt.completion.await()
                 } ?: false
+                // The running attempt carries another caller's config; apply this one next.
+                return@withContext if (
+                    reconnectsAfterJoin(config != null, attempt.configuration, start.requested)
+                ) {
+                    initConnection(config)
+                } else {
+                    joined
+                }
             }
             val connectionConfiguration = attempt.configuration
 
-            val availability = GoogleApiAvailability.getInstance()
-            if (availability.isGooglePlayServicesAvailable(context) != ConnectionResult.SUCCESS) {
+            // A check that throws, such as for a missing Play services version in the manifest, still releases the attempt.
+            val playServicesReady = runCatching {
+                GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
+            }.getOrDefault(false)
+            if (!playServicesReady) {
                 finishConnectionAttempt(attempt, null, false)
                 return@withContext false
             }
@@ -687,6 +782,8 @@ class OpenIapModule(
                     val activeClient = replaceBillingClientLocked(null)
                     val activeAttempt = connectionAttempt
                     connectionAttempt = null
+                    liveConnectionConfiguration = null
+                    liveQueuedPrograms = emptySet()
                     pendingBillingPrograms.clear()
                     val activePurchase = pendingPurchase
                     clearPurchaseStateLocked()
@@ -729,6 +826,12 @@ class OpenIapModule(
             )
             if (owns) {
                 connectionAttempt = null
+                // The program the app chose last, even if this connect failed.
+                liveConnectionConfiguration = attempt.configuration
+                if (connected) {
+                    // Queued programs stay until endConnection, across reconnects.
+                    liveQueuedPrograms = liveQueuedPrograms + attempt.pendingPrograms
+                }
                 if (!connected) replaceBillingClientLocked(null)
                 activeBillingClientMode = commitPlayConnectionConfiguration(
                     connected,

@@ -58,7 +58,7 @@
     "csstype": "3.2.3",
     "fast-uri": "$fast-uri",
     "hono": "4.13.11",
-    "ip-address": "10.7.2",
+    "ip-address": "10.7.4",
     "qs": "$qs",
     "undici": "7.30.0",
     "shell-quote": "1.12.0"

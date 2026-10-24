@@ -25,6 +25,7 @@ import io.github.hyochan.kmpiap.PurchaseException
 import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.openiap.*
 import io.github.hyochan.kmpiap.requestPurchase
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
@@ -90,7 +91,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                 )
             } else null
 
-            connected = ensureExampleConnection(config)
+            connected = kmpIapInstance.initConnection(config)
 
             if (connected) {
                 // Fetch products
@@ -116,24 +117,20 @@ fun AlternativeBillingScreen(navController: NavController) {
         }
     }
 
-    // Listen for purchase updates
+    // The app's flow confirms and finishes every purchase; this screen shows the outcome.
     LaunchedEffect(Unit) {
-        launch {
-            kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
-                lastPurchase = purchase
+        ExamplePurchaseFlow.flow.outcomes
+            .filter { it.purchase.productId in PRODUCT_IDS }
+            .collect { outcome ->
+                lastPurchase = outcome.purchase
                 isProcessing = false
-
-                val dateText = Instant.fromEpochMilliseconds(purchase.transactionDate.toLong())
-                    .toLocalDateTime(TimeZone.currentSystemDefault())
-
-                purchaseResult = """
-                    Receipt received · verification required
-                    Product: ${purchase.productId}
-                    Transaction ID: ${purchase.id}
-                    Date: $dateText
-                """.trimIndent()
+                purchaseResult = outcome.resultText()
             }
-        }
+    }
+
+    // Other screens keep the live connection, so leaving restores Standard billing.
+    DisposableEffect(Unit) {
+        onDispose { ExamplePurchaseFlow.restoreStandardBilling() }
     }
 
     // Listen for purchase errors
@@ -192,9 +189,11 @@ fun AlternativeBillingScreen(navController: NavController) {
                     )
                 } else null
 
-                connected = ensureExampleConnection(config)
+                connected = kmpIapInstance.initConnection(config)
+                // Only a program native applied is shown and bought with.
+                if (connected) billingProgram = program
 
-                purchaseResult = "✅ Connected with ${
+                purchaseResult = if (!connected) "❌ Could not connect to the store" else "✅ Connected with ${
                     when (program) {
                         BillingProgramAndroid.UserChoiceBilling -> "User Choice Billing"
                         BillingProgramAndroid.BillingChoice -> "Billing Choice"
@@ -702,7 +701,6 @@ fun AlternativeBillingScreen(navController: NavController) {
                         description = "Users choose between Google Play and your payment system via dialog.",
                         isSelected = billingProgram == BillingProgramAndroid.UserChoiceBilling,
                         onClick = {
-                            billingProgram = BillingProgramAndroid.UserChoiceBilling
                             showModeSelector = false
                             reconnectWithProgram(BillingProgramAndroid.UserChoiceBilling)
                         }
@@ -713,7 +711,6 @@ fun AlternativeBillingScreen(navController: NavController) {
                         description = "Use Google or developer-rendered billing choice screens.",
                         isSelected = billingProgram == BillingProgramAndroid.BillingChoice,
                         onClick = {
-                            billingProgram = BillingProgramAndroid.BillingChoice
                             showModeSelector = false
                             reconnectWithProgram(BillingProgramAndroid.BillingChoice)
                         }
@@ -724,7 +721,6 @@ fun AlternativeBillingScreen(navController: NavController) {
                         description = "Launch an external offer and create reporting details.",
                         isSelected = billingProgram == BillingProgramAndroid.ExternalOffer,
                         onClick = {
-                            billingProgram = BillingProgramAndroid.ExternalOffer
                             showModeSelector = false
                             reconnectWithProgram(BillingProgramAndroid.ExternalOffer)
                         }
@@ -735,7 +731,6 @@ fun AlternativeBillingScreen(navController: NavController) {
                         description = "External payments program with reporting details. Japan users only.",
                         isSelected = billingProgram == BillingProgramAndroid.ExternalPayments,
                         onClick = {
-                            billingProgram = BillingProgramAndroid.ExternalPayments
                             showModeSelector = false
                             reconnectWithProgram(BillingProgramAndroid.ExternalPayments)
                         }
@@ -746,7 +741,6 @@ fun AlternativeBillingScreen(navController: NavController) {
                         description = "Launch an external content link and create reporting details.",
                         isSelected = billingProgram == BillingProgramAndroid.ExternalContentLink,
                         onClick = {
-                            billingProgram = BillingProgramAndroid.ExternalContentLink
                             showModeSelector = false
                             reconnectWithProgram(BillingProgramAndroid.ExternalContentLink)
                         }
@@ -1133,16 +1127,6 @@ private fun LastPurchaseCard(purchase: Purchase) {
                     .toLocalDateTime(TimeZone.currentSystemDefault())
                     .toString()
                 Text("Date: $dateText", fontSize = 14.sp)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = """
-                        Receipt retained pending verification.
-                        Open Purchase Flow or Subscription Flow to verify and complete it.
-                    """.trimIndent(),
-                    fontSize = 12.sp,
-                    color = Color(0xFFFF9800),
-                    lineHeight = 18.sp
-                )
             }
         }
     }

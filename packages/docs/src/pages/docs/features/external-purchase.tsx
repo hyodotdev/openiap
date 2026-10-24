@@ -324,13 +324,12 @@ using OpenIap.Maui;
 
 async Task HandleExternalPurchaseFlowAsync()
 {
-    var mutate = (MutationResolver)OpenIapClient.Instance;
-    if (!await mutate.CanPresentExternalPurchaseNoticeIOSAsync()) return;
+    if (!await OpenIapClient.Query.CanPresentExternalPurchaseNoticeIOSAsync()) return;
 
-    var notice = await mutate.PresentExternalPurchaseNoticeSheetIOSAsync();
+    var notice = await OpenIapClient.Mutation.PresentExternalPurchaseNoticeSheetIOSAsync();
     if (notice.Result != ExternalPurchaseNoticeAction.Continue) return;
 
-    var link = await mutate.PresentExternalPurchaseLinkIOSAsync(
+    var link = await OpenIapClient.Mutation.PresentExternalPurchaseLinkIOSAsync(
         "https://your-payment-site.com/checkout");
     if (!link.Success)
     {
@@ -889,8 +888,7 @@ Future<void> handleExternalPurchaseWithBillingPrograms(String productId) async {
                       <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var mutate = (MutationResolver)OpenIapClient.Instance;
-var connected = await mutate.InitConnectionAsync(new InitConnectionConfig
+var connected = await OpenIapClient.Mutation.InitConnectionAsync(new InitConnectionConfig
 {
     EnableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer,
 });
@@ -899,16 +897,16 @@ if (!connected) throw new InvalidOperationException("Store connection failed");
 async Task HandleExternalPurchaseWithBillingProgramsAsync(string productId)
 {
     // Step 1: Check program availability.
-    var availability = await mutate.IsBillingProgramAvailableAndroidAsync(
+    var availability = await OpenIapClient.Mutation.IsBillingProgramAvailableAndroidAsync(
         BillingProgramAndroid.ExternalOffer);
     if (!availability.IsAvailable) return;
 
     // Step 2: Create reporting details immediately before redirecting.
-    var reportingDetails = await mutate.CreateBillingProgramReportingDetailsAndroidAsync(
+    var reportingDetails = await OpenIapClient.Mutation.CreateBillingProgramReportingDetailsAndroidAsync(
         BillingProgramAndroid.ExternalOffer);
 
     // Step 3: Let Google Play disclose and launch the external destination.
-    var launched = await mutate.LaunchExternalLinkAndroidAsync(
+    var launched = await OpenIapClient.Mutation.LaunchExternalLinkAndroidAsync(
         new LaunchExternalLinkParamsAndroid
         {
             BillingProgram = BillingProgramAndroid.ExternalOffer,
@@ -1325,7 +1323,6 @@ Future<void> handlePurchaseWithExternalPayments(String productId) async {
 using OpenIap.Maui;
 
 var iap = OpenIapClient.Instance;
-var mutate = (MutationResolver)iap;
 
 async Task HandleDeveloperBillingSafelyAsync(DeveloperProvidedBillingDetailsAndroid details)
 {
@@ -1342,17 +1339,17 @@ async Task HandleDeveloperBillingSafelyAsync(DeveloperProvidedBillingDetailsAndr
 using var developerBillingSubscription = iap.DeveloperProvidedBillingAndroid.Subscribe(
     details => _ = HandleDeveloperBillingSafelyAsync(details));
 
-var connected = await mutate.InitConnectionAsync(new InitConnectionConfig
+var connected = await OpenIapClient.Mutation.InitConnectionAsync(new InitConnectionConfig
 {
     EnableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments,
 });
 if (!connected) throw new InvalidOperationException("Store connection failed");
 
-var availability = await mutate.IsBillingProgramAvailableAndroidAsync(
+var availability = await OpenIapClient.Mutation.IsBillingProgramAvailableAndroidAsync(
     BillingProgramAndroid.ExternalPayments);
 if (availability.IsAvailable)
 {
-    await mutate.RequestPurchaseAsync(new RequestPurchaseProps
+    await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
     {
         RequestPurchase = new RequestPurchasePropsByPlatforms
         {
@@ -1422,7 +1419,7 @@ func handle_purchase_with_external_payments(product_id: String) -> void:
     var props = RequestPurchaseProps.new()
     props.request = RequestPurchasePropsByPlatforms.new()
     props.request.google = RequestPurchaseAndroidProps.new()
-    props.request.google.skus = [product_id]
+    props.request.google.skus.assign([product_id])
     props.request.google.developer_billing_option = DeveloperBillingOptionParamsAndroid.new()
     props.request.google.developer_billing_option.billing_program = BillingProgramAndroid.EXTERNAL_PAYMENTS
     props.request.google.developer_billing_option.link_uri = "https://your-payment-site.com/checkout"
@@ -1638,7 +1635,7 @@ if (!connected) throw StateError('Store connection failed');`}</CodeBlock>
                       <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var connected = await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
+var connected = await OpenIapClient.Mutation.InitConnectionAsync(
     new InitConnectionConfig
     {
         EnableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer,

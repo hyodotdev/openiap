@@ -194,7 +194,7 @@ if (result is VerifyPurchaseResultIOS && result.isValid) {
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var result = await ((MutationResolver)OpenIapClient.Instance).VerifyPurchaseAsync(
+var result = await OpenIapClient.Mutation.VerifyPurchaseAsync(
     new VerifyPurchaseProps
     {
         Google = new VerifyPurchaseGoogleOptions
@@ -336,11 +336,16 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
           below.
         </p>
         <p>
-          When your own backend owns user accounts and grants access, confirm
-          purchases through it instead. For App Store and Google Play purchases,
-          React Native IAP and Expo IAP export <code>createPurchaseFlow</code>,
-          which finishes a transaction once your backend grants access, and
-          recovers unfinished purchases at launch. See the{' '}
+          To let the SDK do the bookkeeping, use the purchase flow every
+          framework exports as <code>createPurchaseFlow</code>. It listens for
+          purchases, confirms each one, finishes it once access is granted,
+          recovers unfinished purchases, and reports each outcome. Without a
+          backend, pass <code>confirmWithIapkit</code> with your publishable
+          key, or <code>confirmOnDeviceIOS</code> for App Store purchases
+          StoreKit verified on the device, and credit consumables in its{' '}
+          <code>grant</code> callback, which runs before the purchase is
+          consumed. When your own backend owns user accounts, confirm through it
+          instead. See the{' '}
           <a
             href={`${IAPKIT_URL}/docs/purchase-flow`}
             target="_blank"
@@ -482,7 +487,7 @@ final result = await FlutterInappPurchase.instance.verifyPurchaseWithProvider(
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var result = await ((MutationResolver)OpenIapClient.Instance)
+var result = await OpenIapClient.Mutation
     .VerifyPurchaseWithProviderAsync(new VerifyPurchaseWithProviderProps
     {
         Provider = PurchaseVerificationProvider.Iapkit,

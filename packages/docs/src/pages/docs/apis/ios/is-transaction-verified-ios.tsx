@@ -109,7 +109,7 @@ if (Platform.OS === 'ios') {
 using OpenIap.Maui;
 
 // Returns false on Android
-var ok = await ((QueryResolver)OpenIapClient.Instance).IsTransactionVerifiedIOSAsync(sku: "com.app.premium");`}</CodeBlock>
+var ok = await OpenIapClient.Query.IsTransactionVerifiedIOSAsync(sku: "com.app.premium");`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
