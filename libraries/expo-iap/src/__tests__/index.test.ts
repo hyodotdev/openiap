@@ -30,6 +30,7 @@ import {
   userChoiceBillingListenerAndroid,
   developerProvidedBillingListenerAndroid,
   type ProductType,
+  type Purchase,
   type PurchaseInput,
   type RequestPurchaseAndroidProps,
   type RequestSubscriptionAndroidProps,
@@ -40,6 +41,7 @@ import {
   verifyPurchaseWithProvider,
   ErrorCode,
   confirmWithIapkit,
+  confirmOnDeviceIOS,
   createPurchaseFlow,
   describePurchaseFlowStatus,
   toPurchaseConfirmationRequest,
@@ -287,6 +289,35 @@ describe('Public API (index.ts)', () => {
 
       expect(statuses).toEqual([{status: 'invalid', recovered: true}]);
       flow.dispose();
+    });
+
+    it('defaults to device confirmation without granting consumables', async () => {
+      const purchase: Purchase = {
+        id: 'tx-premium',
+        transactionId: 'tx-premium',
+        productId: 'premium',
+        store: 'apple',
+        storeId: 'apple',
+        purchaseState: 'purchased',
+        transactionDate: 1,
+        quantity: 1,
+        isAutoRenewing: false,
+      };
+      const pending = ExpoIapModule.getPendingTransactionsIOS;
+      if (!pending)
+        throw new Error('The native mock defines the pending query');
+      jest.mocked(pending).mockResolvedValueOnce([purchase]);
+      const confirm = confirmOnDeviceIOS();
+
+      await expect(confirm(purchase, {isConsumable: false})).resolves.toEqual({
+        status: 'entitled',
+        alreadyGranted: false,
+      });
+      await expect(confirm(purchase, {isConsumable: true})).rejects.toThrow(
+        'needs grant',
+      );
+      expect(pending).toHaveBeenCalledTimes(1);
+      expect(ExpoIapModule.finishTransaction).not.toHaveBeenCalled();
     });
 
     it('grants an IAPKit-confirmed consumable before consuming it', async () => {

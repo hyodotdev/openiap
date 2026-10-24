@@ -95,17 +95,13 @@ describe("generated sync manifest", () => {
   });
 
   it("distinguishes canonical generator inputs from generated outputs", () => {
+    expect(isGqlGenerationInputPath("specs/client/src/schema.graphql")).toBe(
+      true,
+    );
     expect(
-      isGqlGenerationInputPath("specs/client/src/schema.graphql"),
+      isGqlGenerationInputPath("specs/client/codegen/core/transformer.ts"),
     ).toBe(true);
-    expect(
-      isGqlGenerationInputPath(
-        "specs/client/codegen/core/transformer.ts",
-      ),
-    ).toBe(true);
-    expect(
-      isGqlGenerationInputPath("specs/client/src/kit-api.ts"),
-    ).toBe(true);
+    expect(isGqlGenerationInputPath("specs/client/src/kit-api.ts")).toBe(true);
     expect(isGqlGenerationInputPath("package.json")).toBe(true);
     expect(isGqlGenerationInputPath("bun.lock")).toBe(true);
     expect(
@@ -137,10 +133,7 @@ describe("generated sync manifest", () => {
       name: "openiap-monorepo",
       private: true,
     });
-    expect(rootPackageJson.workspaces).toEqual([
-      "packages/*",
-      "specs/*",
-    ]);
+    expect(rootPackageJson.workspaces).toEqual(["packages/*", "specs/*"]);
     const definitions = Object.values(GENERATED_SYNC_MANIFEST).filter(
       ({ exportKey }) => exportKey,
     );
@@ -180,14 +173,13 @@ describe("generated sync manifest", () => {
       "*": {
         "kit-api": ["./dist/kit-api.d.ts"],
         "purchase-flow": ["./dist/purchase-flow.d.ts"],
-        "purchase-flow-confirmers": ["./dist/purchase-flow-confirmers.d.ts"],
       },
     });
   });
 
   it("keeps library mirrors out of the client spec package", () => {
     const mirrors = Object.values(GENERATED_SYNC_MANIFEST).filter(
-      ({ exportKey }) => !exportKey,
+      ({ exportKey, source }) => !exportKey && source.startsWith("libraries/"),
     );
     expect(mirrors.length).toBeGreaterThan(0);
     for (const { source, generated } of mirrors) {
@@ -195,6 +187,17 @@ describe("generated sync manifest", () => {
       expect(source.startsWith("libraries/"), source).toBe(true);
       expect(isGqlGenerationInputPath(source), source).toBe(false);
     }
+  });
+
+  it("ships internal confirmer dependencies without exposing a new public subpath", () => {
+    const definition = GENERATED_SYNC_MANIFEST.purchaseFlowConfirmers;
+    const manifest = JSON.parse(
+      readRepositoryFile("specs/client/package.json"),
+    );
+    expect(definition.exportKey).toBeUndefined();
+    expect(manifest.exports["./purchase-flow-confirmers"]).toBeUndefined();
+    expect(manifest.files).toContain(gqlPackageRelativePath(definition.source));
+    expect(isGqlGenerationInputPath(definition.source)).toBe(true);
   });
 
   it("keeps executable sync consumers on the manifest", () => {
@@ -483,7 +486,7 @@ printf '%s|%s' "$GIT_INDEX_FILE" "$GIT_DIR" > "$HOOK_AFTER_FILE"
 
     expect(GENERATED_SYNC_EDGES).toEqual(declaredTargets);
     expect(new Set(GENERATED_SYNC_EDGES.map((edge) => edge.mode))).toEqual(
-      new Set(["copy", "google-kotlin", "kmp-kotlin"]),
+      new Set(["copy", "google-kotlin", "kmp-kotlin", "typescript-bundler"]),
     );
     expect(
       readRepositoryFile("specs/client/scripts/sync-to-platforms.mjs"),

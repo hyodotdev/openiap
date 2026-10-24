@@ -6,6 +6,63 @@
 // Ports in other languages run purchase-flow.vectors.json.
 // Guide: https://kit.openiap.dev/docs/purchase-flow
 
+import {
+  createDeviceConfirmationIOS as deviceConfirmation,
+  createIapkitConfirmation as iapkitConfirmation,
+  readIapkitVerification as readVerification,
+  toIapkitVerificationProps as verificationProps,
+  type IapkitConfirmationOptions as ConfirmationOptions,
+  type IapkitVerificationProps as VerificationProps,
+  type IapkitVerificationResult as VerificationResult,
+} from "./purchase-flow-confirmers";
+
+/* eslint-disable @typescript-eslint/no-empty-object-type -- Preserve the published mergeable interfaces. */
+/** @deprecated Use the SDK's IapkitConfirmationOptions. Removed in the next major release. */
+export interface IapkitConfirmationOptions<
+  P extends PurchaseFlowPurchase = PurchaseFlowPurchase,
+> extends ConfirmationOptions<P> {}
+
+/** @deprecated Use the SDK's VerifyPurchaseWithProviderProps. Removed in the next major release. */
+export interface IapkitVerificationProps extends VerificationProps {}
+
+/** @deprecated Use the SDK's VerifyPurchaseWithProviderResult. Removed in the next major release. */
+export interface IapkitVerificationResult extends VerificationResult {}
+/* eslint-enable @typescript-eslint/no-empty-object-type */
+
+/** @deprecated Use the SDK's confirmWithIapkit. Removed in the next major release. */
+export function createIapkitConfirmation<P extends PurchaseFlowPurchase>(
+  verify: (props: IapkitVerificationProps) => Promise<IapkitVerificationResult>,
+  options: IapkitConfirmationOptions<P>,
+): PurchaseConfirmer<P> {
+  return iapkitConfirmation(verify, options);
+}
+
+/** @deprecated Use the SDK's confirmOnDeviceIOS. Removed in the next major release. */
+export function createDeviceConfirmationIOS<P extends PurchaseFlowPurchase>(
+  getPendingTransactionsIOS: () => Promise<P[]>,
+  options: { grant?: PurchaseGrant<P> } = {},
+): PurchaseConfirmer<P> {
+  return deviceConfirmation(getPendingTransactionsIOS, options);
+}
+
+/** @deprecated Use the SDK's confirmWithIapkit. Removed in the next major release. */
+export function toIapkitVerificationProps<P extends PurchaseFlowPurchase>(
+  purchase: P,
+  options: IapkitConfirmationOptions<P>,
+): IapkitVerificationProps {
+  return verificationProps(purchase, options);
+}
+
+/** @deprecated Use the SDK's confirmWithIapkit. Removed in the next major release. */
+export function readIapkitVerification<P extends PurchaseFlowPurchase>(
+  result: IapkitVerificationResult,
+  purchase: P,
+  context: { isConsumable: boolean },
+  options: Omit<IapkitConfirmationOptions<P>, "apiKey"> = {},
+): PurchaseConfirmation {
+  return readVerification(result, purchase, context, options);
+}
+
 /** Purchase fields the flow reads. Every OpenIAP `Purchase` matches. */
 export interface PurchaseFlowPurchase {
   id: string;

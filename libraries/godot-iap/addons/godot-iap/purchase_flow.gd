@@ -439,3 +439,31 @@ static func to_purchase_confirmation_request(purchase: Dictionary) -> Variant:
 	if unsupported != null:
 		return unsupported
 	return {"store": store, "purchaseToken": token, "productId": purchase.productId}
+
+
+## @deprecated: Use GodotIapWrapper.confirm_with_iapkit. Removed in the next major release.
+const IAPKIT_UNKNOWN_RETRY_MS = 30000
+
+
+## @deprecated: Use GodotIapWrapper.confirm_with_iapkit. Removed in the next major release.
+static func create_iapkit_confirmation(verify: Callable, options: Dictionary) -> Callable:
+	push_warning("Use confirm_with_iapkit. Removed in the next major release.")
+	return load("res://addons/godot-iap/purchase_confirmers.gd").create_iapkit_confirmation(verify, options)
+
+
+## @deprecated: Use GodotIapWrapper.confirm_on_device_ios. Removed in the next major release.
+static func create_device_confirmation_ios(get_pending_transactions_ios: Callable, options := {}) -> Callable:
+	push_warning("Use confirm_on_device_ios. Removed in the next major release.")
+	return load("res://addons/godot-iap/purchase_confirmers.gd").create_device_confirmation_ios(get_pending_transactions_ios, options)
+
+
+## @deprecated: Use GodotIapWrapper.confirm_with_iapkit. Removed in the next major release.
+static func to_iapkit_verification_props(purchase: Dictionary, options: Dictionary) -> Variant:
+	push_warning("Use confirm_with_iapkit. Removed in the next major release.")
+	return load("res://addons/godot-iap/purchase_confirmers.gd").to_iapkit_verification_props(purchase, options)
+
+
+## @deprecated: Use GodotIapWrapper.confirm_with_iapkit. Removed in the next major release.
+static func read_iapkit_verification(result: Dictionary, purchase: Dictionary, is_consumable: bool, options := {}) -> Variant:
+	push_warning("Use confirm_with_iapkit. Removed in the next major release.")
+	return load("res://addons/godot-iap/purchase_confirmers.gd").read_iapkit_verification(result, purchase, is_consumable, options)

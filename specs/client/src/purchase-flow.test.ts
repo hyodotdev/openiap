@@ -17,6 +17,44 @@ import {
   type IapkitVerificationResult,
 } from "./purchase-flow-confirmers";
 
+import {
+  createIapkitConfirmation as legacyIapkit,
+  createDeviceConfirmationIOS as legacyDevice,
+  toIapkitVerificationProps as legacyProps,
+  readIapkitVerification as legacyRead,
+} from "./purchase-flow";
+
+describe("published legacy helpers", () => {
+  it("keeps the old factories and request/verdict helpers callable", async () => {
+    const item = purchase({ store: "apple", storeId: "apple" });
+    const result: IapkitVerificationResult = {
+      iapkit: {
+        store: "apple",
+        storeId: "apple",
+        isValid: true,
+        state: "entitled",
+        productId: item.productId,
+      },
+    };
+    expect(legacyProps(item, {})).toEqual({
+      provider: "iapkit",
+      iapkit: { apple: { jws: item.purchaseToken } },
+    });
+    expect(legacyRead(result, item, { isConsumable: false })).toEqual({
+      status: "entitled",
+      alreadyGranted: false,
+    });
+    expect(
+      await legacyIapkit(async () => result, {})(item, {
+        isConsumable: false,
+      }),
+    ).toEqual({ status: "entitled", alreadyGranted: false });
+    expect(
+      await legacyDevice(async () => [item])(item, { isConsumable: false }),
+    ).toEqual({ status: "entitled", alreadyGranted: false });
+  });
+});
+
 interface StepVector {
   listener?: string[];
   process?: string[];
@@ -1331,7 +1369,7 @@ describe("shared vectors", () => {
 });
 
 describe("isolation", () => {
-  it("touches only injected functions: no fetch, analytics, or imports", async () => {
+  it("keeps network and analytics out of the flow and isolates compatibility imports", async () => {
     const fetchSpy = vi.fn(() => {
       throw new Error("network");
     });
@@ -1353,7 +1391,13 @@ describe("isolation", () => {
       new URL("./purchase-flow.ts", import.meta.url),
       "utf8",
     );
-    expect(source).not.toMatch(/^\s*import\s/m);
+    const core = source.slice(
+      source.indexOf("export interface PurchaseFlowPurchase"),
+    );
+    expect(core).not.toMatch(/^\s*import\s/m);
+    expect(
+      [...source.matchAll(/from "([^"]+)"/g)].map((match) => match[1]),
+    ).toEqual(["./purchase-flow-confirmers.js"]);
     expect(source).not.toMatch(/\bfetch\(|analytics|track\(/i);
   });
 });

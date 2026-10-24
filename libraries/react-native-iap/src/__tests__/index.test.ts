@@ -383,6 +383,33 @@ describe('Public API (src/index.ts)', () => {
       expect(grant).toHaveBeenCalledTimes(1);
     });
 
+    it('defaults to device confirmation without granting consumables', async () => {
+      const purchase: Purchase = {
+        id: 'tx-premium',
+        transactionId: 'tx-premium',
+        productId: 'premium',
+        store: 'apple',
+        storeId: 'apple',
+        purchaseState: 'purchased',
+        transactionDate: 1,
+        quantity: 1,
+        isAutoRenewing: false,
+      };
+      const pending = jest.fn(async () => [nitroPurchase('premium')]);
+      mockIap.getPendingTransactionsIOS = pending;
+      const confirm = IAP.confirmOnDeviceIOS();
+
+      await expect(confirm(purchase, {isConsumable: false})).resolves.toEqual({
+        status: 'entitled',
+        alreadyGranted: false,
+      });
+      await expect(confirm(purchase, {isConsumable: true})).rejects.toThrow(
+        'needs grant',
+      );
+      expect(pending).toHaveBeenCalledTimes(1);
+      expect(mockIap.finishTransaction).not.toHaveBeenCalled();
+    });
+
     it('forgets a request the store answered with an error', async () => {
       const flow = IAP.createPurchaseFlow({
         confirmWithBackend: async () => ({status: 'invalid' as const}),

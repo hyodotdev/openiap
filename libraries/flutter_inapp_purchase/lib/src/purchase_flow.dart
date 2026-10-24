@@ -6,6 +6,10 @@ import 'dart:async';
 
 import '../errors.dart' show PurchaseError;
 import '../types.dart' hide PurchaseError;
+import 'purchase_confirmers.dart' as confirmers;
+
+export 'purchase_confirmers.dart'
+    show IapkitAmazonOptions, IapkitConfirmationOptions;
 
 /// Where a purchase stands after the flow ran. Only [PurchaseEntitled] grants
 /// access.
@@ -666,3 +670,42 @@ PurchaseFlowGuidance describePurchaseFlowStatus(PurchaseFlowStatus status) =>
           offerPurchase: false,
         ),
     };
+
+@Deprecated(
+    'Use FlutterInappPurchase.confirmWithIapkit. Removed in the next major release.')
+PurchaseConfirmer createIapkitConfirmation(
+  Future<VerifyPurchaseWithProviderResult> Function(
+          VerifyPurchaseWithProviderProps props)
+      verifyPurchaseWithProvider,
+  confirmers.IapkitConfirmationOptions options,
+) =>
+    confirmers.createIapkitConfirmation(verifyPurchaseWithProvider, options);
+
+@Deprecated(
+    'Use FlutterInappPurchase.confirmOnDeviceIOS. Removed in the next major release.')
+PurchaseConfirmer createDeviceConfirmationIOS(
+  Future<List<Purchase>> Function() getPendingTransactionsIOS, {
+  PurchaseGrant? grant,
+}) =>
+    confirmers.createDeviceConfirmationIOS(getPendingTransactionsIOS,
+        grant: grant);
+
+@Deprecated(
+    'Use FlutterInappPurchase.confirmWithIapkit. Removed in the next major release.')
+VerifyPurchaseWithProviderProps toIapkitVerificationProps(
+  Purchase purchase,
+  confirmers.IapkitConfirmationOptions options,
+) =>
+    confirmers.toIapkitVerificationProps(purchase, options);
+
+@Deprecated(
+    'Use FlutterInappPurchase.confirmWithIapkit. Removed in the next major release.')
+PurchaseConfirmation readIapkitVerification(
+  VerifyPurchaseWithProviderResult result,
+  Purchase purchase, {
+  required bool isConsumable,
+  confirmers.IapkitConfirmationOptions options =
+      const confirmers.IapkitConfirmationOptions(),
+}) =>
+    confirmers.readIapkitVerification(result, purchase,
+        isConsumable: isConsumable, options: options);

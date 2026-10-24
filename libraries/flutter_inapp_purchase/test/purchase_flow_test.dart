@@ -6,7 +6,12 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
-import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart'
+    hide
+        createDeviceConfirmationIOS,
+        createIapkitConfirmation,
+        toIapkitVerificationProps,
+        readIapkitVerification;
 import 'package:flutter_inapp_purchase/src/purchase_confirmers.dart'
     show createDeviceConfirmationIOS, createIapkitConfirmation;
 import 'package:flutter_test/flutter_test.dart';

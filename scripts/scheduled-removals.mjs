@@ -17,6 +17,8 @@ import {
   hasReleaseTag,
   libraryReleaseTags,
   nativeReleaseGates,
+  openiapNpmPackages,
+  validateVersion,
   versionSources,
 } from "./release-branch-policy.mjs";
 
@@ -26,6 +28,133 @@ const NEXT_MAJOR_NOTICE = /removed in the next major release/i;
 const MIGRATION_PAGE = "packages/docs/src/pages/docs/updates/migration.tsx";
 
 export const scheduledRemovalRules = [
+  {
+    label: "low-level purchase confirmation helpers",
+    packages: [
+      {
+        name: "@hyodotdev/openiap-client-protocol",
+        major: 1,
+        file: "specs/client/package.json",
+        pattern: PACKAGE_JSON_VERSION,
+      },
+      {
+        name: "react-native-iap",
+        major: 17,
+        file: "libraries/react-native-iap/package.json",
+        pattern: PACKAGE_JSON_VERSION,
+      },
+      {
+        name: "expo-iap",
+        major: 6,
+        file: "libraries/expo-iap/package.json",
+        pattern: PACKAGE_JSON_VERSION,
+      },
+      {
+        name: "flutter_inapp_purchase",
+        major: 11,
+        file: "libraries/flutter_inapp_purchase/pubspec.yaml",
+        pattern: /^version:\s*(\S+)/m,
+      },
+      {
+        name: "godot-iap",
+        major: 4,
+        file: "libraries/godot-iap/addons/godot-iap/plugin.cfg",
+        pattern: /^version="([^"]+)"/m,
+      },
+      {
+        name: "kmp-iap",
+        major: 4,
+        file: "libraries/kmp-iap/gradle.properties",
+        pattern: /^libraryVersion=(\S+)/m,
+      },
+      {
+        name: "OpenIap.Maui",
+        major: 3,
+        file: "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+        pattern: /<PackageVersion>([^<]+)<\/PackageVersion>/,
+      },
+    ],
+    sources: [
+      ...[
+        "specs/client/src/purchase-flow.ts",
+        "libraries/react-native-iap/src/purchase-flow.ts",
+        "libraries/expo-iap/src/purchase-flow.ts",
+      ].map((file) => ({
+        file,
+        tokens: [
+          "export function createIapkitConfirmation",
+          "export function createDeviceConfirmationIOS",
+          "export function toIapkitVerificationProps",
+          "export function readIapkitVerification",
+          "export interface IapkitConfirmationOptions",
+          "export interface IapkitVerificationProps",
+          "export interface IapkitVerificationResult",
+        ],
+      })),
+      {
+        file: "libraries/flutter_inapp_purchase/lib/src/purchase_flow.dart",
+        tokens: [
+          "PurchaseConfirmer createIapkitConfirmation",
+          "PurchaseConfirmer createDeviceConfirmationIOS",
+          "VerifyPurchaseWithProviderProps toIapkitVerificationProps",
+          "PurchaseConfirmation readIapkitVerification",
+        ],
+      },
+      {
+        file: "libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/IapkitConfirmation.kt",
+        tokens: [
+          "public fun createIapkitConfirmation",
+          "public fun toIapkitVerificationProps",
+          "public fun readIapkitVerification",
+        ],
+      },
+      {
+        file: "libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/DeviceConfirmationIOS.kt",
+        tokens: ["public fun createDeviceConfirmationIOS"],
+      },
+      {
+        file: "libraries/maui-iap/src/OpenIap.Maui/IapkitConfirmation.cs",
+        tokens: [
+          "public static class IapkitConfirmation",
+          "public static PurchaseConfirmer Create",
+          "public static VerifyPurchaseWithProviderProps ToVerificationProps",
+          "public static PurchaseConfirmation ReadVerification",
+        ],
+      },
+      {
+        file: "libraries/maui-iap/src/OpenIap.Maui/DeviceConfirmationIOS.cs",
+        tokens: [
+          "public static class DeviceConfirmationIOS",
+          "public static PurchaseConfirmer Create",
+        ],
+      },
+      {
+        file: "libraries/godot-iap/addons/godot-iap/purchase_flow.gd",
+        tokens: [
+          "static func create_iapkit_confirmation",
+          "static func create_device_confirmation_ios",
+          "static func to_iapkit_verification_props",
+          "static func read_iapkit_verification",
+          "const IAPKIT_UNKNOWN_RETRY_MS",
+        ],
+      },
+    ],
+    catalog: [
+      "createIapkitConfirmation",
+      "createDeviceConfirmationIOS",
+      "toIapkitVerificationProps",
+      "readIapkitVerification",
+      "IapkitVerificationProps",
+      "IapkitVerificationResult",
+      "IapkitConfirmation",
+      "DeviceConfirmationIOS",
+      "create_iapkit_confirmation",
+      "create_device_confirmation_ios",
+      "to_iapkit_verification_props",
+      "read_iapkit_verification",
+      "IAPKIT_UNKNOWN_RETRY_MS",
+    ],
+  },
   {
     label: "legacy Gradle store flags",
     packages: [
@@ -152,6 +281,12 @@ export const scheduledRemovalRules = [
 // republishes it.
 const releaseTags = Object.fromEntries(
   Object.entries({
+    ...Object.fromEntries(
+      Object.entries(openiapNpmPackages).map(([id, pkg]) => [
+        id,
+        (version) => `${pkg.tagPrefix}-${version}`,
+      ]),
+    ),
     google: nativeReleaseGates.google.tag,
     ...libraryReleaseTags,
   }).map(([id, tag]) => [versionSources[id].label, tag]),
@@ -255,6 +390,7 @@ export function releaseGateFailure(
   rules = scheduledRemovalRules,
   readFile = readRepoFile,
   isTagged = isReleased,
+  targetVersion,
 ) {
   for (const rule of rules) {
     const pkg = rule.packages.find(
@@ -266,10 +402,18 @@ export function releaseGateFailure(
     if (versionMode === "current" && isTagged(packageName, version)) {
       return null;
     }
-    if (rule.dropped && versionMode !== "major" && !(major > pkg.major)) {
+    const targetMajor =
+      versionMode === "major"
+        ? major + 1
+        : versionMode === "exact"
+          ? Number(
+              validateVersion(targetVersion, "target version").split(".")[0],
+            )
+          : major;
+    if (rule.dropped && targetMajor <= pkg.major) {
       return `${packageName} ${version} has dropped ${rule.label}, so it must release with version=major, not ${versionMode}`;
     }
-    if (!rule.dropped && versionMode === "major" && major === pkg.major) {
+    if (!rule.dropped && targetMajor > pkg.major) {
       return `${packageName} ${version} still ships ${rule.label} as major ${pkg.major}; raise its major in that rule, or drop the key, before a major release`;
     }
   }
@@ -281,14 +425,22 @@ const isMain =
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isMain) {
-  const [command, packageName, versionMode] = process.argv.slice(2);
+  const [command, packageName, versionMode, targetVersion] =
+    process.argv.slice(2);
   if (command !== "release-gate" || !packageName || !versionMode) {
     console.error(
-      "Usage: scheduled-removals.mjs release-gate <package-name> <version-mode>",
+      "Usage: scheduled-removals.mjs release-gate <package-name> <version-mode> [target-version]",
     );
     process.exitCode = 2;
   } else {
-    const failure = releaseGateFailure(packageName, versionMode);
+    const failure = releaseGateFailure(
+      packageName,
+      versionMode,
+      undefined,
+      undefined,
+      undefined,
+      targetVersion,
+    );
     if (failure) {
       console.error(`::error::${failure}`);
       process.exitCode = 1;

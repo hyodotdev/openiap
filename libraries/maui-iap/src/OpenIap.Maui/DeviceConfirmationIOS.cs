@@ -11,7 +11,7 @@ using OpenIap;
 
 namespace OpenIap.Maui;
 
-internal static class DeviceConfirmationIOS
+internal static class DeviceConfirmationIOSImplementation
 {
     /// <summary>
     /// <see cref="OpenIapClient.ConfirmOnDeviceIOS"/>, given a
@@ -20,7 +20,7 @@ internal static class DeviceConfirmationIOS
     /// the purchase's environment; <paramref name="grant"/> then runs before
     /// the flow finishes it. Tests pass their own <paramref name="clock"/>, in Unix ms.
     /// </summary>
-    public static PurchaseConfirmer Create(
+    internal static PurchaseConfirmer Create(
         Func<Task<IReadOnlyList<PurchaseIOS>>> getPendingTransactionsIOS,
         PurchaseGranter? grant = null,
         Func<long>? clock = null)
@@ -29,7 +29,7 @@ internal static class DeviceConfirmationIOS
         clock ??= () => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         return async (purchase, isConsumable) =>
         {
-            IapkitConfirmation.RequireGrant("ConfirmOnDeviceIOS", purchase, isConsumable, grant);
+            IapkitConfirmationImplementation.RequireGrant("ConfirmOnDeviceIOS", purchase, isConsumable, grant);
             // A community provider may report the App Store under its own store id.
             if (purchase.Store != IapStore.Apple || purchase.StoreId != "apple")
             {
@@ -57,4 +57,14 @@ internal static class DeviceConfirmationIOS
             return new PurchaseConfirmation.Entitled(AlreadyGranted: false);
         };
     }
+}
+
+
+[Obsolete("Use OpenIapClient.ConfirmOnDeviceIOS. Removed in the next major release.")]
+public static class DeviceConfirmationIOS
+{
+    public static PurchaseConfirmer Create(
+        Func<Task<IReadOnlyList<PurchaseIOS>>> getPendingTransactionsIOS,
+        PurchaseGranter? grant = null) =>
+        DeviceConfirmationIOSImplementation.Create(getPendingTransactionsIOS, grant);
 }

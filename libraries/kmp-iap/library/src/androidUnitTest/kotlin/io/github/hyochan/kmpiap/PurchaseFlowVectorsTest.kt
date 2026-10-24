@@ -128,7 +128,7 @@ class PurchaseFlowVectorsTest {
         var now = clock?.long("beforeRead") ?: System.currentTimeMillis()
         var reads = 0
         var grants = 0
-        val confirm = createDeviceConfirmationIOS(
+        val confirm = deviceConfirmationIOS(
             { reads++; clock?.let { now = it.long("afterRead") }; pending },
             grant = if (vector.bool("noGrant")) null else { _, _ -> grants++ },
             clock = { now },

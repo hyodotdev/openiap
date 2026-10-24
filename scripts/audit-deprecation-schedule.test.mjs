@@ -505,6 +505,63 @@ test("a major release waits until every kept key of the package is raised or dro
   }
 });
 
+test("an exact target obeys the same major removal gate as a named bump", () => {
+  const files = scheduledFiles();
+  assert.match(
+    releaseGateFailure(
+      "lib",
+      "exact",
+      [scheduledRule],
+      files,
+      () => false,
+      "4.0.0-rc.1",
+    ) ?? "",
+    /still ships/,
+  );
+  assert.equal(
+    releaseGateFailure(
+      "lib",
+      "exact",
+      [scheduledRule],
+      files,
+      () => false,
+      "3.5.0",
+    ),
+    null,
+  );
+  const raised = {
+    ...scheduledRule,
+    packages: [{ ...scheduledRule.packages[0], major: 4 }],
+  };
+  assert.equal(releaseGateFailure("lib", "major", [raised], files), null);
+  assert.match(
+    releaseGateFailure("lib", "exact", [raised], files, () => false, "5.0.0") ??
+      "",
+    /still ships/,
+  );
+  const dropped = { ...scheduledRule, dropped: true };
+  assert.match(
+    releaseGateFailure(
+      "lib",
+      "exact",
+      [dropped],
+      files,
+      () => false,
+      "3.5.0",
+    ) ?? "",
+    /must release with version=major/,
+  );
+  assert.equal(
+    releaseGateFailure("lib", "exact", [dropped], files, () => false, "4.0.0"),
+    null,
+  );
+  assert.throws(
+    () =>
+      releaseGateFailure("lib", "exact", [scheduledRule], files, () => false),
+    /Invalid target version/,
+  );
+});
+
 test("every release workflow runs the scheduled removal gate for its package", () => {
   for (const [workflow, name] of Object.entries(releaseGates)) {
     const text = fs.readFileSync(
@@ -527,7 +584,26 @@ test("every release workflow runs the scheduled removal gate for its package", (
       `${workflow} cuts no ${tag} tag`,
     );
   }
-  const gated = new Set(Object.values(releaseGates));
+  const protocolWorkflow = fs.readFileSync(
+    path.join(repoRoot, ".github/workflows/release-openiap.yml"),
+    "utf8",
+  );
+  assert.match(
+    protocolWorkflow,
+    /if: inputs.package == 'client-protocol'[\s\S]*?run: node scripts\/scheduled-removals\.mjs release-gate @hyodotdev\/openiap-client-protocol "\$VERSION_TYPE"/,
+  );
+  assert.match(
+    protocolWorkflow.slice(0, protocolWorkflow.indexOf("\n  validate:")),
+    /fetch-depth: 0/,
+  );
+  assert.equal(
+    releaseTagOf("@hyodotdev/openiap-client-protocol", "1.2.0"),
+    "openiap-client-protocol-1.2.0",
+  );
+  const gated = new Set([
+    ...Object.values(releaseGates),
+    "@hyodotdev/openiap-client-protocol",
+  ]);
   for (const rule of scheduledRemovalRules) {
     for (const pkg of rule.packages) {
       assert.ok(

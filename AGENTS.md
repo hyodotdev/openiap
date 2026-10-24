@@ -54,6 +54,12 @@ openiap/
 
 ## Required Pre-Work
 
+**Public API or specification design requires Hyo's explicit review before
+implementation**, including exported helpers, defaults, deprecations, and
+removals. Follow the [Public Contract Design Gate](knowledge/internal/02-architecture.md#public-contract-design-gate).
+IAPKit is one third-party service; shared contracts must work for independent
+providers through the same public interface.
+
 **CRITICAL**: Before writing or editing anything in a package or library:
 
 1. **Read the relevant knowledge files** from `knowledge/internal/`

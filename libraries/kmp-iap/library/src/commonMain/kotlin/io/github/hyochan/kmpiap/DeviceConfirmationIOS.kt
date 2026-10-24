@@ -15,7 +15,7 @@ import kotlin.time.Clock
  * Apps pass [confirmOnDeviceIOS], which binds this SDK's; tests set the time in
  * ms with [clock].
  */
-internal fun createDeviceConfirmationIOS(
+internal fun deviceConfirmationIOS(
     getPendingTransactionsIOS: suspend () -> List<PurchaseIOS>,
     grant: (suspend (purchase: Purchase, isConsumable: Boolean) -> Unit)? = null,
     clock: () -> Long = { Clock.System.now().toEpochMilliseconds() },
@@ -53,4 +53,11 @@ internal fun createDeviceConfirmationIOS(
 fun KmpInAppPurchase.confirmOnDeviceIOS(
     grant: (suspend (purchase: Purchase, isConsumable: Boolean) -> Unit)? = null,
 ): PurchaseConfirmer =
-    createDeviceConfirmationIOS({ getPendingTransactionsIOS() }, grant)
+    deviceConfirmationIOS({ getPendingTransactionsIOS() }, grant)
+
+
+@Deprecated("Use confirmOnDeviceIOS. Removed in the next major release.")
+public fun createDeviceConfirmationIOS(
+    getPendingTransactionsIOS: suspend () -> List<PurchaseIOS>,
+    grant: (suspend (purchase: Purchase, isConsumable: Boolean) -> Unit)? = null,
+): PurchaseConfirmer = deviceConfirmationIOS(getPendingTransactionsIOS, grant)

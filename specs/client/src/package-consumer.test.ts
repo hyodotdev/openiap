@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -67,14 +67,42 @@ describe("published package", () => {
           'import { ErrorCode } from "@hyodotdev/openiap-client-protocol";',
           'import { kitApi } from "@hyodotdev/openiap-client-protocol/kit-api";',
           'import { createPurchaseFlow } from "@hyodotdev/openiap-client-protocol/purchase-flow";',
-          'import { createIapkitConfirmation } from "@hyodotdev/openiap-client-protocol/purchase-flow-confirmers";',
-          "console.log(ErrorCode.Unknown, typeof kitApi, typeof createPurchaseFlow, typeof createIapkitConfirmation);",
+          'import { createIapkitConfirmation, createDeviceConfirmationIOS, toIapkitVerificationProps, readIapkitVerification } from "@hyodotdev/openiap-client-protocol/purchase-flow";',
+          "console.log(ErrorCode.Unknown, typeof kitApi, typeof createPurchaseFlow, typeof createIapkitConfirmation, typeof createDeviceConfirmationIOS, typeof toIapkitVerificationProps, typeof readIapkitVerification);",
         ].join(" "),
       ],
       { cwd: consumerRoot, encoding: "utf8" },
     );
 
-    expect(output.trim()).toBe("unknown function function function");
+    expect(output.trim()).toBe(
+      "unknown function function function function function function",
+    );
+  });
+
+  test("marks every retired helper and type deprecated in the published declarations", () => {
+    const declarations = readFileSync(
+      join(
+        consumerRoot,
+        "node_modules/@hyodotdev/openiap-client-protocol/dist/purchase-flow.d.ts",
+      ),
+      "utf8",
+    );
+    for (const name of [
+      "createIapkitConfirmation",
+      "createDeviceConfirmationIOS",
+      "toIapkitVerificationProps",
+      "readIapkitVerification",
+      "IapkitConfirmationOptions",
+      "IapkitVerificationProps",
+      "IapkitVerificationResult",
+    ]) {
+      expect(declarations).toMatch(
+        new RegExp(
+          "/\\*\\* @deprecated [^\\n]+Removed in the next major release\\. \\*/\\nexport (?:declare function|interface) " +
+            name,
+        ),
+      );
+    }
   });
 
   test("resolves every public subpath in standard TypeScript", () => {
@@ -83,8 +111,8 @@ describe("published package", () => {
       [
         'import { ErrorCode } from "@hyodotdev/openiap-client-protocol";',
         'import { kitApi } from "@hyodotdev/openiap-client-protocol/kit-api";',
-        'import type { PurchaseConfirmation, PurchaseConfirmer } from "@hyodotdev/openiap-client-protocol/purchase-flow";',
-        'import type { IapkitConfirmationOptions } from "@hyodotdev/openiap-client-protocol/purchase-flow-confirmers";',
+        'import type { PurchaseConfirmation, PurchaseConfirmer, PurchaseFlowPurchase } from "@hyodotdev/openiap-client-protocol/purchase-flow";',
+        'import { createIapkitConfirmation, createDeviceConfirmationIOS, toIapkitVerificationProps, readIapkitVerification, type IapkitConfirmationOptions, type IapkitVerificationProps, type IapkitVerificationResult } from "@hyodotdev/openiap-client-protocol/purchase-flow";',
         "const code: ErrorCode = ErrorCode.Unknown;",
         'const confirmation: PurchaseConfirmation = { status: "linked" };',
         "const confirm: PurchaseConfirmer = async () => confirmation;",
@@ -92,7 +120,11 @@ describe("published package", () => {
         "void code;",
         "void kitApi;",
         "void confirm;",
-        "void options;",
+        "const props: IapkitVerificationProps = { provider: 'iapkit', iapkit: {} };",
+        "const result: IapkitVerificationResult = {};",
+        "const verify = async (_props: IapkitVerificationProps) => result;",
+        "const legacy: PurchaseConfirmer[] = [createIapkitConfirmation(verify, options), createDeviceConfirmationIOS<PurchaseFlowPurchase>(async () => [])];",
+        "void props; void legacy; void toIapkitVerificationProps; void readIapkitVerification;",
       ].join("\n"),
     );
 
@@ -111,7 +143,7 @@ describe("published package", () => {
         "NodeNext",
         join(consumerRoot, "consumer.ts"),
       ],
-      { cwd: consumerRoot, stdio: "pipe" },
+      { cwd: consumerRoot, stdio: "inherit" },
     );
   });
 });

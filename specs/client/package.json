@@ -14,9 +14,6 @@
       ],
       "purchase-flow": [
         "./dist/purchase-flow.d.ts"
-      ],
-      "purchase-flow-confirmers": [
-        "./dist/purchase-flow-confirmers.d.ts"
       ]
     }
   },
@@ -38,12 +35,6 @@
       "types": "./dist/purchase-flow.d.ts",
       "import": "./dist/purchase-flow.js",
       "default": "./dist/purchase-flow.js"
-    },
-    "./purchase-flow-confirmers": {
-      "openiap-source": "./src/purchase-flow-confirmers.ts",
-      "types": "./dist/purchase-flow-confirmers.d.ts",
-      "import": "./dist/purchase-flow-confirmers.js",
-      "default": "./dist/purchase-flow-confirmers.js"
     },
     "./purchase-flow-vectors": "./src/purchase-flow.vectors.json",
     "./swift": "./src/generated/Types.swift",

@@ -168,7 +168,7 @@ function requireGrant<P extends PurchaseFlowPurchase>(
 }
 
 /** Builds the IAPKit request for a purchase; throws for a store IAPKit cannot verify. */
-function toIapkitVerificationProps<P extends PurchaseFlowPurchase>(
+export function toIapkitVerificationProps<P extends PurchaseFlowPurchase>(
   purchase: P,
   options: IapkitConfirmationOptions<P>,
 ): IapkitVerificationProps {
@@ -231,7 +231,7 @@ function toIapkitVerificationProps<P extends PurchaseFlowPurchase>(
  * or package mismatch, and to every Horizon rejection), and a valid state this
  * product type cannot be granted from.
  */
-function readIapkitVerification<P extends PurchaseFlowPurchase>(
+export function readIapkitVerification<P extends PurchaseFlowPurchase>(
   result: IapkitVerificationResult,
   purchase: P,
   context: { isConsumable: boolean },

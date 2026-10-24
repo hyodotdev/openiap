@@ -691,13 +691,10 @@ function Releases() {
             <li>
               <strong>Client Protocol 1.2.1</strong>: <code>purchase-flow</code>{' '}
               exports the <code>PurchaseConfirmer</code> and{' '}
-              <code>PurchaseGrant</code> types; the IAPKit and on-device
-              confirmers and their types (<code>IapkitConfirmationOptions</code>
-              , <code>IapkitVerificationProps</code>,{' '}
-              <code>IapkitVerificationResult</code>) move to{' '}
-              <code>purchase-flow-confirmers</code>, which no longer exports{' '}
-              <code>toIapkitVerificationProps</code> or{' '}
-              <code>readIapkitVerification</code>.
+              <code>PurchaseGrant</code> types. Existing low-level helpers and
+              their types remain at <code>purchase-flow</code> as deprecated
+              compatibility delegates; their implementation lives in an internal
+              module.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
@@ -709,15 +706,15 @@ function Releases() {
               types.
             </li>
             <li>
-              <strong>flutter_inapp_purchase 11.1.1</strong>: no longer exports{' '}
+              <strong>flutter_inapp_purchase 11.1.1</strong>: deprecates{' '}
               <code>createIapkitConfirmation</code>,{' '}
               <code>createDeviceConfirmationIOS</code>,{' '}
               <code>toIapkitVerificationProps</code>, or{' '}
               <code>readIapkitVerification</code>.
             </li>
             <li>
-              <strong>godot-iap 4.1.1</strong>: <code>PurchaseFlow</code> no
-              longer carries <code>create_iapkit_confirmation</code>,{' '}
+              <strong>godot-iap 4.1.1</strong>: <code>PurchaseFlow</code>{' '}
+              deprecates <code>create_iapkit_confirmation</code>,{' '}
               <code>create_device_confirmation_ios</code>,{' '}
               <code>to_iapkit_verification_props</code>, or{' '}
               <code>read_iapkit_verification</code>.
@@ -727,27 +724,29 @@ function Releases() {
               <code>createIapkitConfirmation</code>,{' '}
               <code>createDeviceConfirmationIOS</code>,{' '}
               <code>toIapkitVerificationProps</code>, and{' '}
-              <code>readIapkitVerification</code> are internal, and{' '}
-              <code>PurchaseConfirmer</code> names the{' '}
+              <code>readIapkitVerification</code> remain public and deprecated,
+              and <code>PurchaseConfirmer</code> names the{' '}
               <code>confirmWithBackend</code> type.
             </li>
             <li>
               <strong>OpenIap.Maui 3.1.1</strong>:{' '}
               <code>IapkitConfirmation</code> and{' '}
-              <code>DeviceConfirmationIOS</code> are internal.
+              <code>DeviceConfirmationIOS</code> remain public and obsolete,
+              preserving their existing signatures.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Migration notes</h5>
           <p>
-            An app that called a removed part passes the SDK&apos;s{' '}
+            Existing calls and import paths keep working through patch and minor
+            releases. Replace the deprecated helpers with the SDK&apos;s{' '}
             <code>confirmWithIapkit</code> or <code>confirmOnDeviceIOS</code> (
             <code>confirm_with_iapkit</code> and{' '}
-            <code>confirm_on_device_ios</code> in godot-iap) as{' '}
-            <code>confirmWithBackend</code> instead. Import the Client Protocol
-            package&apos;s confirmers from{' '}
-            <code>
-              @hyodotdev/openiap-client-protocol/purchase-flow-confirmers
-            </code>
+            <code>confirm_on_device_ios</code> in godot-iap), or pass another
+            service&apos;s confirmer as <code>confirmWithBackend</code>. Removal
+            is scheduled for each package&apos;s next major; see{' '}
+            <Link to="/docs/updates/migration#next-major">
+              Scheduled removals
+            </Link>
             .
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>

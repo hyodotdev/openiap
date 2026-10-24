@@ -52,7 +52,8 @@ private const val IAPKIT_UNKNOWN_RETRY_MS = 30_000L
  * the purchase, then runs `grant` before the flow finishes it. Apps pass
  * [confirmWithIapkit], which binds this SDK's.
  */
-internal fun createIapkitConfirmation(
+@Deprecated("Use confirmWithIapkit. Removed in the next major release.")
+public fun createIapkitConfirmation(
     verifyPurchaseWithProvider: suspend (VerifyPurchaseWithProviderProps) -> VerifyPurchaseWithProviderResult,
     options: IapkitConfirmationOptions,
 ): PurchaseConfirmer = { purchase, isConsumable ->
@@ -79,7 +80,8 @@ fun KmpInAppPurchase.confirmWithIapkit(
     createIapkitConfirmation(::verifyPurchaseWithProvider, options)
 
 /** Builds the IAPKit request for a purchase; throws for a store IAPKit cannot verify. */
-internal fun toIapkitVerificationProps(purchase: Purchase, options: IapkitConfirmationOptions): VerifyPurchaseWithProviderProps {
+@Deprecated("Use confirmWithIapkit. Removed in the next major release.")
+public fun toIapkitVerificationProps(purchase: Purchase, options: IapkitConfirmationOptions): VerifyPurchaseWithProviderProps {
     val apiKey = options.apiKey?.trim()
     // An unset environment variable, not a deliberate fallback to the SDK's key.
     require(apiKey != "") { "IAPKit apiKey is empty" }
@@ -125,7 +127,8 @@ internal fun toIapkitVerificationProps(purchase: Purchase, options: IapkitConfir
  * or package mismatch, and to every Horizon rejection), and a valid state this
  * product type cannot be granted from.
  */
-internal fun readIapkitVerification(
+@Deprecated("Use confirmWithIapkit. Removed in the next major release.")
+public fun readIapkitVerification(
     result: VerifyPurchaseWithProviderResult,
     purchase: Purchase,
     isConsumable: Boolean,

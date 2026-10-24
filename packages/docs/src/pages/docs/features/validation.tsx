@@ -357,7 +357,9 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
           .
         </p>
         <p>
-          Any other verification service plugs in the same way.{' '}
+          Any other verification service plugs in the same way. The verifier
+          must compare the store-verified product with{' '}
+          <code>purchase.productId</code> before returning a valid verdict.{' '}
           <code>confirmWithBackend</code> takes a <code>PurchaseConfirmer</code>
           : a function that receives the purchase and whether it is consumable,
           and answers its confirmation. Answer <code>entitled</code> once access
