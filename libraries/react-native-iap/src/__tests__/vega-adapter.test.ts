@@ -1016,6 +1016,87 @@ describe('Amazon Vega adapter', () => {
     ]);
   });
 
+  it('keeps paid terms active while renewal preferences are unavailable', async () => {
+    const service = createService();
+    service.getPurchaseUpdates.mockResolvedValue({
+      responseCode: 1,
+      receiptList: [
+        {receiptId: 'active', sku: 'premium_monthly', productType: 3},
+        {
+          receiptId: 'canceled',
+          sku: 'premium_monthly',
+          productType: 3,
+          isCancelled: true,
+        },
+        {
+          receiptId: 'expired',
+          sku: 'premium_monthly',
+          productType: 3,
+          cancelDate: new Date('2026-05-01'),
+        },
+        {receiptId: 'coins', sku: 'coins_100', productType: 1},
+        {
+          receiptId: 'deferred',
+          sku: 'premium_parent',
+          termSku: 'premium_monthly',
+          productType: 3,
+          isDeferred: true,
+          deferredSku: 'premium_yearly',
+        },
+      ],
+    });
+    const module = createVegaIapModule(service);
+    const purchases = await module.getAvailablePurchases();
+    expect(purchases).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'active',
+          purchaseState: 'purchased',
+          currentPlanId: 'premium_monthly',
+          isAutoRenewing: false,
+          autoRenewingAndroid: null,
+        }),
+        expect.objectContaining({
+          id: 'coins',
+          currentPlanId: null,
+          isAutoRenewing: false,
+          autoRenewingAndroid: false,
+        }),
+      ]),
+    );
+    await expect(module.getActiveSubscriptions()).resolves.toEqual([
+      expect.objectContaining({
+        transactionId: 'active',
+        isActive: true,
+        autoRenewingAndroid: null,
+      }),
+      expect.objectContaining({
+        transactionId: 'deferred',
+        isActive: true,
+        currentPlanId: 'premium_monthly',
+        autoRenewingAndroid: null,
+      }),
+    ]);
+    await expect(
+      module.getActiveSubscriptions(['premium_monthly']),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        transactionId: 'active',
+        isActive: true,
+        autoRenewingAndroid: null,
+      }),
+    ]);
+    await expect(module.getActiveSubscriptions(['coins_100'])).resolves.toEqual(
+      [],
+    );
+    await expect(
+      module.hasActiveSubscriptions(['premium_parent']),
+    ).resolves.toBe(true);
+    await expect(module.hasActiveSubscriptions(['coins_100'])).resolves.toBe(
+      false,
+    );
+  });
+
   it('uses cached product types when purchase updates omit productType', async () => {
     const service = createService();
     service.getPurchaseUpdates.mockResolvedValue({
@@ -1093,8 +1174,10 @@ describe('Amazon Vega adapter', () => {
     ).resolves.toEqual([
       expect.objectContaining({
         productId: 'premium_monthly',
-        isAutoRenewing: true,
-        autoRenewingAndroid: true,
+        currentPlanId: 'premium_monthly',
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+        autoRenewingAndroid: null,
       }),
     ]);
   });
@@ -1118,8 +1201,10 @@ describe('Amazon Vega adapter', () => {
     ).resolves.toEqual([
       expect.objectContaining({
         productId: 'premium_monthly',
-        isAutoRenewing: true,
-        autoRenewingAndroid: true,
+        currentPlanId: 'premium_monthly',
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+        autoRenewingAndroid: null,
       }),
     ]);
 
@@ -1148,8 +1233,10 @@ describe('Amazon Vega adapter', () => {
     ).resolves.toEqual([
       expect.objectContaining({
         productId: 'premium_monthly',
-        isAutoRenewing: true,
-        autoRenewingAndroid: true,
+        currentPlanId: 'premium_monthly',
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+        autoRenewingAndroid: null,
       }),
     ]);
   });
@@ -1414,8 +1501,11 @@ describe('Amazon Vega adapter', () => {
 
     expect(purchases).toHaveLength(101);
     expect(purchases[0]).toMatchObject({
-      isAutoRenewing: true,
+      isAutoRenewing: false,
+      autoRenewingAndroid: null,
       productId: 'sub_0',
+      currentPlanId: 'sub_0',
+      purchaseState: 'purchased',
     });
     expect(service.getProductData).toHaveBeenCalledTimes(2);
     expect(service.getProductData.mock.calls[0]?.[0].skus).toHaveLength(100);
@@ -1452,7 +1542,8 @@ describe('Amazon Vega adapter', () => {
         id: 'deferred-sub',
         productId: 'premium',
         currentPlanId: 'premium_monthly',
-        isAutoRenewing: true,
+        isAutoRenewing: false,
+        autoRenewingAndroid: null,
         isSuspendedAndroid: false,
         pendingPurchaseUpdateAndroid: {
           products: ['premium_yearly'],

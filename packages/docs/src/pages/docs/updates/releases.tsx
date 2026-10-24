@@ -690,6 +690,10 @@ function Releases() {
             The native SwiftUI example now displays available subscription
             prices and purchase options correctly.
           </p>
+          <p>
+            On Vega, react-native-iap and expo-iap no longer infer renewal from
+            access; active paid terms remain listed with renewal unknown.
+          </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
             Protocols and native packages
           </h5>
@@ -748,7 +752,8 @@ function Releases() {
               <strong>OpenIap.Maui 3.2.0</strong>:{' '}
               <code>IapkitConfirmation</code> and{' '}
               <code>DeviceConfirmationIOS</code> remain public and obsolete,
-              preserving their existing signatures.
+              preserving their existing signatures. The example purchase list
+              now shows active Amazon subscriptions.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Migration notes</h5>

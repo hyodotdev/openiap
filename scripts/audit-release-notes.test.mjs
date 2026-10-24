@@ -764,4 +764,12 @@ test("the confirmation train includes matching natives and the rebuild notice", 
     /Example purchase cards use reported renewal preferences and preserve unknown values/,
   );
   assert.match(card, /A null renewal preference does not expire a paid term/);
+  assert.match(
+    card,
+    /The example purchase list now shows active Amazon subscriptions/,
+  );
+  assert.match(
+    card,
+    /On Vega, react-native-iap and expo-iap no longer infer renewal from access/,
+  );
 });

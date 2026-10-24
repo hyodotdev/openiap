@@ -764,11 +764,12 @@ function mapReceipt(
     storeId: 'amazon',
     quantity: 1,
     purchaseState: isActive ? 'purchased' : 'unknown',
-    isAutoRenewing: type === 'subs' && isActive,
+    // Device receipts do not report renewal preferences.
+    isAutoRenewing: false,
     purchaseTokenAndroid: receiptId,
     dataAndroid: stringifyJson(receipt),
     signatureAndroid: null,
-    autoRenewingAndroid: type === 'subs' && isActive,
+    autoRenewingAndroid: type === 'subs' ? null : false,
     purchaseStateAndroid: isActive ? PURCHASE_STATE_PURCHASED : 0,
     isAcknowledgedAndroid: false,
     packageNameAndroid: null,
@@ -1575,8 +1576,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       return purchases
         .filter(
           (purchase) =>
-            purchase.isAutoRenewing &&
-            (requestedIds.size === 0 || requestedIds.has(purchase.productId)),
+            requestedIds.size === 0 || requestedIds.has(purchase.productId),
         )
         .map((purchase) => ({
           productId: purchase.productId,
@@ -1584,7 +1584,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
           transactionId: purchase.id,
           purchaseToken: purchase.purchaseToken ?? null,
           transactionDate: purchase.transactionDate,
-          autoRenewingAndroid: purchase.autoRenewingAndroid ?? true,
+          autoRenewingAndroid: purchase.autoRenewingAndroid ?? null,
           basePlanIdAndroid: purchase.currentPlanId ?? purchase.productId,
           currentPlanId: purchase.currentPlanId ?? purchase.productId,
           purchaseTokenAndroid: purchase.purchaseTokenAndroid ?? null,
@@ -1631,7 +1631,11 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     addPromotedProductListenerIOS(): void {},
     removePromotedProductListenerIOS(): void {},
     async verifyAppOwnership(): Promise<string> {
-      return JSON.stringify({status: 'unknown', reason: 'unsupported', storeId: 'amazon'});
+      return JSON.stringify({
+        status: 'unknown',
+        reason: 'unsupported',
+        storeId: 'amazon',
+      });
     },
     async getAppTransactionIOS(): Promise<null> {
       return throwUnsupportedFeature('getAppTransactionIOS');
