@@ -77,6 +77,9 @@ type ExtendedActiveSubscription = ActiveSubscription & {
 
 function androidBasePlan(subscription: ActiveSubscription): string | null {
   const plan = subscription.currentPlanId ?? subscription.basePlanIdAndroid;
+  // Amazon identifies its plan with the catalog term SKU.
+  if (plan === 'dev.hyo.martie.premium') return 'premium';
+  if (plan === 'dev.hyo.martie.premium_year') return 'premium-year';
   return plan === 'premium' || plan === 'premium-year' ? plan : null;
 }
 
@@ -1512,12 +1515,8 @@ function SubscriptionFlowContainer() {
       setProcessingProductId((current) =>
         current === productId ? null : current,
       );
-      // iOS and Amazon sell each plan as its own product.
-      if (
-        Platform.OS === 'ios' ||
-        purchase.store === 'amazon' ||
-        (purchase.store === 'unknown' && purchase.storeId === 'amazon_example')
-      ) {
+      // StoreKit can report both plans during a transition.
+      if (Platform.OS === 'ios') {
         setLastPurchasedPlan(
           productId === 'dev.hyo.martie.premium_year'
             ? 'premium-year'

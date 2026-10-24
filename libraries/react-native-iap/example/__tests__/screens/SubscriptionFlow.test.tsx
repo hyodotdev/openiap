@@ -837,29 +837,35 @@ describe('SubscriptionFlow Screen', () => {
       // obfuscatedProfileId can be included for new purchases (but is optional)
     }
   });
-  it('displays a cold restored Amazon yearly term without Play plan controls', async () => {
-    Platform.OS = 'android';
-    mockIapState({
-      subscriptions: [
-        sampleSubscription,
-        {...sampleSubscription, id: 'dev.hyo.martie.premium_year'},
-      ],
-      activeSubscriptions: [
-        {
-          productId: 'dev.hyo.martie.premium.base',
-          currentPlanId: 'dev.hyo.martie.premium_year',
-          isActive: true,
-          transactionDate: 1,
-          transactionId: 'restored-yearly',
-        },
-      ],
-    });
-    const {getByText, queryByText, getAllByText} = await render(
-      <SubscriptionFlow />,
-    );
-    expect(getByText('Store-reported Subscription Status')).toBeTruthy();
-    expect(queryByText('⬆️ Upgrade to Yearly Plan')).toBeNull();
-    expect(queryByText('⬇️ Downgrade to Monthly Plan')).toBeNull();
-    expect(getAllByText(/Yearly Plan/).length).toBeGreaterThan(0);
-  });
+  it.each([
+    {term: 'dev.hyo.martie.premium', label: '📆 Monthly Plan'},
+    {term: 'dev.hyo.martie.premium_year', label: '📅 Yearly Plan'},
+  ])(
+    'displays a cold restored Amazon term without Play plan controls %j',
+    async ({term, label}) => {
+      Platform.OS = 'android';
+      mockIapState({
+        subscriptions: [
+          sampleSubscription,
+          {...sampleSubscription, id: 'dev.hyo.martie.premium_year'},
+        ],
+        activeSubscriptions: [
+          {
+            productId: 'dev.hyo.martie.premium.base',
+            currentPlanId: term,
+            basePlanIdAndroid: term,
+            isActive: true,
+            transactionDate: 1,
+            transactionId: 'restored-yearly',
+          },
+        ],
+      });
+      const {getByText, queryByText} = await render(<SubscriptionFlow />);
+      expect(getByText('Store-reported Subscription Status')).toBeTruthy();
+      expect(queryByText('⬆️ Upgrade to Yearly Plan')).toBeNull();
+      expect(queryByText('⬇️ Downgrade to Monthly Plan')).toBeNull();
+      expect(getByText(label)).toBeTruthy();
+      expect(queryByText('Plan unavailable')).toBeNull();
+    },
+  );
 });
