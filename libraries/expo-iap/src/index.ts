@@ -10,14 +10,17 @@ import {
   isProductIOS,
 } from './modules/ios';
 import {
-  createDeviceConfirmationIOS,
-  createIapkitConfirmation,
-  type IapkitConfirmationOptions,
-  type PurchaseConfirmation,
+  type PurchaseConfirmer,
   type PurchaseFlow,
   type PurchaseFlowOptions,
   type PurchaseFlowPurchase,
-} from './purchase-flow';
+  type PurchaseGrant,
+} from './purchase-flow-core';
+import {
+  createDeviceConfirmationIOS,
+  createIapkitConfirmation,
+  type IapkitConfirmationOptions,
+} from './purchase-flow-confirmers';
 import {
   clearRequested,
   createSdkPurchaseFlow,
@@ -1500,10 +1503,7 @@ export function createPurchaseFlow(
  */
 export function confirmWithIapkit(
   options: IapkitConfirmationOptions<Purchase>,
-): (
-  purchase: Purchase,
-  context: {isConsumable: boolean},
-) => Promise<PurchaseConfirmation> {
+): PurchaseConfirmer<Purchase> {
   return createIapkitConfirmation(verifyPurchaseWithProvider, options);
 }
 
@@ -1513,11 +1513,11 @@ export function confirmWithIapkit(
  * valid. Credit consumables in `grant`.
  */
 export function confirmOnDeviceIOS(
-  options: Pick<IapkitConfirmationOptions<Purchase>, 'grant'> = {},
-): (
-  purchase: Purchase,
-  context: {isConsumable: boolean},
-) => Promise<PurchaseConfirmation> {
+  options: {
+    /** See {@link PurchaseGrant}; required for consumables. */
+    grant?: PurchaseGrant<Purchase>;
+  } = {},
+): PurchaseConfirmer<Purchase> {
   return createDeviceConfirmationIOS<Purchase>(
     () => getPendingTransactionsIOS(),
     options,
@@ -1547,11 +1547,11 @@ export type {
 export {
   describePurchaseFlowStatus,
   toPurchaseConfirmationRequest,
-} from './purchase-flow';
+} from './purchase-flow-core';
 export type {
-  IapkitConfirmationOptions,
   PurchaseConfirmation,
   PurchaseConfirmationRequest,
+  PurchaseConfirmer,
   PurchaseFlow,
   PurchaseFlowGuidance,
   PurchaseFlowGuidanceKey,
@@ -1559,8 +1559,10 @@ export type {
   PurchaseFlowOutcome,
   PurchaseFlowPurchase,
   PurchaseFlowStatus,
+  PurchaseGrant,
   RecoverPurchasesOptions,
-} from './purchase-flow';
+} from './purchase-flow-core';
+export type {IapkitConfirmationOptions} from './purchase-flow-confirmers';
 export {
   ErrorCodeUtils,
   ErrorCodeMapping,

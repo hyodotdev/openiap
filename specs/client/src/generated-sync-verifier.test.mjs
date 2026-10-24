@@ -42,6 +42,14 @@ describe('generated sync verifier', () => {
     expect(collectGeneratedSyncDrift(root)).toContain(`${godotEdge.path} is not the copy materialization of ${godotEdge.source}`);
   });
 
+  it('keeps Node ESM imports canonical while SDK mirrors resolve their TypeScript', () => {
+    const source = 'import { confirm } from "./purchase-flow-confirmers.js";\nimport type { Verdict } from "../contract.js";\nimport x from "service.js";\n';
+    expect(materializeGeneratedSyncEdge({ mode: 'typescript-bundler' }, source)).toBe(
+      'import { confirm } from "./purchase-flow-confirmers";\nimport type { Verdict } from "../contract";\nimport x from "service.js";\n',
+    );
+    expect(materializeGeneratedSyncEdge({ mode: 'copy' }, source)).toBe(source);
+  });
+
   it('fails closed for an unknown manifest mode', () => {
     expect(() => materializeGeneratedSyncEdge({ groupName: 'test', targetName: 'test', mode: 'mystery' }, 'source')).toThrow(
       'Unknown sync mode "mystery"',

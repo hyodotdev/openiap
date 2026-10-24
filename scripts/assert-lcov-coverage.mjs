@@ -142,13 +142,18 @@ export function readChangedLines(patch) {
   return files;
 }
 
+// Conservative local accounting; hosted parsers may normalize reports differently.
 function readLcovRecords(source) {
   const records = [];
   let record;
   for (const line of source.split(/\r?\n/)) {
     if (line.startsWith("SF:")) {
       if (record) throw new Error("Unterminated LCOV record");
-      record = { filename: line.slice(3), lines: new Map() };
+      record = {
+        filename: line.slice(3),
+        lines: new Map(),
+        branches: new Map(),
+      };
     } else if (line.startsWith("DA:")) {
       const match = line.match(/^DA:(\d+),(\d+)(?:,[^,]+)?$/u);
       if (!record || !match || Number(match[1]) < 1) {
@@ -160,6 +165,20 @@ function readLcovRecords(source) {
         throw new Error(`Invalid LCOV line data: ${line}`);
       }
       record.lines.set(number, Math.max(record.lines.get(number) ?? 0, hits));
+    } else if (line.startsWith("BRDA:")) {
+      const match = line.match(/^BRDA:(\d+),([^,]+),([^,]+),(-?\d+|-)$/u);
+      if (!record || !match || Number(match[1]) < 1) {
+        throw new Error(`Invalid LCOV branch data: ${line}`);
+      }
+      const number = Number(match[1]);
+      const hits = match[4] === "-" ? 0 : Number(match[4]);
+      if (!Number.isSafeInteger(number) || !Number.isSafeInteger(hits)) {
+        throw new Error(`Invalid LCOV branch data: ${line}`);
+      }
+      const branches = record.branches.get(number) ?? new Map();
+      // Negative V8 counters never establish a hit (LCOV's zero fallback).
+      branches.set(`${match[2]}:${match[3]}`, Math.max(0, hits));
+      record.branches.set(number, branches);
     } else if (/^(LF|LH):/u.test(line)) {
       const match = line.match(/^(LF|LH):(\d+)$/u);
       if (!record || !match)
@@ -173,6 +192,13 @@ function readLcovRecords(source) {
           [...record.lines.values()].filter((hits) => hits > 0).length
       ) {
         throw new Error("LCOV LF/LH totals disagree with executable line data");
+      }
+      // Apply branch evidence to every source format, including branch-only lines.
+      for (const [number, branches] of record.branches) {
+        record.lines.set(
+          number,
+          [...branches.values()].some((hits) => hits > 0) ? 1 : 0,
+        );
       }
       records.push(record);
       record = undefined;

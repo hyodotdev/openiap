@@ -37,7 +37,7 @@ import {
 
 // Types
 import {ErrorCode} from '../types';
-import type {PurchaseFlow, PurchaseFlowOutcome} from '../purchase-flow';
+import type {PurchaseFlow, PurchaseFlowOutcome} from '../purchase-flow-core';
 import type {
   ProductQueryType,
   RequestPurchaseProps,

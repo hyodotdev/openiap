@@ -5,6 +5,7 @@ extends SceneTree
 ## Run with: godot --headless --path Example --script res://tests/test_purchase_flow.gd
 
 const PurchaseFlow = preload("res://addons/godot-iap/purchase_flow.gd")
+const PurchaseConfirmers = preload("res://addons/godot-iap/purchase_confirmers.gd")
 const GodotIapWrapper = preload("res://addons/godot-iap/godot_iap.gd")
 const EnvelopeTests = preload("res://tests/test_envelope_parsing.gd")
 const Types = preload("res://addons/godot-iap/types.gd")
@@ -133,7 +134,7 @@ func _run_iapkit_vector(vector: Dictionary) -> void:
 		verifies.append(props)
 		await process_frame
 		return vector.get("result", {})
-	var confirm := PurchaseFlow.create_iapkit_confirmation(verify, options)
+	var confirm := PurchaseConfirmers.create_iapkit_confirmation(verify, options)
 
 	var answer = await confirm.call(item, vector.isConsumable)
 
@@ -151,13 +152,13 @@ func _run_iapkit_vector(vector: Dictionary) -> void:
 func _run_device_vector(vector: Dictionary) -> void:
 	var name := "device: %s" % vector.name
 	var clock: Dictionary = vector.get("clock", {})
-	PurchaseFlow._clock_ms = clock.get("beforeRead")
+	PurchaseConfirmers._clock_ms = clock.get("beforeRead")
 	var grants := []
 	var reads := [0]
 	var read := func() -> Array:
 		reads[0] += 1
 		await process_frame
-		PurchaseFlow._clock_ms = clock.get("afterRead")
+		PurchaseConfirmers._clock_ms = clock.get("afterRead")
 		return vector.pending
 	var options := {}
 	if not vector.get("noGrant", false):
@@ -165,10 +166,10 @@ func _run_device_vector(vector: Dictionary) -> void:
 			grants.append(purchase)
 			await process_frame
 			return true
-	var confirm := PurchaseFlow.create_device_confirmation_ios(read, options)
+	var confirm := PurchaseConfirmers.create_device_confirmation_ios(read, options)
 
 	var answer = await confirm.call(vector.purchase, vector.isConsumable)
-	PurchaseFlow._clock_ms = null
+	PurchaseConfirmers._clock_ms = null
 
 	if vector.get("error", false):
 		_check(answer is PurchaseFlow.Failure, name + " fails")
@@ -338,7 +339,7 @@ func _test_grant_must_return_true() -> void:
 		return {"iapkit": {"store": "google", "storeId": "play", "isValid": true, "state": "ready-to-consume", "productId": "coins_100"}}
 	var coins := _purchase("GPA.coins", {"store": "google", "productId": "coins_100"})
 	for answer in [null, false, "credited"]:
-		var confirm := PurchaseFlow.create_iapkit_confirmation(verify, {
+		var confirm := PurchaseConfirmers.create_iapkit_confirmation(verify, {
 			"api_key": "pk",
 			"grant": func(_purchase: Dictionary, _is_consumable: bool) -> Variant: return answer,
 		})

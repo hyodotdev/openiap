@@ -54,6 +54,12 @@ openiap/
 
 ## Required Pre-Work
 
+**Public API or specification design requires Hyo's explicit review before
+implementation**, including exported helpers, defaults, deprecations, and
+removals. Follow the [Public Contract Design Gate](knowledge/internal/02-architecture.md#public-contract-design-gate).
+IAPKit is one third-party service; shared contracts must work for independent
+providers through the same public interface.
+
 **CRITICAL**: Before writing or editing anything in a package or library:
 
 1. **Read the relevant knowledge files** from `knowledge/internal/`
@@ -187,11 +193,12 @@ them and syncs every target in `specs/client/generated-sync-manifest.mjs`:
 - `libraries/godot-iap/addons/godot-iap/types.gd`
 - `libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt`
 - `libraries/maui-iap/src/OpenIap.Maui/Types.cs`
-- `libraries/{react-native-iap,expo-iap}/src/{kit-api,purchase-flow}.ts`
+- `libraries/{react-native-iap,expo-iap}/src/{kit-api,purchase-flow,purchase-flow-core,purchase-flow-confirmers}.ts`
 - `libraries/expo-iap/src/utils/errorMapping.ts` and its
   `__tests__/errorMapping.shared.test.ts`, and
   `libraries/expo-iap/src/utils/purchaseFlowBinding.ts` (mirrored from
   react-native-iap)
+- `libraries/expo-iap/src/__tests__/purchaseFlow.shared.test.ts` (mirrored from react-native-iap)
 - each library's `purchase-flow.vectors.json` test fixture (copied from
   `specs/client/src/purchase-flow.vectors.json`)
 

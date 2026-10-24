@@ -32,9 +32,13 @@ function isCanceled(error: PurchaseError): boolean {
 ```
 
 The root export provides TypeScript types and runtime enums. The `/kit-api`
-export provides the portable IAPKit client helper, and `/purchase-flow` the
+export provides the portable IAPKit client helper, `/purchase-flow` the
 backend-confirmed purchase pipeline with the result types an app backend
-returns. Generated native types are
+returns. Its legacy low-level confirmation helpers remain deprecated until
+Client Protocol 2.0; use the framework SDK’s `confirmWithIapkit` or
+`confirmOnDeviceIOS`, or supply another service’s confirmer. The extracted
+confirmer implementation is internal, with no new public package entry point.
+Generated native types are
 available at `/swift`, `/kotlin`, `/dart`, `/gdscript`, and `/csharp`.
 For a working purchase integration, choose a [framework SDK](https://openiap.dev/languages).
 
@@ -70,7 +74,9 @@ definitions.
 
 This is a publishable specification artifact, not a deployed service. Runtime
 service implementations remain in `packages/` and `libraries/`; the portable
-`kit-api` and `purchase-flow` helpers are client code, and the independent
+`kit-api`, `purchase-flow`, `purchase-flow-core`, and `purchase-flow-confirmers`
+helpers are client
+code, and the independent
 server-side Commerce Protocol remains in `specs/commerce-protocol`.
 
 The npm tarball ships the TypeScript runtime and declarations compiled into
@@ -195,3 +201,9 @@ Supported the project before the OpenIAP sponsor program.
 [openiap-company-contact]: mailto:hyo@hyo.dev
 
 <!-- sponsors:end -->
+
+The published `/purchase-flow-vectors` fixture includes lifecycle, IAPKit, and
+on-device adapter cases. Adapter cases describe that implementation, not a
+requirement for other verification services. Keep its existing keys and the
+optional adapter-evidence fields in `PurchaseFlowPurchase` compatible through
+minor releases; removing them requires a separately reviewed major change.

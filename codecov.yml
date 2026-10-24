@@ -140,9 +140,11 @@ comment:
 ignore:
   - "libraries/react-native-iap/src/types.ts"
   - "libraries/expo-iap/src/types.ts"
-  # Generated mirrors of specs/client/src/purchase-flow.ts, tested there.
+  # Generated mirrors of specs/client/src/purchase-flow{,-confirmers}.ts, tested there.
   - "libraries/react-native-iap/src/purchase-flow.ts"
   - "libraries/expo-iap/src/purchase-flow.ts"
+  - "libraries/react-native-iap/src/purchase-flow-confirmers.ts"
+  - "libraries/expo-iap/src/purchase-flow-confirmers.ts"
   - "libraries/flutter_inapp_purchase/lib/types.dart"
   - "packages/kit/convex/_generated/**"
   - "packages/kit/convex/**/*.test.ts"

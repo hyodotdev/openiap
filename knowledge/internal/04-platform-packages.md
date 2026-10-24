@@ -630,6 +630,21 @@ so purchase screens only subscribe to outcomes. Every SDK's flow passes
 `specs/client/src/purchase-flow.vectors.json`: React Native and Expo through
 the spec they sync, the other four through their own runners.
 
+The TypeScript SDKs import the dependency-free `purchase-flow-core.ts` directly.
+The published `purchase-flow.ts` entry point re-exports that core and retains
+legacy compatibility delegates.
+
+The flow core is vendor-neutral: it takes one `PurchaseConfirmer` and holds no
+code for a particular verification service. The confirmers the SDKs ship (IAPKit
+and on-device iOS) live beside it, in
+`specs/client/src/purchase-flow-confirmers.ts` and each port's own file, and use
+only the core's public contract. Each SDK exposes one call per confirmer
+(`confirmWithIapkit`, `confirmOnDeviceIOS`) and keeps new building blocks
+internal. Published helpers remain as deprecated delegates until the next
+major, tracked by `scripts/scheduled-removals.mjs`. Another verification service
+is another confirmer, never a branch in the core. New public contracts require
+the [Public Contract Design Gate](./02-architecture.md#public-contract-design-gate).
+
 ## Cross-Library Verification for Shared-Package Changes (MANDATORY)
 
 > **When:** any change to `packages/google` or `packages/apple` that modifies

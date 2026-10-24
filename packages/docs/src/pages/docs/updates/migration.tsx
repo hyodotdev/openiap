@@ -222,6 +222,45 @@ const flutterCustomWireMigrations = [
 // notices, and the package majors in step.
 const scheduledRemovals = [
   {
+    title: 'Removal in Client Protocol 2.0',
+    rows: [
+      [
+        'PURCHASE_REQUEST_CLOCK_SKEW_MS',
+        'createPurchaseRequests manages its clock tolerance internally',
+      ],
+    ],
+  },
+  {
+    title:
+      'Removal in Client Protocol 2.0, flutter_inapp_purchase 12.0, godot-iap 5.0, kmp-iap 5.0, and OpenIap.Maui 4.0',
+    rows: [
+      [
+        'createIapkitConfirmation / toIapkitVerificationProps / readIapkitVerification (Client Protocol, Flutter, KMP)',
+        'The SDK’s confirmWithIapkit; pass a vendor-independent confirmer for another service',
+      ],
+      [
+        'createDeviceConfirmationIOS (Client Protocol, Flutter, KMP)',
+        'The SDK’s confirmOnDeviceIOS',
+      ],
+      [
+        'IapkitConfirmationOptions / IapkitVerificationProps / IapkitVerificationResult from Client Protocol purchase-flow',
+        'The framework SDK’s IapkitConfirmationOptions / VerifyPurchaseWithProviderProps / VerifyPurchaseWithProviderResult',
+      ],
+      [
+        'OpenIap.Maui.IapkitConfirmation / DeviceConfirmationIOS',
+        'OpenIapClient.ConfirmWithIapkit / ConfirmOnDeviceIOS',
+      ],
+      [
+        'PurchaseFlow.create_iapkit_confirmation / to_iapkit_verification_props / read_iapkit_verification / IAPKIT_UNKNOWN_RETRY_MS (Godot)',
+        'GodotIapWrapper.confirm_with_iapkit; retry timing belongs to the confirmer',
+      ],
+      [
+        'PurchaseFlow.create_device_confirmation_ios (Godot)',
+        'GodotIapWrapper.confirm_on_device_ios',
+      ],
+    ],
+  },
+  {
     title:
       'Removal in openiap-google 5.0, react-native-iap 18.0, expo-iap 7.0, and flutter_inapp_purchase 12.0',
     rows: [
@@ -550,10 +589,10 @@ function Migration() {
           Scheduled removals
         </AnchorLink>
         <p>
-          These deprecated keys and fields remain available in the community
-          provider release train. Their removal moves to the versions below;
-          shared Gradle flags are removed together across the packages that read
-          them. Migrate using{' '}
+          These deprecated APIs, keys, and fields remain available through patch
+          and minor releases. Their removal moves to the versions below; shared
+          Gradle flags are removed together across the packages that read them.
+          Migrate using{' '}
           <Link to="/docs/setup/store#selection">
             How the Store Is Selected
           </Link>

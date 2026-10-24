@@ -14,6 +14,7 @@ internal static class Program
 
     private static readonly (string Name, Func<Task> Run)[] Tests =
     [
+        (nameof(LegacyConfirmationHelpersPreservePublicSignatures), LegacyConfirmationHelpersPreservePublicSignatures),
         (nameof(ProductsRequirePlatformForClientPayload), ProductsRequirePlatformForClientPayload),
         (nameof(ProductsUseEscapedUriAndQuery), ProductsUseEscapedUriAndQuery),
         (nameof(ProductsDeserializeNestedClientPayload), ProductsDeserializeNestedClientPayload),
@@ -55,6 +56,37 @@ internal static class Program
             Console.Error.WriteLine(failure);
         }
         return 1;
+    }
+
+    private static async Task LegacyConfirmationHelpersPreservePublicSignatures()
+    {
+        var purchase = new PurchaseIOS
+        {
+            Id = "tx-premium", TransactionId = "tx-premium", ProductId = "premium",
+            Store = IapStore.Apple, StoreId = "apple", PurchaseState = PurchaseState.Purchased,
+            TransactionDate = 1, Quantity = 1, IsAutoRenewing = false, PurchaseToken = "synthetic-jws",
+        };
+        var result = new VerifyPurchaseWithProviderResult
+        {
+            Provider = PurchaseVerificationProvider.Iapkit,
+            Iapkit = new RequestVerifyPurchaseWithIapkitResult
+            {
+                Store = IapStore.Apple, StoreId = "apple", IsValid = true,
+                State = IapkitPurchaseState.Entitled, ProductId = "premium",
+            },
+        };
+        var options = new IapkitConfirmationOptions();
+#pragma warning disable CS0618 // Deliberately compile the published compatibility API from another assembly.
+        AssertEqual("synthetic-jws", IapkitConfirmation.ToVerificationProps(purchase, options).Iapkit?.Apple?.Jws, "legacy evidence");
+        AssertEqual(new PurchaseConfirmation.Entitled(false), IapkitConfirmation.ReadVerification(result, purchase, false), "legacy verdict");
+        var iapkit = IapkitConfirmation.Create(_ => Task.FromResult(result), options);
+        var device = DeviceConfirmationIOS.Create(() => Task.FromResult<IReadOnlyList<PurchaseIOS>>([purchase]));
+        AssertEqual(true, typeof(IapkitConfirmation).IsDefined(typeof(ObsoleteAttribute), false), "legacy IAPKit deprecation");
+        AssertEqual(true, typeof(DeviceConfirmationIOS).IsDefined(typeof(ObsoleteAttribute), false), "legacy device deprecation");
+        AssertEqual(2, typeof(DeviceConfirmationIOS).GetMethod("Create")!.GetParameters().Length, "published CLR arity");
+#pragma warning restore CS0618
+        AssertEqual(new PurchaseConfirmation.Entitled(false), await iapkit(purchase, false), "legacy IAPKit confirmation");
+        AssertEqual(new PurchaseConfirmation.Entitled(false), await device(purchase, false), "legacy device confirmation");
     }
 
     private static Task ProductsRequirePlatformForClientPayload()
@@ -346,9 +378,14 @@ internal static class Program
                 AssertEqual(term, IapKitSettings.SubscriptionProductId(purchase), "restored plan");
                 AssertEqual(restored.ProductId, purchase.ProductId, "raw receipt SKU");
                 AssertEqual(restored.PurchaseToken, purchase.PurchaseToken, "raw receipt token");
-                var props = IapkitConfirmation.ToVerificationProps(purchase, IapKitSettings.ConfirmationOptions(baseUrl: null));
+                var options = IapKitSettings.ConfirmationOptions(baseUrl: null);
+#pragma warning disable CS0618 // Exercise the published helper with the example's actual options.
+                var props = IapkitConfirmation.ToVerificationProps(purchase, options);
+#pragma warning restore CS0618
+                AssertEqual(PurchaseVerificationProvider.Iapkit, props.Provider, "verification provider");
                 AssertEqual(restored.ProductId, props.Iapkit?.Amazon?.ExpectedProductId, "RVS base SKU");
                 AssertEqual(restored.PurchaseToken, props.Iapkit?.Amazon?.ReceiptId, "RVS receipt");
+                AssertEqual(IapKitSettings.AmazonRvsSandbox, props.Iapkit?.Amazon?.Sandbox, "RVS environment");
             }
         }
         AssertEqual<string?>(null, IapKitSettings.SubscriptionProductId(restored), "missing term");

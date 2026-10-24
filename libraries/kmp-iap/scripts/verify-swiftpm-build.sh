@@ -79,6 +79,25 @@ kotlin {
 KOTLIN
 cat > "$verification_dir/consumer/src/commonMain/kotlin/Consumer.kt" <<'KOTLIN'
 import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.IapkitConfirmationOptions
+import io.github.hyochan.kmpiap.createDeviceConfirmationIOS
+import io.github.hyochan.kmpiap.createIapkitConfirmation
+import io.github.hyochan.kmpiap.readIapkitVerification
+import io.github.hyochan.kmpiap.toIapkitVerificationProps
+import io.github.hyochan.kmpiap.PurchaseIOS
+import io.github.hyochan.kmpiap.VerifyPurchaseWithProviderProps
+import io.github.hyochan.kmpiap.VerifyPurchaseWithProviderResult
+
+@Suppress("DEPRECATION")
+suspend fun legacyConfirmationConsumer(purchase: PurchaseIOS, verify: suspend (VerifyPurchaseWithProviderProps) -> VerifyPurchaseWithProviderResult) {
+    val options = IapkitConfirmationOptions()
+    val props = toIapkitVerificationProps(purchase, options)
+    val result = verify(props)
+    readIapkitVerification(result, purchase, false)
+    createIapkitConfirmation(verify, options)(purchase, false)
+    createDeviceConfirmationIOS({ listOf(purchase) })(purchase, false)
+    createDeviceConfirmationIOS({ listOf(purchase) }, null)(purchase, false)
+}
 
 fun runtimeVersion(): String = KmpIAP().getVersion()
 KOTLIN

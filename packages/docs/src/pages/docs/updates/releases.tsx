@@ -33,6 +33,28 @@ interface ReleaseChange extends ReleaseMetadata {
   description: React.ReactNode;
 }
 
+const PURCHASE_CONFIRMER_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '1.3.0',
+    tag: 'openiap-client-protocol-1.3.0',
+  },
+  {
+    name: 'react-native-iap',
+    version: '17.3.0',
+    tag: 'react-native-iap-17.3.0',
+  },
+  { name: 'expo-iap', version: '6.3.0', tag: 'expo-iap-6.3.0' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '11.2.0',
+    tag: 'flutter-iap-11.2.0',
+  },
+  { name: 'godot-iap', version: '4.2.0', tag: 'godot-iap-4.2.0' },
+  { name: 'kmp-iap', version: '4.2.0', tag: 'kmp-iap-4.2.0' },
+  { name: 'OpenIap.Maui', version: '3.2.0', tag: 'maui-iap-3.2.0' },
+];
+
 const FRAMEWORK_PREPAID_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: '@hyodotdev/openiap-client-protocol',
@@ -644,15 +666,114 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
+      id: 'purchase-confirmers-2026-10-24',
+      date: new Date('2026-10-24'),
+      element: (
+        <div key="purchase-confirmers-2026-10-24" style={noteCardStyle}>
+          {PURCHASE_CONFIRMER_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="purchase-confirmers-2026-10-24" level="h4">
+            October 24, 2026 - Any verification service in the purchase flow
+          </AnchorLink>
+          <p>
+            IAPKit and on-device confirmation are now two confirmers built on
+            the purchase flow&apos;s public contract, so any other verification
+            service plugs in the same way; see{' '}
+            <Link to="/docs/features/validation">Validation</Link>. Apps keep
+            calling <code>confirmWithIapkit</code> and{' '}
+            <code>confirmOnDeviceIOS</code>.
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Protocols and native packages
+          </h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            <li>
+              <strong>Client Protocol 1.3.0</strong>: <code>purchase-flow</code>{' '}
+              exports the <code>PurchaseConfirmer</code> and{' '}
+              <code>PurchaseGrant</code> types. Existing helpers, verification
+              types, and <code>PURCHASE_REQUEST_CLOCK_SKEW_MS</code> remain
+              available but deprecated until Client Protocol 2.0.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            <li>
+              <strong>react-native-iap 17.3.0</strong> and{' '}
+              <strong>expo-iap 6.3.0</strong>: export the{' '}
+              <code>PurchaseConfirmer</code> and <code>PurchaseGrant</code>{' '}
+              types.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 11.2.0</strong>: deprecates{' '}
+              <code>createIapkitConfirmation</code>,{' '}
+              <code>createDeviceConfirmationIOS</code>,{' '}
+              <code>toIapkitVerificationProps</code>, and{' '}
+              <code>readIapkitVerification</code>.
+            </li>
+            <li>
+              <strong>godot-iap 4.2.0</strong>: <code>PurchaseFlow</code>{' '}
+              deprecates <code>create_iapkit_confirmation</code>,{' '}
+              <code>create_device_confirmation_ios</code>,{' '}
+              <code>to_iapkit_verification_props</code>, and{' '}
+              <code>read_iapkit_verification</code>. Compatibility helpers also
+              work when the addon is installed outside its default path.
+            </li>
+            <li>
+              <strong>kmp-iap 4.2.0</strong>:{' '}
+              <code>createIapkitConfirmation</code>,{' '}
+              <code>createDeviceConfirmationIOS</code>,{' '}
+              <code>toIapkitVerificationProps</code>, and{' '}
+              <code>readIapkitVerification</code> remain public and deprecated,
+              and <code>PurchaseConfirmer</code> names the{' '}
+              <code>confirmWithBackend</code> type.
+            </li>
+            <li>
+              <strong>OpenIap.Maui 3.2.0</strong>:{' '}
+              <code>IapkitConfirmation</code> and{' '}
+              <code>DeviceConfirmationIOS</code> remain public and obsolete,
+              preserving their existing signatures.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Migration notes</h5>
+          <p>
+            Existing calls and import paths keep working through patch and minor
+            releases. Replace the deprecated helpers with the SDK&apos;s{' '}
+            <code>confirmWithIapkit</code> or <code>confirmOnDeviceIOS</code> (
+            <code>confirm_with_iapkit</code> and{' '}
+            <code>confirm_on_device_ios</code> in godot-iap), or pass another
+            service&apos;s confirmer as <code>confirmWithBackend</code>. Removal
+            is scheduled for each package&apos;s next major; see{' '}
+            <Link to="/docs/updates/migration#next-major">
+              Scheduled removals
+            </Link>
+            .
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            {PURCHASE_CONFIRMER_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                >
+                  {getReleaseLabel(release)}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
+    {
       id: 'framework-prepaid-pending-2026-10-23',
-      date: new Date('2026-10-23'),
+      date: new Date('2026-10-24'),
       element: (
         <div key="framework-prepaid-pending-2026-10-23" style={noteCardStyle}>
           {FRAMEWORK_PREPAID_RELEASES.map((release) => (
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
           <AnchorLink id="framework-prepaid-pending-2026-10-23" level="h4">
-            October 23, 2026 - One purchase flow in every framework
+            October 24, 2026 - One purchase flow in every framework
           </AnchorLink>
           <p>
             Every framework library now ships the same purchase flow. Give it a
