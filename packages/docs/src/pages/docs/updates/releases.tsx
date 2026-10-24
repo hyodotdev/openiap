@@ -691,9 +691,9 @@ function Releases() {
             <li>
               <strong>Client Protocol 1.3.0</strong>: <code>purchase-flow</code>{' '}
               exports the <code>PurchaseConfirmer</code> and{' '}
-              <code>PurchaseGrant</code> types. Existing helpers, verification
-              types, and <code>PURCHASE_REQUEST_CLOCK_SKEW_MS</code> remain
-              available but deprecated until Client Protocol 2.0.
+              <code>PurchaseGrant</code> types. Existing helpers and
+              verification types remain available but deprecated until Client
+              Protocol 2.0.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
@@ -725,8 +725,7 @@ function Releases() {
               <code>createDeviceConfirmationIOS</code>,{' '}
               <code>toIapkitVerificationProps</code>, and{' '}
               <code>readIapkitVerification</code> remain public and deprecated,
-              and <code>PurchaseConfirmer</code> names the{' '}
-              <code>confirmWithBackend</code> type.
+              preserving their existing function types.
             </li>
             <li>
               <strong>OpenIap.Maui 3.2.0</strong>:{' '}

@@ -94,15 +94,6 @@ sealed interface PurchaseConfirmation {
 }
 
 /**
- * Confirms one purchase and grants access before it answers
- * [PurchaseConfirmation.Entitled]: the flow finishes, and so consumes, the
- * purchase right after. A confirmer that throws or times out leaves the
- * purchase unfinished for the next delivery or recovery. Any verification
- * service plugs in here.
- */
-typealias PurchaseConfirmer = suspend (purchase: Purchase, isConsumable: Boolean) -> PurchaseConfirmation
-
-/**
  * Where a purchase stands after the flow ran. `finishError` means finishing
  * failed and recovery retries it; an [Entitled] status still grants access.
  * `changePending` marks an [Entitled] purchase whose requested upgrade,
@@ -145,7 +136,7 @@ data class PurchaseFlowOutcome(val purchase: Purchase, val status: PurchaseFlowS
 @OptIn(ExperimentalCoroutinesApi::class) // resetReplayCache
 class PurchaseFlow internal constructor(
     scope: CoroutineScope,
-    private val confirmWithBackend: PurchaseConfirmer,
+    private val confirmWithBackend: suspend (Purchase, Boolean) -> PurchaseConfirmation,
     private val isConsumable: (productId: String) -> Boolean,
     private val finishTransaction: suspend (purchase: Purchase, isConsumable: Boolean) -> Unit,
     private val getAvailablePurchases: suspend () -> List<Purchase>,
@@ -407,11 +398,11 @@ class PurchaseFlow internal constructor(
  * Create one per signed-in account, in a [scope] that outlives the screens,
  * and capture that account's session in [confirmWithBackend]. An app without a
  * backend passes [confirmWithIapkit], [confirmOnDeviceIOS], or another
- * service's [PurchaseConfirmer]. Pass the app's one instance: on Meta Horizon a
- * second billing client kills the process.
+ * service's confirmer. Pass the app's one instance: on Meta Horizon a second
+ * billing client kills the process.
  *
- * @param confirmWithBackend the [PurchaseConfirmer]: usually a call to the app
- *   backend.
+ * @param confirmWithBackend confirms and grants access before returning
+ *   [PurchaseConfirmation.Entitled]; usually a call to the app backend.
  * @param isConsumable from the app's product config. On Android a wrong answer
  *   consumes a non-consumable or blocks rebuying a consumable.
  * @param confirmTimeout how long [confirmWithBackend] may take before the
@@ -423,7 +414,7 @@ class PurchaseFlow internal constructor(
  */
 fun KmpIAP.createPurchaseFlow(
     scope: CoroutineScope,
-    confirmWithBackend: PurchaseConfirmer,
+    confirmWithBackend: suspend (Purchase, Boolean) -> PurchaseConfirmation,
     isConsumable: (productId: String) -> Boolean,
     confirmTimeout: Duration = 30.seconds,
     finishTransaction: suspend (purchase: Purchase, isConsumable: Boolean) -> Unit =

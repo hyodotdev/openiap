@@ -55,7 +55,7 @@ private const val IAPKIT_UNKNOWN_RETRY_MS = 30_000L
 internal fun iapkitConfirmation(
     verifyPurchaseWithProvider: suspend (VerifyPurchaseWithProviderProps) -> VerifyPurchaseWithProviderResult,
     options: IapkitConfirmationOptions,
-): PurchaseConfirmer = { purchase, isConsumable ->
+): suspend (Purchase, Boolean) -> PurchaseConfirmation = { purchase, isConsumable ->
     requireGrant("confirmWithIapkit", purchase, isConsumable, options.grant)
     val confirmation = iapkitVerification(
         verifyPurchaseWithProvider(iapkitVerificationProps(purchase, options)),
@@ -75,7 +75,7 @@ internal fun iapkitConfirmation(
  */
 fun KmpInAppPurchase.confirmWithIapkit(
     options: IapkitConfirmationOptions,
-): PurchaseConfirmer =
+): suspend (Purchase, Boolean) -> PurchaseConfirmation =
     iapkitConfirmation(::verifyPurchaseWithProvider, options)
 
 /** Builds the IAPKit request for a purchase; throws for a store IAPKit cannot verify. */
@@ -209,7 +209,7 @@ internal fun requireGrant(
 public fun createIapkitConfirmation(
     verifyPurchaseWithProvider: suspend (VerifyPurchaseWithProviderProps) -> VerifyPurchaseWithProviderResult,
     options: IapkitConfirmationOptions,
-): PurchaseConfirmer = iapkitConfirmation(verifyPurchaseWithProvider, options)
+): suspend (Purchase, Boolean) -> PurchaseConfirmation = iapkitConfirmation(verifyPurchaseWithProvider, options)
 
 @Deprecated("Use confirmWithIapkit. Removed in the next major release.")
 public fun toIapkitVerificationProps(

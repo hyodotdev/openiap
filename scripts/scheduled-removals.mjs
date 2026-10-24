@@ -29,24 +29,6 @@ const MIGRATION_PAGE = "packages/docs/src/pages/docs/updates/migration.tsx";
 
 export const scheduledRemovalRules = [
   {
-    label: "public purchase request clock tolerance",
-    packages: [
-      {
-        name: "@hyodotdev/openiap-client-protocol",
-        major: 1,
-        file: "specs/client/package.json",
-        pattern: PACKAGE_JSON_VERSION,
-      },
-    ],
-    sources: [
-      {
-        file: "specs/client/src/purchase-flow-core.ts",
-        tokens: ["export const PURCHASE_REQUEST_CLOCK_SKEW_MS"],
-      },
-    ],
-    catalog: ["PURCHASE_REQUEST_CLOCK_SKEW_MS"],
-  },
-  {
     label: "low-level purchase confirmation helpers",
     packages: [
       {

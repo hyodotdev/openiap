@@ -19,7 +19,7 @@ internal fun deviceConfirmationIOS(
     getPendingTransactionsIOS: suspend () -> List<PurchaseIOS>,
     grant: (suspend (purchase: Purchase, isConsumable: Boolean) -> Unit)? = null,
     clock: () -> Long = { Clock.System.now().toEpochMilliseconds() },
-): PurchaseConfirmer = { purchase, isConsumable ->
+): suspend (Purchase, Boolean) -> PurchaseConfirmation = { purchase, isConsumable ->
     requireGrant("confirmOnDeviceIOS", purchase, isConsumable, grant)
     // A community provider may report store Apple under its own storeId.
     require(purchase.store == IapStore.Apple && purchase.storeId.ifEmpty { "apple" } == "apple") {
@@ -52,7 +52,7 @@ internal fun deviceConfirmationIOS(
  */
 fun KmpInAppPurchase.confirmOnDeviceIOS(
     grant: (suspend (purchase: Purchase, isConsumable: Boolean) -> Unit)? = null,
-): PurchaseConfirmer =
+): suspend (Purchase, Boolean) -> PurchaseConfirmation =
     deviceConfirmationIOS({ getPendingTransactionsIOS() }, grant)
 
 
@@ -60,4 +60,4 @@ fun KmpInAppPurchase.confirmOnDeviceIOS(
 public fun createDeviceConfirmationIOS(
     getPendingTransactionsIOS: suspend () -> List<PurchaseIOS>,
     grant: (suspend (purchase: Purchase, isConsumable: Boolean) -> Unit)? = null,
-): PurchaseConfirmer = deviceConfirmationIOS(getPendingTransactionsIOS, grant)
+): suspend (Purchase, Boolean) -> PurchaseConfirmation = deviceConfirmationIOS(getPendingTransactionsIOS, grant)

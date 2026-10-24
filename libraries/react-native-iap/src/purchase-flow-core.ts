@@ -199,7 +199,6 @@ export interface PurchaseFlow<P extends PurchaseFlowPurchase> {
  * How far a store's purchase time may trail the moment the app asked for it
  * and still count as that request: device clocks run ahead. A redelivered
  * receipt is far older.
- * @deprecated Request matching manages its tolerance internally. Removed in the next major release.
  */
 export const PURCHASE_REQUEST_CLOCK_SKEW_MS = 600_000;
 
