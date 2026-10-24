@@ -14,7 +14,6 @@ import {
   type IapkitVerificationProps,
   type IapkitVerificationResult,
 } from '../purchase-flow-confirmers';
-import * as legacy from '../purchase-flow';
 
 interface StepVector {
   listener?: string[];
@@ -309,42 +308,4 @@ describe('shared vectors', () => {
       }
     },
   );
-});
-
-it('keeps the retained compatibility facade callable without native bindings', async () => {
-  const purchase: PurchaseFlowPurchase = {
-    id: 'tx',
-    productId: 'premium',
-    store: 'apple',
-    storeId: 'apple',
-    purchaseToken: 'synthetic-jws',
-    purchaseState: 'purchased',
-  };
-  const result: IapkitVerificationResult = {
-    iapkit: {
-      store: 'apple',
-      storeId: 'apple',
-      isValid: true,
-      state: 'entitled',
-      productId: 'premium',
-    },
-  };
-  expect(legacy.toIapkitVerificationProps(purchase, {})).toEqual({
-    provider: 'iapkit',
-    iapkit: {apple: {jws: 'synthetic-jws'}},
-  });
-  const expected = {status: 'entitled', alreadyGranted: false};
-  expect(
-    legacy.readIapkitVerification(result, purchase, {isConsumable: false}),
-  ).toEqual(expected);
-  await expect(
-    legacy.createIapkitConfirmation(async () => result, {})(purchase, {
-      isConsumable: false,
-    }),
-  ).resolves.toEqual(expected);
-  await expect(
-    legacy.createDeviceConfirmationIOS(async () => [purchase])(purchase, {
-      isConsumable: false,
-    }),
-  ).resolves.toEqual(expected);
 });

@@ -53,6 +53,11 @@ describe('generated sync verifier', () => {
     expect(materializeGeneratedSyncEdge({ mode: 'copy' }, source)).toBe(source);
   });
 
+  it('keeps mirrored purchase-flow tests independent of package-owned facades', () => {
+    const source = readFileSync(resolve(repositoryRoot, GENERATED_SYNC_MANIFEST.purchaseFlowTests.source), 'utf8');
+    expect(source).not.toMatch(/['"]\.\.\/purchase-flow(?:\.js)?['"]/);
+  });
+
   it.each([
     { retiring: 'Client Protocol', retiredPath: clientFacade, keptPath: expoFacade, extension: '.js' },
     { retiring: 'Expo', retiredPath: expoFacade, keptPath: clientFacade, extension: '' },

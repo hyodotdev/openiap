@@ -32,7 +32,7 @@ export interface IapkitConfirmationOptions<
   grant?: (purchase: P, context: { isConsumable: boolean }) => Promise<void>;
 }
 
-/** The SDK's `VerifyPurchaseWithProviderProps` for IAPKit. */
+/** @internal Use the SDK's VerifyPurchaseWithProviderProps. */
 export interface IapkitVerificationProps {
   provider: "iapkit";
   iapkit: {
@@ -50,7 +50,7 @@ export interface IapkitVerificationProps {
   };
 }
 
-/** Fields of the SDK's `VerifyPurchaseWithProviderResult` this confirmer reads. */
+/** @internal Use the SDK's VerifyPurchaseWithProviderResult. */
 export interface IapkitVerificationResult {
   iapkit?: {
     store: string;
