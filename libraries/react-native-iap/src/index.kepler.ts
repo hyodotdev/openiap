@@ -151,6 +151,7 @@ const mapProducts = (
 };
 
 export const isNitroReady = (): boolean => false;
+export const isExpoGo = (): boolean => false;
 export const isTVOS = (): boolean => false;
 export const isMacOS = (): boolean => false;
 export const isStandardIOS = (): boolean => false;
