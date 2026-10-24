@@ -700,6 +700,12 @@ function Releases() {
               verification types remain available but deprecated until Client
               Protocol 2.0.
             </li>
+            <li>
+              <strong>openiap-google 4.0.6</strong>: Amazon reports unknown
+              renewal preferences without dropping active paid subscriptions.
+              The legacy <code>isAutoRenewing</code> hint stays false when
+              renewal is unknown; <code>autoRenewingAndroid</code> stays null.
+            </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
           <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
@@ -720,7 +726,8 @@ function Releases() {
               <code>createIapkitConfirmation</code>,{' '}
               <code>createDeviceConfirmationIOS</code>,{' '}
               <code>toIapkitVerificationProps</code>, and{' '}
-              <code>readIapkitVerification</code>.
+              <code>readIapkitVerification</code>. Example purchase cards use
+              reported renewal preferences and preserve unknown values.
             </li>
             <li>
               <strong>godot-iap 4.2.0</strong>: <code>PurchaseFlow</code>{' '}
@@ -758,6 +765,14 @@ function Releases() {
               Scheduled removals
             </Link>
             .
+          </p>
+          <p>
+            Use{' '}
+            <Link to="/docs/apis/get-active-subscriptions">
+              active subscription status
+            </Link>{' '}
+            to determine access on Amazon. A null renewal preference does not
+            expire a paid term.
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
           <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>

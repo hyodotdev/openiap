@@ -28,7 +28,7 @@ import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
-import dev.hyo.openiap.utils.toActiveSubscription
+import dev.hyo.openiap.utils.activeSubscriptions
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
@@ -364,13 +364,14 @@ internal fun buildAmazonPurchase(
             )
         }
     return PurchaseAndroid(
-        autoRenewingAndroid = isSubscription && !isCanceled,
+        // The device Receipt does not report subscription renewal preferences.
+        autoRenewingAndroid = if (isSubscription) null else false,
         currentPlanId = if (isSubscription) resolvedCurrentPlanId else null,
         dataAndroid = "",
         id = receiptId,
         ids = listOf(resolvedProductId),
         isAcknowledgedAndroid = null,
-        isAutoRenewing = isSubscription && !isCanceled,
+        isAutoRenewing = false,
         isSuspendedAndroid = false,
         packageNameAndroid = packageName,
         pendingPurchaseUpdateAndroid = pendingSubscriptionUpdate,
@@ -741,12 +742,7 @@ class OpenIapModule(
     override val getActiveSubscriptions: QueryGetActiveSubscriptionsHandler = { subscriptionIds ->
         withContext(Dispatchers.IO) {
             val ids = subscriptionIds.orEmpty().toSet()
-            getAvailablePurchases(null)
-                .filterIsInstance<PurchaseAndroid>()
-                .filter { purchase ->
-                    purchase.isAutoRenewing && (ids.isEmpty() || purchase.productId in ids)
-                }
-                .map { purchase -> purchase.toActiveSubscription() }
+            getAvailablePurchases(null).activeSubscriptions(ids)
         }
     }
 

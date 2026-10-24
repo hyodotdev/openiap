@@ -854,6 +854,7 @@ describe('SubscriptionFlow Screen', () => {
             productId: 'dev.hyo.martie.premium.base',
             currentPlanId: term,
             basePlanIdAndroid: term,
+            autoRenewingAndroid: null,
             isActive: true,
             transactionDate: 1,
             transactionId: 'restored-yearly',
@@ -866,6 +867,8 @@ describe('SubscriptionFlow Screen', () => {
       expect(queryByText('⬇️ Downgrade to Monthly Plan')).toBeNull();
       expect(getByText(label)).toBeTruthy();
       expect(queryByText('Plan unavailable')).toBeNull();
+      expect(getByText('Unavailable')).toBeTruthy();
+      expect(queryByText('✅ Enabled')).toBeNull();
     },
   );
 });

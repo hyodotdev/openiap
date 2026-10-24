@@ -755,4 +755,13 @@ test("the confirmation train includes matching natives and the rebuild notice", 
     card,
     /corrects plan and renewal labels and Google Play prepaid plan changes/,
   );
+  assert.match(
+    card,
+    /Amazon reports unknown renewal preferences without dropping active paid subscriptions/,
+  );
+  assert.match(
+    card,
+    /Example purchase cards use reported renewal preferences and preserve unknown values/,
+  );
+  assert.match(card, /A null renewal preference does not expire a paid term/);
 });

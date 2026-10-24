@@ -178,8 +178,10 @@ func get_active_subscriptions_result(subscription_ids: Array[String] = []) -> Di
           <em>
             (optional, <code>boolean</code>)
           </em>{' '}
-          — <strong>Android.</strong> Whether Play will auto-renew at the next
-          cycle.
+          — <strong>Android.</strong> Store-reported renewal status; null when
+          unavailable. Amazon&apos;s device SDK does not report renewal
+          preferences, so active paid terms remain listed with this value
+          unknown. Activity and future renewal are separate.
         </li>
       </ul>
       <p>
