@@ -1391,7 +1391,8 @@ describe("isolation", () => {
       new URL("./purchase-flow-core.ts", import.meta.url),
       "utf8",
     );
-    expect(source).not.toMatch(/^\s*(?:import|export\s+.*from)\s/m);
+    expect(source).not.toMatch(/^\s*import\b/m);
+    expect(source).not.toMatch(/^\s*export\b[^;]*?\bfrom\s*["']/m);
     expect(source).not.toContain("purchase-flow-confirmers");
     expect(source).not.toMatch(/\b(?:import|require)\s*\(/);
     expect(source).not.toMatch(/\bfetch\(|analytics|track\(/i);

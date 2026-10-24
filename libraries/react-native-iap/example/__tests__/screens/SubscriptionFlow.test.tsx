@@ -344,6 +344,7 @@ describe('SubscriptionFlow Screen', () => {
           transactionId: 'trans-1',
           transactionDate: Date.now(),
           isActive: true,
+          currentPlanId: 'premium',
         },
       ],
       subscriptions: [
@@ -414,6 +415,185 @@ describe('SubscriptionFlow Screen', () => {
       expect.any(Array),
     );
   });
+
+  it.each([
+    {currentPlanId: 'premium-year'},
+    {currentPlanId: null, basePlanIdAndroid: 'premium-year'},
+  ])('uses the store-reported annual plan %j', async (plan) => {
+    Platform.OS = 'android';
+    mockIapState({
+      activeSubscriptions: [
+        {
+          productId: sampleSubscription.id,
+          transactionId: 'synthetic-subscription',
+          transactionDate: 1,
+          isActive: true,
+          ...plan,
+        },
+      ],
+      subscriptions: [
+        {
+          ...sampleSubscription,
+          subscriptionOffers: [
+            {
+              id: 'premium',
+              basePlanIdAndroid: 'premium',
+              displayPrice: '$9.99',
+              price: 9.99,
+              type: 'promotional',
+            },
+          ],
+        },
+      ],
+    });
+    const screen = await render(<SubscriptionFlow />);
+    expect(screen.getByText('📅 Yearly Plan')).toBeTruthy();
+    expect(screen.getByText('⬇️ Downgrade to Monthly Plan')).toBeTruthy();
+    expect(screen.queryByText('⬆️ Upgrade to Yearly Plan')).toBeNull();
+  });
+
+  it('keeps an unavailable Android plan unknown while allowing a plan choice', async () => {
+    Platform.OS = 'android';
+    mockIapState({
+      activeSubscriptions: [
+        {
+          productId: sampleSubscription.id,
+          transactionId: 'synthetic-subscription',
+          transactionDate: 1,
+          isActive: true,
+        },
+      ],
+      subscriptions: [
+        {
+          ...sampleSubscription,
+          subscriptionOffers: [
+            {
+              id: 'premium',
+              basePlanIdAndroid: 'premium',
+              displayPrice: '$9.99',
+              price: 9.99,
+              type: 'promotional',
+            },
+          ],
+        },
+      ],
+    });
+    const screen = await render(<SubscriptionFlow />);
+    expect(screen.getByText('Plan unavailable')).toBeTruthy();
+    expect(screen.getByText('Switch to Monthly Plan')).toBeTruthy();
+    expect(screen.getByText('Switch to Yearly Plan')).toBeTruthy();
+    expect(screen.queryByText('📆 Monthly Plan')).toBeNull();
+  });
+
+  it.each([
+    {recurrenceMode: 3, replacementMode: 'charge-full-price'},
+    {recurrenceMode: 1, replacementMode: 'without-proration'},
+  ])(
+    'selects an allowed replacement mode for the target plan %j',
+    async ({recurrenceMode, replacementMode}) => {
+      Platform.OS = 'android';
+      requestPurchaseMock.mockResolvedValue(undefined);
+      const alertSpy = jest.spyOn(Alert, 'alert');
+      mockIapState({
+        activeSubscriptions: [
+          {
+            productId: sampleSubscription.id,
+            transactionId: 'synthetic-subscription',
+            transactionDate: 1,
+            isActive: true,
+            currentPlanId: 'premium-year',
+            purchaseToken: 'synthetic-current-token',
+          },
+        ],
+        subscriptions: [
+          {
+            ...sampleSubscription,
+            subscriptionOffers: [
+              {
+                id: 'premium',
+                basePlanIdAndroid: 'premium',
+                offerTokenAndroid: 'synthetic-monthly-offer',
+                displayPrice: '$9.99',
+                price: 9.99,
+                type: 'promotional',
+                pricingPhasesAndroid: {
+                  pricingPhaseList: [
+                    {
+                      formattedPrice: '$9.99',
+                      priceAmountMicros: '9990000',
+                      priceCurrencyCode: 'USD',
+                      billingPeriod: 'P1M',
+                      billingCycleCount: 0,
+                      recurrenceMode,
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+      });
+      const screen = await render(<SubscriptionFlow />);
+      await fireEvent.press(screen.getByText('⬇️ Downgrade to Monthly Plan'));
+      const confirmation = alertSpy.mock.calls.find(
+        ([title]) => title === 'Change Subscription Plan',
+      );
+      const confirm = confirmation?.[2]?.find(
+        (button) => button.text === 'Confirm',
+      )?.onPress;
+      if (!confirm) throw new Error('Plan-change confirmation is missing');
+      await act(async () => {
+        confirm();
+      });
+      expect(requestPurchaseMock).toHaveBeenCalledWith({
+        type: 'subs',
+        request: {
+          google: {
+            skus: [sampleSubscription.id],
+            subscriptionOffers: [
+              {
+                sku: sampleSubscription.id,
+                offerToken: 'synthetic-monthly-offer',
+              },
+            ],
+            purchaseToken: 'synthetic-current-token',
+            subscriptionProductReplacementParams: {
+              oldProductId: sampleSubscription.id,
+              replacementMode,
+            },
+          },
+        },
+      });
+      alertSpy.mockRestore();
+    },
+  );
+
+  it.each([
+    {autoRenewingAndroid: true, expected: '✅ Enabled'},
+    {autoRenewingAndroid: false, expected: 'Disabled'},
+    {autoRenewingAndroid: null, expected: 'Unavailable'},
+  ])(
+    'uses renewal status rather than active entitlement %j',
+    async ({autoRenewingAndroid, expected}) => {
+      Platform.OS = 'android';
+      mockIapState({
+        activeSubscriptions: [
+          {
+            productId: sampleSubscription.id,
+            transactionId: 'synthetic-subscription',
+            transactionDate: 1,
+            isActive: true,
+            autoRenewingAndroid,
+          },
+        ],
+      });
+      const screen = await render(<SubscriptionFlow />);
+      expect(screen.getByText(expected)).toBeTruthy();
+      expect(screen.queryByText('⚠️ Cancelled')).toBeNull();
+      if (autoRenewingAndroid !== true)
+        expect(screen.queryByText('✅ Enabled')).toBeNull();
+    },
+  );
 
   it('displays empty state when no subscriptions available', async () => {
     mockIapState({
@@ -555,6 +735,7 @@ describe('SubscriptionFlow Screen', () => {
           transactionId: 'trans-1',
           transactionDate: Date.now(),
           isActive: true,
+          currentPlanId: 'premium',
           purchaseToken: 'mock-purchase-token-123',
         },
       ],

@@ -704,6 +704,11 @@ function Releases() {
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
           <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
             <li>
+              <strong>react-native-iap 17.2.1</strong>: corrects plan and
+              renewal labels and Google Play prepaid plan changes in the
+              subscription example.
+            </li>
+            <li>
               <strong>expo-iap 6.3.0</strong>: deprecates the low-level helpers
               and verification types under{' '}
               <code>expo-iap/build/purchase-flow</code> and{' '}

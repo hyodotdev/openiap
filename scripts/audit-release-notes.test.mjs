@@ -751,4 +751,8 @@ test("the confirmation train includes matching natives and the rebuild notice", 
     card,
     /Rebuild native apps after updating the framework SDKs to link the matching native packages/,
   );
+  assert.match(
+    card,
+    /corrects plan and renewal labels and Google Play prepaid plan changes/,
+  );
 });

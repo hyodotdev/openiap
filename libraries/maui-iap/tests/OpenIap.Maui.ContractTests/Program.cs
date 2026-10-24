@@ -83,7 +83,13 @@ internal static class Program
         var device = DeviceConfirmationIOS.Create(() => Task.FromResult<IReadOnlyList<PurchaseIOS>>([purchase]));
         AssertEqual(true, typeof(IapkitConfirmation).IsDefined(typeof(ObsoleteAttribute), false), "legacy IAPKit deprecation");
         AssertEqual(true, typeof(DeviceConfirmationIOS).IsDefined(typeof(ObsoleteAttribute), false), "legacy device deprecation");
-        AssertEqual(2, typeof(DeviceConfirmationIOS).GetMethod("Create")!.GetParameters().Length, "published CLR arity");
+        var createParameters = typeof(DeviceConfirmationIOS).GetMethod("Create")!.GetParameters();
+        AssertEqual(2, createParameters.Length, "published CLR arity");
+        AssertEqual(typeof(Func<Task<IReadOnlyList<PurchaseIOS>>>), createParameters[0].ParameterType, "published callback type");
+        AssertEqual(typeof(PurchaseGranter), createParameters[1].ParameterType, "published grant type");
+        AssertEqual(true, createParameters[1].IsOptional, "published grant optionality");
+        AssertEqual(true, createParameters[1].HasDefaultValue, "published grant default");
+        AssertEqual(true, createParameters[1].DefaultValue is null, "published grant default value");
 #pragma warning restore CS0618
         AssertEqual(new PurchaseConfirmation.Entitled(false), await iapkit(purchase, false), "legacy IAPKit confirmation");
         AssertEqual(new PurchaseConfirmation.Entitled(false), await device(purchase, false), "legacy device confirmation");
