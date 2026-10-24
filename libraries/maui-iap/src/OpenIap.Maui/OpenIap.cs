@@ -197,7 +197,7 @@ public static class OpenIapClient
     public static PurchaseConfirmer ConfirmWithIapkit(IapkitConfirmationOptions options)
     {
         var instance = Instance;
-        return IapkitConfirmation.Create(
+        return IapkitConfirmationImplementation.Create(
             props => Resolver<MutationResolver>(instance).VerifyPurchaseWithProviderAsync(props),
             options);
     }
@@ -210,7 +210,7 @@ public static class OpenIapClient
     public static PurchaseConfirmer ConfirmOnDeviceIOS(PurchaseGranter? grant = null)
     {
         var instance = Instance;
-        return DeviceConfirmationIOS.Create(
+        return DeviceConfirmationIOSImplementation.Create(
             () => Resolver<QueryResolver>(instance).GetPendingTransactionsIOSAsync(),
             grant);
     }

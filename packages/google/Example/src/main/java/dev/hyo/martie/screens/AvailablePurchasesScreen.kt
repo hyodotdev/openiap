@@ -20,7 +20,7 @@ import androidx.navigation.NavController
 import dev.hyo.martie.BuildConfig
 import dev.hyo.martie.models.AppColors
 import dev.hyo.martie.screens.uis.*
-import dev.hyo.martie.util.PREMIUM_SUBSCRIPTION_PRODUCT_ID
+import dev.hyo.martie.util.IapkitConfig
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.store.PurchaseResultStatus
@@ -212,23 +212,12 @@ fun AvailablePurchasesScreen(
                 }
             }
             
-            // Group purchases by type
-            val consumables = androidPurchases.filter { 
-                !it.isAutoRenewing && (
-                    it.productId.contains("consumable", ignoreCase = true) ||
-                    it.productId.contains("bulb", ignoreCase = true)
-                )
+            val (subscriptions, otherPurchases) = androidPurchases.partition {
+                it.currentPlanId != null || IapkitConfig.subscriptionProductId(it) != null
             }
-            val nonConsumables = androidPurchases.filter { 
-                !it.isAutoRenewing && 
-                it.productId != PREMIUM_SUBSCRIPTION_PRODUCT_ID &&
-                !(
-                    it.productId.contains("consumable", ignoreCase = true) ||
+            val (consumables, nonConsumables) = otherPurchases.partition {
+                it.productId.contains("consumable", ignoreCase = true) ||
                     it.productId.contains("bulb", ignoreCase = true)
-                )
-            }
-            val subscriptions = androidPurchases.filter { 
-                it.isAutoRenewing || it.productId == PREMIUM_SUBSCRIPTION_PRODUCT_ID
             }
             
             item {

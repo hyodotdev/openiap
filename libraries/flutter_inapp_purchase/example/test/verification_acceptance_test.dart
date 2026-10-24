@@ -71,6 +71,8 @@ void main() {
         storeId: storeId,
       );
 
+      // Exercise the published compatibility helpers with the example's options.
+      // ignore: deprecated_member_use
       final props = toIapkitVerificationProps(purchase, options).iapkit!;
 
       expect(props.apiKey, 'openiap-kit_pk_test');
@@ -96,6 +98,7 @@ void main() {
             ),
           );
       expect(
+        // ignore: deprecated_member_use
         readIapkitVerification(
           result(),
           purchase,
@@ -109,6 +112,7 @@ void main() {
         result(env: environment == 'Sandbox' ? 'Production' : 'Sandbox'),
       ]) {
         expect(
+          // ignore: deprecated_member_use
           () => readIapkitVerification(
             foreign,
             purchase,

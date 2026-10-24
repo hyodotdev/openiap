@@ -5,7 +5,7 @@ import {
   PURCHASE_REQUEST_CLOCK_SKEW_MS,
   type PurchaseFlow,
   type PurchaseFlowOptions,
-} from '../purchase-flow';
+} from '../purchase-flow-core';
 import type {Purchase} from '../types';
 
 // When the app asked for each SKU, so the flow can tell the user's own

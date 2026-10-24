@@ -376,7 +376,7 @@ struct SubscriptionFlowScreen: View {
     
     // MARK: - Purchase Flow
 
-    private func purchaseProduct(_ product: OpenIapProduct) {
+    private func purchaseProduct(_ product: ProductSubscriptionIOS) {
         print("🔄 [SubscriptionFlow] Starting subscription purchase for: \(product.id)")
         Task {
             do {
@@ -394,7 +394,7 @@ struct SubscriptionFlowScreen: View {
 
     // MARK: - Subscription Upgrade Flow
 
-    private func upgradeSubscription(from currentSubscription: ActiveSubscription?, to product: OpenIapProduct) async {
+    private func upgradeSubscription(from currentSubscription: ActiveSubscription?, to product: ProductSubscriptionIOS) async {
         let isUpgrade = getSubscriptionTier(product.id) > getSubscriptionTier(currentSubscription?.productId ?? "")
         let changeType = isUpgrade ? "upgrade" : "downgrade"
 
@@ -802,13 +802,13 @@ private extension SubscriptionFlowScreen {
         }
 
         subscriptionIds.forEach { appendIfNeeded($0) }
-        iapStore.iosProducts.filter { $0.type == .subs }.forEach { appendIfNeeded($0.id) }
+        iapStore.iosSubscriptionProducts.forEach { appendIfNeeded($0.id) }
         iapStore.activeSubscriptions.forEach { appendIfNeeded($0.productId) }
         return orderedIds
     }
 
-    func product(for id: String) -> OpenIapProduct? {
-        iapStore.iosProducts.first { $0.id == id }
+    func product(for id: String) -> ProductSubscriptionIOS? {
+        iapStore.iosSubscriptionProducts.first { $0.id == id }
     }
 
     func purchase(for productId: String) -> OpenIapPurchase? {

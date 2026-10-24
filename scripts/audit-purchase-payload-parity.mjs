@@ -2016,7 +2016,7 @@ function checkVegaPurchasePayloadContracts() {
     expectNamedExpression(
       entries,
       "currentPlanId",
-      /^type === ['"]subs['"] \? \(nonBlankString\(receipt\.termSku\) \?\? productId\) : null$/,
+      /^type === ['"]subs['"] \? \(?nonBlankString\(receipt\.termSku\) \?\? productId\)? : null$/,
       `${relativePath} mapReceipt`,
     );
     expectNamedExpression(
@@ -2049,14 +2049,20 @@ function checkVegaPurchasePayloadContracts() {
         `${relativePath} mapReceipt must keep deferred subscriptions active until cancellation`,
       );
     }
-    for (const field of [
+    expectNamedExpression(
+      entries,
       "isAutoRenewing",
+      /^false$/,
+      `${relativePath} mapReceipt`,
+    );
+    expectNamedExpression(
+      entries,
       "autoRenewingAndroid",
-      "purchaseState",
-    ]) {
-      if (!entries.get(field)?.includes("isActive")) {
-        fail(`${relativePath} mapReceipt.${field} must derive from isActive`);
-      }
+      /^type === ['"]subs['"] \? null : false$/,
+      `${relativePath} mapReceipt`,
+    );
+    if (!entries.get("purchaseState")?.includes("isActive")) {
+      fail(`${relativePath} mapReceipt.purchaseState must derive from isActive`);
     }
     const maskedSource = maskTypeScriptCommentsAndStrings(source);
     if (

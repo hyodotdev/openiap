@@ -212,4 +212,44 @@ describe('AvailablePurchases Screen', () => {
       expect(getByText('trans-123')).toBeTruthy();
     });
   });
+
+  it.each([
+    {preference: null, label: 'Unavailable'},
+    {preference: false, label: '❌ No'},
+    {preference: true, label: '✅ Yes'},
+  ])(
+    'preserves Android renewal preference $preference',
+    async ({preference, label}) => {
+      const hook = jest.mocked(RNIap.useIAP);
+      const previous = hook.getMockImplementation();
+      if (!previous) throw new Error('Expected the ownership hook fixture');
+      const originalPlatform = Platform.OS;
+      Platform.OS = 'android';
+      hook.mockReturnValue({
+        ...previous(),
+        activeSubscriptions: [],
+        availablePurchases: [
+          {
+            id: 'synthetic-purchase',
+            productId: 'premium',
+            transactionDate: 1,
+            store: 'amazon',
+            storeId: 'amazon',
+            purchaseState: 'purchased',
+            quantity: 1,
+            isAutoRenewing: false,
+            autoRenewingAndroid: preference,
+          },
+        ],
+      });
+      try {
+        const screen = await renderWithProviders(<AvailablePurchases />);
+        expect(screen.getByText(label)).toBeTruthy();
+        if (preference == null) expect(screen.queryByText('❌ No')).toBeNull();
+      } finally {
+        Platform.OS = originalPlatform;
+        hook.mockImplementation(previous);
+      }
+    },
+  );
 });

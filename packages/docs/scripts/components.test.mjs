@@ -323,3 +323,57 @@ test('keeps Tab among the drawer elements a keyboard can reach', async () => {
   });
   assert.equal(focused, null);
 });
+
+test('custom verifier example rejects evidence for another purchase or environment', async () => {
+  const source = await readFile(
+    new URL('../src/pages/docs/features/validation.tsx', import.meta.url),
+    'utf8'
+  );
+  const snippets = [
+    ...source.matchAll(
+      /<CodeBlock language="typescript">\{`([\s\S]*?)`\}<\/CodeBlock>/g
+    ),
+  ];
+  const snippet = snippets.find(([, code]) =>
+    code.includes('myVerifier.verify')
+  )?.[1];
+  assert.ok(snippet, 'the published custom verifier example exists');
+  const purchase = {
+    id: 'tx-1',
+    productId: 'premium',
+    store: 'apple',
+    storeId: 'apple',
+  };
+  const valid = {
+    valid: true,
+    productId: 'premium',
+    store: 'apple',
+    storeId: 'apple',
+    environment: 'Production',
+  };
+  for (const [changes, accepted] of [
+    [{}, true],
+    [{ productId: 'cheap' }, false],
+    [{ productId: undefined }, false],
+    [{ store: 'google' }, false],
+    [{ storeId: 'other-provider' }, false],
+    [{ environment: 'Sandbox' }, false],
+    [{ environment: undefined }, false],
+  ]) {
+    const grants = [];
+    const flow = runInNewContext(`${snippet}; flow`, {
+      createPurchaseFlow: (options) => options,
+      myVerifier: { verify: async () => ({ ...valid, ...changes }) },
+      wallet: { creditOnce: async (...args) => grants.push(args) },
+      CONSUMABLE_IDS: ['premium'],
+    });
+    const result = flow.confirmWithBackend(purchase, { isConsumable: true });
+    if (accepted) {
+      assert.equal((await result).status, 'entitled');
+      assert.deepEqual(grants, [['tx-1', 'premium']]);
+    } else {
+      await assert.rejects(result, /evidence does not match/);
+      assert.deepEqual(grants, []);
+    }
+  }
+});

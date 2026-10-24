@@ -16,6 +16,15 @@ class PurchaseDisplaySection {
 }
 
 extension PurchaseDisplayMapping on Purchase {
+  String get renewalDisplayValue {
+    final purchase = this;
+    final preference = switch (purchase) {
+      PurchaseAndroid() => purchase.autoRenewingAndroid,
+      PurchaseIOS() => purchase.renewalInfoIOS?.willAutoRenew,
+    };
+    return preference?.toString() ?? 'unknown';
+  }
+
   List<PurchaseDisplaySection> toDisplaySections() {
     final sections = <PurchaseDisplaySection>[];
 
@@ -264,7 +273,7 @@ class PurchaseDataView extends StatelessWidget {
       ),
       _buildInfoChip(
         context,
-        label: 'Auto renew: ${purchase.isAutoRenewing}',
+        label: 'Auto renew: ${purchase.renewalDisplayValue}',
       ),
     ];
 

@@ -98,7 +98,7 @@ class PurchaseFlowVectorsTest {
             grant = if (vector.bool("noGrant")) null else { _, _ -> grants++ },
         )
         val requests = mutableListOf<VerifyPurchaseWithProviderProps>()
-        val confirm = createIapkitConfirmation({ props ->
+        val confirm = iapkitConfirmation({ props ->
             requests += props
             // The SDK's result type refuses some evidence, such as another official store id; that throws here.
             VerifyPurchaseWithProviderResult.fromJson(vector.plainObject("result") + ("provider" to "iapkit"))
@@ -128,7 +128,7 @@ class PurchaseFlowVectorsTest {
         var now = clock?.long("beforeRead") ?: System.currentTimeMillis()
         var reads = 0
         var grants = 0
-        val confirm = createDeviceConfirmationIOS(
+        val confirm = deviceConfirmationIOS(
             { reads++; clock?.let { now = it.long("afterRead") }; pending },
             grant = if (vector.bool("noGrant")) null else { _, _ -> grants++ },
             clock = { now },

@@ -29,6 +29,16 @@ for suite in "$@"; do
     printf 'config_version=5\n' > "$export_fixture/project.godot"
     project_dir="$export_fixture"
     godot_args+=(--editor)
+  elif [[ "$suite" == "test_legacy_confirmation_relocated" ]]; then
+    # Exercise the published helpers without the default addon path or cache.
+    export_fixture="$(mktemp -d)"
+    mkdir -p "$export_fixture/vendor/iap" "$export_fixture/tests"
+    cp "$example_dir/addons/godot-iap/"purchase_flow*.gd \
+      "$example_dir/addons/godot-iap/purchase_confirmers.gd" "$export_fixture/vendor/iap/"
+    sed 's@res://addons/godot-iap/@res://vendor/iap/@g' \
+      "$example_dir/tests/test_legacy_confirmation.gd" > "$export_fixture/tests/$suite.gd"
+    printf 'config_version=5\n' > "$export_fixture/project.godot"
+    project_dir="$export_fixture"
   fi
   "$godot_bin" "${godot_args[@]}" --path "$project_dir" --script "res://tests/$suite.gd" 2>&1 | tee "$output" || status=$?
   if [[ $status -ne 0 ]]; then
@@ -49,6 +59,10 @@ for suite in "$@"; do
   fi
   if [[ "$suite" == "test_android_export" ]] && ! grep -qE '^Results: [1-9][0-9]* passed, 0 failed$' "$output"; then
     echo "::error::$suite did not complete its export checks successfully"
+    exit 1
+  fi
+  if [[ "$suite" == test_legacy_confirmation* ]] && ! grep -q '^PASS published legacy confirmation paths and defaults$' "$output"; then
+    echo "::error::$suite did not complete its compatibility checks successfully"
     exit 1
   fi
   if [[ -n "$export_fixture" ]]; then

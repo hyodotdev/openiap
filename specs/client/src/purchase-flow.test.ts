@@ -1,19 +1,59 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  createDeviceConfirmationIOS,
-  createIapkitConfirmation,
   createPurchaseFlow,
   describePurchaseFlowStatus,
   toPurchaseConfirmationRequest,
-  type IapkitVerificationProps,
-  type IapkitVerificationResult,
   type PurchaseFlowOutcome,
   type PurchaseConfirmation,
   type PurchaseFlowOptions,
   type PurchaseFlowPurchase,
   type PurchaseFlowStatus,
+} from "./purchase-flow-core";
+import {
+  createDeviceConfirmationIOS,
+  createIapkitConfirmation,
+  type IapkitVerificationProps,
+  type IapkitVerificationResult,
+} from "./purchase-flow-confirmers";
+
+import {
+  createIapkitConfirmation as legacyIapkit,
+  createDeviceConfirmationIOS as legacyDevice,
+  toIapkitVerificationProps as legacyProps,
+  readIapkitVerification as legacyRead,
 } from "./purchase-flow";
+
+describe("published legacy helpers", () => {
+  it("keeps the old factories and request/verdict helpers callable", async () => {
+    const item = purchase({ store: "apple", storeId: "apple" });
+    const result: IapkitVerificationResult = {
+      iapkit: {
+        store: "apple",
+        storeId: "apple",
+        isValid: true,
+        state: "entitled",
+        productId: item.productId,
+      },
+    };
+    expect(legacyProps(item, {})).toEqual({
+      provider: "iapkit",
+      iapkit: { apple: { jws: item.purchaseToken } },
+    });
+    expect(legacyRead(result, item, { isConsumable: false })).toEqual({
+      status: "entitled",
+      alreadyGranted: false,
+    });
+    expect(
+      await legacyIapkit(async () => result, {})(item, {
+        isConsumable: false,
+      }),
+    ).toEqual({ status: "entitled", alreadyGranted: false });
+    expect(
+      await legacyDevice(async () => [item])(item, { isConsumable: false }),
+    ).toEqual({ status: "entitled", alreadyGranted: false });
+  });
+});
 
 interface StepVector {
   listener?: string[];
@@ -1329,7 +1369,7 @@ describe("shared vectors", () => {
 });
 
 describe("isolation", () => {
-  it("touches only injected functions: no fetch, analytics, or imports", async () => {
+  it("keeps all runtime imports, network, and analytics out of the core", async () => {
     const fetchSpy = vi.fn(() => {
       throw new Error("network");
     });
@@ -1348,10 +1388,13 @@ describe("isolation", () => {
 
     expect(fetchSpy).not.toHaveBeenCalled();
     const source = readFileSync(
-      new URL("./purchase-flow.ts", import.meta.url),
+      new URL("./purchase-flow-core.ts", import.meta.url),
       "utf8",
     );
-    expect(source).not.toMatch(/^\s*import\s/m);
+    expect(source).not.toMatch(/^\s*import\b/m);
+    expect(source).not.toMatch(/^\s*export\b[^;]*?\bfrom\s*["']/m);
+    expect(source).not.toContain("purchase-flow-confirmers");
+    expect(source).not.toMatch(/\b(?:import|require)\s*\(/);
     expect(source).not.toMatch(/\bfetch\(|analytics|track\(/i);
   });
 });

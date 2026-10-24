@@ -285,6 +285,120 @@ const scheduledFiles = (overrides = {}) => {
   return (file) => files[file] ?? "";
 };
 
+test("Expo deep helpers retire independently of Client Protocol and RN", () => {
+  const shared = scheduledRemovalRules.find(
+    (rule) =>
+      rule.label ===
+      "@hyodotdev/openiap-client-protocol low-level purchase confirmation helpers",
+  );
+  const expo = scheduledRemovalRules.find(
+    (rule) => rule.label === "expo-iap low-level purchase confirmation helpers",
+  );
+  assert.ok(shared);
+  assert.ok(expo);
+  assert.deepEqual(
+    expo.packages.map((pkg) => pkg.name),
+    ["expo-iap"],
+  );
+  assert.ok(
+    shared.packages.every(
+      (pkg) => !["expo-iap", "react-native-iap"].includes(pkg.name),
+    ),
+  );
+  assert.ok(
+    shared.sources.every(
+      (source) =>
+        !source.file.includes("libraries/expo-iap/") &&
+        !source.file.includes("libraries/react-native-iap/"),
+    ),
+  );
+  const readFile = (file) => fs.readFileSync(path.join(repoRoot, file), "utf8");
+  const rules = [shared, expo];
+  assert.deepEqual(collectScheduledRemovalFailures(rules, readFile), []);
+  assert.equal(
+    releaseGateFailure("react-native-iap", "major", rules, readFile),
+    null,
+  );
+  assert.equal(releaseGateFailure("expo-iap", "minor", rules, readFile), null);
+  assert.match(
+    releaseGateFailure("expo-iap", "major", rules, readFile),
+    /still ships expo-iap low-level/,
+  );
+
+  const retired = (file) => {
+    if (file === "libraries/expo-iap/package.json")
+      return '{"version":"7.0.0"}';
+    if (file === "libraries/expo-iap/src/purchase-flow.ts") return "";
+    return readFile(file);
+  };
+  assert.deepEqual(
+    collectScheduledRemovalFailures(
+      [shared, { ...expo, dropped: true }],
+      retired,
+    ),
+    [],
+  );
+  assert.equal(
+    releaseGateFailure(
+      "expo-iap",
+      "patch",
+      [shared, { ...expo, dropped: true }],
+      retired,
+    ),
+    null,
+  );
+});
+
+test("Expo minor releases retain the published deep helper surface", () => {
+  const rule = scheduledRemovalRules.find(
+    (entry) =>
+      entry.label === "expo-iap low-level purchase confirmation helpers",
+  );
+  assert.ok(rule);
+  const failures = collectScheduledRemovalFailures([rule], (file) =>
+    file === "libraries/expo-iap/src/purchase-flow.ts"
+      ? ""
+      : fs.readFileSync(path.join(repoRoot, file), "utf8"),
+  );
+  assert.ok(
+    failures.some((failure) =>
+      failure.includes(
+        'dropped "export function createIapkitConfirmation" before the next major',
+      ),
+    ),
+  );
+});
+
+test("each package can retire its own helpers without forcing other majors", () => {
+  const rules = scheduledRemovalRules.filter((rule) =>
+    rule.label.endsWith("low-level purchase confirmation helpers"),
+  );
+  assert.equal(rules.length, 6);
+  for (const retiring of rules) {
+    assert.equal(retiring.packages.length, 1);
+    const pkg = retiring.packages[0];
+    const readFile = (file) => {
+      if (retiring.sources.some((source) => source.file === file)) return "";
+      const text = fs.readFileSync(path.join(repoRoot, file), "utf8");
+      if (file !== pkg.file) return text;
+      return text.replace(text.match(pkg.pattern)[1], `${pkg.major + 1}.0.0`);
+    };
+    const retired = rules.map((rule) =>
+      rule === retiring ? { ...rule, dropped: true } : rule,
+    );
+    assert.deepEqual(
+      collectScheduledRemovalFailures(retired, readFile),
+      [],
+      pkg.name,
+    );
+    assert.equal(
+      releaseGateFailure(pkg.name, "patch", retired, readFile),
+      null,
+      pkg.name,
+    );
+  }
+});
+
 test("a scheduled removal passes while its major keeps the key and says when it goes", () => {
   assert.deepEqual(
     collectScheduledRemovalFailures([scheduledRule], scheduledFiles()),
@@ -505,6 +619,63 @@ test("a major release waits until every kept key of the package is raised or dro
   }
 });
 
+test("an exact target obeys the same major removal gate as a named bump", () => {
+  const files = scheduledFiles();
+  assert.match(
+    releaseGateFailure(
+      "lib",
+      "exact",
+      [scheduledRule],
+      files,
+      () => false,
+      "4.0.0-rc.1",
+    ) ?? "",
+    /still ships/,
+  );
+  assert.equal(
+    releaseGateFailure(
+      "lib",
+      "exact",
+      [scheduledRule],
+      files,
+      () => false,
+      "3.5.0",
+    ),
+    null,
+  );
+  const raised = {
+    ...scheduledRule,
+    packages: [{ ...scheduledRule.packages[0], major: 4 }],
+  };
+  assert.equal(releaseGateFailure("lib", "major", [raised], files), null);
+  assert.match(
+    releaseGateFailure("lib", "exact", [raised], files, () => false, "5.0.0") ??
+      "",
+    /still ships/,
+  );
+  const dropped = { ...scheduledRule, dropped: true };
+  assert.match(
+    releaseGateFailure(
+      "lib",
+      "exact",
+      [dropped],
+      files,
+      () => false,
+      "3.5.0",
+    ) ?? "",
+    /must release with version=major/,
+  );
+  assert.equal(
+    releaseGateFailure("lib", "exact", [dropped], files, () => false, "4.0.0"),
+    null,
+  );
+  assert.throws(
+    () =>
+      releaseGateFailure("lib", "exact", [scheduledRule], files, () => false),
+    /Invalid target version/,
+  );
+});
+
 test("every release workflow runs the scheduled removal gate for its package", () => {
   for (const [workflow, name] of Object.entries(releaseGates)) {
     const text = fs.readFileSync(
@@ -527,7 +698,26 @@ test("every release workflow runs the scheduled removal gate for its package", (
       `${workflow} cuts no ${tag} tag`,
     );
   }
-  const gated = new Set(Object.values(releaseGates));
+  const protocolWorkflow = fs.readFileSync(
+    path.join(repoRoot, ".github/workflows/release-openiap.yml"),
+    "utf8",
+  );
+  assert.match(
+    protocolWorkflow,
+    /if: inputs.package == 'client-protocol'[\s\S]*?run: node scripts\/scheduled-removals\.mjs release-gate @hyodotdev\/openiap-client-protocol "\$VERSION_TYPE"/,
+  );
+  assert.match(
+    protocolWorkflow.slice(0, protocolWorkflow.indexOf("\n  validate:")),
+    /fetch-depth: 0/,
+  );
+  assert.equal(
+    releaseTagOf("@hyodotdev/openiap-client-protocol", "1.2.0"),
+    "openiap-client-protocol-1.2.0",
+  );
+  const gated = new Set([
+    ...Object.values(releaseGates),
+    "@hyodotdev/openiap-client-protocol",
+  ]);
   for (const rule of scheduledRemovalRules) {
     for (const pkg of rule.packages) {
       assert.ok(

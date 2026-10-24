@@ -3,7 +3,7 @@ import OpenIAP
 
 struct SubscriptionCard: View {
     let productId: String
-    let product: OpenIapProduct?
+    let product: ProductSubscriptionIOS?
     let purchase: OpenIapPurchase?
     let isSubscribed: Bool
     let isCancelled: Bool

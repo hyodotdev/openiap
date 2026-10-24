@@ -1,9 +1,10 @@
 // Purchase flow shared by every OpenIAP SDK, ported from
-// specs/client/src/purchase-flow.ts. The app's backend, or IAPKit directly with
-// a publishable key, confirms each purchase; this class decides when the app
-// may finish a transaction, and makes no network calls of its own. The shared
-// vectors run in tests/OpenIap.Maui.Tests.
-// Guide: https://kit.openiap.dev/docs/purchase-flow
+// specs/client/src/purchase-flow.ts. A confirmer (the app's backend, IAPKit, or
+// any other verification service) confirms each purchase; this class decides
+// when the app may finish a transaction, and makes no network calls of its own.
+// The confirmers this SDK ships live in IapkitConfirmation.cs and
+// DeviceConfirmationIOS.cs. The shared vectors run in tests/OpenIap.Maui.Tests.
+// Guide: https://openiap.dev/docs/features/validation
 
 #nullable enable
 
@@ -20,8 +21,8 @@ namespace OpenIap.Maui;
 
 /// <summary>Body the app sends its backend, which takes the user from its own session.</summary>
 /// <param name="Store">Apple or Google.</param>
-/// <param name="PurchaseToken">Apple JWS or Google Play purchase token, forwarded to IAPKit as is.</param>
-/// <param name="ProductId">The product the app expected; IAPKit rejects a store mismatch.</param>
+/// <param name="PurchaseToken">Apple JWS or Google Play purchase token, as the store issued it.</param>
+/// <param name="ProductId">The product the app expected, to compare with the store's answer.</param>
 public sealed record PurchaseConfirmationRequest(
     [property: JsonPropertyName("store")] IapStore Store,
     [property: JsonPropertyName("purchaseToken")] string PurchaseToken,
@@ -42,7 +43,7 @@ public sealed record PurchaseConfirmationRequest(
 }
 
 /// <summary>
-/// The app backend's verdict on one purchase. Only <see cref="Entitled"/> grants
+/// A confirmer's verdict on one purchase. Only <see cref="Entitled"/> grants
 /// access; <see cref="Verified"/> and <see cref="Linked"/> mean the purchase is
 /// valid but access is not granted yet. <see cref="Invalid"/> and
 /// <see cref="TestAccountRestricted"/> are settled rejections: answer
@@ -183,13 +184,21 @@ public sealed record PurchaseFlowGuidance(PurchaseFlowGuidanceKey Key, bool Offe
 
 public sealed record PurchaseFlowOutcome(Purchase Purchase, PurchaseFlowStatus Status);
 
-/// <summary>Confirms one purchase; see <see cref="PurchaseFlowOptions.ConfirmWithBackend"/>.</summary>
+/// <summary>
+/// Confirms one purchase; see <see cref="PurchaseFlowOptions.ConfirmWithBackend"/>.
+/// A confirmer that throws or times out leaves the purchase unfinished for the
+/// next delivery or recovery. Any verification service plugs in here.
+/// </summary>
 public delegate Task<PurchaseConfirmation?> PurchaseConfirmer(Purchase purchase, bool isConsumable);
 
 /// <summary>Finishes one purchase, consuming it when <paramref name="isConsumable"/> is true.</summary>
 public delegate Task PurchaseFinisher(Purchase purchase, bool isConsumable);
 
-/// <summary>Gives the user what they bought; see <see cref="IapkitConfirmationOptions.Grant"/>.</summary>
+/// <summary>
+/// Gives the user what they bought, before the flow finishes (and so consumes)
+/// the purchase. Must be idempotent per purchase id: after a crash the same
+/// purchase is confirmed again.
+/// </summary>
 public delegate Task PurchaseGranter(Purchase purchase, bool isConsumable);
 
 /// <summary>
@@ -203,9 +212,10 @@ public sealed record PurchaseFlowOptions
     /// <summary>
     /// Confirms the purchase and grants access before it answers
     /// <see cref="PurchaseConfirmation.Entitled"/>: the flow finishes, and so
-    /// consumes, the purchase right after. Usually a call to the app backend,
-    /// which holds the IAPKit secret key; an app without one passes
-    /// <see cref="OpenIapClient.ConfirmWithIapkit"/>. Read a JSON answer with
+    /// consumes, the purchase right after. Usually a call to the app backend;
+    /// an app without one passes <see cref="OpenIapClient.ConfirmWithIapkit"/>,
+    /// <see cref="OpenIapClient.ConfirmOnDeviceIOS"/>, or another service's
+    /// <see cref="PurchaseConfirmer"/>. Read a JSON answer with
     /// <see cref="PurchaseConfirmation.FromJson"/>; null fails the purchase.
     /// </summary>
     public required PurchaseConfirmer ConfirmWithBackend { get; init; }

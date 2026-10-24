@@ -12,6 +12,7 @@ import 'helpers.dart';
 import 'utils.dart';
 import 'errors.dart' as errors;
 import 'src/first_purchase_notice.dart';
+import 'src/purchase_confirmers.dart' as confirmers;
 import 'src/purchase_flow.dart';
 
 export 'types.dart' hide PurchaseError;
@@ -19,8 +20,7 @@ export 'builders.dart';
 export 'utils.dart';
 export 'helpers.dart';
 export 'extensions/purchase_helpers.dart';
-export 'src/purchase_flow.dart'
-    hide deviceConfirmationIOS, onPurchaseFlowDispose;
+export 'src/purchase_flow.dart' hide onPurchaseFlowDispose;
 export 'enums.dart' hide IapPlatform, PurchaseState;
 export 'errors.dart'
     show
@@ -2191,13 +2191,13 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// transactions, for apps with neither a backend nor IAPKit: pass it as
   /// [createPurchaseFlow]'s `confirmWithBackend`. [grant] is required for
   /// consumables.
-  PurchaseConfirmer confirmOnDeviceIOS({PurchaseGrant? grant}) =>
-      createDeviceConfirmationIOS(getPendingTransactionsIOS, grant: grant);
+  PurchaseConfirmer confirmOnDeviceIOS({PurchaseGrant? grant}) => confirmers
+      .createDeviceConfirmationIOS(getPendingTransactionsIOS, grant: grant);
 
   /// Confirms purchases with IAPKit from the app, for apps without their own
   /// backend: pass it as [createPurchaseFlow]'s `confirmWithBackend`.
   PurchaseConfirmer confirmWithIapkit(IapkitConfirmationOptions options) =>
-      createIapkitConfirmation(
+      confirmers.createIapkitConfirmation(
         (props) => verifyPurchaseWithProvider(
           provider: props.provider,
           iapkit: props.iapkit,

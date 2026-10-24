@@ -112,7 +112,7 @@ public class PurchaseFlowVectorTests
                 return Task.FromException<VerifyPurchaseWithProviderResult>(error);
             }
         }
-        var confirm = IapkitConfirmation.Create(Verify, options);
+        var confirm = IapkitConfirmationImplementation.Create(Verify, options);
 
         var answer = confirm(item, isConsumable);
 
@@ -145,7 +145,7 @@ public class PurchaseFlowVectorTests
         var pending = vector["pending"]!.AsArray().Select(entry => (PurchaseIOS)ToPurchase(entry!)).ToList();
         var clock = vector["clock"];
         var now = (long?)clock?["beforeRead"];
-        var confirm = DeviceConfirmationIOS.Create(
+        var confirm = DeviceConfirmationIOSImplementation.Create(
             () =>
             {
                 reads++;

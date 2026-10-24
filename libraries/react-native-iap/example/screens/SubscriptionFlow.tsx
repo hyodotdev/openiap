@@ -70,15 +70,18 @@ function stringifyForDisplay(value: unknown): string {
   );
 }
 
-// ActiveSubscription plus fields outside its type: computed locally (basePlanId,
-// _detectedBasePlanId), on the Purchase but not mapped (isUpgradedIOS), or
-// platform-specific (purchaseTokenAndroid).
+// PurchaseIOS carries this flag; ActiveSubscription does not map it.
 type ExtendedActiveSubscription = ActiveSubscription & {
-  basePlanId?: string; // Android: detected from subscription offers
-  purchaseTokenAndroid?: string; // Android: purchase token
-  _detectedBasePlanId?: string; // Locally detected/cached base plan ID
-  isUpgradedIOS?: boolean; // iOS: from PurchaseIOS.isUpgradedIOS
+  isUpgradedIOS?: boolean;
 };
+
+function androidBasePlan(subscription: ActiveSubscription): string | null {
+  const plan = subscription.currentPlanId ?? subscription.basePlanIdAndroid;
+  // Amazon identifies its plan with the catalog term SKU.
+  if (plan === 'dev.hyo.martie.premium') return 'premium';
+  if (plan === 'dev.hyo.martie.premium_year') return 'premium-year';
+  return plan === 'premium' || plan === 'premium-year' ? plan : null;
+}
 
 // Component for plan change controls
 interface PlanChangeControlsProps {
@@ -150,16 +153,10 @@ const PlanChangeControls = React.memo(function PlanChangeControls({
   } else {
     // Android uses base plans within the same product
     activeSub = premiumSubs[0];
-    const extendedSub = activeSub as ExtendedActiveSubscription;
     if (activeSub?.productId === 'dev.hyo.martie.premium_year') {
       currentBasePlan = 'premium-year';
-    } else if (extendedSub.basePlanId) {
-      currentBasePlan = extendedSub.basePlanId;
-    } else if (lastPurchasedPlan) {
-      currentBasePlan = lastPurchasedPlan;
-    } else {
-      // Default to monthly if we can't detect
-      currentBasePlan = 'premium';
+    } else if (activeSub) {
+      currentBasePlan = androidBasePlan(activeSub) ?? 'unknown';
     }
   }
 
@@ -177,20 +174,22 @@ const PlanChangeControls = React.memo(function PlanChangeControls({
 
   return (
     <View style={styles.planChangeSection}>
-      {currentBasePlan === 'premium' && (
+      {(currentBasePlan === 'premium' || currentBasePlan === 'unknown') && (
         <TouchableOpacity
           style={[styles.changePlanButton, styles.upgradeButton]}
           onPress={() =>
             handlePlanChange(
               activeSub?.productId || 'dev.hyo.martie.premium',
               'upgrade',
-              'premium',
+              currentBasePlan,
             )
           }
           disabled={isProcessing}
         >
           <Text style={styles.changePlanButtonText}>
-            ⬆️ Upgrade to Yearly Plan
+            {currentBasePlan === 'unknown'
+              ? 'Switch to Yearly Plan'
+              : '⬆️ Upgrade to Yearly Plan'}
           </Text>
           <Text style={styles.changePlanButtonSubtext}>
             Save with annual billing
@@ -198,20 +197,23 @@ const PlanChangeControls = React.memo(function PlanChangeControls({
         </TouchableOpacity>
       )}
 
-      {currentBasePlan === 'premium-year' && (
+      {(currentBasePlan === 'premium-year' ||
+        currentBasePlan === 'unknown') && (
         <TouchableOpacity
           style={[styles.changePlanButton, styles.downgradeButton]}
           onPress={() =>
             handlePlanChange(
               activeSub?.productId || 'dev.hyo.martie.premium_year',
               'downgrade',
-              'premium-year',
+              currentBasePlan,
             )
           }
           disabled={isProcessing}
         >
           <Text style={styles.changePlanButtonText}>
-            ⬇️ Downgrade to Monthly Plan
+            {currentBasePlan === 'unknown'
+              ? 'Switch to Monthly Plan'
+              : '⬇️ Downgrade to Monthly Plan'}
           </Text>
           <Text style={styles.changePlanButtonSubtext}>
             More flexibility with monthly billing
@@ -398,12 +400,8 @@ function SubscriptionFlow({
                   return;
                 }
 
-                // For Android, get purchase token from activeSubscriptions
-                const extendedSub = currentSub as
-                  ExtendedActiveSubscription | undefined;
                 const purchaseToken =
-                  extendedSub?.purchaseToken ||
-                  extendedSub?.purchaseTokenAndroid;
+                  currentSub?.purchaseToken || currentSub?.purchaseTokenAndroid;
 
                 if (!purchaseToken) {
                   Alert.alert(
@@ -414,11 +412,11 @@ function SubscriptionFlow({
                   return;
                 }
 
-                // Make sure purchase token is a string
-                const tokenString =
-                  typeof purchaseToken === 'string'
-                    ? purchaseToken
-                    : String(purchaseToken);
+                // Play only allows full-price replacement into a prepaid plan.
+                const phases =
+                  targetOffer.pricingPhasesAndroid?.pricingPhaseList ?? [];
+                const isPrepaid =
+                  phases[phases.length - 1]?.recurrenceMode === 3;
 
                 // Make the request with proper token
                 void requestPurchase({
@@ -434,10 +432,12 @@ function SubscriptionFlow({
                           ]
                         : undefined,
                       subscriptionProductReplacementParams: {
-                        oldProductId: currentSub!.productId,
-                        replacementMode: 'without-proration',
+                        oldProductId: currentProductId,
+                        replacementMode: isPrepaid
+                          ? 'charge-full-price'
+                          : 'without-proration',
                       },
-                      purchaseToken: tokenString,
+                      purchaseToken,
                     },
                   },
                   type: 'subs',
@@ -455,7 +455,7 @@ function SubscriptionFlow({
                   ) {
                     errorMessage =
                       'Unable to change subscription plan. This may be due to:\n' +
-                      '• Subscriptions not being in the same group in Play Console\n' +
+                      '• Replacement mode not supported by the target plan\n' +
                       '• Invalid offer configuration\n' +
                       '• Missing purchase token\n\n' +
                       'Original error: ' +
@@ -848,36 +848,14 @@ function SubscriptionFlow({
                     detectedBasePlanId = 'premium';
                     activeOfferLabel = '📆 Monthly Plan';
                   } else {
-                    // Android: Try to detect the base plan from various sources
-                    // Method 1: Check if basePlanId is directly available from native
-                    if (extendedSub.basePlanId) {
-                      detectedBasePlanId = extendedSub.basePlanId;
-                      activeOfferLabel =
-                        detectedBasePlanId === 'premium-year'
-                          ? '📅 Yearly Plan'
-                          : '📆 Monthly Plan';
-                    }
-                    // Method 2: fall back to the last purchased plan in state
-                    else {
-                      const storedPlan = lastPurchasedPlan;
-
-                      if (storedPlan === 'premium-year') {
-                        detectedBasePlanId = 'premium-year';
-                        activeOfferLabel = '📅 Yearly Plan';
-                      } else {
-                        // Default to monthly
-                        detectedBasePlanId = 'premium';
-                        activeOfferLabel = '📆 Monthly Plan';
-                      }
-
-                      console.log(
-                        'Detected plan from state:',
-                        storedPlan || 'none (defaulting to monthly)',
-                      );
-                    }
+                    detectedBasePlanId = androidBasePlan(sub) ?? '';
+                    activeOfferLabel =
+                      detectedBasePlanId === 'premium-year'
+                        ? '📅 Yearly Plan'
+                        : detectedBasePlanId === 'premium'
+                          ? '📆 Monthly Plan'
+                          : 'Plan unavailable';
                   }
-
-                  // We'll use this detectedBasePlanId in the button section below
                 }
 
                 return (
@@ -910,22 +888,27 @@ function SubscriptionFlow({
                       </View>
                     )}
 
-                    {Platform.OS === 'android' &&
-                      sub.isActive !== undefined && (
-                        <View style={styles.statusRow}>
-                          <Text style={styles.statusLabel}>Auto-Renew:</Text>
-                          <Text
-                            style={[
-                              styles.statusValue,
-                              sub.isActive
+                    {Platform.OS === 'android' && (
+                      <View style={styles.statusRow}>
+                        <Text style={styles.statusLabel}>Auto-Renew:</Text>
+                        <Text
+                          style={[
+                            styles.statusValue,
+                            sub.autoRenewingAndroid == null
+                              ? undefined
+                              : sub.autoRenewingAndroid
                                 ? styles.activeStatus
                                 : styles.cancelledStatus,
-                            ]}
-                          >
-                            {sub.isActive ? '✅ Enabled' : '⚠️ Cancelled'}
-                          </Text>
-                        </View>
-                      )}
+                          ]}
+                        >
+                          {sub.autoRenewingAndroid == null
+                            ? 'Unavailable'
+                            : sub.autoRenewingAndroid
+                              ? '✅ Enabled'
+                              : 'Disabled'}
+                        </Text>
+                      </View>
+                    )}
 
                     {sub.transactionId && (
                       <View style={styles.statusRow}>
@@ -1532,12 +1515,8 @@ function SubscriptionFlowContainer() {
       setProcessingProductId((current) =>
         current === productId ? null : current,
       );
-      // iOS and Amazon sell each plan as its own product.
-      if (
-        Platform.OS === 'ios' ||
-        purchase.store === 'amazon' ||
-        (purchase.store === 'unknown' && purchase.storeId === 'amazon_example')
-      ) {
+      // StoreKit can report both plans during a transition.
+      if (Platform.OS === 'ios') {
         setLastPurchasedPlan(
           productId === 'dev.hyo.martie.premium_year'
             ? 'premium-year'
@@ -1667,6 +1646,9 @@ function SubscriptionFlowContainer() {
         activeSubs.map((sub) => ({
           productId: sub.productId,
           isActive: sub.isActive,
+          currentPlanId: sub.currentPlanId,
+          basePlanIdAndroid: sub.basePlanIdAndroid,
+          autoRenewingAndroid: sub.autoRenewingAndroid,
           expirationDateIOS: sub.expirationDateIOS,
           environmentIOS: sub.environmentIOS,
         })),
@@ -1773,35 +1755,32 @@ function SubscriptionFlowContainer() {
   // StoreKit handles offer eligibility.
   // Android: pass subscriptionOffers, each with the offerToken of a base plan
   // (monthly/yearly) or promotional offer from the product's subscriptionOffers.
-  const handleSubscription = useCallback(
-    (itemId: string) => {
-      setProcessingProductId(itemId);
-      setPurchaseResult('Processing subscription...');
+  const handleSubscription = useCallback((itemId: string) => {
+    setProcessingProductId(itemId);
+    setPurchaseResult('Processing subscription...');
 
-      requestPurchase({
-        request: {
-          apple: {
-            sku: itemId,
-            appAccountToken: 'user-123',
-          },
-          // Without subscriptionOffers the store picks the default offer;
-          // Amazon subscriptions have none.
-          google: {skus: [itemId]},
+    requestPurchase({
+      request: {
+        apple: {
+          sku: itemId,
+          appAccountToken: 'user-123',
         },
-        type: 'subs',
-      }).catch((err: PurchaseError) => {
-        setProcessingProductId(null);
-        if (err.code === ErrorCode.UserCancelled) {
-          setPurchaseResult('Subscription cancelled by user');
-          return;
-        }
+        // Without subscriptionOffers the store picks the default offer;
+        // Amazon subscriptions have none.
+        google: {skus: [itemId]},
+      },
+      type: 'subs',
+    }).catch((err: PurchaseError) => {
+      setProcessingProductId(null);
+      if (err.code === ErrorCode.UserCancelled) {
+        setPurchaseResult('Subscription cancelled by user');
+        return;
+      }
 
-        setPurchaseResult(`❌ Subscription failed: ${err.message}`);
-        Alert.alert('Subscription Failed', err.message);
-      });
-    },
-    [],
-  );
+      setPurchaseResult(`❌ Subscription failed: ${err.message}`);
+      Alert.alert('Subscription Failed', err.message);
+    });
+  }, []);
 
   // Retry loading subscriptions (useful when products fail to load initially)
   const handleRetryLoadSubscriptions = useCallback(() => {

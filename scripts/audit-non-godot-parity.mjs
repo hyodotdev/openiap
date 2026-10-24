@@ -2965,8 +2965,9 @@ function checkMaui() {
   );
 }
 
-// Each SDK ports specs/client/src/purchase-flow.ts and proves it on the shared
-// vectors; examples confirm and finish through that flow instead of by hand.
+// Each SDK ports specs/client/src/purchase-flow.ts and purchase-flow-confirmers.ts
+// and proves them on the shared vectors; examples confirm and finish through
+// that flow instead of by hand.
 function checkPurchaseFlowPorts() {
   for (const [library, runner] of [
     [

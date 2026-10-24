@@ -306,10 +306,10 @@ public class PurchaseFlowTests
 
         Assert.Equal(
             new PurchaseConfirmation.Entitled(false),
-            IapkitConfirmation.ReadVerification(result, purchase, isConsumable: false, options));
+            IapkitConfirmationImplementation.ReadVerification(result, purchase, isConsumable: false, options));
         var other = result with { Iapkit = result.Iapkit with { StoreId = "other_example" } };
         var error = Assert.Throws<InvalidOperationException>(
-            () => IapkitConfirmation.ReadVerification(other, purchase, isConsumable: false, options));
+            () => IapkitConfirmationImplementation.ReadVerification(other, purchase, isConsumable: false, options));
         Assert.Equal("IAPKit verified store id other_example, expected amazon_example", error.Message);
     }
 

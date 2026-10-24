@@ -6,7 +6,9 @@ import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 import '../widgets/purchase_detail_view.dart';
 
 class AvailablePurchasesScreen extends StatefulWidget {
-  const AvailablePurchasesScreen({super.key});
+  const AvailablePurchasesScreen({this.iap, super.key});
+
+  final FlutterInappPurchase? iap;
 
   @override
   State<AvailablePurchasesScreen> createState() =>
@@ -14,7 +16,7 @@ class AvailablePurchasesScreen extends StatefulWidget {
 }
 
 class _AvailablePurchasesScreenState extends State<AvailablePurchasesScreen> {
-  final FlutterInappPurchase _iap = FlutterInappPurchase.instance;
+  late final FlutterInappPurchase _iap;
 
   List<Purchase> _availablePurchases = [];
   List<Purchase> _purchaseHistory = [];
@@ -79,6 +81,7 @@ class _AvailablePurchasesScreenState extends State<AvailablePurchasesScreen> {
   @override
   void initState() {
     super.initState();
+    _iap = widget.iap ?? FlutterInappPurchase.instance;
     _initConnection();
   }
 
@@ -319,7 +322,7 @@ class _AvailablePurchasesScreenState extends State<AvailablePurchasesScreen> {
 
     infoChips.add(_infoChip('Store: ${purchase.store.toJson()}'));
     infoChips.add(_infoChip('Quantity: ${purchase.quantity}'));
-    infoChips.add(_infoChip('Auto renew: ${purchase.isAutoRenewing}'));
+    infoChips.add(_infoChip('Auto renew: ${purchase.renewalDisplayValue}'));
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),

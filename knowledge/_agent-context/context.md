@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-23T12:11:28.708Z
+> Last updated: 2026-10-24T18:16:22.728Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -388,6 +388,43 @@ contract so apps use one call and one result-handling flow.
 - Keep unsupported capabilities and inconclusive results explicit. A common
   interface must not manufacture a successful verdict for a weaker store check.
 
+## Public Contract Design Gate
+
+Hyo must explicitly review and approve the concrete design **before** an agent
+implements a new or changed specification or public API. This includes schema
+members, exported helpers and package entry points, signatures, defaults, wire
+values, observable semantics, deprecations, and removals across every SDK.
+Do not invent a public API to make an implementation or example convenient.
+
+Present the problem and evidence, existing alternatives, exact proposed
+signatures and call examples, trust and failure behavior, affected SDKs, and
+compatibility and migration plan. List additions, changes, and removals against
+the published contract. For a verification abstraction, demonstrate how an
+independent third-party service uses the same contract without a core change.
+
+Wait for Hyo's explicit approval of that design. A general request to implement,
+continue, review, merge, or release, passing CI, and an automated review are not
+design approval. Do not split a change into helper APIs or rename it a refactor
+to bypass this gate. Return for review if the approved public design changes.
+An internal refactor or bug fix that preserves the approved public contract
+does not require a new design approval.
+
+### Verification Services Are Peers
+
+IAPKit is one third-party verification service. It has no privileged role in
+the OpenIAP standard. Define shared purchase, confirmation, entitlement, and
+failure contracts from vendor-independent requirements; IAPKit and other
+services implement adapters to those contracts. Provider credentials, response
+formats, endpoints, and service-specific states belong in their adapters.
+Never add a core branch, required dependency, or public standard member merely
+because IAPKit needs it. Keep differences in trust and evidence explicit.
+
+Published APIs stay compatible through patch and minor releases. When Hyo
+approves retirement, retain the old signatures and import paths as deprecated
+delegates, document the replacement, and register removal in
+`scripts/scheduled-removals.mjs` for the next major. Do not remove them as part
+of an internal extraction.
+
 ## Directory Ownership Guardrail
 
 Keep each project surface under its canonical owner:
@@ -399,7 +436,7 @@ Keep each project surface under its canonical owner:
 | Agent integrations distributed to users          | `plugins/<name>/`       |
 | Behavioral conformance spec, runner, and reports | `packages/conformance/` |
 | Developer-facing command line tools              | `packages/cli/`         |
-| Specifications, generators, and conformance data | `specs/<name>/` |
+| Specifications, generators, and conformance data | `specs/<name>/`         |
 | Repository knowledge                             | `knowledge/`            |
 | Repository-wide automation                       | `scripts/`              |
 | Shared editor settings                           | `.vscode/`              |
@@ -1759,9 +1796,24 @@ in an example is the signal to stop and move the logic.
 The purchase flow is the worked example. `createPurchaseFlow`,
 `confirmWithIapkit`, and `confirmOnDeviceIOS` own duplicate deliveries,
 finishing, recovery, store and on-device verdicts, and pending plan changes,
-so purchase screens only subscribe to outcomes. Every SDK's flow passes
-`specs/client/src/purchase-flow.vectors.json`: React Native and Expo through
-the spec they sync, the other four through their own runners.
+so purchase screens only subscribe to outcomes. Every SDK runs
+`specs/client/src/purchase-flow.vectors.json` against its own implementation,
+including the generated React Native and Expo core mirrors.
+
+The TypeScript SDKs import the dependency-free `purchase-flow-core.ts` directly.
+The published `purchase-flow.ts` entry point re-exports that core and retains
+legacy compatibility delegates.
+
+The flow core is vendor-neutral: it takes one confirmation callback and holds no
+code for a particular verification service. The confirmers the SDKs ship (IAPKit
+and on-device iOS) live beside it, in
+`specs/client/src/purchase-flow-confirmers.ts` and each port's own file, and use
+only the core's public contract. Each SDK exposes one call per confirmer
+(`confirmWithIapkit`, `confirmOnDeviceIOS`) and keeps new building blocks
+internal. Published helpers remain as deprecated delegates until the next
+major, tracked by `scripts/scheduled-removals.mjs`. Another verification service
+is another confirmer, never a branch in the core. New public contracts require
+the [Public Contract Design Gate](./02-architecture.md#public-contract-design-gate).
 
 ## Cross-Library Verification for Shared-Package Changes (MANDATORY)
 
