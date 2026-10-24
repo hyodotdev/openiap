@@ -39,6 +39,7 @@ import {
   verifyPurchase,
   verifyPurchaseWithProvider,
   ErrorCode,
+  confirmWithIapkit,
   createPurchaseFlow,
   describePurchaseFlowStatus,
   toPurchaseConfirmationRequest,
@@ -104,6 +105,230 @@ describe('Public API (index.ts)', () => {
     ).toEqual({key: 'access_granted', offerPurchase: false});
     expect(typeof createPurchaseFlow).toBe('function');
     expect(typeof toPurchaseConfirmationRequest).toBe('function');
+  });
+
+  describe('createPurchaseFlow', () => {
+    const applePurchase = (productId: string, id = `tx-${productId}`) =>
+      nativePurchase(id, {
+        productId,
+        store: 'apple',
+        storeId: 'apple',
+        purchaseToken: `jws-${id}`,
+      });
+    const listenerFor = (event: string): ((payload: unknown) => void) => {
+      const call = jest
+        .mocked(ExpoIapModule.addListener)
+        .mock.calls.filter(([name]) => name === event)
+        .at(-1);
+      if (!call) throw new Error(`No ${event} listener`);
+      return call[1];
+    };
+    // Listener deliveries settle without a promise to wait on.
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    beforeEach(() => {
+      jest
+        .mocked(ExpoIapModule.addListener)
+        .mockImplementation(() => ({remove: jest.fn()}));
+      (ExpoIapModule.finishTransaction as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue(true);
+      (ExpoIapModule.requestPurchase as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue(null);
+    });
+
+    it('confirms and finishes what the store delivers until disposed', async () => {
+      const confirmWithBackend = jest.fn(async () => ({
+        status: 'entitled' as const,
+        alreadyGranted: false,
+      }));
+      const flow = createPurchaseFlow({
+        confirmWithBackend,
+        isConsumable: () => false,
+      });
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome) => statuses.push(outcome.status));
+      const deliver = listenerFor(OpenIapEvent.PurchaseUpdated);
+
+      deliver(applePurchase('premium'));
+      await settle();
+
+      expect(confirmWithBackend).toHaveBeenCalledWith(
+        expect.objectContaining({productId: 'premium'}),
+        {isConsumable: false},
+      );
+      expect(ExpoIapModule.finishTransaction).toHaveBeenCalledTimes(1);
+      expect(statuses).toEqual([{status: 'entitled', alreadyGranted: false}]);
+
+      flow.dispose();
+      for (const {value} of jest.mocked(ExpoIapModule.addListener).mock
+        .results) {
+        expect(value.remove).toHaveBeenCalledTimes(1);
+      }
+    });
+
+    it('offers buying again only for a purchase the app requested', async () => {
+      const flow = createPurchaseFlow({
+        confirmWithBackend: async () => ({status: 'invalid' as const}),
+        isConsumable: () => false,
+      });
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome) => statuses.push(outcome.status));
+      const deliver = listenerFor(OpenIapEvent.PurchaseUpdated);
+
+      await requestPurchase({request: {apple: {sku: 'fresh'}}, type: 'in-app'});
+      deliver(applePurchase('old'));
+      // A receipt from before the request is a redelivery, not the purchase.
+      deliver(applePurchase('fresh', 'tx-earlier'));
+      deliver({...applePurchase('fresh'), transactionDate: Date.now()});
+      await settle();
+
+      expect(statuses).toEqual([
+        {status: 'invalid', recovered: true},
+        {status: 'invalid', recovered: true},
+        {status: 'invalid'},
+      ]);
+      flow.dispose();
+    });
+
+    it('keeps the 17.1 manual delivery for a flow given its own store functions', () => {
+      const listenersBefore = jest.mocked(ExpoIapModule.addListener).mock.calls
+        .length;
+      createPurchaseFlow({
+        confirmWithBackend: async () => ({status: 'invalid' as const}),
+        isConsumable: () => false,
+        finishTransaction: jest.fn(async () => {}),
+        getAvailablePurchases: jest.fn(async () => []),
+        getPendingTransactionsIOS: undefined,
+      });
+
+      expect(jest.mocked(ExpoIapModule.addListener).mock.calls.length).toBe(
+        listenersBefore,
+      );
+    });
+
+    it('receives iOS replays, which the flow deduplicates itself', () => {
+      const setOptions = purchaseUpdatedOptionsMock();
+      const flow = createPurchaseFlow({
+        confirmWithBackend: async () => ({status: 'invalid' as const}),
+        isConsumable: () => false,
+      });
+
+      expect(setOptions).toHaveBeenCalledWith({dedupeTransactionIOS: false});
+      flow.dispose();
+    });
+
+    it('stops listening when the error listener cannot register', () => {
+      const updates = {remove: jest.fn()};
+      jest
+        .mocked(ExpoIapModule.addListener)
+        .mockImplementation((name: string) => {
+          if (name === OpenIapEvent.PurchaseError) {
+            throw new Error('native listener unavailable');
+          }
+          return name === OpenIapEvent.PurchaseUpdated
+            ? updates
+            : {remove: jest.fn()};
+        });
+
+      expect(() =>
+        createPurchaseFlow({
+          confirmWithBackend: async () => ({status: 'invalid' as const}),
+          isConsumable: () => false,
+        }),
+      ).toThrow('native listener unavailable');
+      expect(updates.remove).toHaveBeenCalledTimes(1);
+    });
+
+    it("a second dispose leaves the next flow's requests alone", async () => {
+      const create = () =>
+        createPurchaseFlow({
+          confirmWithBackend: async () => ({status: 'invalid' as const}),
+          isConsumable: () => false,
+        });
+      const first = create();
+      first.dispose();
+      const flow = create();
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome) => statuses.push(outcome.status));
+
+      await requestPurchase({request: {apple: {sku: 'fresh'}}, type: 'in-app'});
+      first.dispose();
+      listenerFor(OpenIapEvent.PurchaseUpdated)({
+        ...applePurchase('fresh', 'tx-after-second-dispose'),
+        transactionDate: Date.now(),
+      });
+      await settle();
+
+      expect(statuses).toEqual([{status: 'invalid'}]);
+      flow.dispose();
+    });
+
+    it('forgets a request the store answered with an error', async () => {
+      const flow = createPurchaseFlow({
+        confirmWithBackend: async () => ({status: 'invalid' as const}),
+        isConsumable: () => false,
+      });
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome) => statuses.push(outcome.status));
+
+      await requestPurchase({request: {apple: {sku: 'fresh'}}, type: 'in-app'});
+      listenerFor(OpenIapEvent.PurchaseError)({
+        code: 'user-cancelled',
+        message: 'cancelled',
+      });
+      // A new transaction id: iOS drops one it has already delivered.
+      listenerFor(OpenIapEvent.PurchaseUpdated)({
+        ...applePurchase('fresh', 'tx-after-error'),
+        transactionDate: Date.now(),
+      });
+      await settle();
+
+      expect(statuses).toEqual([{status: 'invalid', recovered: true}]);
+      flow.dispose();
+    });
+
+    it('grants an IAPKit-confirmed consumable before consuming it', async () => {
+      const order: string[] = [];
+      (
+        ExpoIapModule.verifyPurchaseWithProvider as jest.Mock
+      ).mockResolvedValueOnce({
+        provider: 'iapkit',
+        iapkit: {
+          store: 'apple',
+          storeId: 'apple',
+          isValid: true,
+          state: 'ready-to-consume',
+          productId: 'coins',
+        },
+      });
+      (ExpoIapModule.finishTransaction as jest.Mock).mockImplementationOnce(
+        async () => {
+          order.push('finish');
+          return true;
+        },
+      );
+      const flow = createPurchaseFlow({
+        confirmWithBackend: confirmWithIapkit({
+          apiKey: 'pk',
+          grant: async () => {
+            order.push('grant');
+          },
+        }),
+        isConsumable: () => true,
+      });
+
+      listenerFor(OpenIapEvent.PurchaseUpdated)(applePurchase('coins'));
+      await settle();
+
+      expect(ExpoIapModule.verifyPurchaseWithProvider).toHaveBeenCalledWith({
+        provider: 'iapkit',
+        iapkit: {apiKey: 'pk', apple: {jws: 'jws-tx-coins'}},
+      });
+      expect(order).toEqual(['grant', 'finish']);
+      flow.dispose();
+    });
   });
 
   describe('listeners', () => {
@@ -2276,6 +2501,54 @@ describe('Public API (index.ts)', () => {
 
     beforeEach(() => {
       jest.clearAllMocks();
+    });
+
+    it('fills the IAPKit key from the app config', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      jest.resetModules();
+      jest.doMock('expo-constants', () => ({
+        __esModule: true,
+        default: {expoConfig: {extra: {iapkitApiKey: 'pk-config'}}},
+      }));
+      (
+        ExpoIapModule.verifyPurchaseWithProvider as jest.Mock
+      ).mockResolvedValueOnce({provider: 'iapkit'});
+      try {
+        await verifyPurchaseWithProvider({
+          provider: 'iapkit',
+          iapkit: {apple: {jws: 'jws'}},
+        });
+      } finally {
+        jest.dontMock('expo-constants');
+      }
+
+      expect(ExpoIapModule.verifyPurchaseWithProvider).toHaveBeenCalledWith({
+        provider: 'iapkit',
+        iapkit: {apple: {jws: 'jws'}, apiKey: 'pk-config'},
+      });
+    });
+
+    it('keeps the reason it could not read the IAPKit key', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      const reason = new Error('module failed to load');
+      jest.resetModules();
+      jest.doMock('expo-constants', () => {
+        throw reason;
+      });
+      try {
+        await expect(
+          verifyPurchaseWithProvider({
+            provider: 'iapkit',
+            iapkit: {apple: {jws: 'jws'}},
+          }),
+        ).rejects.toMatchObject({
+          message: expect.stringContaining('Could not read iapkitApiKey'),
+          cause: reason,
+        });
+      } finally {
+        jest.dontMock('expo-constants');
+      }
+      expect(ExpoIapModule.verifyPurchaseWithProvider).not.toHaveBeenCalled();
     });
 
     it('calls native module with IAPKit provider on iOS', async () => {

@@ -26,14 +26,11 @@ public partial class PurchaseSummaryRow : ContentView
     {
         if (bindable is not PurchaseSummaryRow row || newValue is not Purchase purchase) return;
 
-        // Common fields live on the PurchaseCommon interface that both
-        // PurchaseIOS and PurchaseAndroid implement.
-        var common = (PurchaseCommon)purchase;
-        row.ProductIdLabel.Text = common.ProductId;
+        row.ProductIdLabel.Text = purchase.ProductId;
         var transactionId = BuildPurchaseRows.ResolveTransactionId(purchase);
         row.TransactionIdLabel.Text = $"Transaction: {(string.IsNullOrEmpty(transactionId) ? "N/A" : transactionId)}";
 
-        var store = common.Store.ToJson().ToLowerInvariant();
+        var store = purchase.Store.ToJson().ToLowerInvariant();
         row.PlatformLabel.Text = store.ToUpperInvariant();
         row.BadgeBorder.BackgroundColor = store switch
         {

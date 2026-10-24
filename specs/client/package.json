@@ -36,6 +36,7 @@
       "import": "./dist/purchase-flow.js",
       "default": "./dist/purchase-flow.js"
     },
+    "./purchase-flow-vectors": "./src/purchase-flow.vectors.json",
     "./swift": "./src/generated/Types.swift",
     "./kotlin": "./src/generated/Types.kt",
     "./dart": "./src/generated/types.dart",
@@ -47,6 +48,7 @@
     "src/*.graphql",
     "src/kit-api.ts",
     "src/purchase-flow.ts",
+    "src/purchase-flow.vectors.json",
     "src/generated/"
   ],
   "scripts": {

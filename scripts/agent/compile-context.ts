@@ -592,10 +592,11 @@ Requires .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   with that store's SDK from Maven. Play Services, Gson, AndroidX, Kotlin,
   and kotlinx-serialization stay NuGet \`PackageReference\` dependencies, so
   every MAUI build carries them whatever the store (MAUI only).
-- Public surface: \`QueryResolver\`, \`MutationResolver\`, and \`IOpenIap\`
-  implemented by \`OpenIapIOS\`, \`OpenIapAndroid\`, and \`OpenIapMacCatalyst\`;
-  app-facing IAPKit helpers mirror the TypeScript SDKs via
-  \`OpenIapClient.KitApi(...)\`.
+- Public surface: operations through \`OpenIapClient.Query\` and
+  \`OpenIapClient.Mutation\` (the generated \`QueryResolver\` and
+  \`MutationResolver\`), listener streams on \`IOpenIap\`, all implemented by
+  \`OpenIapIOS\`, \`OpenIapAndroid\`, and \`OpenIapMacCatalyst\`; app-facing
+  IAPKit helpers mirror the TypeScript SDKs via \`OpenIapClient.KitApi(...)\`.
 - Example app: \`libraries/maui-iap/example/OpenIap.Maui.Example\`, mirroring
   the \`expo-iap\` example flows.
 
@@ -798,11 +799,10 @@ val products = iap.fetchProducts {
 using OpenIap;
 using OpenIap.Maui;
 
-var iap = OpenIapClient.Instance;
-var connected = await ((MutationResolver)iap).InitConnectionAsync();
+var connected = await OpenIapClient.Mutation.InitConnectionAsync();
 if (!connected) throw new InvalidOperationException("Store connection failed");
 
-await ((QueryResolver)iap).FetchProductsAsync(new ProductRequest
+await OpenIapClient.Query.FetchProductsAsync(new ProductRequest
 {
     Skus = ["premium"],
     Type = ProductQueryType.InApp,
@@ -817,7 +817,7 @@ async Task HandlePurchaseAsync(Purchase purchase)
         if (!await VerifyOnServerAsync(purchase)) return;
         await GrantPremiumAsync(purchase);
         // premium is a non-consumable; finishing must not consume it.
-        await ((MutationResolver)iap).FinishTransactionAsync(
+        await OpenIapClient.Mutation.FinishTransactionAsync(
             new PurchaseInput(purchase),
             isConsumable: false
         );
@@ -828,7 +828,7 @@ async Task HandlePurchaseAsync(Purchase purchase)
     }
 }
 
-((IOpenIap)iap).PurchaseUpdated.Subscribe(
+OpenIapClient.Instance.PurchaseUpdated.Subscribe(
     purchase => _ = HandlePurchaseAsync(purchase));
 \`\`\`
 

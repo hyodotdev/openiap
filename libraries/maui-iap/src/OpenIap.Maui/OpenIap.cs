@@ -20,6 +20,8 @@
 #nullable enable
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using OpenIap;
 
 namespace OpenIap.Maui;
@@ -83,9 +85,9 @@ public interface IOpenIap
 }
 
 /// <summary>
-/// Static convenience facade. Cast <see cref="Instance"/> to a generated
-/// resolver to call an operation, for example
-/// <c>await ((QueryResolver)OpenIapClient.Instance).FetchProductsAsync(request)</c>.
+/// Static convenience facade. Call operations through <see cref="Query"/> and
+/// <see cref="Mutation"/>, for example
+/// <c>await OpenIapClient.Query.FetchProductsAsync(request)</c>.
 /// </summary>
 public static class OpenIapClient
 {
@@ -125,12 +127,96 @@ public static class OpenIapClient
         }
     }
 
+    /// <summary>The query operations of <see cref="Instance"/>.</summary>
+    public static QueryResolver Query => Resolver<QueryResolver>(Instance);
+
+    /// <summary>The mutation operations of <see cref="Instance"/>.</summary>
+    public static MutationResolver Mutation => Resolver<MutationResolver>(Instance);
+
+    /// <summary>Writes iOS and Mac Catalyst bridge call traces to the console. Off by default.</summary>
+    public static bool DebugLogging { get; set; }
+
     /// <summary>
     /// Create a client for OpenIAP kit's HTTP API. Mirrors the JavaScript
     /// <c>kitApi(...)</c> helper.
     /// </summary>
     public static KitApiClient KitApi(KitApiOptions options) => new(options);
 
+    /// <summary>
+    /// Creates the app's purchase flow over <see cref="Instance"/>. It confirms
+    /// and finishes every purchase the store delivers, and recovers unfinished
+    /// ones; each store function left null uses this library's, and outcomes
+    /// arrive on the synchronization context current here (the UI thread's
+    /// when created from UI code). Create one per signed-in account and dispose
+    /// it when the account changes.
+    /// See: https://kit.openiap.dev/docs/purchase-flow
+    /// </summary>
+    public static PurchaseFlow CreatePurchaseFlow(PurchaseFlowOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        var instance = Instance;
+        // iOS replays reach the flow, which deduplicates itself; a redelivery retries a failed confirmation.
+        var listen = options.ListenForPurchases ?? (onPurchase => instance
+            .PurchaseUpdatedWithOptions(new PurchaseUpdatedListenerOptions { DedupeTransactionIOS = false })
+            .Subscribe(onPurchase));
+        return new PurchaseFlow(options with
+        {
+            FinishTransaction = options.FinishTransaction
+                ?? ((purchase, isConsumable) =>
+                    Resolver<MutationResolver>(instance).FinishTransactionAsync(new PurchaseInput(purchase), isConsumable)),
+            GetAvailablePurchases = options.GetAvailablePurchases
+                ?? (() => Resolver<QueryResolver>(instance).GetAvailablePurchasesAsync()),
+#if IOS || MACCATALYST
+            GetPendingTransactionsIOS = options.GetPendingTransactionsIOS
+                ?? (async () => await Resolver<QueryResolver>(instance).GetPendingTransactionsIOSAsync()),
+#endif
+            ListenForPurchases = onPurchase =>
+            {
+                var updates = listen(onPurchase);
+                // Whatever listens, a failed or cancelled request ends what the user asked for, and disposing ends them all.
+                var errors = instance.PurchaseError.Subscribe(_ => PurchaseRequests.Clear());
+                return new DisposableAction(() =>
+                {
+                    updates.Dispose();
+                    errors.Dispose();
+                    PurchaseRequests.Clear();
+                });
+            },
+            WasRequested = options.WasRequested ?? PurchaseRequests.Take,
+            OutcomeContext = options.OutcomeContext ?? SynchronizationContext.Current,
+        });
+    }
+
+    /// <summary>
+    /// Confirms purchases with IAPKit from the app, for apps without a backend:
+    /// pass it as <see cref="PurchaseFlowOptions.ConfirmWithBackend"/> with a
+    /// publishable key. Credit consumables in
+    /// <see cref="IapkitConfirmationOptions.Grant"/>, which runs before the
+    /// purchase is consumed.
+    /// </summary>
+    public static PurchaseConfirmer ConfirmWithIapkit(IapkitConfirmationOptions options)
+    {
+        var instance = Instance;
+        return IapkitConfirmation.Create(
+            props => Resolver<MutationResolver>(instance).VerifyPurchaseWithProviderAsync(props),
+            options);
+    }
+
+    /// <summary>
+    /// Confirms App Store purchases on the device, for apps with neither a
+    /// backend nor IAPKit: StoreKit must still list the transaction as
+    /// unfinished and valid. Credit consumables in <paramref name="grant"/>.
+    /// </summary>
+    public static PurchaseConfirmer ConfirmOnDeviceIOS(PurchaseGranter? grant = null)
+    {
+        var instance = Instance;
+        return DeviceConfirmationIOS.Create(
+            () => Resolver<QueryResolver>(instance).GetPendingTransactionsIOSAsync(),
+            grant);
+    }
+
+    private static T Resolver<T>(IOpenIap instance) where T : class =>
+        instance as T ?? throw new InvalidOperationException($"{instance.GetType().Name} does not implement {typeof(T).Name}");
 }
 
 /// <summary>

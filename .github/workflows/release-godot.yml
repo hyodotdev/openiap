@@ -20,7 +20,7 @@ on:
         default: false
         type: boolean
       allow_unreleased_native:
-        description: "Release although openiap-google or openiap-apple has unreleased source changes"
+        description: "Release although openiap-google or openiap-apple is unreleased: source changes, or a Client Protocol other than main's"
         required: false
         default: false
         type: boolean
@@ -324,6 +324,14 @@ jobs:
       - name: Build Android AAR
         if: ${{ steps.check_tag.outputs.exists != 'true' }}
         run: make android GODOT_VERSION="$GODOT_MINIMUM"
+
+      # The image's default Xcode can move past the App Store SDK the
+      # verify step pins; build with the pinned one.
+      - name: Set up Xcode
+        if: ${{ steps.check_tag.outputs.exists != 'true' }}
+        uses: ./.github/actions/setup-xcode
+        with:
+          xcode-version: "27.0"
 
       - name: Build iOS and macOS frameworks
         if: ${{ steps.check_tag.outputs.exists != 'true' }}

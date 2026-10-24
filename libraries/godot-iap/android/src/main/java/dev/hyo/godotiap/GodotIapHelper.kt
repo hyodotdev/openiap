@@ -157,12 +157,13 @@ internal object GodotIapHelper {
 
         val offerToken = json.optStringOrNull("offerToken")
 
-        // Parse explicit subscription offers
-        val hasExplicitSubscriptionOffers = json.has("subscriptionOffers") && !json.isNull("subscriptionOffers")
-        val explicitSubscriptionOffers = mutableListOf<AndroidSubscriptionOfferInput>()
-        if (hasExplicitSubscriptionOffers) {
-            val offersArray = json.optJSONArray("subscriptionOffers")
+        // An empty list means no offer was chosen, as in openiap-google.
+        val offersArray = if (json.has("subscriptionOffers") && !json.isNull("subscriptionOffers")) {
+            json.optJSONArray("subscriptionOffers")
                 ?: throw IllegalArgumentException("subscriptionOffers must be an array")
+        } else null
+        val explicitSubscriptionOffers = mutableListOf<AndroidSubscriptionOfferInput>()
+        if (offersArray != null) {
             for (i in 0 until offersArray.length()) {
                 val offer = offersArray.optJSONObject(i)
                     ?: throw IllegalArgumentException("subscriptionOffers[$i] must be an object")
@@ -191,7 +192,7 @@ internal object GodotIapHelper {
         if (json.has("offerToken") && !json.isNull("offerToken") && productType != ProductQueryType.InApp) {
             throw IllegalArgumentException("offerToken requires type `in-app`")
         }
-        if (hasExplicitSubscriptionOffers) {
+        if (explicitSubscriptionOffers.isNotEmpty()) {
             if (productType != ProductQueryType.Subs) {
                 throw IllegalArgumentException("subscriptionOffers requires type `subs`")
             }
@@ -258,12 +259,13 @@ internal object GodotIapHelper {
         return props
     }
 
-    /** Synchronous init failure for the wrapper log; the signal arrives a frame late. */
-    fun lastInitErrorJson(error: OpenIapError.ProviderConfiguration?): String {
+    /** Synchronous init failure for the wrapper; [connected] tells it a refused rebuild kept the connection. */
+    fun lastInitErrorJson(error: OpenIapError?, connected: Boolean = false): String {
         if (error == null) return ""
         return JSONObject().apply {
             put("code", error.code)
-            put("message", error.message)
+            put("message", error.debugMessage ?: error.message)
+            put("connected", connected)
         }.toString()
     }
 

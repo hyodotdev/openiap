@@ -12,12 +12,15 @@ import 'helpers.dart';
 import 'utils.dart';
 import 'errors.dart' as errors;
 import 'src/first_purchase_notice.dart';
+import 'src/purchase_flow.dart';
 
 export 'types.dart' hide PurchaseError;
 export 'builders.dart';
 export 'utils.dart';
 export 'helpers.dart';
 export 'extensions/purchase_helpers.dart';
+export 'src/purchase_flow.dart'
+    hide deviceConfirmationIOS, onPurchaseFlowDispose;
 export 'enums.dart' hide IapPlatform, PurchaseState;
 export 'errors.dart'
     show
@@ -60,6 +63,29 @@ class _PurchaseUpdatedDedupeHistoryIOS {
   }
 }
 
+// PURCHASE_REQUEST_CLOCK_SKEW_MS in specs/client/src/purchase-flow.ts.
+const _purchaseRequestClockSkewMs = 600000;
+
+/// Runs tasks one after another, whatever the previous one's outcome.
+class _SerialTasks {
+  // Null once idle, so no settled future outlives its zone (a widget test).
+  Future<void>? _tail;
+
+  /// Settles once every task queued so far has.
+  Future<void> get idle => _tail ?? Future<void>.value();
+
+  Future<T> run<T>(Future<T> Function() task) {
+    final previous = _tail;
+    final result =
+        previous == null ? Future.sync(task) : previous.then((_) => task());
+    final tail = _tail = result.then<void>((_) {}, onError: (Object _) {});
+    unawaited(tail.then((_) {
+      if (identical(_tail, tail)) _tail = null;
+    }));
+    return result;
+  }
+}
+
 /// Native events and connection state shared by every [FlutterInappPurchase],
 /// whichever instance installed the channel handler.
 class _SharedNativeState {
@@ -89,10 +115,45 @@ class _SharedNativeState {
   int nonDedupingPurchaseUpdatedListenerCountIOS = 0;
 
   /// Serializes listener-option calls to the one native listener.
-  Future<void> purchaseListenerConfiguration = Future<void>.value();
+  final purchaseListenerConfiguration = _SerialTasks();
+
+  /// Serializes initConnection and endConnection on the one native connection.
+  final connectionChanges = _SerialTasks();
+
+  /// When the app asked for each product, until its purchase or a purchase
+  /// error, so a flow can tell the user's own purchase from a redelivery.
+  final requestedProductIds = <String, int>{};
+
+  void markRequested(Iterable<String> productIds) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final productId in productIds) {
+      requestedProductIds[productId] = now;
+    }
+  }
+
+  /// Whether the app asked for [purchase]: bought after the request, or a
+  /// plan change to what it asked for. Clears the mark.
+  bool wasRequested(gentype.Purchase purchase) {
+    final askedAt = requestedProductIds[purchase.productId];
+    final bought = askedAt != null &&
+        purchase.transactionDate >= askedAt - _purchaseRequestClockSkewMs;
+    if (bought) requestedProductIds.remove(purchase.productId);
+    final changeTargets = purchase is gentype.PurchaseAndroid
+        ? purchase.pendingPurchaseUpdateAndroid?.products
+        : null;
+    var changed = false;
+    for (final productId in changeTargets ?? const <String>[]) {
+      changed = requestedProductIds.remove(productId) != null || changed;
+    }
+    return bought || changed;
+  }
 
   /// Whether each Play purchase token was last seen acknowledged.
   final acknowledgedAndroidPurchaseTokens = <String, bool>{};
+
+  /// Whether native keeps a billing program the app chose, even after a drop
+  /// or a failed connect; only endConnection forgets it.
+  bool billingProgramKept = false;
 
   /// A new connection replays transactions, so delivered ids start over.
   void markDisconnected() {
@@ -265,7 +326,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   Future<void> _setPurchaseUpdatedListenerOptions(
     gentype.PurchaseUpdatedListenerOptions? options,
   ) =>
-      _configurePurchaseListener(() {
+      _shared.purchaseListenerConfiguration.run(() {
         _listenToNative();
         return _channel.invokeMethod<void>(
           'setPurchaseUpdatedListenerOptions',
@@ -350,15 +411,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             : 'IAP connection not initialized',
       );
 
-  Future<void> _configurePurchaseListener(
-    Future<void> Function() configure,
-  ) {
-    final previous = _shared.purchaseListenerConfiguration;
-    final current = previous.catchError((Object _) {}).then((_) => configure());
-    _shared.purchaseListenerConfiguration = current.catchError((Object _) {});
-    return current;
-  }
-
   Future<void> _handleMethodCall(MethodCall call) async {
     switch (call.method) {
       case 'purchase-updated':
@@ -382,6 +434,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         debugPrint(
           '[flutter_inapp_purchase] Emitting error to purchaseErrorListener: $error',
         );
+        _shared.requestedProductIds.clear();
         _shared.purchaseError.add(error);
         break;
       case 'connection-updated':
@@ -484,7 +537,14 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// - `enableBillingProgramAndroid`: Android-only — Play Billing 8.2.0+ billing program
   ///   (e.g. External Payments). iOS ignores this field.
   ///
-  /// Returns `true` once the platform billing client is connected.
+  /// Returns `true` once the platform billing client is connected. Calls
+  /// queue behind any initConnection or endConnection still running. While
+  /// connected, a call without a config returns `true`; an empty config cannot
+  /// be told apart from none, so pass `BillingProgramAndroid.Unspecified` to
+  /// return to the standard client. On Android a config is always passed to
+  /// native, which rebuilds the client only when it differs from the live one
+  /// and refuses with `DeveloperError` while a purchase is in progress, staying
+  /// connected.
   /// Throws when the billing client fails to initialize.
   ///
   /// ```dart
@@ -495,78 +555,99 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   gentype.MutationInitConnectionHandler get initConnection => ({
         gentype.BillingChoiceScreenTypeAndroid? billingChoiceScreenTypeAndroid,
         gentype.BillingProgramAndroid? enableBillingProgramAndroid,
-      }) async {
-        if (_isInitialized) {
-          return true;
-        }
-
-        try {
-          _listenToNative();
-          // Let pending listener-option changes reach native first.
-          await _shared.purchaseListenerConfiguration;
-
-          Map<String, dynamic>? config;
-          if (billingChoiceScreenTypeAndroid != null ||
-              enableBillingProgramAndroid != null) {
-            config = {};
-            if (enableBillingProgramAndroid != null) {
-              config['enableBillingProgramAndroid'] =
-                  enableBillingProgramAndroid.toJson();
+      }) =>
+          _shared.connectionChanges.run(() async {
+            final config = <String, dynamic>{
+              if (enableBillingProgramAndroid != null)
+                'enableBillingProgramAndroid':
+                    enableBillingProgramAndroid.toJson(),
+              if (billingChoiceScreenTypeAndroid != null)
+                'billingChoiceScreenTypeAndroid':
+                    billingChoiceScreenTypeAndroid.toJson(),
+            };
+            // Native decides whether an Android config needs a new client.
+            if (_isInitialized && (config.isEmpty || !_platform.isAndroid)) {
+              return true;
             }
-            if (billingChoiceScreenTypeAndroid != null) {
-              config['billingChoiceScreenTypeAndroid'] =
-                  billingChoiceScreenTypeAndroid.toJson();
+
+            var attempted = false;
+            void forgetFailedConnection() {
+              // Native may have ended the live client before failing.
+              if (attempted) _shared.markDisconnected();
             }
-          }
 
-          final nativeResult =
-              await _channel.invokeMethod<Object?>('initConnection', config);
-          final connected = nativeResult != false;
-          _isInitialized = connected;
-          _isIapUnavailable = !connected;
-          return connected;
-        } on PlatformException catch (error) {
-          throw _purchaseErrorFromPlatformException(
-            error,
-            'initialize IAP connection',
-          );
-        } catch (error) {
-          throw PurchaseError(
-            code: gentype.ErrorCode.NotPrepared,
-            message: 'Failed to initialize IAP connection: ${error.toString()}',
-          );
-        }
-      };
+            try {
+              _listenToNative();
+              // Let pending listener-option changes reach native first.
+              await _shared.purchaseListenerConfiguration.idle;
 
-  /// Close the store connection and release resources.
+              attempted = true;
+              if (config.isNotEmpty && _platform.isAndroid) {
+                _shared.billingProgramKept = true;
+              }
+              final nativeResult = await _channel.invokeMethod<Object?>(
+                'initConnection',
+                config.isEmpty ? null : config,
+              );
+              final connected = nativeResult != false;
+              _isInitialized = connected;
+              _isIapUnavailable = !connected;
+              return connected;
+            } on PlatformException catch (error) {
+              final failure = _purchaseErrorFromPlatformException(
+                error,
+                'initialize IAP connection',
+              );
+              // Native refuses a rebuild during a purchase and keeps the client.
+              if (failure.code != gentype.ErrorCode.DeveloperError) {
+                forgetFailedConnection();
+              }
+              throw failure;
+            } catch (error) {
+              forgetFailedConnection();
+              throw PurchaseError(
+                code: gentype.ErrorCode.NotPrepared,
+                message:
+                    'Failed to initialize IAP connection: ${error.toString()}',
+              );
+            }
+          });
+
+  /// Close the store connection and release resources. Queues behind any
+  /// initConnection or endConnection still running.
   ///
   /// See: https://openiap.dev/docs/apis/end-connection
-  gentype.MutationEndConnectionHandler get endConnection => () async {
-        if (!_isInitialized) {
-          return false;
-        }
+  gentype.MutationEndConnectionHandler get endConnection =>
+      () => _shared.connectionChanges.run(() async {
+            // A dropped or failed connection still needs native to forget
+            // the billing program it kept.
+            if (!_isInitialized && !_shared.billingProgramKept) {
+              return false;
+            }
 
-        try {
-          final disconnected =
-              await _channel.invokeMethod<Object?>('endConnection');
-          if (disconnected == false) return false;
+            try {
+              final disconnected =
+                  await _channel.invokeMethod<Object?>('endConnection');
+              if (disconnected == false) return false;
 
-          // The native connection is shared, so every instance must reconnect.
-          _shared.markDisconnected();
-          _isIapUnavailable = false;
-          return true;
-        } on PlatformException catch (error) {
-          throw _purchaseErrorFromPlatformException(
-            error,
-            'end IAP connection',
-          );
-        } catch (error) {
-          throw PurchaseError(
-            code: gentype.ErrorCode.ServiceError,
-            message: 'Failed to end IAP connection: ${error.toString()}',
-          );
-        }
-      };
+              // The native connection is shared, so every instance must
+              // reconnect.
+              _shared.markDisconnected();
+              _shared.billingProgramKept = false;
+              _isIapUnavailable = false;
+              return true;
+            } on PlatformException catch (error) {
+              throw _purchaseErrorFromPlatformException(
+                error,
+                'end IAP connection',
+              );
+            } catch (error) {
+              throw PurchaseError(
+                code: gentype.ErrorCode.ServiceError,
+                message: 'Failed to end IAP connection: ${error.toString()}',
+              );
+            }
+          });
 
   /// Initiate a purchase or subscription flow. The result is delivered via the
   /// `purchaseUpdated` stream — NOT the return value.
@@ -651,6 +732,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               );
             }
 
+            _shared.markRequested([payload['sku'] as String]);
             await _channel.invokeMethod('requestPurchase', payload);
             return null;
           }
@@ -774,6 +856,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                   subscriptionProductReplacementParams.toJson();
             }
 
+            _shared.markRequested(skus);
             await _channel.invokeMethod('requestPurchase', payload);
             return null;
           }
@@ -783,11 +866,13 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             message: 'requestPurchase is not supported on this platform',
           );
         } on PlatformException catch (error) {
+          _shared.requestedProductIds.clear();
           throw _purchaseErrorFromPlatformException(
             error,
             'request purchase',
           );
         } catch (error) {
+          _shared.requestedProductIds.clear();
           if (error is PurchaseError) rethrow;
           throw PurchaseError(
             code: gentype.ErrorCode.ServiceError,
@@ -2034,6 +2119,91 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           );
         }
       };
+
+  /// Creates the app's [PurchaseFlow], which finishes, lists, recovers, and
+  /// listens for purchases through this instance unless told otherwise. A
+  /// delivery counts as requested when [requestPurchase] asked for its product
+  /// or plan change. Create one flow per signed-in account and dispose it
+  /// before creating the next account's.
+  ///
+  /// ```dart
+  /// final flow = FlutterInappPurchase.instance.createPurchaseFlow(
+  ///   confirmWithBackend: (purchase, {required isConsumable}) async =>
+  ///       PurchaseConfirmation.fromJson(await myBackend.confirm(
+  ///         toPurchaseConfirmationRequest(purchase).toJson(),
+  ///       )),
+  ///   isConsumable: (productId) => productId == 'coins_100',
+  /// );
+  /// flow.outcomes.listen((outcome) => show(outcome.status));
+  /// await flow.recoverPurchases();
+  /// ```
+  ///
+  /// See: https://kit.openiap.dev/docs/purchase-flow
+  PurchaseFlow createPurchaseFlow({
+    required PurchaseConfirmer confirmWithBackend,
+    required bool Function(String productId) isConsumable,
+    Duration confirmTimeout = const Duration(seconds: 30),
+    Future<void> Function({
+      required gentype.Purchase purchase,
+      required bool isConsumable,
+    })? finishTransaction,
+    Future<List<gentype.Purchase>> Function()? getAvailablePurchases,
+    Future<List<gentype.Purchase>> Function()? getPendingTransactionsIOS,
+    StreamSubscription<gentype.Purchase> Function(
+      void Function(gentype.Purchase) onPurchase,
+    )? listenForPurchases,
+    bool Function(gentype.Purchase purchase)? wasRequested,
+  }) {
+    final flow = PurchaseFlow(
+      confirmWithBackend: confirmWithBackend,
+      finishTransaction: finishTransaction ?? this.finishTransaction,
+      isConsumable: isConsumable,
+      getAvailablePurchases:
+          getAvailablePurchases ?? this.getAvailablePurchases,
+      getPendingTransactionsIOS: getPendingTransactionsIOS ??
+          (isIOS ? this.getPendingTransactionsIOS : null),
+      confirmTimeout: confirmTimeout,
+      listenForPurchases: listenForPurchases ?? _flowDeliveries().listen,
+      wasRequested: wasRequested ?? _shared.wasRequested,
+    );
+    // Whatever listens, the next account's flow must not inherit requests.
+    onPurchaseFlowDispose(flow, _shared.requestedProductIds.clear);
+    return flow;
+  }
+
+  /// Every delivery, iOS replays included: the flow deduplicates itself, and a
+  /// redelivery is how a failed confirmation retries.
+  Stream<gentype.Purchase> _flowDeliveries() =>
+      Stream<gentype.Purchase>.multi((controller) {
+        final subscription = purchaseUpdatedListenerWithOptions(
+          const gentype.PurchaseUpdatedListenerOptions(
+            dedupeTransactionIOS: false,
+          ),
+        ).listen(
+          controller.add,
+          onError: controller.addError,
+          onDone: controller.close,
+        );
+        controller.onCancel = subscription.cancel;
+      });
+
+  /// Confirms iOS purchases on the device from StoreKit's unfinished
+  /// transactions, for apps with neither a backend nor IAPKit: pass it as
+  /// [createPurchaseFlow]'s `confirmWithBackend`. [grant] is required for
+  /// consumables.
+  PurchaseConfirmer confirmOnDeviceIOS({PurchaseGrant? grant}) =>
+      createDeviceConfirmationIOS(getPendingTransactionsIOS, grant: grant);
+
+  /// Confirms purchases with IAPKit from the app, for apps without their own
+  /// backend: pass it as [createPurchaseFlow]'s `confirmWithBackend`.
+  PurchaseConfirmer confirmWithIapkit(IapkitConfirmationOptions options) =>
+      createIapkitConfirmation(
+        (props) => verifyPurchaseWithProvider(
+          provider: props.provider,
+          iapkit: props.iapkit,
+        ),
+        options,
+      );
 
   // flutter IAP compatible methods
 

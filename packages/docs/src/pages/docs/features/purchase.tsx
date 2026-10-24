@@ -383,7 +383,7 @@ sealed class PurchaseManager : IDisposable
 
     public async Task InitializeAsync()
     {
-        var connected = await ((MutationResolver)iap).InitConnectionAsync();
+        var connected = await OpenIapClient.Mutation.InitConnectionAsync();
         if (!connected) throw new InvalidOperationException("Store connection failed");
     }
 
@@ -404,7 +404,7 @@ func _ready() -> void:
 
 func setup_listeners() -> void:
     # 1. Setup purchase success listener
-    iap.purchase_updated.connect(_on_purchase_received)
+    iap.purchase_received.connect(_on_purchase_received)
 
     # 2. Setup error listener
     iap.purchase_error.connect(_on_purchase_error)
@@ -621,8 +621,7 @@ using OpenIap.Maui;
 
 async Task PurchaseProductAsync(string productId)
 {
-    var mutate = (MutationResolver)OpenIapClient.Instance;
-    await mutate.RequestPurchaseAsync(new RequestPurchaseProps
+    await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
     {
         RequestPurchase = new RequestPurchasePropsByPlatforms
         {
@@ -646,10 +645,11 @@ func purchase_product(product_id: String) -> void:
     props.request.apple = RequestPurchaseIosProps.new()
     props.request.apple.sku = product_id
     props.request.google = RequestPurchaseAndroidProps.new()
-    props.request.google.skus = [product_id]
+    var skus: Array[String] = [product_id]
+    props.request.google.skus = skus
     props.type = ProductQueryType.IN_APP  # IN_APP for consumables/non-consumables
 
-    # Purchase result will be delivered to purchase_updated signal
+    # Purchase result will be delivered to the purchase_received signal
     await iap.request_purchase(props)
 
 # Example usage
@@ -1148,7 +1148,7 @@ using OpenIap.Maui;
 
 async Task<bool> VerifyWithIapkitAsync(Purchase purchase)
 {
-    var result = await ((MutationResolver)OpenIapClient.Instance)
+    var result = await OpenIapClient.Mutation
         .VerifyPurchaseWithProviderAsync(new VerifyPurchaseWithProviderProps
         {
             Provider = PurchaseVerificationProvider.Iapkit,
@@ -1432,7 +1432,7 @@ async Task HandlePurchaseAsync(Purchase purchase)
     // 3. Finish the transaction (CRITICAL: Android auto-refunds after 3 days!)
     var isConsumable = purchase.ProductId.Contains(
         "consumable", StringComparison.OrdinalIgnoreCase);
-    await ((MutationResolver)OpenIapClient.Instance).FinishTransactionAsync(
+    await OpenIapClient.Mutation.FinishTransactionAsync(
         new PurchaseInput(purchase),
         isConsumable);
 
@@ -2018,8 +2018,6 @@ using OpenIap.Maui;
 sealed class PurchaseManager : IAsyncDisposable
 {
     private readonly IOpenIap iap = OpenIapClient.Instance;
-    private readonly QueryResolver query;
-    private readonly MutationResolver mutate;
     private readonly IDisposable purchaseSubscription;
     private readonly IDisposable errorSubscription;
 
@@ -2028,8 +2026,6 @@ sealed class PurchaseManager : IAsyncDisposable
 
     public PurchaseManager()
     {
-        query = (QueryResolver)iap;
-        mutate = (MutationResolver)iap;
         purchaseSubscription = iap.PurchaseUpdated.Subscribe(
             purchase => _ = HandlePurchaseAsync(purchase));
         errorSubscription = iap.PurchaseError.Subscribe(error =>
@@ -2041,9 +2037,9 @@ sealed class PurchaseManager : IAsyncDisposable
 
     public async Task InitializeAsync()
     {
-        if (!await mutate.InitConnectionAsync())
+        if (!await OpenIapClient.Mutation.InitConnectionAsync())
             throw new InvalidOperationException("Store connection failed");
-        var result = await query.FetchProductsAsync(new ProductRequest
+        var result = await OpenIapClient.Query.FetchProductsAsync(new ProductRequest
         {
             Skus = new[] { "com.app.premium", "com.app.coins_100" },
             Type = ProductQueryType.InApp,
@@ -2054,7 +2050,7 @@ sealed class PurchaseManager : IAsyncDisposable
     public async Task PurchaseAsync(string productId)
     {
         IsProcessing = true;
-        await mutate.RequestPurchaseAsync(new RequestPurchaseProps
+        await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
         {
             RequestPurchase = new RequestPurchasePropsByPlatforms
             {
@@ -2071,7 +2067,7 @@ sealed class PurchaseManager : IAsyncDisposable
         {
             if (!await VerifyOnServerAsync(purchase)) return;
             await GrantProductToUserAsync(purchase.ProductId);
-            await mutate.FinishTransactionAsync(
+            await OpenIapClient.Mutation.FinishTransactionAsync(
                 new PurchaseInput(purchase),
                 purchase.ProductId.Contains("coins", StringComparison.OrdinalIgnoreCase));
         }
@@ -2089,7 +2085,7 @@ sealed class PurchaseManager : IAsyncDisposable
     {
         purchaseSubscription.Dispose();
         errorSubscription.Dispose();
-        if (!await mutate.EndConnectionAsync())
+        if (!await OpenIapClient.Mutation.EndConnectionAsync())
             Console.WriteLine("Store teardown did not complete");
     }
 }`}</CodeBlock>
@@ -2111,7 +2107,7 @@ var is_processing: bool:
         _is_processing = value
         processing_changed.emit()
 
-const PRODUCT_IDS = ["com.app.premium", "com.app.coins_100"]
+const PRODUCT_IDS: Array[String] = ["com.app.premium", "com.app.coins_100"]
 
 func _ready() -> void:
     if not await setup_listeners():
@@ -2125,7 +2121,7 @@ func _ready() -> void:
     products_loaded.emit()
 
 func setup_listeners() -> bool:
-    iap.purchase_updated.connect(_on_purchase_updated)
+    iap.purchase_received.connect(_on_purchase_received)
     iap.purchase_error.connect(_on_purchase_error)
     var connected = await iap.init_connection(null)
     if not connected:
@@ -2141,12 +2137,13 @@ func purchase(product_id: String) -> void:
     props.request.apple = RequestPurchaseIosProps.new()
     props.request.apple.sku = product_id
     props.request.google = RequestPurchaseAndroidProps.new()
-    props.request.google.skus = [product_id]
+    var skus: Array[String] = [product_id]
+    props.request.google.skus = skus
     props.type = ProductQueryType.IN_APP
 
     await iap.request_purchase(props)
 
-func _on_purchase_updated(purchase: Purchase) -> void:
+func _on_purchase_received(purchase: Purchase) -> void:
     # Step 1: Verify
     var is_valid = await verify_on_server(purchase)
     if not is_valid:
@@ -2366,7 +2363,7 @@ func checkPendingPurchases() async {
 {
     try
     {
-        var purchases = await ((QueryResolver)OpenIapClient.Instance)
+        var purchases = await OpenIapClient.Query
             .GetAvailablePurchasesAsync();
 
         foreach (var purchase in purchases)

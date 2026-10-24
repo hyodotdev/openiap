@@ -431,7 +431,7 @@ async Task HandlePurchaseSafelyAsync(Purchase purchase)
         await GrantEntitlementAsync(purchase.ProductId);
 
         // Finish last (Android auto-refunds after 3 days otherwise!).
-        await ((MutationResolver)OpenIapClient.Instance).FinishTransactionAsync(
+        await OpenIapClient.Mutation.FinishTransactionAsync(
             purchase: new PurchaseInput(purchase),
             isConsumable: true);
     }
@@ -449,11 +449,11 @@ OpenIapClient.Instance.PurchaseError.Subscribe(error => {
     Console.WriteLine($"{error.Code}: {error.Message}");
 });
 
-if (!await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync())
+if (!await OpenIapClient.Mutation.InitConnectionAsync())
     return;
 
 // Then request the purchase
-await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps {
+await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps {
     RequestPurchase = new RequestPurchasePropsByPlatforms {
         Apple = new RequestPurchaseIosProps { Sku = "com.app.premium" },
         Google = new RequestPurchaseAndroidProps { Skus = new[] { "com.app.premium" } },

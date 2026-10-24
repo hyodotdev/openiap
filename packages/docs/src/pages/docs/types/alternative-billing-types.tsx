@@ -112,7 +112,7 @@ function AlternativeBillingTypes() {
         <LanguageTabs>
           {{
             typescript: (
-              <CodeBlock language="typescript">{`// Choose one configuration. End the current connection before changing programs.
+              <CodeBlock language="typescript">{`// Choose one configuration. On Google Play, connecting again with another program switches to it.
 
 const config = {
   // Also supported: 'user-choice-billing', 'external-payments', or 'billing-choice'.
@@ -132,7 +132,7 @@ let connected = try await OpenIapModule.shared.initConnection()
 precondition(connected, "Store connection failed")`}</CodeBlock>
             ),
             kotlin: (
-              <CodeBlock language="kotlin">{`// Choose one configuration. End the current connection before changing programs.
+              <CodeBlock language="kotlin">{`// Choose one configuration. On Google Play, connecting again with another program switches to it.
 
 val config = InitConnectionConfig(
     // Also supported: UserChoiceBilling, ExternalPayments, or BillingChoice.
@@ -145,7 +145,7 @@ val connected = openIapStore.initConnection(config)
 check(connected) { "Store connection failed" }`}</CodeBlock>
             ),
             dart: (
-              <CodeBlock language="dart">{`// Choose one configuration. End the current connection before changing programs.
+              <CodeBlock language="dart">{`// Choose one configuration. On Google Play, connecting again with another program switches to it.
 
 // Also supported: UserChoiceBilling, ExternalPayments, or BillingChoice.
 final connected = await FlutterInappPurchase.instance.initConnection(
@@ -158,7 +158,7 @@ if (!connected) throw StateError('Store connection failed');`}</CodeBlock>
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Choose one configuration. End the current connection before changing programs.
+// Choose one configuration. On Google Play, connecting again with another program switches to it.
 
 var config = new InitConnectionConfig
 {
@@ -168,11 +168,11 @@ var config = new InitConnectionConfig
 };
 
 // Pass no config instead for standard billing.
-var connected = await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(config);
+var connected = await OpenIapClient.Mutation.InitConnectionAsync(config);
 if (!connected) throw new InvalidOperationException("Store connection failed");`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`# Choose one configuration. End the current connection before changing programs.
+              <CodeBlock language="gdscript">{`# Choose one configuration. On Google Play, connecting again with another program switches to it.
 
 var config = InitConnectionConfig.new()
 # Also supported: USER_CHOICE_BILLING, EXTERNAL_PAYMENTS, or BILLING_CHOICE.
@@ -416,21 +416,21 @@ var userChoiceSubscription = OpenIapClient.Instance.UserChoiceBillingAndroid.Sub
     details => _ = HandleUserChoiceBillingSafelyAsync(details));
 
 // Step 2: Initialize with user choice billing (recommended).
-var connected = await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(new InitConnectionConfig
+var connected = await OpenIapClient.Mutation.InitConnectionAsync(new InitConnectionConfig
 {
     EnableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling,
 });
 if (!connected) throw new InvalidOperationException("Store connection failed");
 
 // Step 3: Fetch products and purchase as normal.
-await ((QueryResolver)OpenIapClient.Instance).FetchProductsAsync(new ProductRequest
+await OpenIapClient.Query.FetchProductsAsync(new ProductRequest
 {
     Skus = new[] { "premium_subscription" },
     Type = ProductQueryType.Subs,
 });
 
 // Step 4: Request purchase - dialog will show both options.
-await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
 {
     Type = ProductQueryType.Subs,
     RequestSubscription = new RequestSubscriptionPropsByPlatforms
@@ -476,7 +476,7 @@ if not connected:
 
 # Step 3: Fetch products and purchase as normal
 var request = ProductRequest.new()
-request.skus = ["premium_subscription"]
+request.skus.assign(["premium_subscription"])
 request.type = ProductQueryType.SUBS
 var products = await iap.fetch_products(request)
 
@@ -484,7 +484,7 @@ var products = await iap.fetch_products(request)
 var props = RequestPurchaseProps.new()
 props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
 props.request_subscription.google = RequestSubscriptionAndroidProps.new()
-props.request_subscription.google.skus = ["premium_subscription"]
+props.request_subscription.google.skus.assign(["premium_subscription"])
 props.type = ProductQueryType.SUBS
 await iap.request_purchase(props)
 
@@ -686,16 +686,14 @@ using OpenIap.Maui;
 using System.Linq;
 
 // Step 1: Initialize with external offer (recommended).
-var connected = await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(new InitConnectionConfig
+var connected = await OpenIapClient.Mutation.InitConnectionAsync(new InitConnectionConfig
 {
     EnableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer,
 });
 if (!connected) throw new InvalidOperationException("Store connection failed");
 
-var mutate = (MutationResolver)OpenIapClient.Instance;
-
 // Step 2: Check whether External Offer is available for this user.
-var availability = await mutate.IsBillingProgramAvailableAndroidAsync(
+var availability = await OpenIapClient.Mutation.IsBillingProgramAvailableAndroidAsync(
     BillingProgramAndroid.ExternalOffer);
 if (!availability.IsAvailable)
 {
@@ -704,7 +702,7 @@ if (!availability.IsAvailable)
 }
 
 // Step 3: Fetch products (still needed to show prices).
-var result = await ((QueryResolver)OpenIapClient.Instance).FetchProductsAsync(new ProductRequest
+var result = await OpenIapClient.Query.FetchProductsAsync(new ProductRequest
 {
     Skus = new[] { "premium_subscription" },
     Type = ProductQueryType.Subs,
@@ -716,11 +714,11 @@ var product = result is FetchProductsResultSubscriptions subscriptions
 if (product is null) return;
 
 // Step 4: Create reporting details immediately before redirecting.
-var reportingDetails = await mutate.CreateBillingProgramReportingDetailsAndroidAsync(
+var reportingDetails = await OpenIapClient.Mutation.CreateBillingProgramReportingDetailsAndroidAsync(
     BillingProgramAndroid.ExternalOffer);
 
 // Step 5: Play shows the disclosure and launches the checkout URL.
-var launched = await mutate.LaunchExternalLinkAndroidAsync(
+var launched = await OpenIapClient.Mutation.LaunchExternalLinkAndroidAsync(
     new LaunchExternalLinkParamsAndroid
     {
         BillingProgram = BillingProgramAndroid.ExternalOffer,
@@ -761,7 +759,7 @@ if not availability.is_available:
 
 # Step 3: Fetch products (still needed to show prices)
 var request = ProductRequest.new()
-request.skus = ["premium_subscription"]
+request.skus.assign(["premium_subscription"])
 request.type = ProductQueryType.SUBS
 var products = await iap.fetch_products(request)
 

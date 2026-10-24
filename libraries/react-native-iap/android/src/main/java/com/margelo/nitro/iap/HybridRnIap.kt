@@ -148,6 +148,86 @@ internal fun mapEndConnectionError(error: Exception): OpenIapError =
 internal fun mapInitConnectionError(error: Exception, context: Context?): OpenIapError =
     error as? OpenIapError ?: (context?.let { OpenIapError.InitConnection.forProvider(it) } ?: OpenIapError.InitConnection)
 
+/** The JS-facing error for a failed native initConnection; the native error stays as its cause. */
+internal fun nativeInitFailure(err: Exception, context: Context?): OpenIapException {
+    val error = mapInitConnectionError(err, context)
+    return OpenIapException(
+        toErrorJson(
+            error = error,
+            debugMessage = err.message,
+            messageOverride = err.message
+        ),
+        cause = error,
+    )
+}
+
+internal fun toErrorJson(
+    error: OpenIapError,
+    productId: String? = null,
+    debugMessage: String? = null,
+    messageOverride: String? = null
+): String {
+    val code = OpenIapError.Companion.toCode(error)
+    val message = messageOverride?.takeIf { it.isNotBlank() }
+        ?: error.message.takeIf { it.isNotBlank() }
+        ?: OpenIapError.Companion.defaultMessage(code)
+    val diagnostics = error.toJSON()
+    val responseCode = (diagnostics["responseCode"] as? Number)?.toInt()
+    val diagnosticProductId = productId
+        ?: diagnostics["productId"] as? String
+        ?: when (error) {
+            is OpenIapError.ProductNotFound -> error.productId
+            is OpenIapError.SkuNotFound -> error.sku
+            else -> null
+        }
+    val productIds = diagnostics["productIds"] as? List<*>
+    val productType = diagnostics["productType"] as? String
+    val isEmptyProductList = diagnostics["isEmptyProductList"] as? Boolean
+
+    val errorMap = mutableMapOf<String, Any?>(
+        "code" to code,
+        "message" to message
+    )
+
+    responseCode?.let { errorMap["responseCode"] = it }
+    debugMessage
+        ?.let { errorMap["debugMessage"] = it }
+        ?: (diagnostics["debugMessage"] as? String)?.let { errorMap["debugMessage"] = it }
+        ?: error.message.let { errorMap["debugMessage"] = it }
+    diagnosticProductId?.let { errorMap["productId"] = it }
+    if (!productIds.isNullOrEmpty()) errorMap["productIds"] = productIds
+    productType?.let { errorMap["productType"] = it }
+    isEmptyProductList?.let { errorMap["isEmptyProductList"] = it }
+    (diagnostics["subResponseCodeAndroid"] as? String)?.let {
+        errorMap["subResponseCodeAndroid"] = it
+    }
+
+    return try {
+        JSONObject(errorMap).toString()
+    } catch (e: Exception) {
+        "$code: $message"
+    }
+}
+
+/** openiap-google refuses a rebuild during a purchase and keeps the live client. */
+internal fun isRefusedRebuild(error: Throwable): Boolean =
+    generateSequence(error) { it.cause }.any { it is OpenIapError.DeveloperError }
+
+/** Whether initConnection left the store connected, as the connection queue reports it. */
+internal class ConnectionReadiness {
+    @Volatile
+    var isInitialized = false
+
+    fun committed(connected: Boolean) {
+        isInitialized = connected
+    }
+
+    /** A refused rebuild keeps the live client; any other failure leaves the store disconnected. */
+    fun failed(error: Throwable) {
+        isInitialized = isInitialized && isRefusedRebuild(error)
+    }
+}
+
 /**
  * Removes the singleton JS fan-out listener without relying on callback identity.
  * Nitro creates a fresh Kotlin callback wrapper for each bridge invocation, so
@@ -250,8 +330,7 @@ class HybridRnIap : HybridRnIapSpec() {
     private val developerProvidedBillingListenersAndroid = mutableListOf<(DeveloperProvidedBillingDetailsAndroid) -> Unit>()
     private val subscriptionBillingIssueListeners = mutableListOf<(NitroPurchase) -> Unit>()
     private var listenersAttached = false
-    @Volatile
-    private var isInitialized = false
+    private val readiness = ConnectionReadiness()
     private val connectionLifecycleQueue = ConnectionLifecycleQueue()
     
     // Variant wrapper helpers shared by the generated Nitrogen bindings.
@@ -319,7 +398,7 @@ class HybridRnIap : HybridRnIapSpec() {
                     // fast (#408). JS still learns of it only from the next call.
                     openIap.addConnectionStateListener(
                         OpenIapConnectionStateListener {
-                            isInitialized = false
+                            readiness.isInitialized = false
                             RnIapLog.warn(
                                 "billing service disconnected; connection must be re-initialized"
                             )
@@ -413,7 +492,6 @@ class HybridRnIap : HybridRnIapSpec() {
                         messageOverride = "Failed to register billing listeners: $errorMessage"
                     )
                 )
-                isInitialized = false
                 throw wrapped
             }
 
@@ -437,15 +515,8 @@ class HybridRnIap : HybridRnIapSpec() {
                 } catch (err: CancellationException) {
                     throw err
                 } catch (err: Exception) {
-                    val error = mapInitConnectionError(err, context)
                     RnIapLog.failure("initConnection.native", err)
-                    throw OpenIapException(
-                        toErrorJson(
-                            error = error,
-                            debugMessage = err.message,
-                            messageOverride = err.message
-                        )
-                    )
+                    throw nativeInitFailure(err, context)
                 }
                 if (!ok) {
                     val error = OpenIapError.InitConnection.forProvider(context)
@@ -463,10 +534,10 @@ class HybridRnIap : HybridRnIapSpec() {
         val invocation = connectionLifecycleQueue.enqueueInit(
             operation = performInit,
             onCommitted = { value ->
-                isInitialized = value
+                readiness.committed(value)
                 RnIapLog.result("initConnection", value)
             },
-            onFailed = { isInitialized = false }
+            onFailed = readiness::failed
         )
         return Promise.async {
             invocation.await()
@@ -489,7 +560,7 @@ class HybridRnIap : HybridRnIapSpec() {
                     endConnection = { openIap.endConnection() },
                     cleanup = {
                         productTypeBySku.clear()
-                        isInitialized = false
+                        readiness.isInitialized = false
                         // Native listener sets persist; clear only bridge callbacks and
                         // the pending event queues.
                         synchronized(purchaseUpdatedListeners) {
@@ -610,7 +681,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 return@async defaultResult
             }
 
-            if (rejectDisconnectedPurchase(isInitialized) { error ->
+            if (rejectDisconnectedPurchase(readiness.isInitialized) { error ->
                 RnIapLog.warn("requestPurchase without an active billing connection")
                 sendPurchaseError(toErrorResult(error))
             }) {
@@ -2351,54 +2422,6 @@ class HybridRnIap : HybridRnIapSpec() {
     override fun showExternalPurchaseCustomLinkNoticeIOS(noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS): Promise<ExternalPurchaseCustomLinkNoticeResultIOS> {
         return Promise.async {
             throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
-        }
-    }
-
-    private fun toErrorJson(
-        error: OpenIapError,
-        productId: String? = null,
-        debugMessage: String? = null,
-        messageOverride: String? = null
-    ): String {
-        val code = OpenIapError.Companion.toCode(error)
-        val message = messageOverride?.takeIf { it.isNotBlank() }
-            ?: error.message.takeIf { it.isNotBlank() }
-            ?: OpenIapError.Companion.defaultMessage(code)
-        val diagnostics = error.toJSON()
-        val responseCode = (diagnostics["responseCode"] as? Number)?.toInt()
-        val diagnosticProductId = productId
-            ?: diagnostics["productId"] as? String
-            ?: when (error) {
-                is OpenIapError.ProductNotFound -> error.productId
-                is OpenIapError.SkuNotFound -> error.sku
-                else -> null
-            }
-        val productIds = diagnostics["productIds"] as? List<*>
-        val productType = diagnostics["productType"] as? String
-        val isEmptyProductList = diagnostics["isEmptyProductList"] as? Boolean
-
-        val errorMap = mutableMapOf<String, Any?>(
-            "code" to code,
-            "message" to message
-        )
-
-        responseCode?.let { errorMap["responseCode"] = it }
-        debugMessage
-            ?.let { errorMap["debugMessage"] = it }
-            ?: (diagnostics["debugMessage"] as? String)?.let { errorMap["debugMessage"] = it }
-            ?: error.message.let { errorMap["debugMessage"] = it }
-        diagnosticProductId?.let { errorMap["productId"] = it }
-        if (!productIds.isNullOrEmpty()) errorMap["productIds"] = productIds
-        productType?.let { errorMap["productType"] = it }
-        isEmptyProductList?.let { errorMap["isEmptyProductList"] = it }
-        (diagnostics["subResponseCodeAndroid"] as? String)?.let {
-            errorMap["subResponseCodeAndroid"] = it
-        }
-
-        return try {
-            JSONObject(errorMap).toString()
-        } catch (e: Exception) {
-            "$code: $message"
         }
     }
 

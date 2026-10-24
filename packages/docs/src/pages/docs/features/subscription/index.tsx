@@ -200,7 +200,7 @@ await FlutterInappPurchase.instance.requestPurchaseWithBuilder(
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(
+await OpenIapClient.Mutation.RequestPurchaseAsync(
     new RequestPurchaseProps
     {
         RequestSubscription = new RequestSubscriptionPropsByPlatforms
@@ -492,7 +492,7 @@ using System;
 using System.Linq;
 
 // Fetch subscription products
-var result = await ((QueryResolver)OpenIapClient.Instance).FetchProductsAsync(new ProductRequest
+var result = await OpenIapClient.Query.FetchProductsAsync(new ProductRequest
 {
     Skus = new[] { "premium_monthly" },
     Type = ProductQueryType.Subs,
@@ -523,7 +523,7 @@ foreach (var offer in subscription?.SubscriptionOffers?
                     gdscript: (
                       <CodeBlock language="gdscript">{`# Fetch subscription products
 var request = ProductRequest.new()
-request.skus = ["premium_monthly"]
+request.skus.assign(["premium_monthly"])
 request.type = ProductQueryType.SUBS
 var subscriptions = await iap.fetch_products(request)
 
@@ -658,7 +658,7 @@ string? DisplayIntroOffer(ProductSubscriptionIOS subscription)
 }
 
 // Check eligibility
-var isEligible = await ((QueryResolver)OpenIapClient.Instance)
+var isEligible = await OpenIapClient.Query
     .IsEligibleForIntroOfferIOSAsync("premium_monthly");
 
 if (isEligible && subscription is not null)
@@ -875,7 +875,7 @@ async Task PurchaseWithPromoOfferAsync(string subscriptionId, string offerId)
         timestamp: timestamp);
 
     // 2. Purchase with the promotional offer
-    await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
     {
         Type = ProductQueryType.Subs,
         RequestSubscription = new RequestSubscriptionPropsByPlatforms
@@ -1019,7 +1019,7 @@ using OpenIap.Maui;
 async Task PurchaseSubscriptionAsync(string subscriptionId)
 {
     // Intro offer is applied automatically when eligible.
-    await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
     {
         Type = ProductQueryType.Subs,
         RequestSubscription = new RequestSubscriptionPropsByPlatforms
@@ -1367,7 +1367,7 @@ using System;
 using System.Linq;
 
 // Fetch subscription products
-var result = await ((QueryResolver)OpenIapClient.Instance).FetchProductsAsync(new ProductRequest
+var result = await OpenIapClient.Query.FetchProductsAsync(new ProductRequest
 {
     Skus = new[] { "premium_monthly" },
     Type = ProductQueryType.Subs,
@@ -1407,7 +1407,7 @@ foreach (var offer in subscription?.SubscriptionOffers
                     gdscript: (
                       <CodeBlock language="gdscript">{`# Fetch subscription products
 var request = ProductRequest.new()
-request.skus = ["premium_monthly"]
+request.skus.assign(["premium_monthly"])
 request.type = ProductQueryType.SUBS
 var subscriptions = await iap.fetch_products(request)
 
@@ -1626,7 +1626,7 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
         return;
     }
 
-    await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
     {
         Type = ProductQueryType.Subs,
         RequestSubscription = new RequestSubscriptionPropsByPlatforms
@@ -1643,7 +1643,7 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
                     gdscript: (
                       <CodeBlock language="gdscript">{`func purchase_subscription(subscription_id: String) -> void:
     var request = ProductRequest.new()
-    request.skus = [subscription_id]
+    request.skus.assign([subscription_id])
     request.type = ProductQueryType.SUBS
     var subscriptions = await iap.fetch_products(request)
 
@@ -1673,7 +1673,7 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
     var props = RequestPurchaseProps.new()
     props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
     props.request_subscription.google = RequestSubscriptionAndroidProps.new()
-    props.request_subscription.google.skus = [subscription_id]
+    props.request_subscription.google.skus.assign([subscription_id])
     props.request_subscription.google.subscription_offers = subscription_offers  # Recommended; Play uses the first offer if omitted
     props.type = ProductQueryType.SUBS
 
@@ -2014,7 +2014,7 @@ async Task HandlePurchaseAsync(
     // Store it before purchase.
     purchasedBasePlanId = basePlanIdAndroid;
 
-    await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
     {
         Type = ProductQueryType.Subs,
         RequestSubscription = new RequestSubscriptionPropsByPlatforms
@@ -2071,11 +2071,11 @@ func handle_purchase(base_plan_id_android: String) -> void:
     var props = RequestPurchaseProps.new()
     props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
     props.request_subscription.google = RequestSubscriptionAndroidProps.new()
-    props.request_subscription.google.skus = [subscription_group_id]
+    props.request_subscription.google.skus.assign([subscription_group_id])
     var offer_input = AndroidSubscriptionOfferInput.new()
     offer_input.sku = subscription_group_id
     offer_input.offer_token = offer.offer_token_android
-    props.request_subscription.google.subscription_offers = [offer_input]
+    props.request_subscription.google.subscription_offers.assign([offer_input])
     props.type = ProductQueryType.SUBS
 
     await iap.request_purchase(props)
@@ -2480,7 +2480,7 @@ async Task PurchaseWithOfferAsync(
         return;
     }
 
-    await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
     {
         Type = ProductQueryType.Subs,
         RequestSubscription = new RequestSubscriptionPropsByPlatforms
@@ -2537,7 +2537,7 @@ func select_offer(subscription: ProductSubscriptionAndroid, offer_type: int) -> 
 # Purchase with selected offer
 func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
     var request = ProductRequest.new()
-    request.skus = [subscription_id]
+    request.skus.assign([subscription_id])
     request.type = ProductQueryType.SUBS
     var subscriptions = await iap.fetch_products(request)
 
@@ -2555,11 +2555,11 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
     var props = RequestPurchaseProps.new()
     props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
     props.request_subscription.google = RequestSubscriptionAndroidProps.new()
-    props.request_subscription.google.skus = [subscription_id]
+    props.request_subscription.google.skus.assign([subscription_id])
     var offer_input = AndroidSubscriptionOfferInput.new()
     offer_input.sku = subscription_id
     offer_input.offer_token = selected_offer.offer_token_android
-    props.request_subscription.google.subscription_offers = [offer_input]
+    props.request_subscription.google.subscription_offers.assign([offer_input])
     props.type = ProductQueryType.SUBS
 
     await iap.request_purchase(props)`}</CodeBlock>
@@ -3005,7 +3005,7 @@ using OpenIap.Maui;
 using System;
 
 // Check if user has any active subscription
-var hasActive = await ((QueryResolver)OpenIapClient.Instance).HasActiveSubscriptionsAsync();
+var hasActive = await OpenIapClient.Query.HasActiveSubscriptionsAsync();
 if (hasActive)
 {
     Console.WriteLine("User has premium access");
@@ -3013,7 +3013,7 @@ if (hasActive)
 
 // Get all active subscriptions
 var activeSubscriptions =
-    await ((QueryResolver)OpenIapClient.Instance).GetActiveSubscriptionsAsync();
+    await OpenIapClient.Query.GetActiveSubscriptionsAsync();
 
 foreach (var subscription in activeSubscriptions)
 {
@@ -3385,7 +3385,7 @@ using System;
 // Note: subscriptionStatusIOS is iOS-only.
 async Task<(bool IsActive, string Status)> CheckSubscriptionStatusAsync(string sku)
 {
-    var statuses = await ((QueryResolver)OpenIapClient.Instance).SubscriptionStatusIOSAsync(sku);
+    var statuses = await OpenIapClient.Query.SubscriptionStatusIOSAsync(sku);
 
     foreach (var status in statuses)
     {
@@ -3415,7 +3415,7 @@ async Task<(bool IsActive, string Status)> CheckSubscriptionStatusAsync(string s
 // Using ActiveSubscription for quick checks.
 async Task CheckFromActiveSubscriptionsAsync()
 {
-    var subscriptions = await ((QueryResolver)OpenIapClient.Instance).GetActiveSubscriptionsAsync();
+    var subscriptions = await OpenIapClient.Query.GetActiveSubscriptionsAsync();
     var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
     foreach (var subscription in subscriptions)
@@ -3749,7 +3749,7 @@ public sealed record SubscriptionAccessResult(
 // Client-side: Can only check if purchase exists.
 async Task<SubscriptionAccessResult> CheckAndroidSubscriptionAsync(string subscriptionId)
 {
-    var purchases = await ((QueryResolver)OpenIapClient.Instance).GetAvailablePurchasesAsync();
+    var purchases = await OpenIapClient.Query.GetAvailablePurchasesAsync();
     var purchase = purchases
         .OfType<PurchaseAndroid>()
         .FirstOrDefault(purchase => purchase.ProductId == subscriptionId);
@@ -4011,7 +4011,7 @@ Future<void> manageSubscriptions() async {
 using OpenIap.Maui;
 
 // Open subscription management page.
-await ((MutationResolver)OpenIapClient.Instance).DeepLinkToSubscriptionsAsync();`}</CodeBlock>
+await OpenIapClient.Mutation.DeepLinkToSubscriptionsAsync();`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Open subscription management page

@@ -5,44 +5,21 @@ using OpenIap.Maui.Example.Utils;
 
 namespace OpenIap.Maui.Example.Pages;
 
-// Verify purchases before finishing them, including recovered iOS transactions.
+// One-time purchases through the app's purchase flow, which confirms each one before finishing it.
 public partial class PurchaseFlowPage : ContentPage
 {
-    private enum VerificationMethod { Ignore, Local, IapkitLocal, Iapkit }
-
     private readonly List<Product> _products = new();
     private readonly List<Purchase> _availablePurchases = new();
-    private VerificationMethod _verification = DefaultVerificationMethod();
     private string? _purchaseResult;
     private Purchase? _lastPurchase;
     private bool _isProcessing;
-    private readonly HashSet<string> _handledTransactionIds = new();
-    private IDisposable? _purchaseSub;
-    private IDisposable? _errorSub;
     private bool _refreshingPurchases;
     private bool _storefrontLoading;
     private bool _didFetch;
 
-    // Mirrors the other examples: no key skips, a local origin prefers it.
-    private static VerificationMethod DefaultVerificationMethod() =>
-        string.IsNullOrWhiteSpace(IapKitSettings.ApiKey)
-            ? VerificationMethod.Ignore
-            : string.IsNullOrWhiteSpace(IapKitSettings.LocalBaseUrl)
-                ? VerificationMethod.Iapkit
-                : VerificationMethod.IapkitLocal;
-
-    private static string VerificationLabel(VerificationMethod method) => method switch
-    {
-        VerificationMethod.Local => "📱 Local (Device)",
-        VerificationMethod.IapkitLocal => "🖥️ Local (IAPKit)",
-        VerificationMethod.Iapkit => "☁️ IAPKit (Server)",
-        _ => "❌ None (Skip)",
-    };
-
     public PurchaseFlowPage()
     {
         InitializeComponent();
-        VerificationButton.Text = VerificationLabel(_verification);
 #if IOS || MACCATALYST
         AppTransactionButton.IsVisible = true;
 #endif
@@ -51,25 +28,22 @@ public partial class PurchaseFlowPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        _purchaseSub ??= OpenIapClient.Instance.PurchaseUpdated.Subscribe(p => MainThread.BeginInvokeOnMainThread(async () => await OnPurchaseAsync(p)));
-        _errorSub ??= OpenIapClient.Instance.PurchaseError.Subscribe(err => MainThread.BeginInvokeOnMainThread(() => OnPurchaseError(err)));
+        VerificationButton.Text = IapLifecycle.Label(IapLifecycle.Verification);
+        IapLifecycle.Flow.OutcomePublished += OnOutcome;
         await ConnectAndFetchAsync();
     }
 
-    protected override async void OnDisappearing()
+    protected override void OnDisappearing()
     {
         base.OnDisappearing();
-        _purchaseSub?.Dispose();
-        _errorSub?.Dispose();
-        _purchaseSub = _errorSub = null;
-        await IapLifecycle.EndConnectionQuietlyAsync(nameof(PurchaseFlowPage));
+        IapLifecycle.Flow.OutcomePublished -= OnOutcome;
     }
 
     private async Task ConnectAndFetchAsync()
     {
         try
         {
-            await IapLifecycle.InitConnectionAsync();
+            await IapLifecycle.ConnectAsync();
             ConnectionLabel.Text = "✅ Connected";
             ConnectionLabel.TextColor = Color.FromArgb("#4CAF50");
 
@@ -97,8 +71,7 @@ public partial class PurchaseFlowPage : ContentPage
     {
         try
         {
-            var query = (QueryResolver)OpenIapClient.Instance;
-            var result = await query.FetchProductsAsync(new ProductRequest
+            var result = await OpenIapClient.Query.FetchProductsAsync(new ProductRequest
             {
                 Skus = Constants.ProductIds,
                 Type = ProductQueryType.InApp,
@@ -125,8 +98,7 @@ public partial class PurchaseFlowPage : ContentPage
         StorefrontRefreshButton.Text = "Refreshing storefront...";
         try
         {
-            var query = (QueryResolver)OpenIapClient.Instance;
-            var storefront = await query.GetStorefrontAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            var storefront = await OpenIapClient.Query.GetStorefrontAsync().WaitAsync(TimeSpan.FromSeconds(10));
             StorefrontValueLabel.Text = string.IsNullOrEmpty(storefront) ? "Not available" : storefront;
             StorefrontErrorLabel.IsVisible = false;
         }
@@ -156,16 +128,15 @@ public partial class PurchaseFlowPage : ContentPage
         RefreshPurchasesButton.Text = "Refreshing purchases...";
         try
         {
-            var query = (QueryResolver)OpenIapClient.Instance;
-            var purchases = await query.GetAvailablePurchasesAsync(new PurchaseOptions
+            var purchases = await OpenIapClient.Query.GetAvailablePurchasesAsync(new PurchaseOptions
             {
                 OnlyIncludeActiveItemsIOS = true,
             }).WaitAsync(TimeSpan.FromSeconds(20));
             _availablePurchases.Clear();
             // Deduplicate by productId, keeping the most recent transaction.
             var deduped = purchases
-                .GroupBy(p => ((PurchaseCommon)p).ProductId)
-                .Select(g => g.OrderByDescending(p => ((PurchaseCommon)p).TransactionDate).First());
+                .GroupBy(p => p.ProductId)
+                .Select(g => g.OrderByDescending(p => p.TransactionDate).First());
             _availablePurchases.AddRange(deduped);
             RenderPurchases();
             RenderProducts();
@@ -193,14 +164,12 @@ public partial class PurchaseFlowPage : ContentPage
         // Hide non-consumables that are already in the available-purchases list,
         // matching the visibleProducts logic in the expo example.
         var owned = _availablePurchases
-            .Select(p => ((PurchaseCommon)p).ProductId)
+            .Select(p => p.ProductId)
             .Where(Constants.NonConsumableProductIdSet.Contains)
             .ToHashSet();
-        var visible = _products.Where(p =>
-        {
-            var id = ((ProductCommon)p).Id;
-            return !(Constants.NonConsumableProductIdSet.Contains(id) && owned.Contains(id));
-        }).ToList();
+        var visible = _products
+            .Where(p => !(Constants.NonConsumableProductIdSet.Contains(p.Id) && owned.Contains(p.Id)))
+            .ToList();
 
         ProductsCountLabel.Text = visible.Count > 0
             ? $"{visible.Count} product(s) available"
@@ -216,7 +185,6 @@ public partial class PurchaseFlowPage : ContentPage
 
     private View BuildProductCard(Product product)
     {
-        var common = (ProductCommon)product;
         var titleRow = new Grid
         {
             ColumnDefinitions = new ColumnDefinitionCollection { new(GridLength.Star), new(GridLength.Auto) },
@@ -224,7 +192,7 @@ public partial class PurchaseFlowPage : ContentPage
         };
         var titleLabel = new Label
         {
-            Text = common.Title,
+            Text = product.Title,
             FontSize = 16,
             FontAttributes = FontAttributes.Bold,
             TextColor = Color.FromArgb("#1A1A1A"),
@@ -234,7 +202,7 @@ public partial class PurchaseFlowPage : ContentPage
 
         var priceLabel = new Label
         {
-            Text = common.DisplayPrice,
+            Text = product.DisplayPrice,
             FontSize = 16,
             FontAttributes = FontAttributes.Bold,
             TextColor = Color.FromArgb("#007AFF"),
@@ -244,13 +212,13 @@ public partial class PurchaseFlowPage : ContentPage
 
         var description = new Label
         {
-            Text = common.Description,
+            Text = product.Description,
             FontSize = 13,
             TextColor = Color.FromArgb("#5F6470"),
         };
 
-        var badgeText = Constants.ConsumableProductIdSet.Contains(common.Id) ? "Consumable product"
-            : Constants.NonConsumableProductIdSet.Contains(common.Id) ? "Non-consumable product"
+        var badgeText = Constants.ConsumableProductIdSet.Contains(product.Id) ? "Consumable product"
+            : Constants.NonConsumableProductIdSet.Contains(product.Id) ? "Non-consumable product"
             : "In-app product";
         var badge = new Label
         {
@@ -270,7 +238,7 @@ public partial class PurchaseFlowPage : ContentPage
             Padding = new Thickness(16, 8),
             IsEnabled = !_isProcessing,
         };
-        purchaseButton.Clicked += async (_, _) => await HandlePurchaseAsync(common.Id);
+        purchaseButton.Clicked += async (_, _) => await HandlePurchaseAsync(product.Id);
         var detailsButton = new Button
         {
             Text = "Details",
@@ -334,8 +302,8 @@ public partial class PurchaseFlowPage : ContentPage
         RenderProducts();
         try
         {
-            var mutate = (MutationResolver)OpenIapClient.Instance;
-            var requestTask = mutate.RequestPurchaseAsync(new RequestPurchaseProps
+            // The flow confirms the delivered purchase and reports it to OnOutcome.
+            var result = await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
             {
                 RequestPurchase = new RequestPurchasePropsByPlatforms
                 {
@@ -344,52 +312,16 @@ public partial class PurchaseFlowPage : ContentPage
                 },
                 Type = ProductQueryType.InApp,
             });
-            _ = ObservePurchaseRequestAsync(requestTask);
-            await Task.CompletedTask;
+            if (result is null) UpdateResult("Purchase request completed without a purchase result.");
         }
         catch (Exception ex)
+        {
+            UpdateResult(ErrorUtils.FormatPurchaseFailure(ex));
+        }
+        finally
         {
             _isProcessing = false;
-            UpdateResult(ErrorUtils.FormatPurchaseFailure(ex));
             RenderProducts();
-        }
-    }
-
-    private async Task ObservePurchaseRequestAsync(Task<RequestPurchaseResult?> requestTask)
-    {
-        try
-        {
-            var result = await requestTask;
-            if (result is RequestPurchaseResultPurchase { Value: { } purchase })
-            {
-                MainThread.BeginInvokeOnMainThread(async () =>
-                {
-                    if (_isProcessing)
-                    {
-                        await OnPurchaseAsync(purchase);
-                    }
-                });
-            }
-            else
-            {
-                MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    if (!_isProcessing) return;
-                    _isProcessing = false;
-                    UpdateResult("Purchase request completed without a purchase result.");
-                    RenderProducts();
-                });
-            }
-        }
-        catch (Exception ex)
-        {
-            MainThread.BeginInvokeOnMainThread(() =>
-            {
-                if (!_isProcessing) return;
-                _isProcessing = false;
-                UpdateResult(ErrorUtils.FormatPurchaseFailure(ex));
-                RenderProducts();
-            });
         }
     }
 
@@ -397,172 +329,28 @@ public partial class PurchaseFlowPage : ContentPage
     {
         try
         {
-            var query = (QueryResolver)OpenIapClient.Instance;
-#if IOS || MACCATALYST
-            var recovered = await query.GetPendingTransactionsIOSAsync().WaitAsync(TimeSpan.FromSeconds(15));
-#else
-            var recovered = await query.GetAvailablePurchasesAsync(new PurchaseOptions()).WaitAsync(TimeSpan.FromSeconds(15));
-#endif
-            foreach (var purchase in recovered) await OnPurchaseAsync(purchase);
+            await IapLifecycle.Flow.RecoverPurchasesAsync();
         }
-        catch (OpenIapException error) when (error.Error.Code == ErrorCode.FeatureNotSupported) { }
         catch (Exception error)
         {
             UpdateResult($"Purchase recovery failed; receipts retained: {error.Message}");
         }
     }
 
-    private async Task OnPurchaseAsync(Purchase purchase)
+    private void OnOutcome(object? sender, PurchaseFlowOutcome outcome)
     {
-        var common = (PurchaseCommon)purchase;
-        if (!Constants.ProductIds.Contains(common.ProductId)) return;
-        _isProcessing = false;
-        if (_verification == VerificationMethod.Ignore)
-        {
-            UpdateResult("Receipt retained. Choose verification to retry this receipt.");
-            RenderProducts();
-            return;
-        }
-        if (common.PurchaseState != PurchaseState.Purchased)
-        {
-            _isProcessing = false;
-            UpdateResult($"Purchase is not completed (state: {common.PurchaseState.ToJson()}).");
-            RenderProducts();
-            return;
-        }
-
-        // The request result and PurchaseUpdated both deliver the same purchase.
-        if (!string.IsNullOrEmpty(common.Id) && !_handledTransactionIds.Add(common.Id)) return;
+        var (purchase, status) = outcome;
+        if (!Constants.ProductIds.Contains(purchase.ProductId)) return;
         _lastPurchase = purchase;
-        _isProcessing = false;
-        UpdateResult($"Receipt received; verification required (state: {common.PurchaseState.ToJson()}).");
+        var credited = Constants.ConsumableProductIdSet.Contains(purchase.ProductId) && status is PurchaseFlowStatus.Entitled;
+        UpdateResult(IapLifecycle.Describe(outcome, "Purchase") + (credited ? $"\nBulbs: {IapLifecycle.Bulbs}" : ""));
         RenderProducts();
+        if (status is not PurchaseFlowStatus.Entitled) return;
 
-        var verificationPassed = true;
-        (string Title, string Message)? verificationAlert = null;
-
-        if (_verification != VerificationMethod.Ignore && !string.IsNullOrEmpty(common.ProductId))
-        {
-            try
-            {
-                var mutate = (MutationResolver)OpenIapClient.Instance;
-                if (_verification == VerificationMethod.Local)
-                {
-#if IOS || MACCATALYST
-                    var query = (QueryResolver)OpenIapClient.Instance;
-                    var pending = await query.GetPendingTransactionsIOSAsync().WaitAsync(TimeSpan.FromSeconds(15));
-                    verificationPassed = IapKitSettings.MatchesVerifiedPendingPurchase(common, pending);
-#else
-                    verificationPassed = false;
-                    UpdateResult("Local (Device) verification is unavailable here. Choose Local (IAPKit).");
-#endif
-                    Console.WriteLine("[PurchaseFlow] local verification completed");
-                }
-                else if (_verification is VerificationMethod.IapkitLocal or VerificationMethod.Iapkit)
-                {
-                    var token = common.PurchaseToken ?? string.Empty;
-                    var localBaseUrl = _verification == VerificationMethod.IapkitLocal
-                        ? IapKitSettings.LocalBaseUrl
-                        : null;
-                    // Horizon identifies the entitlement by SKU and carries no token.
-                    if (string.IsNullOrEmpty(token) && common.Store != IapStore.Horizon)
-                    {
-                        await DisplayAlertAsync("Verification Failed", "No purchase token available for IAPKit verification", "OK");
-                        verificationPassed = false;
-                    }
-                    else if (_verification == VerificationMethod.IapkitLocal && string.IsNullOrWhiteSpace(localBaseUrl))
-                    {
-                        await DisplayAlertAsync("Verification Failed", "IAPKit base URL not configured for Local (IAPKit)", "OK");
-                        verificationPassed = false;
-                    }
-                    else
-                    {
-                        var result = await mutate.VerifyPurchaseWithProviderAsync(new VerifyPurchaseWithProviderProps
-                        {
-                            Provider = PurchaseVerificationProvider.Iapkit,
-                            Iapkit = IapKitSettings.CreateVerifyProps(purchase, localBaseUrl),
-                        });
-                        if (result.Iapkit is { } ik)
-                        {
-                            verificationPassed = IapKitSettings.AcceptsVerification(ik, common);
-                            var emoji = ik.IsValid ? "✅" : "⚠️";
-                            verificationAlert = (
-                                $"{emoji} {VerificationLabel(_verification)} Verification",
-                                $"Valid: {ik.IsValid}\nState: {ik.State.ToJson()}\nStore: {ik.Store.ToJson()}");
-                        }
-                        else
-                        {
-                            verificationPassed = false;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                verificationPassed = false;
-                await DisplayAlertAsync("Verification Failed",
-                    $"Purchase verification failed: {ErrorUtils.ExtractErrorMessage(ex)}", "OK");
-            }
-        }
-
-        if (!verificationPassed)
-        {
-            _handledTransactionIds.Remove(common.Id);
-            UpdateResult("Purchase verification failed; the transaction was not finalized.");
-            RenderProducts();
-            if (verificationAlert is { } rejected) await DisplayAlertAsync(rejected.Title, rejected.Message, "OK");
-            return;
-        }
-
-        var consumable = Constants.ConsumableProductIdSet.Contains(common.ProductId);
-        var finishError = await FinishPurchaseTransactionAsync(purchase, consumable);
-        if (finishError is not null) _handledTransactionIds.Remove(common.Id);
-
-        // Step 5: refresh available purchases to update the UI without blocking
-        // the success path on slow StoreKit Transaction.all enumeration.
         _ = RefreshAvailablePurchasesAsync(showAlert: false);
-        UpdateResult(finishError is null
-            ? "Purchase completed and finished successfully."
-            : $"Purchase verified, but finishing it failed: {finishError}");
-        RenderProducts();
-
-        // Dialogs wait for the user; one shown before the finish leaves the
-        // transaction open if the app closes while it is up.
-        if (verificationAlert is { } verified) await DisplayAlertAsync(verified.Title, verified.Message, "OK");
-        if (finishError is not null)
-            await DisplayAlertAsync("Finish Failed", finishError, "OK");
-        else
-            await DisplayAlertAsync("Success", "Purchase completed successfully!", "OK");
-    }
-
-    // Null on success. A failed finish leaves the transaction open, so the
-    // failure has to reach the UI rather than the console.
-    private static async Task<string?> FinishPurchaseTransactionAsync(Purchase purchase, bool isConsumable)
-    {
-        if (!isConsumable && purchase is PurchaseAndroid { IsAcknowledgedAndroid: true }) return null;
-        try
-        {
-            var mutate = (MutationResolver)OpenIapClient.Instance;
-            await mutate.FinishTransactionAsync(
-                purchase: new PurchaseInput(purchase),
-                isConsumable: isConsumable).WaitAsync(TimeSpan.FromSeconds(10));
-            return null;
-        }
-        catch (TimeoutException)
-        {
-            return "finishTransaction timed out after 10 seconds";
-        }
-        catch (Exception ex)
-        {
-            return ErrorUtils.ExtractErrorMessage(ex);
-        }
-    }
-
-    private void OnPurchaseError(PurchaseError error)
-    {
-        _isProcessing = false;
-        UpdateResult(ErrorUtils.FormatPurchaseFailure(error));
-        RenderProducts();
+        _ = status is PurchaseFlowStatus.Entitled { FinishError: { } finishError }
+            ? DisplayAlertAsync("Finish Failed", finishError.Message, "OK")
+            : DisplayAlertAsync("Success", "Purchase completed successfully!", "OK");
     }
 
     private void UpdateResult(string text)
@@ -589,22 +377,9 @@ public partial class PurchaseFlowPage : ContentPage
 
     private async void OnChangeVerificationClicked(object sender, EventArgs e)
     {
-        var methods = new[]
-        {
-            VerificationMethod.Ignore,
-            VerificationMethod.Local,
-            VerificationMethod.IapkitLocal,
-            VerificationMethod.Iapkit,
-        };
-        var choice = await DisplayActionSheetAsync(
-            "Select verification method", "Cancel", null,
-            methods.Select(VerificationLabel).ToArray());
-        var selected = Array.FindIndex(methods, method => VerificationLabel(method) == choice);
-        if (selected < 0) return;
-
-        _verification = methods[selected];
-        VerificationButton.Text = VerificationLabel(_verification);
-        if (_verification != VerificationMethod.Ignore) await RecoverPurchasesAsync();
+        if (!await IapLifecycle.ChooseVerificationAsync(this)) return;
+        VerificationButton.Text = IapLifecycle.Label(IapLifecycle.Verification);
+        if (IapLifecycle.Verification != VerificationMethod.Ignore) await RecoverPurchasesAsync();
     }
 
     private async void OnCopyResultClicked(object sender, EventArgs e)
@@ -636,8 +411,7 @@ public partial class PurchaseFlowPage : ContentPage
         OwnershipResultLabel.Text = string.Empty;
         try
         {
-            var query = (QueryResolver)OpenIapClient.Instance;
-            var result = await query.VerifyAppOwnershipAsync(new VerifyAppOwnershipProps { Google = google });
+            var result = await OpenIapClient.Query.VerifyAppOwnershipAsync(new VerifyAppOwnershipProps { Google = google });
             OwnershipResultLabel.Text =
                 $"Status: {result.Status.ToJson()}\n" +
                 $"Store ID: {result.StoreId}\n" +
@@ -667,8 +441,7 @@ public partial class PurchaseFlowPage : ContentPage
 #if IOS || MACCATALYST
         try
         {
-            var query = (QueryResolver)OpenIapClient.Instance;
-            var t = await query.GetAppTransactionIOSAsync();
+            var t = await OpenIapClient.Query.GetAppTransactionIOSAsync();
             if (t is null)
             {
                 await DisplayAlertAsync("App Transaction", "No app transaction found", "OK");
@@ -694,14 +467,13 @@ public partial class PurchaseFlowPage : ContentPage
     private void ShowProductDetails(Product product)
     {
         ProductDetailsContent.Children.Clear();
-        var c = (ProductCommon)product;
-        AppendDetail("Product ID:", c.Id);
-        AppendDetail("Title:", c.Title);
-        AppendDetail("Description:", c.Description);
-        AppendDetail("Price:", c.DisplayPrice);
-        AppendDetail("Currency:", c.Currency ?? "N/A");
-        AppendDetail("Type:", c.Type.ToJson());
-        AppendDetail("Platform:", c.Platform.ToJson());
+        AppendDetail("Product ID:", product.Id);
+        AppendDetail("Title:", product.Title);
+        AppendDetail("Description:", product.Description);
+        AppendDetail("Price:", product.DisplayPrice);
+        AppendDetail("Currency:", product.Currency ?? "N/A");
+        AppendDetail("Type:", product.Type.ToJson());
+        AppendDetail("Platform:", product.Platform.ToJson());
         if (product is ProductIOS pios)
         {
             AppendDetail("Is Family Shareable:", pios.IsFamilyShareableIOS == true ? "Yes" : "No");

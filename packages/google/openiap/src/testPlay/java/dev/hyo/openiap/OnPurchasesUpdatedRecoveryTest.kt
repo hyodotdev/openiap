@@ -3,6 +3,10 @@
 package dev.hyo.openiap
 
 import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.pm.PackageManager
+import android.content.res.Resources
 import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import com.android.billingclient.api.AcknowledgePurchaseParams
@@ -45,6 +49,7 @@ import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 import java.lang.reflect.Field
 import java.time.Duration
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -1507,6 +1512,70 @@ class OnPurchasesUpdatedRecoveryTest {
     }
 
     @Test
+    fun `no purchase starts while a rebuild for another billing program is reserved`() {
+        val rebuild = HeldRebuildContext(ApplicationProvider.getApplicationContext())
+        val module = OpenIapModule(rebuild)
+        val client = RecordingBillingClient(
+            productDetails = listOf(inAppProductDetails("product-id")),
+            launchResponseCode = BillingClient.BillingResponseCode.OK,
+        )
+        setBillingClient(module, client)
+        OpenIapModule::class.java.getDeclaredField("liveConnectionConfiguration").apply {
+            isAccessible = true
+            set(module, playConnectionConfiguration(emptySet(), null))
+        }
+        module.setActivity(Robolectric.buildActivity(Activity::class.java).create().get())
+        val connected = AtomicReference<Result<Boolean>>()
+        thread(isDaemon = true) {
+            connected.set(runCatching {
+                runBlocking {
+                    module.initConnection(
+                        InitConnectionConfig(enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer),
+                    )
+                }
+            })
+        }
+
+        try {
+            assertTrue(
+                "the rebuild must reserve its attempt and reach the Play services check",
+                rebuild.reached.await(5, TimeUnit.SECONDS),
+            )
+            val outcome = AtomicReference<Result<RequestPurchaseResult?>>()
+            thread(isDaemon = true) {
+                outcome.set(runCatching { runBlocking { module.requestPurchase(purchaseProps()) } })
+            }
+            pumpMainLooperUntil { outcome.get() != null || client.launchCalls.get() > 0 }
+
+            assertEquals("no purchase launches on a client about to be replaced", 0, client.launchCalls.get())
+            val error = outcome.get()?.exceptionOrNull()
+            assertTrue("expected ServiceDisconnected, got $error", error is OpenIapError.ServiceDisconnected)
+        } finally {
+            rebuild.release.countDown()
+        }
+
+        pumpMainLooperUntil { connected.get() != null }
+        // Robolectric has no Play services, so the released rebuild ends as a failed connect.
+        assertEquals(false, connected.get()?.getOrThrow())
+    }
+
+    @Test
+    fun `a Play services check that throws releases the connection attempt`() {
+        val module = OpenIapModule(
+            // Real Play services throws here when the manifest lacks its version meta-data.
+            object : ContextWrapper(ApplicationProvider.getApplicationContext()) {
+                override fun getPackageManager(): PackageManager = throw IllegalStateException("no gms version")
+            },
+        )
+
+        assertEquals(false, runBlocking { module.initConnection(null) })
+        val attempt = OpenIapModule::class.java.getDeclaredField("connectionAttempt").apply {
+            isAccessible = true
+        }.get(module)
+        assertNull("a reserved attempt would refuse every later purchase", attempt)
+    }
+
+    @Test
     fun `user choice completes the Play request without a purchase or error`() {
         val client = RecordingBillingClient()
         val module = module()
@@ -1799,7 +1868,19 @@ class OnPurchasesUpdatedRecoveryTest {
     )
 
     private fun module(): OpenIapModule =
-        OpenIapModule(ApplicationProvider.getApplicationContext<android.content.Context>())
+        OpenIapModule(ApplicationProvider.getApplicationContext<Context>())
+
+    /** Holds initConnection at its Play services check, which runs after the attempt is reserved. */
+    private class HeldRebuildContext(base: Context) : ContextWrapper(base) {
+        val reached = CountDownLatch(1)
+        val release = CountDownLatch(1)
+
+        override fun getResources(): Resources {
+            reached.countDown()
+            release.await(10, TimeUnit.SECONDS)
+            return super.getResources()
+        }
+    }
 
     private fun setBillingClient(module: OpenIapModule, client: BillingClient?) {
         OpenIapModule::class.java.getDeclaredField("billingClient").apply {

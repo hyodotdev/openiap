@@ -82,12 +82,6 @@ class _AvailablePurchasesScreenState extends State<AvailablePurchasesScreen> {
     _initConnection();
   }
 
-  @override
-  void dispose() {
-    _iap.endConnection();
-    super.dispose();
-  }
-
   Future<void> _initConnection() async {
     setState(() {
       _loading = true;

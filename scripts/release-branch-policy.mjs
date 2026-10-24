@@ -459,6 +459,9 @@ function runGit(args, root = repoRoot) {
 }
 
 // Source commits since each native package's release tag; version bumps excluded.
+// A native also counts as unreleased while its tag embeds a Client Protocol that
+// is missing or differs from main's: a protocol release only moves the manifest
+// (in a chore(release) commit), yet both natives build that version in.
 export function findUnreleasedNativeChanges(
   versions,
   { git = runGit, gates = nativeReleaseGates } = {},
@@ -491,11 +494,26 @@ export function findUnreleasedNativeChanges(
           files.some((file) => shipsIn(id, file)),
       )
       .map(([subject]) => subject);
+    const embedded = clientProtocolAt(git, tag);
+    if (embedded === undefined || embedded !== versions.clientProtocol) {
+      commits.push(
+        `embeds Client Protocol ${embedded ?? "(none)"}, main pins ${versions.clientProtocol ?? "(none)"}`,
+      );
+    }
     if (commits.length > 0) {
       pending.push({ label: versionSources[id].label, tag, commits });
     }
   }
   return pending;
+}
+
+function clientProtocolAt(git, tag) {
+  try {
+    return JSON.parse(git(["show", `${tag}:openiap-versions.json`]))
+      .clientProtocol;
+  } catch {
+    return undefined;
+  }
 }
 
 export function assertNativesReleased(versions, options) {
@@ -614,7 +632,7 @@ function runNativeGate(args) {
   }
   assertNativesReleased(readVersionManifest());
   console.log(
-    "Native gate: openiap-google and openiap-apple have no unreleased source changes.",
+    "Native gate: openiap-google and openiap-apple have no unreleased source changes and embed main's Client Protocol.",
   );
 }
 

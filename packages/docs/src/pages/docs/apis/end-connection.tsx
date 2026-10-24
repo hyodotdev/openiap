@@ -174,7 +174,7 @@ if (!ended) print('Store teardown did not complete');`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var ended = await ((MutationResolver)OpenIapClient.Instance).EndConnectionAsync();
+var ended = await OpenIapClient.Mutation.EndConnectionAsync();
 if (!ended) Console.WriteLine("Store teardown did not complete");`}</CodeBlock>
           ),
           gdscript: (

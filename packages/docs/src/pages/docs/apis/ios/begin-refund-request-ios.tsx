@@ -123,7 +123,7 @@ if (Platform.OS === 'ios') {
 using OpenIap.Maui;
 
 // iOS targets only — no-op on Android.
-var status = await ((MutationResolver)OpenIapClient.Instance)
+var status = await OpenIapClient.Mutation
     .BeginRefundRequestIOSAsync(sku: "com.app.premium");`}</CodeBlock>
           ),
           gdscript: (

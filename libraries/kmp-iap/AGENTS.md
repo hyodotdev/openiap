@@ -81,24 +81,22 @@ The library supports two patterns for maximum flexibility:
 
 ### Purchase Flow Pattern
 
+`createPurchaseFlow` (a port of `specs/client/src/purchase-flow.ts`) confirms
+each delivery with the app's backend, finishes it once access is settled, and
+recovers unfinished purchases. Apps do not hand-build that pipeline; the
+example app uses one flow for the whole app.
+
 ```kotlin
-// 1. Listen for purchase updates
-kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
-    // 2. Validate receipt with your backend
-    val isValid = verifyPurchaseOnServer(purchase)
-
-    if (isValid) {
-        // 3. Grant entitlement
-        grantEntitlement(purchase.productId)
-
-        // 4. Finish transaction
-        kmpIapInstance.finishTransaction(
-            purchase = purchase,
-            isConsumable = true // Set based on product type
-        )
-    }
-}
+val flow = kmpIapInstance.createPurchaseFlow(
+    scope = appScope, // outlives the screens
+    confirmWithBackend = { purchase, isConsumable -> backend.confirm(purchase) },
+    isConsumable = { it in consumableIds },
+)
+flow.outcomes.collect { show(describePurchaseFlowStatus(it.status)) }
 ```
+
+`library/src/androidUnitTest/resources/purchase-flow.vectors.json` is a synced
+copy of the spec's shared cases; `PurchaseFlowVectorsTest` must pass every one.
 
 ## Build & Testing
 

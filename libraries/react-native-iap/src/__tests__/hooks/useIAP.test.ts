@@ -46,9 +46,11 @@ import * as IAP from '../../index';
 import {useIAP} from '../../hooks/useIAP';
 import {Platform} from 'react-native';
 import type {
+  ActiveSubscription,
   FetchProductsResult,
   ProductAndroid,
   ProductSubscriptionAndroid,
+  Purchase,
   PurchaseError,
 } from '../../types';
 
@@ -979,6 +981,170 @@ describe('hooks/useIAP (renderer)', () => {
       expect(mockGetAvailablePurchases).toHaveBeenCalledTimes(1);
     });
 
+    it('publishes only the latest available-purchases read', async () => {
+      let api: any;
+      const Harness = () => {
+        api = useIAP();
+        return null;
+      };
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      const listed = (id: string) => ({id, productId: id}) as Purchase;
+      let resolveOlder: (purchases: Purchase[]) => void = () => {};
+      mockGetAvailablePurchases
+        .mockImplementationOnce(
+          () =>
+            new Promise<Purchase[]>((resolve) => {
+              resolveOlder = resolve;
+            }),
+        )
+        .mockResolvedValueOnce([listed('newer')]);
+      await act(async () => {
+        const older = api.getAvailablePurchases();
+        await api.getAvailablePurchases();
+        resolveOlder([listed('older')]);
+        await older;
+      });
+
+      expect(api.availablePurchases).toEqual([listed('newer')]);
+    });
+
+    it('publishes an older read when the newer one fails', async () => {
+      let api: any;
+      const Harness = () => {
+        api = useIAP({onError: () => {}});
+        return null;
+      };
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      const owned = {id: 'owned', productId: 'owned'} as Purchase;
+      let resolveOlder: (purchases: Purchase[]) => void = () => {};
+      mockGetAvailablePurchases
+        .mockImplementationOnce(
+          () =>
+            new Promise<Purchase[]>((resolve) => {
+              resolveOlder = resolve;
+            }),
+        )
+        .mockRejectedValueOnce(new Error('store unavailable'));
+      await act(async () => {
+        const older = api.getAvailablePurchases();
+        await expect(api.getAvailablePurchases()).rejects.toThrow(
+          'store unavailable',
+        );
+        resolveOlder([owned]);
+        await older;
+      });
+
+      expect(api.availablePurchases).toEqual([owned]);
+    });
+
+    it('publishes only the latest active-subscriptions read', async () => {
+      let api: any;
+      const Harness = () => {
+        api = useIAP();
+        return null;
+      };
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      const active = (productId: string) =>
+        ({productId, isActive: true}) as ActiveSubscription;
+      let resolveOlder: (
+        subscriptions: ActiveSubscription[],
+      ) => void = () => {};
+      mockGetActiveSubscriptions
+        .mockImplementationOnce(
+          () =>
+            new Promise<ActiveSubscription[]>((resolve) => {
+              resolveOlder = resolve;
+            }),
+        )
+        .mockResolvedValueOnce([active('premium_yearly')]);
+      await act(async () => {
+        const older = api.getActiveSubscriptions();
+        await api.getActiveSubscriptions();
+        resolveOlder([active('premium_monthly')]);
+        await older;
+      });
+
+      expect(api.activeSubscriptions).toEqual([active('premium_yearly')]);
+    });
+
+    it('drops a read that started before a purchase arrived', async () => {
+      let api: any;
+      const Harness = () => {
+        api = useIAP();
+        return null;
+      };
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      const listed = (id: string) => ({id, productId: id}) as Purchase;
+      const active = (productId: string) =>
+        ({productId, isActive: true}) as ActiveSubscription;
+      let resolveOlder: (purchases: Purchase[]) => void = () => {};
+      let resolveOlderActive: (
+        subscriptions: ActiveSubscription[],
+      ) => void = () => {};
+      let resolveActive: () => void = () => {};
+      mockGetAvailablePurchases
+        .mockImplementationOnce(
+          () =>
+            new Promise<Purchase[]>((resolve) => {
+              resolveOlder = resolve;
+            }),
+        )
+        .mockResolvedValueOnce([listed('after-purchase')]);
+      mockGetActiveSubscriptions
+        .mockImplementationOnce(
+          () =>
+            new Promise<ActiveSubscription[]>((resolve) => {
+              resolveOlderActive = resolve;
+            }),
+        )
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveActive = () => resolve([active('premium_yearly')]);
+            }),
+        );
+
+      let older: Promise<void> = Promise.resolve();
+      let olderActive: Promise<unknown> = Promise.resolve();
+      let delivery: Promise<void> = Promise.resolve();
+      await act(async () => {
+        older = api.getAvailablePurchases();
+        olderActive = api.getActiveSubscriptions();
+        delivery = capturedPurchaseListener(listed('after-purchase'));
+      });
+      await act(async () => {
+        resolveOlder([listed('before-purchase')]);
+        resolveOlderActive([active('premium_monthly')]);
+        await older;
+        await olderActive;
+      });
+      expect(api.availablePurchases).toEqual([]);
+      expect(api.activeSubscriptions).toEqual([]);
+
+      await act(async () => {
+        resolveActive();
+        await delivery;
+      });
+      expect(api.availablePurchases).toEqual([listed('after-purchase')]);
+      expect(api.activeSubscriptions).toEqual([active('premium_yearly')]);
+    });
+
     it('does not call onError when operations succeed', async () => {
       let api: any;
       const onError = jest.fn();
@@ -1587,6 +1753,187 @@ describe('hooks/useIAP (renderer)', () => {
       expect(api.connected).toBe(false);
       expect(purchaseUpdateRemove).toHaveBeenCalled();
       expect(onError).toHaveBeenCalledWith(expect.any(Error));
+    });
+  });
+  it('stays connected when the store refuses a rebuild mid-purchase', async () => {
+    const refusal = Object.assign(new Error('purchase in progress'), {
+      code: 'developer-error',
+    });
+    jest.spyOn(IAP, 'initConnection').mockRejectedValue(refusal);
+    const onError = jest.fn();
+    let api: any;
+    const Harness = () => {
+      api = useIAP({onError});
+      return null;
+    };
+
+    await act(async () => {
+      TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {});
+
+    expect(api.connected).toBe(true);
+    expect(IAP.purchaseUpdatedListener).toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(refusal);
+  });
+
+  describe('purchaseFlow', () => {
+    const purchase = {
+      id: 't1',
+      productId: 'p1',
+      transactionDate: 0,
+      platform: 'ios',
+      store: 'apple',
+      storeId: 'apple',
+      quantity: 1,
+      purchaseState: 'purchased',
+      isAutoRenewing: false,
+    } as Purchase;
+
+    function fakeFlow() {
+      const listeners = new Set<(outcome: any) => void>();
+      return {
+        processPurchase: jest.fn(),
+        recoverPurchases: jest.fn(async () => []),
+        subscribe: jest.fn((listener: (outcome: any) => void) => {
+          listeners.add(listener);
+          return () => {
+            listeners.delete(listener);
+          };
+        }),
+        dispose: jest.fn(),
+        emit: (outcome: unknown) => listeners.forEach((l) => l(outcome)),
+        subscribers: () => listeners.size,
+      };
+    }
+
+    it('reports each outcome, then refreshes ownership', async () => {
+      const flow = fakeFlow();
+      const onPurchaseFlowOutcome = jest.fn();
+      const Harness = () => {
+        useIAP({purchaseFlow: flow, onPurchaseFlowOutcome});
+        return null;
+      };
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+      mockGetAvailablePurchases.mockClear();
+      mockGetActiveSubscriptions.mockClear();
+
+      const outcome = {
+        purchase,
+        status: {status: 'entitled', alreadyGranted: false},
+      };
+      await act(async () => {
+        flow.emit(outcome);
+      });
+
+      expect(onPurchaseFlowOutcome).toHaveBeenCalledWith(outcome);
+      expect(mockGetActiveSubscriptions).toHaveBeenCalledTimes(1);
+      expect(mockGetAvailablePurchases).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves the post-purchase refresh to the outcome', async () => {
+      const flow = fakeFlow();
+      const Harness = () => {
+        useIAP({purchaseFlow: flow});
+        return null;
+      };
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+      mockGetAvailablePurchases.mockClear();
+
+      await act(async () => {
+        await capturedPurchaseListener?.(purchase);
+      });
+
+      expect(mockGetAvailablePurchases).not.toHaveBeenCalled();
+    });
+
+    it('recovers once connected, and again for the next account', async () => {
+      const first = fakeFlow();
+      const second = fakeFlow();
+      let flow: ReturnType<typeof fakeFlow> = first;
+      const Harness = () => {
+        useIAP({purchaseFlow: flow});
+        return null;
+      };
+      let root: Root;
+      await act(async () => {
+        root = TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+      expect(first.recoverPurchases).toHaveBeenCalledTimes(1);
+      expect(first.subscribers()).toBe(1);
+
+      flow = second;
+      await act(async () => {
+        root.render(React.createElement(Harness));
+      });
+
+      expect(first.subscribers()).toBe(0);
+      expect(second.subscribers()).toBe(1);
+      expect(second.recoverPurchases).toHaveBeenCalledTimes(1);
+      expect(first.recoverPurchases).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a failed restore and recovery, and a throwing callback', async () => {
+      const flow = fakeFlow();
+      flow.recoverPurchases.mockRejectedValue(new Error('store down'));
+      const onError = jest.fn();
+      const onPurchaseFlowOutcome = jest.fn(() => {
+        throw new Error('callback failed');
+      });
+      let api: any;
+      const Harness = () => {
+        api = useIAP({purchaseFlow: flow, onPurchaseFlowOutcome, onError});
+        return null;
+      };
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+      expect(onError).toHaveBeenCalledWith(expect.any(Error));
+      mockGetAvailablePurchases.mockRejectedValue(new Error('read failed'));
+
+      await act(async () => {
+        flow.emit({
+          purchase,
+          status: {status: 'entitled', alreadyGranted: false},
+        });
+      });
+      expect(onPurchaseFlowOutcome).toHaveBeenCalled();
+
+      onError.mockClear();
+      await act(async () => {
+        await expect(api.restorePurchases()).rejects.toThrow('store down');
+      });
+      expect(onError).toHaveBeenCalledWith(expect.any(Error));
+    });
+
+    it('re-confirms every owned purchase on restore', async () => {
+      const flow = fakeFlow();
+      let api: any;
+      const Harness = () => {
+        api = useIAP({purchaseFlow: flow});
+        return null;
+      };
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      await act(async () => {
+        await api.restorePurchases();
+      });
+
+      expect(mockRestorePurchases).toHaveBeenCalled();
+      expect(flow.recoverPurchases).toHaveBeenLastCalledWith({
+        includeFinished: true,
+      });
     });
   });
 });

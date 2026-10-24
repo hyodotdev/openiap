@@ -4,6 +4,8 @@ import {Alert, Platform} from 'react-native';
 import AlternativeBilling from '../app/alternative-billing';
 import * as ExpoIap from '../../src';
 
+jest.mock('expo-constants', () => ({expoConfig: {extra: {}}}));
+
 describe('AlternativeBilling Component', () => {
   const originalPlatform = Platform.OS;
   const mockFetchProducts = jest.fn(() => Promise.resolve([]));
@@ -35,34 +37,31 @@ describe('AlternativeBilling Component', () => {
     });
   });
 
-  it.each(['apple', 'community_fixture'] as const)(
-    'retains an unverified %s purchase received during billing selection',
-    async (storeId) => {
-      await render(<AlternativeBilling />);
-      const options = jest.mocked(ExpoIap.useIAP).mock.calls.at(-1)?.[0];
-      expect(options?.onPurchaseSuccess).toBeDefined();
-      await act(async () => {
-        await options?.onPurchaseSuccess?.({
-          id: 'unfinished-consumable',
-          transactionId: 'unfinished-consumable',
+  it("shows the app flow's outcome for a purchase made here", async () => {
+    const {getByText} = await render(<AlternativeBilling />);
+    const options = jest.mocked(ExpoIap.useIAP).mock.calls.at(-1)?.[0];
+    expect(options?.purchaseFlow).toBeDefined();
+
+    await act(async () => {
+      options?.onPurchaseFlowOutcome?.({
+        purchase: {
+          id: 'consumable',
           productId: 'dev.hyo.martie.10bulbs',
-          purchaseToken: 'unverified-receipt',
+          purchaseToken: 'receipt',
           purchaseState: 'purchased',
           quantity: 1,
           isAutoRenewing: false,
-          store: storeId === 'apple' ? 'apple' : 'unknown',
-          storeId,
+          store: 'apple',
+          storeId: 'apple',
           transactionDate: 1,
-        });
+        },
+        status: {status: 'entitled', alreadyGranted: false},
       });
-      expect(mockFinishTransaction).not.toHaveBeenCalled();
-      expect(ExpoIap.finishTransaction).not.toHaveBeenCalled();
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'Receipt retained',
-        'Open Purchase Flow or Subscription Flow to verify and complete this receipt.',
-      );
-    },
-  );
+    });
+
+    expect(getByText(/Purchase verified\. Access granted\./)).toBeTruthy();
+    expect(mockFinishTransaction).not.toHaveBeenCalled();
+  });
 
   it('renders Amazon Vega as unsupported for alternative billing', async () => {
     Object.defineProperty(Platform, 'OS', {
@@ -81,5 +80,39 @@ describe('AlternativeBilling Component', () => {
     await fireEvent.press(getByText('Test Consumable'));
 
     expect(getByText('Not supported on Amazon Vega')).toBeDefined();
+  });
+
+  it('switches the billing flow only after native applies its program', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: jest.fn(() => 'android'),
+      configurable: true,
+    });
+    jest
+      .mocked(ExpoIap.initConnection)
+      .mockResolvedValue(true)
+      .mockRejectedValueOnce(new Error('A purchase is in progress'));
+    const {getByText, getAllByText} = await render(<AlternativeBilling />);
+    const chooseUserChoice = async () => {
+      await fireEvent.press(getByText('Billing Programs API (8.2.0+)'));
+      const options = getAllByText('User Choice Billing (7.0+)');
+      await fireEvent.press(options[options.length - 1]);
+    };
+
+    await chooseUserChoice();
+
+    expect(
+      getByText(/Reconnection failed: A purchase is in progress/),
+    ).toBeTruthy();
+    // The flow selector still reads Billing Programs.
+    expect(getByText('Billing Programs API (8.2.0+)')).toBeTruthy();
+    expect(getByText(/Current program: EXTERNAL_OFFER/)).toBeTruthy();
+
+    await chooseUserChoice();
+
+    expect(ExpoIap.initConnection).toHaveBeenLastCalledWith({
+      enableBillingProgramAndroid: 'user-choice-billing',
+    });
+    expect(getByText(/Current program: USER_CHOICE_BILLING/)).toBeTruthy();
+    expect(() => getByText('Billing Programs API (8.2.0+)')).toThrow();
   });
 });

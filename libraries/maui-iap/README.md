@@ -44,34 +44,26 @@ paths are not included in stable release artifacts yet.
 using OpenIap;
 using OpenIap.Maui;
 
-var iap = OpenIapClient.Instance;
-var query = (QueryResolver)iap;
-var mutate = (MutationResolver)iap;
+await OpenIapClient.Mutation.InitConnectionAsync();
 
-IDisposable purchaseSub = iap.PurchaseUpdated.Subscribe(async purchase =>
+// One flow per signed-in account, created on the UI thread so outcomes arrive there.
+var flow = OpenIapClient.CreatePurchaseFlow(new PurchaseFlowOptions
 {
-    bool verified = await VerifyOnServerAsync(purchase);
-    if (!verified) return;
-
-    await mutate.FinishTransactionAsync(
-        purchase: new PurchaseInput(purchase),
-        isConsumable: true);
+    // Your backend grants access, then answers; the flow finishes the purchase after.
+    ConfirmWithBackend = async (purchase, isConsumable) => PurchaseConfirmation.FromJson(
+        await PostToServerAsync(PurchaseConfirmationRequest.FromPurchase(purchase))),
+    IsConsumable = productId => productId == "coins_100",
 });
+flow.OutcomePublished += (_, outcome) => ShowResult(outcome.Status.Describe());
+await flow.RecoverPurchasesAsync();
 
-IDisposable errorSub = iap.PurchaseError.Subscribe(error =>
-{
-    Console.WriteLine($"{error.Code}: {error.Message}");
-});
-
-await mutate.InitConnectionAsync();
-
-var result = await query.FetchProductsAsync(new ProductRequest
+var result = await OpenIapClient.Query.FetchProductsAsync(new ProductRequest
 {
     Skus = new[] { "premium", "coins_100" },
     Type = ProductQueryType.InApp,
 });
 
-await mutate.RequestPurchaseAsync(new RequestPurchaseProps
+await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
 {
     Type = ProductQueryType.InApp,
     RequestPurchase = new RequestPurchasePropsByPlatforms
@@ -82,9 +74,18 @@ await mutate.RequestPurchaseAsync(new RequestPurchaseProps
 });
 ```
 
-Always validate purchases on your server before granting entitlement, then call
-`FinishTransactionAsync`. On Android, unfinished purchases are refunded
-automatically after 3 days.
+The flow confirms every purchase the store delivers and finishes it only once
+access is granted, so a purchase is never finished before your server knows of
+it. An app without a backend passes
+`OpenIapClient.ConfirmWithIapkit(new IapkitConfirmationOptions { ApiKey = "openiap-kit_pk_...", Grant = CreditAsync })`
+as `ConfirmWithBackend`; `Grant` credits consumables before they are consumed.
+An iOS app with neither a backend nor IAPKit passes `OpenIapClient.ConfirmOnDeviceIOS(CreditAsync)`.
+Dispose the flow when the signed-in account changes and create the next one.
+See the [purchase flow guide](https://kit.openiap.dev/docs/purchase-flow).
+
+Listener streams arrive on the store's thread; `ObserveOnCurrentContext()`
+delivers them on the UI thread when subscribed from UI code. Set
+`OpenIapClient.DebugLogging = true` to trace iOS and Mac Catalyst bridge calls.
 
 OpenIap.Maui 2.x exposes `OpenIapClient`; the deprecated `Iap` compatibility
 facade was removed. Replace `Iap` calls before upgrading from 1.x.

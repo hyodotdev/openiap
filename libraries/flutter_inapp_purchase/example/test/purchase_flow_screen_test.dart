@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:platform/platform.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+import 'package:flutter_inapp_purchase_example/src/app_purchase_flow.dart';
 import 'package:flutter_inapp_purchase_example/src/screens/purchase_flow_screen.dart';
 
 void main() {
@@ -20,6 +21,22 @@ void main() {
   PlatformException? recoveryFailure;
   late String verifiedProductId;
   late bool verifiedConsumable;
+  final flows = <AppPurchaseFlow>[];
+
+  // Each screen gets its own flow; a live one would answer later deliveries.
+  Widget screen() {
+    final purchases = AppPurchaseFlow(
+      FlutterInappPurchase(
+        platform: FakePlatform(
+          operatingSystem: defaultTargetPlatform == TargetPlatform.android
+              ? 'android'
+              : 'ios',
+        ),
+      ),
+    );
+    flows.add(purchases);
+    return MaterialApp(home: PurchaseFlowScreen(purchases: purchases));
+  }
 
   setUp(() {
     log = <MethodCall>[];
@@ -99,6 +116,22 @@ void main() {
     });
   });
 
+  void disposeFlows() {
+    for (final purchases in flows) {
+      purchases.dispose();
+    }
+    flows.clear();
+  }
+
+  // The listener's native cleanup after dispose starts from a real microtask,
+  // so let real async run before the test ends.
+  Future<void> closeScreen(WidgetTester tester) async {
+    await tester.pumpWidget(const SizedBox.shrink());
+    disposeFlows();
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
+  }
+
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
@@ -129,17 +162,7 @@ void main() {
                 message: 'Verification unavailable',
               )
             : null;
-        await tester.pumpWidget(MaterialApp(
-          home: PurchaseFlowScreen(
-            iap: FlutterInappPurchase(
-              platform: FakePlatform(
-                operatingSystem: defaultTargetPlatform == TargetPlatform.android
-                    ? 'android'
-                    : 'ios',
-              ),
-            ),
-          ),
-        ));
+        await tester.pumpWidget(screen());
         await tester.pumpAndSettle();
         expect(log.where((call) => call.method == 'fetchProducts'), isNotEmpty);
         expect(find.text('10 Bulbs'), findsOneWidget);
@@ -228,13 +251,11 @@ void main() {
           expect(log.where((call) => call.method == 'finishTransaction').length,
               1);
         }
-        await tester.pumpWidget(const SizedBox.shrink());
-        await tester.pumpAndSettle();
+        await closeScreen(tester);
       }
     } finally {
       debugDefaultTargetPlatformOverride = null;
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pumpAndSettle();
+      await closeScreen(tester);
     }
   });
 
@@ -244,31 +265,20 @@ void main() {
         code: 'feature-not-supported', message: 'Recovery unavailable');
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     try {
-      await tester.pumpWidget(MaterialApp(
-        home: PurchaseFlowScreen(
-          iap: FlutterInappPurchase(
-            platform: FakePlatform(
-              operatingSystem: defaultTargetPlatform == TargetPlatform.android
-                  ? 'android'
-                  : 'ios',
-            ),
-          ),
-        ),
-      ));
+      await tester.pumpWidget(screen());
       await tester.pumpAndSettle();
       expect(log.where((call) => call.method == 'getPendingTransactionsIOS'),
           isNotEmpty);
       expect(find.textContaining('Purchase recovery failed'), findsNothing);
     } finally {
       debugDefaultTargetPlatformOverride = null;
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pumpAndSettle();
+      await closeScreen(tester);
     }
   });
 
   for (final isConsumable in [false, true]) {
     testWidgets(
-        'verifies acknowledged Android purchase without an order ID ($isConsumable)',
+        'verifies an acknowledged Android purchase once (consumable: $isConsumable)',
         (tester) async {
       log.clear();
       recoveryFailure = null;
@@ -291,47 +301,39 @@ void main() {
         storeId: 'play',
       );
       retainedPurchases = [purchase.toJson()];
+      int calls(String method) =>
+          log.where((call) => call.method == method).length;
       try {
-        await tester.pumpWidget(MaterialApp(
-          home: PurchaseFlowScreen(
-            iap: FlutterInappPurchase(
-              platform: FakePlatform(
-                operatingSystem: defaultTargetPlatform == TargetPlatform.android
-                    ? 'android'
-                    : 'ios',
-              ),
-            ),
-          ),
-        ));
+        await tester.pumpWidget(screen());
         await tester.pumpAndSettle();
-        expect(
-            log
-                .where((call) => call.method == 'verifyPurchaseWithProvider')
-                .length,
-            1);
-        expect(
-            log.where((call) => call.method == 'consumePurchaseAndroid').length,
-            isConsumable ? 1 : 0);
-        expect(log.where((call) => call.method == 'acknowledgePurchaseAndroid'),
-            isEmpty);
+        // Recovery confirms a listed consumable, which is still unconsumed;
+        // Play keeps an acknowledged non-consumable finished.
+        expect(calls('verifyPurchaseWithProvider'), isConsumable ? 1 : 0);
+        expect(calls('finishTransaction'), isConsumable ? 1 : 0);
+
+        await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .handlePlatformMessage(
+          channel.name,
+          const StandardMethodCodec().encodeMethodCall(
+            MethodCall('purchase-updated', jsonEncode(purchase.toJson())),
+          ),
+          (_) {},
+        );
+        await tester.pumpAndSettle();
+        // A settled purchase is answered without confirming it again.
+        expect(calls('verifyPurchaseWithProvider'), 1);
+        expect(calls('finishTransaction'), isConsumable ? 1 : 0);
+        expect(find.textContaining('Access granted.'), findsOneWidget);
+
         await tester.tap(find.text('IAPKit'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('IAPKit').last);
         await tester.pumpAndSettle();
-        expect(
-            log
-                .where((call) => call.method == 'verifyPurchaseWithProvider')
-                .length,
-            1);
-        expect(
-            log.where((call) => call.method == 'consumePurchaseAndroid').length,
-            isConsumable ? 1 : 0);
-        expect(log.where((call) => call.method == 'acknowledgePurchaseAndroid'),
-            isEmpty);
+        expect(calls('verifyPurchaseWithProvider'), 1);
+        expect(calls('finishTransaction'), isConsumable ? 1 : 0);
       } finally {
         debugDefaultTargetPlatformOverride = null;
-        await tester.pumpWidget(const SizedBox.shrink());
-        await tester.pumpAndSettle();
+        await closeScreen(tester);
       }
     });
   }

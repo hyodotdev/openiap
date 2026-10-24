@@ -15,20 +15,16 @@ public static class BuildPurchaseRows
     {
         var rows = new List<PurchaseDetailRow>();
 
-        // Common fields are declared on PurchaseCommon, which both PurchaseIOS
-        // and PurchaseAndroid implement. The abstract `Purchase` union type
-        // intentionally exposes no fields directly.
-        var common = (PurchaseCommon)purchase;
         var transactionId = ResolveTransactionId(purchase);
-        Push(rows, "id", common.Id);
+        Push(rows, "id", purchase.Id);
         Push(rows, "transactionId", transactionId);
-        Push(rows, "productId", common.ProductId);
-        Push(rows, "store", common.Store.ToJson());
-        Push(rows, "ids", FormatList(common.Ids));
-        Push(rows, "transactionDate", FormatDate(common.TransactionDate));
-        Push(rows, "purchaseState", Capitalize(common.PurchaseState.ToJson()));
-        Push(rows, "quantity", common.Quantity.ToString());
-        Push(rows, "isAutoRenewing", FormatBoolean(common.IsAutoRenewing));
+        Push(rows, "productId", purchase.ProductId);
+        Push(rows, "store", purchase.Store.ToJson());
+        Push(rows, "ids", FormatList(purchase.Ids));
+        Push(rows, "transactionDate", FormatDate(purchase.TransactionDate));
+        Push(rows, "purchaseState", Capitalize(purchase.PurchaseState.ToJson()));
+        Push(rows, "quantity", purchase.Quantity.ToString());
+        Push(rows, "isAutoRenewing", FormatBoolean(purchase.IsAutoRenewing));
 
         switch (purchase)
         {
@@ -78,7 +74,7 @@ public static class BuildPurchaseRows
                 break;
         }
 
-        Push(rows, "purchaseToken", Presence(common.PurchaseToken));
+        Push(rows, "purchaseToken", Presence(purchase.PurchaseToken));
         return rows;
     }
 
@@ -87,7 +83,7 @@ public static class BuildPurchaseRows
         {
             PurchaseIOS ios when !string.IsNullOrEmpty(ios.TransactionId) => ios.TransactionId,
             PurchaseAndroid android when !string.IsNullOrEmpty(android.TransactionId) => android.TransactionId,
-            _ => ((PurchaseCommon)purchase).Id,
+            _ => purchase.Id,
         };
 
     private static void Push(List<PurchaseDetailRow> rows, string label, object? value)

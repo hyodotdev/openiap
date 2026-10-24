@@ -6,6 +6,7 @@ global.__fbBatchedBridgeConfig = {
   localModulesConfig: [],
 };
 
+const mockGetPendingTransactionsIOS = jest.fn(() => Promise.resolve([]));
 jest.mock(
   '@env',
   () => ({
@@ -72,7 +73,30 @@ jest.mock('../src/index', () => {
     verifyPurchaseWithProvider: mockVerifyPurchaseWithProvider,
   }));
 
+  const purchaseFlowSpec = jest.requireActual('../src/purchase-flow');
+
   return {
+    // Purchase flow: screens get a stub flow; confirmations run the real rules.
+    createPurchaseFlow: jest.fn(() => ({
+      processPurchase: jest.fn(),
+      recoverPurchases: jest.fn(() => Promise.resolve([])),
+      subscribe: jest.fn(() => jest.fn()),
+      dispose: jest.fn(),
+    })),
+    confirmWithIapkit: jest.fn((options) =>
+      purchaseFlowSpec.createIapkitConfirmation(
+        (props) => mockVerifyPurchaseWithProvider(props),
+        options,
+      ),
+    ),
+    confirmOnDeviceIOS: jest.fn((options) =>
+      purchaseFlowSpec.createDeviceConfirmationIOS(
+        () => mockGetPendingTransactionsIOS(),
+        options,
+      ),
+    ),
+    describePurchaseFlowStatus: purchaseFlowSpec.describePurchaseFlowStatus,
+
     // Core functions
     initConnection: jest.fn(() => Promise.resolve(true)),
     endConnection: jest.fn(() => Promise.resolve()),
@@ -85,7 +109,7 @@ jest.mock('../src/index', () => {
     getPurchaseHistory: jest.fn(() => Promise.resolve([])),
     getActiveSubscriptions: mockGetActiveSubscriptions,
     getStorefront: jest.fn(() => Promise.resolve('US')),
-    getPendingTransactionsIOS: jest.fn(() => Promise.resolve([])),
+    getPendingTransactionsIOS: mockGetPendingTransactionsIOS,
     verifyPurchase: mockVerifyPurchase,
     verifyPurchaseWithProvider: mockVerifyPurchaseWithProvider,
     openRedeemOfferCode: jest.fn(() => Promise.resolve(null)),
@@ -120,6 +144,9 @@ jest.mock('../src/index', () => {
     // Event listeners
     purchaseUpdatedListener: jest.fn((callback) => ({remove: jest.fn()})),
     purchaseErrorListener: jest.fn((callback) => ({remove: jest.fn()})),
+    developerProvidedBillingListenerAndroid: jest.fn(() => ({
+      remove: jest.fn(),
+    })),
 
     // Hook
     useIAP: mockUseIAP,

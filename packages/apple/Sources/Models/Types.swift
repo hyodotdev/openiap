@@ -170,7 +170,8 @@ public enum BillingChoiceScreenTypeAndroid: String, Codable, CaseIterable {
 /// BILLING_CHOICE added in OpenIAP 2.1.0 / openiap-google 2.3.0
 /// (requires Play Billing 9.1.0+).
 public enum BillingProgramAndroid: String, Codable, CaseIterable {
-    /// Unspecified billing program. Do not use.
+    /// No billing program. In InitConnectionConfig, it selects the standard client,
+    /// and programs queued with enableBillingProgramAndroid stay.
     case unspecified = "unspecified"
     /// User Choice Billing program.
     /// User can select between Google Play Billing or alternative billing.

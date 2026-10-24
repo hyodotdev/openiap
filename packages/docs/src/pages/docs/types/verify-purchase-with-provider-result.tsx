@@ -622,7 +622,7 @@ if (iapkit != null &&
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var result = await ((MutationResolver)OpenIapClient.Instance)
+var result = await OpenIapClient.Mutation
     .VerifyPurchaseWithProviderAsync(new VerifyPurchaseWithProviderProps
 {
     Provider = PurchaseVerificationProvider.Iapkit,

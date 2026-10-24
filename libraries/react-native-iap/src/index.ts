@@ -82,6 +82,22 @@ import {
   convertApplePurchasesOrThrow,
 } from './utils/available-purchases';
 import {getVegaIapModule as getVegaAdapter, isVegaOS} from './vega';
+import {
+  clearRequested,
+  createSdkPurchaseFlow,
+  markRequested,
+  type PurchaseFlowSdk,
+  type SdkPurchaseFlowOptions,
+} from './utils/purchaseFlowBinding';
+import {
+  createDeviceConfirmationIOS,
+  createIapkitConfirmation,
+  type IapkitConfirmationOptions,
+  type PurchaseConfirmation,
+  type PurchaseFlow,
+  type PurchaseFlowOptions,
+  type PurchaseFlowPurchase,
+} from './purchase-flow';
 
 // Export all types
 export type {
@@ -159,11 +175,11 @@ export type {
   StatusResponse,
 } from './kit-api';
 export {
-  createPurchaseFlow,
   describePurchaseFlowStatus,
   toPurchaseConfirmationRequest,
 } from './purchase-flow';
 export type {
+  IapkitConfirmationOptions,
   PurchaseConfirmation,
   PurchaseConfirmationRequest,
   PurchaseFlow,
@@ -929,8 +945,7 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 
     if (normalizedType === 'all') {
       const converted = (await fetchAndConvert('all')) as (
-        | Product
-        | ProductSubscription
+        Product | ProductSubscription
       )[];
 
       RnIapConsole.debug(
@@ -1753,6 +1768,10 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
       throw unsupportedPlatformError();
     }
 
+    markRequested([
+      iosRequestSource?.sku,
+      ...(androidRequestSource?.skus ?? []),
+    ]);
     const unifiedRequest: NitroPurchaseRequest = {type: normalizedType};
 
     if (Platform.OS === 'ios' && iosRequestSource) {
@@ -1906,6 +1925,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
 
     return await IAP.instance.requestPurchase(unifiedRequest);
   } catch (error) {
+    clearRequested();
     const parsedError = parseErrorAndLogIfNeeded(
       'Failed to request purchase:',
       error,
@@ -2328,6 +2348,68 @@ export const verifyPurchaseWithProvider: MutationField<
     });
   }
 };
+
+export type {SdkPurchaseFlowOptions} from './utils/purchaseFlowBinding';
+
+const purchaseFlowSdk: PurchaseFlowSdk = {
+  finishTransaction: (args) => finishTransaction(args),
+  getAvailablePurchases: () => getAvailablePurchases(),
+  getPendingTransactionsIOS:
+    Platform.OS === 'ios' ? () => getPendingTransactionsIOS() : undefined,
+  purchaseUpdatedListener: (listener) =>
+    purchaseUpdatedListener(listener, {dedupeTransactionIOS: false}),
+  purchaseErrorListener: (listener) => purchaseErrorListener(listener),
+};
+
+/**
+ * Creates the app's purchase flow. It confirms and finishes every purchase the
+ * store delivers, and recovers unfinished ones, through this SDK. Create one
+ * per signed-in account, dispose it when the account changes, and pass it to
+ * `useIAP({purchaseFlow})`.
+ * @see {@link https://kit.openiap.dev/docs/purchase-flow}
+ */
+export function createPurchaseFlow(
+  options: SdkPurchaseFlowOptions,
+): PurchaseFlow<Purchase>;
+export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
+  options: PurchaseFlowOptions<P>,
+): PurchaseFlow<P>;
+export function createPurchaseFlow(
+  options: SdkPurchaseFlowOptions,
+): PurchaseFlow<Purchase> {
+  return createSdkPurchaseFlow(purchaseFlowSdk, options);
+}
+
+/**
+ * Confirms purchases with IAPKit from the app, for apps without a backend:
+ * pass it as `confirmWithBackend` with a publishable key. Credit consumables
+ * in `grant`, which runs before the purchase is consumed.
+ */
+export function confirmWithIapkit(
+  options: IapkitConfirmationOptions<Purchase>,
+): (
+  purchase: Purchase,
+  context: {isConsumable: boolean},
+) => Promise<PurchaseConfirmation> {
+  return createIapkitConfirmation(verifyPurchaseWithProvider, options);
+}
+
+/**
+ * Confirms App Store purchases on the device, for apps with neither a backend
+ * nor IAPKit: StoreKit must still list the transaction as unfinished and
+ * valid. Credit consumables in `grant`.
+ */
+export function confirmOnDeviceIOS(
+  options: Pick<IapkitConfirmationOptions<Purchase>, 'grant'> = {},
+): (
+  purchase: Purchase,
+  context: {isConsumable: boolean},
+) => Promise<PurchaseConfirmation> {
+  return createDeviceConfirmationIOS<Purchase>(
+    () => getPendingTransactionsIOS(),
+    options,
+  );
+}
 
 /**
  * Sync iOS purchases with App Store (iOS only)

@@ -170,6 +170,7 @@ func test_iap_events_have_wrapper_signals() -> void:
 func test_wrapper_signal_surface() -> void:
 	var expected_signals: Array[String] = [
 		"purchase_updated",
+		"purchase_received",
 		"purchase_error",
 		"products_fetched",
 		"connected",

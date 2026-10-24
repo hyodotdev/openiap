@@ -1,11 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -20,7 +13,6 @@ import {
 import Clipboard from '@react-native-clipboard/clipboard';
 import {
   requestPurchase,
-  getPendingTransactionsIOS,
   useIAP,
   deepLinkToSubscriptions,
   type ActiveSubscription,
@@ -28,61 +20,38 @@ import {
   type ProductSubscriptionAndroid,
   type Purchase,
   type PurchaseError,
-  type VerifyPurchaseWithProviderProps,
   type SubscriptionOffer,
   ErrorCode,
 } from 'react-native-iap';
 import Loading from '../src/components/Loading';
 import {SUBSCRIPTION_PRODUCT_IDS} from '../src/utils/constants';
 import {getErrorMessage} from '../src/utils/errorUtils';
+import {useVerificationMethod} from '../src/hooks/useVerificationMethod';
 import {
-  getDefaultVerificationMethod,
-  useVerificationMethod,
+  alertPurchaseOutcome,
+  describePurchaseOutcome,
+  purchaseFlow,
   type VerificationMethod,
-} from '../src/hooks/useVerificationMethod';
+} from '../src/utils/purchaseFlow';
 import {
-  createIapkitVerificationPayload,
-  matchesVerifiedPendingPurchase,
-  getIapkitVerificationError,
-  getPurchaseCleanupKey,
   getSubscriptionProductId,
-  getSubscriptionQueryIds,
-  rememberCompletedPurchaseKey,
-  resolveIapkitVerificationBaseUrl,
   showNativeAlert,
 } from '../src/utils/vegaRuntime';
 import PurchaseSummaryRow from '../src/components/PurchaseSummaryRow';
 import VerificationMethodSelectorModal from '../src/components/VerificationMethodSelectorModal';
-import {AMAZON_RVS_SANDBOX, IAPKIT_API_KEY, IAPKIT_BASE_URL} from '@env';
 
-type InFlightSubscriptionTask = {
-  result: Promise<'abandoned' | 'failed' | 'finished'>;
-  complete: (result: 'abandoned' | 'failed' | 'finished') => void;
-  owner: object;
-};
-
-const inFlightSubscriptionTasks = new Map<string, InFlightSubscriptionTask>();
-const completedSubscriptionKeys = new Set<string>();
-
-type ExtendedPurchase = Purchase & {
-  purchaseTokenAndroid?: string;
-  dataAndroid?: {
-    purchaseToken?: string;
-  };
-  purchaseState?: string;
-  offerToken?: string;
-};
-
-function isSubscriptionFlowProduct(purchase: Purchase): boolean {
+// Amazon reports a subscription under its catalog base SKU, with the term as
+// its plan; this screen's products are the terms.
+function subscriptionProductId(purchase: Purchase): string | undefined {
   const productId = getSubscriptionProductId(
     purchase.productId,
     purchase.currentPlanId,
     purchase.store,
     purchase.storeId,
   );
-  return (
-    productId !== undefined && SUBSCRIPTION_PRODUCT_IDS.includes(productId)
-  );
+  return productId && SUBSCRIPTION_PRODUCT_IDS.includes(productId)
+    ? productId
+    : undefined;
 }
 
 function stringifyForDisplay(value: unknown): string {
@@ -99,23 +68,6 @@ function stringifyForDisplay(value: unknown): string {
       2,
     ) ?? ''
   );
-}
-
-function formatPurchaseDate(transactionDate: Purchase['transactionDate']) {
-  if (!transactionDate) {
-    return 'N/A';
-  }
-
-  const rawDate = transactionDate as string | number | Date;
-  const normalizedDate =
-    typeof rawDate === 'string' &&
-    rawDate.trim() !== '' &&
-    !Number.isNaN(Number(rawDate))
-      ? Number(rawDate)
-      : rawDate;
-  const date = new Date(normalizedDate);
-
-  return Number.isNaN(date.getTime()) ? 'N/A' : date.toLocaleDateString();
 }
 
 // ActiveSubscription plus fields outside its type: computed locally (basePlanId,
@@ -271,8 +223,8 @@ const PlanChangeControls = React.memo(function PlanChangeControls({
 });
 
 /**
- * Subscription Flow Example: recurring subscriptions through the useIAP hook,
- * with typed success/error callbacks instead of manual promise handling.
+ * Subscription Flow Example: recurring subscriptions. Each purchase's result
+ * arrives as an outcome of the app's purchase flow.
  *
  * Status checks:
  * - getActiveSubscriptions() - all active subscriptions
@@ -289,10 +241,10 @@ type SubscriptionFlowProps = {
   isCheckingStatus: boolean;
   lastPurchase: Purchase | null;
   lastPurchasedPlan: string | null;
+  pendingPlanChange: string | null;
   verificationMethod: VerificationMethod;
-  setIsProcessing: (value: boolean) => void;
+  setProcessingProductId: (productId: string | null) => void;
   setPurchaseResult: (value: string) => void;
-  setLastPurchasedPlan: (value: string | null) => void;
   onSubscribe: (productId: string) => void;
   onRetryLoadSubscriptions: () => void;
   onRefreshStatus: () => void;
@@ -309,8 +261,9 @@ function SubscriptionFlow({
   isCheckingStatus,
   lastPurchase,
   lastPurchasedPlan,
+  pendingPlanChange,
   verificationMethod,
-  setIsProcessing,
+  setProcessingProductId,
   setPurchaseResult,
   onSubscribe,
   onRetryLoadSubscriptions,
@@ -422,7 +375,7 @@ function SubscriptionFlow({
           {
             text: 'Confirm',
             onPress: async () => {
-              setIsProcessing(true);
+              setProcessingProductId(targetProductId);
               setPurchaseResult('Processing plan change...');
 
               // Get the current subscription to find purchase token
@@ -441,7 +394,7 @@ function SubscriptionFlow({
 
                 if (!targetOffer) {
                   Alert.alert('Error', 'Target plan not available');
-                  setIsProcessing(false);
+                  setProcessingProductId(null);
                   return;
                 }
 
@@ -457,7 +410,7 @@ function SubscriptionFlow({
                     'Error',
                     'Unable to find current subscription purchase token. Please try refreshing your subscription status.',
                   );
-                  setIsProcessing(false);
+                  setProcessingProductId(null);
                   return;
                 }
 
@@ -472,12 +425,14 @@ function SubscriptionFlow({
                   request: {
                     google: {
                       skus: [targetProductId],
-                      subscriptionOffers: [
-                        {
-                          sku: targetProductId,
-                          offerToken: targetOffer.offerTokenAndroid ?? '',
-                        },
-                      ],
+                      subscriptionOffers: targetOffer.offerTokenAndroid
+                        ? [
+                            {
+                              sku: targetProductId,
+                              offerToken: targetOffer.offerTokenAndroid,
+                            },
+                          ]
+                        : undefined,
                       subscriptionProductReplacementParams: {
                         oldProductId: currentSub!.productId,
                         replacementMode: 'without-proration',
@@ -507,7 +462,7 @@ function SubscriptionFlow({
                       err.message;
                   }
 
-                  setIsProcessing(false);
+                  setProcessingProductId(null);
                   setPurchaseResult(`❌ Plan change failed: ${err.message}`);
                   Alert.alert('Plan Change Failed', errorMessage);
                 });
@@ -517,7 +472,12 @@ function SubscriptionFlow({
         ],
       );
     },
-    [subscriptions, activeSubscriptions, setIsProcessing, setPurchaseResult],
+    [
+      subscriptions,
+      activeSubscriptions,
+      setProcessingProductId,
+      setPurchaseResult,
+    ],
   );
 
   const copyToClipboard = (jsonString: string) => {
@@ -858,7 +818,7 @@ function SubscriptionFlow({
                 }
               }
 
-              return subsToShow.map((sub: any, index: number) => {
+              return subsToShow.map((sub, index) => {
                 // Find the matching subscription to get offer details
                 const matchingSubscription = subscriptions.find(
                   (s) => s.id === sub.productId,
@@ -1458,12 +1418,17 @@ function SubscriptionFlow({
         )}
       </View>
 
-      {purchaseResult || lastPurchase ? (
+      {purchaseResult || pendingPlanChange || lastPurchase ? (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Latest Activity</Text>
           {purchaseResult ? (
             <View style={styles.resultCard}>
               <Text style={styles.resultText}>{purchaseResult}</Text>
+            </View>
+          ) : null}
+          {pendingPlanChange ? (
+            <View style={styles.resultCard}>
+              <Text style={styles.resultText}>{pendingPlanChange}</Text>
             </View>
           ) : null}
           {lastPurchase ? (
@@ -1500,7 +1465,7 @@ function SubscriptionFlow({
       <View style={styles.infoSection}>
         <Text style={styles.infoTitle}>🔄 Key Features with useIAP Hook</Text>
         <Text style={styles.infoText}>
-          • Automatic connection handling with purchase callbacks
+          • Automatic connection handling and purchase recovery
         </Text>
         <Text style={styles.infoText}>
           • Active subscription tracking with `getActiveSubscriptions`
@@ -1517,505 +1482,38 @@ function SubscriptionFlow({
 }
 
 /**
- * Subscription Flow Container: the full subscription lifecycle and where iOS
- * and Android differ.
+ * Subscription Flow Container: subscriptions through the app's purchase flow.
  *
- * Client-side data: iOS exposes renewalInfoIOS with willAutoRenew,
- * autoRenewPreference (next renewal product), pendingUpgradeProductId,
- * expirationReason, gracePeriodExpirationDate, isInBillingRetry, renewalDate,
- * and detailed state. The Android client only has auto-renew status
- * (isAutoRenewing); everything else needs a server call. The server has it all.
- *
- * Lifecycle:
- * 1. App launch
- *    - iOS: initConnection → getAvailablePurchases → check purchaseState →
- *      validate with server → update entitlements → finishTransaction
- *    - Android: initConnection → getAvailablePurchases → for pending purchases,
- *      validate → acknowledge → grant entitlements
- * 2. New purchase: requestPurchase → purchaseUpdatedListener receives the purchase
- *    - Both platforms: check purchaseState ('purchased', 'pending' or
- *      'unknown') → validate → deliver → finishTransaction
- * 3. Status: getActiveSubscriptions
- *    - iOS: check renewalInfoIOS. willAutoRenew = false → renewal prompt;
- *      isInBillingRetry = true → payment issue; pendingUpgradeProductId →
- *      pending change
- *    - Android: check isActive; details need a server-side API call
- * 4. Cancellation: willAutoRenew = false (iOS) or isAutoRenewing = false
- *    (Android); access continues until expiry (iOS: expirationDate).
- * 5. Expiration: getActiveSubscriptions returns empty → revoke access → offer
- *    re-subscribe.
- * 6. Restore: getAvailablePurchases (iOS: StoreKit fetches the Apple ID
- *    history; Android: returns cached purchases) → validate each → grant
- *    access → finishTransaction (iOS only).
- *
- * Validate server-side after purchase (legitimacy), on restore (current
- * status: active/cancelled/refunded/expired), at launch (sync state), and
- * periodically for active subscriptions (refunds, cancellations). Refunds
- * bypass the client entirely, so they need App Store Server Notifications V2
- * (iOS) or RTDN (Android).
+ * - useIAP connects to the store. Given `purchaseFlow`, it also recovers
+ *   unfinished purchases, reports each outcome, and refreshes
+ *   activeSubscriptions and availablePurchases afterwards.
+ * - requestPurchase opens the store sheet. The flow confirms the purchase with
+ *   the selected verification method, then finishes it
+ *   (src/utils/purchaseFlow.ts).
+ * - Status: iOS reports renewalInfoIOS (willAutoRenew, pendingUpgradeProductId,
+ *   isInBillingRetry, ...); the Android client reports only auto-renewal, so
+ *   the rest needs a server. Refunds bypass the client: use App Store Server
+ *   Notifications V2 or Play RTDN.
  */
 function SubscriptionFlowContainer() {
-  // ──────────────────────────────────────────────────────────────────────────
-  // State
-  // ──────────────────────────────────────────────────────────────────────────
-  const [isProcessing, setIsProcessing] = useState(false);
+  // From requestPurchase until that product's outcome or a purchase error.
+  const [processingProductId, setProcessingProductId] = useState<string | null>(
+    null,
+  );
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [purchaseResult, setPurchaseResult] = useState('');
   const [lastPurchase, setLastPurchase] = useState<Purchase | null>(null);
   const [lastPurchasedPlan, setLastPurchasedPlan] = useState<string | null>(
     null,
   );
-
+  const statusAutoCheckedRef = useRef(false);
   const {
     verificationMethod,
-    verificationMethodRef,
-    verificationSelection,
     verificationMethodSelectorVisible,
     hideVerificationMethodSelector,
     selectVerificationMethod,
     showVerificationMethodSelector,
-  } = useVerificationMethod(
-    getDefaultVerificationMethod(IAPKIT_API_KEY, IAPKIT_BASE_URL),
-  );
-
-  const lastSuccessAtRef = useRef(0);
-  const connectedRef = useRef(false);
-  const fetchedProductsOnceRef = useRef(false);
-  const statusAutoCheckedRef = useRef(false);
-  const purchaseSuccessHandlerRef = useRef<
-    (purchase: Purchase) => Promise<void>
-  >(async () => {});
-  const finishRetryTimersRef = useRef(
-    new Map<ReturnType<typeof setTimeout>, () => void>(),
-  );
-  const taskOwnerRef = useRef({});
-  const mountedRef = useRef(true);
-
-  const retainedPurchaseRef = useRef<Purchase | null>(null);
-  const dispatchPurchaseSuccess = useCallback(
-    (purchase: Purchase) => purchaseSuccessHandlerRef.current(purchase),
-    [],
-  );
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // STEP 1: INIT CONNECTION + SUBSCRIBE TO EVENTS
-  // ──────────────────────────────────────────────────────────────────────────
-  // useIAP hook automatically:
-  // - Calls initConnection() on mount
-  // - Sets up purchase event listeners (onPurchaseSuccess, onPurchaseError)
-  // - Provides activeSubscriptions state for easy status checking
-  // - Cleans up on unmount
-  const handlePurchaseSuccess = async (purchase: Purchase): Promise<void> => {
-    if (!mountedRef.current) return;
-
-    console.log('Purchase successful:', purchase.productId);
-    const productId = purchase.productId ?? '';
-    if (!isSubscriptionFlowProduct(purchase)) {
-      console.log('[SubscriptionFlow] ignoring non-subscription product:', {
-        productId,
-      });
-      return;
-    }
-
-    const purchaseCleanupKey = getPurchaseCleanupKey(purchase);
-    if (completedSubscriptionKeys.has(purchaseCleanupKey)) {
-      console.log('[SubscriptionFlow] ignoring duplicate purchase callback:', {
-        productId,
-      });
-      return;
-    }
-    const inFlightTask = inFlightSubscriptionTasks.get(purchaseCleanupKey);
-    if (inFlightTask) {
-      const shouldRefreshAfterRemount =
-        inFlightTask.owner !== taskOwnerRef.current;
-      console.log('[SubscriptionFlow] ignoring duplicate purchase task:', {
-        productId,
-      });
-      void inFlightTask.result.then((result) => {
-        if (result === 'finished') {
-          rememberCompletedPurchaseKey(
-            completedSubscriptionKeys,
-            purchaseCleanupKey,
-          );
-          if (shouldRefreshAfterRemount && mountedRef.current) {
-            void getActiveSubscriptions(
-              getSubscriptionQueryIds(SUBSCRIPTION_PRODUCT_IDS),
-            ).catch((error) => {
-              console.log(
-                'Failed to refresh subscriptions after remount:',
-                getErrorMessage(error),
-              );
-            });
-          }
-        } else if (result === 'abandoned' && mountedRef.current) {
-          void dispatchPurchaseSuccess(purchase);
-        }
-      });
-      return;
-    }
-
-    let taskReleased = false;
-    let completeTask!: (result: 'abandoned' | 'failed' | 'finished') => void;
-    const taskResult = new Promise<'abandoned' | 'failed' | 'finished'>(
-      (resolve) => {
-        completeTask = resolve;
-      },
-    );
-    const task: InFlightSubscriptionTask = {
-      result: taskResult,
-      complete: completeTask,
-      owner: taskOwnerRef.current,
-    };
-    const releasePurchaseTask = (
-      result: 'abandoned' | 'failed' | 'finished' = 'failed',
-    ) => {
-      if (taskReleased) return;
-      taskReleased = true;
-      if (inFlightSubscriptionTasks.get(purchaseCleanupKey) === task) {
-        inFlightSubscriptionTasks.delete(purchaseCleanupKey);
-      }
-      task.complete(result);
-    };
-    inFlightSubscriptionTasks.set(purchaseCleanupKey, task);
-
-    const subscriptionProductId = getSubscriptionProductId(
-      purchase.productId,
-      purchase.currentPlanId,
-      purchase.store,
-      purchase.storeId,
-    );
-    if (
-      purchase.store === 'amazon' ||
-      (purchase.store === 'unknown' && purchase.storeId === 'amazon_example')
-    ) {
-      if (subscriptionProductId === 'dev.hyo.martie.premium_year') {
-        setLastPurchasedPlan('premium-year');
-      } else if (subscriptionProductId === 'dev.hyo.martie.premium') {
-        setLastPurchasedPlan('premium');
-      }
-    } else if (Platform.OS === 'ios') {
-      // iOS uses separate products
-      if (purchase.productId === 'dev.hyo.martie.premium_year') {
-        setLastPurchasedPlan('premium-year');
-        console.log('Detected yearly plan from purchase (iOS)');
-      } else if (purchase.productId === 'dev.hyo.martie.premium') {
-        setLastPurchasedPlan('premium');
-        console.log('Detected monthly plan from purchase (iOS)');
-      }
-    } else if (purchase.productId === 'dev.hyo.martie.premium') {
-      // Android: Check if we have offerToken or other data to identify the plan
-      const purchaseData = purchase as ExtendedPurchase;
-
-      console.log('Purchase data for plan detection:', {
-        productId: purchase.productId,
-        hasOfferToken: Boolean(purchaseData.offerToken),
-      });
-
-      // Map offerToken to basePlanId using fetched subscription data (cross-platform)
-      if (purchaseData.offerToken) {
-        const premiumSub = subscriptions.find(
-          (s) => s.id === 'dev.hyo.martie.premium',
-        ) as ProductSubscriptionAndroid;
-        const matchingOffer = premiumSub?.subscriptionOffers?.find(
-          (offer) => offer.offerTokenAndroid === purchaseData.offerToken,
-        );
-        if (matchingOffer?.basePlanIdAndroid) {
-          setLastPurchasedPlan(matchingOffer.basePlanIdAndroid);
-          console.log(
-            'Detected plan from offerToken (Android):',
-            matchingOffer.basePlanIdAndroid,
-          );
-        } else {
-          // Fallback if we can't find the matching offer
-          console.log('Could not map selected offer to base plan');
-        }
-      }
-    }
-
-    lastSuccessAtRef.current = Date.now();
-    retainedPurchaseRef.current = purchase;
-    setLastPurchase(purchase);
-    setIsProcessing(false);
-
-    setPurchaseResult(
-      `Subscription received; verifying purchase...\n` +
-        `Product: ${purchase.productId}\n` +
-        `Transaction ID: ${purchase.id}\n` +
-        `Date: ${formatPurchaseDate(purchase.transactionDate)}`,
-    );
-
-    // ──────────────────────────────────────────────────────────────────────
-    // STEP 3: VERIFY PURCHASE
-    // ──────────────────────────────────────────────────────────────────────
-    // Choose verification method:
-    // - 'ignore': Retain the receipt without verification or completion
-    // - 'local': Direct Apple/Google verification on the device
-    // - 'iapkit-localhost': IAPKit provider through the local server
-    // - 'iapkit': IAPKit provider through the hosted service
-    //
-    // For production, validate server-side:
-    // - iOS: App Store Server API + App Store Server Notifications V2
-    // - Android: Google Play Developer API + RTDN
-    const currentVerificationMethod = verificationMethodRef.current;
-    if (currentVerificationMethod === 'ignore') {
-      setIsProcessing(false);
-      setPurchaseResult(
-        'Receipt retained. Choose verification to retry this receipt.',
-      );
-      releasePurchaseTask('abandoned');
-      return;
-    }
-
-    let iapkitVerifyRequest: VerifyPurchaseWithProviderProps | null = null;
-    console.log('[SubscriptionFlow] About to verify purchase:', {
-      verificationMethod: currentVerificationMethod,
-      productId,
-      willVerify: !!productId,
-    });
-
-    if (productId) {
-      setIsProcessing(true);
-      try {
-        if (currentVerificationMethod === 'local') {
-          console.log('[SubscriptionFlow] Verifying with Local (Device)...');
-          if (
-            Platform.OS !== 'ios' ||
-            purchase.store !== 'apple' ||
-            purchase.storeId !== 'apple'
-          ) {
-            throw new Error(
-              'Local (Device) verification is available only for Apple purchases. Choose Local (IAPKit).',
-            );
-          }
-          const pending = await getPendingTransactionsIOS();
-          if (!matchesVerifiedPendingPurchase(purchase, pending)) {
-            throw new Error(
-              'Local verification did not match this pending transaction',
-            );
-          }
-          console.log(
-            '[SubscriptionFlow] Local (Device) verification completed',
-          );
-        } else {
-          const verificationLabel =
-            currentVerificationMethod === 'iapkit-localhost'
-              ? 'Local (IAPKit)'
-              : 'IAPKit';
-          console.log(
-            `[SubscriptionFlow] Verifying with ${verificationLabel}...`,
-          );
-
-          const apiKey = IAPKIT_API_KEY?.trim();
-          if (!apiKey) {
-            throw new Error('IAPKIT_API_KEY not configured');
-          }
-
-          const jwsOrToken = purchase.purchaseToken ?? '';
-          if (!jwsOrToken) {
-            throw new Error(
-              'No purchase token available for IAPKit verification',
-            );
-          }
-
-          const baseUrl = resolveIapkitVerificationBaseUrl(
-            currentVerificationMethod,
-            IAPKIT_BASE_URL,
-          );
-          const iapkitPayload = createIapkitVerificationPayload(
-            purchase,
-            jwsOrToken,
-            apiKey,
-            AMAZON_RVS_SANDBOX === 'true',
-            baseUrl,
-          );
-          const verifyRequest: VerifyPurchaseWithProviderProps = {
-            provider: 'iapkit',
-            iapkit: iapkitPayload,
-          };
-          iapkitVerifyRequest = verifyRequest;
-          console.log(
-            `[SubscriptionFlow] Sending ${verificationLabel} verification request`,
-          );
-
-          const result = await verifyPurchaseWithProvider(verifyRequest);
-          console.log('[SubscriptionFlow] IAPKit verification result:', result);
-
-          const verificationError = getIapkitVerificationError(
-            result,
-            productId,
-            false,
-            AMAZON_RVS_SANDBOX === 'true',
-            purchase.store,
-            purchase.storeId,
-            'environmentIOS' in purchase ? purchase.environmentIOS : undefined,
-          );
-          if (verificationError) {
-            throw new Error(verificationError);
-          }
-
-          if (result.iapkit && mountedRef.current) {
-            const stateText = result.iapkit.state || 'unknown';
-
-            showNativeAlert(
-              `✅ ${verificationLabel} Verification`,
-              `Valid: true\nState: ${stateText}\nStore: ${
-                result.iapkit.store || 'unknown'
-              }`,
-            );
-          }
-        }
-      } catch (error) {
-        const message = getErrorMessage(error);
-        console.log('[SubscriptionFlow] Verification failed:', message);
-        if (mountedRef.current) {
-          setPurchaseResult(`Subscription verification failed: ${message}`);
-          showNativeAlert(
-            'Verification Failed',
-            `Purchase verification failed: ${message}`,
-          );
-        }
-        releasePurchaseTask(mountedRef.current ? 'failed' : 'abandoned');
-        return;
-      } finally {
-        if (mountedRef.current) {
-          setIsProcessing(false);
-        }
-      }
-    }
-
-    if (!mountedRef.current) {
-      releasePurchaseTask('abandoned');
-      return;
-    }
-
-    // ──────────────────────────────────────────────────────────────────────
-    // STEP 4: GRANT ENTITLEMENT
-    // ──────────────────────────────────────────────────────────────────────
-    // In production, save the subscription, update the user's status, and
-    // unlock their tier's features on your backend, e.g.
-    // await yourBackend.grantSubscriptionEntitlement(purchase);
-
-    // ──────────────────────────────────────────────────────────────────────
-    // STEP 5: FINISH TRANSACTION
-    // ──────────────────────────────────────────────────────────────────────
-    // Finish verified iOS transactions and unacknowledged Android purchases.
-    // Subscriptions are not consumable (isConsumable: false).
-    const isConsumable = false;
-
-    const finishAndRefreshSubscription = async (
-      finishLogLabel: string,
-    ): Promise<void> => {
-      try {
-        if (!(
-          'isAcknowledgedAndroid' in purchase &&
-          purchase.isAcknowledgedAndroid === true
-        )) {
-          await finishTransaction({
-            purchase,
-            isConsumable,
-          });
-        }
-      } catch (error) {
-        const message = getErrorMessage(error);
-        if (mountedRef.current) {
-          setPurchaseResult(
-            `Subscription activated, but finishTransaction failed: ${message}`,
-          );
-        }
-        console.log(`[SubscriptionFlow] ${finishLogLabel} failed:`, message);
-        releasePurchaseTask(mountedRef.current ? 'failed' : 'abandoned');
-        return;
-      }
-
-      rememberCompletedPurchaseKey(
-        completedSubscriptionKeys,
-        purchaseCleanupKey,
-      );
-      releasePurchaseTask('finished');
-
-      if (!mountedRef.current) return;
-
-      if (Platform.OS === 'android' && iapkitVerifyRequest) {
-        try {
-          const refreshedResult =
-            await verifyPurchaseWithProvider(iapkitVerifyRequest);
-          console.log(
-            '[SubscriptionFlow] IAPKit state after finishTransaction:',
-            refreshedResult,
-          );
-        } catch (error) {
-          console.log(
-            '[SubscriptionFlow] IAPKit post-finish verification failed:',
-            getErrorMessage(error),
-          );
-        }
-      }
-
-      if (!mountedRef.current) return;
-
-      try {
-        await getActiveSubscriptions(
-          getSubscriptionQueryIds(SUBSCRIPTION_PRODUCT_IDS),
-        );
-      } catch (error) {
-        console.log('Failed to refresh subscriptions:', getErrorMessage(error));
-      }
-
-      if (mountedRef.current) {
-        setPurchaseResult(
-          `Subscription activated and finished successfully.\n` +
-            `Product: ${purchase.productId}\n` +
-            `Transaction ID: ${purchase.id}\n` +
-            `Date: ${formatPurchaseDate(purchase.transactionDate)}`,
-        );
-        showNativeAlert('Success', 'Purchase completed successfully!');
-      }
-    };
-
-    if (!connectedRef.current) {
-      console.log(
-        '[SubscriptionFlow] Skipping finishTransaction - not connected yet',
-      );
-      setPurchaseResult(
-        'Subscription received, waiting for store connection to finish transaction.',
-      );
-      const started = Date.now();
-      const scheduleTryFinish = () => {
-        const timer = setTimeout(() => {
-          finishRetryTimersRef.current.delete(timer);
-          void tryFinish();
-        }, 500);
-        finishRetryTimersRef.current.set(timer, () => {
-          releasePurchaseTask('abandoned');
-        });
-      };
-      const tryFinish = async () => {
-        if (!mountedRef.current) {
-          releasePurchaseTask('abandoned');
-          return;
-        }
-
-        if (connectedRef.current) {
-          await finishAndRefreshSubscription('Delayed finishTransaction');
-          return;
-        }
-
-        if (Date.now() - started < 30000) {
-          scheduleTryFinish();
-        } else {
-          if (mountedRef.current) {
-            setPurchaseResult(
-              'Connection timeout: finishTransaction could not run because the store connection was not restored. Reconnect and refresh subscription status.',
-            );
-          }
-          releasePurchaseTask();
-        }
-      };
-      scheduleTryFinish();
-    } else {
-      await finishAndRefreshSubscription('finishTransaction');
-    }
-  };
+  } = useVerificationMethod();
 
   const {
     connected,
@@ -2023,40 +1521,61 @@ function SubscriptionFlowContainer() {
     availablePurchases,
     activeSubscriptions: storeActiveSubscriptions,
     fetchProducts,
-    finishTransaction,
     getAvailablePurchases,
     getActiveSubscriptions,
-    verifyPurchaseWithProvider,
   } = useIAP({
-    // ────────────────────────────────────────────────────────────────────────
-    // STEP 2: NEW PURCHASE FLOW - Success Handler
-    // ────────────────────────────────────────────────────────────────────────
-    // Called when purchaseUpdatedListener receives a successful purchase.
-    // Check purchaseState ('purchased', 'pending' or 'unknown') on both platforms.
-    onPurchaseSuccess: dispatchPurchaseSuccess,
-
-    // ────────────────────────────────────────────────────────────────────────
-    // Purchase Error Handler
-    // ────────────────────────────────────────────────────────────────────────
-    onPurchaseError: (error: PurchaseError) => {
-      console.log('Subscription failed:', {
-        code: error.code,
-        message: error.message,
-      });
-      setIsProcessing(false);
-      const dt = Date.now() - lastSuccessAtRef.current;
-      if (error?.code === ErrorCode.ServiceError && dt >= 0 && dt < 1500) {
-        return;
+    purchaseFlow,
+    onPurchaseFlowOutcome: ({purchase, status}) => {
+      const productId = subscriptionProductId(purchase);
+      if (!productId) return;
+      setLastPurchase(purchase);
+      setProcessingProductId((current) =>
+        current === productId ? null : current,
+      );
+      // iOS and Amazon sell each plan as its own product.
+      if (
+        Platform.OS === 'ios' ||
+        purchase.store === 'amazon' ||
+        (purchase.store === 'unknown' && purchase.storeId === 'amazon_example')
+      ) {
+        setLastPurchasedPlan(
+          productId === 'dev.hyo.martie.premium_year'
+            ? 'premium-year'
+            : 'premium',
+        );
       }
+      setPurchaseResult(describePurchaseOutcome(status));
+      alertPurchaseOutcome(status);
+    },
+    onPurchaseError: (error: PurchaseError) => {
+      setProcessingProductId(null);
       if (error.code === ErrorCode.UserCancelled) {
         setPurchaseResult('Subscription cancelled by user');
         return;
       }
-
       setPurchaseResult(`❌ Subscription failed: ${error.message}`);
       showNativeAlert('Subscription Failed', error.message);
     },
   });
+
+  // A requested upgrade, downgrade, or prepaid top-up the store has not
+  // applied. useIAP refreshes availablePurchases after every outcome, so the
+  // note stays until the store applies it.
+  const pendingPlanChange = useMemo(() => {
+    for (const purchase of availablePurchases) {
+      const change =
+        'pendingPurchaseUpdateAndroid' in purchase
+          ? purchase.pendingPurchaseUpdateAndroid
+          : null;
+      if (change && subscriptionProductId(purchase)) {
+        return (
+          `Plan change to ${change.products.join(', ')} is pending. ` +
+          `${purchase.productId} stays active until it applies.`
+        );
+      }
+    }
+    return null;
+  }, [availablePurchases]);
 
   const activeSubscriptions = useMemo(
     () =>
@@ -2072,113 +1591,20 @@ function SubscriptionFlowContainer() {
     [storeActiveSubscriptions],
   );
 
-  useLayoutEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      purchaseSuccessHandlerRef.current = async () => {};
-    };
-  }, []);
-
-  useLayoutEffect(() => {
-    purchaseSuccessHandlerRef.current = handlePurchaseSuccess;
-  });
-
   useEffect(() => {
-    const finishRetryTimers = finishRetryTimersRef.current;
-    return () => {
-      for (const [timer, releaseTask] of finishRetryTimers) {
-        clearTimeout(timer);
-        releaseTask();
-      }
-      finishRetryTimers.clear();
-    };
-  }, []);
-
-  useEffect(() => {
-    connectedRef.current = connected;
-  }, [connected]);
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // ON APP LAUNCH: Fetch available subscription products
-  // ──────────────────────────────────────────────────────────────────────────
-  // Once connected, fetch the subscription products shown on screen.
-  useEffect(() => {
-    if (connected) {
-      if (!fetchedProductsOnceRef.current) {
-        fetchProducts({
-          skus: SUBSCRIPTION_PRODUCT_IDS,
-          type: 'subs',
-        }).catch((error) => {
-          const message = getErrorMessage(error);
-          console.log('[SubscriptionFlow] fetchProducts error:', message);
-          setPurchaseResult(`❌ Subscription loading failed: ${message}`);
-        });
-        getAvailablePurchases()
-          .then(() => {
-            console.log('[SubscriptionFlow] getAvailablePurchases completed');
-          })
-          .catch((error) => {
-            console.log(
-              '[SubscriptionFlow] getAvailablePurchases error:',
-              error,
-            );
-          });
-        fetchedProductsOnceRef.current = true;
-      }
-    }
-  }, [connected, fetchProducts, getAvailablePurchases]);
-
-  useEffect(() => {
-    if (
-      !connected ||
-      verificationSelection === 0 ||
-      verificationMethod === 'ignore'
-    )
-      return;
-    void getAvailablePurchases().catch((error) => {
-      console.log('[SubscriptionFlow] Receipt recovery failed:', error);
+    if (!connected) return;
+    fetchProducts({skus: SUBSCRIPTION_PRODUCT_IDS, type: 'subs'}).catch(
+      (error) => {
+        setPurchaseResult(
+          `❌ Subscription loading failed: ${getErrorMessage(error)}`,
+        );
+      },
+    );
+    // Shows a plan change still pending from an earlier session.
+    getAvailablePurchases().catch((error) => {
+      console.log('[SubscriptionFlow] getAvailablePurchases error:', error);
     });
-    if (retainedPurchaseRef.current)
-      void dispatchPurchaseSuccess(retainedPurchaseRef.current);
-  }, [
-    connected,
-    getAvailablePurchases,
-    dispatchPurchaseSuccess,
-    verificationMethod,
-    verificationSelection,
-  ]);
-
-  useEffect(() => {
-    if (!connected || availablePurchases.length === 0) return;
-
-    for (const purchase of availablePurchases) {
-      const productId = purchase.productId ?? '';
-      if (!isSubscriptionFlowProduct(purchase)) {
-        console.log(
-          '[SubscriptionFlow] skipping cleanup for non-subscription product:',
-          {productId},
-        );
-        continue;
-      }
-
-      const cleanupKey = getPurchaseCleanupKey(purchase);
-      if (completedSubscriptionKeys.has(cleanupKey)) continue;
-
-      void dispatchPurchaseSuccess(purchase).catch((error) => {
-        console.log(
-          '[SubscriptionFlow] restored purchase handler failed unexpectedly:',
-          getErrorMessage(error),
-        );
-      });
-    }
-  }, [
-    availablePurchases,
-    connected,
-    dispatchPurchaseSuccess,
-    verificationMethod,
-    verificationSelection,
-  ]);
+  }, [connected, fetchProducts, getAvailablePurchases]);
 
   // Log discount and promotional offer data
   useEffect(() => {
@@ -2222,7 +1648,7 @@ function SubscriptionFlowContainer() {
   }, [subscriptions]);
 
   // ──────────────────────────────────────────────────────────────────────────
-  // CHECKING SUBSCRIPTION STATUS (Step 3 in lifecycle)
+  // CHECKING SUBSCRIPTION STATUS
   // ──────────────────────────────────────────────────────────────────────────
   // Check periodically for cancellations (willAutoRenew = false), billing
   // issues (isInBillingRetry = true), pending upgrades/downgrades
@@ -2349,39 +1775,22 @@ function SubscriptionFlowContainer() {
   // (monthly/yearly) or promotional offer from the product's subscriptionOffers.
   const handleSubscription = useCallback(
     (itemId: string) => {
-      setIsProcessing(true);
+      setProcessingProductId(itemId);
       setPurchaseResult('Processing subscription...');
 
-      const subscription = subscriptions.find((sub) => sub.id === itemId);
-
-      void requestPurchase({
+      requestPurchase({
         request: {
           apple: {
             sku: itemId,
             appAccountToken: 'user-123',
           },
-          google: {
-            skus: [itemId],
-            subscriptionOffers:
-              subscription &&
-              'subscriptionOffers' in subscription &&
-              (subscription as ProductSubscriptionAndroid).subscriptionOffers
-                ? (
-                    subscription as ProductSubscriptionAndroid
-                  ).subscriptionOffers.map((offer) => ({
-                    sku: itemId,
-                    offerToken: offer.offerTokenAndroid ?? '',
-                  }))
-                : [],
-          },
+          // Without subscriptionOffers the store picks the default offer;
+          // Amazon subscriptions have none.
+          google: {skus: [itemId]},
         },
         type: 'subs',
       }).catch((err: PurchaseError) => {
-        console.log('requestPurchase failed:', {
-          code: err.code,
-          message: err.message,
-        });
-        setIsProcessing(false);
+        setProcessingProductId(null);
         if (err.code === ErrorCode.UserCancelled) {
           setPurchaseResult('Subscription cancelled by user');
           return;
@@ -2391,7 +1800,7 @@ function SubscriptionFlowContainer() {
         Alert.alert('Subscription Failed', err.message);
       });
     },
-    [subscriptions],
+    [],
   );
 
   // Retry loading subscriptions (useful when products fail to load initially)
@@ -2433,14 +1842,14 @@ function SubscriptionFlowContainer() {
         subscriptions={subscriptions}
         activeSubscriptions={activeSubscriptions}
         purchaseResult={purchaseResult}
-        isProcessing={isProcessing}
+        isProcessing={processingProductId !== null}
         isCheckingStatus={isCheckingStatus}
         lastPurchase={lastPurchase}
         lastPurchasedPlan={lastPurchasedPlan}
+        pendingPlanChange={pendingPlanChange}
         verificationMethod={verificationMethod}
-        setIsProcessing={setIsProcessing}
+        setProcessingProductId={setProcessingProductId}
         setPurchaseResult={setPurchaseResult}
-        setLastPurchasedPlan={setLastPurchasedPlan}
         onSubscribe={handleSubscription}
         onRetryLoadSubscriptions={handleRetryLoadSubscriptions}
         onRefreshStatus={handleRefreshStatus}
@@ -2456,7 +1865,6 @@ function SubscriptionFlowContainer() {
     </>
   );
 }
-
 export default SubscriptionFlowContainer;
 
 const styles = StyleSheet.create({

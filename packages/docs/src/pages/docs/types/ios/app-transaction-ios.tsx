@@ -419,7 +419,7 @@ if (appTransaction != null) {
 using OpenIap.Maui;
 
 var appTransaction =
-    await ((QueryResolver)OpenIapClient.Instance).GetAppTransactionIOSAsync();
+    await OpenIapClient.Query.GetAppTransactionIOSAsync();
 
 if (appTransaction is not null)
 {

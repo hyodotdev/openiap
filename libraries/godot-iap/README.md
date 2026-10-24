@@ -132,10 +132,12 @@ error and falls back to Play, rather than failing the export as the Gradle and
 MAUI builds do; the export UI only offers valid values, so this is reachable by
 hand-editing the preset.
 
-Choose a verification method from the store panel's picker:
+The example runs every purchase through one purchase flow
+(`GodotIapPlugin.create_purchase_flow`), whose confirm callback uses the method
+chosen from the store panel's picker:
 
 1. **None (Skip)** — skip verification.
-2. **Local (Device)** — trust the store's own purchase state.
+2. **Local (Device)** — `confirm_on_device_ios`: accept an App Store purchase StoreKit still lists as verified and unfinished.
 3. **Local (IAPKit)** — IAPKit routed to `base_url`.
 4. **IAPKit (Server)** — hosted IAPKit; the local URL is deliberately omitted.
 

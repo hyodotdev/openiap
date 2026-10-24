@@ -20,29 +20,29 @@ internal sealed partial class OpenIapAndroid
     // MutationResolver
     // ====================================================================
 
-    public Task<bool> InitConnectionAsync(InitConnectionConfig? config = null)
+    public Task<bool> InitConnectionAsync(InitConnectionConfig? config = null) => _connection.RunAsync(() =>
     {
         RefreshCurrentActivity();
         var json = config is null ? null : JsonSerializer.Serialize(config, JsonOptions.Default);
         return InvokeBool(cb => _module.InitConnection(json, cb));
-    }
+    });
 
     public Task<bool> EndConnectionAsync()
-        => InvokeBool(cb => _module.EndConnection(cb));
+        => _connection.RunAsync(() => InvokeBool(cb => _module.EndConnection(cb)));
 
     // NOTE: Every async wrapper uses `await Invoke(...)` rather than
     // ContinueWith(.., OnlyOnRanToCompletion) because the latter swallows
     // antecedent exceptions and produces a *canceled* continuation task —
     // callers then surface the misleading "A task was canceled." message
     // instead of the real BillingClient / Kotlin error from the module.
-    public async Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps @params)
+    public Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps @params) => PurchaseRequests.Track(@params, async () =>
     {
         ValidatePurchaseRequest(@params);
         RefreshCurrentActivity();
         var json = JsonSerializer.Serialize(@params, JsonOptions.Default);
         var result = await Invoke(cb => _module.RequestPurchase(json, cb));
         return DecodeRequestPurchaseResult(result);
-    }
+    });
 
     private static void ValidatePurchaseRequest(RequestPurchaseProps @params)
     {

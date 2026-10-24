@@ -23,7 +23,7 @@
     "fast-xml-parser": "5.7.0",
     "lodash": "4.18.1",
     "uuid": "11.1.1",
-    "toml": "^4.1.2",
+    "toml": "^5.0.1",
     "shell-quote": "1.12.0"
   },
   "kepler": {

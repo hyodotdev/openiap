@@ -5,131 +5,89 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
+import '../app_purchase_flow.dart';
 import '../widgets/product_detail_modal.dart';
 import '../constants.dart';
 
 class SubscriptionFlowScreen extends StatefulWidget {
-  const SubscriptionFlowScreen({super.key, this.iap});
+  const SubscriptionFlowScreen({super.key, this.purchases});
 
-  final FlutterInappPurchase? iap;
+  final AppPurchaseFlow? purchases;
 
   @override
   State<SubscriptionFlowScreen> createState() => _SubscriptionFlowScreenState();
 }
 
-/// Verification method options. Mirrors the enum on `purchase_flow_screen.dart`;
-/// `local` stays for that parity but the subscription picker omits it, because
-/// renewal state comes from the server, not the device.
-enum VerificationMethod { ignore, local, iapkitLocalhost, iapkit }
-
-extension VerificationMethodX on VerificationMethod {
-  bool get isIapkit =>
-      this == VerificationMethod.iapkitLocalhost ||
-      this == VerificationMethod.iapkit;
-
-  String get label => switch (this) {
-        VerificationMethod.ignore => 'Ignore',
-        VerificationMethod.local => 'Local (Device)',
-        VerificationMethod.iapkitLocalhost => 'Local (IAPKit)',
-        VerificationMethod.iapkit => 'IAPKit',
-      };
-}
-
-/// Mirrors the other examples: no key skips, a local origin prefers it.
-VerificationMethod defaultVerificationMethod(
-  String apiKey,
-  String localBaseUrl,
-) {
-  if (apiKey.trim().isEmpty) return VerificationMethod.ignore;
-  if (localBaseUrl.trim().isNotEmpty) return VerificationMethod.iapkitLocalhost;
-  return VerificationMethod.iapkit;
-}
-
 class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
-  late final FlutterInappPurchase _iap =
-      widget.iap ?? FlutterInappPurchase.instance;
-
-  VerificationMethod _verificationMethod = defaultVerificationMethod(
-    IapConstants.iapkitApiKey,
-    IapConstants.iapkitBaseUrl,
-  );
+  late final AppPurchaseFlow _purchases =
+      widget.purchases ?? AppPurchaseFlow.instance;
+  FlutterInappPurchase get _iap => _purchases.iap;
 
   // Use subscription IDs from constants
   final List<String> subscriptionIds = IapConstants.subscriptionProductIds;
 
   List<ProductCommon> _subscriptions = [];
   final Map<String, ProductCommon> _originalProducts = {};
+  // Keyed by catalog product id; Amazon reports a term under its base SKU.
   final Map<String, ActiveSubscription> _activeSubscriptionInfo = {};
-  ActiveSubscription? _currentActiveSubscription;
-  bool _hasActiveSubscription = false;
+  String? _currentProductId;
+  // Only Google Play replaces a plan in place; Amazon rejects the request.
+  bool _currentPlanOnPlay = false;
   bool _isProcessing = false;
   bool _connected = false;
   bool _isConnecting = true;
   bool _isLoadingProducts = false;
   String? _purchaseResult;
 
-  // Stream subscriptions
-  StreamSubscription<Purchase>? _purchaseUpdatedSubscription;
-  StreamSubscription<PurchaseError>? _purchaseErrorSubscription;
+  late final StreamSubscription<PurchaseFlowOutcome> _outcomeSubscription;
+  late final StreamSubscription<PurchaseError> _purchaseErrorSubscription;
 
-  // Track processed transactions to avoid duplicates
-  final Set<String> _processedTransactionIds = {};
-
-  // Proration mode selection (default to Immediate with Time Proration)
-  int? _selectedProrationMode = 1;
-  final Map<String, int> _prorationModes = {
-    'Immediate with Time Proration': 1,
-    'Immediate and Charge Prorated Price': 2,
-    'Immediate without Proration': 3,
-    'Deferred': 4,
-    'Immediate and Charge Full Price': 5,
+  // Google Play replaces the current plan with this mode on an upgrade.
+  SubscriptionReplacementModeAndroid? _replacementMode =
+      SubscriptionReplacementModeAndroid.WithTimeProration;
+  final Map<String, SubscriptionReplacementModeAndroid> _replacementModes = {
+    'Immediate with Time Proration':
+        SubscriptionReplacementModeAndroid.WithTimeProration,
+    'Immediate and Charge Prorated Price':
+        SubscriptionReplacementModeAndroid.ChargeProratedPrice,
+    'Immediate without Proration':
+        SubscriptionReplacementModeAndroid.WithoutProration,
+    'Deferred': SubscriptionReplacementModeAndroid.Deferred,
+    'Immediate and Charge Full Price':
+        SubscriptionReplacementModeAndroid.ChargeFullPrice,
   };
 
-  List<SubscriptionOfferAndroid> _androidOffersFor(ProductCommon item) {
-    if (item is ProductAndroid) {
-      final details = item.subscriptionOffers;
-      if (details != null && details.isNotEmpty) {
-        return [
-          for (final offer in details)
-            if (offer.offerTokenAndroid case final offerToken?)
-              SubscriptionOfferAndroid(
-                offerToken: offerToken,
-                // sku must be the productId (SKU), not the basePlanId.
-                sku: item.id,
-              ),
-        ];
-      }
-    }
-    return const <SubscriptionOfferAndroid>[];
-  }
+  ActiveSubscription? get _currentActiveSubscription =>
+      _activeSubscriptionInfo[_currentProductId];
+  bool get _hasActiveSubscription => _activeSubscriptionInfo.isNotEmpty;
 
   @override
   void initState() {
     super.initState();
-    _initConnection();
-    _setupListeners();
+    _outcomeSubscription = _purchases.flow.outcomes.listen(_showOutcome);
+    _purchaseErrorSubscription = _iap.purchaseErrorListener.listen((error) {
+      debugPrint('Purchase error: ${error.code} - ${error.message}');
+      setState(() {
+        _isProcessing = false;
+        _purchaseResult = error.code == ErrorCode.UserCancelled
+            ? '⚠️ Purchase cancelled'
+            : '❌ Error: ${error.message}';
+      });
+    });
+    _awaitConnection(_purchases.connected);
   }
 
   @override
   void dispose() {
-    _purchaseUpdatedSubscription?.cancel();
-    _purchaseErrorSubscription?.cancel();
-    _iap.endConnection();
+    _outcomeSubscription.cancel();
+    _purchaseErrorSubscription.cancel();
     super.dispose();
   }
 
-  Future<void> _recoverPurchases() async {
-    if (!_connected || !mounted) return;
+  // Outcomes arrive through _showOutcome.
+  Future<void> _recoverPurchases({bool includeFinished = false}) async {
     try {
-      final recovered = !kIsWeb &&
-              (defaultTargetPlatform == TargetPlatform.iOS ||
-                  defaultTargetPlatform == TargetPlatform.macOS)
-          ? await _iap.getPendingTransactionsIOS()
-          : await _iap.getAvailablePurchases();
-      for (final purchase in recovered) {
-        if (!mounted) return;
-        await _handlePurchaseUpdate(purchase);
-      }
+      await _purchases.flow.recoverPurchases(includeFinished: includeFinished);
     } catch (error) {
       if (error is PurchaseError &&
           error.code == ErrorCode.FeatureNotSupported) {
@@ -144,412 +102,53 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
     }
   }
 
-  Future<void> _handlePurchaseUpdate(Purchase purchase) async {
-    if (IapConstants.subscriptionProductId(purchase) == null) return;
-    if (mounted) {
-      setState(() {
-        _isProcessing = false;
-      });
-    }
-    if (_verificationMethod == VerificationMethod.ignore) {
-      if (mounted) {
-        setState(() {
-          _purchaseResult =
-              'Receipt retained. Choose verification to retry this receipt.';
-        });
-      }
+  Future<void> _showOutcome(PurchaseFlowOutcome outcome) async {
+    final purchase = outcome.purchase;
+    if (IapConstants.subscriptionProductId(
+          purchase.productId,
+          purchase.currentPlanId,
+        ) ==
+        null) {
       return;
     }
-
-    debugPrint('🎯 Purchase updated: ${purchase.productId}');
-    debugPrint('  Store: ${purchase.store}');
-    debugPrint('  Purchase state: ${purchase.purchaseState}');
-    final transactionId =
-        purchase.id.isNotEmpty ? purchase.id : purchase.transactionIdFor;
-    final androidStateValue = purchase.androidPurchaseStateValue;
-    final iosTransactionState = purchase.iosTransactionState;
-    final acknowledgedAndroid = purchase.androidIsAcknowledged;
-    debugPrint('  Purchase state Android (legacy value): $androidStateValue');
-    debugPrint('  Transaction state iOS: $iosTransactionState');
-    debugPrint('  Is acknowledged Android: $acknowledgedAndroid');
-    debugPrint('  Has transaction ID: ${transactionId?.isNotEmpty ?? false}');
     debugPrint(
-      '  Has purchase credential: ${purchase.purchaseToken?.isNotEmpty ?? false}',
+      'Subscription outcome for ${purchase.productId}: '
+      '${describePurchaseFlowStatus(outcome.status).key.value}',
     );
-    if (purchase is PurchaseAndroid) {
-      debugPrint('  Auto renewing: ${purchase.autoRenewingAndroid}');
-    }
+    // A finished purchase changes what the store reports as active.
+    await _checkActiveSubscriptions();
+    if (!mounted) return;
+    setState(() {
+      _isProcessing = false;
+      _purchaseResult = describeOutcome(outcome);
+    });
+  }
 
-    if (!mounted) {
-      debugPrint('  ⚠️ Widget not mounted, ignoring update');
-      return;
-    }
+  Future<void> _pickVerificationMethod() async {
+    // Renewal state comes from the server, not the device.
+    final picked = await pickVerificationMethod(context, _purchases, const [
+      VerificationMethod.ignore,
+      VerificationMethod.iapkitLocalhost,
+      VerificationMethod.iapkit,
+    ]);
+    if (picked == null || !mounted) return;
+    setState(() {});
+    if (picked != VerificationMethod.ignore) unawaited(_recoverPurchases());
+  }
 
-    // Check for duplicate processing
-    final transactionKey = transactionId ?? purchase.purchaseToken ?? '';
-    if (transactionKey.isNotEmpty &&
-        _processedTransactionIds.contains(transactionKey)) {
-      debugPrint('  ⚠️ Transaction already processed');
-      return;
-    }
+  // The app owns the connection; this screen only loads its products.
+  Future<void> _awaitConnection(Future<bool> connecting) async {
+    final connected = await connecting;
+    if (!mounted) return;
 
-    if (purchase.purchaseState == PurchaseState.Purchased) {
-      // Claim the key before verifying, since a redelivery can land
-      // mid-flight; a failed attempt releases it below.
-      if (transactionKey.isNotEmpty &&
-          !_processedTransactionIds.add(transactionKey)) {
-        debugPrint('  ⚠️ Transaction already in progress');
-        return;
-      }
+    setState(() {
+      _connected = connected;
+      _isConnecting = false;
+    });
 
-      debugPrint('✅ Purchase detected as successful, updating UI...');
-      debugPrint('  _isProcessing before setState: $_isProcessing');
-
-      // Update UI immediately
-      if (mounted) {
-        setState(() {
-          _purchaseResult =
-              'Receipt received: ${purchase.productId}. Verification required.';
-          _isProcessing = false;
-        });
-        debugPrint('  _isProcessing after setState: $_isProcessing');
-        debugPrint('  UI should be updated now');
-      } else {
-        debugPrint('  ⚠️ Widget not mounted, cannot update UI');
-      }
-
-      var verificationOk = false;
-      if (_verificationMethod.isIapkit) {
-        verificationOk = await _verifyPurchaseWithIAPKit(purchase);
-      } else if (purchase.store == IapStore.Apple) {
-        try {
-          final pending = await _iap.getPendingTransactionsIOS();
-          verificationOk =
-              IapConstants.matchesVerifiedPendingPurchase(purchase, pending);
-        } catch (e) {
-          debugPrint('Local subscription verification failed: $e');
-        }
-      }
-
-      if (!verificationOk) {
-        if (mounted) {
-          setState(() {
-            _purchaseResult =
-                'Verification failed or unavailable; receipt retained for retry.';
-          });
-        }
-        debugPrint(
-          '⚠️ Skipping finishTransaction because IAPKit verification did not return isValid=true',
-        );
-        // Leave the transaction unfinished so the platform retries, and
-        // release the key so the next listener emit gets a fresh chance.
-        _processedTransactionIds.remove(transactionKey);
-        return;
-      }
-
-      var finishedOk = false;
-      try {
-        if (acknowledgedAndroid != true) {
-          await _iap.finishTransaction(purchase: purchase);
-        }
-        debugPrint('Transaction finished successfully');
-        finishedOk = true;
-      } catch (e) {
-        debugPrint('Error finishing transaction: $e');
-      }
-
-      // A transient finish failure must not short-circuit retries for
-      // the rest of the session.
-      if (!finishedOk) {
-        _processedTransactionIds.remove(transactionKey);
-        if (mounted) {
-          setState(() {
-            _purchaseResult = 'Completion failed; receipt retained for retry.';
-          });
-        }
-        return;
-      }
-      if (mounted) {
-        setState(() {
-          _purchaseResult = 'Subscription verified and transaction finished.';
-        });
-      }
-
-      // Refresh subscriptions after a short delay to ensure transaction is processed
-      await Future<void>.delayed(const Duration(milliseconds: 500));
-      debugPrint('Refreshing subscriptions...');
+    if (connected) {
+      await _loadSubscriptions();
       await _checkActiveSubscriptions();
-      debugPrint('Subscriptions refreshed');
-    } else if (purchase.purchaseState == PurchaseState.Pending ||
-        androidStateValue == AndroidPurchaseState.Unknown.value) {
-      // Pending
-      if (!mounted) return;
-      setState(() {
-        _purchaseResult = '⏳ Purchase pending: ${purchase.productId}';
-      });
-    } else {
-      // Unknown state - log for debugging
-      debugPrint('❓ Unknown purchase state');
-      debugPrint('  Purchase state: ${purchase.purchaseState}');
-      debugPrint('  Transaction state iOS: $iosTransactionState');
-      debugPrint('  Purchase state Android (legacy value): $androidStateValue');
-      debugPrint(
-        '  Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpty}',
-      );
-
-      if (!mounted) return;
-      setState(() {
-        _isProcessing = false;
-        _purchaseResult = '''
-⚠️ Purchase received but state unknown
-Store: ${purchase.store}
-Purchase state: ${purchase.purchaseState}
-iOS transaction state: $iosTransactionState
-Android purchase state (legacy value): $androidStateValue
-Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpty}
-          '''
-            .trim();
-      });
-    }
-  }
-
-  void _setupListeners() {
-    // Listen to purchase updates
-    _purchaseUpdatedSubscription = _iap.purchaseUpdatedListener.listen(
-      _handlePurchaseUpdate,
-      onError: (Object error) {
-        debugPrint('Purchase stream error: $error');
-        if (!mounted) return;
-        setState(() {
-          _isProcessing = false;
-          _purchaseResult = '❌ Stream error: $error';
-        });
-      },
-    );
-
-    // Listen to purchase errors
-    _purchaseErrorSubscription = _iap.purchaseErrorListener.listen(
-      (error) {
-        debugPrint('Purchase error: ${error.code} - ${error.message}');
-
-        if (!mounted) return;
-
-        setState(() {
-          _isProcessing = false;
-          if (error.code == ErrorCode.UserCancelled) {
-            _purchaseResult = '⚠️ Purchase cancelled';
-          } else {
-            _purchaseResult = '❌ Error: ${error.message}';
-          }
-        });
-      },
-      onError: (Object error) {
-        debugPrint('Error stream error: $error');
-      },
-    );
-  }
-
-  Future<bool> _verifyPurchaseWithIAPKit(Purchase purchase) async {
-    final apiKey = IapConstants.iapkitApiKey;
-    final label = _verificationMethod.label;
-    final baseUrl = _verificationMethod == VerificationMethod.iapkitLocalhost
-        ? IapConstants.iapkitBaseUrl.trim()
-        : '';
-    debugPrint('IAPKit API key configured: ${apiKey.isNotEmpty}');
-    if (_verificationMethod == VerificationMethod.iapkitLocalhost &&
-        baseUrl.isEmpty) {
-      debugPrint('❌ IAPKIT_BASE_URL not configured for $label');
-      return false;
-    }
-
-    try {
-      debugPrint('Verifying subscription with IAPKit...');
-      final jwsOrToken = purchase.purchaseToken ?? '';
-      final store = IapConstants.verificationStore(purchase);
-      if (store == IapStore.Unknown) {
-        throw UnsupportedError(
-            'No verification adapter for ${purchase.storeId}');
-      }
-      // Avoid logging the token itself (or a token-derived prefix) —
-      // ASN v2 JWS payloads and Play purchase tokens are sensitive
-      // and would land in adb / Xcode console + any centralized log
-      // collector. Log presence + length only (PR #124
-      // (https://github.com/hyodotdev/openiap/pull/124) review).
-      debugPrint(
-        'Token for verification: present=${jwsOrToken.isNotEmpty}, length=${jwsOrToken.length}',
-      );
-
-      final result = await _iap.verifyPurchaseWithProvider(
-        provider: PurchaseVerificationProvider.Iapkit,
-        iapkit: RequestVerifyPurchaseWithIapkitProps(
-          amazon: store == IapStore.Amazon
-              ? RequestVerifyPurchaseWithIapkitAmazonProps(
-                  expectedProductId: IapConstants.verificationProductId(
-                      purchase.productId, store),
-                  receiptId: jwsOrToken,
-                  sandbox: IapConstants.amazonRvsSandbox,
-                  // IAPKit rejects an Amazon receipt without the buyer's id.
-                  userId: (purchase as PurchaseAndroid?)?.userIdAmazon,
-                )
-              : null,
-          apiKey: apiKey.isNotEmpty ? apiKey : null,
-          apple: store == IapStore.Apple
-              ? RequestVerifyPurchaseWithIapkitAppleProps(jws: jwsOrToken)
-              : null,
-          baseUrl: baseUrl.isNotEmpty ? baseUrl : null,
-          google: store == IapStore.Google
-              ? RequestVerifyPurchaseWithIapkitGoogleProps(
-                  purchaseToken: jwsOrToken,
-                )
-              : null,
-          horizon: store == IapStore.Horizon
-              ? RequestVerifyPurchaseWithIapkitHorizonProps(
-                  sku: purchase.productId,
-                )
-              : null,
-        ),
-      );
-
-      // Don't log the full result object — it contains the upstream
-      // verification payload which can include the token, productId,
-      // and the kit project context. Log only the high-level outcome.
-      debugPrint(
-        'IAPKit verification completed: hasIapkit=${result.iapkit != null}',
-      );
-
-      if (result.iapkit != null) {
-        final iapkitResult = result.iapkit!;
-        final statusEmoji = iapkitResult.isValid ? '✅' : '⚠️';
-        final stateText = iapkitResult.state.value;
-
-        if (mounted) {
-          setState(() {
-            _purchaseResult = '''
-$_purchaseResult
-
-$statusEmoji $label Verification
-Valid: ${iapkitResult.isValid}
-State: $stateText
-Store: ${iapkitResult.store.value}
-            '''
-                .trim();
-          });
-        }
-        return IapConstants.acceptsVerification(iapkitResult, purchase);
-      }
-      // No iapkit payload returned — treat as unverified rather than as
-      // a silent pass.
-      return false;
-    } catch (e) {
-      debugPrint('IAPKit verification failed: $e');
-      if (mounted) {
-        setState(() {
-          _purchaseResult =
-              '$_purchaseResult\n\n❌ IAPKit verification failed: $e';
-        });
-      }
-      return false;
-    }
-  }
-
-  void _showVerificationMethodPicker() {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: Icon(
-                  _verificationMethod == VerificationMethod.ignore
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_off,
-                ),
-                title: const Text('Ignore'),
-                subtitle: const Text('Skip verification'),
-                onTap: () {
-                  setState(() {
-                    _verificationMethod = VerificationMethod.ignore;
-                  });
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: Icon(
-                  _verificationMethod == VerificationMethod.iapkitLocalhost
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_off,
-                ),
-                title: const Text('Local (IAPKit)'),
-                subtitle: const Text('IAPKit routed to IAPKIT_BASE_URL'),
-                onTap: () {
-                  setState(() {
-                    _verificationMethod = VerificationMethod.iapkitLocalhost;
-                  });
-                  Navigator.pop(context);
-                  unawaited(_recoverPurchases());
-                },
-              ),
-              ListTile(
-                leading: Icon(
-                  _verificationMethod == VerificationMethod.iapkit
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_off,
-                ),
-                title: const Text('IAPKit'),
-                subtitle: const Text('Server-side verification via IAPKit'),
-                onTap: () {
-                  setState(() {
-                    _verificationMethod = VerificationMethod.iapkit;
-                  });
-                  Navigator.pop(context);
-                  unawaited(_recoverPurchases());
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  String _getVerificationMethodLabel() => _verificationMethod.label;
-
-  Future<void> _initConnection() async {
-    try {
-      // End any existing connection first to reset configuration
-      // This ensures we start fresh without alternative billing settings
-      try {
-        await _iap.endConnection();
-        await Future.delayed(const Duration(milliseconds: 100));
-      } catch (e) {
-        debugPrint('Note: endConnection failed (might not be connected): $e');
-      }
-
-      // Initialize with default settings (no alternative billing)
-      final result = await _iap.initConnection();
-      debugPrint('Connection initialized: $result');
-
-      if (!mounted) return;
-
-      setState(() {
-        _connected = result;
-        _isConnecting = false;
-      });
-
-      if (_connected) {
-        await _loadSubscriptions();
-        await _recoverPurchases();
-        await _checkActiveSubscriptions();
-      }
-    } catch (error) {
-      debugPrint('Failed to initialize connection: $error');
-      if (!mounted) return;
-      setState(() {
-        _connected = false;
-        _isConnecting = false;
-      });
     }
   }
 
@@ -601,136 +200,49 @@ Store: ${iapkitResult.store.value}
     if (!_connected) return;
 
     try {
-      debugPrint('=== Checking Active Subscriptions ===');
-
-      // NOTE: Two approaches for getting active subscriptions:
-      //
-      // Approach 1 (Recommended): Use getActiveSubscriptions() - works on Google Play
-      // final summaries = await _iap.getActiveSubscriptions(subscriptionIds);
-      //
-      // Approach 2 (Horizon compatible): Use getAvailablePurchases() and filter
-      // This approach is used in this example to demonstrate Horizon OS compatibility.
-      // Horizon OS doesn't support subscription-specific queries, so we get all
-      // purchases and filter for subscriptions manually.
-      //
-      // For production apps:
-      // - Use Approach 1 for Google Play Store
-      // - Use Approach 2 for Meta Horizon Store (or when supporting both)
-      final allPurchases = await _iap.getAvailablePurchases();
-      final subscriptionPurchases = allPurchases
-          .where((p) =>
-              p.purchaseState == PurchaseState.Purchased &&
-              IapConstants.subscriptionProductId(p) != null)
-          .toList();
-
-      // Convert to ActiveSubscription format
-      final summaries = <ActiveSubscription>[];
-      for (final purchase in subscriptionPurchases) {
-        // Map platform-specific fields
-        final bool? autoRenewing =
-            purchase is PurchaseAndroid ? purchase.autoRenewingAndroid : null;
-        final String? basePlanId =
-            purchase is PurchaseAndroid ? purchase.currentPlanId : null;
-        final String? environmentIOS =
-            purchase is PurchaseIOS ? purchase.environmentIOS : null;
-        final double? expirationDateIOS =
-            purchase is PurchaseIOS ? purchase.expirationDateIOS : null;
-        final RenewalInfoIOS? renewalInfoIOS =
-            purchase is PurchaseIOS ? purchase.renewalInfoIOS : null;
-
-        // Calculate the canonical iOS expiration interval.
-        double? daysUntilExpirationIOS;
-        if (expirationDateIOS != null) {
-          final expirationDate = DateTime.fromMillisecondsSinceEpoch(
-            expirationDateIOS.toInt(),
-          );
-          final now = DateTime.now();
-          final daysUntilExpiration = expirationDate.difference(now).inDays;
-          daysUntilExpirationIOS = daysUntilExpiration.toDouble();
-        }
-
-        // Create ActiveSubscription from Purchase
-        summaries.add(
-          ActiveSubscription(
-            productId: IapConstants.subscriptionProductId(purchase)!,
-            transactionId: purchase.transactionIdFor ?? purchase.id,
-            purchaseToken: purchase.purchaseToken,
-            transactionDate: purchase.transactionDate is String
-                ? double.tryParse(purchase.transactionDate as String) ?? 0.0
-                : (purchase.transactionDate as num?)?.toDouble() ?? 0.0,
-            isActive: purchase.purchaseState == PurchaseState.Purchased,
-            autoRenewingAndroid: autoRenewing,
-            basePlanIdAndroid: basePlanId,
-            currentPlanId: purchase.currentPlanId,
-            daysUntilExpirationIOS: daysUntilExpirationIOS,
-            environmentIOS: environmentIOS,
-            expirationDateIOS: expirationDateIOS,
-            renewalInfoIOS: renewalInfoIOS,
-            purchaseTokenAndroid:
-                purchase is PurchaseAndroid ? purchase.purchaseToken : null,
-          ),
-        );
-      }
-
-      debugPrint('Active subscription summaries: ${summaries.length}');
-      for (final summary in summaries) {
-        debugPrint(
-          '  • ${summary.productId} (has transaction ID: ${summary.transactionId.isNotEmpty}, autoRenew: ${summary.autoRenewingAndroid})',
-        );
-
-        // Log renewalInfoIOS details
-        if (summary.renewalInfoIOS != null) {
-          final renewal = summary.renewalInfoIOS!;
-          debugPrint('    renewalInfo: {');
-          debugPrint('      willAutoRenew: ${renewal.willAutoRenew}');
-          debugPrint(
-            '      pendingUpgradeProductId: ${renewal.pendingUpgradeProductId}',
-          );
-          debugPrint(
-            '      autoRenewPreference: ${renewal.autoRenewPreference}',
-          );
-          debugPrint(
-            '      renewalDate: ${renewal.renewalDate != null ? DateTime.fromMillisecondsSinceEpoch(renewal.renewalDate!.toInt()) : null}',
-          );
-          debugPrint('      expirationReason: ${renewal.expirationReason}');
-          debugPrint('      isInBillingRetry: ${renewal.isInBillingRetry}');
-          debugPrint(
-            '      gracePeriodExpirationDate: ${renewal.gracePeriodExpirationDate}',
-          );
-          debugPrint(
-            '      priceIncreaseStatus: ${renewal.priceIncreaseStatus}',
-          );
-          debugPrint('    }');
-        }
-      }
-
-      // Create map of summaries by product ID
-      final Map<String, ActiveSubscription> summaryByProduct = {};
-      for (final summary in summaries) {
-        summaryByProduct[summary.productId] = summary;
-      }
-
-      // Sort by transaction date (most recent first)
-      final sortedSummaries = List<ActiveSubscription>.from(summaries)
-        ..sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
+      final subscriptions = await _iap.getActiveSubscriptions(
+        IapConstants.subscriptionQueryIds,
+      );
+      final active = {
+        for (final subscription in subscriptions)
+          if (subscription.isActive)
+            if (IapConstants.subscriptionProductId(
+              subscription.productId,
+              subscription.currentPlanId,
+            )
+                case final productId?)
+              productId: subscription,
+      };
+      // The most recent purchase is the current plan.
+      final current =
+          active.entries.fold<MapEntry<String, ActiveSubscription>?>(
+        null,
+        (latest, entry) => latest == null ||
+                entry.value.transactionDate > latest.value.transactionDate
+            ? entry
+            : latest,
+      );
+      final token = current?.value.purchaseToken;
+      final owned = token == null
+          ? const <Purchase>[]
+          : await _iap.getAvailablePurchases();
+      final currentStore = owned
+          .where((purchase) => purchase.purchaseToken == token)
+          .firstOrNull
+          ?.store;
 
       if (!mounted) return;
 
       setState(() {
         _activeSubscriptionInfo
           ..clear()
-          ..addAll(summaryByProduct);
-        _hasActiveSubscription = summaries.isNotEmpty;
-        _currentActiveSubscription =
-            sortedSummaries.isNotEmpty ? sortedSummaries.first : null;
+          ..addAll(active);
+        _currentProductId = current?.key;
+        _currentPlanOnPlay = currentStore == IapStore.Google;
 
-        if (_currentActiveSubscription != null) {
-          debugPrint(
-            'Current subscription: ${_currentActiveSubscription!.productId}',
-          );
-
-          final summary = _currentActiveSubscription!;
-          final buffer = StringBuffer('Active: ${summary.productId}');
+        final summary = current?.value;
+        if (summary != null) {
+          final buffer = StringBuffer('Active: ${current!.key}');
           if (summary.expirationDateIOS != null) {
             buffer.write(
               '\nExpires: ${_formatReadableDate(summary.expirationDateIOS!)}',
@@ -748,7 +260,6 @@ Store: ${iapkitResult.store.value}
           }
           _purchaseResult = buffer.toString();
         } else {
-          debugPrint('No active subscription found');
           _purchaseResult = 'No active subscriptions found';
         }
       });
@@ -770,67 +281,34 @@ Store: ${iapkitResult.store.value}
       return;
     }
 
-    debugPrint('🛒 Starting subscription purchase: ${item.id}');
-    debugPrint('  isUpgrade: $isUpgrade');
-    debugPrint(
-      '  Current subscription: ${_currentActiveSubscription?.productId}',
-    );
-
     setState(() {
       _isProcessing = true;
       _purchaseResult = null;
     });
-    debugPrint('  Set _isProcessing to true');
 
     try {
-      // Check for Android offers
-      final androidOffers = _androidOffersFor(item);
-      final SubscriptionOfferAndroid? selectedOffer =
-          androidOffers.isNotEmpty ? androidOffers.first : null;
-      if (selectedOffer != null) {
-        debugPrint('Using configured subscription offer');
-      }
-
-      // Request subscription using the new API
-      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-        // Check if this is an upgrade/downgrade
-        if (isUpgrade &&
-            _currentActiveSubscription != null &&
-            _selectedProrationMode != null) {
-          // This is an upgrade/downgrade with proration
-          debugPrint(
-            'Upgrading subscription with proration mode: $_selectedProrationMode',
-          );
-          debugPrint('Using existing purchase token for subscription change');
-
-          final requestProps = RequestPurchaseProps.subs((
-            apple: null,
-            google: RequestSubscriptionAndroidProps(skus: [item.id]),
-          ));
-
-          await _iap.requestPurchase(requestProps);
-        } else {
-          // This is a new subscription purchase
-          debugPrint('Purchasing new subscription');
-
-          final requestProps = RequestPurchaseProps.subs((
-            apple: null,
-            google: RequestSubscriptionAndroidProps(skus: [item.id]),
-          ));
-
-          await _iap.requestPurchase(requestProps);
-        }
-      } else {
-        // iOS
-        final requestProps = RequestPurchaseProps.subs((
+      final current = _currentActiveSubscription;
+      final mode = _replacementMode;
+      // iOS upgrades within the subscription group on its own.
+      final replacing =
+          isUpgrade && _currentPlanOnPlay && current != null && mode != null;
+      await _iap.requestPurchase(
+        RequestPurchaseProps.subs((
           apple: RequestSubscriptionIosProps(sku: item.id),
-          google: null,
-        ));
+          google: RequestSubscriptionAndroidProps(
+            skus: [item.id],
+            purchaseToken: replacing ? current.purchaseToken : null,
+            subscriptionProductReplacementParams: replacing
+                ? SubscriptionProductReplacementParamsAndroid(
+                    oldProductId: current.productId,
+                    replacementMode: mode,
+                  )
+                : null,
+          ),
+        )),
+      );
 
-        await _iap.requestPurchase(requestProps);
-      }
-
-      // Result will be handled by the purchase stream listeners
+      // The purchase arrives through the flow's outcomes.
       debugPrint('Purchase request sent, waiting for response...');
     } catch (error) {
       debugPrint('Failed to request subscription: $error');
@@ -842,8 +320,8 @@ Store: ${iapkitResult.store.value}
     }
   }
 
-  // Test with an invalid token (should fail on the native side)
-  Future<void> _testInvalidTokenProration(ProductCommon item) async {
+  // Tests a replacement request with a bad purchase token (Issue #529).
+  Future<void> _requestWithTestToken(ProductCommon item, String token) async {
     if (_isProcessing) return;
 
     setState(() {
@@ -852,55 +330,16 @@ Store: ${iapkitResult.store.value}
     });
 
     try {
-      debugPrint('Testing proration mode with an invalid purchase token');
-
-      final requestProps = RequestPurchaseProps.subs((
-        apple: null,
-        google: RequestSubscriptionAndroidProps(
-          purchaseToken: 'invalid_purchase_token_for_testing',
-          skus: [item.id],
-        ),
-      ));
-
-      await _iap.requestPurchase(requestProps);
-
-      // If we get here, the purchase was attempted
-      debugPrint('Purchase request sent with an invalid token');
-      // Result will come through purchaseUpdatedListener
-    } catch (error) {
-      debugPrint('Error with invalid token: $error');
-      if (!mounted) return;
-      setState(() {
-        _isProcessing = false;
-        _purchaseResult = '❌ Error with invalid token:\n$error';
-      });
-    }
-  }
-
-  // Test with empty purchaseToken (Issue #529)
-  Future<void> _testEmptyTokenProration(ProductCommon item) async {
-    if (_isProcessing) return;
-
-    setState(() {
-      _isProcessing = true;
-      _purchaseResult = null;
-    });
-
-    try {
-      debugPrint('Testing proration mode with EMPTY string purchaseToken');
-
-      final requestProps = RequestPurchaseProps.subs((
-        apple: null,
-        google: RequestSubscriptionAndroidProps(
-          purchaseToken: '',
-          skus: [item.id],
-        ),
-      ));
-
-      await _iap.requestPurchase(requestProps);
-
-      debugPrint('Purchase request sent with an empty token');
-      // Result will come through purchaseUpdatedListener
+      await _iap.requestPurchase(
+        RequestPurchaseProps.subs((
+          apple: null,
+          google: RequestSubscriptionAndroidProps(
+            purchaseToken: token,
+            skus: [item.id],
+          ),
+        )),
+      );
+      debugPrint('Purchase request sent with a test token');
     } catch (error) {
       debugPrint('Error with test token: $error');
       if (!mounted) return;
@@ -919,6 +358,7 @@ Store: ${iapkitResult.store.value}
 
     try {
       await _iap.restorePurchases();
+      await _recoverPurchases(includeFinished: true);
       await _checkActiveSubscriptions();
 
       if (!mounted) return;
@@ -928,13 +368,6 @@ Store: ${iapkitResult.store.value}
         _purchaseResult =
             '✅ Restored ${_activeSubscriptionInfo.length} subscription(s)';
       });
-
-      for (final subscription in _activeSubscriptionInfo.values) {
-        debugPrint(
-          'Restored: ${subscription.productId}, has purchase credential: '
-          '${subscription.purchaseToken?.isNotEmpty ?? false}',
-        );
-      }
     } catch (error) {
       debugPrint('Failed to restore purchases: $error');
       if (!mounted) return;
@@ -945,9 +378,11 @@ Store: ${iapkitResult.store.value}
     }
   }
 
-  Widget _buildActiveSubscriptionCard(ActiveSubscription subscription) {
-    final isCurrent =
-        _currentActiveSubscription?.productId == subscription.productId;
+  Widget _buildActiveSubscriptionCard(
+    String productId,
+    ActiveSubscription subscription,
+  ) {
+    final isCurrent = _currentProductId == productId;
     final chips = <Widget>[
       _infoChip('Status: ${subscription.isActive ? 'Active' : 'Inactive'}'),
       if (subscription.basePlanIdAndroid != null)
@@ -989,9 +424,7 @@ Store: ${iapkitResult.store.value}
               children: [
                 Expanded(
                   child: Text(
-                    subscription.productId.isEmpty
-                        ? 'Unknown product'
-                        : subscription.productId,
+                    productId,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -1271,9 +704,7 @@ Store: ${iapkitResult.store.value}
   }
 
   Widget _buildSubscriptionTier(ProductCommon subscription) {
-    final isCurrentSubscription =
-        _currentActiveSubscription?.productId == subscription.id;
-    // Note: canUpgrade logic removed - now always show proration options for testing
+    final isCurrentSubscription = _currentProductId == subscription.id;
 
     return GestureDetector(
       onTap: () => ProductDetailModal.show(
@@ -1374,9 +805,7 @@ Store: ${iapkitResult.store.value}
                 const SizedBox(height: 8),
               ],
 
-              // Always show proration mode selector for testing
-              if (!kIsWeb &&
-                  defaultTargetPlatform == TargetPlatform.android) ...[
+              if (_currentPlanOnPlay) ...[
                 const Text(
                   'Proration Mode (Test):',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
@@ -1385,8 +814,8 @@ Store: ${iapkitResult.store.value}
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    children: _prorationModes.entries.map((entry) {
-                      final isSelected = _selectedProrationMode == entry.value;
+                    children: _replacementModes.entries.map((entry) {
+                      final isSelected = _replacementMode == entry.value;
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: ChoiceChip(
@@ -1397,8 +826,7 @@ Store: ${iapkitResult.store.value}
                           selected: isSelected,
                           onSelected: (selected) {
                             setState(() {
-                              _selectedProrationMode =
-                                  selected ? entry.value : null;
+                              _replacementMode = selected ? entry.value : null;
                             });
                           },
                         ),
@@ -1448,7 +876,10 @@ Store: ${iapkitResult.store.value}
                       child: OutlinedButton(
                         onPressed: _isProcessing || isCurrentSubscription
                             ? null
-                            : () => _testInvalidTokenProration(subscription),
+                            : () => _requestWithTestToken(
+                                  subscription,
+                                  'invalid_purchase_token_for_testing',
+                                ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.red.shade600,
                           side: BorderSide(color: Colors.red.shade300),
@@ -1472,7 +903,7 @@ Store: ${iapkitResult.store.value}
                       child: OutlinedButton(
                         onPressed: _isProcessing
                             ? null
-                            : () => _testEmptyTokenProration(subscription),
+                            : () => _requestWithTestToken(subscription, ''),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.orange.shade600,
                           side: BorderSide(color: Colors.orange.shade300),
@@ -1542,7 +973,7 @@ Store: ${iapkitResult.store.value}
                       const Text('Failed to connect to store'),
                       const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: _initConnection,
+                        onPressed: () => _awaitConnection(_purchases.start()),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF007AFF),
                           foregroundColor: Colors.white,
@@ -1582,8 +1013,10 @@ Store: ${iapkitResult.store.value}
                                 ),
                               ),
                               OutlinedButton(
-                                onPressed: _showVerificationMethodPicker,
-                                child: Text(_getVerificationMethodLabel()),
+                                onPressed: _pickVerificationMethod,
+                                child: Text(
+                                  _purchases.verificationMethod.value.label,
+                                ),
                               ),
                             ],
                           ),
@@ -1606,7 +1039,7 @@ Store: ${iapkitResult.store.value}
                             ),
                             title: Text(
                               _hasActiveSubscription
-                                  ? 'Store ownership: ${_currentActiveSubscription?.productId}'
+                                  ? 'Store ownership: $_currentProductId'
                                   : 'No store-reported subscription',
                               style:
                                   const TextStyle(fontWeight: FontWeight.bold),
@@ -1795,9 +1228,9 @@ Store: ${iapkitResult.store.value}
                             ),
                           ),
                           const SizedBox(height: 8),
-                          ..._activeSubscriptionInfo.values.map(
-                            _buildActiveSubscriptionCard,
-                          ),
+                          for (final MapEntry(:key, :value)
+                              in _activeSubscriptionInfo.entries)
+                            _buildActiveSubscriptionCard(key, value),
                           const SizedBox(height: 24),
                         ],
 

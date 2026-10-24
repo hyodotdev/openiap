@@ -52,8 +52,9 @@ const STATES: {
   },
   {
     status: "entitled",
-    meaning: "Access is granted; alreadyGranted is true on a repeat.",
-    guidance: "access_granted",
+    meaning:
+      "Access is granted; alreadyGranted is true on a repeat. changePending marks a requested upgrade, downgrade, or prepaid top-up that has not applied yet: Google Play waits for its payment, Amazon applies it at the next renewal. The current plan stays granted.",
+    guidance: "access_granted, or change_pending with changePending",
   },
   {
     status: "failed",
@@ -74,14 +75,18 @@ export default function PurchaseFlowPage() {
         Use this flow when your backend owns user accounts and grants access.
         The app finishes a valid purchase only after your backend reports access
         granted, so a paid purchase is never lost and never asked for twice.
-        React Native IAP and Expo IAP ship the client half as{" "}
-        <code>createPurchaseFlow</code>; this page includes a tested reference
-        backend. The flow supports Apple App Store and Google Play purchases
-        only, so the Vega entry point does not export it. This reference
-        supports one product and one unit per purchase. Multi-product Google
-        Play carts and bulk quantities stay unfinished; supporting them requires
-        verifying and granting every purchased unit before finishing the
-        transaction.
+        Every OpenIAP framework SDK ships the client half as{" "}
+        <code>createPurchaseFlow</code>, and this page includes a tested
+        reference backend for App Store and Google Play purchases. An app
+        without a backend confirms with IAPKit directly instead, on every store:
+        see{" "}
+        <a href="#without-a-backend" className="text-primary underline">
+          Without a backend
+        </a>
+        . The flow handles one product and one unit per purchase. Multi-product
+        Google Play carts and bulk quantities stay unfinished; supporting them
+        requires verifying and granting every purchased unit before finishing
+        the transaction.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Who does what</h2>
@@ -118,19 +123,31 @@ stores ──renewals, refunds──▶ IAPKit ◀──entitlements── your 
 
       <h2 className="mt-10 text-2xl font-semibold">Client</h2>
       <p>
-        Create one flow per signed-in app account and capture its session token.
-        When the account changes, create a new flow, clear the previous
-        account's displayed outcomes, and ignore results still arriving from its
-        flow.
+        Create one flow per signed-in app account, outside any screen, and
+        capture its session token. The flow listens for purchases itself,
+        confirms each with your backend, finishes it once access is granted, and
+        publishes each outcome. Keep exactly one live flow: when the account
+        changes, dispose the flow and create the next account&apos;s. A disposed
+        flow publishes nothing more and stops a recovery pass, so no later
+        purchase is confirmed with the old account&apos;s session.
+      </p>
+      <p>
+        Each SDK names it in its own idiom: <code>createPurchaseFlow</code> in
+        React Native IAP, Expo IAP, flutter_inapp_purchase, and kmp-iap,{" "}
+        <code>create_purchase_flow</code> in godot-iap, and{" "}
+        <code>OpenIapClient.CreatePurchaseFlow</code> in OpenIap.Maui. Outcomes
+        arrive through <code>subscribe</code>, a stream, a flow, a signal, or an
+        event, and every SDK passes the same shared test cases. A React Native
+        IAP or Expo IAP flow given its own <code>finishTransaction</code> keeps
+        the earlier manual delivery: the app calls <code>processPurchase</code>{" "}
+        itself.
       </p>
       <CodeBlock title="Expo IAP (React Native IAP is identical)" language="ts">
-        {`import {Platform} from 'react-native';
-import {
+        {`import {
   createPurchaseFlow,
-  finishTransaction,
-  getAvailablePurchases,
-  getPendingTransactionsIOS,
+  describePurchaseFlowStatus,
   toPurchaseConfirmationRequest,
+  useIAP,
 } from 'expo-iap';
 
 const flow = createPurchaseFlow({
@@ -146,17 +163,19 @@ const flow = createPurchaseFlow({
     if (!response.ok) throw new Error(\`Backend returned \${response.status}\`);
     return response.json();
   },
-  finishTransaction,
   isConsumable: (productId) => CONSUMABLE_IDS.includes(productId),
-  getAvailablePurchases,
-  getPendingTransactionsIOS:
-    Platform.OS === 'ios' ? getPendingTransactionsIOS : undefined,
 });
 
-// In onPurchaseSuccess:
-const status = await flow.processPurchase(purchase);
-// At launch and on returning to the foreground:
-const outcomes = await flow.recoverPurchases();`}
+// In a screen. The hook recovers unfinished purchases once connected and
+// refreshes ownership after each outcome.
+useIAP({
+  purchaseFlow: flow,
+  onPurchaseFlowOutcome: ({purchase, status}) =>
+    showResult(purchase.productId, describePurchaseFlowStatus(status)),
+});
+
+// On sign-out or account switch:
+flow.dispose();`}
       </CodeBlock>
       <p>
         <code>describePurchaseFlowStatus(status)</code> returns a neutral{" "}
@@ -165,11 +184,10 @@ const outcomes = await flow.recoverPurchases();`}
         <code>retryAfterMs</code> when a retry can help. A{" "}
         <code>confirmWithBackend</code> call still running after{" "}
         <code>confirmTimeoutMs</code> (30 seconds by default) ends as{" "}
-        <code>failed</code>, and the next recovery confirms the purchase again.
-        Pass <code>getPendingTransactionsIOS</code> on iOS: recovery throws
-        without it rather than miss an unfinished transaction. Pass{" "}
-        <code>undefined</code> elsewhere, or recovery misses unacknowledged
-        Android purchases, which Play refunds after three days. The{" "}
+        <code>failed</code>, and the next delivery or recovery confirms the
+        purchase again. The SDK supplies finishing, store reads, and its
+        purchase listener; pass any of them to <code>createPurchaseFlow</code>{" "}
+        to override it. The{" "}
         <a
           href="https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap/example/src/components/BackendEntitlementFlow.tsx"
           className="text-primary underline"
@@ -188,6 +206,54 @@ const outcomes = await flow.recoverPurchases();`}
         scrolling alone. Closing the panel or scrolling manually cancels the
         automatic return. Choose <strong>Receipt checks</strong> to test
         verification and finishing without deciding app-account access.
+      </p>
+
+      <h2 id="without-a-backend" className="mt-10 text-2xl font-semibold">
+        Without a backend
+      </h2>
+      <p>
+        An app without user accounts confirms with IAPKit directly, using its
+        publishable key, on the App Store, Google Play, Amazon Appstore, and
+        Meta Horizon. <code>confirmWithIapkit</code> verifies the purchase,
+        checks that the evidence matches its store, product, and environment,
+        and then calls your <code>grant</code> before the flow finishes the
+        purchase. Credit consumables there: finishing consumes them, so{" "}
+        <code>grant</code> is required for a consumable and must be idempotent
+        per <code>purchase.id</code>, since a purchase is confirmed again after
+        a crash. Access read from ownership, such as an active subscription,
+        needs no <code>grant</code>.
+      </p>
+      <CodeBlock language="ts">
+        {`import {confirmWithIapkit, createPurchaseFlow} from 'expo-iap';
+
+const flow = createPurchaseFlow({
+  confirmWithBackend: confirmWithIapkit({
+    apiKey: 'openiap-kit_pk_<your-publishable-key>',
+    grant: async (purchase, {isConsumable}) => {
+      if (isConsumable) await wallet.creditOnce(purchase.id, purchase.productId);
+    },
+  }),
+  isConsumable: (productId) => CONSUMABLE_IDS.includes(productId),
+});`}
+      </CodeBlock>
+      <p>
+        An App Store app with neither a backend nor IAPKit can pass{" "}
+        <code>confirmOnDeviceIOS</code> instead: StoreKit verified a transaction
+        it still lists as unfinished, unrevoked, not upgraded, unexpired, and
+        from the purchase&apos;s environment. The same <code>grant</code> rule
+        applies.
+      </p>
+      <p>
+        Anything that may be a configuration error rather than a rejected
+        payment ends as <code>failed</code> and stays unfinished: evidence for
+        another store, product, or environment, IAPKit&apos;s{" "}
+        <code>inauthentic</code>, which it also answers for a product or package
+        mismatch, and a valid state the product type cannot be granted from.
+        Only <code>canceled</code> and <code>expired</code> become{" "}
+        <code>invalid</code>; <code>consumed</code> counts as already granted.
+        Amazon RVS reports a subscription term under its parent SKU: pass{" "}
+        <code>amazon.verifiedProductId</code> to map one to the other, and{" "}
+        <code>amazon.sandbox</code> for App Tester receipts.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">States</h2>
@@ -214,11 +280,15 @@ const outcomes = await flow.recoverPurchases();`}
       <p>
         <code>verified</code>, <code>linked</code>, and <code>entitled</code>{" "}
         are successive steps. Only an <code>invalid</code> purchase the user
-        just made offers the product again: recovery marks its{" "}
-        <code>invalid</code> outcomes <code>recovered</code>, so an old expired
-        renewal never asks a subscriber to buy twice. iOS Ask to Buy arrives as
-        a <code>deferred-payment</code> purchase error rather than a purchase;
-        show it as <code>store_pending</code>.
+        just requested offers the product again: the flow marks every other{" "}
+        <code>invalid</code> outcome <code>recovered</code>, whether recovery or
+        the store delivered it, so an old expired renewal never asks a
+        subscriber to buy twice. iOS Ask to Buy arrives as a{" "}
+        <code>deferred-payment</code> purchase error rather than a purchase;
+        show it as <code>store_pending</code>. <code>change_pending</code> keeps
+        the subscriber on their current plan until the change applies, for
+        example &quot;Change to Yearly is pending. Monthly stays active until it
+        applies.&quot;
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Finish rules</h2>
@@ -240,7 +310,12 @@ const outcomes = await flow.recoverPurchases();`}
           on iOS only. They are settled rejections, so finishing grants nothing
           and stops iOS from delivering them again at every launch. On Google
           Play leave them unacknowledged: Google refunds a purchase that is not
-          acknowledged within three days.
+          acknowledged within three days. Amazon and Meta Horizon keep them
+          unfinished too.
+        </li>
+        <li>
+          A Google Play non-consumable that is already acknowledged is not
+          finished again, for example during a restore.
         </li>
         <li>
           Never finish any other status, so iOS and Google Play deliver it again
@@ -255,26 +330,32 @@ const outcomes = await flow.recoverPurchases();`}
 
       <h2 className="mt-10 text-2xl font-semibold">Recovery and restore</h2>
       <p>
-        Call <code>recoverPurchases()</code> at launch and when the app returns
-        to the foreground. It confirms only unfinished purchases (iOS{" "}
-        <code>getPendingTransactionsIOS</code>, unacknowledged Android
-        purchases), because the flow finishes only settled ones. For a restore
-        button, call{" "}
-        <code>recoverPurchases({"{ includeFinished: true }"})</code>: the same
-        account gets <code>entitled</code> with <code>alreadyGranted</code>, and
-        another account gets <code>ownership_conflict</code>. Nothing is
-        transferred. If <code>getPendingTransactionsIOS</code> throws, as one
-        unverified transaction makes it do, recovery confirms every Apple
-        purchase <code>getAvailablePurchases</code> lists instead.
+        <code>useIAP</code> calls <code>recoverPurchases()</code> once
+        connected; call it yourself when the app returns to the foreground or
+        when you use the flow without the hook. It confirms only unfinished
+        purchases: unfinished StoreKit transactions; on other stores, every
+        unacknowledged purchase, every listed consumable (it is unconsumed), and
+        every purchase from a store that reports no acknowledgment, such as
+        Amazon, which also approves Amazon Kids purchases later. A call made
+        while a pass runs shares it, and a purchase this flow already settled is
+        skipped. For a restore button, call{" "}
+        <code>recoverPurchases({"{ includeFinished: true }"})</code>, which{" "}
+        <code>restorePurchases()</code> on the hook does: the same account gets{" "}
+        <code>entitled</code> with <code>alreadyGranted</code>, and another
+        account gets <code>ownership_conflict</code>. Nothing is transferred. If{" "}
+        <code>getPendingTransactionsIOS</code> throws, as one unverified
+        transaction makes it do, recovery confirms every Apple purchase{" "}
+        <code>getAvailablePurchases</code> lists instead.
       </p>
       <p>
         Repeating is safe: your backend grants a one-time purchase once, a
-        subscription links once, finishing twice is harmless, and concurrent
-        deliveries of one transaction share a backend call. IAPKit replay-limits
-        each receipt to about one verification a minute after a burst, so
-        respect <code>retryAfterMs</code> instead of looping. The reference
-        backend reports <code>429 REPEATED_FAILURE</code>, a receipt IAPKit
-        rejected in the last five minutes, as <code>invalid</code>.
+        subscription links once, finishing twice is harmless, concurrent
+        deliveries of one transaction share a backend call, and a later delivery
+        of a settled purchase is answered without one. IAPKit replay-limits each
+        receipt to about one verification a minute after a burst, so respect{" "}
+        <code>retryAfterMs</code> instead of looping. The reference backend
+        reports <code>429 REPEATED_FAILURE</code>, a receipt IAPKit rejected in
+        the last five minutes, as <code>invalid</code>.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Ownership</h2>

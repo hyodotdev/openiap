@@ -355,7 +355,7 @@ for (final sub in subscriptions) {
 using OpenIap.Maui;
 
 // Detecting upgrades with pendingUpgradeProductId.
-var subscriptions = await ((QueryResolver)OpenIapClient.Instance).GetActiveSubscriptionsAsync();
+var subscriptions = await OpenIapClient.Query.GetActiveSubscriptionsAsync();
 
 foreach (var subscription in subscriptions)
 {
@@ -528,7 +528,7 @@ for (final sub in subscriptions) {
 using OpenIap.Maui;
 
 // Detecting downgrades.
-var subscriptions = await ((QueryResolver)OpenIapClient.Instance).GetActiveSubscriptionsAsync();
+var subscriptions = await OpenIapClient.Query.GetActiveSubscriptionsAsync();
 
 foreach (var subscription in subscriptions)
 {
@@ -691,7 +691,7 @@ for (final sub in subscriptions) {
                         <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var subscriptions = await ((QueryResolver)OpenIapClient.Instance).GetActiveSubscriptionsAsync();
+var subscriptions = await OpenIapClient.Query.GetActiveSubscriptionsAsync();
 
 foreach (var subscription in subscriptions)
 {
@@ -1116,7 +1116,7 @@ using OpenIap.Maui;
 // Complete example: build a subscription status message.
 async Task<string> GetSubscriptionStatusMessageAsync()
 {
-    var subscriptions = await ((QueryResolver)OpenIapClient.Instance).GetActiveSubscriptionsAsync();
+    var subscriptions = await OpenIapClient.Query.GetActiveSubscriptionsAsync();
     var subscription = subscriptions.FirstOrDefault();
 
     if (subscription is null)
@@ -1695,7 +1695,7 @@ using System.Linq;
 // Android upgrade with proration
 
 // Get current subscription
-var purchases = await ((QueryResolver)OpenIapClient.Instance).GetAvailablePurchasesAsync();
+var purchases = await OpenIapClient.Query.GetAvailablePurchasesAsync();
 var currentSub = purchases
     .OfType<PurchaseCommon>()
     .FirstOrDefault(purchase => purchase.ProductId == "basic_monthly");
@@ -1703,7 +1703,7 @@ var currentSub = purchases
 if (currentSub is not null)
 {
     // Upgrade to premium with time proration
-    await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
     {
         Type = ProductQueryType.Subs,
         RequestSubscription = new RequestSubscriptionPropsByPlatforms
@@ -1740,7 +1740,7 @@ if current_sub:
     var props = RequestPurchaseProps.new()
     props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
     props.request_subscription.google = RequestSubscriptionAndroidProps.new()
-    props.request_subscription.google.skus = ["premium_monthly"]
+    props.request_subscription.google.skus.assign(["premium_monthly"])
     props.request_subscription.google.purchase_token = current_sub.purchase_token
     var replacement = SubscriptionProductReplacementParamsAndroid.new()
     replacement.old_product_id = current_sub.product_id
@@ -1949,7 +1949,7 @@ using System.Linq;
 // Android downgrade with deferred replacement
 
 // Get current subscription
-var purchases = await ((QueryResolver)OpenIapClient.Instance).GetAvailablePurchasesAsync();
+var purchases = await OpenIapClient.Query.GetAvailablePurchasesAsync();
 var premiumPurchase = purchases
     .OfType<PurchaseCommon>()
     .FirstOrDefault(purchase => purchase.ProductId == "premium_monthly");
@@ -1957,7 +1957,7 @@ var premiumPurchase = purchases
 if (premiumPurchase is not null)
 {
     // Downgrade - takes effect at next billing cycle
-    await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
     {
         Type = ProductQueryType.Subs,
         RequestSubscription = new RequestSubscriptionPropsByPlatforms
@@ -1995,7 +1995,7 @@ if premium_purchase:
     var props = RequestPurchaseProps.new()
     props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
     props.request_subscription.google = RequestSubscriptionAndroidProps.new()
-    props.request_subscription.google.skus = ["basic_monthly"]
+    props.request_subscription.google.skus.assign(["basic_monthly"])
     props.request_subscription.google.purchase_token = premium_purchase.purchase_token
     var replacement = SubscriptionProductReplacementParamsAndroid.new()
     replacement.old_product_id = premium_purchase.product_id
@@ -2151,7 +2151,7 @@ using System.Linq;
 // Android subscription replacement with 8.1.0+ API
 
 // Get current subscription
-var purchases = await ((QueryResolver)OpenIapClient.Instance).GetAvailablePurchasesAsync();
+var purchases = await OpenIapClient.Query.GetAvailablePurchasesAsync();
 var currentSub = purchases
     .OfType<PurchaseCommon>()
     .FirstOrDefault(purchase => purchase.ProductId == "premium_monthly");
@@ -2159,7 +2159,7 @@ var currentSub = purchases
 if (currentSub is not null)
 {
     // Upgrade using the new per-product replacement params
-    await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+    await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
     {
         Type = ProductQueryType.Subs,
         RequestSubscription = new RequestSubscriptionPropsByPlatforms
@@ -2197,7 +2197,7 @@ if current_sub:
     var props = RequestPurchaseProps.new()
     props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
     props.request_subscription.google = RequestSubscriptionAndroidProps.new()
-    props.request_subscription.google.skus = ["premium_yearly"]
+    props.request_subscription.google.skus.assign(["premium_yearly"])
     props.request_subscription.google.subscription_product_replacement_params = SubscriptionProductReplacementParamsAndroid.new()
     props.request_subscription.google.subscription_product_replacement_params.old_product_id = current_sub.product_id
     props.request_subscription.google.subscription_product_replacement_params.replacement_mode = SubscriptionReplacementModeAndroid.WITH_TIME_PRORATION
@@ -2294,7 +2294,7 @@ using System.Linq;
 
 // Android - check if subscription will change
 
-var purchases = await ((QueryResolver)OpenIapClient.Instance).GetAvailablePurchasesAsync();
+var purchases = await OpenIapClient.Query.GetAvailablePurchasesAsync();
 
 foreach (var purchase in purchases.OfType<PurchaseCommon>())
 {
@@ -2635,7 +2635,7 @@ using System.Linq;
 async Task ChangeSubscriptionAsync(string newSku, bool isUpgrade)
 {
     // Get current subscription
-    var purchases = await ((QueryResolver)OpenIapClient.Instance).GetAvailablePurchasesAsync();
+    var purchases = await OpenIapClient.Query.GetAvailablePurchasesAsync();
     var currentSub = purchases
         .OfType<PurchaseCommon>()
         .FirstOrDefault(purchase =>
@@ -2654,7 +2654,7 @@ async Task ChangeSubscriptionAsync(string newSku, bool isUpgrade)
 
     try
     {
-        await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
+        await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
         {
             Type = ProductQueryType.Subs,
             RequestSubscription = new RequestSubscriptionPropsByPlatforms
@@ -2712,7 +2712,7 @@ func change_subscription(new_sku: String, is_upgrade: bool) -> void:
     var props = RequestPurchaseProps.new()
     props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
     props.request_subscription.google = RequestSubscriptionAndroidProps.new()
-    props.request_subscription.google.skus = [new_sku]
+    props.request_subscription.google.skus.assign([new_sku])
     props.request_subscription.google.purchase_token = current_sub.purchase_token
     var replacement = SubscriptionProductReplacementParamsAndroid.new()
     replacement.old_product_id = current_sub.product_id

@@ -366,21 +366,18 @@ public class SceneDelegate : MauiUISceneDelegate
           </a>
         </h3>
         <p>
-          Use <code>OpenIapClient.Instance</code> as the entry point. Cast it to
-          the generated resolver interfaces when calling query or mutation APIs.
+          Call query and mutation APIs through <code>OpenIapClient.Query</code>{' '}
+          and <code>OpenIapClient.Mutation</code>; listener streams live on{' '}
+          <code>OpenIapClient.Instance</code>.
         </p>
         <CodeBlock language="csharp">
           {`using OpenIap;
 using OpenIap.Maui;
 
-var iap = OpenIapClient.Instance;
-var query = (QueryResolver)iap;
-var mutate = (MutationResolver)iap;
-
-var connected = await mutate.InitConnectionAsync();
+var connected = await OpenIapClient.Mutation.InitConnectionAsync();
 if (!connected) throw new InvalidOperationException("Store connection failed");
 
-var result = await query.FetchProductsAsync(new ProductRequest
+var result = await OpenIapClient.Query.FetchProductsAsync(new ProductRequest
 {
     Skus = new[] { "premium", "coins_100" },
     Type = ProductQueryType.InApp,
@@ -438,7 +435,7 @@ var products = result is FetchProductsResultProducts { Value: { } list }
         bool verified = await VerifyOnServerAsync(purchase);
         if (!verified) return;
 
-        await mutate.FinishTransactionAsync(
+        await OpenIapClient.Mutation.FinishTransactionAsync(
             purchase: new PurchaseInput(purchase),
             isConsumable: true);
 
@@ -450,15 +447,15 @@ var products = result is FetchProductsResultProducts { Value: { } list }
     }
 }
 
-IDisposable purchaseSub = iap.PurchaseUpdated.Subscribe(
+IDisposable purchaseSub = OpenIapClient.Instance.PurchaseUpdated.Subscribe(
     purchase => _ = HandlePurchaseSafelyAsync(purchase));
 
-IDisposable errorSub = iap.PurchaseError.Subscribe(error =>
+IDisposable errorSub = OpenIapClient.Instance.PurchaseError.Subscribe(error =>
 {
     Console.WriteLine($"{error.Code}: {error.Message}");
 });
 
-await mutate.RequestPurchaseAsync(new RequestPurchaseProps
+await OpenIapClient.Mutation.RequestPurchaseAsync(new RequestPurchaseProps
 {
     Type = ProductQueryType.InApp,
     RequestPurchase = new RequestPurchasePropsByPlatforms
@@ -528,7 +525,7 @@ await mutate.RequestPurchaseAsync(new RequestPurchaseProps
           {`purchaseSub.Dispose();
 errorSub.Dispose();
 
-var ended = await mutate.EndConnectionAsync();
+var ended = await OpenIapClient.Mutation.EndConnectionAsync();
 if (!ended) Console.WriteLine("Store teardown did not complete");`}
         </CodeBlock>
       </section>

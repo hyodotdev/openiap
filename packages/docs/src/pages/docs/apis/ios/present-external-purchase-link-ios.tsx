@@ -126,7 +126,7 @@ if (Platform.OS === 'ios') {
 using OpenIap.Maui;
 
 // iOS targets only — no-op on Android
-var result = await ((MutationResolver)OpenIapClient.Instance).PresentExternalPurchaseLinkIOSAsync(
+var result = await OpenIapClient.Mutation.PresentExternalPurchaseLinkIOSAsync(
     "https://yourstore.com/checkout");`}</CodeBlock>
           ),
           gdscript: (

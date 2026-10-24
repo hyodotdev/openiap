@@ -1,5 +1,5 @@
 // External dependencies
-import {useCallback, useEffect, useState, useRef} from 'react';
+import {useCallback, useEffect, useLayoutEffect, useState, useRef} from 'react';
 import {Platform} from 'react-native';
 import type {EventSubscription} from 'expo-modules-core';
 
@@ -26,6 +26,7 @@ import {
   type ProductTypeInput,
 } from './index';
 import {ExpoIapConsole} from './utils/debug';
+import type {PurchaseFlow, PurchaseFlowOutcome} from './purchase-flow';
 import {getPromotedProductIOS} from './modules/ios';
 import {restorePurchasesNative} from './utils/restorePurchases';
 import {
@@ -127,6 +128,15 @@ type UseIap = {
 
 export interface UseIAPOptions {
   onPurchaseSuccess?: (purchase: Purchase) => void;
+  /**
+   * The app's flow from `createPurchaseFlow`, which confirms and finishes
+   * every purchase. The hook recovers unfinished purchases once connected or
+   * when the flow changes, reports outcomes, and refreshes ownership after
+   * each. Leave finishing out of `onPurchaseSuccess` when this is set.
+   */
+  purchaseFlow?: PurchaseFlow<Purchase>;
+  /** Each purchase's outcome from `purchaseFlow`. */
+  onPurchaseFlowOutcome?: (outcome: PurchaseFlowOutcome<Purchase>) => void;
   onPurchaseError?: (error: PurchaseError) => void;
   /**
    * Options for the purchase success listener. iOS defaults to suppressing
@@ -164,6 +174,44 @@ export interface UseIAPOptions {
   billingChoiceScreenTypeAndroid?: BillingChoiceScreenTypeAndroid;
 }
 
+// The store refused a new billing program because a purchase is in progress;
+// the live connection stays up.
+const isRefusedRebuild = (error: unknown): boolean =>
+  typeof error === 'object' &&
+  error !== null &&
+  'code' in error &&
+  error.code === ErrorCode.DeveloperError;
+
+// A fetched item replaces the one it updates, keeping the list's order.
+function mergeByKey<T>(
+  existingItems: T[],
+  newItems: T[],
+  getKey: (item: T) => string,
+): T[] {
+  const merged = new Map(
+    existingItems.map((item) => [getKey(item), item] as const),
+  );
+  newItems.forEach((item) => merged.set(getKey(item), item));
+  return Array.from(merged.values());
+}
+
+// Store reads can resolve out of order. A result publishes only when no newer
+// read has published, so a failed newer read lets an older result through,
+// and a purchase makes every read that started before it stale.
+interface ReadOrder {
+  started: number;
+  published: number;
+}
+const startRead = (order: ReadOrder): number => ++order.started;
+const claimPublish = (order: ReadOrder, read: number): boolean => {
+  if (read <= order.published) return false;
+  order.published = read;
+  return true;
+};
+const invalidateReads = (order: ReadOrder): void => {
+  order.published = ++order.started;
+};
+
 /**
  * React Hook for managing In-App Purchases. Mounted hooks share one store
  * connection, which ends when the last of them unmounts.
@@ -185,28 +233,14 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   const isMountedRef = useRef<boolean>(false);
   const initializationGenerationRef = useRef(0);
   const startedInitializationGenerationRef = useRef(0);
+  const availablePurchasesReads = useRef<ReadOrder>({started: 0, published: 0});
+  const activeSubscriptionsReads = useRef<ReadOrder>({
+    started: 0,
+    published: 0,
+  });
 
-  const mergeWithDuplicateCheck = useCallback(
-    <T>(
-      existingItems: T[],
-      newItems: T[],
-      getKey: (item: T) => string,
-    ): T[] => {
-      const merged = [...existingItems];
-      newItems.forEach((newItem) => {
-        const isDuplicate = merged.some(
-          (existingItem) => getKey(existingItem) === getKey(newItem),
-        );
-        if (!isDuplicate) {
-          merged.push(newItem);
-        }
-      });
-      return merged;
-    },
-    [],
-  );
-
-  useEffect(() => {
+  // Before any effect runs, so a purchase never reaches a stale callback.
+  useLayoutEffect(() => {
     optionsRef.current = options;
   }, [options]);
 
@@ -306,7 +340,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
         if (queryType === 'subs') {
           const subscriptionsResult = items as ProductSubscription[];
           setSubscriptions((prevSubscriptions) =>
-            mergeWithDuplicateCheck(
+            mergeByKey(
               prevSubscriptions,
               subscriptionsResult,
               (subscription) => subscription.id,
@@ -315,11 +349,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
         } else if (queryType === 'in-app') {
           const productsResult = items as Product[];
           setProducts((prevProducts) =>
-            mergeWithDuplicateCheck(
-              prevProducts,
-              productsResult,
-              (product) => product.id,
-            ),
+            mergeByKey(prevProducts, productsResult, (product) => product.id),
           );
         } else {
           const productItems = items.filter(
@@ -331,15 +361,11 @@ export function useIAP(options?: UseIAPOptions): UseIap {
           ) as ProductSubscription[];
 
           setProducts((prevProducts) =>
-            mergeWithDuplicateCheck(
-              prevProducts,
-              productItems,
-              (product) => product.id,
-            ),
+            mergeByKey(prevProducts, productItems, (product) => product.id),
           );
 
           setSubscriptions((prevSubscriptions) =>
-            mergeWithDuplicateCheck(
+            mergeByKey(
               prevSubscriptions,
               subscriptionItems,
               (subscription) => subscription.id,
@@ -352,12 +378,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
         throw error;
       }
     },
-    [
-      canonicalProductType,
-      invokeOnError,
-      mergeWithDuplicateCheck,
-      normalizeProductQueryType,
-    ],
+    [canonicalProductType, invokeOnError, normalizeProductQueryType],
   );
 
   /**
@@ -383,6 +404,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
    */
   const getAvailablePurchasesInternal = useCallback(
     async (options?: PurchaseOptions): Promise<void> => {
+      const read = startRead(availablePurchasesReads.current);
       try {
         const result = await getAvailablePurchases({
           alsoPublishToEventListenerIOS:
@@ -390,7 +412,9 @@ export function useIAP(options?: UseIAPOptions): UseIap {
           onlyIncludeActiveItemsIOS: options?.onlyIncludeActiveItemsIOS ?? true,
           includeSuspendedAndroid: options?.includeSuspendedAndroid ?? false,
         });
-        setAvailablePurchases(result);
+        if (claimPublish(availablePurchasesReads.current, read)) {
+          setAvailablePurchases(result);
+        }
       } catch (error) {
         ExpoIapConsole.error('Error fetching available purchases:', error);
         invokeOnError(error);
@@ -407,9 +431,12 @@ export function useIAP(options?: UseIAPOptions): UseIap {
    */
   const getActiveSubscriptionsInternal = useCallback(
     async (subscriptionIds?: string[]): Promise<void> => {
+      const read = startRead(activeSubscriptionsReads.current);
       try {
         const result = await getActiveSubscriptions(subscriptionIds);
-        setActiveSubscriptions(result);
+        if (claimPublish(activeSubscriptionsReads.current, read)) {
+          setActiveSubscriptions(result);
+        }
       } catch (error) {
         ExpoIapConsole.error('Error getting active subscriptions:', error);
         invokeOnError(error);
@@ -476,29 +503,33 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     [toPurchaseInput],
   );
 
-  const refreshSubscriptionStatus = useCallback(
+  // Replaces the reads a purchase invalidated; a known subscription also
+  // refreshes its catalog entry first.
+  const refreshAfterPurchase = useCallback(
     async (productId: string) => {
-      if (!subscriptionsRefState.current.some((sub) => sub.id === productId)) {
-        return;
-      }
       const generation = initializationGenerationRef.current;
       const isCurrent = (): boolean =>
         isMountedRef.current &&
         initializationGenerationRef.current === generation;
-      for (const refresh of [
-        () => fetchProductsInternal({skus: [productId], type: 'subs'}),
+      const ownership = [
         getAvailablePurchasesInternal,
         getActiveSubscriptionsInternal,
-      ]) {
+      ];
+      const refreshes = subscriptionsRefState.current.some(
+        (sub) => sub.id === productId,
+      )
+        ? [
+            () => fetchProductsInternal({skus: [productId], type: 'subs'}),
+            ...ownership,
+          ]
+        : ownership;
+      for (const refresh of refreshes) {
         if (!isCurrent()) return;
         try {
           await refresh();
         } catch (error) {
           if (isCurrent()) {
-            ExpoIapConsole.warn(
-              'Failed to refresh subscription status:',
-              error,
-            );
+            ExpoIapConsole.warn('Failed to refresh after a purchase:', error);
           }
         }
       }
@@ -519,14 +550,20 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     async (options?: PurchaseOptions): Promise<void> => {
       try {
         await restorePurchasesNative();
+        await optionsRef.current?.purchaseFlow?.recoverPurchases({
+          includeFinished: true,
+        });
 
+        const read = startRead(availablePurchasesReads.current);
         const purchases = await getAvailablePurchases({
           alsoPublishToEventListenerIOS:
             options?.alsoPublishToEventListenerIOS ?? false,
           onlyIncludeActiveItemsIOS: options?.onlyIncludeActiveItemsIOS ?? true,
           includeSuspendedAndroid: options?.includeSuspendedAndroid ?? false,
         });
-        setAvailablePurchases(purchases);
+        if (claimPublish(availablePurchasesReads.current, read)) {
+          setAvailablePurchases(purchases);
+        }
       } catch (error) {
         ExpoIapConsole.warn('Failed to restore purchases:', error);
         invokeOnError(error);
@@ -578,6 +615,10 @@ export function useIAP(options?: UseIAPOptions): UseIap {
 
   const handlePurchaseUpdate = useCallback(
     async (purchase: Purchase): Promise<void> => {
+      // Before the callback, which may read again: a read that started before
+      // this purchase is stale.
+      invalidateReads(availablePurchasesReads.current);
+      invalidateReads(activeSubscriptionsReads.current);
       // Deliver first so a store refresh cannot delay finishing the transaction.
       try {
         const callbackResult: unknown =
@@ -589,10 +630,13 @@ export function useIAP(options?: UseIAPOptions): UseIap {
         ExpoIapConsole.error('[useIAP] onPurchaseSuccess failed:', error);
       }
 
-      // Safe for any purchase: it skips products that are not known subscriptions.
-      await refreshSubscriptionStatus(purchase.productId);
+      // With a purchase flow, its outcome refreshes once the purchase is
+      // finished instead.
+      if (!optionsRef.current?.purchaseFlow) {
+        await refreshAfterPurchase(purchase.productId);
+      }
     },
-    [refreshSubscriptionStatus],
+    [refreshAfterPurchase],
   );
 
   // Registers only missing listeners, so reconnect can restore removed ones.
@@ -754,8 +798,12 @@ export function useIAP(options?: UseIAPOptions): UseIap {
         ) {
           return;
         }
-        ExpoIapConsole.error('initConnection failed:', error);
         invokeOnError(error);
+        if (isRefusedRebuild(error)) {
+          setConnected(true);
+          return;
+        }
+        ExpoIapConsole.error('initConnection failed:', error);
         removePurchaseListeners();
       }
     },
@@ -780,11 +828,39 @@ export function useIAP(options?: UseIAPOptions): UseIap {
 
       return result;
     } catch (error) {
-      ExpoIapConsole.error('[useIAP] reconnect failed:', error);
+      if (!isRefusedRebuild(error)) {
+        ExpoIapConsole.error('[useIAP] reconnect failed:', error);
+      }
       invokeOnError(error);
       return false;
     }
   }, [buildConnectionConfig, registerListeners, invokeOnError]);
+
+  const purchaseFlow = options?.purchaseFlow;
+  useEffect(
+    () =>
+      purchaseFlow?.subscribe((outcome) => {
+        // Reads that started before the purchase settled are stale.
+        invalidateReads(availablePurchasesReads.current);
+        invalidateReads(activeSubscriptionsReads.current);
+        try {
+          optionsRef.current?.onPurchaseFlowOutcome?.(outcome);
+        } catch (error) {
+          ExpoIapConsole.error('[useIAP] onPurchaseFlowOutcome failed:', error);
+        }
+        void refreshAfterPurchase(outcome.purchase.productId);
+      }),
+    [purchaseFlow, refreshAfterPurchase],
+  );
+
+  // Once connected, and again for a new account's flow.
+  useEffect(() => {
+    if (!connected || !purchaseFlow) return;
+    purchaseFlow.recoverPurchases().catch((error: unknown) => {
+      ExpoIapConsole.warn('[useIAP] purchase recovery failed:', error);
+      invokeOnError(error);
+    });
+  }, [connected, purchaseFlow, invokeOnError]);
 
   useEffect(() => {
     const generation = ++initializationGenerationRef.current;

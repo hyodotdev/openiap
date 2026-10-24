@@ -109,7 +109,7 @@ if (Platform.OS === 'ios') {
 using OpenIap.Maui;
 
 // OpenIap.Maui (iOS targets only — no-op on Android)
-var changed = await ((MutationResolver)OpenIapClient.Instance).ShowManageSubscriptionsIOSAsync();`}</CodeBlock>
+var changed = await OpenIapClient.Mutation.ShowManageSubscriptionsIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

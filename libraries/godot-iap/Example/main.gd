@@ -335,8 +335,6 @@ func _on_purchase_completed(product_id: String) -> void:
 			print("[Main] Bulb count: %d" % bulb_count)
 		"dev.hyo.martie.certified":
 			print("[Main] Certified purchased!")
-		"dev.hyo.martie.premium", "dev.hyo.martie.premium_year":
-			IapManager.reconcile_subscription_entitlements()
 	update_ui()
 	_update_store_panel_buttons()
 
@@ -355,7 +353,7 @@ func _on_products_loaded() -> void:
 func _on_connection_changed(connected: bool) -> void:
 	if connected:
 		status_label.text = "Connected"
-		IapManager.reconcile_subscription_entitlements()
+		IapManager.refresh_subscriptions()
 	else:
 		status_label.text = "Not connected"
 	_update_store_panel_buttons()
@@ -374,7 +372,7 @@ func _on_subscription_entitlements_changed() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_RESUMED and IapManager.store_connected:
-		IapManager.reconcile_subscription_entitlements()
+		IapManager.refresh_subscriptions()
 
 
 func update_ui() -> void:

@@ -27,4 +27,9 @@
     <ProjectReference Include="../../src/OpenIap.Maui/OpenIap.Maui.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Synced from specs/client/src/purchase-flow.vectors.json; never edit the copy. -->
+    <Content Include="Fixtures/purchase-flow.vectors.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

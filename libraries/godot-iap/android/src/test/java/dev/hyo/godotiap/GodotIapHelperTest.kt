@@ -10,6 +10,7 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GodotIapHelperTest {
@@ -164,18 +165,24 @@ class GodotIapHelperTest {
             """{"type":"subs","skus":["monthly"],"isOfferPersonalized":"true"}""",
             """{"type":"subs","skus":["monthly"],"offerToken":"one-time-token"}""",
             """{"type":"subs","skus":["monthly"],"subscriptionOffers":"offer"}""",
-            """{"type":"subs","skus":["monthly"],"subscriptionOffers":[]}""",
             """{"type":"subs","skus":["monthly"],"subscriptionOffers":[7]}""",
             """{"type":"subs","skus":["monthly"],"subscriptionOffers":[{"offerToken":"token"}]}""",
             """{"type":"subs","skus":["monthly"],"subscriptionOffers":[{"sku":"monthly"}]}""",
             """{"type":"subs","skus":["monthly"],"subscriptionOffers":[{"sku":"yearly","offerToken":"token"}]}""",
-            """{"type":"in-app","skus":["coins"],"subscriptionOffers":[]}""",
             """{"type":"in-app","skus":["coins"],"purchaseToken":"subscription-token"}""",
             """{"type":"in-app","skus":["coins"],"originalExternalTransactionId":"external-id"}""",
         ).forEach { json ->
             assertThrows(IllegalArgumentException::class.java) {
                 GodotIapHelper.parseRequestPurchaseParams(json)
             }
+        }
+
+        // Typed GDScript props always send a list; empty means no offer was chosen.
+        listOf(
+            """{"type":"subs","skus":["monthly"],"subscriptionOffers":[]}""",
+            """{"type":"in-app","skus":["coins"],"subscriptionOffers":[]}""",
+        ).forEach { json ->
+            assertEquals(0, GodotIapHelper.parseRequestPurchaseParams(json).subscriptionOffers.size)
         }
 
         val multipleOffers = GodotIapHelper.parseRequestPurchaseParams(
@@ -199,6 +206,23 @@ class GodotIapHelperTest {
             "No Android store provider registered. Select openiapStore and link its provider artifact.",
             reported.getString("message"),
         )
+    }
+
+    @Test
+    fun `a refused rebuild reports its reason and the live connection`() {
+        val reported = JSONObject(
+            GodotIapHelper.lastInitErrorJson(
+                OpenIapError.DeveloperError("initConnection cannot change the billing program while a purchase is in progress"),
+                connected = true,
+            ),
+        )
+
+        assertEquals("developer-error", reported.getString("code"))
+        assertEquals(
+            "initConnection cannot change the billing program while a purchase is in progress",
+            reported.getString("message"),
+        )
+        assertTrue(reported.getBoolean("connected"))
     }
 
     @Test

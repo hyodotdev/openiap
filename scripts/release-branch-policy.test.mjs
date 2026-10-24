@@ -2588,7 +2588,16 @@ test("Commerce Protocol current retries cannot reuse an unscoped npm release", (
   );
 });
 
-const nativeVersions = { google: "3.6.1", apple: "3.6.0" };
+const nativeVersions = {
+  google: "3.6.1",
+  apple: "3.6.0",
+  clientProtocol: "1.1.0",
+};
+// Both tags embed main's Client Protocol unless a test says otherwise.
+const withManifest = (git) => (args) =>
+  args[0] === "show"
+    ? JSON.stringify({ clientProtocol: nativeVersions.clientProtocol })
+    : git(args);
 // One `git log --format=%x00%h %s --name-only` entry.
 const logEntry = (subject, ...files) => `\0${subject}\n\n${files.join("\n")}\n`;
 const rangeOf = (args) => args.find((arg) => arg.endsWith("..HEAD"));
@@ -2607,13 +2616,16 @@ test("the native gate lists source commits since each native release tag", () =>
           "Package.swift",
         );
   };
-  assert.deepEqual(findUnreleasedNativeChanges(nativeVersions, { git }), [
-    {
-      label: "openiap-google",
-      tag: "google-3.6.1",
-      commits: ["abc1234 fix(google): a store fix"],
-    },
-  ]);
+  assert.deepEqual(
+    findUnreleasedNativeChanges(nativeVersions, { git: withManifest(git) }),
+    [
+      {
+        label: "openiap-google",
+        tag: "google-3.6.1",
+        commits: ["abc1234 fix(google): a store fix"],
+      },
+    ],
+  );
   assert.deepEqual(ranges, ["google-3.6.1..HEAD", "3.6.0..HEAD"]);
 });
 
@@ -2637,18 +2649,21 @@ test("the native gate counts only what the native packages ship", () => {
           "5555555 test(apple): a test",
           "packages/apple/Tests/OpenIapTests/X.swift",
         );
-  assert.deepEqual(findUnreleasedNativeChanges(nativeVersions, { git }), [
-    {
-      label: "openiap-google",
-      tag: "google-3.6.1",
-      commits: ["3333333 fix(google): keep rules"],
-    },
-    {
-      label: "openiap-apple",
-      tag: "3.6.0",
-      commits: ["4444444 fix(apple): the SwiftPM manifest"],
-    },
-  ]);
+  assert.deepEqual(
+    findUnreleasedNativeChanges(nativeVersions, { git: withManifest(git) }),
+    [
+      {
+        label: "openiap-google",
+        tag: "google-3.6.1",
+        commits: ["3333333 fix(google): keep rules"],
+      },
+      {
+        label: "openiap-apple",
+        tag: "3.6.0",
+        commits: ["4444444 fix(apple): the SwiftPM manifest"],
+      },
+    ],
+  );
 });
 
 test("the release gates know every native publication input", () => {
@@ -2731,21 +2746,24 @@ test("the native gate flags core and conformance-only changes", () => {
           "packages/conformance/apple/Sources/ProviderConformance.swift",
         );
   };
-  assert.deepEqual(findUnreleasedNativeChanges(nativeVersions, { git }), [
-    {
-      label: "openiap-google",
-      tag: "google-3.6.1",
-      commits: [
-        "aaaaaaa fix(core): keep provider factories",
-        "bbbbbbb feat(conformance): extend the android suite",
-      ],
-    },
-    {
-      label: "openiap-apple",
-      tag: "3.6.0",
-      commits: ["ccccccc feat(conformance): extend the swift suite"],
-    },
-  ]);
+  assert.deepEqual(
+    findUnreleasedNativeChanges(nativeVersions, { git: withManifest(git) }),
+    [
+      {
+        label: "openiap-google",
+        tag: "google-3.6.1",
+        commits: [
+          "aaaaaaa fix(core): keep provider factories",
+          "bbbbbbb feat(conformance): extend the android suite",
+        ],
+      },
+      {
+        label: "openiap-apple",
+        tag: "3.6.0",
+        commits: ["ccccccc feat(conformance): extend the swift suite"],
+      },
+    ],
+  );
   assert.deepEqual(seenRoots["google-3.6.1..HEAD"], [
     "packages/google",
     "packages/conformance/android",
@@ -2767,11 +2785,61 @@ test("the native gate refuses a library release while a native change is unrelea
         )
       : "";
   assert.throws(
-    () => assertNativesReleased(nativeVersions, { git }),
+    () => assertNativesReleased(nativeVersions, { git: withManifest(git) }),
     /Native gate: release the native packages first.*openiap-apple since 3\.6\.0: abc1234 feat\(apple\): a new API/,
   );
   assert.doesNotThrow(() =>
-    assertNativesReleased(nativeVersions, { git: () => "" }),
+    assertNativesReleased(nativeVersions, { git: withManifest(() => "") }),
+  );
+});
+
+test("the native gate holds libraries until both natives embed main's Client Protocol", () => {
+  const embedded = { "google-3.6.1": "1.1.0", "3.6.0": "1.0.3" };
+  const git = (args) => {
+    if (args[0] !== "show") return "";
+    const tag = args[1].slice(0, args[1].indexOf(":"));
+    if (!(tag in embedded)) throw new Error("fatal: path not in tree");
+    return JSON.stringify({ clientProtocol: embedded[tag] });
+  };
+  assert.deepEqual(
+    findUnreleasedNativeChanges(
+      { ...nativeVersions, clientProtocol: "1.1.0" },
+      { git },
+    ),
+    [
+      {
+        label: "openiap-apple",
+        tag: "3.6.0",
+        commits: ["embeds Client Protocol 1.0.3, main pins 1.1.0"],
+      },
+    ],
+  );
+  assert.deepEqual(
+    findUnreleasedNativeChanges(
+      { google: "3.6.0", apple: "3.6.0", clientProtocol: "1.1.0" },
+      { git },
+    ).map(({ tag, commits }) => [tag, commits]),
+    [
+      ["google-3.6.0", ["embeds Client Protocol (none), main pins 1.1.0"]],
+      ["3.6.0", ["embeds Client Protocol 1.0.3, main pins 1.1.0"]],
+    ],
+  );
+  // A tag and a manifest that both name no Client Protocol still hold.
+  assert.deepEqual(
+    findUnreleasedNativeChanges(
+      { google: "3.6.1", apple: "3.6.0" },
+      { git: () => "" },
+    ).map(({ commits }) => commits),
+    [
+      ["embeds Client Protocol (none), main pins (none)"],
+      ["embeds Client Protocol (none), main pins (none)"],
+    ],
+  );
+  // A manifest that names no Client Protocol holds both natives.
+  assert.equal(
+    findUnreleasedNativeChanges({ google: "3.6.1", apple: "3.6.0" }, { git })
+      .length,
+    2,
   );
 });
 
@@ -2780,7 +2848,8 @@ test("the native gate asks for full history when a release tag is missing", () =
     throw new Error("fatal: bad revision");
   };
   assert.throws(
-    () => findUnreleasedNativeChanges(nativeVersions, { git }),
+    () =>
+      findUnreleasedNativeChanges(nativeVersions, { git: withManifest(git) }),
     /Cannot compare with release tag 'google-3\.6\.1'.*fetch-depth: 0/,
   );
 });

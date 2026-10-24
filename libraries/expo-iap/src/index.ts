@@ -4,7 +4,27 @@ import {Platform} from 'react-native';
 // Internal modules
 import ExpoIapModule, {getNativeModule} from './ExpoIapModule';
 import {isVegaOS} from './vega';
-import {isProductIOS, deepLinkToSubscriptionsIOS} from './modules/ios';
+import {
+  deepLinkToSubscriptionsIOS,
+  getPendingTransactionsIOS,
+  isProductIOS,
+} from './modules/ios';
+import {
+  createDeviceConfirmationIOS,
+  createIapkitConfirmation,
+  type IapkitConfirmationOptions,
+  type PurchaseConfirmation,
+  type PurchaseFlow,
+  type PurchaseFlowOptions,
+  type PurchaseFlowPurchase,
+} from './purchase-flow';
+import {
+  clearRequested,
+  createSdkPurchaseFlow,
+  markRequested,
+  type PurchaseFlowSdk,
+  type SdkPurchaseFlowOptions,
+} from './utils/purchaseFlowBinding';
 import {
   isProductAndroid,
   deepLinkToSubscriptionsAndroid,
@@ -971,6 +991,19 @@ export const verifyAppOwnership: QueryField<'verifyAppOwnership'> = async (
 export const requestPurchase: MutationField<'requestPurchase'> = async (
   args,
 ) => {
+  const {request} = args;
+  markRequested([request.apple?.sku, ...(request.google?.skus ?? [])]);
+  try {
+    return await requestPurchaseFromStore(args);
+  } catch (error) {
+    clearRequested();
+    throw error;
+  }
+};
+
+const requestPurchaseFromStore: MutationField<'requestPurchase'> = async (
+  args,
+) => {
   const {request, type} = args;
   const {canonical, native} = normalizeProductType(type as ProductTypeInput);
   if (canonical === 'all') {
@@ -1385,25 +1418,27 @@ export const verifyPurchaseWithProvider: MutationField<
     resolvedOptions.iapkit &&
     !resolvedOptions.iapkit.apiKey
   ) {
+    let configApiKey: unknown;
     try {
       // Dynamically import expo-constants to avoid hard dependency
       const {default: Constants} = await import('expo-constants');
-      const configApiKey = Constants.expoConfig?.extra?.iapkitApiKey;
-      if (typeof configApiKey === 'string' && configApiKey.length > 0) {
-        resolvedOptions = {
-          ...resolvedOptions,
-          iapkit: {
-            ...resolvedOptions.iapkit,
-            apiKey: configApiKey,
-          },
-        };
-      }
-    } catch {
+      configApiKey = Constants.expoConfig?.extra?.iapkitApiKey;
+    } catch (error) {
       throw new Error(
-        'expo-constants is required for auto-filling iapkitApiKey from config. ' +
-          'Please install it: npx expo install expo-constants\n' +
-          'Or provide apiKey directly in verifyPurchaseWithProvider options.',
+        'Could not read iapkitApiKey from expo-constants. Install it with ' +
+          '`npx expo install expo-constants`, or pass apiKey in ' +
+          'verifyPurchaseWithProvider options.',
+        {cause: error},
       );
+    }
+    if (typeof configApiKey === 'string' && configApiKey.length > 0) {
+      resolvedOptions = {
+        ...resolvedOptions,
+        iapkit: {
+          ...resolvedOptions.iapkit,
+          apiKey: configApiKey,
+        },
+      };
     }
   }
 
@@ -1427,6 +1462,68 @@ export const verifyPurchaseWithProvider: MutationField<
   };
 };
 
+export type {SdkPurchaseFlowOptions} from './utils/purchaseFlowBinding';
+
+const purchaseFlowSdk: PurchaseFlowSdk = {
+  finishTransaction: (args) => finishTransaction(args),
+  getAvailablePurchases: () => getAvailablePurchases(),
+  getPendingTransactionsIOS:
+    Platform.OS === 'ios' ? () => getPendingTransactionsIOS() : undefined,
+  purchaseUpdatedListener: (listener) =>
+    purchaseUpdatedListener(listener, {dedupeTransactionIOS: false}),
+  purchaseErrorListener: (listener) => purchaseErrorListener(listener),
+};
+
+/**
+ * Creates the app's purchase flow. It confirms and finishes every purchase the
+ * store delivers, and recovers unfinished ones, through this SDK. Create one
+ * per signed-in account, dispose it when the account changes, and pass it to
+ * `useIAP({purchaseFlow})`.
+ * @see {@link https://kit.openiap.dev/docs/purchase-flow}
+ */
+export function createPurchaseFlow(
+  options: SdkPurchaseFlowOptions,
+): PurchaseFlow<Purchase>;
+export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
+  options: PurchaseFlowOptions<P>,
+): PurchaseFlow<P>;
+export function createPurchaseFlow(
+  options: SdkPurchaseFlowOptions,
+): PurchaseFlow<Purchase> {
+  return createSdkPurchaseFlow(purchaseFlowSdk, options);
+}
+
+/**
+ * Confirms purchases with IAPKit from the app, for apps without a backend:
+ * pass it as `confirmWithBackend` with a publishable key. Credit consumables
+ * in `grant`, which runs before the purchase is consumed.
+ */
+export function confirmWithIapkit(
+  options: IapkitConfirmationOptions<Purchase>,
+): (
+  purchase: Purchase,
+  context: {isConsumable: boolean},
+) => Promise<PurchaseConfirmation> {
+  return createIapkitConfirmation(verifyPurchaseWithProvider, options);
+}
+
+/**
+ * Confirms App Store purchases on the device, for apps with neither a backend
+ * nor IAPKit: StoreKit must still list the transaction as unfinished and
+ * valid. Credit consumables in `grant`.
+ */
+export function confirmOnDeviceIOS(
+  options: Pick<IapkitConfirmationOptions<Purchase>, 'grant'> = {},
+): (
+  purchase: Purchase,
+  context: {isConsumable: boolean},
+) => Promise<PurchaseConfirmation> {
+  return createDeviceConfirmationIOS<Purchase>(
+    () => getPendingTransactionsIOS(),
+    options,
+  );
+}
+
 export * from './useIAP';
 export {kitApi, KitApiError, resolveLocalizedPayload} from './kit-api';
 export type {
@@ -1448,11 +1545,11 @@ export type {
   StatusResponse,
 } from './kit-api';
 export {
-  createPurchaseFlow,
   describePurchaseFlowStatus,
   toPurchaseConfirmationRequest,
 } from './purchase-flow';
 export type {
+  IapkitConfirmationOptions,
   PurchaseConfirmation,
   PurchaseConfirmationRequest,
   PurchaseFlow,

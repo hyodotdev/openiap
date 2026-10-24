@@ -20,13 +20,17 @@ internal class GodotIapConnectionLifecycle(
         val didEnd: Boolean,
     )
 
+    /** Native refuses a rebuild while a purchase is in progress and keeps the live client. */
+    internal enum class Reconfigure { Applied, Refused, Failed }
+
     private enum class State { Disconnected, Initializing, Connected, Ending }
 
     private val lock = Any()
 
     @Volatile
     private var state = State.Disconnected
-    private var activeConfig: Map<String, Any?>? = null
+    // Kept across a drop or a failed connect, so a reconnect without a config restores the billing program.
+    private var activeConfig: Map<String, Any?> = emptyMap()
 
     /** Numbers connection attempts, so a late teardown can tell it targets an older one. */
     private var generation = 0L
@@ -34,19 +38,20 @@ internal class GodotIapConnectionLifecycle(
     val isConnected: Boolean
         get() = state == State.Connected
 
-    /** [connect] receives this attempt's generation, for a teardown that must end only this connection. */
+    /** [connect] gets the attempt's generation and config; while connected, a changed [config] goes to [reconfigure], and null keeps it. */
     fun init(
-        config: Map<String, Any?>,
-        onConfigMismatch: () -> Unit,
-        connect: (generation: Long) -> Boolean,
+        config: Map<String, Any?>?,
+        connect: (generation: Long, config: Map<String, Any?>) -> Boolean,
+        reconfigure: () -> Reconfigure,
+        disconnect: () -> Boolean,
+        cleanupListeners: () -> Unit,
     ): InitResult = synchronized(lock) {
         when (state) {
             State.Connected -> {
-                if (activeConfig == config) {
+                if (config == null || activeConfig == config) {
                     return@synchronized InitResult(success = true, didConnect = false)
                 }
-                onConfigMismatch()
-                return@synchronized InitResult(success = false, didConnect = false)
+                return@synchronized reconfigureLocked(config, reconfigure, disconnect, cleanupListeners)
             }
             State.Initializing, State.Ending -> {
                 // Only reachable through a re-entrant call on the same thread;
@@ -59,18 +64,14 @@ internal class GodotIapConnectionLifecycle(
         state = State.Initializing
         // Allocated before connecting, so a drop reported before connect returns targets this attempt.
         generation++
+        val requested = config ?: activeConfig
+        // The program the app chose last, even if this connect fails, as native records it.
+        activeConfig = requested.toMap()
         val result = try {
-            val connected = connect(generation)
-            if (connected) {
-                activeConfig = config.toMap()
-                state = State.Connected
-            } else {
-                activeConfig = null
-                state = State.Disconnected
-            }
+            val connected = connect(generation, requested)
+            state = if (connected) State.Connected else State.Disconnected
             InitResult(success = connected, didConnect = connected)
         } catch (error: Throwable) {
-            activeConfig = null
             state = State.Disconnected
             throw error
         }
@@ -78,19 +79,56 @@ internal class GodotIapConnectionLifecycle(
         result
     }
 
-    /** With [onlyGeneration], ends only that connection and leaves a newer one alone. */
+    // The listeners stay attached: native keeps them across a rebuilt client.
+    private fun reconfigureLocked(
+        config: Map<String, Any?>,
+        reconfigure: () -> Reconfigure,
+        disconnect: () -> Boolean,
+        cleanupListeners: () -> Unit,
+    ): InitResult {
+        val reconfigured = try {
+            reconfigure()
+        } catch (error: Throwable) {
+            activeConfig = config.toMap()
+            endLocked(disconnect, cleanupListeners, keepConfig = true)
+            throw error
+        }
+        if (reconfigured == Reconfigure.Refused) return InitResult(success = false, didConnect = false)
+        // Recorded even when the rebuild fails, as native records it.
+        activeConfig = config.toMap()
+        // A failed rebuild leaves native without a client, so end this connection too.
+        if (reconfigured == Reconfigure.Failed) {
+            endLocked(disconnect, cleanupListeners, keepConfig = true)
+            return InitResult(success = false, didConnect = false)
+        }
+        return InitResult(success = true, didConnect = false)
+    }
+
+    /** With [onlyGeneration], ends only that dropped connection, keeping its config for the reconnect. */
     fun end(
         disconnect: () -> Boolean,
         cleanupListeners: () -> Unit,
         onlyGeneration: Long? = null,
     ): EndResult = synchronized(lock) {
-        if (state == State.Disconnected || (onlyGeneration != null && onlyGeneration != generation)) {
+        if (onlyGeneration != null && onlyGeneration != generation) {
             return@synchronized EndResult(success = true, didEnd = false)
         }
-        if (state != State.Connected) {
-            return@synchronized EndResult(success = false, didEnd = false)
+        when (state) {
+            State.Disconnected -> {
+                // Only endConnection forgets the program, even after a drop disconnected.
+                if (onlyGeneration == null) activeConfig = emptyMap()
+                EndResult(success = true, didEnd = false)
+            }
+            State.Connected -> endLocked(disconnect, cleanupListeners, keepConfig = onlyGeneration != null)
+            State.Initializing, State.Ending -> EndResult(success = false, didEnd = false)
         }
+    }
 
+    private fun endLocked(
+        disconnect: () -> Boolean,
+        cleanupListeners: () -> Unit,
+        keepConfig: Boolean,
+    ): EndResult {
         state = State.Ending
         var success = false
         try {
@@ -103,11 +141,11 @@ internal class GodotIapConnectionLifecycle(
             } finally {
                 // Listener cleanup is best-effort. A bridge implementation must
                 // never remain wedged in Ending if a removal callback throws.
-                activeConfig = null
+                if (!keepConfig) activeConfig = emptyMap()
                 state = State.Disconnected
             }
         }
         onConnectionChanged(false)
-        EndResult(success = success, didEnd = true)
+        return EndResult(success = success, didEnd = true)
     }
 }

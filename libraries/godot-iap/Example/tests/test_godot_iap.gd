@@ -22,9 +22,20 @@ class FakeAndroidPlugin:
 		redeem_calls += 1
 		return JSON.stringify({"success": true})
 
+	var refuse_config := false
+
 	func initConnectionWithConfig(config_json: String) -> bool:
 		last_config = JSON.parse_string(config_json)
-		return true
+		return not refuse_config
+
+	func getLastInitError() -> String:
+		if not refuse_config:
+			return ""
+		return JSON.stringify({
+			"code": "developer-error",
+			"message": "initConnection cannot change the billing program while a purchase is in progress",
+			"connected": true,
+		})
 
 	func requestPurchase(params_json: String) -> String:
 		last_purchase = JSON.parse_string(params_json)
@@ -522,6 +533,16 @@ func test_billing_choice_android_payloads() -> void:
 	_assert_true(await GodotIapPlugin.init_connection(config), "Billing Choice config should reach Android plugin")
 	_assert_equal(fake.last_config.get("enableBillingProgramAndroid"), "billing-choice", "Billing Choice program should be preserved")
 	_assert_equal(fake.last_config.get("billingChoiceScreenTypeAndroid"), "developer-rendered", "Billing Choice renderer should be preserved")
+	var external_offer = Types.InitConnectionConfig.new()
+	external_offer.enable_billing_program_android = Types.BillingProgramAndroid.EXTERNAL_OFFER
+	_assert_true(await GodotIapPlugin.init_connection(external_offer), "A changed config should reconnect without end_connection")
+	_assert_equal(fake.last_config.get("enableBillingProgramAndroid"), "external-offer", "A changed config should reach the connected Android plugin")
+	_assert_true(await GodotIapPlugin.init_connection({}), "An empty config should reconnect to Standard")
+	_assert_equal(fake.last_config, {}, "An empty config should reach the Android plugin as an explicit config")
+	fake.refuse_config = true
+	_assert_false(await GodotIapPlugin.init_connection(external_offer), "A rebuild refused during a purchase should report failure")
+	_assert_true(GodotIapPlugin.is_store_connected(), "A refused rebuild should keep the wrapper connected")
+	fake.refuse_config = false
 
 	var subscription = Types.RequestSubscriptionAndroidProps.new()
 	var skus: Array[String] = ["monthly_subscription"]
@@ -598,7 +619,6 @@ func test_android_purchase_lists_fail_closed() -> void:
 		_assert_true(fake.last_purchase.is_empty(), "Malformed purchase lists must not reach native billing")
 
 	var invalid_in_app_payloads = [
-		{"skus": ["coins"], "subscriptionOffers": []},
 		{"skus": ["coins"], "purchaseToken": "subscription-token"},
 		{"skus": ["coins"], "originalExternalTransactionId": "external-id"},
 	]
@@ -633,6 +653,22 @@ func test_android_purchase_lists_fail_closed() -> void:
 	_assert_false(fake.last_purchase.has("subscriptionOffers"), "Null offers should be omitted")
 	_assert_false(fake.last_purchase.has("developerBillingOption"), "Null billing options should be omitted")
 	_assert_false(fake.last_purchase.has("subscriptionProductReplacementParams"), "Null replacement params should be omitted")
+
+	# Typed props always carry an offer list; Amazon products never have offer tokens.
+	var typed_props = Types.RequestPurchaseProps.new()
+	typed_props.type = Types.ProductQueryType.SUBS
+	typed_props.request_subscription = Types.RequestSubscriptionPropsByPlatforms.new()
+	typed_props.request_subscription.google = Types.RequestSubscriptionAndroidProps.new()
+	var typed_skus: Array[String] = ["monthly"]
+	typed_props.request_subscription.google.skus = typed_skus
+	for request in [GodotIapPlugin._as_dictionary(typed_props), {
+		"type": "in-app",
+		"requestPurchase": {"google": {"skus": ["coins"], "subscriptionOffers": []}},
+	}]:
+		fake.last_purchase = {}
+		var result = GodotIapPlugin._request_purchase_raw(request)
+		_assert_true(result.get("success", false), "An empty offer list should behave as absent")
+		_assert_false(fake.last_purchase.has("subscriptionOffers"), "An empty offer list should not reach billing")
 
 	GodotIapPlugin._native_plugin = null
 	GodotIapPlugin._platform = ""
