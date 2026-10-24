@@ -645,14 +645,14 @@ function Releases() {
   const allNotes: Note[] = [
     {
       id: 'framework-prepaid-pending-2026-10-23',
-      date: new Date('2026-10-23'),
+      date: new Date('2026-10-24'),
       element: (
         <div key="framework-prepaid-pending-2026-10-23" style={noteCardStyle}>
           {FRAMEWORK_PREPAID_RELEASES.map((release) => (
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
           <AnchorLink id="framework-prepaid-pending-2026-10-23" level="h4">
-            October 23, 2026 - One purchase flow in every framework
+            October 24, 2026 - One purchase flow in every framework
           </AnchorLink>
           <p>
             Every framework library now ships the same purchase flow. Give it a

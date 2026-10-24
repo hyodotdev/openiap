@@ -121,11 +121,10 @@ the local server must target the same Convex deployment. An Android device on
 USB reaches the host through
 `adb -s "$ANDROID_SERIAL" reverse --no-rebind tcp:3100 tcp:3100` and
 `http://127.0.0.1:3100`; a physical iPhone needs the Mac's LAN address, which
-the iOS export permits in every configuration. In a repo checkout only
-`GodotIap.debug.aar` permits Android cleartext to loopback, so release exports
-keep the platform default; the published addon ships the release AAR under both
-names, so add your own debug `networkSecurityConfig` if you need the local
-vertical there.
+the iOS export permits in every configuration. Android debug exports permit
+cleartext to `127.0.0.1`, `localhost`, and `10.0.2.2`. Release exports keep the
+platform default. The published addon includes both AAR variants and selects
+one for the export mode.
 
 An export preset carrying a store value the addon does not recognise logs an
 error and falls back to Play, rather than failing the export as the Gradle and
