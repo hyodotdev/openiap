@@ -216,6 +216,13 @@ describe('shared vectors', () => {
     'sequence: %s',
     async (_, vector) => {
       const {purchases, answers, pendingIOS} = vector;
+      const purchaseAt = (key: string) => {
+        const purchase = purchases[key];
+        if (purchase === undefined) {
+          throw new Error(`Missing purchase fixture: ${key}`);
+        }
+        return purchase;
+      };
       const confirms: Record<string, number> = {};
       const finishes: Record<string, number> = {};
       const published: PurchaseFlowOutcome<PurchaseFlowPurchase>[] = [];
@@ -227,7 +234,10 @@ describe('shared vectors', () => {
           const count = (confirms[purchase.id] =
             (confirms[purchase.id] ?? 0) + 1);
           const list = answers[purchase.id] ?? answers['*'];
-          const answer = list[Math.min(count, list.length) - 1];
+          const answer = list?.[Math.min(count, list.length) - 1];
+          if (answer === undefined) {
+            throw new Error(`Missing confirmation fixture: ${purchase.id}`);
+          }
           if (answer === 'throw') throw new Error('backend down');
           return answer;
         },
@@ -236,13 +246,13 @@ describe('shared vectors', () => {
         },
         isConsumable: (productId) => consumables.has(productId),
         getAvailablePurchases: async () =>
-          (vector.available ?? []).map((key) => purchases[key]),
+          (vector.available ?? []).map(purchaseAt),
         getPendingTransactionsIOS:
           pendingIOS === undefined
             ? undefined
             : async () => {
                 if (pendingIOS === 'throw') throw new Error('unverified');
-                return pendingIOS.map((key) => purchases[key]);
+                return pendingIOS.map(purchaseAt);
               },
         listenForPurchases: (onPurchase) => {
           store.deliver = onPurchase;
@@ -276,9 +286,9 @@ describe('shared vectors', () => {
         for (const step of vector.steps) {
           if (step.dispose) flow.dispose();
           for (const key of step.listener ?? [])
-            store.deliver?.(purchases[key]);
+            store.deliver?.(purchaseAt(key));
           const processed = (step.process ?? []).map((key) =>
-            flow.processPurchase(purchases[key]),
+            flow.processPurchase(purchaseAt(key)),
           );
           const recovered = step.recover
             ? flow.recoverPurchases(step.recover)
