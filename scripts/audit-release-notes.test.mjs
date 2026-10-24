@@ -726,3 +726,29 @@ test("the current train and hosted history cover request-validation security fix
     );
   }
 });
+
+test("the confirmation train includes matching natives and the rebuild notice", () => {
+  const source = fs.readFileSync(path.join(repoRoot, RELEASE_NOTES), "utf8");
+  const inventoryStart = source.indexOf("const PURCHASE_CONFIRMER_RELEASES");
+  assert.notEqual(inventoryStart, -1);
+  const inventory = source.slice(
+    inventoryStart,
+    source.indexOf("];", inventoryStart),
+  );
+  for (const name of ["openiap-apple", "openiap-google"]) {
+    assert.ok(
+      inventory.includes(`name: '${name}'`),
+      `${name} is missing from the protocol release train`,
+    );
+  }
+  const start = source.indexOf("id: 'purchase-confirmers-");
+  assert.notEqual(start, -1);
+  const end = source.indexOf("id: '", start + 1);
+  const card = normalize(
+    stripTags(source.slice(start, end === -1 ? undefined : end)),
+  );
+  assert.match(
+    card,
+    /Rebuild native apps after updating the framework SDKs to link the matching native packages/,
+  );
+});

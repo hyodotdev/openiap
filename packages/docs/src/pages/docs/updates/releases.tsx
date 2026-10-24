@@ -39,6 +39,8 @@ const PURCHASE_CONFIRMER_RELEASES: readonly ReleaseMetadata[] = [
     version: '1.3.0',
     tag: 'openiap-client-protocol-1.3.0',
   },
+  { name: 'openiap-apple', version: '4.0.5', tag: '4.0.5' },
+  { name: 'openiap-google', version: '4.0.6', tag: 'google-4.0.6' },
   {
     name: 'react-native-iap',
     version: '17.2.1',
@@ -740,12 +742,13 @@ function Releases() {
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Migration notes</h5>
           <p>
             Existing calls and import paths keep working through patch and minor
-            releases. Replace the deprecated helpers with the SDK&apos;s{' '}
-            <code>confirmWithIapkit</code> or <code>confirmOnDeviceIOS</code> (
-            <code>confirm_with_iapkit</code> and{' '}
-            <code>confirm_on_device_ios</code> in godot-iap), or pass another
-            service&apos;s confirmer as <code>confirmWithBackend</code>. Removal
-            is scheduled for each package&apos;s next major; see{' '}
+            releases. Rebuild native apps after updating the framework SDKs to
+            link the matching native packages. Replace the deprecated helpers
+            with the SDK&apos;s <code>confirmWithIapkit</code> or{' '}
+            <code>confirmOnDeviceIOS</code> (<code>confirm_with_iapkit</code>{' '}
+            and <code>confirm_on_device_ios</code> in godot-iap), or pass
+            another service&apos;s confirmer as <code>confirmWithBackend</code>.
+            Removal is scheduled for each package&apos;s next major; see{' '}
             <Link to="/docs/updates/migration#next-major">
               Scheduled removals
             </Link>
