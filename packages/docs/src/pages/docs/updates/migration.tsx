@@ -222,8 +222,17 @@ const flutterCustomWireMigrations = [
 // notices, and the package majors in step.
 const scheduledRemovals = [
   {
+    title: 'Removal in Client Protocol 2.0',
+    rows: [
+      [
+        'PURCHASE_REQUEST_CLOCK_SKEW_MS',
+        'createPurchaseRequests manages its clock tolerance internally',
+      ],
+    ],
+  },
+  {
     title:
-      'Removal in Client Protocol 2.0, react-native-iap 18.0, expo-iap 7.0, flutter_inapp_purchase 12.0, godot-iap 5.0, kmp-iap 5.0, and OpenIap.Maui 4.0',
+      'Removal in Client Protocol 2.0, flutter_inapp_purchase 12.0, godot-iap 5.0, kmp-iap 5.0, and OpenIap.Maui 4.0',
     rows: [
       [
         'createIapkitConfirmation / toIapkitVerificationProps / readIapkitVerification (Client Protocol, Flutter, KMP)',

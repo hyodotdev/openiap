@@ -9,7 +9,7 @@ import {
   type PurchaseFlowOptions,
   type PurchaseFlowPurchase,
   type PurchaseFlowStatus,
-} from "./purchase-flow";
+} from "./purchase-flow-core";
 import {
   createDeviceConfirmationIOS,
   createIapkitConfirmation,
@@ -1369,7 +1369,7 @@ describe("shared vectors", () => {
 });
 
 describe("isolation", () => {
-  it("keeps network and analytics out of the flow and isolates compatibility imports", async () => {
+  it("keeps all runtime imports, network, and analytics out of the core", async () => {
     const fetchSpy = vi.fn(() => {
       throw new Error("network");
     });
@@ -1388,16 +1388,12 @@ describe("isolation", () => {
 
     expect(fetchSpy).not.toHaveBeenCalled();
     const source = readFileSync(
-      new URL("./purchase-flow.ts", import.meta.url),
+      new URL("./purchase-flow-core.ts", import.meta.url),
       "utf8",
     );
-    const core = source.slice(
-      source.indexOf("export interface PurchaseFlowPurchase"),
-    );
-    expect(core).not.toMatch(/^\s*import\s/m);
-    expect(
-      [...source.matchAll(/from "([^"]+)"/g)].map((match) => match[1]),
-    ).toEqual(["./purchase-flow-confirmers.js"]);
+    expect(source).not.toMatch(/^\s*(?:import|export\s+.*from)\s/m);
+    expect(source).not.toContain("purchase-flow-confirmers");
+    expect(source).not.toMatch(/\b(?:import|require)\s*\(/);
     expect(source).not.toMatch(/\bfetch\(|analytics|track\(/i);
   });
 });

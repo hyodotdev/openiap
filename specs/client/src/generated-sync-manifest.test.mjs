@@ -189,15 +189,22 @@ describe("generated sync manifest", () => {
     }
   });
 
-  it("ships internal confirmer dependencies without exposing a new public subpath", () => {
-    const definition = GENERATED_SYNC_MANIFEST.purchaseFlowConfirmers;
+  it("ships internal core and confirmer dependencies without exposing new public subpaths", () => {
     const manifest = JSON.parse(
       readRepositoryFile("specs/client/package.json"),
     );
-    expect(definition.exportKey).toBeUndefined();
-    expect(manifest.exports["./purchase-flow-confirmers"]).toBeUndefined();
-    expect(manifest.files).toContain(gqlPackageRelativePath(definition.source));
-    expect(isGqlGenerationInputPath(definition.source)).toBe(true);
+    for (const [key, subpath] of [
+      ["purchaseFlowCore", "./purchase-flow-core"],
+      ["purchaseFlowConfirmers", "./purchase-flow-confirmers"],
+    ]) {
+      const definition = GENERATED_SYNC_MANIFEST[key];
+      expect(definition.exportKey).toBeUndefined();
+      expect(manifest.exports[subpath]).toBeUndefined();
+      expect(manifest.files).toContain(
+        gqlPackageRelativePath(definition.source),
+      );
+      expect(isGqlGenerationInputPath(definition.source)).toBe(true);
+    }
   });
 
   it("keeps executable sync consumers on the manifest", () => {

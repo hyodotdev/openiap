@@ -11,7 +11,7 @@ extends RefCounted
 ## where other SDKs throw.
 ## Create the app's flow with [method GodotIapWrapper.create_purchase_flow].
 ##
-## See: https://kit.openiap.dev/docs/purchase-flow
+## See: https://openiap.dev/docs/features/validation
 
 const _Confirmers = preload("purchase_confirmers.gd")
 
@@ -436,28 +436,37 @@ static func to_purchase_confirmation_request(purchase: Dictionary) -> Variant:
 
 
 ## @deprecated: Use GodotIapWrapper.confirm_with_iapkit. Removed in the next major release.
-const IAPKIT_UNKNOWN_RETRY_MS = 30000
+const IAPKIT_UNKNOWN_RETRY_MS = _Confirmers.IAPKIT_UNKNOWN_RETRY_MS
 
 
 ## @deprecated: Use GodotIapWrapper.confirm_with_iapkit. Removed in the next major release.
 static func create_iapkit_confirmation(verify: Callable, options: Dictionary) -> Callable:
-	push_warning("Use confirm_with_iapkit. Removed in the next major release.")
+	_warn_legacy_confirmation_once()
 	return _Confirmers.create_iapkit_confirmation(verify, options)
 
 
 ## @deprecated: Use GodotIapWrapper.confirm_on_device_ios. Removed in the next major release.
 static func create_device_confirmation_ios(get_pending_transactions_ios: Callable, options := {}) -> Callable:
-	push_warning("Use confirm_on_device_ios. Removed in the next major release.")
+	_warn_legacy_confirmation_once()
 	return _Confirmers.create_device_confirmation_ios(get_pending_transactions_ios, options)
 
 
 ## @deprecated: Use GodotIapWrapper.confirm_with_iapkit. Removed in the next major release.
 static func to_iapkit_verification_props(purchase: Dictionary, options: Dictionary) -> Variant:
-	push_warning("Use confirm_with_iapkit. Removed in the next major release.")
+	_warn_legacy_confirmation_once()
 	return _Confirmers.to_iapkit_verification_props(purchase, options)
 
 
 ## @deprecated: Use GodotIapWrapper.confirm_with_iapkit. Removed in the next major release.
 static func read_iapkit_verification(result: Dictionary, purchase: Dictionary, is_consumable: bool, options := {}) -> Variant:
-	push_warning("Use confirm_with_iapkit. Removed in the next major release.")
+	_warn_legacy_confirmation_once()
 	return _Confirmers.read_iapkit_verification(result, purchase, is_consumable, options)
+
+
+static var _legacy_warning_emitted := false
+
+
+static func _warn_legacy_confirmation_once() -> void:
+	if not _legacy_warning_emitted:
+		_legacy_warning_emitted = true
+		push_warning("Use GodotIapWrapper.confirm_with_iapkit or confirm_on_device_ios. Legacy helpers are removed in the next major release.")

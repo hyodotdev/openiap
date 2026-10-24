@@ -74,7 +74,8 @@ definitions.
 
 This is a publishable specification artifact, not a deployed service. Runtime
 service implementations remain in `packages/` and `libraries/`; the portable
-`kit-api`, `purchase-flow`, and `purchase-flow-confirmers` helpers are client
+`kit-api`, `purchase-flow`, `purchase-flow-core`, and `purchase-flow-confirmers`
+helpers are client
 code, and the independent
 server-side Commerce Protocol remains in `specs/commerce-protocol`.
 
@@ -200,3 +201,9 @@ Supported the project before the OpenIAP sponsor program.
 [openiap-company-contact]: mailto:hyo@hyo.dev
 
 <!-- sponsors:end -->
+
+The published `/purchase-flow-vectors` fixture includes lifecycle, IAPKit, and
+on-device adapter cases. Adapter cases describe that implementation, not a
+requirement for other verification services. Keep its existing keys and the
+optional adapter-evidence fields in `PurchaseFlowPurchase` compatible through
+minor releases; removing them requires a separately reviewed major change.

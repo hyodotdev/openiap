@@ -90,6 +90,22 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
       expo: target('libraries/expo-iap/src/purchase-flow.ts', 'purchase-flow → expo-iap', 'typescript-bundler'),
     },
   }),
+  purchaseFlowCore: group({
+    source: "specs/client/src/purchase-flow-core.ts",
+    generated: false,
+    targets: {
+      reactNative: target(
+        "libraries/react-native-iap/src/purchase-flow-core.ts",
+        "purchase-flow-core → react-native-iap",
+        "typescript-bundler",
+      ),
+      expo: target(
+        "libraries/expo-iap/src/purchase-flow-core.ts",
+        "purchase-flow-core → expo-iap",
+        "typescript-bundler",
+      ),
+    },
+  }),
   purchaseFlowConfirmers: group({
     source: 'specs/client/src/purchase-flow-confirmers.ts',
     generated: false,
@@ -107,6 +123,8 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
     generated: false,
     exportKey: './purchase-flow-vectors',
     targets: {
+      reactNative: target('libraries/react-native-iap/src/__tests__/fixtures/purchase-flow.vectors.json', 'purchase-flow vectors → react-native-iap'),
+      expo: target('libraries/expo-iap/src/__tests__/fixtures/purchase-flow.vectors.json', 'purchase-flow vectors → expo-iap'),
       flutter: target('libraries/flutter_inapp_purchase/test/fixtures/purchase-flow.vectors.json', 'purchase-flow vectors → flutter_inapp_purchase'),
       godot: target('libraries/godot-iap/Example/tests/fixtures/purchase-flow.vectors.json', 'purchase-flow vectors → godot-iap'),
       kmp: target(
@@ -124,6 +142,13 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
     generated: false,
     targets: {
       expo: target('libraries/expo-iap/src/utils/purchaseFlowBinding.ts', 'purchaseFlowBinding → expo-iap'),
+    },
+  }),
+  purchaseFlowTests: group({
+    source: 'libraries/react-native-iap/src/__tests__/purchaseFlow.shared.test.ts',
+    generated: false,
+    targets: {
+      expo: target('libraries/expo-iap/src/__tests__/purchaseFlow.shared.test.ts', 'purchase-flow mirror tests → expo-iap'),
     },
   }),
   errorMapping: group({

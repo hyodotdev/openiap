@@ -5,7 +5,7 @@ import {
   type PurchaseFlow,
   type PurchaseFlowOptions,
   type PurchaseFlowPurchase,
-} from './purchase-flow';
+} from './purchase-flow-core';
 import {
   createIapkitConfirmation,
   type IapkitConfirmationOptions,
@@ -80,7 +80,7 @@ export type {
 export {
   describePurchaseFlowStatus,
   toPurchaseConfirmationRequest,
-} from './purchase-flow';
+} from './purchase-flow-core';
 export type {
   PurchaseConfirmation,
   PurchaseConfirmationRequest,
@@ -94,7 +94,7 @@ export type {
   PurchaseFlowStatus,
   PurchaseGrant,
   RecoverPurchasesOptions,
-} from './purchase-flow';
+} from './purchase-flow-core';
 export type {IapkitConfirmationOptions} from './purchase-flow-confirmers';
 export type {SdkPurchaseFlowOptions} from './utils/purchaseFlowBinding';
 
@@ -178,7 +178,8 @@ export const fetchProducts = async (
   const normalizedType = normalizeProductQueryType(type);
   const nitroProducts = await getModule().fetchProducts(skus, normalizedType);
   return mapProducts(nitroProducts, normalizedType) as
-    Product[] | ProductSubscription[];
+    | Product[]
+    | ProductSubscription[];
 };
 
 export const requestPurchase: MutationField<'requestPurchase'> = async (

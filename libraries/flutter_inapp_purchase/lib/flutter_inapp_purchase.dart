@@ -21,8 +21,6 @@ export 'utils.dart';
 export 'helpers.dart';
 export 'extensions/purchase_helpers.dart';
 export 'src/purchase_flow.dart' hide onPurchaseFlowDispose;
-export 'src/purchase_confirmers.dart'
-    show IapkitAmazonOptions, IapkitConfirmationOptions;
 export 'enums.dart' hide IapPlatform, PurchaseState;
 export 'errors.dart'
     show

@@ -52,6 +52,7 @@ describe("published package", () => {
     expect(packedFiles).toContain("dist/kit-api.js");
     expect(packedFiles).toContain("dist/kit-api.d.ts");
     expect(packedFiles).toContain("dist/purchase-flow.js");
+    expect(packedFiles).toContain("dist/purchase-flow-core.js");
     expect(packedFiles).toContain("dist/purchase-flow.d.ts");
     expect(packedFiles).toContain("dist/purchase-flow-confirmers.js");
     expect(packedFiles).toContain("dist/purchase-flow-confirmers.d.ts");
@@ -143,7 +144,7 @@ describe("published package", () => {
         "NodeNext",
         join(consumerRoot, "consumer.ts"),
       ],
-      { cwd: consumerRoot, stdio: "inherit" },
+      { cwd: consumerRoot, stdio: "pipe" },
     );
   });
 });

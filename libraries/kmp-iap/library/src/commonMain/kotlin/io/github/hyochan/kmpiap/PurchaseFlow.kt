@@ -1,7 +1,7 @@
 // Port of specs/client/src/purchase-flow.ts, the purchase flow every OpenIAP SDK
 // shares; androidUnitTest runs its purchase-flow.vectors.json. The confirmers
 // this SDK ships live in IapkitConfirmation.kt and DeviceConfirmationIOS.kt.
-// Guide: https://kit.openiap.dev/docs/purchase-flow
+// Guide: https://openiap.dev/docs/features/validation
 package io.github.hyochan.kmpiap
 
 import io.github.hyochan.kmpiap.openiap.IapPlatform
@@ -419,7 +419,7 @@ class PurchaseFlow internal constructor(
  * @param wasRequested whether the user's own request produced a delivery. Only
  *   then may an [PurchaseFlowStatus.Invalid] delivery offer buying again. The
  *   default matches the products passed to [KmpIAP.requestPurchase].
- * @see <a href="https://kit.openiap.dev/docs/purchase-flow">Purchase flow</a>
+ * @see <a href="https://openiap.dev/docs/features/validation">Purchase flow</a>
  */
 fun KmpIAP.createPurchaseFlow(
     scope: CoroutineScope,

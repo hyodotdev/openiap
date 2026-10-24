@@ -298,7 +298,7 @@ class PurchaseFlowTest {
         val options = IapkitConfirmationOptions(verifyAs = { IapStore.Amazon })
 
         val error = assertFailsWith<IllegalStateException> {
-            readIapkitVerification(result, receipt, isConsumable = false, options)
+            iapkitVerification(result, receipt, isConsumable = false, options)
         }
         assertEquals("IAPKit verified store id other_adapter, expected amazon_example", error.message)
     }

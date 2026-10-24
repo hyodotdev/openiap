@@ -29,7 +29,7 @@ const MIGRATION_PAGE = "packages/docs/src/pages/docs/updates/migration.tsx";
 
 export const scheduledRemovalRules = [
   {
-    label: "low-level purchase confirmation helpers",
+    label: "public purchase request clock tolerance",
     packages: [
       {
         name: "@hyodotdev/openiap-client-protocol",
@@ -37,16 +37,22 @@ export const scheduledRemovalRules = [
         file: "specs/client/package.json",
         pattern: PACKAGE_JSON_VERSION,
       },
+    ],
+    sources: [
       {
-        name: "react-native-iap",
-        major: 17,
-        file: "libraries/react-native-iap/package.json",
-        pattern: PACKAGE_JSON_VERSION,
+        file: "specs/client/src/purchase-flow-core.ts",
+        tokens: ["export const PURCHASE_REQUEST_CLOCK_SKEW_MS"],
       },
+    ],
+    catalog: ["PURCHASE_REQUEST_CLOCK_SKEW_MS"],
+  },
+  {
+    label: "low-level purchase confirmation helpers",
+    packages: [
       {
-        name: "expo-iap",
-        major: 6,
-        file: "libraries/expo-iap/package.json",
+        name: "@hyodotdev/openiap-client-protocol",
+        major: 1,
+        file: "specs/client/package.json",
         pattern: PACKAGE_JSON_VERSION,
       },
       {

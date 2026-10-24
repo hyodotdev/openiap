@@ -142,6 +142,7 @@ export function readChangedLines(patch) {
   return files;
 }
 
+// Conservative local accounting; hosted parsers may normalize reports differently.
 function readLcovRecords(source) {
   const records = [];
   let record;
@@ -174,11 +175,6 @@ function readLcovRecords(source) {
       if (!Number.isSafeInteger(number) || !Number.isSafeInteger(hits)) {
         throw new Error(`Invalid LCOV branch data: ${line}`);
       }
-      if (
-        record.filename.endsWith(".js") ||
-        (number === 1 && record.filename.endsWith(".ts"))
-      )
-        continue;
       const branches = record.branches.get(number) ?? new Map();
       // Negative V8 counters never establish a hit (LCOV's zero fallback).
       branches.set(`${match[2]}:${match[3]}`, Math.max(0, hits));
@@ -197,7 +193,7 @@ function readLcovRecords(source) {
       ) {
         throw new Error("LCOV LF/LH totals disagree with executable line data");
       }
-      // Codecov lets branch data override DA, including branch-only lines.
+      // Apply branch evidence to every source format, including branch-only lines.
       for (const [number, branches] of record.branches) {
         record.lines.set(
           number,

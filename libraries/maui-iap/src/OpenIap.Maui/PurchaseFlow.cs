@@ -4,7 +4,7 @@
 // when the app may finish a transaction, and makes no network calls of its own.
 // The confirmers this SDK ships live in IapkitConfirmation.cs and
 // DeviceConfirmationIOS.cs. The shared vectors run in tests/OpenIap.Maui.Tests.
-// Guide: https://kit.openiap.dev/docs/purchase-flow
+// Guide: https://openiap.dev/docs/features/validation
 
 #nullable enable
 

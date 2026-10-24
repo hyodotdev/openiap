@@ -366,7 +366,11 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
           client-supplied values are not proof. Missing or mismatched evidence
           must throw, leaving the purchase unfinished for investigation and
           retry. In the example below, <code>myVerifier.verify</code> performs
-          these checks before returning <code>valid</code>.
+          these checks before returning <code>valid</code> and maps store SKUs
+          back to the app&apos;s product IDs. The callback also checks that the
+          returned evidence belongs to this purchase. This production example
+          accepts only <code>Production</code> receipts; the backend must
+          enforce the same policy.
         </p>
         <p>
           <code>confirmWithBackend</code> takes a <code>PurchaseConfirmer</code>
@@ -378,10 +382,19 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
           finishes. A confirmer that throws or times out leaves the purchase
           unfinished, and the next delivery or recovery confirms it again.
         </p>
-        <CodeBlock language="typescript">{`const flow = createPurchaseFlow({
+        <CodeBlock language="typescript">{`const allowedEnvironments = new Set(['Production']);
+const flow = createPurchaseFlow({
   confirmWithBackend: async (purchase, {isConsumable}) => {
     const verdict = await myVerifier.verify(purchase);
     if (verdict.pending) return {status: 'verification_delayed', retryAfterMs: 30_000};
+    if (
+      verdict.productId !== purchase.productId ||
+      verdict.store !== purchase.store ||
+      (purchase.storeId != null && verdict.storeId !== purchase.storeId) ||
+      !allowedEnvironments.has(verdict.environment)
+    ) {
+      throw new Error('Verification evidence does not match this purchase');
+    }
     if (!verdict.valid) return {status: 'invalid', reason: verdict.reason};
     if (isConsumable) await wallet.creditOnce(purchase.id, purchase.productId);
     return {status: 'entitled', alreadyGranted: false};

@@ -1,7 +1,7 @@
 // Port of specs/client/src/purchase-flow.ts, the purchase flow shared by every
 // OpenIAP SDK; test/purchase_flow_test.dart runs its shared vectors. The
 // confirmers this SDK ships live in purchase_confirmers.dart.
-// Guide: https://kit.openiap.dev/docs/purchase-flow
+// Guide: https://openiap.dev/docs/features/validation
 import 'dart:async';
 
 import '../errors.dart' show PurchaseError;

@@ -6,7 +6,7 @@ import type {
   PurchaseConfirmer,
   PurchaseFlowPurchase,
   PurchaseGrant,
-} from "./purchase-flow";
+} from "./purchase-flow-core";
 
 type IapkitStore = "apple" | "google" | "amazon" | "horizon";
 
@@ -30,12 +30,7 @@ export interface IapkitConfirmationOptions<
   };
   /** The IAPKit store that verifies a community store's evidence, such as an Amazon RVS adapter. */
   verifyAs?: (purchase: P) => IapkitStore | undefined;
-  /**
-   * Gives the user what they bought, before the flow finishes (and so
-   * consumes) the purchase. Required for consumables. Must be idempotent per
-   * `purchase.id`: after a crash the same purchase is confirmed again. Access
-   * read from ownership, such as an active subscription, needs nothing here.
-   */
+  /** See {@link PurchaseGrant}; required for consumables. */
   grant?: PurchaseGrant<P>;
 }
 
@@ -109,10 +104,7 @@ export function createIapkitConfirmation<P extends PurchaseFlowPurchase>(
 export function createDeviceConfirmationIOS<P extends PurchaseFlowPurchase>(
   getPendingTransactionsIOS: () => Promise<P[]>,
   options: {
-    /**
-     * Credits a consumable before it is consumed; must be idempotent per
-     * `purchase.id`, since a purchase is confirmed again after a crash.
-     */
+    /** See {@link PurchaseGrant}; required for consumables. */
     grant?: PurchaseGrant<P>;
   } = {},
 ): PurchaseConfirmer<P> {

@@ -95,7 +95,7 @@ import {
   type PurchaseFlowOptions,
   type PurchaseFlowPurchase,
   type PurchaseGrant,
-} from './purchase-flow';
+} from './purchase-flow-core';
 import {
   createDeviceConfirmationIOS,
   createIapkitConfirmation,
@@ -180,7 +180,7 @@ export type {
 export {
   describePurchaseFlowStatus,
   toPurchaseConfirmationRequest,
-} from './purchase-flow';
+} from './purchase-flow-core';
 export type {
   PurchaseConfirmation,
   PurchaseConfirmationRequest,
@@ -194,7 +194,7 @@ export type {
   PurchaseFlowStatus,
   PurchaseGrant,
   RecoverPurchasesOptions,
-} from './purchase-flow';
+} from './purchase-flow-core';
 export type {IapkitConfirmationOptions} from './purchase-flow-confirmers';
 
 // Create the RnIap HybridObject instance lazily to avoid early JSI crashes
@@ -950,7 +950,8 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 
     if (normalizedType === 'all') {
       const converted = (await fetchAndConvert('all')) as (
-        Product | ProductSubscription
+        | Product
+        | ProductSubscription
       )[];
 
       RnIapConsole.debug(
@@ -2403,10 +2404,7 @@ export function confirmWithIapkit(
  */
 export function confirmOnDeviceIOS(
   options: {
-    /**
-     * Credits a consumable before it is consumed; must be idempotent per
-     * `purchase.id`, since a purchase is confirmed again after a crash.
-     */
+    /** See {@link PurchaseGrant}; required for consumables. */
     grant?: PurchaseGrant<Purchase>;
   } = {},
 ): PurchaseConfirmer<Purchase> {

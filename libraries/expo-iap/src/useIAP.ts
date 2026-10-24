@@ -26,7 +26,7 @@ import {
   type ProductTypeInput,
 } from './index';
 import {ExpoIapConsole} from './utils/debug';
-import type {PurchaseFlow, PurchaseFlowOutcome} from './purchase-flow';
+import type {PurchaseFlow, PurchaseFlowOutcome} from './purchase-flow-core';
 import {getPromotedProductIOS} from './modules/ios';
 import {restorePurchasesNative} from './utils/restorePurchases';
 import {

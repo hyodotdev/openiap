@@ -14,6 +14,7 @@
     "src/generated/types.ts",
     "src/kit-api.ts",
     "src/purchase-flow.ts",
+    "src/purchase-flow-core.ts",
     "src/purchase-flow-confirmers.ts"
   ]
 }

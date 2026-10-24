@@ -154,20 +154,32 @@ describe("local project and patch coverage", () => {
     );
   });
 
-  it("keeps JavaScript branches and TypeScript line-one branches out of line totals", () => {
-    for (const extension of ["js", "ts"]) {
+  it("rejects first-line branch misses consistently across source formats", () => {
+    for (const extension of [
+      "js",
+      "jsx",
+      "ts",
+      "tsx",
+      "mts",
+      "mjs",
+      "cts",
+      "cjs",
+    ]) {
       const source = record(`src/index.${extension}`, [1]).replace(
         "end_of_record",
         "BRDA:1,0,0,0\nend_of_record",
       );
-      const coverage = readComponentCoverage(
-        source,
-        patch(filename.replace(/ts$/, extension), 1, 1),
-        policy,
-        directory,
-        root,
+      assert.throws(
+        () =>
+          readComponentCoverage(
+            source,
+            patch(filename.replace(/ts$/, extension), 1, 1),
+            policy,
+            directory,
+            root,
+          ),
+        /Project coverage 0\.00%/,
       );
-      assert.deepEqual(coverage.patch, { found: 1, hit: 1, percentage: 100 });
     }
   });
 
