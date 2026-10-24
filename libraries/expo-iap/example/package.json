@@ -63,6 +63,7 @@
     "typescript": "~6.0.3"
   },
   "overrides": {
+    "zod": "4.6.7",
     "expo-constants": "57.0.10",
     "fast-xml-parser": "5.7.0",
     "lodash": "4.18.1",

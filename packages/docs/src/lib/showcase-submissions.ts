@@ -12,7 +12,7 @@ const submissionSchema = createShowcaseSubmissionSchema({
   libraries: LIBRARIES.map((library) => library.name),
 });
 
-const storedSubmissionSchema = submissionSchema.innerType().extend({
+const storedSubmissionSchema = z.strictObject(submissionSchema.shape).extend({
   category: z.string().trim().min(1).max(80),
   library: z.array(z.string().trim().min(1).max(80)).min(1),
 });

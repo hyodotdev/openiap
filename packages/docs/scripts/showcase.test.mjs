@@ -48,7 +48,7 @@ test('showcase discovery keeps categories, combined filters, and download order'
         const queue = SHOWCASE_QUEUE_SCHEMA.parse({
           submissions: [
             {
-              id: '12345678-1234-1234-1234-123456789abc',
+              id: '12345678-1234-4234-8234-123456789abc',
               createdAt: '2026-10-09T00:00:00Z',
               submission: {
                 ...app,

@@ -716,3 +716,13 @@ test("Godot documents the SDK-dependent behavior shipped in its Apple frameworks
   );
   assert.match(page, /make ios; it builds and installs the matched pair/);
 });
+
+test("the current train and hosted history cover request-validation security fixes", () => {
+  for (const relativePath of [RELEASE_NOTES, KIT_RELEASE_NOTES]) {
+    const source = fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
+    assert.match(
+      normalize(stripTags(source)),
+      /Request parsing and showcase validation use patched dependencies that prevent excessive memory use on malformed input/,
+    );
+  }
+});

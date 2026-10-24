@@ -25,11 +25,16 @@ const RELEASES: ReleaseEntry[] = [
   {
     id: "week-2026-10-19",
     weekStart: "2026-10-19",
-    date: "2026-10-23",
-    pullRequests: [548, 550, 551, 559],
+    date: "2026-10-24",
+    pullRequests: [548, 550, 551, 558, 559],
     tagline:
       "API Keys dashboard readability, narrow-screen layout, the purchase flow guide for every framework, an analytics error fix, a Hono security update and machine health checks.",
     items: [
+      {
+        kind: "security",
+        topic: "Request validation",
+        text: "Request parsing and showcase validation use patched dependencies that prevent excessive memory use on malformed input.",
+      },
       {
         kind: "docs",
         topic: "Purchase flow",

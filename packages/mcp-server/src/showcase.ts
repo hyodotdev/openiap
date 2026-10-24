@@ -62,7 +62,7 @@ export function createShowcaseMcpServer(options: ShowcaseMcpOptions) {
     {
       description:
         "Submit an app to OpenIAP's private review queue. Call openiap_showcase_options first. Ask the developer to confirm ownership and listing consent first. Contact email stays private. Submission does not publish an app; a maintainer must approve it. Keep the returned ID to check status.",
-      inputSchema: submissionSchema.innerType(),
+      inputSchema: z.strictObject(submissionSchema.shape),
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
