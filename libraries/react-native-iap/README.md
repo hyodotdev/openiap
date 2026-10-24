@@ -61,13 +61,13 @@ React Native IAP is built with a modern architecture that emphasizes:
 
 ## 📱 Platform Support
 
-| Platform          | Support | Notes                            |
-| ----------------- | ------- | -------------------------------- |
-| iOS               | ✅      | StoreKit 2 (requires iOS 15+)    |
-| Android           | ✅      | Google Play Billing v9.1.0       |
-| Expo Go           | ❌      | Use `expo-iap` for Expo projects |
-| Expo Dev Client   | ❌      | Use `expo-iap` for Expo projects |
-| Bare React Native | ✅      | Full support                     |
+| Platform          | Support | Notes                                               |
+| ----------------- | ------- | --------------------------------------------------- |
+| iOS               | ✅      | StoreKit 2 (requires iOS 15+)                       |
+| Android           | ✅      | Google Play Billing v9.1.0                          |
+| Expo Go           | ❌      | Throws a clear error; use a dev build or `expo-iap` |
+| Expo Dev Client   | ❌      | Use `expo-iap` for Expo projects                    |
+| Bare React Native | ✅      | Full support                                        |
 
 ## 📦 Installation & Configuration
 

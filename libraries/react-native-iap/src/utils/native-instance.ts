@@ -4,6 +4,14 @@ import {getVegaIapModule as getVegaAdapter, isVegaOS} from '../vega';
 
 let iapRef: RnIap | null = null;
 
+type ExpoGlobal = {expo?: {modules?: Record<string, unknown>}};
+
+export const EXPO_GO_UNSUPPORTED_MESSAGE =
+  'react-native-iap cannot run in Expo Go. In-app purchases need native code: use a development build (npx expo run:ios / run:android) or expo-iap.';
+
+export const isExpoGo = (): boolean =>
+  Boolean((globalThis as ExpoGlobal).expo?.modules?.ExpoGo);
+
 export const toErrorMessage = (error: unknown): string => {
   if (
     typeof error === 'object' &&
@@ -48,6 +56,9 @@ export function getNativeIapInstance(): RnIap {
   try {
     iapRef = NitroModules.createHybridObject<RnIap>('RnIap');
   } catch (e) {
+    if (isExpoGo()) {
+      throw new Error(EXPO_GO_UNSUPPORTED_MESSAGE);
+    }
     const msg = toErrorMessage(e);
     if (
       msg.includes('Nitro') ||
