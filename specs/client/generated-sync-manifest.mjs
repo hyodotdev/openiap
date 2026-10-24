@@ -90,6 +90,18 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
       expo: target('libraries/expo-iap/src/purchase-flow.ts', 'purchase-flow → expo-iap'),
     },
   }),
+  purchaseFlowConfirmers: group({
+    source: 'specs/client/src/purchase-flow-confirmers.ts',
+    generated: false,
+    exportKey: './purchase-flow-confirmers',
+    targets: {
+      reactNative: target(
+        'libraries/react-native-iap/src/purchase-flow-confirmers.ts',
+        'purchase-flow-confirmers → react-native-iap',
+      ),
+      expo: target('libraries/expo-iap/src/purchase-flow-confirmers.ts', 'purchase-flow-confirmers → expo-iap'),
+    },
+  }),
   purchaseFlowVectors: group({
     source: 'specs/client/src/purchase-flow.vectors.json',
     generated: false,

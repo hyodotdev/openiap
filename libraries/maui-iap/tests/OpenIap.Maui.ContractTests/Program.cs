@@ -346,9 +346,10 @@ internal static class Program
                 AssertEqual(term, IapKitSettings.SubscriptionProductId(purchase), "restored plan");
                 AssertEqual(restored.ProductId, purchase.ProductId, "raw receipt SKU");
                 AssertEqual(restored.PurchaseToken, purchase.PurchaseToken, "raw receipt token");
-                var props = IapkitConfirmation.ToVerificationProps(purchase, IapKitSettings.ConfirmationOptions(baseUrl: null));
-                AssertEqual(restored.ProductId, props.Iapkit?.Amazon?.ExpectedProductId, "RVS base SKU");
-                AssertEqual(restored.PurchaseToken, props.Iapkit?.Amazon?.ReceiptId, "RVS receipt");
+                // The flow's shared vectors cover how these options verify a receipt.
+                var options = IapKitSettings.ConfirmationOptions(baseUrl: null);
+                AssertEqual(restored.ProductId, options.Amazon?.VerifiedProductId?.Invoke(purchase.ProductId), "RVS base SKU");
+                AssertEqual(IapStore.Amazon, options.VerifyAs?.Invoke(purchase) ?? purchase.Store, "RVS store");
             }
         }
         AssertEqual<string?>(null, IapKitSettings.SubscriptionProductId(restored), "missing term");

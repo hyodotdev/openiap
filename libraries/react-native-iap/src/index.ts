@@ -90,14 +90,17 @@ import {
   type SdkPurchaseFlowOptions,
 } from './utils/purchaseFlowBinding';
 import {
-  createDeviceConfirmationIOS,
-  createIapkitConfirmation,
-  type IapkitConfirmationOptions,
-  type PurchaseConfirmation,
+  type PurchaseConfirmer,
   type PurchaseFlow,
   type PurchaseFlowOptions,
   type PurchaseFlowPurchase,
+  type PurchaseGrant,
 } from './purchase-flow';
+import {
+  createDeviceConfirmationIOS,
+  createIapkitConfirmation,
+  type IapkitConfirmationOptions,
+} from './purchase-flow-confirmers';
 
 // Export all types
 export type {
@@ -179,9 +182,9 @@ export {
   toPurchaseConfirmationRequest,
 } from './purchase-flow';
 export type {
-  IapkitConfirmationOptions,
   PurchaseConfirmation,
   PurchaseConfirmationRequest,
+  PurchaseConfirmer,
   PurchaseFlow,
   PurchaseFlowGuidance,
   PurchaseFlowGuidanceKey,
@@ -189,8 +192,10 @@ export type {
   PurchaseFlowOutcome,
   PurchaseFlowPurchase,
   PurchaseFlowStatus,
+  PurchaseGrant,
   RecoverPurchasesOptions,
 } from './purchase-flow';
+export type {IapkitConfirmationOptions} from './purchase-flow-confirmers';
 
 // Create the RnIap HybridObject instance lazily to avoid early JSI crashes
 let attachingPendingNativeListeners = false;
@@ -2387,10 +2392,7 @@ export function createPurchaseFlow(
  */
 export function confirmWithIapkit(
   options: IapkitConfirmationOptions<Purchase>,
-): (
-  purchase: Purchase,
-  context: {isConsumable: boolean},
-) => Promise<PurchaseConfirmation> {
+): PurchaseConfirmer<Purchase> {
   return createIapkitConfirmation(verifyPurchaseWithProvider, options);
 }
 
@@ -2400,11 +2402,14 @@ export function confirmWithIapkit(
  * valid. Credit consumables in `grant`.
  */
 export function confirmOnDeviceIOS(
-  options: Pick<IapkitConfirmationOptions<Purchase>, 'grant'> = {},
-): (
-  purchase: Purchase,
-  context: {isConsumable: boolean},
-) => Promise<PurchaseConfirmation> {
+  options: {
+    /**
+     * Credits a consumable before it is consumed; must be idempotent per
+     * `purchase.id`, since a purchase is confirmed again after a crash.
+     */
+    grant?: PurchaseGrant<Purchase>;
+  } = {},
+): PurchaseConfirmer<Purchase> {
   return createDeviceConfirmationIOS<Purchase>(
     () => getPendingTransactionsIOS(),
     options,

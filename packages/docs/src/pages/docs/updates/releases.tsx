@@ -33,6 +33,28 @@ interface ReleaseChange extends ReleaseMetadata {
   description: React.ReactNode;
 }
 
+const PURCHASE_CONFIRMER_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '1.2.1',
+    tag: 'openiap-client-protocol-1.2.1',
+  },
+  {
+    name: 'react-native-iap',
+    version: '17.2.1',
+    tag: 'react-native-iap-17.2.1',
+  },
+  { name: 'expo-iap', version: '6.2.1', tag: 'expo-iap-6.2.1' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '11.1.1',
+    tag: 'flutter-iap-11.1.1',
+  },
+  { name: 'godot-iap', version: '4.1.1', tag: 'godot-iap-4.1.1' },
+  { name: 'kmp-iap', version: '4.1.1', tag: 'kmp-iap-4.1.1' },
+  { name: 'OpenIap.Maui', version: '3.1.1', tag: 'maui-iap-3.1.1' },
+];
+
 const FRAMEWORK_PREPAID_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: '@hyodotdev/openiap-client-protocol',
@@ -643,6 +665,106 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'purchase-confirmers-2026-10-24',
+      date: new Date('2026-10-24'),
+      element: (
+        <div key="purchase-confirmers-2026-10-24" style={noteCardStyle}>
+          {PURCHASE_CONFIRMER_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="purchase-confirmers-2026-10-24" level="h4">
+            October 24, 2026 - Any verification service in the purchase flow
+          </AnchorLink>
+          <p>
+            IAPKit and on-device confirmation are now two confirmers built on
+            the purchase flow&apos;s public contract, so any other verification
+            service plugs in the same way; see{' '}
+            <Link to="/docs/features/validation">Validation</Link>. Apps keep
+            calling <code>confirmWithIapkit</code> and{' '}
+            <code>confirmOnDeviceIOS</code>.
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Protocols and native packages
+          </h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            <li>
+              <strong>Client Protocol 1.2.1</strong>: <code>purchase-flow</code>{' '}
+              exports the <code>PurchaseConfirmer</code> and{' '}
+              <code>PurchaseGrant</code> types; the IAPKit and on-device
+              confirmers and their types (<code>IapkitConfirmationOptions</code>
+              , <code>IapkitVerificationProps</code>,{' '}
+              <code>IapkitVerificationResult</code>) move to{' '}
+              <code>purchase-flow-confirmers</code>, which no longer exports{' '}
+              <code>toIapkitVerificationProps</code> or{' '}
+              <code>readIapkitVerification</code>.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            <li>
+              <strong>react-native-iap 17.2.1</strong> and{' '}
+              <strong>expo-iap 6.2.1</strong>: export the{' '}
+              <code>PurchaseConfirmer</code> and <code>PurchaseGrant</code>{' '}
+              types.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 11.1.1</strong>: no longer exports{' '}
+              <code>createIapkitConfirmation</code>,{' '}
+              <code>createDeviceConfirmationIOS</code>,{' '}
+              <code>toIapkitVerificationProps</code>, or{' '}
+              <code>readIapkitVerification</code>.
+            </li>
+            <li>
+              <strong>godot-iap 4.1.1</strong>: <code>PurchaseFlow</code> no
+              longer carries <code>create_iapkit_confirmation</code>,{' '}
+              <code>create_device_confirmation_ios</code>,{' '}
+              <code>to_iapkit_verification_props</code>, or{' '}
+              <code>read_iapkit_verification</code>.
+            </li>
+            <li>
+              <strong>kmp-iap 4.1.1</strong>:{' '}
+              <code>createIapkitConfirmation</code>,{' '}
+              <code>createDeviceConfirmationIOS</code>,{' '}
+              <code>toIapkitVerificationProps</code>, and{' '}
+              <code>readIapkitVerification</code> are internal, and{' '}
+              <code>PurchaseConfirmer</code> names the{' '}
+              <code>confirmWithBackend</code> type.
+            </li>
+            <li>
+              <strong>OpenIap.Maui 3.1.1</strong>:{' '}
+              <code>IapkitConfirmation</code> and{' '}
+              <code>DeviceConfirmationIOS</code> are internal.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Migration notes</h5>
+          <p>
+            An app that called a removed part passes the SDK&apos;s{' '}
+            <code>confirmWithIapkit</code> or <code>confirmOnDeviceIOS</code> (
+            <code>confirm_with_iapkit</code> and{' '}
+            <code>confirm_on_device_ios</code> in godot-iap) as{' '}
+            <code>confirmWithBackend</code> instead. Import the Client Protocol
+            package&apos;s confirmers from{' '}
+            <code>
+              @hyodotdev/openiap-client-protocol/purchase-flow-confirmers
+            </code>
+            .
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            {PURCHASE_CONFIRMER_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                >
+                  {getReleaseLabel(release)}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
     {
       id: 'framework-prepaid-pending-2026-10-23',
       date: new Date('2026-10-24'),

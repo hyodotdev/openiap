@@ -6,9 +6,9 @@ multiplatform type system. Its publishable npm package is
 
 This directory is a specification and code-generation toolchain, not a hosted
 service. It may publish generated types and portable client source artifacts,
-including the `kit-api` and `purchase-flow` helpers copied into JavaScript SDKs,
-but it must not own deployment configuration, production credentials, runtime
-data, or migrations.
+including the `kit-api`, `purchase-flow`, and `purchase-flow-confirmers` helpers
+copied into JavaScript SDKs, but it must not own deployment configuration,
+production credentials, runtime data, or migrations.
 Hosted and store implementations belong under `packages/` or `libraries/`.
 
 The independent server-side Commerce Protocol is its sibling at

@@ -180,6 +180,7 @@ describe("generated sync manifest", () => {
       "*": {
         "kit-api": ["./dist/kit-api.d.ts"],
         "purchase-flow": ["./dist/purchase-flow.d.ts"],
+        "purchase-flow-confirmers": ["./dist/purchase-flow-confirmers.d.ts"],
       },
     });
   });

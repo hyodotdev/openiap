@@ -12,6 +12,7 @@ import 'helpers.dart';
 import 'utils.dart';
 import 'errors.dart' as errors;
 import 'src/first_purchase_notice.dart';
+import 'src/purchase_confirmers.dart';
 import 'src/purchase_flow.dart';
 
 export 'types.dart' hide PurchaseError;
@@ -19,8 +20,9 @@ export 'builders.dart';
 export 'utils.dart';
 export 'helpers.dart';
 export 'extensions/purchase_helpers.dart';
-export 'src/purchase_flow.dart'
-    hide deviceConfirmationIOS, onPurchaseFlowDispose;
+export 'src/purchase_flow.dart' hide onPurchaseFlowDispose;
+export 'src/purchase_confirmers.dart'
+    show IapkitAmazonOptions, IapkitConfirmationOptions;
 export 'enums.dart' hide IapPlatform, PurchaseState;
 export 'errors.dart'
     show

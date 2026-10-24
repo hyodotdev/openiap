@@ -1,5 +1,6 @@
 // IAPKit confirmation for apps without a backend, ported from
-// specs/client/src/purchase-flow.ts. The flow's ConfirmWithBackend runs it.
+// specs/client/src/purchase-flow-confirmers.ts. It uses only the flow's public
+// contract, as any other verification service's confirmer would.
 
 #nullable enable
 
@@ -42,7 +43,7 @@ public sealed record IapkitAmazonOptions
     public Func<string, string>? VerifiedProductId { get; init; }
 }
 
-public static class IapkitConfirmation
+internal static class IapkitConfirmation
 {
     private const double UnknownRetryMs = 30_000;
 

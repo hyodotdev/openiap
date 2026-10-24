@@ -1,19 +1,21 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  createDeviceConfirmationIOS,
-  createIapkitConfirmation,
   createPurchaseFlow,
   describePurchaseFlowStatus,
   toPurchaseConfirmationRequest,
-  type IapkitVerificationProps,
-  type IapkitVerificationResult,
   type PurchaseFlowOutcome,
   type PurchaseConfirmation,
   type PurchaseFlowOptions,
   type PurchaseFlowPurchase,
   type PurchaseFlowStatus,
 } from "./purchase-flow";
+import {
+  createDeviceConfirmationIOS,
+  createIapkitConfirmation,
+  type IapkitVerificationProps,
+  type IapkitVerificationResult,
+} from "./purchase-flow-confirmers";
 
 interface StepVector {
   listener?: string[];

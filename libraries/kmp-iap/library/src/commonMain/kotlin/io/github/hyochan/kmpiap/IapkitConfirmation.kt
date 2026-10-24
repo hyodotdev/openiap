@@ -1,4 +1,6 @@
-// IAPKit confirmation for the purchase flow; ported from specs/client/src/purchase-flow.ts.
+// IAPKit confirmation for the purchase flow; ported from
+// specs/client/src/purchase-flow-confirmers.ts. It uses only the flow's public
+// contract, as any other verification service's confirmer would.
 package io.github.hyochan.kmpiap
 
 import io.github.hyochan.kmpiap.openiap.IapStore
@@ -50,10 +52,10 @@ private const val IAPKIT_UNKNOWN_RETRY_MS = 30_000L
  * the purchase, then runs `grant` before the flow finishes it. Apps pass
  * [confirmWithIapkit], which binds this SDK's.
  */
-fun createIapkitConfirmation(
+internal fun createIapkitConfirmation(
     verifyPurchaseWithProvider: suspend (VerifyPurchaseWithProviderProps) -> VerifyPurchaseWithProviderResult,
     options: IapkitConfirmationOptions,
-): suspend (purchase: Purchase, isConsumable: Boolean) -> PurchaseConfirmation = { purchase, isConsumable ->
+): PurchaseConfirmer = { purchase, isConsumable ->
     requireGrant("confirmWithIapkit", purchase, isConsumable, options.grant)
     val confirmation = readIapkitVerification(
         verifyPurchaseWithProvider(toIapkitVerificationProps(purchase, options)),
@@ -73,11 +75,11 @@ fun createIapkitConfirmation(
  */
 fun KmpInAppPurchase.confirmWithIapkit(
     options: IapkitConfirmationOptions,
-): suspend (purchase: Purchase, isConsumable: Boolean) -> PurchaseConfirmation =
+): PurchaseConfirmer =
     createIapkitConfirmation(::verifyPurchaseWithProvider, options)
 
 /** Builds the IAPKit request for a purchase; throws for a store IAPKit cannot verify. */
-fun toIapkitVerificationProps(purchase: Purchase, options: IapkitConfirmationOptions): VerifyPurchaseWithProviderProps {
+internal fun toIapkitVerificationProps(purchase: Purchase, options: IapkitConfirmationOptions): VerifyPurchaseWithProviderProps {
     val apiKey = options.apiKey?.trim()
     // An unset environment variable, not a deliberate fallback to the SDK's key.
     require(apiKey != "") { "IAPKit apiKey is empty" }
@@ -123,7 +125,7 @@ fun toIapkitVerificationProps(purchase: Purchase, options: IapkitConfirmationOpt
  * or package mismatch, and to every Horizon rejection), and a valid state this
  * product type cannot be granted from.
  */
-fun readIapkitVerification(
+internal fun readIapkitVerification(
     result: VerifyPurchaseWithProviderResult,
     purchase: Purchase,
     isConsumable: Boolean,

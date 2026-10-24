@@ -1,6 +1,8 @@
-// Purchase flow shared by every OpenIAP SDK. The app's backend, or IAPKit
-// directly with a publishable key, confirms each purchase; this module decides
-// when the app may finish a transaction, and makes no network calls of its own.
+// Purchase flow shared by every OpenIAP SDK. A confirmer (the app's backend,
+// IAPKit, or any other verification service) confirms each purchase; this
+// module decides when the app may finish a transaction, and makes no network
+// calls of its own. The confirmers the SDKs ship live in
+// purchase-flow-confirmers.ts.
 // Ports in other languages run purchase-flow.vectors.json.
 // Guide: https://kit.openiap.dev/docs/purchase-flow
 
@@ -20,7 +22,7 @@ export interface PurchaseFlowPurchase {
    * its payment, Amazon applies it at the next renewal.
    */
   pendingPurchaseUpdateAndroid?: { products: string[] } | null;
-  /** Apple's `Sandbox` or `Production`, matched against IAPKit's answer. */
+  /** Apple's `Sandbox` or `Production`, which a confirmer matches against its verdict. */
   environmentIOS?: string | null;
   /** The Amazon user the receipt belongs to, which Amazon RVS checks. */
   userIdAmazon?: string | null;
@@ -32,14 +34,14 @@ export interface PurchaseFlowPurchase {
 /** Body the app sends its backend, which takes the user from its own session. */
 export interface PurchaseConfirmationRequest {
   store: "apple" | "google";
-  /** Apple JWS or Google Play purchase token, forwarded to IAPKit as is. */
+  /** Apple JWS or Google Play purchase token, as the store issued it. */
   purchaseToken: string;
-  /** The product the app expected; IAPKit rejects a store mismatch. */
+  /** The product the app expected, to compare with the store's answer. */
   productId: string;
 }
 
 /**
- * The app backend's verdict on one purchase. Only `entitled` grants access;
+ * A confirmer's verdict on one purchase. Only `entitled` grants access;
  * `verified` and `linked` mean the purchase is valid but access is not granted
  * yet. `ownership_conflict` sets `alreadyGranted` when another account already
  * got access, which lets the app finish it. `invalid` and
@@ -55,6 +57,28 @@ export type PurchaseConfirmation =
   | { status: "verified"; retryAfterMs?: number }
   | { status: "linked"; retryAfterMs?: number }
   | { status: "entitled"; alreadyGranted: boolean };
+
+/**
+ * Gives the user what they bought, before the flow finishes (and so consumes)
+ * the purchase. Must be idempotent per `purchase.id`: after a crash the same
+ * purchase is confirmed again.
+ */
+export type PurchaseGrant<
+  P extends PurchaseFlowPurchase = PurchaseFlowPurchase,
+> = (purchase: P, context: { isConsumable: boolean }) => Promise<void>;
+
+/**
+ * Confirms one purchase and grants access before it resolves `entitled`: the
+ * flow finishes, and so consumes, the purchase right after. A confirmer that
+ * throws or times out leaves the purchase unfinished for the next delivery or
+ * recovery. Any verification service plugs in here.
+ */
+export type PurchaseConfirmer<
+  P extends PurchaseFlowPurchase = PurchaseFlowPurchase,
+> = (
+  purchase: P,
+  context: { isConsumable: boolean },
+) => Promise<PurchaseConfirmation>;
 
 type Finishable = "entitled" | "ownership_conflict" | "test_account_restricted";
 
@@ -92,15 +116,10 @@ export interface PurchaseFlowOutcome<P extends PurchaseFlowPurchase> {
 
 export interface PurchaseFlowOptions<P extends PurchaseFlowPurchase> {
   /**
-   * Confirms the purchase and grants access before it resolves `entitled`:
-   * the flow finishes, and so consumes, the purchase right after. Usually a
-   * call to the app backend, which holds the IAPKit secret key; an app without
-   * one passes the SDK's `confirmWithIapkit`.
+   * Usually a call to the app backend. An app without one passes the SDK's
+   * `confirmWithIapkit`, `confirmOnDeviceIOS`, or another service's confirmer.
    */
-  confirmWithBackend: (
-    purchase: P,
-    context: { isConsumable: boolean },
-  ) => Promise<PurchaseConfirmation>;
+  confirmWithBackend: PurchaseConfirmer<P>;
   /**
    * Milliseconds `confirmWithBackend` may take before the purchase ends as
    * `failed`, so a hung call cannot hold it for the session. Default 30000.
@@ -491,350 +510,6 @@ export function toPurchaseConfirmationRequest(
   }
   assertSupportedPurchase(purchase);
   return { store, purchaseToken, productId };
-}
-
-type IapkitStore = "apple" | "google" | "amazon" | "horizon";
-
-/** How an app without its own backend confirms purchases with IAPKit. */
-export interface IapkitConfirmationOptions<
-  P extends PurchaseFlowPurchase = PurchaseFlowPurchase,
-> {
-  /**
-   * A publishable key (`openiap-kit_pk_...`), which is safe to ship in an
-   * app. Leave it out where the SDK has one configured, such as Expo's
-   * `iapkitApiKey`.
-   */
-  apiKey?: string;
-  /** A self-hosted or local IAPKit origin. Defaults to https://kit.openiap.dev. */
-  baseUrl?: string;
-  amazon?: {
-    /** Verify App Tester receipts with the Amazon RVS Cloud Sandbox. */
-    sandbox?: boolean;
-    /** RVS reports a subscription term under its parent SKU; maps one to the other. */
-    verifiedProductId?: (productId: string) => string;
-  };
-  /** The IAPKit store that verifies a community store's evidence, such as an Amazon RVS adapter. */
-  verifyAs?: (purchase: P) => IapkitStore | undefined;
-  /**
-   * Gives the user what they bought, before the flow finishes (and so
-   * consumes) the purchase. Required for consumables. Must be idempotent per
-   * `purchase.id`: after a crash the same purchase is confirmed again. Access
-   * read from ownership, such as an active subscription, needs nothing here.
-   */
-  grant?: (purchase: P, context: { isConsumable: boolean }) => Promise<void>;
-}
-
-/** The SDK's `VerifyPurchaseWithProviderProps` for IAPKit. */
-export interface IapkitVerificationProps {
-  provider: "iapkit";
-  iapkit: {
-    apiKey?: string;
-    baseUrl?: string;
-    apple?: { jws: string };
-    google?: { purchaseToken: string };
-    amazon?: {
-      receiptId: string;
-      expectedProductId: string;
-      sandbox: boolean;
-      userId?: string;
-    };
-    horizon?: { sku: string };
-  };
-}
-
-/** Fields of the SDK's `VerifyPurchaseWithProviderResult` the flow reads. */
-export interface IapkitVerificationResult {
-  iapkit?: {
-    store: string;
-    storeId: string;
-    environment?: string | null;
-    isValid: boolean;
-    state: string;
-    productId?: string | null;
-  } | null;
-  errors?: { code?: string | null; message: string }[] | null;
-}
-
-const IAPKIT_UNKNOWN_RETRY_MS = 30_000;
-
-/**
- * The SDK's `confirmWithIapkit`, given its `verifyPurchaseWithProvider`:
- * verifies the purchase with IAPKit, then runs `grant` before the flow
- * finishes it.
- */
-export function createIapkitConfirmation<P extends PurchaseFlowPurchase>(
-  verifyPurchaseWithProvider: (
-    props: IapkitVerificationProps,
-  ) => Promise<IapkitVerificationResult>,
-  options: IapkitConfirmationOptions<P>,
-): (
-  purchase: P,
-  context: { isConsumable: boolean },
-) => Promise<PurchaseConfirmation> {
-  return async (purchase, context) => {
-    requireGrant("confirmWithIapkit", purchase, context, options);
-    const confirmation = readIapkitVerification(
-      await verifyPurchaseWithProvider(
-        toIapkitVerificationProps(purchase, options),
-      ),
-      purchase,
-      context,
-      options,
-    );
-    if (confirmation.status === "entitled" && !confirmation.alreadyGranted) {
-      await options.grant?.(purchase, context);
-    }
-    return confirmation;
-  };
-}
-
-/**
- * The SDK's `confirmOnDeviceIOS`, given its `getPendingTransactionsIOS`, for an
- * app with neither a backend nor IAPKit. StoreKit verified the transaction if
- * it is still unfinished, unrevoked, not upgraded, unexpired, and from the
- * purchase's environment; `grant` then runs before the flow finishes it.
- */
-export function createDeviceConfirmationIOS<P extends PurchaseFlowPurchase>(
-  getPendingTransactionsIOS: () => Promise<P[]>,
-  options: Pick<IapkitConfirmationOptions<P>, "grant"> = {},
-): (
-  purchase: P,
-  context: { isConsumable: boolean },
-) => Promise<PurchaseConfirmation> {
-  return async (purchase, context) => {
-    requireGrant("confirmOnDeviceIOS", purchase, context, options);
-    // A community provider may report store "apple" under its own storeId.
-    if (
-      purchase.store !== "apple" ||
-      (purchase.storeId ?? "apple") !== "apple"
-    ) {
-      throw new Error(
-        `Device confirmation covers App Store purchases, not ${purchase.storeId ?? purchase.store}`,
-      );
-    }
-    const pending = await getPendingTransactionsIOS();
-    // After the query: a transaction can expire while StoreKit answers.
-    const now = Date.now();
-    const verified = pending.some(
-      (candidate) =>
-        candidate.store === "apple" &&
-        purchase.id !== "" &&
-        candidate.id === purchase.id &&
-        candidate.productId === purchase.productId &&
-        candidate.revocationDateIOS == null &&
-        candidate.isUpgradedIOS !== true &&
-        (candidate.expirationDateIOS == null ||
-          candidate.expirationDateIOS > now) &&
-        (purchase.environmentIOS == null ||
-          candidate.environmentIOS === purchase.environmentIOS),
-    );
-    if (!verified) {
-      throw new Error(
-        `StoreKit lists no valid unfinished transaction for ${purchase.productId}`,
-      );
-    }
-    await options.grant?.(purchase, context);
-    return { status: "entitled", alreadyGranted: false };
-  };
-}
-
-// Checked before verifying: a consumable must never pass without a way to credit it.
-function requireGrant<P extends PurchaseFlowPurchase>(
-  name: string,
-  purchase: P,
-  context: { isConsumable: boolean },
-  options: Pick<IapkitConfirmationOptions<P>, "grant">,
-): void {
-  if (context.isConsumable && !options.grant) {
-    throw new Error(
-      `${name} needs grant to credit consumable ${purchase.productId} before it is consumed`,
-    );
-  }
-}
-
-/** Builds the IAPKit request for a purchase; throws for a store IAPKit cannot verify. */
-export function toIapkitVerificationProps<P extends PurchaseFlowPurchase>(
-  purchase: P,
-  options: IapkitConfirmationOptions<P>,
-): IapkitVerificationProps {
-  const apiKey = options.apiKey?.trim();
-  // An unset environment variable, not a deliberate fallback to the SDK's key.
-  if (apiKey === "") throw new Error("IAPKit apiKey is empty");
-  const baseUrl = options.baseUrl?.trim();
-  const base = {
-    ...(apiKey ? { apiKey } : {}),
-    ...(baseUrl ? { baseUrl } : {}),
-  };
-  const token = (): string => {
-    if (!purchase.purchaseToken) {
-      throw new Error(
-        `Purchase ${purchase.productId} has no purchase token to verify`,
-      );
-    }
-    return purchase.purchaseToken;
-  };
-  const store = verifyingStore(purchase, options);
-  switch (store) {
-    case "apple":
-      return {
-        provider: "iapkit",
-        iapkit: { ...base, apple: { jws: token() } },
-      };
-    case "google":
-      return {
-        provider: "iapkit",
-        iapkit: { ...base, google: { purchaseToken: token() } },
-      };
-    case "amazon":
-      return {
-        provider: "iapkit",
-        iapkit: {
-          ...base,
-          amazon: {
-            receiptId: token(),
-            expectedProductId: amazonProductId(purchase, options),
-            sandbox: options.amazon?.sandbox ?? false,
-            ...(purchase.userIdAmazon ? { userId: purchase.userIdAmazon } : {}),
-          },
-        },
-      };
-    case "horizon":
-      return {
-        provider: "iapkit",
-        iapkit: { ...base, horizon: { sku: purchase.productId } },
-      };
-    default:
-      throw new Error(`IAPKit cannot verify store ${purchase.store}`);
-  }
-}
-
-/**
- * Turns IAPKit's answer into the flow's confirmation. Anything that may be a
- * configuration error rather than a rejected payment throws, so the flow
- * reports `failed` and leaves the purchase unfinished: evidence for another
- * store, product, or environment, `inauthentic` (IAPKit's answer to a product
- * or package mismatch, and to every Horizon rejection), and a valid state this
- * product type cannot be granted from.
- */
-export function readIapkitVerification<P extends PurchaseFlowPurchase>(
-  result: IapkitVerificationResult,
-  purchase: P,
-  context: { isConsumable: boolean },
-  options: Omit<IapkitConfirmationOptions<P>, "apiKey"> = {},
-): PurchaseConfirmation {
-  const verified = result.iapkit;
-  if (!verified) {
-    const errors = (result.errors ?? []).map((error) =>
-      error.code ? `[${error.code}] ${error.message}` : error.message,
-    );
-    throw new Error(
-      errors.join("\n") || "IAPKit returned no verification result",
-    );
-  }
-  switch (verified.state) {
-    case "pending":
-      return { status: "store_pending" };
-    // The store gave no usable answer: retry instead of rejecting a payment.
-    case "unknown":
-      return {
-        status: "verification_delayed",
-        retryAfterMs: IAPKIT_UNKNOWN_RETRY_MS,
-      };
-  }
-  const store = verifyingStore(purchase, options);
-  const expectedProductId =
-    store === "amazon"
-      ? amazonProductId(purchase, options)
-      : purchase.productId;
-  const mismatch =
-    verified.store !== purchase.store
-      ? `store ${verified.store}, expected ${purchase.store}`
-      : purchase.storeId && verified.storeId !== purchase.storeId
-        ? `store id ${verified.storeId}, expected ${purchase.storeId}`
-        : verified.productId !== expectedProductId
-          ? `product ${verified.productId ?? "(none)"}, expected ${expectedProductId}`
-          : environmentMismatch(verified.environment, store, purchase, options);
-  if (mismatch) throw new Error(`IAPKit verified ${mismatch}`);
-  if (!verified.isValid) {
-    switch (verified.state) {
-      case "canceled":
-      case "expired":
-        return { status: "invalid", reason: verified.state };
-      // Only a granted purchase is consumed; the flow grants before finishing.
-      case "consumed":
-        return { status: "entitled", alreadyGranted: true };
-      default:
-        throw new Error(`IAPKit rejected the purchase: ${verified.state}`);
-    }
-  }
-  if (!grantsAccess(store, verified.state, context.isConsumable)) {
-    throw new Error(
-      `IAPKit state ${verified.state} cannot grant this ${
-        context.isConsumable ? "consumable" : "non-consumable"
-      } ${purchase.store} purchase`,
-    );
-  }
-  return { status: "entitled", alreadyGranted: false };
-}
-
-function verifyingStore<P extends PurchaseFlowPurchase>(
-  purchase: P,
-  options: Pick<IapkitConfirmationOptions<P>, "verifyAs">,
-): string {
-  return options.verifyAs?.(purchase) ?? purchase.store;
-}
-
-function amazonProductId(
-  purchase: PurchaseFlowPurchase,
-  options: Pick<IapkitConfirmationOptions, "amazon">,
-): string {
-  return (
-    options.amazon?.verifiedProductId?.(purchase.productId) ??
-    purchase.productId
-  );
-}
-
-function environmentMismatch(
-  environment: string | null | undefined,
-  store: string,
-  purchase: PurchaseFlowPurchase,
-  options: Pick<IapkitConfirmationOptions, "amazon">,
-): string | null {
-  const expected =
-    store === "amazon"
-      ? options.amazon?.sandbox
-        ? "Sandbox"
-        : "Production"
-      : store === "apple"
-        ? purchase.environmentIOS
-        : null;
-  return expected && environment !== expected
-    ? `environment ${environment ?? "(none)"}, expected ${expected}`
-    : null;
-}
-
-// Apple and Amazon keep a consumable at ready-to-consume until it is finished;
-// Google reports a granted purchase as pending-acknowledgment until then.
-function grantsAccess(
-  store: string,
-  state: string,
-  isConsumable: boolean,
-): boolean {
-  switch (store) {
-    case "apple":
-    case "amazon":
-      return state === (isConsumable ? "ready-to-consume" : "entitled");
-    case "google":
-      return (
-        state === "entitled" ||
-        state === "pending-acknowledgment" ||
-        (isConsumable && state === "ready-to-consume")
-      );
-    case "horizon":
-      return state === "entitled";
-    default:
-      return false;
-  }
 }
 
 function assertSupportedPurchase(purchase: PurchaseFlowPurchase): void {

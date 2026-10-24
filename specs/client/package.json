@@ -14,6 +14,9 @@
       ],
       "purchase-flow": [
         "./dist/purchase-flow.d.ts"
+      ],
+      "purchase-flow-confirmers": [
+        "./dist/purchase-flow-confirmers.d.ts"
       ]
     }
   },
@@ -36,6 +39,12 @@
       "import": "./dist/purchase-flow.js",
       "default": "./dist/purchase-flow.js"
     },
+    "./purchase-flow-confirmers": {
+      "openiap-source": "./src/purchase-flow-confirmers.ts",
+      "types": "./dist/purchase-flow-confirmers.d.ts",
+      "import": "./dist/purchase-flow-confirmers.js",
+      "default": "./dist/purchase-flow-confirmers.js"
+    },
     "./purchase-flow-vectors": "./src/purchase-flow.vectors.json",
     "./swift": "./src/generated/Types.swift",
     "./kotlin": "./src/generated/Types.kt",
@@ -48,6 +57,7 @@
     "src/*.graphql",
     "src/kit-api.ts",
     "src/purchase-flow.ts",
+    "src/purchase-flow-confirmers.ts",
     "src/purchase-flow.vectors.json",
     "src/generated/"
   ],

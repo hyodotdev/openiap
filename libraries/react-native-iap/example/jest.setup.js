@@ -74,6 +74,7 @@ jest.mock('../src/index', () => {
   }));
 
   const purchaseFlowSpec = jest.requireActual('../src/purchase-flow');
+  const confirmersSpec = jest.requireActual('../src/purchase-flow-confirmers');
 
   return {
     // Purchase flow: screens get a stub flow; confirmations run the real rules.
@@ -84,13 +85,13 @@ jest.mock('../src/index', () => {
       dispose: jest.fn(),
     })),
     confirmWithIapkit: jest.fn((options) =>
-      purchaseFlowSpec.createIapkitConfirmation(
+      confirmersSpec.createIapkitConfirmation(
         (props) => mockVerifyPurchaseWithProvider(props),
         options,
       ),
     ),
     confirmOnDeviceIOS: jest.fn((options) =>
-      purchaseFlowSpec.createDeviceConfirmationIOS(
+      confirmersSpec.createDeviceConfirmationIOS(
         () => mockGetPendingTransactionsIOS(),
         options,
       ),

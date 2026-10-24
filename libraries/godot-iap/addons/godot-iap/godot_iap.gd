@@ -13,6 +13,7 @@ class_name GodotIapWrapper
 const Types = preload("types.gd")
 const AndroidStore = preload("android_store.gd")
 const PurchaseFlow = preload("purchase_flow.gd")
+const _PurchaseConfirmers = preload("purchase_confirmers.gd")
 
 const APPLE_PLATFORMS := ["iOS", "macOS"]
 # PURCHASE_REQUEST_CLOCK_SKEW_MS in specs/client/src/purchase-flow.ts: a game may run the device clock ahead.
@@ -1568,14 +1569,22 @@ func create_purchase_flow(options: Dictionary) -> PurchaseFlow:
 
 
 ## Confirms purchases with IAPKit from the app, for apps without a backend:
-## pass it as [code]confirm_with_backend[/code] with a publishable key. Credit
-## consumables in [code]grant[/code], which runs before the purchase is
-## consumed. Options: [code]GodotIapWrapper.PurchaseFlow.create_iapkit_confirmation[/code].
+## pass it as [code]confirm_with_backend[/code].
+## [param options]: [code]api_key[/code], a publishable key, safe to ship;
+## [code]base_url[/code], a self-hosted or local IAPKit origin;
+## [code]amazon: {sandbox, verified_product_id(product_id)}[/code], the RVS
+## Cloud Sandbox and the parent SKU RVS reports a subscription term under;
+## [code]verify_as(purchase)[/code], the IAPKit store that verifies a community
+## store's evidence; [code]grant(purchase, is_consumable)[/code], which gives the
+## user what they bought before the flow finishes (and so consumes) it, then
+## returns [code]true[/code]; any other answer, a script error included, fails
+## the confirmation. Grant is required for consumables and must be idempotent
+## per purchase id: after a crash the same purchase is confirmed again.
 func confirm_with_iapkit(options: Dictionary) -> Callable:
 	var verify := func(props: Dictionary) -> Dictionary:
 		var result = await verify_purchase_with_provider(props)
 		return result.to_dict() if result != null else {}
-	return PurchaseFlow.create_iapkit_confirmation(verify, options)
+	return _PurchaseConfirmers.create_iapkit_confirmation(verify, options)
 
 
 ## Confirms App Store purchases on the device, for an app with neither a backend
@@ -1583,7 +1592,7 @@ func confirm_with_iapkit(options: Dictionary) -> Callable:
 ## Credit consumables in [code]grant[/code], which runs before the purchase is
 ## consumed.
 func confirm_on_device_ios(options := {}) -> Callable:
-	return PurchaseFlow.create_device_confirmation_ios(_pending_transaction_dicts_ios, options)
+	return _PurchaseConfirmers.create_device_confirmation_ios(_pending_transaction_dicts_ios, options)
 
 
 func _pending_transaction_dicts_ios() -> Variant:

@@ -1,5 +1,6 @@
 // Port of specs/client/src/purchase-flow.ts, the purchase flow every OpenIAP SDK
-// shares; androidUnitTest runs its purchase-flow.vectors.json.
+// shares; androidUnitTest runs its purchase-flow.vectors.json. The confirmers
+// this SDK ships live in IapkitConfirmation.kt and DeviceConfirmationIOS.kt.
 // Guide: https://kit.openiap.dev/docs/purchase-flow
 package io.github.hyochan.kmpiap
 
@@ -46,7 +47,7 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.doubleOrNull
 
 /**
- * The app backend's verdict on one purchase. Only [Entitled] grants access;
+ * A confirmer's verdict on one purchase. Only [Entitled] grants access;
  * [Verified] and [Linked] mean the purchase is valid but access is not granted
  * yet. [OwnershipConflict] sets `alreadyGranted` when another account already
  * got access, which lets the app finish it. [Invalid] and
@@ -93,6 +94,15 @@ sealed interface PurchaseConfirmation {
 }
 
 /**
+ * Confirms one purchase and grants access before it answers
+ * [PurchaseConfirmation.Entitled]: the flow finishes, and so consumes, the
+ * purchase right after. A confirmer that throws or times out leaves the
+ * purchase unfinished for the next delivery or recovery. Any verification
+ * service plugs in here.
+ */
+typealias PurchaseConfirmer = suspend (purchase: Purchase, isConsumable: Boolean) -> PurchaseConfirmation
+
+/**
  * Where a purchase stands after the flow ran. `finishError` means finishing
  * failed and recovery retries it; an [Entitled] status still grants access.
  * `changePending` marks an [Entitled] purchase whose requested upgrade,
@@ -128,14 +138,14 @@ sealed interface PurchaseFlowStatus {
 data class PurchaseFlowOutcome(val purchase: Purchase, val status: PurchaseFlowStatus)
 
 /**
- * Confirms each purchase with the app's backend, or IAPKit, and finishes it
- * once access is settled. Single-product, single-unit purchases only. Create
+ * Confirms each purchase with the app's confirmer and finishes it once access
+ * is settled. Single-product, single-unit purchases only. Create
  * it with [KmpIAP.createPurchaseFlow].
  */
 @OptIn(ExperimentalCoroutinesApi::class) // resetReplayCache
 class PurchaseFlow internal constructor(
     scope: CoroutineScope,
-    private val confirmWithBackend: suspend (purchase: Purchase, isConsumable: Boolean) -> PurchaseConfirmation,
+    private val confirmWithBackend: PurchaseConfirmer,
     private val isConsumable: (productId: String) -> Boolean,
     private val finishTransaction: suspend (purchase: Purchase, isConsumable: Boolean) -> Unit,
     private val getAvailablePurchases: suspend () -> List<Purchase>,
@@ -396,12 +406,12 @@ class PurchaseFlow internal constructor(
  *
  * Create one per signed-in account, in a [scope] that outlives the screens,
  * and capture that account's session in [confirmWithBackend]. An app without a
- * backend passes [confirmWithIapkit]. Pass the app's one instance: on Meta
- * Horizon a second billing client kills the process.
+ * backend passes [confirmWithIapkit], [confirmOnDeviceIOS], or another
+ * service's [PurchaseConfirmer]. Pass the app's one instance: on Meta Horizon a
+ * second billing client kills the process.
  *
- * @param confirmWithBackend confirms the purchase and grants access before it
- *   answers [PurchaseConfirmation.Entitled]: the flow finishes, and so
- *   consumes, the purchase right after.
+ * @param confirmWithBackend the [PurchaseConfirmer]: usually a call to the app
+ *   backend.
  * @param isConsumable from the app's product config. On Android a wrong answer
  *   consumes a non-consumable or blocks rebuying a consumable.
  * @param confirmTimeout how long [confirmWithBackend] may take before the
@@ -413,7 +423,7 @@ class PurchaseFlow internal constructor(
  */
 fun KmpIAP.createPurchaseFlow(
     scope: CoroutineScope,
-    confirmWithBackend: suspend (purchase: Purchase, isConsumable: Boolean) -> PurchaseConfirmation,
+    confirmWithBackend: PurchaseConfirmer,
     isConsumable: (productId: String) -> Boolean,
     confirmTimeout: Duration = 30.seconds,
     finishTransaction: suspend (purchase: Purchase, isConsumable: Boolean) -> Unit =
@@ -536,9 +546,9 @@ fun describePurchaseFlowStatus(status: PurchaseFlowStatus): PurchaseFlowGuidance
 data class PurchaseConfirmationRequest(
     /** [IapStore.Apple] or [IapStore.Google]. */
     val store: IapStore,
-    /** Apple JWS or Google Play purchase token, forwarded to IAPKit as is. */
+    /** Apple JWS or Google Play purchase token, as the store issued it. */
     val purchaseToken: String,
-    /** The product the app expected; IAPKit rejects a store mismatch. */
+    /** The product the app expected, to compare with the store's answer. */
     val productId: String,
 )
 

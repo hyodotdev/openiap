@@ -357,6 +357,27 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
           .
         </p>
         <p>
+          Any other verification service plugs in the same way.{' '}
+          <code>confirmWithBackend</code> takes a <code>PurchaseConfirmer</code>
+          : a function that receives the purchase and whether it is consumable,
+          and answers its confirmation. Answer <code>entitled</code> once access
+          is granted, crediting a consumable first,{' '}
+          <code>verification_delayed</code> for an answer that may still change,
+          and <code>invalid</code> only for a settled rejection, which iOS then
+          finishes. A confirmer that throws or times out leaves the purchase
+          unfinished, and the next delivery or recovery confirms it again.
+        </p>
+        <CodeBlock language="typescript">{`const flow = createPurchaseFlow({
+  confirmWithBackend: async (purchase, {isConsumable}) => {
+    const verdict = await myVerifier.verify(purchase);
+    if (verdict.pending) return {status: 'verification_delayed', retryAfterMs: 30_000};
+    if (!verdict.valid) return {status: 'invalid', reason: verdict.reason};
+    if (isConsumable) await wallet.creditOnce(purchase.id, purchase.productId);
+    return {status: 'entitled', alreadyGranted: false};
+  },
+  isConsumable: (productId) => CONSUMABLE_IDS.includes(productId),
+});`}</CodeBlock>
+        <p>
           In the Expo example, <strong>Your app backend</strong> offers{' '}
           <strong>Reload products</strong> when the initial catalog query fails.
           Reloading the catalog does not start a purchase or restore

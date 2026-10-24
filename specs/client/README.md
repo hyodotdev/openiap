@@ -32,9 +32,10 @@ function isCanceled(error: PurchaseError): boolean {
 ```
 
 The root export provides TypeScript types and runtime enums. The `/kit-api`
-export provides the portable IAPKit client helper, and `/purchase-flow` the
+export provides the portable IAPKit client helper, `/purchase-flow` the
 backend-confirmed purchase pipeline with the result types an app backend
-returns. Generated native types are
+returns, and `/purchase-flow-confirmers` the IAPKit and on-device confirmers
+built on it. Generated native types are
 available at `/swift`, `/kotlin`, `/dart`, `/gdscript`, and `/csharp`.
 For a working purchase integration, choose a [framework SDK](https://openiap.dev/languages).
 
@@ -70,7 +71,8 @@ definitions.
 
 This is a publishable specification artifact, not a deployed service. Runtime
 service implementations remain in `packages/` and `libraries/`; the portable
-`kit-api` and `purchase-flow` helpers are client code, and the independent
+`kit-api`, `purchase-flow`, and `purchase-flow-confirmers` helpers are client
+code, and the independent
 server-side Commerce Protocol remains in `specs/commerce-protocol`.
 
 The npm tarball ships the TypeScript runtime and declarations compiled into

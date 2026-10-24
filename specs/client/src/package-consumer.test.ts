@@ -53,6 +53,8 @@ describe("published package", () => {
     expect(packedFiles).toContain("dist/kit-api.d.ts");
     expect(packedFiles).toContain("dist/purchase-flow.js");
     expect(packedFiles).toContain("dist/purchase-flow.d.ts");
+    expect(packedFiles).toContain("dist/purchase-flow-confirmers.js");
+    expect(packedFiles).toContain("dist/purchase-flow-confirmers.d.ts");
   });
 
   test("loads every runtime export in standard Node", () => {
@@ -65,13 +67,14 @@ describe("published package", () => {
           'import { ErrorCode } from "@hyodotdev/openiap-client-protocol";',
           'import { kitApi } from "@hyodotdev/openiap-client-protocol/kit-api";',
           'import { createPurchaseFlow } from "@hyodotdev/openiap-client-protocol/purchase-flow";',
-          "console.log(ErrorCode.Unknown, typeof kitApi, typeof createPurchaseFlow);",
+          'import { createIapkitConfirmation } from "@hyodotdev/openiap-client-protocol/purchase-flow-confirmers";',
+          "console.log(ErrorCode.Unknown, typeof kitApi, typeof createPurchaseFlow, typeof createIapkitConfirmation);",
         ].join(" "),
       ],
       { cwd: consumerRoot, encoding: "utf8" },
     );
 
-    expect(output.trim()).toBe("unknown function function");
+    expect(output.trim()).toBe("unknown function function function");
   });
 
   test("resolves every public subpath in standard TypeScript", () => {
@@ -80,12 +83,16 @@ describe("published package", () => {
       [
         'import { ErrorCode } from "@hyodotdev/openiap-client-protocol";',
         'import { kitApi } from "@hyodotdev/openiap-client-protocol/kit-api";',
-        'import type { PurchaseConfirmation } from "@hyodotdev/openiap-client-protocol/purchase-flow";',
+        'import type { PurchaseConfirmation, PurchaseConfirmer } from "@hyodotdev/openiap-client-protocol/purchase-flow";',
+        'import type { IapkitConfirmationOptions } from "@hyodotdev/openiap-client-protocol/purchase-flow-confirmers";',
         "const code: ErrorCode = ErrorCode.Unknown;",
         'const confirmation: PurchaseConfirmation = { status: "linked" };',
+        "const confirm: PurchaseConfirmer = async () => confirmation;",
+        "const options: IapkitConfirmationOptions = {};",
         "void code;",
         "void kitApi;",
-        "void confirmation;",
+        "void confirm;",
+        "void options;",
       ].join("\n"),
     );
 
