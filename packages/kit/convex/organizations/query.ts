@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import { query } from "../_generated/server";
 import { createError, ErrorCode } from "../utils/errors";
 import { v } from "convex/values";
@@ -6,6 +7,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const getUserOrganizations = query({
   handler: async (ctx) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       return [];
@@ -38,6 +40,7 @@ export const getUserOrganizations = query({
 export const getCurrentOrganization = query({
   args: { organizationId: v.optional(v.id("organizations")) },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       return null;
@@ -81,6 +84,7 @@ export const getCurrentOrganization = query({
 export const getOrganizationBySlug = query({
   args: { slug: v.string() },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       return null;
@@ -116,6 +120,7 @@ export const getOrganizationBySlug = query({
 
 export const hasOrganizations = query({
   handler: async (ctx) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       return false;
@@ -133,6 +138,7 @@ export const hasOrganizations = query({
 export const getOrganizationMembers = query({
   args: { organizationId: v.id("organizations") },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       return [];
@@ -189,6 +195,7 @@ export const listOrganizationMembers = getOrganizationMembers;
 export const getMyInvitations = query({
   args: { paginationOpts: paginationOptsValidator },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) return { page: [], isDone: true, continueCursor: "" };
     const result = await ctx.db
@@ -219,6 +226,7 @@ export const getPendingInvitations = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) throw createError(ErrorCode.NOT_AUTHENTICATED);
     const membership = await ctx.db

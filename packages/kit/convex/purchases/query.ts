@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import {
   paginationOptsValidator,
   type IndexRange,
@@ -92,6 +93,7 @@ export const getReceiptsByProject = query({
     createdTo: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new ConvexError("Not authenticated");
@@ -322,6 +324,7 @@ export const getPurchaseById = query({
     purchaseId: v.id("purchases"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new ConvexError("Not authenticated");
@@ -388,6 +391,7 @@ export const getOrganizationReceiptStats = query({
     organizationId: v.id("organizations"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new ConvexError("Not authenticated");

@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import { query } from "../_generated/server";
 import { v } from "convex/values";
 import { isEmailSignInOpen } from "../authWindow";
@@ -15,6 +16,7 @@ import { hasAnyResendAccount } from "./internal";
 export const canSignInWithEmail = query({
   args: { email: v.string() },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const normalized = args.email.trim().toLowerCase();
     if (normalized.length === 0) return false;
     if (!isEmailSignInOpen()) return false;

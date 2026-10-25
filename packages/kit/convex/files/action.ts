@@ -1,4 +1,5 @@
 "use node";
+import { assertCliScope } from "../cli/scope";
 import { createPrivateKey } from "node:crypto";
 import { action } from "../_generated/server";
 import { v, ConvexError } from "convex/values";
@@ -59,6 +60,7 @@ export const saveAppleP8Key = action({
     content: v.string(),
   },
   handler: async (ctx, args): Promise<AppleP8SaveResult> => {
+    await assertCliScope(ctx, "admin");
     if (!(await getAuthUserId(ctx))) {
       throw new ConvexError("Not authenticated");
     }
@@ -156,6 +158,7 @@ export const validateAppleReviewScreenshotUpload = action({
   },
   returns: v.object({ valid: v.literal(true) }),
   handler: async (ctx, args): Promise<{ valid: true }> => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     const { reservation, storage } = await ctx.runQuery(
       internal.files.internal.getUploadReservationForValidation,
@@ -275,6 +278,7 @@ export const validateGoogleServiceAccountUpload = action({
   },
   returns: v.object({ valid: v.literal(true) }),
   handler: async (ctx, args): Promise<{ valid: true }> => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     const { reservation, storage } = await ctx.runQuery(
       internal.files.internal.getUploadReservationForValidation,
@@ -376,6 +380,7 @@ export const downloadFile = action({
     ctx,
     args,
   ): Promise<{ fileName: string; mimeType: string; base64: string }> => {
+    await assertCliScope(ctx, "admin");
     const userId: Id<"users"> | null = await getAuthUserId(ctx);
     if (!userId) {
       throw new ConvexError("Not authenticated");

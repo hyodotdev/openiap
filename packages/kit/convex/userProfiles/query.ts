@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import { query } from "../_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { SPONSOR_CTA_THRESHOLD } from "../plans";
@@ -5,6 +6,7 @@ import { SPONSOR_CTA_THRESHOLD } from "../plans";
 // Get current user's profile
 export const getCurrentUserProfile = query({
   handler: async (ctx) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       return null;
@@ -32,6 +34,7 @@ export const getCurrentUserProfile = query({
 // Check if user has profile
 export const hasUserProfile = query({
   handler: async (ctx) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       return false;
@@ -49,6 +52,7 @@ export const hasUserProfile = query({
 // Get user stats
 export const getUserStats = query({
   handler: async (ctx) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       return null;

@@ -1,4 +1,5 @@
 "use node";
+import { assertCliScope } from "../cli/scope";
 
 import { verifyGooglePlayReceiptInternalV1 } from "./android";
 import {
@@ -20,6 +21,7 @@ export const readBoundPurchaseEntitlements = action({
   args: { apiKey: v.string(), userId: v.string() },
   returns: v.object({ productIds: v.array(v.string()) }),
   handler: async (ctx, args): Promise<{ productIds: string[] }> => {
+    await assertCliScope(ctx, "write");
     const project = await getProjectByApiKey(ctx, args.apiKey, "admin");
     const queryArgs = { projectId: project._id, userId: args.userId };
     // Amazon and Horizon rows only: Apple and Google one-time links are for

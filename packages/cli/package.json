@@ -1,7 +1,7 @@
 {
   "name": "@hyodotdev/openiap",
   "version": "0.2.1",
-  "description": "Start an OpenIAP integration with AI and check local purchase configuration",
+  "description": "Set up OpenIAP, check purchase configuration, and operate IAPKit from the terminal",
   "keywords": [
     "openiap",
     "in-app-purchase",
@@ -47,7 +47,9 @@
     "yaml": "^2.9.0"
   },
   "scripts": {
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "generate:kit": "bun scripts/generate-kit-commands.mjs",
+    "check:kit": "bun scripts/generate-kit-commands.mjs --check"
   },
   "publishConfig": {
     "access": "public",

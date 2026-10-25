@@ -6,6 +6,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import { commerceRoutes } from "./api/commerce/routes";
+import { cliRoutes } from "./api/cli/routes";
 import { apiRoutes } from "./api/v1/routes";
 import { sourceRateLimitMiddleware } from "./api/v1/rate-limit";
 import { apiRoutesV2 } from "./api/v2/routes";
@@ -66,6 +67,16 @@ app.route("/v2", apiRoutesV2);
 // OpenIAP Commerce Protocol: the portable REST binding and the GraphQL
 // endpoint, both thin adapters over the same shared operation handlers.
 app.route("/commerce/v1", commerceRoutes);
+app.route("/cli/v1", cliRoutes);
+app.all("/cli/v1/*", (c) =>
+  c.json(
+    {
+      ok: false,
+      error: { code: "NOT_FOUND", message: "Unknown CLI operation." },
+    },
+    404,
+  ),
+);
 
 // Codex / MCP plugin endpoint for IAPKit. This must sit before
 // static serving so `/mcp` never falls through to the React Router SPA.

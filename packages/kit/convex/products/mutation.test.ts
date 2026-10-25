@@ -691,6 +691,52 @@ describe("upsertProduct localization clearing contract", () => {
   });
 });
 
+describe("upsertProduct iOS subscription group validation", () => {
+  const base = {
+    projectId: "projects_a" as Id<"projects">,
+    productId: "premium.monthly",
+    platform: "IOS" as const,
+    type: "Subscription" as const,
+    title: "Premium",
+  };
+
+  beforeEach(() => {
+    projectMocks.byProjectId.mockResolvedValue({
+      project: { _id: base.projectId },
+      role: "admin",
+      userId: "user_a",
+    });
+  });
+
+  it.each([undefined, "", " \t\n"])(
+    "returns a structured error for group %j without writing a product",
+    async (subscriptionGroupName) => {
+      const ctx = makeCtx();
+      await expect(
+        upsertProduct._handler(ctx, { ...base, subscriptionGroupName }),
+      ).rejects.toMatchObject({
+        data: {
+          code: "INVALID_INPUT",
+          scope: "dashboard",
+          message: expect.stringContaining("subscriptionGroupName is required"),
+        },
+      });
+      expect(ctx.db.rows("products")).toEqual([]);
+    },
+  );
+
+  it("stores a valid group for related subscription tiers", async () => {
+    const ctx = makeCtx();
+    await upsertProduct._handler(ctx, {
+      ...base,
+      subscriptionGroupName: "premium_tiers",
+    });
+    expect(ctx.db.rows("products")).toEqual([
+      expect.objectContaining({ subscriptionGroupName: "premium_tiers" }),
+    ]);
+  });
+});
+
 describe("upsertProduct sales-region contract", () => {
   const PROJECT = "projects_a" as Id<"projects">;
   const base = {

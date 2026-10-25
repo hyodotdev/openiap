@@ -600,6 +600,27 @@ export const deleteRemovedProductRow = internalMutation({
 // `purge-local`: deletes one page of a platform's kit product rows; the worker
 // loops on `hasMore`. Client payloads and the stores are untouched: upstream
 // deletes go through Removed rows and a push sync, which reports per product.
+export const previewPlatformCatalog = internalQuery({
+  args: {
+    projectId: v.id("projects"),
+    platform: platformValidator,
+    cursor: v.union(v.string(), v.null()),
+  },
+  handler: async (ctx, args) => {
+    const page = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform", (q) =>
+        q.eq("projectId", args.projectId).eq("platform", args.platform),
+      )
+      .paginate({ numItems: 100, cursor: args.cursor });
+    return {
+      productIds: page.page.map((product) => product.productId),
+      cursor: page.continueCursor,
+      done: page.isDone,
+    };
+  },
+});
+
 export const deletePlatformCatalog = internalMutation({
   args: {
     projectId: v.id("projects"),

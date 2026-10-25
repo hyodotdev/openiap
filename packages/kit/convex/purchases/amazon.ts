@@ -1,4 +1,5 @@
 "use node";
+import { assertCliScope } from "../cli/scope";
 
 import { buildAmazonRemoteId } from "./identity";
 export { buildAmazonRemoteId } from "./identity";
@@ -355,6 +356,7 @@ export const verifyAmazonReceiptInternalV1 = action({
   },
   returns: receiptResponseValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { sourceAuth, ...request } = args;
     assertVerificationSource("amazon", request, sourceAuth);
     return verifyRecordingIssues(

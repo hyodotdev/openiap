@@ -1,4 +1,7 @@
+import { assertCliScope } from "./cli/scope";
 import { convexAuth } from "@convex-dev/auth/server";
+import { ConvexCredentials } from "@convex-dev/auth/providers/ConvexCredentials";
+import type { DataModel } from "./_generated/dataModel";
 import {
   ResendOTPEmailEn,
   ResendOTPEmailKo,
@@ -15,6 +18,18 @@ import {
 
 const CustomAuth = convexAuth({
   providers: [
+    ConvexCredentials<DataModel>({
+      id: "cli",
+      authorize: async (credentials, ctx) =>
+        ctx.runMutation(internal.cli.internal.consume, {
+          ...(typeof credentials.deviceCode === "string"
+            ? { deviceCode: credentials.deviceCode }
+            : {}),
+          ...(typeof credentials.token === "string"
+            ? { token: credentials.token }
+            : {}),
+        }),
+    }),
     ResendOTPEmailEn,
     ResendOTPEmailKo,
     ResendOTPEmailJa,
@@ -38,6 +53,17 @@ const CustomAuth = convexAuth({
       },
     }),
   ],
+  jwt: {
+    customClaims: async (ctx, { sessionId }) => {
+      const session = await ctx.runQuery(internal.cli.internal.sessionClaims, {
+        sessionId,
+      });
+      if (!session) return {};
+      if (session.revoked || session.expiresAt <= Date.now())
+        throw new Error("CLI session expired or revoked");
+      return { iapkitCli: true };
+    },
+  },
   callbacks: {
     async createOrUpdateUser(ctx, args) {
       assertEmailSignInWindowOpen(args.provider.id);
@@ -170,6 +196,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const loggedInUser = query({
   handler: async (ctx) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       return null;

@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
@@ -21,6 +22,7 @@ import { getWritableProject } from "../projects/writable";
 import {
   PRODUCT_SYNC_JOB_DEADLINE_MS,
   PRODUCT_SYNC_MANUAL_ACTIONS_CAP,
+  PRODUCT_SYNC_PLANNED_WRITES_CAP,
   truncateManualActions,
   truncatePlannedWrites,
 } from "./syncResult";
@@ -70,8 +72,15 @@ const directionValidator = v.union(
 async function resolveProjectByApiKey(
   ctx: QueryCtx | MutationCtx,
   apiKey: string,
+  access: "read" | "write" = "write",
 ): Promise<{ project: Doc<"projects">; userId: Id<"users"> | null }> {
-  const resolved = await resolveProjectByApiKeyFromDb(ctx, apiKey, "admin");
+  const resolved = await resolveProjectByApiKeyFromDb(
+    ctx,
+    apiKey,
+    access === "read" && apiKey.startsWith("session-project:")
+      ? "client"
+      : "admin",
+  );
   const project = resolved?.project ?? null;
   if (!project) {
     throw createError(ErrorCode.PROJECT_NOT_FOUND);
@@ -142,14 +151,13 @@ async function resolveProjectForMutationArgs(
   throw createError(ErrorCode.INVALID_INPUT, "apiKey or projectId is required");
 }
 
-// The job must belong to the apiKey's project, so another project's key
-// cannot read or cancel it.
+// A job can only be read through its own project.
 async function resolveJobByApiKey(
   ctx: QueryCtx | MutationCtx,
   apiKey: string,
   rawJobId: string,
 ): Promise<{ job: Doc<"productSyncJobs">; project: Doc<"projects"> }> {
-  const { project } = await resolveProjectByApiKey(ctx, apiKey);
+  const { project } = await resolveProjectByApiKey(ctx, apiKey, "read");
   // Ids arrive from URL paths; a malformed one must read as "not found"
   // rather than fail argument validation into a 500.
   const jobId = ctx.db.normalizeId("productSyncJobs", rawJobId);
@@ -191,6 +199,7 @@ export const getActiveSyncJob = query({
     platform: platformValidator,
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const project = await resolveProjectForReadArgs(ctx, args);
     return await ctx.db
       .query("productSyncJobs")
@@ -208,14 +217,13 @@ export const getSyncJobById = query({
     jobId: v.string(),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const { job } = await resolveJobByApiKey(ctx, args.apiKey, args.jobId);
     return job;
   },
 });
 
-// Idempotent enqueue: if there's already a queued/running job for this
-// (project, platform) we return the existing jobId so a double-tap or
-// page reload doesn't fan out duplicate workers.
+// Identical requests reuse the active job; a different intent waits for the slot.
 export const enqueueProductSync = mutation({
   args: {
     apiKey: v.optional(v.string()),
@@ -229,7 +237,10 @@ export const enqueueProductSync = mutation({
     deduped: v.boolean(),
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { project, userId } = await resolveProjectForMutationArgs(ctx, args);
+    const direction = args.direction ?? "both";
+    const dryRun = args.dryRun ?? false;
     // Dedup through the project's `activeSyncJobIds` lock: concurrent
     // enqueues all read and patch the project doc, so OCC retries the losers,
     // which then see the lock. An index lookup alone would let both insert.
@@ -240,6 +251,11 @@ export const enqueueProductSync = mutation({
         lockedJob &&
         (lockedJob.status === "queued" || lockedJob.status === "running")
       ) {
+        if (lockedJob.direction !== direction || lockedJob.dryRun !== dryRun)
+          throw createError(
+            ErrorCode.INVALID_INPUT,
+            `A different sync is already running. Wait for or cancel job ${lockedJob._id} before changing direction or preview/apply mode.`,
+          );
         return { jobId: lockedJob._id, deduped: true };
       }
       // The lock points at a finished job, e.g. after a worker crash or a
@@ -249,8 +265,8 @@ export const enqueueProductSync = mutation({
     const jobId = await ctx.db.insert("productSyncJobs", {
       projectId: project._id,
       platform: args.platform,
-      direction: args.direction ?? "both",
-      dryRun: args.dryRun ?? false,
+      direction,
+      dryRun,
       status: "queued",
       progress: { phase: "queued" },
       // A worker that never starts must not hold the slot; the reaper fails it.
@@ -264,7 +280,7 @@ export const enqueueProductSync = mutation({
         [args.platform]: jobId,
       },
     });
-    if (args.direction === "purge-local") {
+    if (direction === "purge-local") {
       // Purge only deletes local rows, so it runs here in the V8 runtime
       // with no store credentials and no "use node" cost.
       await ctx.scheduler.runAfter(
@@ -302,6 +318,48 @@ export const runProductSyncPurgeLocal = internalAction({
       jobId: args.jobId,
     });
     try {
+      if (job.dryRun) {
+        const plannedWrites: Array<{ productId: string; step: string }> = [];
+        let cursor: string | null = null;
+        let truncated = false;
+        for (let index = 0; index < 200; index++) {
+          if (
+            await ctx.runQuery(internal.products.jobs.isCancelRequested, {
+              jobId: job._id,
+            })
+          ) {
+            await ctx.runMutation(internal.products.jobs.markJobFailed, {
+              jobId: job._id,
+              error: "Cancelled by operator",
+            });
+            return;
+          }
+          const page: { productIds: string[]; cursor: string; done: boolean } =
+            await ctx.runQuery(internal.products.sync.previewPlatformCatalog, {
+              projectId: job.projectId,
+              platform: job.platform,
+              cursor,
+            });
+          for (const productId of page.productIds) {
+            if (plannedWrites.length < PRODUCT_SYNC_PLANNED_WRITES_CAP)
+              plannedWrites.push({ productId, step: "purge-local" });
+            else truncated = true;
+          }
+          if (page.done || truncated) break;
+          cursor = page.cursor;
+          if (index === 199) truncated = true;
+        }
+        await ctx.runMutation(internal.products.jobs.markJobSucceeded, {
+          jobId: job._id,
+          pulled: 0,
+          pushed: 0,
+          deleted: 0,
+          failures: [],
+          plannedWrites,
+          plannedWritesTruncated: truncated,
+        });
+        return;
+      }
       const PAGE = 100;
       let total = 0;
       // 200 pages caps a runaway loop at 20k rows, far past any real catalog.
@@ -359,6 +417,7 @@ export const cancelProductSync = mutation({
     jobId: v.string(),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { job } = await resolveJobForMutationArgs(ctx, args);
     if (job.status === "queued") {
       // No worker holds it yet, so end it here; a late worker sees "failed".
@@ -390,6 +449,7 @@ export const dismissCompletedJob = mutation({
     jobId: v.id("productSyncJobs"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { job } = await resolveJobForMutationArgs(ctx, args);
     if (job.status !== "succeeded" && job.status !== "failed") {
       return { ok: false as const };

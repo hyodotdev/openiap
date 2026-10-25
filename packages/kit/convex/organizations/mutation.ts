@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import { mutation } from "../_generated/server";
 import type { Doc } from "../_generated/dataModel";
 import { v } from "convex/values";
@@ -21,6 +22,7 @@ export const createOrganization = mutation({
     slug: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw createError(ErrorCode.NOT_AUTHENTICATED);
@@ -119,6 +121,7 @@ export const updateOrganization = mutation({
     taxIdType: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw createError(ErrorCode.NOT_AUTHENTICATED);
@@ -170,6 +173,7 @@ export const inviteMember = mutation({
     role: organizationInviteRoleValidator,
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) throw createError(ErrorCode.NOT_AUTHENTICATED);
     const membership = await ctx.db
@@ -225,6 +229,7 @@ export const respondToInvitation = mutation({
     accept: v.boolean(),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) throw createError(ErrorCode.NOT_AUTHENTICATED);
     const invitation = await ctx.db.get(args.invitationId);
@@ -288,6 +293,7 @@ export const respondToInvitation = mutation({
 export const cancelInvitation = mutation({
   args: { invitationId: v.id("organizationInvitations") },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) throw createError(ErrorCode.NOT_AUTHENTICATED);
     const invitation = await ctx.db.get(args.invitationId);
@@ -310,6 +316,7 @@ export const removeMember = mutation({
     userId: v.id("users"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "admin");
     const currentUserId = await getAuthUserId(ctx);
     if (!currentUserId) {
       throw createError(ErrorCode.NOT_AUTHENTICATED);
@@ -387,6 +394,7 @@ export const switchOrganization = mutation({
     organizationId: v.id("organizations"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw createError(ErrorCode.NOT_AUTHENTICATED);

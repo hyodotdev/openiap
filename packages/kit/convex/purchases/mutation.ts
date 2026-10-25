@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import { internalMutation, mutation } from "../_generated/server";
 import { ConvexError, v } from "convex/values";
 import { resolveProjectByApiKeyFromDb } from "../projects/helpers";
@@ -34,6 +35,7 @@ export const bindVerifiedPurchaseAsServer = mutation({
   },
   returns: v.object({ bound: v.boolean() }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const resolved = await resolveProjectByApiKeyFromDb(
       ctx,
       args.apiKey,

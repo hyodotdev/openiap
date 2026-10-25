@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import {
   paginationOptsValidator,
   paginationResultValidator,
@@ -55,6 +56,7 @@ export const listPurchaseIssues = query({
   },
   returns: paginationResultValidator(purchaseIssueValidator),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const project = await resolveOperatorProject(ctx, args, "read");
     if (args.paginationOpts.numItems > MAX_ISSUE_PAGE_SIZE) {
       throw new ConvexError({
@@ -101,6 +103,7 @@ export const getPurchaseIssue = query({
   args: { projectId: v.id("projects"), issueId: v.string() },
   returns: v.union(purchaseIssueValidator, v.null()),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const issueId = ctx.db.normalizeId("purchaseIssues", args.issueId);
     const issue = issueId ? await ctx.db.get(issueId) : null;
     if (issue?.projectId !== args.projectId) return null;

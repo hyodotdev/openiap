@@ -35,6 +35,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json bun.lock ./
 COPY packages/kit ./packages/kit
 COPY packages/mcp-server ./packages/mcp-server
+COPY packages/cli ./packages/cli
 # The MCP client imports the client specification's public kit-api subpath.
 COPY specs/client ./specs/client
 # Kit runtime code imports @hyodotdev/openiap-commerce-protocol (generated schemas,

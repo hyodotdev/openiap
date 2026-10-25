@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import { query } from "../_generated/server";
 import { v } from "convex/values";
 
@@ -33,6 +34,7 @@ export const getSetupStatus = query({
     googleServiceAccountUploaded: v.boolean(),
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const resolved = args.projectId
       ? await resolveProjectByIdForCurrentUserFromDb(ctx, args.projectId)
       : args.apiKey

@@ -1,7 +1,9 @@
+import { assertCliScope } from "../cli/scope";
 import { invalidateSubscriptionStats } from "../subscriptions/stats";
 import { mutation, type MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
+import { createError, ErrorCode } from "../utils/errors";
 
 import {
   clientPayloadDraftWriteResultValidator,
@@ -68,7 +70,7 @@ async function resolveProjectForMutationArgs(
     return resolved?.project ?? null;
   }
 
-  throw new Error("apiKey or projectId is required");
+  throw createError(ErrorCode.INVALID_INPUT, "apiKey or projectId is required");
 }
 
 type ClientPayloadWriter = {
@@ -168,6 +170,7 @@ export const upsertProductClientPayloadWithApiKey = mutation({
   },
   returns: clientPayloadWriteResultValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key, author } = await resolveApiKeyClientPayloadWriter(ctx, args);
     return await publishClientPayload(ctx, key, {
       format: args.format,
@@ -189,6 +192,7 @@ export const upsertProductClientPayload = mutation({
   },
   returns: clientPayloadWriteResultValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key, author } = await resolveDashboardClientPayloadWriter(
       ctx,
       args,
@@ -206,6 +210,7 @@ export const removeProductClientPayload = mutation({
   args: { ...dashboardKeyArgs, expectedVersion: v.number() },
   returns: v.object({ ok: v.boolean() }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key, author } = await resolveDashboardClientPayloadWriter(
       ctx,
       args,
@@ -221,6 +226,7 @@ export const removeProductClientPayloadWithApiKey = mutation({
   args: { ...apiKeyKeyArgs, expectedVersion: v.optional(v.number()) },
   returns: v.object({ ok: v.boolean() }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key, author } = await resolveApiKeyClientPayloadWriter(ctx, args);
     return await removeClientPayload(ctx, key, {
       expectedVersion: args.expectedVersion,
@@ -233,6 +239,7 @@ export const saveProductClientPayloadDraft = mutation({
   args: { ...dashboardKeyArgs, ...draftArgs },
   returns: clientPayloadDraftWriteResultValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key, author } = await resolveDashboardClientPayloadWriter(
       ctx,
       args,
@@ -251,6 +258,7 @@ export const saveProductClientPayloadDraftWithApiKey = mutation({
   args: { ...apiKeyKeyArgs, ...draftArgs },
   returns: clientPayloadDraftWriteResultValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key } = await resolveApiKeyClientPayloadWriter(ctx, args);
     return await saveClientPayloadDraft(ctx, key, {
       format: args.format,
@@ -265,6 +273,7 @@ export const discardProductClientPayloadDraft = mutation({
   args: { ...dashboardKeyArgs, expectedDraftRevision: v.number() },
   returns: v.object({ ok: v.boolean() }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key } = await resolveDashboardClientPayloadWriter(ctx, args);
     return await discardClientPayloadDraft(ctx, key, args);
   },
@@ -274,6 +283,7 @@ export const discardProductClientPayloadDraftWithApiKey = mutation({
   args: { ...apiKeyKeyArgs, expectedDraftRevision: v.optional(v.number()) },
   returns: v.object({ ok: v.boolean() }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key } = await resolveApiKeyClientPayloadWriter(ctx, args);
     return await discardClientPayloadDraft(ctx, key, args);
   },
@@ -283,6 +293,7 @@ export const publishProductClientPayloadDraft = mutation({
   args: { ...dashboardKeyArgs, ...publishArgs },
   returns: clientPayloadWriteResultValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key, author } = await resolveDashboardClientPayloadWriter(
       ctx,
       args,
@@ -295,6 +306,7 @@ export const publishProductClientPayloadDraftWithApiKey = mutation({
   args: { ...apiKeyKeyArgs, ...publishArgs },
   returns: clientPayloadWriteResultValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key, author } = await resolveApiKeyClientPayloadWriter(ctx, args);
     return await publishClientPayloadDraft(ctx, key, { ...args, author });
   },
@@ -304,6 +316,7 @@ export const rollbackProductClientPayload = mutation({
   args: { ...dashboardKeyArgs, ...rollbackArgs },
   returns: clientPayloadWriteResultValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key, author } = await resolveDashboardClientPayloadWriter(
       ctx,
       args,
@@ -316,6 +329,7 @@ export const rollbackProductClientPayloadWithApiKey = mutation({
   args: { ...apiKeyKeyArgs, ...rollbackArgs },
   returns: clientPayloadWriteResultValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key, author } = await resolveApiKeyClientPayloadWriter(ctx, args);
     return await rollbackClientPayload(ctx, key, { ...args, author });
   },
@@ -356,8 +370,15 @@ export const upsertProduct = mutation({
     created: v.boolean(),
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const project = await resolveProjectForMutationArgs(ctx, args);
-    if (!project) throw new Error("Invalid API key");
+    if (!project)
+      throw createError(
+        args.projectId
+          ? ErrorCode.PROJECT_NOT_FOUND
+          : ErrorCode.API_KEY_INVALID,
+        args.projectId ? "Project not found" : "Invalid API key",
+      );
 
     // Push-sync carries prices as JS numbers, so a value past the safe-integer
     // range could be rounded before it reaches the store.
@@ -366,7 +387,10 @@ export const upsertProduct = mutation({
       (!Number.isSafeInteger(args.priceAmountMicros) ||
         args.priceAmountMicros < 0)
     ) {
-      throw new Error("priceAmountMicros must be a non-negative safe integer");
+      throw createError(
+        ErrorCode.INVALID_INPUT,
+        "priceAmountMicros must be a non-negative safe integer",
+      );
     }
 
     const existing: Doc<"products"> | null = await ctx.db
@@ -403,8 +427,9 @@ export const upsertProduct = mutation({
       args.type === "Subscription" &&
       (!args.subscriptionGroupName || !args.subscriptionGroupName.trim())
     ) {
-      throw new Error(
-        "subscriptionGroupName is required for iOS Subscription products — related tiers must share a group for StoreKit 2 upgrade/downgrade to work. Pick a group name (e.g. 'premium_tiers') and reuse it for every related subscription. kit's push-sync (asc.ts) will create the group in App Store Connect on first push and reuse the existing group on subsequent pushes if a group with the same name already exists upstream — you do not have to create it in ASC manually first.",
+      throw createError(
+        ErrorCode.INVALID_INPUT,
+        "subscriptionGroupName is required for iOS Subscription products. Reuse the same group name for related subscription tiers so StoreKit 2 can upgrade or downgrade between them.",
       );
     }
 
@@ -512,8 +537,15 @@ export const setProductState = mutation({
     state: stateValidator,
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const project = await resolveProjectForMutationArgs(ctx, args);
-    if (!project) throw new Error("Invalid API key");
+    if (!project)
+      throw createError(
+        args.projectId
+          ? ErrorCode.PROJECT_NOT_FOUND
+          : ErrorCode.API_KEY_INVALID,
+        args.projectId ? "Project not found" : "Invalid API key",
+      );
 
     const existing = await ctx.db
       .query("products")
@@ -524,7 +556,8 @@ export const setProductState = mutation({
           .eq("productId", args.productId),
       )
       .unique();
-    if (!existing) throw new Error("Product not found");
+    if (!existing)
+      throw createError(ErrorCode.PRODUCT_NOT_FOUND, "Product not found");
 
     await ctx.db.patch(existing._id, {
       state: args.state,
@@ -546,6 +579,7 @@ export const removeProduct = mutation({
   },
   returns: v.object({ ok: v.boolean() }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const project = await resolveProjectForMutationArgs(ctx, args);
     if (!project) return { ok: false };
 

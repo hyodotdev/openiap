@@ -1,4 +1,5 @@
 "use node";
+import { assertCliScope } from "../cli/scope";
 
 import { action, ActionCtx } from "../_generated/server";
 import { google } from "googleapis";
@@ -63,6 +64,7 @@ export const verifyGooglePlayReceiptInternalV1 = action({
   },
   returns: receiptResponseValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { sourceAuth, ...request } = args;
     assertVerificationSource("google", request, sourceAuth);
     return verifyRecordingIssues(

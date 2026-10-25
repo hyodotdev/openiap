@@ -13,6 +13,8 @@ on:
       # The kit binary serves kit.openiap.dev/mcp from the MCP server's source
       # (issue #287) and embeds the Commerce Protocol's generated artifacts.
       - "packages/mcp-server/**"
+      - "packages/cli/src/kit/**"
+      - "packages/cli/scripts/**"
       - "specs/commerce-protocol/**"
       # The MCP server compiles against the portable kit-api contract.
       - "specs/client/src/kit-api.ts"
@@ -30,6 +32,8 @@ on:
     paths:
       - "packages/kit/**"
       - "packages/mcp-server/**"
+      - "packages/cli/src/kit/**"
+      - "packages/cli/scripts/**"
       - "specs/commerce-protocol/**"
       - "specs/client/src/kit-api.ts"
       - "specs/client/package.json"
@@ -98,6 +102,16 @@ jobs:
             echo "Attempt $attempt failed. Retrying..."
             sleep 5
           done
+
+      - name: Check CLI command schemas against IAPKit
+        working-directory: ${{ github.workspace }}
+        run: bun packages/cli/scripts/generate-kit-commands.mjs --check
+
+      - name: Test CLI and MCP adapters
+        working-directory: ${{ github.workspace }}
+        run: |
+          bun run --cwd packages/cli test
+          bun run --cwd packages/mcp-server test
 
       - name: Install OSV-Scanner v2.5.0
         working-directory: ${{ github.workspace }}

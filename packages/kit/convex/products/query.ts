@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import { productLocalizationsValidator } from "./localizations";
 import { productRegionsValidator } from "./regions";
 import { playOfferPhaseId } from "./sync";
@@ -246,6 +247,7 @@ export const getProductClientPayload = query({
   },
   returns: v.union(clientPayloadShape, v.null()),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const resolved = args.projectId
       ? await resolveProjectByIdForCurrentUserFromDb(ctx, args.projectId)
       : args.apiKey
@@ -373,6 +375,7 @@ export const getProductClientPayloadIfChanged = query({
   },
   returns: conditionalClientPayloadShape,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
     if (
       !resolved ||
@@ -408,6 +411,7 @@ export const getProductClientPayloadWorkspace = query({
     v.null(),
   ),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const resolved = await resolveProjectByIdForCurrentUserFromDb(
       ctx,
       args.projectId,
@@ -427,6 +431,7 @@ export const getProductClientPayloadEditorState = query({
   args: { projectId: v.id("projects"), ...clientPayloadKeyArgs },
   returns: v.union(clientPayloadEditorStateShape, v.null()),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const resolved = await resolveProjectByIdForCurrentUserFromDb(
       ctx,
       args.projectId,
@@ -444,6 +449,7 @@ export const getProductClientPayloadEditorStateWithApiKey = query({
   args: { apiKey: v.string(), ...clientPayloadKeyArgs },
   returns: v.union(clientPayloadEditorStateShape, v.null()),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const resolved = await resolveProjectByApiKeyFromDb(
       ctx,
       args.apiKey,
@@ -461,6 +467,7 @@ export const getProductClientPayloadDraftWithApiKey = query({
   args: { apiKey: v.string(), ...clientPayloadKeyArgs },
   returns: v.union(clientPayloadDraftStateValidator, v.null()),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const resolved = await resolveProjectByApiKeyFromDb(
       ctx,
       args.apiKey,
@@ -478,6 +485,7 @@ export const listProductClientPayloadHistory = query({
   args: { projectId: v.id("projects"), ...clientPayloadKeyArgs },
   returns: v.array(clientPayloadVersionSummaryValidator),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const resolved = await resolveProjectByIdForCurrentUserFromDb(
       ctx,
       args.projectId,
@@ -495,6 +503,7 @@ export const listProductClientPayloadHistoryWithApiKey = query({
   args: { apiKey: v.string(), ...clientPayloadKeyArgs },
   returns: v.union(v.array(clientPayloadVersionSummaryValidator), v.null()),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const resolved = await resolveProjectByApiKeyFromDb(
       ctx,
       args.apiKey,
@@ -517,6 +526,7 @@ export const getProductClientPayloadHistoryVersion = query({
   },
   returns: v.union(clientPayloadVersionValidator, v.null()),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const resolved = await resolveProjectByIdForCurrentUserFromDb(
       ctx,
       args.projectId,
@@ -535,6 +545,7 @@ export const getProductClientPayloadHistoryVersionWithApiKey = query({
   args: { apiKey: v.string(), ...clientPayloadKeyArgs, version: v.number() },
   returns: v.union(clientPayloadVersionValidator, v.null()),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const resolved = await resolveProjectByApiKeyFromDb(
       ctx,
       args.apiKey,
@@ -572,6 +583,7 @@ export const getProductClientPayloadSdkPreview = query({
     v.null(),
   ),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const resolved = await resolveProjectByIdForCurrentUserFromDb(
       ctx,
       args.projectId,
@@ -625,6 +637,7 @@ export const listProductClientPayloadSummaries = query({
   args: { projectId: v.id("projects") },
   returns: v.array(clientPayloadSummaryShape),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const resolved = await resolveProjectByIdForCurrentUserFromDb(
       ctx,
       args.projectId,
@@ -696,6 +709,7 @@ export const listProducts = query({
   },
   returns: v.array(productShape),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const resolved = args.projectId
       ? await resolveProjectByIdForCurrentUserFromDb(ctx, args.projectId)
       : args.apiKey
@@ -757,6 +771,7 @@ export const listProductsPage = query({
     nextCursor: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     assertProductPageArgs(args);
     const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
     if (!resolved) return { products: [], hasMore: false };
@@ -809,6 +824,7 @@ export const listProductsWithClientPayloads = query({
     nextCursor: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     assertClientPayloadPageArgs(args);
     const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
     if (!resolved) return { products: [], hasMore: false };

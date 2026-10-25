@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import type { Doc } from "../_generated/dataModel";
 import { parseAmazonSnsTopic } from "../webhooks/amazonShared";
 import { mutation } from "../_generated/server";
@@ -214,6 +215,7 @@ export const createProject = mutation({
     platform: v.optional(projectPlatformValidator),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw createError(ErrorCode.NOT_AUTHENTICATED);
@@ -355,6 +357,10 @@ export const updateProject = mutation({
     reportingCurrency: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const updatesCredentials = ADMIN_ONLY_PROJECT_FIELDS.some(
+      (field) => args[field] !== undefined,
+    );
+    await assertCliScope(ctx, updatesCredentials ? "admin" : "write");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw createError(ErrorCode.NOT_AUTHENTICATED);
@@ -373,11 +379,7 @@ export const updateProject = mutation({
       )
       .first();
 
-    if (
-      !membership ||
-      (membership.role === "member" &&
-        ADMIN_ONLY_PROJECT_FIELDS.some((field) => args[field] !== undefined))
-    ) {
+    if (!membership || (membership.role === "member" && updatesCredentials)) {
       throw createError(ErrorCode.INSUFFICIENT_PERMISSIONS);
     }
 
@@ -508,6 +510,7 @@ export const deleteProject = mutation({
     projectId: v.id("projects"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw createError(ErrorCode.NOT_AUTHENTICATED);
@@ -556,6 +559,7 @@ export const regenerateApiKey = mutation({
     projectId: v.id("projects"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw createError(ErrorCode.NOT_AUTHENTICATED);
