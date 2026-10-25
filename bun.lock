@@ -25,7 +25,7 @@
     },
     "packages/cli": {
       "name": "@hyodotdev/openiap",
-      "version": "0.2.1",
+      "version": "0.3.0",
       "bin": {
         "openiap": "bin/openiap.mjs",
       },
