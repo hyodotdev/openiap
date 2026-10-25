@@ -708,7 +708,9 @@ npx --yes @hyodotdev/openiap kit schema keys create --json`}</CodeBlock>
             scopes, expiry and revocation. Store synchronization previews
             changes by default; applying changes requires{' '}
             <code>--apply --yes</code>. Key regeneration immediately disables
-            the old key.
+            the old key. Commands that return secrets and key deactivation
+            require <code>--yes</code>; use <code>--output</code> to save
+            secrets in a private file.
           </p>
           <p>
             The CLI requires the matching IAPKit server update, including its
