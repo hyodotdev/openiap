@@ -100,10 +100,18 @@ writes decoded bytes; without `--output` it returns the base64 response.
 Store synchronization defaults to a dry run. `--apply --yes` applies changes;
 `--wait` waits for completion with `--timeout` in seconds (default 120).
 A timeout returns the job ID; use `sync status` rather than enqueueing again.
+`--wait` exits with `JOB_FAILED` when any product failed, even if the worker
+completed. JSON errors retain the job ID and result details for inspection.
 Destructive commands, key deactivation through `keys update`, public payload
 publishing, webhook re-sends and commands that return secrets require `--yes`.
 Without it, no secret is created or downloaded. Use `--output` to keep the
-confirmed secret in a private file instead of terminal or agent logs. The `npx --yes` option only approves npm execution; it does not confirm
+confirmed secret in a private file instead of terminal or agent logs.
+Purchase tokens, signed receipts and raw store responses are hidden from
+commerce reads by default, including `--output` files. Webhook reads show the
+receiver host instead of full URLs or error text that could contain receiver
+credentials. Pass `--yes --output FILE`
+to save the raw evidence your organization role permits; `--yes` alone returns
+it on stdout. This does not grant access beyond your organization role. The `npx --yes` option only approves npm execution; it does not confirm
 a CLI change. Sandbox purchase simulation prints instructions. Synthetic
 Google webhook simulation is restricted to localhost and requires the existing
 development Pub/Sub opt-in; Apple tests require a signed store notification.

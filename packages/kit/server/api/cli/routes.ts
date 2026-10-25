@@ -5,6 +5,7 @@ import { ConvexError, type Value } from "convex/values";
 import { api } from "@/convex";
 import operations from "../../../../cli/src/kit/operations.json";
 import { requiresConfirmation } from "../../../../cli/src/kit/effects.mjs";
+import { redactStoreEvidence } from "../../../../cli/src/kit/output.mjs";
 import { resolveServerConvexUrl, handleConvexError } from "../../convex";
 import { readJsonBodyWithLimit } from "../v1/request-body";
 import { sourceRateLimitMiddleware } from "../v1/rate-limit";
@@ -216,7 +217,14 @@ cliRoutes.post("/run", async (c) => {
         makeFunctionReference<"action">(operation.target),
         args,
       );
-    return c.json({ ok: true, data });
+    return c.json({
+      ok: true,
+      data: redactStoreEvidence(
+        operation.command,
+        data,
+        body.confirmed === true,
+      ),
+    });
   } catch (error) {
     return errorResponse(c, error);
   }

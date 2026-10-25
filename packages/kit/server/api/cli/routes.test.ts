@@ -522,6 +522,110 @@ describe("CLI HTTP contract", () => {
     });
   });
 
+  it.each([
+    "purchases get",
+    "purchases list",
+    "subscriptions list",
+    "users timeline",
+    "orders lookup",
+    "webhooks notifications",
+  ])(
+    "hides replayable store evidence for %s until confirmed",
+    async (command) => {
+      const evidence = {
+        productId: "premium",
+        remoteId: "fixture-token",
+        requestData: { purchaseToken: "fixture-token" },
+        remoteResponse: "fixture-signed-response",
+        rawEvidenceVisible: true,
+        purchaseToken: "fixture-token",
+        transactionId: "fixture-token",
+        originalTransactionId: "fixture-token",
+        raw: "fixture-store-response",
+        transactions: ["fixture-signed-transaction"],
+        ...(command === "orders lookup"
+          ? {
+              subscription: {
+                raw: "fixture-store-response",
+                error: "https://store.example/fixture-token",
+              },
+            }
+          : {}),
+      };
+      const data =
+        command.endsWith("list") || command === "webhooks notifications"
+          ? { page: [evidence] }
+          : evidence;
+      transport.query.mockImplementation((reference) =>
+        getFunctionName(reference) === "cli/query:session"
+          ? { user: { _id: "u" } }
+          : data,
+      );
+      transport.action.mockResolvedValue(data);
+      const args =
+        command === "purchases get"
+          ? { purchaseId: "p" }
+          : command === "purchases list" || command === "webhooks notifications"
+            ? { projectId: "p", paginationOpts: { numItems: 25, cursor: null } }
+            : command === "users timeline"
+              ? { projectId: "p", appUserId: "user-a" }
+              : command === "orders lookup"
+                ? { projectId: "p", store: "google", orderId: "order-a" }
+                : { projectId: "p" };
+      const response = await post("/run", { command, args });
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      const row = body.data.page ? body.data.page[0] : body.data;
+      expect(row.productId).toBe("premium");
+      expect(row.rawEvidenceVisible).toBe(false);
+      const text = JSON.stringify(body);
+      expect(text).not.toMatch(/fixture-token|fixture-signed|fixture-store/);
+      const confirmed = await post("/run", { command, args, confirmed: true });
+      expect((await confirmed.json()).data).toEqual(data);
+    },
+  );
+
+  it.each(["webhooks list", "webhooks failed"])(
+    "%s returns receiver hosts without credentials or error text until confirmed",
+    async (command) => {
+      const receiver =
+        "https://fixture-user:fixture-password@receiver.example/private-fixture-token?key=fixture-token";
+      const row =
+        command === "webhooks list"
+          ? {
+              _id: "destination-a",
+              url: receiver,
+              description: receiver,
+              enabled: true,
+            }
+          : {
+              _id: "delivery-a",
+              destinationUrl: receiver,
+              lastError: `Failed at ${receiver}`,
+              status: "failed",
+            };
+      const data = [row];
+      transport.query.mockImplementation((reference) =>
+        getFunctionName(reference) === "cli/query:session"
+          ? { user: { _id: "u" } }
+          : data,
+      );
+      const args = { projectId: "p" };
+      const response = await post("/run", { command, args });
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.data[0]).toMatchObject({
+        _id: row._id,
+        destinationHost: "receiver.example",
+      });
+      expect(JSON.stringify(body)).not.toMatch(
+        /fixture-user|fixture-password|fixture-token|lastError/,
+      );
+      const confirmed = await post("/run", { command, args, confirmed: true });
+      expect((await confirmed.json()).data).toEqual(data);
+    },
+  );
+
   it("uses account authorization for member-readable operations", () => {
     const op = operations.find((entry) => entry.command === "issues list")!;
     const paginationOpts = { numItems: 25, cursor: null };

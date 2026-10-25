@@ -9,6 +9,7 @@ import { localCommands } from "./local-commands.mjs";
 import { uploadFile } from "./upload.mjs";
 import { commandSchema } from "./schema.mjs";
 import { requiresConfirmation } from "./effects.mjs";
+import { redactStoreEvidence } from "./output.mjs";
 import {
   SETUP_FRAMEWORKS,
   renderSetupSnippet,
@@ -461,12 +462,27 @@ export async function runKit(argv) {
             `Job ${id} is still running. Use sync status.`,
             { jobId: id },
           );
-        if (data.status !== "succeeded")
-          throw new KitError("JOB_FAILED", `Sync job ${id} ${data.status}.`, {
+        const failuresCount = Math.max(
+          data.progress?.failuresCount ?? 0,
+          data.result?.failures?.length ?? 0,
+        );
+        if (
+          data.status !== "succeeded" ||
+          failuresCount > 0 ||
+          data.result?.failuresTruncated === true
+        )
+          throw new KitError("JOB_FAILED", `Sync job ${id} has failures.`, {
             jobId: id,
+            details: {
+              status: data.status,
+              failuresCount,
+              ...data.result,
+              ...(data.error ? { error: data.error } : {}),
+            },
           });
       }
     }
+    data = redactStoreEvidence(command, data, options.yes === true);
     if (output) {
       const bytes =
         command === "credentials download"
@@ -492,7 +508,12 @@ export async function runKit(argv) {
       : error.message;
     const result = {
       ok: false,
-      error: { code, message, ...(error.jobId ? { jobId: error.jobId } : {}) },
+      error: {
+        code,
+        message,
+        ...(error.jobId ? { jobId: error.jobId } : {}),
+        ...(error.details ? { details: error.details } : {}),
+      },
     };
     if (json) process.stdout.write(`${JSON.stringify(result)}\n`);
     else process.stderr.write(`${code}: ${message}\n`);

@@ -20,6 +20,7 @@ import {
 } from "../src/kit/session.mjs";
 import { kitClient } from "../src/kit/client.mjs";
 import { runKit } from "../src/kit/index.mjs";
+import { redactStoreEvidence } from "../src/kit/output.mjs";
 
 const bin = fileURLToPath(new URL("../bin/openiap.mjs", import.meta.url));
 let directory, origin, server;
@@ -27,6 +28,16 @@ let logoutError;
 let loginPollErrors = [];
 let deviceLifetime = 5000;
 let syncConflict = false;
+let syncJob = { status: "succeeded" };
+const purchase = {
+  _id: "purchase-a",
+  productId: "premium",
+  requestData: { store: "google", purchaseToken: "fixture-purchase-token" },
+  remoteResponse: "fixture-signed-response",
+  remoteId: "fixture-purchase-token",
+  transactionId: "fixture-purchase-token",
+  rawEvidenceVisible: true,
+};
 const requests = [];
 const jwt = (exp = Date.now() / 1000 + 3600) =>
   `header.${Buffer.from(JSON.stringify({ exp, sub: "user|session" })).toString("base64url")}.signature`;
@@ -140,7 +151,30 @@ before(async () => {
     else if (body.command === "projects list")
       data = [{ _id: `${body.args.organizationId}-project` }];
     else if (body.command === "sync products") data = { jobId: "job-a" };
-    else if (body.command === "sync status") data = { status: "succeeded" };
+    else if (body.command === "sync status") data = syncJob;
+    else if (body.command === "purchases get") data = purchase;
+    else if (body.command === "purchases list")
+      data = { page: [purchase], isDone: true, continueCursor: "" };
+    else if (body.command === "webhooks notifications")
+      data = {
+        page: [
+          {
+            store: "apple",
+            transactionId: "fixture-purchase-token",
+            originalTransactionId: "fixture-purchase-token",
+            productId: "premium",
+            rawEvidenceVisible: true,
+          },
+        ],
+      };
+    else if (["webhooks list", "webhooks failed"].includes(body.command))
+      data = [
+        {
+          _id: "destination-a",
+          url: "https://user:fixture-token@receiver.example/fixture-token?key=fixture-token",
+          lastError: "Receiver rejected fixture-token",
+        },
+      ];
     else if (body.command === "tokens create")
       data = { token: "one-time-fixture-token" };
     else if (body.command === "credentials download")
@@ -585,6 +619,122 @@ test("sync is a dry run unless explicitly applied and supports job waiting", asy
   assert.equal(JSON.parse(apply.stdout).data.status, "succeeded");
   assert.equal(requests.at(-2).body.args.dryRun, false);
 });
+
+for (const args of [
+  ["purchases", "get", "--purchase-id", "purchase-a"],
+  ["purchases", "list", "--project", "p"],
+  ["webhooks", "notifications", "--project", "p"],
+]) {
+  test(`${args.slice(0, 2).join(" ")} hides replayable evidence from an older raw response`, async () => {
+    const result = await run([...args, "--json"]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.doesNotMatch(
+      result.stdout + result.stderr,
+      /fixture-purchase-token|fixture-signed-response/,
+    );
+    const data = JSON.parse(result.stdout).data;
+    const row = data.page ? data.page[0] : data;
+    assert.equal(row.productId, "premium");
+    assert.equal(row.rawEvidenceVisible, false);
+    assert.equal(row.remoteId, undefined);
+    assert.equal(row.transactionId, undefined);
+  });
+}
+
+for (const command of ["list", "failed"]) {
+  test(`webhooks ${command} hides receiver credentials from older responses`, async () => {
+    const result = await run(["webhooks", command, "--project", "p", "--json"]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout).data, [
+      { _id: "destination-a", destinationHost: "receiver.example" },
+    ]);
+    assert.doesNotMatch(
+      result.stdout + result.stderr,
+      /fixture-token|lastError/,
+    );
+  });
+}
+
+test("catalog payload fields are preserved when they resemble store evidence", () => {
+  const payload = {
+    body: {
+      remoteId: "catalog-rule",
+      purchaseToken: "public-field",
+      transactions: ["catalog-value"],
+    },
+  };
+  assert.equal(redactStoreEvidence("payloads get", payload, false), payload);
+});
+
+test("purchase evidence needs explicit confirmation even with output files", async () => {
+  for (const confirmed of [false, true]) {
+    const file = path.join(directory, `purchase-${confirmed}.json`);
+    const result = await run([
+      "purchases",
+      "get",
+      "--purchase-id",
+      "purchase-a",
+      "--output",
+      file,
+      "--json",
+      ...(confirmed ? ["--yes"] : []),
+    ]);
+    assert.equal(result.status, 0, result.stderr);
+    const data = JSON.parse(await readFile(file, "utf8"));
+    assert.equal(
+      data.remoteId,
+      confirmed ? "fixture-purchase-token" : undefined,
+    );
+    assert.equal((await stat(file)).mode & 0o777, 0o600);
+    assert.doesNotMatch(
+      result.stdout + result.stderr,
+      /fixture-purchase-token|fixture-signed-response/,
+    );
+  }
+});
+
+for (const job of [
+  {
+    status: "succeeded",
+    result: {
+      pulled: 0,
+      pushed: 0,
+      failures: [{ productId: "premium", reason: "Rejected by store" }],
+    },
+  },
+  { status: "succeeded", progress: { failuresCount: 2 } },
+  { status: "succeeded", result: { failures: [], failuresTruncated: true } },
+  { status: "failed", error: "Worker stopped" },
+]) {
+  test(`sync waiting fails for ${JSON.stringify(job)}`, async () => {
+    syncJob = job;
+    try {
+      const result = await run([
+        "sync",
+        "products",
+        "--project",
+        "p",
+        "--store",
+        "google",
+        "--apply",
+        "--yes",
+        "--wait",
+        "--json",
+      ]);
+      assert.equal(result.status, 1);
+      const error = JSON.parse(result.stdout).error;
+      assert.equal(error.code, "JOB_FAILED");
+      assert.equal(error.jobId, "job-a");
+      assert.equal(error.details.status, job.status);
+      if (job.result)
+        assert.deepEqual(error.details.failures, job.result.failures);
+      if (job.progress) assert.equal(error.details.failuresCount, 2);
+      if (job.error) assert.equal(error.details.error, job.error);
+    } finally {
+      syncJob = { status: "succeeded" };
+    }
+  });
+}
 
 test("automation tokens do not overwrite a developer's saved login", async () => {
   const file = (await readdir(directory)).find((name) =>
