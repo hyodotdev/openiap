@@ -19,6 +19,7 @@ import {
   saveSession,
 } from "../src/kit/session.mjs";
 import { kitClient } from "../src/kit/client.mjs";
+import { runKit } from "../src/kit/index.mjs";
 
 const bin = fileURLToPath(new URL("../bin/openiap.mjs", import.meta.url));
 let directory, origin, server;
@@ -719,6 +720,47 @@ test("login retries stop when its approval code expires", async () => {
   } finally {
     loginPollErrors = [];
     deviceLifetime = 5000;
+  }
+});
+
+test("login skips a final poll when a clamped wait wakes one millisecond early", async (t) => {
+  const routes = [];
+  let stdout = "";
+  const exitCode = process.exitCode;
+  const writeStdout = process.stdout.write.bind(process.stdout);
+  t.mock.method(Date, "now", () => 1000);
+  t.mock.method(process.stdout, "write", (chunk, ...args) => {
+    if (typeof chunk !== "string" || !chunk.startsWith("{"))
+      return writeStdout(chunk, ...args);
+    stdout += chunk;
+    return true;
+  });
+  t.mock.method(process.stderr, "write", () => true);
+  t.mock.method(globalThis, "fetch", async (url) => {
+    routes.push(new URL(url).pathname);
+    return Response.json(
+      routes.length === 1
+        ? {
+            ok: true,
+            data: {
+              deviceCode: "device-secret",
+              userCode: "ABCD123456",
+              verificationUrl: `${origin}/cli/authorize`,
+              interval: 1,
+              expiresAt: 1001,
+            },
+          }
+        : { ok: false, error: { code: "ACCESS_DENIED", message: "Denied" } },
+      { status: routes.length === 1 ? 200 : 403 },
+    );
+  });
+  try {
+    await runKit(["login", "--base-url", origin, "--no-browser", "--json"]);
+    assert.equal(process.exitCode, 1);
+    assert.equal(JSON.parse(stdout).error.code, "EXPIRED_TOKEN");
+    assert.deepEqual(routes, ["/cli/v1/auth/device"]);
+  } finally {
+    process.exitCode = exitCode;
   }
 });
 

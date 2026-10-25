@@ -218,8 +218,9 @@ async function login(client, origin, args, options) {
   if (!options.noBrowser) openBrowser(device.verificationUrl);
   let interval = device.interval * 1000;
   while (Date.now() < device.expiresAt) {
-    await delay(Math.min(interval, device.expiresAt - Date.now()));
-    if (Date.now() >= device.expiresAt) break;
+    const remaining = device.expiresAt - Date.now();
+    await delay(Math.min(interval, remaining));
+    if (interval >= remaining || Date.now() >= device.expiresAt) break;
     try {
       const tokens = await client.request("/auth/token", {
         deviceCode: device.deviceCode,
