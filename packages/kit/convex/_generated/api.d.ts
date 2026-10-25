@@ -21,6 +21,7 @@ import type * as cli_internal from "../cli/internal.js";
 import type * as cli_mutation from "../cli/mutation.js";
 import type * as cli_query from "../cli/query.js";
 import type * as cli_scope from "../cli/scope.js";
+import type * as cli_source from "../cli/source.js";
 import type * as commerce_capabilities from "../commerce/capabilities.js";
 import type * as commerce_contract from "../commerce/contract.js";
 import type * as commerce_delivery from "../commerce/delivery.js";
@@ -146,6 +147,7 @@ declare const fullApi: ApiFromModules<{
   "cli/mutation": typeof cli_mutation;
   "cli/query": typeof cli_query;
   "cli/scope": typeof cli_scope;
+  "cli/source": typeof cli_source;
   "commerce/capabilities": typeof commerce_capabilities;
   "commerce/contract": typeof commerce_contract;
   "commerce/delivery": typeof commerce_delivery;

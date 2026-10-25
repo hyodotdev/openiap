@@ -680,14 +680,15 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
-      id: 'iapkit-cli-2026-10-25',
+      id: 'iapkit-cli-2026-10-26',
       date: new Date('2026-10-26'),
       element: (
-        <div key="iapkit-cli-2026-10-25" style={noteCardStyle}>
+        <div key="iapkit-cli-2026-10-26" style={noteCardStyle}>
+          <span id="iapkit-cli-2026-10-25" aria-hidden="true" />
           {IAPKIT_CLI_RELEASES.map((release) => (
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
-          <AnchorLink id="iapkit-cli-2026-10-25" level="h4">
+          <AnchorLink id="iapkit-cli-2026-10-26" level="h4">
             October 26, 2026 - Operate IAPKit from the terminal
           </AnchorLink>
           <p>

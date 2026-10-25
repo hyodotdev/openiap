@@ -8,6 +8,7 @@ import schema from "./schema";
 import { sha256Hex } from "./utils/sha256";
 import { generateKeyPairSync } from "node:crypto";
 import type { FunctionArgs } from "convex/server";
+import { withCliStartSource } from "./cli/source";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -31,7 +32,10 @@ async function fixture() {
   return { t, userId, browser, org };
 }
 
-beforeEach(() => vi.useFakeTimers());
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "a".repeat(64));
+});
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllEnvs();
@@ -47,10 +51,16 @@ describe("IAPKit CLI authentication", () => {
     vi.stubEnv("JWT_PRIVATE_KEY", privateKey);
     vi.stubEnv("CONVEX_SITE_URL", "https://test.convex.site");
     const { t, browser, userId } = await fixture();
-    const device = await t.mutation(api.cli.mutation.start, {
-      name: "JWT test",
-      scope: "read",
-    });
+    const device = await t.mutation(
+      api.cli.mutation.start,
+      await withCliStartSource(
+        {
+          name: "JWT test",
+          scope: "read",
+        },
+        "fixture",
+      ),
+    );
     await browser.mutation(api.cli.mutation.approve, {
       userCode: device.userCode,
       allow: true,
@@ -79,10 +89,16 @@ describe("IAPKit CLI authentication", () => {
   });
   it("requires browser approval, consumes a device code once and stores hashes", async () => {
     const { t, browser, userId } = await fixture();
-    const device = await t.mutation(api.cli.mutation.start, {
-      name: "test terminal",
-      scope: "admin",
-    });
+    const device = await t.mutation(
+      api.cli.mutation.start,
+      await withCliStartSource(
+        {
+          name: "test terminal",
+          scope: "admin",
+        },
+        "fixture",
+      ),
+    );
     expect(
       await t.mutation(internal.cli.internal.consume, {
         deviceCode: device.deviceCode,
@@ -108,10 +124,16 @@ describe("IAPKit CLI authentication", () => {
 
   it("denied and expired login codes never issue a session", async () => {
     const { t, browser } = await fixture();
-    const denied = await t.mutation(api.cli.mutation.start, {
-      name: "denied",
-      scope: "read",
-    });
+    const denied = await t.mutation(
+      api.cli.mutation.start,
+      await withCliStartSource(
+        {
+          name: "denied",
+          scope: "read",
+        },
+        "fixture",
+      ),
+    );
     await browser.mutation(api.cli.mutation.approve, {
       userCode: denied.userCode,
       allow: false,
@@ -121,10 +143,16 @@ describe("IAPKit CLI authentication", () => {
         deviceCode: denied.deviceCode,
       }),
     ).rejects.toThrow("ACCESS_DENIED");
-    const expired = await t.mutation(api.cli.mutation.start, {
-      name: "expired",
-      scope: "read",
-    });
+    const expired = await t.mutation(
+      api.cli.mutation.start,
+      await withCliStartSource(
+        {
+          name: "expired",
+          scope: "read",
+        },
+        "fixture",
+      ),
+    );
     vi.useFakeTimers();
     vi.setSystemTime(expired.expiresAt + 1);
     await expect(
@@ -149,6 +177,106 @@ describe("IAPKit CLI authentication", () => {
         allow: true,
       }),
     ).rejects.toThrow();
+  });
+
+  it("rejects direct, forged, changed and stale login-start requests before creating a device", async () => {
+    const { t } = await fixture();
+    const signed = await withCliStartSource(
+      { name: "Source test", scope: "read" },
+      "source-a",
+    );
+    const changed: Array<FunctionArgs<typeof api.cli.mutation.start>> = [
+      { name: signed.name, scope: signed.scope },
+      { ...signed, name: "Changed" },
+      { ...signed, scope: "admin" },
+      {
+        ...signed,
+        sourceAuth: { ...signed.sourceAuth, sourceKey: "f".repeat(64) },
+      },
+      { ...signed, sourceAuth: { ...signed.sourceAuth, mac: "0".repeat(64) } },
+      { ...signed, sourceAuth: { ...signed.sourceAuth, mac: "invalid" } },
+    ];
+    for (const request of changed) {
+      await expect(t.mutation(api.cli.mutation.start, request)).rejects.toThrow(
+        "UNAUTHENTICATED",
+      );
+    }
+    vi.setSystemTime(Date.now() + 120_001);
+    await expect(t.mutation(api.cli.mutation.start, signed)).rejects.toThrow(
+      "UNAUTHENTICATED",
+    );
+    const current = Date.now();
+    vi.setSystemTime(current + 60_000);
+    const future = await withCliStartSource(
+      { name: "Future request", scope: "read" },
+      "source-a",
+    );
+    vi.setSystemTime(current);
+    await expect(t.mutation(api.cli.mutation.start, future)).rejects.toThrow(
+      "UNAUTHENTICATED",
+    );
+    expect(await t.run((ctx) => ctx.db.query("cliDevices").collect())).toEqual(
+      [],
+    );
+  });
+
+  it("limits each verified login source without exhausting other sources", async () => {
+    const { t } = await fixture();
+    const first = await withCliStartSource(
+      { name: "Source A", scope: "read" },
+      "source-a",
+    );
+    for (let index = 0; index < 30; index++)
+      await t.mutation(api.cli.mutation.start, first);
+    await expect(t.mutation(api.cli.mutation.start, first)).rejects.toThrow();
+    const second = await withCliStartSource(
+      { name: "Source B", scope: "read" },
+      "source-b",
+    );
+    expect(
+      (await t.mutation(api.cli.mutation.start, second)).deviceCode,
+    ).toBeTruthy();
+  });
+
+  it("requires an interactive browser identity to approve a CLI login", async () => {
+    const { t, browser, userId } = await fixture();
+    const token = await browser.mutation(api.cli.mutation.createToken, {
+      name: "Admin CI",
+      scope: "admin",
+      expiresInDays: 1,
+    });
+    const credentials = await t.mutation(internal.cli.internal.consume, {
+      token: token.token,
+    });
+    const cli = t.withIdentity({
+      subject: `${userId}|${credentials!.sessionId}`,
+      issuer: "https://test.convex.site",
+      iapkitCli: true,
+    });
+    const device = await t.mutation(
+      api.cli.mutation.start,
+      await withCliStartSource(
+        { name: "Interactive approval", scope: "admin" },
+        "fixture",
+      ),
+    );
+    await expect(
+      cli.mutation(api.cli.mutation.approve, {
+        userCode: device.userCode,
+        allow: true,
+      }),
+    ).rejects.toThrow("INSUFFICIENT_SCOPE");
+    expect(
+      await t.mutation(internal.cli.internal.consume, {
+        deviceCode: device.deviceCode,
+      }),
+    ).toBeNull();
+    expect(
+      await browser.mutation(api.cli.mutation.approve, {
+        userCode: device.userCode,
+        allow: true,
+      }),
+    ).toMatchObject({ approved: true });
   });
 
   it("read scope is enforced on direct Convex writes and cannot mint stronger tokens", async () => {
@@ -243,6 +371,9 @@ describe("IAPKit CLI authentication", () => {
     await expect(
       cli.mutation(api.projects.mutation.regenerateApiKey, { projectId }),
     ).rejects.toThrow("INSUFFICIENT_SCOPE");
+    await expect(
+      cli.mutation(api.projects.mutation.deleteProject, { projectId }),
+    ).rejects.toThrow("INSUFFICIENT_SCOPE");
     const credentialChanges: Array<
       Omit<
         FunctionArgs<typeof api.projects.mutation.updateProject>,
@@ -294,6 +425,10 @@ describe("IAPKit CLI authentication", () => {
     expect(await t.run((ctx) => ctx.db.get(projectId))).toMatchObject({
       amazonSandboxEnabled: true,
       apiKey: replacement,
+    });
+    await cli.mutation(api.projects.mutation.deleteProject, { projectId });
+    expect(await t.run((ctx) => ctx.db.get(projectId))).toMatchObject({
+      pendingDeletion: true,
     });
   });
 

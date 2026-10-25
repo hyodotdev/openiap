@@ -10,6 +10,7 @@ import { sourceRateLimitMiddleware } from "../v1/rate-limit";
 import { getRequestIp } from "../v1/rate-limit";
 import { withVerificationSource } from "../../../convex/purchases/verificationSource";
 import { APP_ERROR_SCOPE, ErrorCode } from "../../../convex/utils/errors";
+import { withCliStartSource } from "../../../convex/cli/source";
 
 export const cliRoutes = new Hono();
 cliRoutes.use(
@@ -98,10 +99,10 @@ cliRoutes.post("/auth/:action", async (c) => {
       const scope = body.scope ?? "admin";
       if (scope !== "read" && scope !== "write" && scope !== "admin")
         failure("INVALID_INPUT", "scope must be read, write or admin.");
-      const device = await client.mutation(api.cli.mutation.start, {
-        name,
-        scope,
-      });
+      const device = await client.mutation(
+        api.cli.mutation.start,
+        await withCliStartSource({ name, scope }, getRequestIp(c) ?? "unknown"),
+      );
       const origin = new URL(process.env.SITE_URL ?? c.req.url).origin;
       return c.json({
         ok: true,

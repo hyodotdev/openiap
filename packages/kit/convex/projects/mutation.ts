@@ -510,7 +510,7 @@ export const deleteProject = mutation({
     projectId: v.id("projects"),
   },
   handler: async (ctx, args) => {
-    await assertCliScope(ctx, "write");
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw createError(ErrorCode.NOT_AUTHENTICATED);

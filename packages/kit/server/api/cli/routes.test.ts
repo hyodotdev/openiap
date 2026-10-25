@@ -3,6 +3,10 @@ import { ConvexError } from "convex/values";
 import { getFunctionName } from "convex/server";
 import type { Context } from "hono";
 import { assertVerificationSource } from "../../../convex/purchases/verificationSource";
+import {
+  assertCliStartSource,
+  withCliStartSource,
+} from "../../../convex/cli/source";
 import { APP_ERROR_SCOPE } from "../../../convex/utils/errors";
 
 const transport = vi.hoisted(() => ({
@@ -50,6 +54,7 @@ describe("CLI HTTP contract", () => {
     vi.resetAllMocks();
     transport.sourceLimited = false;
     transport.ip = undefined;
+    vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "a".repeat(64));
     transport.error.mockReturnValue(null);
     transport.query.mockResolvedValue({ user: { _id: "fixture-user" } });
   });
@@ -85,6 +90,7 @@ describe("CLI HTTP contract", () => {
 
   it("starts browser approval at the configured site and preserves the user code", async () => {
     vi.stubEnv("SITE_URL", "https://kit.example.test/path");
+    transport.ip = "203.0.113.7";
     transport.mutation.mockResolvedValue({
       userCode: "ABCD1234",
       deviceCode: "private",
@@ -92,34 +98,64 @@ describe("CLI HTTP contract", () => {
     const response = await post("/auth/device", {
       name: "CI setup",
       scope: "read",
+      sourceKey: "caller-selected",
     });
     expect(response.status).toBe(200);
-    expect(transport.mutation.mock.lastCall?.[1]).toEqual({
+    expect(transport.mutation.mock.lastCall?.[1]).toMatchObject({
       name: "CI setup",
       scope: "read",
     });
-    expect(await response.json()).toMatchObject({
+    const sent = transport.mutation.mock.lastCall?.[1];
+    const expected = await withCliStartSource(
+      { name: "CI setup", scope: "read" },
+      transport.ip,
+    );
+    expect(await assertCliStartSource(sent)).toBe(
+      expected.sourceAuth.sourceKey,
+    );
+    const body = await response.json();
+    expect(body).toMatchObject({
       data: {
         verificationUrl:
           "https://kit.example.test/cli/authorize?user_code=ABCD1234",
       },
     });
+    expect(body.data.sourceAuth).toBeUndefined();
+    expect(JSON.stringify(body)).not.toContain(sent.sourceAuth.mac);
   });
 
   it("defaults browser approval to the request origin and admin scope", async () => {
     vi.stubEnv("SITE_URL", undefined);
     transport.mutation.mockResolvedValue({ userCode: "ABCD1234" });
     const response = await post("https://local.example.test/auth/device", {});
-    expect(transport.mutation.mock.lastCall?.[1]).toEqual({
+    expect(transport.mutation.mock.lastCall?.[1]).toMatchObject({
       name: "OpenIAP CLI",
       scope: "admin",
     });
+    const expected = await withCliStartSource(
+      { name: "OpenIAP CLI", scope: "admin" },
+      "unknown",
+    );
+    expect(
+      await assertCliStartSource(transport.mutation.mock.lastCall?.[1]),
+    ).toBe(expected.sourceAuth.sourceKey);
     expect(await response.json()).toMatchObject({
       data: {
         verificationUrl:
           "https://local.example.test/cli/authorize?user_code=ABCD1234",
       },
     });
+  });
+
+  it("fails closed before starting a device login when source signing is unavailable", async () => {
+    vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", undefined);
+    const response = await post("/auth/device", {});
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({
+      ok: false,
+      error: { code: "REQUEST_FAILED" },
+    });
+    expect(transport.mutation).not.toHaveBeenCalled();
   });
 
   it.each([

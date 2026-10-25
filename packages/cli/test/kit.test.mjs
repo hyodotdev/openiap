@@ -13,11 +13,16 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { normalizeOrigin, saveSession } from "../src/kit/session.mjs";
+import {
+  loadSession,
+  normalizeOrigin,
+  saveSession,
+} from "../src/kit/session.mjs";
 import { kitClient } from "../src/kit/client.mjs";
 
 const bin = fileURLToPath(new URL("../bin/openiap.mjs", import.meta.url));
 let directory, origin, server;
+let logoutError;
 const requests = [];
 const jwt = (exp = Date.now() / 1000 + 3600) =>
   `header.${Buffer.from(JSON.stringify({ exp, sub: "user|session" })).toString("base64url")}.signature`;
@@ -65,6 +70,16 @@ before(async () => {
       body,
       authorization: request.headers.authorization,
     });
+    if (body.command === "logout" && logoutError) {
+      response.writeHead(401, { "Content-Type": "application/json" });
+      response.end(
+        JSON.stringify({
+          ok: false,
+          error: { code: logoutError, message: "Sign in again." },
+        }),
+      );
+      return;
+    }
     let data;
     if (request.url === "/cli/v1/auth/device")
       data = {
@@ -561,10 +576,39 @@ test("corrupt saved credentials never appear in diagnostics", async () => {
     { mode: 0o600 },
   );
   const result = await run(["whoami", "--json"]);
-  assert.equal(result.status, 1);
+  assert.equal(result.status, 3);
   assert.doesNotMatch(
     result.stdout + result.stderr,
     /private-credential-do-not-echo/,
   );
   assert.equal(JSON.parse(result.stdout).error.code, "INVALID_SESSION");
+  const logout = await run(["logout", "--json"]);
+  assert.equal(logout.status, 3);
+  assert.equal(await loadSession(origin), null);
+});
+
+for (const code of ["UNAUTHENTICATED", "SESSION_EXPIRED"]) {
+  test(`logout clears local credentials after server ${code}`, async () => {
+    await saveSession(origin, tokens());
+    logoutError = code;
+    try {
+      const result = await run(["logout", "--json"]);
+      assert.equal(result.status, 3);
+      assert.equal(JSON.parse(result.stdout).error.code, code);
+      assert.equal(await loadSession(origin), null);
+    } finally {
+      logoutError = undefined;
+    }
+  });
+}
+
+test("logout clears local credentials when the server is unreachable", async () => {
+  const unavailable = "http://127.0.0.1:1";
+  await saveSession(unavailable, tokens());
+  const result = await run(["logout", "--json"], {
+    IAPKIT_BASE_URL: unavailable,
+  });
+  assert.equal(result.status, 1);
+  assert.equal(JSON.parse(result.stdout).error.code, "NETWORK_ERROR");
+  assert.equal(await loadSession(unavailable), null);
 });

@@ -6,6 +6,7 @@ import { randomHex } from "../utils/helpers";
 import { sha256Hex } from "../utils/sha256";
 import { cliLimiter } from "./internal";
 import { assertCliScope } from "./scope";
+import { assertCliStartSource, cliStartSourceValidator } from "./source";
 
 const scope = v.union(
   v.literal("read"),
@@ -14,9 +15,14 @@ const scope = v.union(
 );
 
 export const start = mutation({
-  args: { name: v.string(), scope },
+  args: {
+    name: v.string(),
+    scope,
+    sourceAuth: v.optional(cliStartSourceValidator),
+  },
   handler: async (ctx, args) => {
-    await cliLimiter.limit(ctx, "start", { throws: true });
+    const sourceKey = await assertCliStartSource(args);
+    await cliLimiter.limit(ctx, "start", { key: sourceKey, throws: true });
     if (!args.name.trim() || args.name.length > 100)
       throw new ConvexError({
         code: "INVALID_INPUT",
@@ -42,7 +48,11 @@ export const start = mutation({
 export const approve = mutation({
   args: { userCode: v.string(), allow: v.boolean() },
   handler: async (ctx, args) => {
-    await assertCliScope(ctx, "admin");
+    if ((await ctx.auth.getUserIdentity())?.iapkitCli === true)
+      throw new ConvexError({
+        code: "INSUFFICIENT_SCOPE",
+        message: "Approve CLI logins from an interactive browser session.",
+      });
     const userId = await getAuthUserId(ctx);
     if (!userId)
       throw new ConvexError({

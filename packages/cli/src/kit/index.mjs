@@ -368,8 +368,11 @@ export async function runKit(argv) {
     let data;
     if (command === "login") data = await login(client, origin, args, options);
     else if (command === "logout") {
-      await client.run("logout");
-      if (!process.env.IAPKIT_TOKEN) await removeSession(origin);
+      try {
+        await client.run("logout");
+      } finally {
+        if (!process.env.IAPKIT_TOKEN) await removeSession(origin);
+      }
       data = { loggedOut: true, origin };
     } else {
       if (command === "credentials apple" && options.credentialFile) {
@@ -480,17 +483,20 @@ export async function runKit(argv) {
     };
     if (json) process.stdout.write(`${JSON.stringify(result)}\n`);
     else process.stderr.write(`${code}: ${message}\n`);
-    process.exitCode =
-      code === "UNAUTHENTICATED"
-        ? 3
-        : [
-              "INSUFFICIENT_SCOPE",
-              "INSUFFICIENT_PERMISSIONS",
-              "NOT_ORGANIZATION_MEMBER",
-              "NOT_AUTHORIZED",
-            ].includes(code)
-          ? 4
-          : 1;
+    process.exitCode = [
+      "UNAUTHENTICATED",
+      "SESSION_EXPIRED",
+      "INVALID_SESSION",
+    ].includes(code)
+      ? 3
+      : [
+            "INSUFFICIENT_SCOPE",
+            "INSUFFICIENT_PERMISSIONS",
+            "NOT_ORGANIZATION_MEMBER",
+            "NOT_AUTHORIZED",
+          ].includes(code)
+        ? 4
+        : 1;
   } finally {
     await output?.close();
     if (output && !outputWritten) await unlink(outputPath).catch(() => {});

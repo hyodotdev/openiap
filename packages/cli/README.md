@@ -115,7 +115,8 @@ npx --yes @hyodotdev/openiap kit projects list --json
 
 Tokens expire in 1–90 days and can be revoked with `tokens revoke --id ID --yes`.
 `read` permits reads, `write` also permits purchase/catalog/payload/sync writes,
-and `admin` also permits organization, key, store credential and token management.
+and `admin` also permits organization, key, store credential and token management
+and project deletion.
 A token never grants more authority than the account's organization role.
 `IAPKIT_TOKEN` takes precedence over saved login and is not saved locally.
 
