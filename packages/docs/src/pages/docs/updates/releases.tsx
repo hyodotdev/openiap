@@ -710,7 +710,10 @@ npx --yes @hyodotdev/openiap kit schema keys create --json`}</CodeBlock>
             <code>--apply --yes</code>. Key regeneration immediately disables
             the old key. Commands that return secrets and key deactivation
             require <code>--yes</code>; use <code>--output</code> to save
-            secrets in a private file.
+            secrets in a private file. Purchase tokens and raw store evidence
+            stay hidden on reads unless explicitly confirmed. A waiting sync
+            exits with an error if any product failed, even when its worker
+            completed.
           </p>
           <p>
             The CLI requires the matching IAPKit server update, including its
