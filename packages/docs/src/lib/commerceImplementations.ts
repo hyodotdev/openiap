@@ -111,7 +111,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'IAPKit binds the verified purchase row. Amazon uses the store user, receipt, and environment; Horizon uses the store user and SKU. Only an entitled purchase binds, at most 20 per app account, and a binding never moves; after erasure another app account may claim the same evidence as a first binding.',
       file: 'convex/purchases/mutation.ts',
       symbol: 'bindVerifiedPurchaseAsServer',
-      line: 28,
+      line: 29,
       checkFile: 'convex/purchases/ownership.test.ts',
       check:
         'Checks role enforcement, conflicting accounts, the per-account cap, consumables, project isolation, and erasure during binding.',
@@ -134,7 +134,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'IAPKit rechecks linked Amazon and Horizon purchases, then rereads ownership. Rejected or newly bound products stay out of productIds until rechecked. Store faults return VERIFICATION_FAILED; an exhausted budget returns RATE_LIMITED. Amazon subscriptions also return RVS-verified state.',
       file: 'convex/purchases/action.ts',
       symbol: 'readBoundPurchaseEntitlements',
-      line: 19,
+      line: 20,
       checkFile: 'convex/purchases/ownership.test.ts',
       check:
         'Checks revoked ownership, upstream failures, bounded reads, the recheck budget, and ownership changes during verification.',
@@ -157,7 +157,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'The protocol handler calls bindUserAsServer. Convex checks the project’s server credential and records ownership without moving a purchase already owned by another user.',
       file: 'convex/subscriptions/mutation.ts',
       symbol: 'bindUserAsServer',
-      line: 94,
+      line: 96,
       checkFile: 'convex/subscriptions/internal.test.ts',
       check:
         'Binding tests cover repeated and conflicting claims against the subscription mutation handlers.',
@@ -180,7 +180,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'isActive applies the shared entitlementActive rule to Convex records. entitlementsV2 reads the current time and returns allowed products without exposing store purchase tokens.',
       file: 'convex/subscriptions/query.ts',
       symbol: 'isActive',
-      line: 103,
+      line: 104,
       checkFile: 'convex/subscriptions/query.test.ts',
       check:
         'Account-read tests check token omission, server authorization, and time advancing past expiry.',
@@ -203,7 +203,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'subscriptionStatusV2 selects a subscription and applies the same access deadline. The protocol handler turns that record into the shared response shape.',
       file: 'convex/subscriptions/query.ts',
       symbol: 'subscriptionStatusV2',
-      line: 366,
+      line: 368,
       checkFile: 'server/api/commerce/conformance.test.ts',
       check:
         'The contract vectors compare status and access over REST and GraphQL with an in-memory database substitute.',

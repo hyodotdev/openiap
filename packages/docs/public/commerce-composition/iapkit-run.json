@@ -63,7 +63,7 @@
           "trace": [
             {
               "method": "POST",
-              "destination": "http://127.0.0.1:57512/commerce/v1/purchases/verify",
+              "destination": "http://127.0.0.1:58957/commerce/v1/purchases/verify",
               "input": {
                 "store": "google",
                 "google": {
@@ -81,7 +81,7 @@
             },
             {
               "method": "POST",
-              "destination": "http://127.0.0.1:57512/commerce/v1/purchases/bind",
+              "destination": "http://127.0.0.1:58957/commerce/v1/purchases/bind",
               "input": {
                 "store": "google",
                 "google": {
@@ -96,7 +96,7 @@
             },
             {
               "method": "GET",
-              "destination": "http://127.0.0.1:57512/commerce/v1/entitlements?userId=fresh_paywall_user",
+              "destination": "http://127.0.0.1:58957/commerce/v1/entitlements?userId=fresh_paywall_user",
               "status": 200,
               "response": {
                 "userId": "fresh_paywall_user",
@@ -109,11 +109,11 @@
                     "state": "Active",
                     "active": true,
                     "store": "google",
-                    "expiresAt": 1792581465736,
-                    "renewsAt": 1792581465736,
+                    "expiresAt": 1792959731173,
+                    "renewsAt": 1792959731173,
                     "willRenew": true,
-                    "startedAt": 1792581405842,
-                    "updatedAt": 1792581405857
+                    "startedAt": 1792959671226,
+                    "updatedAt": 1792959671239
                   }
                 ]
               }
@@ -126,63 +126,63 @@
       {
         "headers": {
           "content-type": "application/json",
-          "openiap-signature": "v1=43e55a3cbe8e8358611c3fc2593bd6572d9e3d2b5468989a69533acdac57f0d9",
-          "openiap-timestamp": "1792581405",
-          "openiap-event-id": "k177ratg381fn7r2a56s1s00sd8gqkbr",
-          "openiap-delivery-id": "m172tnax5zjqh1cqmy4jg0j5c58gqmfc"
+          "openiap-signature": "v1=57f749b5dc4fc056cac3262f647ba2b914e219bed05afafe46633fa4cc6a54ed",
+          "openiap-timestamp": "1792959671",
+          "openiap-event-id": "k97ejwyt288mqgsggmgn9kkrjn8gzd6n",
+          "openiap-delivery-id": "m979g7wnwy1xvqn6xqcpexy2a18gy7d6"
         },
-        "body": "{\"eventId\":\"k177ratg381fn7r2a56s1s00sd8gqkbr\",\"eventType\":\"subscription.started\",\"eventVersion\":\"1.0\",\"occurredAt\":1792581405881,\"processedAt\":1792581405894,\"store\":\"google\",\"environment\":\"production\",\"projectId\":\"n57ezjfa194eznxm9yfhn1f5rh8gqxr7\",\"applicationId\":\"dev.openiap.interop\",\"userId\":\"fresh_paywall_user\",\"productId\":\"premium.monthly\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1792581465736,\"renewsAt\":1792581465736,\"willRenew\":true,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":5000000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"fresh-paywall-purchase\"}",
+        "body": "{\"eventId\":\"k97ejwyt288mqgsggmgn9kkrjn8gzd6n\",\"eventType\":\"subscription.started\",\"eventVersion\":\"1.0\",\"occurredAt\":1792959671261,\"processedAt\":1792959671272,\"store\":\"google\",\"environment\":\"production\",\"projectId\":\"nd785x33h7e8njs5h8rxjzvwsn8gyvdr\",\"applicationId\":\"dev.openiap.interop\",\"userId\":\"fresh_paywall_user\",\"productId\":\"premium.monthly\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1792959731173,\"renewsAt\":1792959731173,\"willRenew\":true,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":5000000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"fresh-paywall-purchase\"}",
         "status": 202
       },
       {
         "headers": {
           "content-type": "application/json",
-          "openiap-signature": "v1=bf9dfa328dafef80700613f251e9282279d5f87848b6169a99939d4f5456d9b9",
-          "openiap-timestamp": "1792581405",
-          "openiap-event-id": "k17akttvzbay0135xpy5kwap358gqayq",
-          "openiap-delivery-id": "m17dmw340mz0nc2exsrn1ekq458gph20"
+          "openiap-signature": "v1=abcf487dcb66224b9c4ef4a2580c1db62aa4e82ff589e30107dcf22e98941239",
+          "openiap-timestamp": "1792959671",
+          "openiap-event-id": "k97673x26d53yz946hbr2tymr98gyhny",
+          "openiap-delivery-id": "m976nvedyfc8s5tm4z9em10kyn8gz982"
         },
-        "body": "{\"eventId\":\"k17akttvzbay0135xpy5kwap358gqayq\",\"eventType\":\"entitlement.granted\",\"eventVersion\":\"1.0\",\"occurredAt\":1792581405881,\"processedAt\":1792581405894,\"store\":\"google\",\"environment\":\"production\",\"projectId\":\"n57ezjfa194eznxm9yfhn1f5rh8gqxr7\",\"applicationId\":\"dev.openiap.interop\",\"userId\":\"fresh_paywall_user\",\"productId\":\"premium.monthly\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1792581465736,\"renewsAt\":1792581465736,\"willRenew\":true,\"active\":true},\"sourceStoreEventId\":\"fresh-paywall-purchase\"}",
+        "body": "{\"eventId\":\"k97673x26d53yz946hbr2tymr98gyhny\",\"eventType\":\"entitlement.granted\",\"eventVersion\":\"1.0\",\"occurredAt\":1792959671261,\"processedAt\":1792959671272,\"store\":\"google\",\"environment\":\"production\",\"projectId\":\"nd785x33h7e8njs5h8rxjzvwsn8gyvdr\",\"applicationId\":\"dev.openiap.interop\",\"userId\":\"fresh_paywall_user\",\"productId\":\"premium.monthly\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1792959731173,\"renewsAt\":1792959731173,\"willRenew\":true,\"active\":true},\"sourceStoreEventId\":\"fresh-paywall-purchase\"}",
         "status": 202
       },
       {
         "headers": {
           "content-type": "application/json",
-          "openiap-signature": "v1=68a921fbe073bb5a03ad01375d634f91c6acf80d146266ce568cd167eb90d547",
-          "openiap-timestamp": "1792581405",
-          "openiap-event-id": "k17c11dkn7qzrcxybg65gb65x58gppar",
-          "openiap-delivery-id": "m17cz9626mher54rqktn6n9wmh8gq9yt"
+          "openiap-signature": "v1=037d099769e33099232e8866ab0435a94cca028524763444bd7708cdbcda67d2",
+          "openiap-timestamp": "1792959671",
+          "openiap-event-id": "k97624e9naj9geqft8taahxmqd8gzww3",
+          "openiap-delivery-id": "m970n8nysnqrra97edqxz6ssp98gy69v"
         },
-        "body": "{\"eventId\":\"k17c11dkn7qzrcxybg65gb65x58gppar\",\"eventType\":\"subscription.renewed\",\"eventVersion\":\"1.0\",\"occurredAt\":1792581405940,\"processedAt\":1792581405948,\"store\":\"google\",\"environment\":\"production\",\"projectId\":\"n57ezjfa194eznxm9yfhn1f5rh8gqxr7\",\"applicationId\":\"dev.openiap.interop\",\"userId\":\"fresh_paywall_user\",\"productId\":\"premium.monthly\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1792581525736,\"renewsAt\":1792581525736,\"willRenew\":true,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":5000000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"fresh-paywall-renew\"}",
+        "body": "{\"eventId\":\"k97624e9naj9geqft8taahxmqd8gzww3\",\"eventType\":\"subscription.renewed\",\"eventVersion\":\"1.0\",\"occurredAt\":1792959671312,\"processedAt\":1792959671321,\"store\":\"google\",\"environment\":\"production\",\"projectId\":\"nd785x33h7e8njs5h8rxjzvwsn8gyvdr\",\"applicationId\":\"dev.openiap.interop\",\"userId\":\"fresh_paywall_user\",\"productId\":\"premium.monthly\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1792959791173,\"renewsAt\":1792959791173,\"willRenew\":true,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":5000000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"fresh-paywall-renew\"}",
         "status": 202
       },
       {
         "headers": {
           "content-type": "application/json",
-          "openiap-signature": "v1=6e99825b89c3bf16555c82eff02f16077ac71fc841e2b0c3583bac87b46a0742",
-          "openiap-timestamp": "1792581405",
-          "openiap-event-id": "k173f1dca224senzxe6w712q018gppb2",
-          "openiap-delivery-id": "m174gam83f25s6x0f4gv2sbfz98gqmsa"
+          "openiap-signature": "v1=678b8e0f543b8243b2593ea8319148465f39890d762ebe3c633aea8b4d87f138",
+          "openiap-timestamp": "1792959671",
+          "openiap-event-id": "k97dynrbxwpz4r9hzfhr6dj5nd8gzc60",
+          "openiap-delivery-id": "m978mmz217r1dpvr0my614n2x18gybnf"
         },
-        "body": "{\"eventId\":\"k173f1dca224senzxe6w712q018gppb2\",\"eventType\":\"subscription.canceled\",\"eventVersion\":\"1.0\",\"occurredAt\":1792581405969,\"processedAt\":1792581405977,\"store\":\"google\",\"environment\":\"production\",\"projectId\":\"n57ezjfa194eznxm9yfhn1f5rh8gqxr7\",\"applicationId\":\"dev.openiap.interop\",\"userId\":\"fresh_paywall_user\",\"productId\":\"premium.monthly\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1792581525736,\"willRenew\":false,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":5000000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"fresh-paywall-cancel\"}",
+        "body": "{\"eventId\":\"k97dynrbxwpz4r9hzfhr6dj5nd8gzc60\",\"eventType\":\"subscription.canceled\",\"eventVersion\":\"1.0\",\"occurredAt\":1792959671341,\"processedAt\":1792959671350,\"store\":\"google\",\"environment\":\"production\",\"projectId\":\"nd785x33h7e8njs5h8rxjzvwsn8gyvdr\",\"applicationId\":\"dev.openiap.interop\",\"userId\":\"fresh_paywall_user\",\"productId\":\"premium.monthly\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1792959791173,\"willRenew\":false,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":5000000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"fresh-paywall-cancel\"}",
         "status": 202
       }
     ],
     "replays": [
       {
-        "eventId": "k177ratg381fn7r2a56s1s00sd8gqkbr",
+        "eventId": "k97ejwyt288mqgsggmgn9kkrjn8gzd6n",
         "status": 202
       },
       {
-        "eventId": "k17akttvzbay0135xpy5kwap358gqayq",
+        "eventId": "k97673x26d53yz946hbr2tymr98gyhny",
         "status": 202
       },
       {
-        "eventId": "k17c11dkn7qzrcxybg65gb65x58gppar",
+        "eventId": "k97624e9naj9geqft8taahxmqd8gzww3",
         "status": 202
       },
       {
-        "eventId": "k173f1dca224senzxe6w712q018gppb2",
+        "eventId": "k97dynrbxwpz4r9hzfhr6dj5nd8gzc60",
         "status": 202
       }
     ],
@@ -198,7 +198,7 @@
       "report": {
         "events": [
           {
-            "eventId": "k177ratg381fn7r2a56s1s00sd8gqkbr",
+            "eventId": "k97ejwyt288mqgsggmgn9kkrjn8gzd6n",
             "eventType": "subscription.started",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -213,7 +213,7 @@
             "treatment": "known purchase amount"
           },
           {
-            "eventId": "k17akttvzbay0135xpy5kwap358gqayq",
+            "eventId": "k97673x26d53yz946hbr2tymr98gyhny",
             "eventType": "entitlement.granted",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -224,7 +224,7 @@
             "treatment": "lifecycle only"
           },
           {
-            "eventId": "k17c11dkn7qzrcxybg65gb65x58gppar",
+            "eventId": "k97624e9naj9geqft8taahxmqd8gzww3",
             "eventType": "subscription.renewed",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -239,7 +239,7 @@
             "treatment": "known purchase amount"
           },
           {
-            "eventId": "k173f1dca224senzxe6w712q018gppb2",
+            "eventId": "k97dynrbxwpz4r9hzfhr6dj5nd8gzc60",
             "eventType": "subscription.canceled",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -261,7 +261,7 @@
         "unknownAmounts": 0,
         "reconciliation": 0
       },
-      "receiver": "http://127.0.0.1:57569/webhooks/commerce"
+      "receiver": "http://127.0.0.1:58997/webhooks/commerce"
     },
     "scope": "Same paywall handler and receiver, configured for a second local provider. Trusted account/product attribution is explicit; no purchase migration or real store checkout.",
     "source": {
@@ -295,7 +295,7 @@
     }
   },
   "reproduction": {
-    "openiapBaseCommit": "fa678b220619c19e01b7edc9bb9db48c3ce77639",
+    "openiapBaseCommit": "737e5f7f17fd768294252ba84860b61d1e5e6280",
     "originalExampleCommit": "f23f663e4220abdd709ab4cb340798d5c468cd4c",
     "freshExampleCommit": "e93c68f3f7b62753f42d22002a927f5163a0c613",
     "instructions": "https://openiap.dev/commerce-example/paywall-provider-reproduction.md",
@@ -320,7 +320,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1792581403568,
+            "expiresAt": 1792959669263,
             "willRenew": true
           }
         ]
@@ -332,7 +332,7 @@
           "state": "Active",
           "active": true,
           "store": "google",
-          "expiresAt": 1792581403568,
+          "expiresAt": 1792959669263,
           "willRenew": false
         }
       },
@@ -348,7 +348,7 @@
       },
       "erasure": {
         "accepted": true,
-        "jobId": "21723ca5-6ab9-4fb5-b056-8f6d1a3a08fc",
+        "jobId": "d93eb888-cc75-4948-9fb5-f89d09a389c8",
         "status": "completed"
       }
     },
@@ -370,11 +370,11 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1792581403568,
-            "renewsAt": 1792581403568,
+            "expiresAt": 1792959669263,
+            "renewsAt": 1792959669263,
             "willRenew": true,
-            "startedAt": 1792581358910,
-            "updatedAt": 1792581358965
+            "startedAt": 1792959624620,
+            "updatedAt": 1792959624670
           }
         ]
       },
@@ -385,10 +385,10 @@
           "state": "Active",
           "active": true,
           "store": "google",
-          "expiresAt": 1792581403568,
+          "expiresAt": 1792959669263,
           "willRenew": false,
-          "startedAt": 1792581358910,
-          "updatedAt": 1792581359082
+          "startedAt": 1792959624620,
+          "updatedAt": 1792959624798
         }
       },
       "expired": {
@@ -403,7 +403,7 @@
       },
       "erasure": {
         "accepted": true,
-        "jobId": "ph7599s9p108tz9na9axhsavqh8gpb4m",
+        "jobId": "ps75p7152j0tw3kzg8s28ysa858gz3na",
         "status": "completed"
       }
     }
@@ -478,12 +478,11 @@
   },
   "sources": {
     "openiap": {
-      "baseRevision": "fa678b220619c19e01b7edc9bb9db48c3ce77639",
+      "baseRevision": "737e5f7f17fd768294252ba84860b61d1e5e6280",
       "hashes": {
         "convex.json": "6729d387a51478b37dee8cde82aac578f0fc9ad50dd706f3d70551a45b78450d",
         "convex/ResendOTP.ts": "d546e035d69e4e79447747d8c489f2d80164ae00bd701a37699f167def146ce1",
-        "convex/_generated/ai/ai-files.state.json": "f14b0b5badfc04b1d222e7288c2693aa3aea86e1ec924cfc3e33cbb6114de4c0",
-        "convex/_generated/api.d.ts": "633ef5500020844720e470add0091059017e5110ab7bdfaf8e752a9e0f2bd416",
+        "convex/_generated/api.d.ts": "930b91787602d28f44fa070ca935c7ade7e0a74e41b321218b953673bb762597",
         "convex/_generated/api.js": "f513058549831e85376f8d19cafaf2a4a770b6eb1b859fb371141f2c9dec0d70",
         "convex/_generated/dataModel.d.ts": "db177073d16a4393c7a96bcdc3a2a904e88c2432d54d138ca7715cc431982c17",
         "convex/_generated/server.d.ts": "2b536ee08d434dd044efe0302aeaf4ccb00cd08af10c9f8c7bc7a6734e4aa49b",
@@ -493,101 +492,108 @@
         "convex/apiKeys/helpers.ts": "19108c68009238679d6c30ad87109683d379fbefbc60baa05a9d42cabcd96872",
         "convex/apiKeys/internal.test.ts": "27ad06a38919b8936e01c42f1c98cdd603c1d624eabb952e4589c1f4efa9199c",
         "convex/apiKeys/internal.ts": "c9e73fdd3f4b7d5bae241e8baef438c4dbae309b2c69ca929a9ac6c8c9cb0519",
-        "convex/apiKeys/mutation.ts": "b7860df8a512d53359a3993072066826dc85205894e62d9e17f12db690fad957",
-        "convex/apiKeys/query.ts": "5eb6dfe16c8d8afcd9a0a1aa2fcf765453be2d6ca7bf556884eb0a8e5f3deb5b",
+        "convex/apiKeys/mutation.ts": "17cf8f14784a2d85672087db5e492d90889ddf412cf5741b25502accec513a4c",
+        "convex/apiKeys/query.ts": "2c014d558b7a613c3d5a79b0d5091aafbdf5b459b9cbfd00d2b5463ed913d023",
         "convex/auth.config.ts": "3fd31060734a38e5eaa3ea6d134ced4810f436aceda5eb8c2d0347ea3f410813",
-        "convex/auth.ts": "e15130b929c86d52b84c83f9bd15bd5878cb37fade5809b3f229676108b9de88",
+        "convex/auth.ts": "78066fca6523de71c48b3dde4c36b8e38349428cc96cd4dae206fabaacefdc02",
         "convex/authWindow.test.ts": "059cdb4459d459a4d5db0c6170fd9a53d16dc13562f70b58238f1041c1e72e3c",
         "convex/authWindow.ts": "364306b09793eee463b3e944e9de83f904b0c1b4b214e790b2e90d0a303dd371",
         "convex/certificates/apple_root_certificates.ts": "bac9b9cb4856973abf6b095a8008b5bc066f5e64a527477c26a94dbc0acdf292",
+        "convex/cli.test.ts": "6ba93778c62986970a3fe9305cca3d1ac42b7298ca2671effeb3f68fc6630aea",
+        "convex/cli/internal.ts": "6c6d45e28e4062e612b9dc7220df491d514bca06165a347fa5acfc2f61ec4b97",
+        "convex/cli/mutation.ts": "c08cdc96b65fe869c114dc2cb742258e7aaeea056ae4a1fd2273b8923ca11ded",
+        "convex/cli/query.ts": "a30fb3f964740e393c2ad814aa7ade405278f6f4b03c932a53736259867ba5e3",
+        "convex/cli/scope.ts": "fa85b9b3f942dd05d78b8dcab9170ec2487e120a96f522db84ff54697cd9a2b9",
+        "convex/cli/source.ts": "964f280a5702d3e959c9d5937913e5e05bd4d626dda93b8ac23c12763a723caa",
         "convex/commerce/capabilities.ts": "f5509c5b6e648c99478676c22a1874eea6966dd1097d3aa0954d7b91f614fcaf",
         "convex/commerce/contract.test.ts": "bdf304565a8d0e122643828f43bb223d6b545ce48a6a5e8ba3e4ca6faf913e38",
         "convex/commerce/contract.ts": "ea7093d5f29312f130627d9b7f50e4a76f0b95217e749959ae328797cf2e7a84",
         "convex/commerce/delivery.test.ts": "31cd2dae1ec8da9f2f2a2159a622587ffbe895380c04878eed9f8726b4722bef",
         "convex/commerce/delivery.ts": "97ec26becb7eab61381a326aaaa3aed0054b625f7fe1a1d793ef48ea897c7a14",
-        "convex/commerce/deliveryState.ts": "0b75c92981a5ae94a339775edf00c42991688e45fc4843d4e39bd6174c9c8283",
+        "convex/commerce/deliveryState.ts": "b7f932c0b9830987701b10465b0c10d63b5f5d307cd7e055039294b51086714a",
         "convex/commerce/destinations.handlers.test.ts": "60b80edc6a6110d4bb1ebdc3025eddfe8da717d6d930083b5e4b72345ff8091b",
         "convex/commerce/destinations.test.ts": "63561141c4095ba5143fd9aaf9b0b029d12acd63721e3cb704d1bf1d9943f7b3",
-        "convex/commerce/destinations.ts": "d0a7a9cbe2bf74e85fbeb0f31ccd8a66cd367578845f39930005fa6286838297",
+        "convex/commerce/destinations.ts": "bcdf790f520b8bedffc4c98d11c2e76de5a5b17aaf5a44f219b2cc98a2754cf8",
         "convex/commerce/internal.test.ts": "91b2395b79b61a3ce828599019332677701423298c5b5a40c6814e575abc55d4",
         "convex/commerce/internal.ts": "18aab817e281d8c3b686f5b5d0f49a742d9d99ba84413572cafe847ebd0278bd",
         "convex/commerce/operations.test.ts": "1c656ef3ca90eb797a11b810216a6f256bbac33dbbf2a32a2cfd42d614feedb1",
         "convex/commerce/signing.test.ts": "cfd3997d20010e4bda4c6bf3498d121c63ae1b82d26efc84149fd6c64301ee42",
         "convex/commerce/signing.ts": "749dc91804805cfb4040b03000800de603e4eaee21502fe06d4f5e960b522d8a",
         "convex/commerce/spec.conformance.test.ts": "6bbecb843d7bd13eb9ea568d99aebba02bb906e1e38dc57a57c08b19c98dcb23",
-        "convex/convex.config.ts": "5cda299b1355c97b5f09741a0df9270706358f2accf8c4e7ceeea3a25af36cd0",
+        "convex/convex.config.ts": "457e5fb31445280bd25c706b2f33f7d83709b6aba219b88e09e19b8ee89ec3c6",
         "convex/crons.ts": "32b95c9ad7b5abdd40b51589cac6b0a1cb35ba46af2a89bbc3f28af1dff01697",
-        "convex/files/action.ts": "a7a162c5d24548ff6b09e5fb7a55fc15188fd11841a86de81ae211b4aca81702",
+        "convex/files/action.ts": "1592d65386ecf76fea0db306449fcc450bb53920992e16ea49bca5b9c076014e",
         "convex/files/internal.ts": "713375138dfc1748289454f208031c40684bae411cbcfdbbd40a0cf2bc95a1d6",
-        "convex/files/mutation.ts": "5943e2327f2936a3cd860fd40c65bd622d711467582b68e37603efc4e4bf2d56",
-        "convex/files/query.ts": "9b1e984ec403cbbe31944c53214e488ce304bf2de2c2d9e467fda0ed3d8bbdcb",
+        "convex/files/mutation.ts": "381335c533b7d483847194a2667625bfec1909af9870409fbc5e48f21cc654ad",
+        "convex/files/query.ts": "53b3b67a6f8c7efc39d5dcb55ef7af482997da3c77c62e61e8249cf5914da275",
         "convex/files/review-screenshot.test.ts": "e7ce78f44978e7309e3ab618b981d65a10fe28a7fe519d17bd14fcd86eb946dd",
         "convex/files/storage.ts": "2265ee0e51392aa507ec6695b377256fbf7f62e44d6dafce3be162de75ee7abd",
         "convex/files/validation.test.ts": "13c97e9348b3e05ed27b05ef0acd56cde97625f165e060e47830ae47fe560b6a",
         "convex/files/validation.ts": "dd7a04d79fc1ff73873d968d20f622e241ab43a400e71e2db13131e763ad150b",
         "convex/http.ts": "307ea39aed1b1b0780028b827000b13a121dd82ee9eba2b3dac9397a9d77cbfa",
         "convex/migrations.ts": "26b9508dff33109f2e456a4f39865dce2e67da18ae79fbefbc4a29adcafadfa6",
-        "convex/orders/action.ts": "da51ca20e1de6adb7a26a79c1a8815f5718904d2df7fa9d0931554767333d422",
+        "convex/orders/action.ts": "622ae687ccb833966b5b758a9f0594e649a913e55ece0cf7aec3bb69fc219341",
         "convex/orders/shared.test.ts": "c7963b157450820c74a9618e21aa50326dacfe1bded459e3ebb16b7ebfbabdc9",
         "convex/orders/shared.ts": "ebf93670eb192aaf50e39648c7f7477964e2c705297caaf73d9872781bfb7cb2",
         "convex/organizations/internal.ts": "8834e80db506083ad72b80bb0af3d325ee179bd00a476607d9af7ea28e37103e",
         "convex/organizations/invitations.test.ts": "2c12770812681b5c4c323d36384a7ab0e35692c870b56a2026464a3a58fd4048",
         "convex/organizations/mutation.test.ts": "2f0e0690fe2cff1cecc489301e354502cec180a4f30e6a0b98da1a3b8b3c56a9",
-        "convex/organizations/mutation.ts": "32edfc652d438b1df770be1a8f40d57f08aec8b5337a506e4f4934190b872eea",
-        "convex/organizations/query.ts": "f807cd17c6c99116823dd101d3fb67fc324df990181e56448d727d2ec54d4c6a",
+        "convex/organizations/mutation.ts": "6cf808eae6b945919e6d348e0146caad50bc2923253d81192990202e21b4642a",
+        "convex/organizations/query.ts": "3894ec1e1ba3a9f99b943074fa349a29766aefa7e70b45487248e89d70af3f77",
         "convex/plans.ts": "68702e377cdc049cf1b030af139307c885564f22d413f046f212f178100135f2",
         "convex/products/asc.test.ts": "b54589d0b2284c90f697794bc1c6edce0feffacc92f537c4110521c19b79c820",
-        "convex/products/asc.ts": "a4d185553c4550fdb05c13029a64542a5f5cb1e0934049238b21dbfcc95bf118",
+        "convex/products/asc.ts": "977f3ea75edbf43a8d968d31c1785c9c3465fb7d77d73c5b7d00c31d77ed1eb2",
         "convex/products/ascReview.test.ts": "32658a55fe3df3bbeef47b5fa19bed50c9459f57c7a008d64542045c1b2f2b7c",
         "convex/products/ascReview.ts": "bed80cdb8a1253f5ba38459408214f8fc8ad0c9e78792b6ae08c095f8bdd9f66",
         "convex/products/clientPayloadHttp.ts": "c28104de25fcdc7e109f57167bda40879f3d0b59b4382e4ed87c41d0c8bf719d",
         "convex/products/clientPayloads.test.ts": "bda69f23e3787ef8d4a3d37d52f6f21c9bdbbd3c67b47f53a8a4cad81ee0d5d2",
         "convex/products/clientPayloads.ts": "c9a8c59bf9e142d130455f89950c2fb6a5d80607963e15d0a3991e38739685f1",
         "convex/products/jobs.test.ts": "7f3068d75021cb46337e5573f9c724047e1a76c71cf653bc7cef165ca5106c22",
-        "convex/products/jobs.ts": "a76e766caf35b9d45de14ab5ee495ca53c2617d649b9aae872ecb19c44ed22b2",
+        "convex/products/jobs.ts": "7000c32f2c339410b6c97d2298b15867e433bb16d34b94887e0be1a2abf0180b",
         "convex/products/jwt.test.ts": "dbb07cd45f34246f5970f49e6077d01a705a46dd3ea060dfffabb8dcc63a31f1",
         "convex/products/jwt.ts": "ec102a7e82732537906a531427f797c45db69b74a358268a02d5bfeefe3fc68d",
         "convex/products/localizations.test.ts": "4b8e73c1c91d8fe073c87c37f7cd3a1ae2087b2d17036e83330dbf53c6f7b4cf",
         "convex/products/localizations.ts": "5d445c657bc1e707eb9f594848098e30bb7769f212b1128277979be920b2adf5",
-        "convex/products/mutation.test.ts": "de61e40b329ddc7882783cc39d3f1c8b813dd7b5c9777f84df6df142155f3aef",
-        "convex/products/mutation.ts": "5b18b5cac80e133f10943d8b701afd013209480ea8f0ac17d961c725a0a23ed0",
+        "convex/products/mutation.test.ts": "4312f4671cea234d2ce9609aefa7b2ce6b69cbcfe2218b219d62a8c955e8eb0c",
+        "convex/products/mutation.ts": "9913a072ed7da9cdf539ded6b3ff9027dfd8c20df43cea523d7e47d8f1d888c3",
         "convex/products/play-offers.test.ts": "4cba08d318c3897689fe3faa8579fed30f4d7110c030aba1ebed5bc0dc50e10b",
+        "convex/products/play-pull.test.ts": "0561f2831bff60f49566ca6d4f443b090440ca78fa873d8dc20dc8829130a3d9",
         "convex/products/play.test.ts": "c9399fb53f33be87068827dbad21ec0da07222e049f6c347cf73961a835ff273",
-        "convex/products/play.ts": "1e24130bad8ea76285f7605c61789cb1695f35852da1d83f988f682c7254e545",
+        "convex/products/play.ts": "c7c94bdc680e33f9d24b79e18d0a64fde5c49299978e223e643167dd831eb36d",
         "convex/products/query.test.ts": "7c17450d9a4efc95acfe64295f69ef0c3b1e1e46b116b0a9734411e8b9d433e7",
-        "convex/products/query.ts": "f77282a4a9392678ac489b32d35d5538563a56898faf5e60a02eb288f7c45acd",
+        "convex/products/query.ts": "cc8a42d70ea339edf94c8bdb0e193aa752b23fb78fcf6797dbfbbd9cc1eedc9b",
         "convex/products/regions.test.ts": "759b925187d59fd4e494adf0f65a32e520ea9671bdbbf3ea9df7b561f4c2cf96",
         "convex/products/regions.ts": "f1aa5a3aa26d8ba5e38da8fecb9efcdb4df785f4ea1ff3f0f6f86e92dcccbd45",
         "convex/products/sync.test.ts": "6ef811d009ef6a710213fe9e929567d32b298c8132e424aa9f7545bea4491057",
-        "convex/products/sync.ts": "b9ae150e3d39c55c2e5fdb8c8bab0914c91bef4bb26129647ce1dad62ab25af4",
+        "convex/products/sync.ts": "6dd3a5ea4357eeda1d69de149847e8fdc53b0a845105f5e4d4c87fc3b70f735e",
         "convex/products/syncResult.ts": "f408374cb30216db4f189d32ad1f2bd269893f75785eb322a2d05c2a2daaa533",
         "convex/projects/get-project-by-api-key.test.ts": "38bc7965ed9f3a258743658259acd1f7bba7a3c801b2231cebebce9e4b92e7c8",
         "convex/projects/helpers.test.ts": "b2bd4f954309a87417e8deb14d87e9ecf6fce96565eb488e4658e84df16f8f33",
-        "convex/projects/helpers.ts": "2cf3764273d019ff0b476fd54287d08f635337484153670f37f388e6c9135858",
+        "convex/projects/helpers.ts": "98ee9c6425aa800364b8bc1c3375be9c44c8b7641d595c19c399814149e996c7",
         "convex/projects/internal.ts": "de72cbbc110c368f4a93267cf065e794f3cdeb2d34e3745a85b95514a7eb143c",
         "convex/projects/mutation.test.ts": "c52072a18326c6474cecf69cda3bbc584d274bcf4a9c35695daded14fd475b01",
-        "convex/projects/mutation.ts": "d9739cfb7a483e167471fb64e41378d43266b5c3cbac6444412252837a0367ac",
+        "convex/projects/mutation.ts": "34ef6c0f7b5fcde85fdd188ea417c4933d15ff41484eae7ff4b90df1c7a4798a",
         "convex/projects/project-child-pending-deletion-query.test.ts": "065a40edcc405ef5821fa8eb96df0771b9421d04e74176c2912d7c6ff4b7db71",
         "convex/projects/project-child-pending-deletion.test.ts": "601d456def69cac0b72c50f11841c56fcf2b69a6cee355d34c20b541d6a30569",
         "convex/projects/query.test.ts": "d1d18326bd970a952db79b2c9aee3ffb0a8497cdfbf6b20270413e6d1b0d7fc6",
-        "convex/projects/query.ts": "34d9055ee333d3079c6aa8fd57a1e591cb9982709764571c7d8e396780404af1",
+        "convex/projects/query.ts": "83eed8f0e81a15fbf27fbf62964b2c1a3d885ede801db36dd6433394e59c8ab4",
         "convex/projects/setupStatus.test.ts": "e4a5ef47959a097451b3d1da6e218106735ceb1e4f9ec4b3d589e3505061fcfd",
-        "convex/projects/setupStatus.ts": "7e59ea18053c025e7d3bb97625ef884215f09c3a25775b4e058bfdf4077e45b9",
+        "convex/projects/setupStatus.ts": "367268c2c862f7e094799cc434a13fb1a0fa46aa33926f1b7e9d118ca9f9b893",
         "convex/projects/writable.ts": "8c023e994c9d9b69f49c829da4400b4ad168c43033d500d770cd7f2702c93f44",
         "convex/purchaseIssues/evidence.ts": "7e15a421df0fa10cefd8c6052610324b31989b2001f54d6fcee512a0a7b403c5",
         "convex/purchaseIssues/internal.test.ts": "e3c38761a8c189c448482e261cca9d262143e95f3375a39ca80cb745c8229bec",
         "convex/purchaseIssues/internal.ts": "f33deec99d775452f5b16057ea4c5503d1a183461d1da5b6fccb4778cfc28ceb",
         "convex/purchaseIssues/query.test.ts": "5f9147190ecc3b9ff416b5dddc2063fe781a923a955a43d4fa42d1c925ed0734",
-        "convex/purchaseIssues/query.ts": "5367c149d2361017af397f162b82c48f454c7a46d074f53d5b1c2ff403d68a6d",
+        "convex/purchaseIssues/query.ts": "c9fb1f84f2182373196f6e8a4233322191e107e3c18669e9fc74aa09ab49a5a2",
         "convex/purchaseIssues/shared.test.ts": "1106c11a94863f414671ab07a09c130afd022ef7d9372c6b2b6647ffb32a4202",
         "convex/purchaseIssues/shared.ts": "fa1ba99f0888600233a0cd465efd86e5444367c5f5d504eac4a0962bad5ad087",
-        "convex/purchases/action.ts": "215cda9aa95b65506fe76c0eef759dedf080e7817ed948240751bcd0ccf0085c",
+        "convex/purchases/action.ts": "82aff08a7818179ffe2e5f167d2d72eb5eb0b9cbd65019732774d84157c775f3",
         "convex/purchases/amazon-reconciliation.test.ts": "592e919919f677423908169c0c5462452eaeafb6e628765e10e936d9ccc4e3ec",
         "convex/purchases/amazon.test.ts": "5ae19b9d087fd615ab40a2a21f7cb8fa32e9136ebeebe293701df26a7708fcb5",
-        "convex/purchases/amazon.ts": "5706bcbdb14d7c9657347a9b9844088baac48162b72e91404d8e9b303b45a7e3",
+        "convex/purchases/amazon.ts": "67828ce8095d925ba3030b713c387917a4d894b90d2706520fab640da7184901",
         "convex/purchases/amazonReceipt.ts": "c0a0050f63892ff8aa534d8273f7dee1d7bc9065575d089a797af3ad7c0cbc16",
         "convex/purchases/android.test.ts": "864885b9465a5aaeae63965eb1e9a93b97e3345f685e8519893bb7e901c8c3a4",
-        "convex/purchases/android.ts": "a75b0c29421c89a4ace541cd5301fabcdbfbac2b8d490adccf9791c3ce6a15f8",
+        "convex/purchases/android.ts": "609f46d9e703f69a87f7aeaf6f003225f67b89ecac96ad0b4fd6ea4f1a8ba6de",
         "convex/purchases/binding.ts": "864286721cfa01ba1de14abab68d576bb81c68fe0493589d8ddc854628d12b18",
         "convex/purchases/cleanup.test.ts": "ae3272f014c7db8a4203138584d2a6f896dd4e077a9601b7caed72dd27ac1844",
         "convex/purchases/cleanup.ts": "493353eed22923112b21d353cc672b3882b9fa1ccd1c5bbff4b85e34831e7a1d",
@@ -597,16 +603,16 @@
         "convex/purchases/extract-order-id.test.ts": "a203af23b3551d0305e97bbf1fb6dd9ab7e199215c480b9a01fe832a5555f225",
         "convex/purchases/extract-product-id.test.ts": "210381901a21c0f91018ff1c20902c65ffb0800510fa2dc1992a9e6d30c18646",
         "convex/purchases/horizon.test.ts": "43b68a8f3b229f585255c2580c92720c8ae5296004f398d321f8b48dd0820831",
-        "convex/purchases/horizon.ts": "646c31d2c0f971150a6b8f262ca4c054387c82caaf937b858537dc5633780d0c",
+        "convex/purchases/horizon.ts": "31cf9ffbc91c336ad6e53657807582ef3ce85486154f73c2742798d8780f85e2",
         "convex/purchases/identity.ts": "e7dbdf51c6e8e02ac00c2291b1aa31cf2ef68891fa37d063d5d8de078a6847ba",
         "convex/purchases/internal.ts": "da55d37438b6ce785ff1849b422693fe9696d42ecb520e3f9a895eac409e0064",
         "convex/purchases/ios-handler.test.ts": "0baf0b8558460eb209e2ad0abfd8458616bba6445cbee7b83f298cefd4d170f2",
         "convex/purchases/ios.test.ts": "02c072ba87b7096f50087dc6491b094000bcb7646de51155cf7f2d2e9ec598db",
-        "convex/purchases/ios.ts": "42700f8e2345bdb5ee3dab0d58e694c174546ff73b73bae63e9a6e33ef48c2e8",
-        "convex/purchases/mutation.ts": "83e043cf1fd39209218202065d58865173d7a6fcffdaeb802db58797ab5ef86d",
+        "convex/purchases/ios.ts": "113f4d5c138128ae3514671acacd4a583c1a4e7d53ba7feee58a45274b6fb6ac",
+        "convex/purchases/mutation.ts": "f8e7da8fc1a864d53590a30de45a833d9a56799871022b4fbcf8c54aba1bed6e",
         "convex/purchases/ownership.test.ts": "1915a0a5ab7e2938abd3bd8edca246da9da01776c17f035a414b6d2e06b21fdf",
         "convex/purchases/purchaseState.ts": "6f5463c7e1f75edc39e474005f6996ac63be8ee3a1c3a2d419e7607d4080a67c",
-        "convex/purchases/query.ts": "f5931f6f8d60122d96396be87c3db808aa439c69b56f68cd09099d30d2becedf",
+        "convex/purchases/query.ts": "13787303acb5f9bd884ad7bc24cadc020d30a5293246eb8f585bb6849a78c252",
         "convex/purchases/retry.test.ts": "53f384b1a49596cdf454944d5693b366a4819fcd156f8ffad72a9fe39a1b696e",
         "convex/purchases/retry.ts": "3b6a0e90b726f00cb4f3fc1c5f3498e7ab9c19caff4f93b0a52283efd4969de5",
         "convex/purchases/save-purchase-idempotency.test.ts": "defac96b439754a2b4370f120de0bfdb28b6cb1d19c16d073b0d3e9e5b91f4e7",
@@ -620,11 +626,11 @@
         "convex/purchases/verificationAdmission.ts": "d3b3358c3f695b03422f1d31d6c10c15598dd3f589a332b25adc2bcd45b210e6",
         "convex/purchases/verificationSource.test.ts": "b9a8f0124deeba7224f490812c33c3ae038b080b5a5a78cdd12887a702c7221c",
         "convex/purchases/verificationSource.ts": "e497c862e2713e67a5595417deaf28b2b9aa9230582f32e1f5d20e23d89065b3",
-        "convex/schema.ts": "61591669adebfbf6ca9eede0355854ef850514b7685e3150bc1cbe0ff936dfe8",
+        "convex/schema.ts": "3db7454573e462839ced843cb9fb19a3b3d4cb9e6ede298b60078a655b1eb977",
         "convex/subscriptions/accessHistory.test.ts": "378b1606a290aeb309b0b56835ee2da1df8e8c4119b0aed79bda597bde1ebc27",
         "convex/subscriptions/accessHistory.ts": "ac02ebbc454133bee3aa6978866590f8f3de6b0dfb6fed63d557841a1a6bb883",
         "convex/subscriptions/action.test.ts": "87083e94d7a45d182be991796243d421a8529acb83d7864e9fe241f15e61347f",
-        "convex/subscriptions/action.ts": "8f59cc39c63fdbe9bf06ab5eb3efca09de5a0302cf7934b648d7f7134e060826",
+        "convex/subscriptions/action.ts": "d5f8447c82f1da02f4bcadc31064c89e0841924f85429dda6581e10413699dd9",
         "convex/subscriptions/amazon.ts": "93337f52ec82e12be8afbef4516dab18d74ce4ed26688046076c37b5026aa579",
         "convex/subscriptions/analyticsFacts.test.ts": "d57bf224a25761586803764993c7d7b0523261f2e6a874d06734a0a62d864953",
         "convex/subscriptions/analyticsFacts.ts": "4755e967a0d0dcf6127b41ee0637c961bea13d25ca82d90f7d86a223d43eed40",
@@ -635,9 +641,9 @@
         "convex/subscriptions/limits.ts": "d3edfe3a836395105118ffdc00f82e505fe48a33c0926b9bb89c931da911b7fc",
         "convex/subscriptions/monthlyMicros.ts": "2308ba8912ddbe5f666e0421f1a4d0ea0c68d016e2b032d958bf2b71e3f6b690",
         "convex/subscriptions/mutation.test.ts": "a2d3af561721289070b042e0b450dbd9560e9706606a0c8e714a4e8d033df404",
-        "convex/subscriptions/mutation.ts": "a5c0ba4bc29a56e5e6743303a043479cf4090548f9bca56e945455190f90d1d0",
+        "convex/subscriptions/mutation.ts": "8ff0ff1a9bbaa3c32c7ca558668853b54dac50b23f248ce1911fb313375db1ba",
         "convex/subscriptions/query.test.ts": "74e122c658a01e23c82838f95cff80a44d84e4cbcb25328a361e548ce059dbf4",
-        "convex/subscriptions/query.ts": "88275b1a7386ca3fca583d77ec5e6a394e3d1b016ff932b843d69fb011d44897",
+        "convex/subscriptions/query.ts": "d5a2f6fa72936d717203ce1fabd1298a49543bb1845b30d82a8adf9f28b15c13",
         "convex/subscriptions/resync.test.ts": "b4f7e0e8bde46df3651c06ace634139ec682f7fb50d8f52a76b5fd72cb3249d0",
         "convex/subscriptions/resync.ts": "d515ba85cdc78a8bcacac05f4a42c0d8ff454bfb7d09eca5d860594c2bd05bef",
         "convex/subscriptions/revenueCohorts.test.ts": "e62e3920f5b5f407ac32eb6fa7aea4f0305cd0475f56a3371a7f8e878c0130a2",
@@ -661,23 +667,23 @@
         "convex/userProfiles/action.ts": "aa508402d3335230d110ca288ac8bdf0f577afd9cab29fce6474a9efbb0e283d",
         "convex/userProfiles/drain-account-deletion.test.ts": "3f5dd953d727ca174db174be8a2b3632c0a0f9680ca182773e64be354f9320c6",
         "convex/userProfiles/internal.test.ts": "1d75c92dadd469ae12cf39faa846c164d8e0ca987f39c6e38028842a89b5b803",
-        "convex/userProfiles/internal.ts": "ae35f4b3c04f2a01c0bd35c84879976de47374f07433031f3689324923e6626e",
-        "convex/userProfiles/mutation.ts": "4cc170ba2e4ef621f86085683c48713143070c4900f0e5bc40e1e5b1784cc03f",
+        "convex/userProfiles/internal.ts": "77d273dcd5dd1d42426be99b74c990a7cfaccc37f1d6344f242c287ccfabf99c",
+        "convex/userProfiles/mutation.ts": "420817efdd53fb03806b532b5ff2d3884508632c9b096e5e0fa3aa161230e7f9",
         "convex/userProfiles/query.test.ts": "fe1adc55b40e8e6019323c3ea7a4056426c0c5209dc05477bfa23cdcd1ff16d0",
-        "convex/userProfiles/query.ts": "d8c654ea3026b1709f6dbb265b4feabf27088239d7d9db52154c4d46e68c7608",
+        "convex/userProfiles/query.ts": "87aedcd4d546ad721313fe6e91819055fa2a20eaec684ae299fc35134bb6bb7a",
         "convex/users/internal.test.ts": "9bc712955dad8a73e67c7f9b5ced71cd844376ae9c59a033825608e2884dbdaf",
         "convex/users/internal.ts": "dfa575334f76b62fdc971bbce153ce880bfe82ac6606a190ae03ef09245a88ce",
-        "convex/users/query.ts": "ea0ec2ed4580a085a0843b8f9b27ef99556806def526a7ad2b095834271074bf",
+        "convex/users/query.ts": "e1b5c89eb03a63402b3848d46cb5b7d8037da6f2e99b59c4bcf0b3cbc94a0de6",
         "convex/utils/concurrency.test.ts": "b126af585a114e9f87a382c0cab689547215d5a78390ba9cedb4644f52dfa5c7",
         "convex/utils/concurrency.ts": "29619d066df802847f59ccda7287fdb6c1d8ab6e14d875441589c717ce5799b9",
         "convex/utils/correlationId.ts": "c1ba78bdf857fd5a284083e05d19146e08dab190748705ed9a161156a58d35ee",
         "convex/utils/currency.ts": "ffe7b0e6d12cd523bd3400edf2c9c67e6d38218f2ef3506662a49b865644d050",
         "convex/utils/errors.test.ts": "26e50ec9404c439f83b7ca6f5485df114acdef672c6aeac01beec2715e880f86",
-        "convex/utils/errors.ts": "3e3f81c961df6b33ab637e0a22c99db83a973f3a420e691d94d40efa176c9aee",
+        "convex/utils/errors.ts": "05f81ffa4c4bf64fb01deddd9ce385438337d2364133c19a79d8d3d6d05197db",
         "convex/utils/helpers.test.ts": "8db12ab02e5175415d6bddfa789b3e3f836f1c301ff0625bac6684872d6df6e3",
         "convex/utils/helpers.ts": "d870049ad5d34b2b6f622b9b40f5f7a5ddf28c951442142b1e1675ed7be761d7",
         "convex/utils/httpResponse.ts": "f035a9b7b6d37265cd7b2c864dcc486532941088a4325a72da4a3fcb3a289161",
-        "convex/utils/sha256.ts": "86508c4ecae45bcd7a406646ad52bd36a9d29484f0c2a25dfe05e8ed0b19acf0",
+        "convex/utils/sha256.ts": "5e4c31d74e72b6b9eb1680631c44e96ee5d6d125d1fc4e85cf4c38cc03c5b78b",
         "convex/utils/validation.ts": "6a6fb79ade9f2e7f60fdb779c6a5d54653a25966c0421187c3c70664515d5d7c",
         "convex/webhooks/amazon.test.ts": "6649ac667f8c70b14e890f0a3351721bb912dc971786503215a47347d4a071a8",
         "convex/webhooks/amazon.ts": "dda77b561bcf08cfe891a8926884a24521bd5478867290d9ad219ec2bd38c66b",
@@ -685,18 +691,20 @@
         "convex/webhooks/amazonSns.test.ts": "fce5e9112c729c23515d99c80c57a6b387557ebe27ecd28ad6810bdc3831395b",
         "convex/webhooks/amazonSns.ts": "35c834819f083ecdfe65267725dc606effe621d2b26cfe0c97d75360eca364f3",
         "convex/webhooks/apple.test.ts": "bff57ef2a3318ac7da8209ef7e9511434635480981636e5466201c237925a19a",
-        "convex/webhooks/apple.ts": "5a3cd79b63ea3d646e5517c41ebf1e946848c3235205db17575567909d4a65e2",
+        "convex/webhooks/apple.ts": "133283a199830881fc5226b10490f95bcc684f57d195b9ee7c7627d50d67c721",
         "convex/webhooks/conformance.test.ts": "fbb65e062adf81b62058db1956831e2f41e2bdffe8627a2e7176aad2ff4b2d1d",
         "convex/webhooks/fixtures/amazon-sns.json": "ac074f2912a245c5fb4be5bb5c59728110400ce8c879831df2f0ee43ca189334",
         "convex/webhooks/google.test.ts": "edcee47e3f5d17560f8aef031ea80c3c0f5457625f121fdf37588ce1ed7d17e0",
-        "convex/webhooks/google.ts": "b14c9e85192ab59aeea3a68e498bb75d8c1519c664f162189111244f964ac967",
+        "convex/webhooks/google.ts": "4ecec3a0b402f6afcfae2349b23648fdda8ab696092fd54ecc7c04020d81068b",
         "convex/webhooks/inbound.test.ts": "de363a92ca851fcfc804534bc3bc4e94e8e695e647998acf09f03f6c6d5172da",
-        "convex/webhooks/inbound.ts": "d72a79b9bbfbc46872b6393ead213f3390fb0c350f3fffe64a9cdc31f384b1a0",
+        "convex/webhooks/inbound.ts": "81ca76b374cc5ef892d8cf87449b33118a7a19bee512888fc9ae736e86bbc98d",
         "convex/webhooks/internal.test.ts": "6e401398f2df42d76c02cd248184d197d6d09aa40c634ce8c498c44da64ea806",
         "convex/webhooks/internal.ts": "11c7a3ac067b95ce3daed59344767ea660919804d612b9d187500599cb5a4749",
         "convex/webhooks/shared.test.ts": "a27e11ca8ee45775d3bab6d65ba4ad44995c22009d4fb440e9689247430f5002",
         "convex/webhooks/shared.ts": "92556273281ae5d02ff70ee958aa2f46601c2a14cfd1a64fd2413c472a7043c2",
-        "package.json": "ff897ac1a2c9fabc9afa49a118b694a7bc9d43278828fa123da2b194fa7daca2",
+        "package.json": "b71e1fe6b28a541778468c8c2b35df598896364d2b561c6eb89a85492a1ed27e",
+        "server/api/cli/routes.test.ts": "324701ad33d8fe077a51d6d6c9041275c8e6b10988b6abb9ad1e78211c35eb00",
+        "server/api/cli/routes.ts": "4ebfaebf20f89ef042b25dae88a34038d2c239266cc42a2c61a76a021fd6a279",
         "server/api/commerce/conformance.test.ts": "0240d5351e24d177734811282daa7cd70dd0c7fc28b9ce27450e571c44fa8e63",
         "server/api/commerce/errors.ts": "8c62b7069d9a0c68d161196d86ad064e726d63e1c9769df5d01312587842df77",
         "server/api/commerce/graphql.ts": "e383ed390f6065575fd9f382c6cc4ade606cb1e21b207a11b57e59d87146a911",
@@ -745,7 +753,7 @@
         "server/api/v2/subscriptions.test.ts": "f94f9a48c668f24c20501e3dcd955a180ca0f538ca8233f20391634592a0377a",
         "server/api/v2/subscriptions.ts": "75e58af075cde1db50ae5660e5ef358fb642e51aad697dff35103d01949d2c08",
         "server/bun.d.ts": "1aedd96d736cadda1a1f54bacf20effa6a5e1ddddc39e9deb0ec38a758224ae8",
-        "server/convex.test.ts": "1af9322e119fe62ab368f741b2af7865d9a6abf1fb795d2f59ba20c9ff23e1e4",
+        "server/convex.test.ts": "08349444957676c61d6834bccb57b734275d5990591693ca8a55267123602e39",
         "server/convex.ts": "06d61b09a955771934db8359ea470f90f66686823f259aa9e43a7e5970fb455d",
         "server/health.test.ts": "54f37b7f358993ff2957b7830cab3fc2792e0011dc75aee0708c14ec77ca4546",
         "server/health.ts": "58bc5e80ca9e20f3029b60bf28edb4f96c56b9683c5472bbde674bb9988f66a5",
@@ -754,7 +762,7 @@
         "server/sentry.test.ts": "35acf04ad26f814b52a1ea0da3c03f1cc35c6efd0c73ed1f0762ae71f9304ca9",
         "server/sentry.ts": "97b37ab62bfe0d6bb08cffdbdfe24020e1118af4e41d965e535251d352200c51",
         "server/server.test.ts": "ec0aaf2dddb8ca208076c1091fa42d060bd8e2248c18ae5e5f95524f28df3124",
-        "server/server.ts": "32c9df76686d1c69e8c78f6f8fdc5d85f16b6ce3671904322daefe06e1d9a2a6",
+        "server/server.ts": "6719676ae7590c496b9f87d6c724b2333ec3aa6f8c41df35fa4e8c11591195aa",
         "server/staticPaths.test.ts": "c0642f61bcba8991ac5f4293893860aaa6a4a56154b937d3191a0d82f8079297",
         "server/staticPaths.ts": "22ac0a799ea3270f092024d7ad186106089b2796a9577122bad0b458cbfcb282",
         "server/utils/env.test.ts": "9a4a3b75f332b130978a593368206b992875c3fc5427463c98ee03bad6a32f61",
@@ -762,9 +770,7 @@
         "src/convex.ts": "1731bf0c6a180b4f329767e8ff6767cad55fe3047f7fa2b47b7a98b10d0d58d6",
         "tsconfig.json": "e118dc4c81e8a4a485ca3a7c10c5256e69d9eeab9b9f971691acf6a2651c6e1e"
       },
-      "optionalGeneratedFiles": [
-        "convex/_generated/ai/ai-files.state.json"
-      ]
+      "optionalGeneratedFiles": []
     },
     "example": {
       "baseRevision": "f23f663e4220abdd709ab4cb340798d5c468cd4c",
@@ -799,11 +805,11 @@
       }
     },
     "workspace": {
-      "baseRevision": "fa678b220619c19e01b7edc9bb9db48c3ce77639",
+      "baseRevision": "737e5f7f17fd768294252ba84860b61d1e5e6280",
       "hashes": {
-        "bun.lock": "2a66e4ba65ea9959088e92a14f6d58ee0a61aca274b06188a0b9569218192909",
-        "package.json": "329817b350d7bff1eb5bc6ae1dd917d52b41fdcdc17e4138adb8084c3d65d30e",
-        "packages/mcp-server/package.json": "d7ed6eda3dd880a96ade2876758f8703500fbe987cf4b900c5f48eb648e76c88",
+        "bun.lock": "7c17ef2e6c0fd82cdade059fbcf66f89c17dd2c175a0ac80bcab80dadf94c385",
+        "package.json": "c4d4e61d149fb90ee3f8464b3e714b206eda410e28719fe5fbce20ec337939b9",
+        "packages/mcp-server/package.json": "85097ad6ef1814dbc225748a2e2d7563c6ad61722301a259c16f92c5cf4a73fd",
         "packages/mcp-server/src/kit-client.ts": "eef3210b9d16d69c590fd52645869b373e6e03464c0018c090e2a9a05ad23b8f",
         "specs/commerce-protocol/examples/entitlement-granted-no-subscription.json": "62ee46e2c796ea5652592ddd894ae4796bc90ad680bef297da78f00fc5899dac",
         "specs/commerce-protocol/examples/entitlement-revoked.json": "e5306e8d4675d26317cd76a32005249351abd81e5fe142839cce245ec2854e1c",
@@ -829,7 +835,7 @@
         "specs/commerce-protocol/generated/schemas/store-facts.schema.json": "9ad56d79a2e9c57c7617f24abe86128c0663f913e21b357add7d14fcc8fdccdf",
         "specs/commerce-protocol/generated/vectors/lifecycle.json": "c301783a1e8a8f94439e47bb4b65a358a0ff3a29eca23e1144c85fc8c7dcd3f5",
         "specs/commerce-protocol/generated/vectors/operations.json": "8fb34931a07e8b0bc664d6d91f9e1e557ce74bbef5a38986a968eefd419a8ddc",
-        "specs/commerce-protocol/package.json": "6c3d9d3fa493ef65e569fc92a07bbff6e9a3be0014892cd9fa0e587ba381a499",
+        "specs/commerce-protocol/package.json": "79a84daa0dcd89fab842902563beb787b1decd77de7ebd11841b3293844afa75",
         "specs/commerce-protocol/src/index.mjs": "3264fae09883359d0d4e959a007d96a3915498a1050750aa9477f2117ff803d6"
       },
       "optionalGeneratedFiles": []
@@ -845,7 +851,7 @@
     "Separate webhook signing keys, each bound to its provider and project",
     "Example fixture store adapter configured to recognize the same synthetic Google token"
   ],
-  "recordedAt": "2026-10-21T11:16:46.267Z",
+  "recordedAt": "2026-10-25T20:21:11.578Z",
   "checks": [
     "example: app and receiver endpoints remain unchanged",
     "example: empty provider gives no access",
@@ -1065,7 +1071,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1792581403568,
+            "expiresAt": 1792959669263,
             "willRenew": true
           }
         ]
@@ -1087,7 +1093,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1792581403568,
+            "expiresAt": 1792959669263,
             "willRenew": true
           }
         ]
@@ -1131,11 +1137,11 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1792581403568,
-            "renewsAt": 1792581403568,
+            "expiresAt": 1792959669263,
+            "renewsAt": 1792959669263,
             "willRenew": true,
-            "startedAt": 1792581358910,
-            "updatedAt": 1792581358965
+            "startedAt": 1792959624620,
+            "updatedAt": 1792959624670
           }
         ]
       }
@@ -1156,11 +1162,11 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1792581403568,
-            "renewsAt": 1792581403568,
+            "expiresAt": 1792959669263,
+            "renewsAt": 1792959669263,
             "willRenew": true,
-            "startedAt": 1792581358910,
-            "updatedAt": 1792581358986
+            "startedAt": 1792959624620,
+            "updatedAt": 1792959624698
           }
         ]
       }
@@ -1181,7 +1187,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1792581403568,
+            "expiresAt": 1792959669263,
             "willRenew": false
           }
         ]
@@ -1242,7 +1248,7 @@
             "state": "Active",
             "active": true,
             "store": "apple",
-            "expiresAt": 1792585003931,
+            "expiresAt": 1792963269517,
             "willRenew": true
           }
         ]
@@ -1264,9 +1270,9 @@
             "state": "Active",
             "active": true,
             "store": "apple",
-            "expiresAt": 1792584958569,
-            "startedAt": 1792581404006,
-            "updatedAt": 1792581404062
+            "expiresAt": 1792963224265,
+            "startedAt": 1792959669555,
+            "updatedAt": 1792959669592
           }
         ]
       }
@@ -1287,7 +1293,7 @@
             "state": "Active",
             "active": true,
             "store": "apple",
-            "expiresAt": 1792585003931,
+            "expiresAt": 1792963269517,
             "willRenew": true
           }
         ]
@@ -1355,8 +1361,8 @@
             "state": "Active",
             "active": true,
             "store": "amazon",
-            "startedAt": 1792581404281,
-            "updatedAt": 1792581404335
+            "startedAt": 1792959669800,
+            "updatedAt": 1792959669844
           }
         ]
       }
