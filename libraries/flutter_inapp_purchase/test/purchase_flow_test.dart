@@ -6,9 +6,14 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
-import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
-import 'package:flutter_inapp_purchase/src/purchase_flow.dart'
-    show deviceConfirmationIOS;
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart'
+    hide
+        createDeviceConfirmationIOS,
+        createIapkitConfirmation,
+        toIapkitVerificationProps,
+        readIapkitVerification;
+import 'package:flutter_inapp_purchase/src/purchase_confirmers.dart'
+    show createDeviceConfirmationIOS, createIapkitConfirmation;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:platform/platform.dart';
 
@@ -229,7 +234,7 @@ void main() {
         var grants = 0;
         final clock = vector['clock'] as Map<String, dynamic>?;
         var now = clock?['beforeRead'] as int?;
-        final confirm = deviceConfirmationIOS(
+        final confirm = createDeviceConfirmationIOS(
           () async {
             reads++;
             if (clock != null) now = clock['afterRead'] as int;

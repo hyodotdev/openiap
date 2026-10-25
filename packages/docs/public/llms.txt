@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-10-24T06:04:44.488Z
+> Generated: 2026-10-25T05:30:36.035Z
 
 ## Reading instructions for coding assistants
 
@@ -211,15 +211,15 @@ npm install react-native-iap
 ### Native
 ```swift
 // Swift Package Manager
-.package(url: "https://github.com/hyodotdev/openiap.git", from: "4.0.4")
+.package(url: "https://github.com/hyodotdev/openiap.git", from: "4.0.5")
 ```
 
 ```kotlin
 // settings.gradle.kts: links the Horizon or Amazon build by the store rule
-plugins { id("io.github.hyochan.openiap") version "4.0.5" }
+plugins { id("io.github.hyochan.openiap") version "4.0.6" }
 
 // app/build.gradle.kts
-implementation("io.github.hyochan.openiap:openiap-google:4.0.5")
+implementation("io.github.hyochan.openiap:openiap-google:4.0.6")
 ```
 
 ```bash
@@ -229,20 +229,20 @@ flutter pub add flutter_inapp_purchase
 
 ```gdscript
 # Godot
-# Install godot-iap 4.0.3 to addons/godot-iap and enable the plugin
+# Install godot-iap 4.2.0 to addons/godot-iap and enable the plugin
 ```
 
 ```kotlin
 // Kotlin Multiplatform
-implementation("io.github.hyochan:kmp-iap:4.0.4")
+implementation("io.github.hyochan:kmp-iap:4.2.0")
 ```
 
 ```xml
 <!-- .NET MAUI -->
-<PackageReference Include="OpenIap.Maui" Version="3.0.4" />
+<PackageReference Include="OpenIap.Maui" Version="3.2.0" />
 ```
 
-Current NuGet package version: 3.0.4
+Current NuGet package version: 3.2.0
 
 ## Framework Libraries
 

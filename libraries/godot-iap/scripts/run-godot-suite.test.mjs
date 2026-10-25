@@ -22,6 +22,7 @@ suite="\${@: -1}"
 printf '%s\\n' "$*" >> "$FAKE_GODOT_LOG"
 case "$suite" in
   *android_export*) printf '%s\\n' "\${FAKE_GODOT_EXPORT_OUTPUT-Results: 31 passed, 0 failed}" ;;
+  *legacy_confirmation*) printf '%s\\n' "\${FAKE_GODOT_LEGACY_OUTPUT-PASS published legacy confirmation paths and defaults}" ;;
   *silent*) : ;;
   *parse_error*) echo 'SCRIPT ERROR: Parse Error: Expected parameter name.' ;;
   *preload_error*) echo 'ERROR: Failed to load script "res://addons/godot-iap/types.gd" with error "Parse error".' ;;
@@ -161,4 +162,40 @@ test("needs at least one suite", () => {
   assert.equal(result.status, 2);
   assert.match(result.stderr, /usage: run-godot-suite\.sh/u);
   assert.equal(result.calls.length, 0);
+});
+
+test("runs both legacy paths and cleans the relocated fixture", () => {
+  const result = run(
+    "test_legacy_confirmation",
+    "test_legacy_confirmation_relocated",
+  );
+  assert.equal(result.status, 0);
+  assert.equal(result.calls.length, 2);
+  const fixture = /--path (\S+) --script /u.exec(result.calls[1])?.[1];
+  assert.ok(fixture);
+  assert.equal(existsSync(fixture), false);
+});
+
+test("rejects a legacy run that never reports completion", () => {
+  const result = runWithEnvironment(
+    { FAKE_GODOT_LEGACY_OUTPUT: "Godot Engine v4.7.1.stable.official" },
+    "test_legacy_confirmation_relocated",
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stdout, /did not complete its compatibility checks/u);
+});
+
+test("both CI engine versions run the canonical and relocated legacy suites", () => {
+  const workflow = readFileSync(
+    path.join(scripts, "../../../.github/workflows/ci-godot-iap.yml"),
+    "utf8",
+  );
+  const jobs = workflow.split("  verify-minimum-godot:");
+  assert.equal(jobs.length, 2);
+  for (const job of jobs) {
+    assert.match(
+      job,
+      /test_legacy_confirmation test_legacy_confirmation_relocated test_purchase_flow/u,
+    );
+  }
 });

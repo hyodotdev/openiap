@@ -237,7 +237,9 @@ function ActiveSubscription() {
                       <td>
                         <code>boolean?</code>
                       </td>
-                      <td>Whether subscription will auto-renew</td>
+                      <td>
+                        Store-reported renewal status; null when unavailable.
+                      </td>
                     </tr>
                     <tr>
                       <td>

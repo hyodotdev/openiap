@@ -1,13 +1,14 @@
 import {getVegaIapModule} from './vega';
 import {ErrorCode} from './types';
 import {
-  createIapkitConfirmation,
-  type IapkitConfirmationOptions,
-  type PurchaseConfirmation,
   type PurchaseFlow,
   type PurchaseFlowOptions,
   type PurchaseFlowPurchase,
-} from './purchase-flow';
+} from './purchase-flow-core';
+import {
+  createIapkitConfirmation,
+  type IapkitConfirmationOptions,
+} from './purchase-flow-confirmers';
 import {
   clearRequested,
   createSdkPurchaseFlow,
@@ -55,9 +56,8 @@ export type {
 export {
   describePurchaseFlowStatus,
   toPurchaseConfirmationRequest,
-} from './purchase-flow';
+} from './purchase-flow-core';
 export type {
-  IapkitConfirmationOptions,
   PurchaseConfirmation,
   PurchaseConfirmationRequest,
   PurchaseFlow,
@@ -68,7 +68,8 @@ export type {
   PurchaseFlowPurchase,
   PurchaseFlowStatus,
   RecoverPurchasesOptions,
-} from './purchase-flow';
+} from './purchase-flow-core';
+export type {IapkitConfirmationOptions} from './purchase-flow-confirmers';
 export type {SdkPurchaseFlowOptions} from './utils/purchaseFlowBinding';
 
 export enum OpenIapEvent {
@@ -383,9 +384,6 @@ export function createPurchaseFlow(
  */
 export function confirmWithIapkit(
   options: IapkitConfirmationOptions<Purchase>,
-): (
-  purchase: Purchase,
-  context: {isConsumable: boolean},
-) => Promise<PurchaseConfirmation> {
+): PurchaseFlowOptions<Purchase>['confirmWithBackend'] {
   return createIapkitConfirmation(verifyPurchaseWithProvider, options);
 }

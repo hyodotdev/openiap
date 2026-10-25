@@ -74,6 +74,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Configure package identity
         run: node scripts/release-openiap.mjs "$PACKAGE_ID"
@@ -87,6 +88,13 @@ jobs:
           node scripts/release-branch-policy.mjs guard "$PACKAGE_ID"
           "$VERSION_TYPE" "$IS_PRERELEASE"
           "$GITHUB_REF_NAME" "$TARGET_VERSION"
+
+      - name: Enforce scheduled API removals
+        if: inputs.package == 'client-protocol'
+        env:
+          VERSION_TYPE: ${{ inputs.version }}
+          TARGET_VERSION: ${{ inputs.target_version }}
+        run: node scripts/scheduled-removals.mjs release-gate @hyodotdev/openiap-client-protocol "$VERSION_TYPE" "$TARGET_VERSION"
 
   validate:
     name: Verify selected package

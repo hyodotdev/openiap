@@ -95,17 +95,13 @@ describe("generated sync manifest", () => {
   });
 
   it("distinguishes canonical generator inputs from generated outputs", () => {
+    expect(isGqlGenerationInputPath("specs/client/src/schema.graphql")).toBe(
+      true,
+    );
     expect(
-      isGqlGenerationInputPath("specs/client/src/schema.graphql"),
+      isGqlGenerationInputPath("specs/client/codegen/core/transformer.ts"),
     ).toBe(true);
-    expect(
-      isGqlGenerationInputPath(
-        "specs/client/codegen/core/transformer.ts",
-      ),
-    ).toBe(true);
-    expect(
-      isGqlGenerationInputPath("specs/client/src/kit-api.ts"),
-    ).toBe(true);
+    expect(isGqlGenerationInputPath("specs/client/src/kit-api.ts")).toBe(true);
     expect(isGqlGenerationInputPath("package.json")).toBe(true);
     expect(isGqlGenerationInputPath("bun.lock")).toBe(true);
     expect(
@@ -137,10 +133,7 @@ describe("generated sync manifest", () => {
       name: "openiap-monorepo",
       private: true,
     });
-    expect(rootPackageJson.workspaces).toEqual([
-      "packages/*",
-      "specs/*",
-    ]);
+    expect(rootPackageJson.workspaces).toEqual(["packages/*", "specs/*"]);
     const definitions = Object.values(GENERATED_SYNC_MANIFEST).filter(
       ({ exportKey }) => exportKey,
     );
@@ -186,13 +179,31 @@ describe("generated sync manifest", () => {
 
   it("keeps library mirrors out of the client spec package", () => {
     const mirrors = Object.values(GENERATED_SYNC_MANIFEST).filter(
-      ({ exportKey }) => !exportKey,
+      ({ exportKey, source }) => !exportKey && source.startsWith("libraries/"),
     );
     expect(mirrors.length).toBeGreaterThan(0);
     for (const { source, generated } of mirrors) {
       expect(generated, source).toBe(false);
       expect(source.startsWith("libraries/"), source).toBe(true);
       expect(isGqlGenerationInputPath(source), source).toBe(false);
+    }
+  });
+
+  it("ships internal core and confirmer dependencies without exposing new public subpaths", () => {
+    const manifest = JSON.parse(
+      readRepositoryFile("specs/client/package.json"),
+    );
+    for (const [key, subpath] of [
+      ["purchaseFlowCore", "./purchase-flow-core"],
+      ["purchaseFlowConfirmers", "./purchase-flow-confirmers"],
+    ]) {
+      const definition = GENERATED_SYNC_MANIFEST[key];
+      expect(definition.exportKey).toBeUndefined();
+      expect(manifest.exports[subpath]).toBeUndefined();
+      expect(manifest.files).toContain(
+        gqlPackageRelativePath(definition.source),
+      );
+      expect(isGqlGenerationInputPath(definition.source)).toBe(true);
     }
   });
 
@@ -482,7 +493,7 @@ printf '%s|%s' "$GIT_INDEX_FILE" "$GIT_DIR" > "$HOOK_AFTER_FILE"
 
     expect(GENERATED_SYNC_EDGES).toEqual(declaredTargets);
     expect(new Set(GENERATED_SYNC_EDGES.map((edge) => edge.mode))).toEqual(
-      new Set(["copy", "google-kotlin", "kmp-kotlin"]),
+      new Set(["copy", "google-kotlin", "kmp-kotlin", "typescript-bundler"]),
     );
     expect(
       readRepositoryFile("specs/client/scripts/sync-to-platforms.mjs"),

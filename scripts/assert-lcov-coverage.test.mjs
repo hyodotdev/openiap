@@ -80,6 +80,109 @@ describe("local project and patch coverage", () => {
     );
   });
 
+  it("rejects uncovered branch-only default arguments in the patch", () => {
+    for (const taken of ["0", "-", "-37"]) {
+      const source = record("src/index.ts", Array(10).fill(1)).replace(
+        "end_of_record",
+        `BRDA:11,0,0,${taken}\nend_of_record`,
+      );
+      assert.throws(
+        () =>
+          readComponentCoverage(
+            source,
+            patch(filename, 11, 1),
+            policy,
+            directory,
+            root,
+          ),
+        /Patch coverage 0\.00%.*below 90\.00%/,
+      );
+    }
+  });
+
+  it("counts a branch-only partial hit under the canonical LCOV policy", () => {
+    const source = record("src/index.ts", Array(10).fill(1)).replace(
+      "end_of_record",
+      "BRDA:11,0,0,0\nBRDA:11,0,1,2\nend_of_record",
+    );
+    const coverage = readComponentCoverage(
+      source,
+      patch(filename, 11, 1),
+      policy,
+      directory,
+      root,
+    );
+    assert.deepEqual(coverage.project, { found: 11, hit: 11, percentage: 100 });
+    assert.deepEqual(coverage.patch, { found: 1, hit: 1, percentage: 100 });
+  });
+
+  it("lets branch misses override positive line counters", () => {
+    for (const taken of ["0", "-37"]) {
+      const source = record("src/index.ts", Array(11).fill(1)).replace(
+        "end_of_record",
+        `BRDA:2,36,1,${taken}\nend_of_record`,
+      );
+      assert.throws(
+        () =>
+          readComponentCoverage(
+            source,
+            patch(filename, 2, 1),
+            policy,
+            directory,
+            root,
+          ),
+        /Patch coverage 0\.00%.*below 90\.00%/,
+      );
+    }
+  });
+
+  it("uses the last counter for each repeated branch identity", () => {
+    const source = record("src/index.ts", Array(11).fill(1)).replace(
+      "end_of_record",
+      "BRDA:2,0,0,1\nBRDA:2,0,0,0\nend_of_record",
+    );
+    assert.throws(
+      () =>
+        readComponentCoverage(
+          source,
+          patch(filename, 2, 1),
+          policy,
+          directory,
+          root,
+        ),
+      /Patch coverage 0\.00%.*below 90\.00%/,
+    );
+  });
+
+  it("rejects first-line branch misses consistently across source formats", () => {
+    for (const extension of [
+      "js",
+      "jsx",
+      "ts",
+      "tsx",
+      "mts",
+      "mjs",
+      "cts",
+      "cjs",
+    ]) {
+      const source = record(`src/index.${extension}`, [1]).replace(
+        "end_of_record",
+        "BRDA:1,0,0,0\nend_of_record",
+      );
+      assert.throws(
+        () =>
+          readComponentCoverage(
+            source,
+            patch(filename.replace(/ts$/, extension), 1, 1),
+            policy,
+            directory,
+            root,
+          ),
+        /Project coverage 0\.00%/,
+      );
+    }
+  });
+
   it("accepts exact thresholds and positive partial hits", () => {
     const coverage = readComponentCoverage(
       record("src/index.ts", [...Array(9).fill(1), 0]),
@@ -166,6 +269,14 @@ describe("local project and patch coverage", () => {
       record("src/index.ts", [1]).replace("DA:1,1", "DA:0,1"),
       record("src/index.ts", [1]).replace("DA:1,1", "DA:1,-1"),
       record("src/index.ts", [1]).replace("LF:1", "LF:2"),
+      record("src/index.ts", [1]).replace(
+        "end_of_record",
+        "BRDA:0,0,0,1\nend_of_record",
+      ),
+      record("src/index.ts", [1]).replace(
+        "end_of_record",
+        "BRDA:2,0,0,-1.5\nend_of_record",
+      ),
       record("src/index.ts", [1]).replace("end_of_record", ""),
       record("/another/repo/src/index.ts", [1]),
     ]) {

@@ -70,7 +70,7 @@ public partial class AvailablePurchasesPage : ContentPage
                 .Select(g => g.OrderByDescending(p => p.TransactionDate).First()));
             RenderPurchases();
 
-            var active = await OpenIapClient.Query.GetActiveSubscriptionsAsync(Constants.SubscriptionProductIds)
+            var active = await OpenIapClient.Query.GetActiveSubscriptionsAsync(IapKitSettings.SubscriptionQueryIds)
                 .WaitAsync(TimeSpan.FromSeconds(20));
             _active.Clear();
             _active.AddRange(active);

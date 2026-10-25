@@ -1,5 +1,7 @@
 src/types.ts
 src/kit-api.ts
-src/purchase-flow.ts
+src/purchase-flow-core.ts
+src/purchase-flow-confirmers.ts
 docs/**
 .claude/commands/**
+src/__tests__/purchaseFlow.shared.test.ts

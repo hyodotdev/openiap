@@ -1,5 +1,6 @@
 // IAPKit confirmation for apps without a backend, ported from
-// specs/client/src/purchase-flow.ts. The flow's ConfirmWithBackend runs it.
+// specs/client/src/purchase-flow-confirmers.ts. It uses only the flow's public
+// contract, as any other verification service's confirmer would.
 
 #nullable enable
 
@@ -42,7 +43,7 @@ public sealed record IapkitAmazonOptions
     public Func<string, string>? VerifiedProductId { get; init; }
 }
 
-public static class IapkitConfirmation
+internal static class IapkitConfirmationImplementation
 {
     private const double UnknownRetryMs = 30_000;
 
@@ -52,7 +53,7 @@ public static class IapkitConfirmation
     /// IAPKit, then runs <see cref="IapkitConfirmationOptions.Grant"/> before
     /// the flow finishes it.
     /// </summary>
-    public static PurchaseConfirmer Create(
+    internal static PurchaseConfirmer Create(
         Func<VerifyPurchaseWithProviderProps, Task<VerifyPurchaseWithProviderResult>> verifyPurchaseWithProvider,
         IapkitConfirmationOptions options)
     {
@@ -75,7 +76,7 @@ public static class IapkitConfirmation
     }
 
     /// <summary>Builds the IAPKit request for a purchase; throws for a store IAPKit cannot verify.</summary>
-    public static VerifyPurchaseWithProviderProps ToVerificationProps(Purchase purchase, IapkitConfirmationOptions options)
+    internal static VerifyPurchaseWithProviderProps ToVerificationProps(Purchase purchase, IapkitConfirmationOptions options)
     {
         ArgumentNullException.ThrowIfNull(purchase);
         ArgumentNullException.ThrowIfNull(options);
@@ -120,7 +121,7 @@ public static class IapkitConfirmation
     /// product or package mismatch, and to every Horizon rejection), and a valid
     /// state this product type cannot be granted from.
     /// </summary>
-    public static PurchaseConfirmation ReadVerification(
+    internal static PurchaseConfirmation ReadVerification(
         VerifyPurchaseWithProviderResult result,
         Purchase purchase,
         bool isConsumable,
@@ -215,4 +216,22 @@ public static class IapkitConfirmation
         IapStore.Horizon => state == IapkitPurchaseState.Entitled,
         _ => false,
     };
+}
+
+
+[Obsolete("Use OpenIapClient.ConfirmWithIapkit. Removed in the next major release.")]
+public static class IapkitConfirmation
+{
+    public static PurchaseConfirmer Create(
+        Func<VerifyPurchaseWithProviderProps, Task<VerifyPurchaseWithProviderResult>> verifyPurchaseWithProvider,
+        IapkitConfirmationOptions options) =>
+        IapkitConfirmationImplementation.Create(verifyPurchaseWithProvider, options);
+
+    public static VerifyPurchaseWithProviderProps ToVerificationProps(Purchase purchase, IapkitConfirmationOptions options) =>
+        IapkitConfirmationImplementation.ToVerificationProps(purchase, options);
+
+    public static PurchaseConfirmation ReadVerification(
+        VerifyPurchaseWithProviderResult result, Purchase purchase, bool isConsumable,
+        IapkitConfirmationOptions? options = null) =>
+        IapkitConfirmationImplementation.ReadVerification(result, purchase, isConsumable, options);
 }

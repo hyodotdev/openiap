@@ -1,5 +1,6 @@
 package dev.hyo.openiap
 
+import dev.hyo.openiap.utils.activeSubscriptions
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -134,7 +135,9 @@ class AmazonSubscriptionGroupMappingTest {
         )
 
         assertEquals(PurchaseState.Purchased, purchase.purchaseState)
-        assertEquals(true, purchase.isAutoRenewing)
+        assertFalse(purchase.isAutoRenewing)
+        assertNull(purchase.autoRenewingAndroid)
+        assertTrue(listOf(purchase).activeSubscriptions(emptySet()).single().isActive)
         assertFalse(purchase.isSuspendedAndroid ?: true)
         assertEquals("premium", purchase.productId)
         assertEquals("premium.monthly", purchase.currentPlanId)
@@ -146,5 +149,40 @@ class AmazonSubscriptionGroupMappingTest {
             "receipt-current-monthly",
             purchase.pendingPurchaseUpdateAndroid?.purchaseToken,
         )
+    }
+
+    @Test
+    fun `active paid terms stay listed when renewal preferences are unavailable`() {
+        val subscription = buildAmazonPurchase(
+            packageName = "dev.hyo.martie",
+            receiptId = "receipt-active",
+            receiptSku = "premium.monthly",
+            isSubscription = true,
+            purchaseDateMillis = 1_700_000_000_000.0,
+            isCanceled = false,
+            isDeferred = false,
+        )
+        val canceled = subscription.copy(id = "receipt-canceled", purchaseState = PurchaseState.Unknown)
+        val oneTime = buildAmazonPurchase(
+            packageName = "dev.hyo.martie",
+            receiptId = "receipt-one-time",
+            receiptSku = "coins",
+            isSubscription = false,
+            purchaseDateMillis = 1_700_000_000_000.0,
+            isCanceled = false,
+            isDeferred = false,
+        )
+        val purchases = listOf(subscription, canceled, oneTime)
+
+        assertFalse(subscription.isAutoRenewing)
+        assertNull(subscription.autoRenewingAndroid)
+        assertEquals(false, oneTime.autoRenewingAndroid)
+        val active = purchases.activeSubscriptions(emptySet())
+        assertEquals(1, active.size)
+        assertEquals("premium.monthly", active.single().currentPlanId)
+        assertTrue(active.single().isActive)
+        assertNull(active.single().autoRenewingAndroid)
+        assertEquals(active, purchases.activeSubscriptions(setOf("premium.monthly")))
+        assertTrue(purchases.activeSubscriptions(setOf("other.plan")).isEmpty())
     }
 }

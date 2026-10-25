@@ -6,9 +6,10 @@ multiplatform type system. Its publishable npm package is
 
 This directory is a specification and code-generation toolchain, not a hosted
 service. It may publish generated types and portable client source artifacts,
-including the `kit-api` and `purchase-flow` helpers copied into JavaScript SDKs,
-but it must not own deployment configuration, production credentials, runtime
-data, or migrations.
+including the `kit-api`, `purchase-flow`, `purchase-flow-core`, and
+`purchase-flow-confirmers` helpers
+copied into JavaScript SDKs, but it must not own deployment configuration,
+production credentials, runtime data, or migrations.
 Hosted and store implementations belong under `packages/` or `libraries/`.
 
 The independent server-side Commerce Protocol is its sibling at
@@ -16,6 +17,15 @@ The independent server-side Commerce Protocol is its sibling at
 directory's `schema-files.mjs` or merge the two generation pipelines.
 
 ## Files
+
+Before changing the public contract, follow the
+[Public Contract Design Gate](../../knowledge/internal/02-architecture.md#public-contract-design-gate).
+Hyo approves the concrete design before implementation; IAPKit uses the same
+vendor-independent contract as other verification services.
+
+Keep the published `/purchase-flow-vectors` keys and optional adapter-evidence
+fields in `PurchaseFlowPurchase` compatible through minor releases. Removing
+them requires a separately reviewed major design.
 
 - `schema-files.mjs` is the ordered production schema inventory SSOT. Generator
   code must import it directly. Do not add parallel schema lists or external
@@ -32,6 +42,8 @@ directory's `schema-files.mjs` or merge the two generation pipelines.
   used by platform sync and commit-time drift checks. Groups without an
   `exportKey` are library-to-library mirrors (such as react-native-iap's
   `errorMapping.ts` into expo-iap) that the client package does not publish.
+  Expo owns its `src/purchase-flow.ts` compatibility facade so its deep imports
+  can retire independently; its core and adapters remain generated mirrors.
 - `src/store-registry.json` owns provider ids, aliases, tiers, and reports; see
   [02-architecture.md](../../knowledge/internal/02-architecture.md#store-providers)
   and regenerate consumers with `bun run stores:generate` from the repo root.

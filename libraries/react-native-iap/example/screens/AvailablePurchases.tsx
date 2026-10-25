@@ -364,19 +364,24 @@ export default function AvailablePurchases() {
 
               {/* Android-specific fields */}
               {Platform.OS === 'android' &&
-                'autoRenewingAndroid' in purchase &&
-                purchase.autoRenewingAndroid !== undefined && (
+                'autoRenewingAndroid' in purchase && (
                   <View style={styles.purchaseRow}>
                     <Text style={styles.label}>Auto Renewing:</Text>
                     <Text
                       style={[
                         styles.value,
-                        purchase.autoRenewingAndroid
-                          ? styles.activeText
-                          : styles.expiredText,
+                        purchase.autoRenewingAndroid == null
+                          ? undefined
+                          : purchase.autoRenewingAndroid
+                            ? styles.activeText
+                            : styles.expiredText,
                       ]}
                     >
-                      {purchase.autoRenewingAndroid ? '✅ Yes' : '❌ No'}
+                      {purchase.autoRenewingAndroid == null
+                        ? 'Unavailable'
+                        : purchase.autoRenewingAndroid
+                          ? '✅ Yes'
+                          : '❌ No'}
                     </Text>
                   </View>
                 )}

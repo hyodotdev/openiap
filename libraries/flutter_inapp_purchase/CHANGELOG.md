@@ -1,5 +1,19 @@
 # Changelog
 
+## 11.2.0 (2026-10-25)
+
+- refactor: keep the purchase flow core vendor-neutral
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-11.2.0
+
+
+## 11.1.0 (2026-10-24)
+
+- feat: one purchase flow in every framework, with prepaid pending payments (#559)
+- fix(google): enable pending purchases for prepaid plans (#552)
+- fix: finish Horizon and Amazon verification in kmp-iap and maui-iap (#551)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-11.1.0
+
+
 ## 11.0.3 (2026-10-16)
 
 - fix(apple): recover app ownership on explicit retry (#535)

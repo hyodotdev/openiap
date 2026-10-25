@@ -750,15 +750,16 @@ function mapReceipt(
     transactionDate: toTimestamp(receipt.purchaseDate),
     purchaseToken: receiptId,
     currentPlanId:
-      type === 'subs' ? (nonBlankString(receipt.termSku) ?? productId) : null,
+      type === 'subs' ? nonBlankString(receipt.termSku) ?? productId : null,
     ids: productId ? [productId] : [],
     store: 'amazon',
     storeId: 'amazon',
     quantity: 1,
     purchaseState: isActive ? 'purchased' : 'unknown',
-    isAutoRenewing: type === 'subs' && isActive,
+    // Device receipts do not report renewal preferences.
+    isAutoRenewing: false,
     transactionId: receiptId,
-    autoRenewingAndroid: type === 'subs' && isActive,
+    autoRenewingAndroid: type === 'subs' ? null : false,
     dataAndroid: JSON.stringify(receipt),
     signatureAndroid: null,
     isAcknowledgedAndroid: false,
@@ -1144,7 +1145,7 @@ export function createExpoIapVegaModule(
         try {
           const parsed = JSON.parse(value);
           return parsed && typeof parsed === 'object'
-            ? (extractIapkitErrorMessage(parsed, depth + 1) ?? value)
+            ? extractIapkitErrorMessage(parsed, depth + 1) ?? value
             : value;
         } catch {
           return value;
@@ -1496,7 +1497,7 @@ export function createExpoIapVegaModule(
       return purchases
         .filter(
           (purchase) =>
-            purchase.isAutoRenewing &&
+            purchase.currentPlanId != null &&
             (requestedIds.size === 0 || requestedIds.has(purchase.productId)),
         )
         .map((purchase) => ({
@@ -1523,8 +1524,9 @@ export function createExpoIapVegaModule(
     async hasActiveSubscriptions(
       subscriptionIds?: string[] | null,
     ): Promise<boolean> {
-      const subscriptions =
-        await vegaModule.getActiveSubscriptions(subscriptionIds);
+      const subscriptions = await vegaModule.getActiveSubscriptions(
+        subscriptionIds,
+      );
       return subscriptions.length > 0;
     },
     async acknowledgePurchaseAndroid(purchaseToken): Promise<void> {

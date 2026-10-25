@@ -1,4 +1,5 @@
-// On-device confirmation for the purchase flow; ported from specs/client/src/purchase-flow.ts.
+// On-device confirmation for the purchase flow; ported from
+// specs/client/src/purchase-flow-confirmers.ts.
 package io.github.hyochan.kmpiap
 
 import io.github.hyochan.kmpiap.openiap.IapStore
@@ -11,20 +12,14 @@ import kotlin.time.Clock
  * app with neither a backend nor IAPKit. StoreKit verified the transaction if
  * it is still unfinished, unrevoked, not upgraded, unexpired, and from the
  * purchase's environment; [grant] then runs before the flow finishes it.
- * Apps pass [confirmOnDeviceIOS], which binds this SDK's.
+ * Apps pass [confirmOnDeviceIOS], which binds this SDK's; tests set the time in
+ * ms with [clock].
  */
-fun createDeviceConfirmationIOS(
+internal fun deviceConfirmationIOS(
     getPendingTransactionsIOS: suspend () -> List<PurchaseIOS>,
     grant: (suspend (purchase: Purchase, isConsumable: Boolean) -> Unit)? = null,
-): suspend (purchase: Purchase, isConsumable: Boolean) -> PurchaseConfirmation =
-    createDeviceConfirmationIOS(getPendingTransactionsIOS, grant, clock = { Clock.System.now().toEpochMilliseconds() })
-
-// Reads the time in ms from [clock], so tests can set it.
-internal fun createDeviceConfirmationIOS(
-    getPendingTransactionsIOS: suspend () -> List<PurchaseIOS>,
-    grant: (suspend (purchase: Purchase, isConsumable: Boolean) -> Unit)?,
-    clock: () -> Long,
-): suspend (purchase: Purchase, isConsumable: Boolean) -> PurchaseConfirmation = { purchase, isConsumable ->
+    clock: () -> Long = { Clock.System.now().toEpochMilliseconds() },
+): suspend (Purchase, Boolean) -> PurchaseConfirmation = { purchase, isConsumable ->
     requireGrant("confirmOnDeviceIOS", purchase, isConsumable, grant)
     // A community provider may report store Apple under its own storeId.
     require(purchase.store == IapStore.Apple && purchase.storeId.ifEmpty { "apple" } == "apple") {
@@ -57,5 +52,12 @@ internal fun createDeviceConfirmationIOS(
  */
 fun KmpInAppPurchase.confirmOnDeviceIOS(
     grant: (suspend (purchase: Purchase, isConsumable: Boolean) -> Unit)? = null,
-): suspend (purchase: Purchase, isConsumable: Boolean) -> PurchaseConfirmation =
-    createDeviceConfirmationIOS({ getPendingTransactionsIOS() }, grant)
+): suspend (Purchase, Boolean) -> PurchaseConfirmation =
+    deviceConfirmationIOS({ getPendingTransactionsIOS() }, grant)
+
+
+@Deprecated("Use confirmOnDeviceIOS. Removed in the next major release.")
+public fun createDeviceConfirmationIOS(
+    getPendingTransactionsIOS: suspend () -> List<PurchaseIOS>,
+    grant: (suspend (purchase: Purchase, isConsumable: Boolean) -> Unit)? = null,
+): suspend (Purchase, Boolean) -> PurchaseConfirmation = deviceConfirmationIOS(getPendingTransactionsIOS, grant)

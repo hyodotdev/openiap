@@ -3,7 +3,7 @@
  * Each target owns its copy/post-process mode here so adding a manifest edge
  * automatically makes it part of synchronization and drift verification.
  * Groups with an exportKey are published by the client spec package; the rest
- * mirror a library-owned source into a sibling library.
+ * sync internal artifacts without adding a public package entry point.
  */
 const target = (path, label, mode = 'copy') => Object.freeze({ path, label, mode });
 const group = ({ source, generated, exportKey, targets }) =>
@@ -86,8 +86,35 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
     generated: false,
     exportKey: './purchase-flow',
     targets: {
-      reactNative: target('libraries/react-native-iap/src/purchase-flow.ts', 'purchase-flow → react-native-iap'),
-      expo: target('libraries/expo-iap/src/purchase-flow.ts', 'purchase-flow → expo-iap'),
+      reactNative: target('libraries/react-native-iap/src/purchase-flow.ts', 'purchase-flow → react-native-iap', 'typescript-bundler'),
+    },
+  }),
+  purchaseFlowCore: group({
+    source: "specs/client/src/purchase-flow-core.ts",
+    generated: false,
+    targets: {
+      reactNative: target(
+        "libraries/react-native-iap/src/purchase-flow-core.ts",
+        "purchase-flow-core → react-native-iap",
+        "typescript-bundler",
+      ),
+      expo: target(
+        "libraries/expo-iap/src/purchase-flow-core.ts",
+        "purchase-flow-core → expo-iap",
+        "typescript-bundler",
+      ),
+    },
+  }),
+  purchaseFlowConfirmers: group({
+    source: 'specs/client/src/purchase-flow-confirmers.ts',
+    generated: false,
+    targets: {
+      reactNative: target(
+        'libraries/react-native-iap/src/purchase-flow-confirmers.ts',
+        'purchase-flow-confirmers → react-native-iap',
+        'typescript-bundler',
+      ),
+      expo: target('libraries/expo-iap/src/purchase-flow-confirmers.ts', 'purchase-flow-confirmers → expo-iap', 'typescript-bundler'),
     },
   }),
   purchaseFlowVectors: group({
@@ -95,6 +122,8 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
     generated: false,
     exportKey: './purchase-flow-vectors',
     targets: {
+      reactNative: target('libraries/react-native-iap/src/__tests__/fixtures/purchase-flow.vectors.json', 'purchase-flow vectors → react-native-iap'),
+      expo: target('libraries/expo-iap/src/__tests__/fixtures/purchase-flow.vectors.json', 'purchase-flow vectors → expo-iap'),
       flutter: target('libraries/flutter_inapp_purchase/test/fixtures/purchase-flow.vectors.json', 'purchase-flow vectors → flutter_inapp_purchase'),
       godot: target('libraries/godot-iap/Example/tests/fixtures/purchase-flow.vectors.json', 'purchase-flow vectors → godot-iap'),
       kmp: target(
@@ -112,6 +141,13 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
     generated: false,
     targets: {
       expo: target('libraries/expo-iap/src/utils/purchaseFlowBinding.ts', 'purchaseFlowBinding → expo-iap'),
+    },
+  }),
+  purchaseFlowTests: group({
+    source: 'libraries/react-native-iap/src/__tests__/purchaseFlow.shared.test.ts',
+    generated: false,
+    targets: {
+      expo: target('libraries/expo-iap/src/__tests__/purchaseFlow.shared.test.ts', 'purchase-flow mirror tests → expo-iap'),
     },
   }),
   errorMapping: group({

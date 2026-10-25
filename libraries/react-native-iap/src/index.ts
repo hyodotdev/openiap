@@ -92,14 +92,15 @@ import {
   type SdkPurchaseFlowOptions,
 } from './utils/purchaseFlowBinding';
 import {
-  createDeviceConfirmationIOS,
-  createIapkitConfirmation,
-  type IapkitConfirmationOptions,
-  type PurchaseConfirmation,
   type PurchaseFlow,
   type PurchaseFlowOptions,
   type PurchaseFlowPurchase,
-} from './purchase-flow';
+} from './purchase-flow-core';
+import {
+  createDeviceConfirmationIOS,
+  createIapkitConfirmation,
+  type IapkitConfirmationOptions,
+} from './purchase-flow-confirmers';
 
 // Export all types
 export type {
@@ -179,9 +180,8 @@ export type {
 export {
   describePurchaseFlowStatus,
   toPurchaseConfirmationRequest,
-} from './purchase-flow';
+} from './purchase-flow-core';
 export type {
-  IapkitConfirmationOptions,
   PurchaseConfirmation,
   PurchaseConfirmationRequest,
   PurchaseFlow,
@@ -192,7 +192,8 @@ export type {
   PurchaseFlowPurchase,
   PurchaseFlowStatus,
   RecoverPurchasesOptions,
-} from './purchase-flow';
+} from './purchase-flow-core';
+export type {IapkitConfirmationOptions} from './purchase-flow-confirmers';
 
 // Create the RnIap HybridObject instance lazily to avoid early JSI crashes
 let attachingPendingNativeListeners = false;
@@ -953,7 +954,8 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 
     if (normalizedType === 'all') {
       const converted = (await fetchAndConvert('all')) as (
-        Product | ProductSubscription
+        | Product
+        | ProductSubscription
       )[];
 
       RnIapConsole.debug(
@@ -2395,10 +2397,7 @@ export function createPurchaseFlow(
  */
 export function confirmWithIapkit(
   options: IapkitConfirmationOptions<Purchase>,
-): (
-  purchase: Purchase,
-  context: {isConsumable: boolean},
-) => Promise<PurchaseConfirmation> {
+): PurchaseFlowOptions<Purchase>['confirmWithBackend'] {
   return createIapkitConfirmation(verifyPurchaseWithProvider, options);
 }
 
@@ -2408,11 +2407,14 @@ export function confirmWithIapkit(
  * valid. Credit consumables in `grant`.
  */
 export function confirmOnDeviceIOS(
-  options: Pick<IapkitConfirmationOptions<Purchase>, 'grant'> = {},
-): (
-  purchase: Purchase,
-  context: {isConsumable: boolean},
-) => Promise<PurchaseConfirmation> {
+  options: {
+    /** Required for consumables; credit each purchase.id only once. */
+    grant?: (
+      purchase: Purchase,
+      context: {isConsumable: boolean},
+    ) => Promise<void>;
+  } = {},
+): PurchaseFlowOptions<Purchase>['confirmWithBackend'] {
   return createDeviceConfirmationIOS<Purchase>(
     () => getPendingTransactionsIOS(),
     options,

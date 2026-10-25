@@ -1,4 +1,5 @@
-// On-device App Store confirmation, ported from specs/client/src/purchase-flow.ts.
+// On-device App Store confirmation, ported from
+// specs/client/src/purchase-flow-confirmers.ts.
 
 #nullable enable
 
@@ -10,30 +11,25 @@ using OpenIap;
 
 namespace OpenIap.Maui;
 
-public static class DeviceConfirmationIOS
+internal static class DeviceConfirmationIOSImplementation
 {
     /// <summary>
     /// <see cref="OpenIapClient.ConfirmOnDeviceIOS"/>, given a
     /// <c>GetPendingTransactionsIOSAsync</c>. StoreKit verified the transaction
     /// if it is still unfinished, unrevoked, not upgraded, unexpired, and from
     /// the purchase's environment; <paramref name="grant"/> then runs before
-    /// the flow finishes it.
+    /// the flow finishes it. Tests pass their own <paramref name="clock"/>, in Unix ms.
     /// </summary>
-    public static PurchaseConfirmer Create(
-        Func<Task<IReadOnlyList<PurchaseIOS>>> getPendingTransactionsIOS,
-        PurchaseGranter? grant = null) =>
-        Create(getPendingTransactionsIOS, grant, () => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-
-    // Tests pass their own clock, in Unix ms.
     internal static PurchaseConfirmer Create(
         Func<Task<IReadOnlyList<PurchaseIOS>>> getPendingTransactionsIOS,
-        PurchaseGranter? grant,
-        Func<long> clock)
+        PurchaseGranter? grant = null,
+        Func<long>? clock = null)
     {
         ArgumentNullException.ThrowIfNull(getPendingTransactionsIOS);
+        clock ??= () => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         return async (purchase, isConsumable) =>
         {
-            IapkitConfirmation.RequireGrant("ConfirmOnDeviceIOS", purchase, isConsumable, grant);
+            IapkitConfirmationImplementation.RequireGrant("ConfirmOnDeviceIOS", purchase, isConsumable, grant);
             // A community provider may report the App Store under its own store id.
             if (purchase.Store != IapStore.Apple || purchase.StoreId != "apple")
             {
@@ -61,4 +57,14 @@ public static class DeviceConfirmationIOS
             return new PurchaseConfirmation.Entitled(AlreadyGranted: false);
         };
     }
+}
+
+
+[Obsolete("Use OpenIapClient.ConfirmOnDeviceIOS. Removed in the next major release.")]
+public static class DeviceConfirmationIOS
+{
+    public static PurchaseConfirmer Create(
+        Func<Task<IReadOnlyList<PurchaseIOS>>> getPendingTransactionsIOS,
+        PurchaseGranter? grant = null) =>
+        DeviceConfirmationIOSImplementation.Create(getPendingTransactionsIOS, grant);
 }

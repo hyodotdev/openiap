@@ -1,6 +1,6 @@
 {
   "name": "@hyodotdev/openiap-client-protocol",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "publishConfig": {
     "access": "public"
   },
@@ -48,6 +48,8 @@
     "src/*.graphql",
     "src/kit-api.ts",
     "src/purchase-flow.ts",
+    "src/purchase-flow-core.ts",
+    "src/purchase-flow-confirmers.ts",
     "src/purchase-flow.vectors.json",
     "src/generated/"
   ],

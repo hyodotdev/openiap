@@ -3,6 +3,11 @@
 Rules for changing the OpenIAP Commerce Protocol. Read `SPEC.md` first; this
 file covers how to modify it safely.
 
+Before changing the public contract, follow the
+[Public Contract Design Gate](../../knowledge/internal/02-architecture.md#public-contract-design-gate).
+Hyo approves the concrete design before implementation; IAPKit is one
+third-party implementation of the standard.
+
 ## The GraphQL contract is the source of truth
 
 Edit the layers under `schema/` — one file per logical surface, assembled in
