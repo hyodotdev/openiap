@@ -1,6 +1,7 @@
 // External dependencies
 import {Platform} from 'react-native';
 import {
+  EXPO_GO_UNSUPPORTED_MESSAGE,
   getNativeIapInstance,
   hasNativeIapInstance,
   isNativeIapReady,
@@ -264,6 +265,10 @@ function attachNativeListenerOrDefer(label: string, attach: () => void): void {
   try {
     attach();
   } catch (error) {
+    if (toErrorMessage(error) === EXPO_GO_UNSUPPORTED_MESSAGE) {
+      RnIapConsole.warn(`[${label}] ${EXPO_GO_UNSUPPORTED_MESSAGE}`);
+      return;
+    }
     if (toErrorMessage(error).includes('Nitro runtime not installed')) {
       RnIapConsole.warn(
         `[${label}] Nitro not ready yet; will retry on the next native operation`,

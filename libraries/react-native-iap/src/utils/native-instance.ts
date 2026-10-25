@@ -1,8 +1,15 @@
-import {NitroModules} from 'react-native-nitro-modules';
+/* eslint-disable @typescript-eslint/no-require-imports */
 import type {RnIap} from '../specs/RnIap.nitro';
 import {getVegaIapModule as getVegaAdapter, isVegaOS} from '../vega';
 
 let iapRef: RnIap | null = null;
+
+interface ExpoGlobal {
+  expo?: {modules?: {ExpoGo?: unknown}};
+}
+
+export const EXPO_GO_UNSUPPORTED_MESSAGE =
+  'react-native-iap cannot run in Expo Go. For Expo projects, use expo-iap in a native development build instead.';
 
 export const toErrorMessage = (error: unknown): string => {
   if (
@@ -17,13 +24,8 @@ export const toErrorMessage = (error: unknown): string => {
 };
 
 export const isNativeIapReady = (): boolean => {
-  if (iapRef) return true;
-  if (isVegaOS()) {
-    iapRef = getVegaAdapter();
-    return Boolean(iapRef);
-  }
   try {
-    iapRef = NitroModules.createHybridObject<RnIap>('RnIap');
+    getNativeIapInstance();
     return true;
   } catch {
     return false;
@@ -44,8 +46,15 @@ export function getNativeIapInstance(): RnIap {
     return iapRef;
   }
 
-  // Attempt to create the HybridObject and map common Nitro/JSI readiness errors
+  if ((globalThis as ExpoGlobal).expo?.modules?.ExpoGo) {
+    throw new Error(EXPO_GO_UNSUPPORTED_MESSAGE);
+  }
+
   try {
+    // Nitro's import itself installs native bindings, which Expo Go cannot load.
+    const {
+      NitroModules,
+    }: typeof import('react-native-nitro-modules') = require('react-native-nitro-modules');
     iapRef = NitroModules.createHybridObject<RnIap>('RnIap');
   } catch (e) {
     const msg = toErrorMessage(e);
