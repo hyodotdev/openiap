@@ -496,13 +496,10 @@ registries to serve the natives that tree pins
 ### Deploying Documentation
 
 Vercel automatically deploys production documentation when a commit reaches
-`main` in `hyodotdev/openiap`. Other branches and pull requests receive a
-preview only when they change a file the docs site is built from;
-`DOCS_INPUTS` in `packages/docs/scripts/vercel-ignore-build.mjs` (the
-`ignoreCommand`) lists those files, and its log line says why it built or
-skipped. Anything it cannot compare builds. A fork's pull request needs Vercel
-authorization before the ignored build step runs, so it shows "Authorization
-required" until then; that status is not a required check.
+`main` in `hyodotdev/openiap`. Automatic Git deployments are disabled for
+other branches and pull requests. A maintainer or owner with deployment
+access to the Hyo Dev Vercel team can create a preview from the reviewed
+checkout by running `bun run deploy:preview` in `packages/docs`.
 Documentation may show RC package metadata and release cards before the
 corresponding packages publish; deploying docs does not publish packages.
 
@@ -512,7 +509,7 @@ the monorepo with the root `packageManager` Bun version and frozen lockfile,
 validates version consistency and the
 generated docs metadata, then runs the docs build, including TypeScript checks
 and prerendering. Keep the production branch set to `main` and automatic Git
-deployments enabled.
+deployments enabled only for `main`.
 
 Manual deployment remains available from the monorepo root. On a fresh
 checkout, run `vercel link --project openiap` and select the existing OpenIAP
