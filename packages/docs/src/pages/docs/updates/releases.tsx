@@ -33,6 +33,14 @@ interface ReleaseChange extends ReleaseMetadata {
   description: React.ReactNode;
 }
 
+const REACT_NATIVE_EXPO_GO_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: 'react-native-iap',
+    version: '17.2.2',
+    tag: 'react-native-iap-17.2.2',
+  },
+];
+
 const PURCHASE_CONFIRMER_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: '@hyodotdev/openiap-client-protocol',
@@ -667,6 +675,43 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'react-native-expo-go-2026-10-25',
+      date: new Date('2026-10-25'),
+      element: (
+        <div key="react-native-expo-go-2026-10-25" style={noteCardStyle}>
+          {REACT_NATIVE_EXPO_GO_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="react-native-expo-go-2026-10-25" level="h4">
+            October 25, 2026 - Clear Expo Go setup errors
+          </AnchorLink>
+          <p>
+            react-native-iap 17.2.2 reports that Expo Go is unsupported when
+            initializing purchases, instead of failing while importing Nitro.
+            Registering purchase listeners before initialization remains safe.
+          </p>
+          <p>
+            For Expo projects, use <Link to="/docs/setup/expo">expo-iap</Link>{' '}
+            in a native development build. Neither library runs in Expo Go;
+            react-native-iap continues to support bare React Native apps. See{' '}
+            <a href="https://github.com/hyodotdev/openiap/pull/561">#561</a>.
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            {REACT_NATIVE_EXPO_GO_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                >
+                  {getReleaseLabel(release)}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
     {
       id: 'purchase-confirmers-2026-10-25',
       date: new Date('2026-10-25'),

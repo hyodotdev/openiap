@@ -4,7 +4,6 @@ import {
   EXPO_GO_UNSUPPORTED_MESSAGE,
   getNativeIapInstance,
   hasNativeIapInstance,
-  isExpoGo,
   isNativeIapReady,
   toErrorMessage,
 } from './utils/native-instance';
@@ -205,8 +204,6 @@ let attachingPendingNativeListeners = false;
  */
 export const isNitroReady = isNativeIapReady;
 
-export {isExpoGo};
-
 /**
  * Check if we're running on tvOS.
  * tvOS reports Platform.OS as 'ios' but has Platform.isTV = true.
@@ -268,7 +265,7 @@ function attachNativeListenerOrDefer(label: string, attach: () => void): void {
   try {
     attach();
   } catch (error) {
-    if (isExpoGo()) {
+    if (toErrorMessage(error) === EXPO_GO_UNSUPPORTED_MESSAGE) {
       RnIapConsole.warn(`[${label}] ${EXPO_GO_UNSUPPORTED_MESSAGE}`);
       return;
     }

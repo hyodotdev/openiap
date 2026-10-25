@@ -1,32 +1,49 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const EXPO_GO_MESSAGE = 'react-native-iap cannot run in Expo Go';
+const NITRO_IMPORT_ERROR = 'The native NitroModules module could not be found.';
 
-const loadWithoutNitro = () => {
+const loadWithoutNitro = (): typeof import('../index') => {
   jest.resetModules();
   jest.doMock('react-native-nitro-modules', () => ({
     NitroModules: {
       createHybridObject: jest.fn(() => {
-        throw new Error(
-          'Failed to get NitroModules: The native "NitroModules" Turbo/Native-Module could not be found.',
-        );
+        throw new Error(NITRO_IMPORT_ERROR);
       }),
     },
   }));
   return require('../index');
 };
 
+const loadWithNitroImportFailure = (): typeof import('../index') => {
+  jest.resetModules();
+  jest.doMock('react-native-nitro-modules', () => {
+    throw new Error(NITRO_IMPORT_ERROR);
+  });
+  return require('../index');
+};
+
 describe('Expo Go', () => {
+  const originalExpo = Object.getOwnPropertyDescriptor(globalThis, 'expo');
+
   afterEach(() => {
-    delete (globalThis as {expo?: unknown}).expo;
+    if (originalExpo) {
+      Object.defineProperty(globalThis, 'expo', originalExpo);
+    } else {
+      delete (globalThis as {expo?: unknown}).expo;
+    }
+    jest.restoreAllMocks();
   });
 
   describe('when running in Expo Go', () => {
     beforeEach(() => {
-      (globalThis as {expo?: unknown}).expo = {modules: {ExpoGo: {}}};
+      Object.defineProperty(globalThis, 'expo', {
+        configurable: true,
+        value: {modules: {ExpoGo: {}}},
+      });
     });
 
-    it('detects Expo Go', () => {
-      expect(loadWithoutNitro().isExpoGo()).toBe(true);
+    it('reports the native runtime as unavailable', () => {
+      expect(loadWithoutNitro().isNitroReady()).toBe(false);
     });
 
     it('rejects initConnection with an Expo Go message', async () => {
@@ -35,21 +52,65 @@ describe('Expo Go', () => {
       );
     });
 
-    it('keeps listener registration from throwing', () => {
+    it('allows early listener registration and cleanup with a warning', () => {
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
       const IAP = loadWithoutNitro();
-      expect(() => IAP.purchaseUpdatedListener(jest.fn())).not.toThrow();
-      expect(() => IAP.purchaseErrorListener(jest.fn())).not.toThrow();
+      const updated = IAP.purchaseUpdatedListener(jest.fn());
+      const failed = IAP.purchaseErrorListener(jest.fn());
+
+      expect(() => updated.remove()).not.toThrow();
+      expect(() => failed.remove()).not.toThrow();
+      expect(warn).toHaveBeenCalledWith(
+        '[RN-IAP]',
+        expect.stringContaining(EXPO_GO_MESSAGE),
+      );
+    });
+
+    it('loads and explains the unsupported runtime before importing Nitro', async () => {
+      const IAP = loadWithNitroImportFailure();
+
+      expect(IAP.isNitroReady()).toBe(false);
+      await expect(IAP.initConnection()).rejects.toThrow(EXPO_GO_MESSAGE);
+    });
+
+    it('keeps listeners safe when Nitro itself cannot be imported', () => {
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const IAP = loadWithNitroImportFailure();
+
+      expect(() =>
+        IAP.purchaseUpdatedListener(jest.fn()).remove(),
+      ).not.toThrow();
+      expect(() => IAP.purchaseErrorListener(jest.fn()).remove()).not.toThrow();
     });
   });
 
   describe('outside Expo Go', () => {
-    it('does not detect Expo Go', () => {
-      expect(loadWithoutNitro().isExpoGo()).toBe(false);
+    it('preserves the native runtime initialization error', async () => {
+      const IAP = loadWithoutNitro();
+
+      expect(IAP.isNitroReady()).toBe(false);
+      await expect(IAP.initConnection()).rejects.toThrow(
+        'Nitro runtime not installed yet',
+      );
     });
 
-    it('does not mention Expo Go in the init error', async () => {
-      await expect(loadWithoutNitro().initConnection()).rejects.not.toThrow(
-        EXPO_GO_MESSAGE,
+    it('defers a failed Nitro import until a native operation', async () => {
+      const IAP = loadWithNitroImportFailure();
+
+      expect(IAP.isNitroReady()).toBe(false);
+      await expect(IAP.initConnection()).rejects.toThrow(
+        'Nitro runtime not installed yet',
+      );
+    });
+
+    it('does not mistake a development build for Expo Go', async () => {
+      Object.defineProperty(globalThis, 'expo', {
+        configurable: true,
+        value: {modules: {}},
+      });
+
+      await expect(loadWithoutNitro().initConnection()).rejects.toThrow(
+        'Nitro runtime not installed yet',
       );
     });
   });

@@ -31,7 +31,9 @@ function ReactNativeSetup() {
         <strong>Android minSdkVersion {ANDROID_SDK.minSdk}+</strong> with{' '}
         <strong>compileSdkVersion {ANDROID_SDK.compileSdk}+</strong>. Expo
         support ended in v15.0.0 — use <a href="/docs/setup/expo">expo-iap</a>{' '}
-        instead; it provides the same API on Expo Modules.
+        in a native development build instead; it provides the same API on Expo
+        Modules. Neither library runs in Expo Go. If initialized there,
+        react-native-iap reports this requirement before loading Nitro.
       </p>
 
       <Callout kind="important" title="Before you start">
