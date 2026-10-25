@@ -427,8 +427,9 @@ export const upsertProduct = mutation({
       args.type === "Subscription" &&
       (!args.subscriptionGroupName || !args.subscriptionGroupName.trim())
     ) {
-      throw new Error(
-        "subscriptionGroupName is required for iOS Subscription products — related tiers must share a group for StoreKit 2 upgrade/downgrade to work. Pick a group name (e.g. 'premium_tiers') and reuse it for every related subscription. kit's push-sync (asc.ts) will create the group in App Store Connect on first push and reuse the existing group on subsequent pushes if a group with the same name already exists upstream — you do not have to create it in ASC manually first.",
+      throw createError(
+        ErrorCode.INVALID_INPUT,
+        "subscriptionGroupName is required for iOS Subscription products. Reuse the same group name for related subscription tiers so StoreKit 2 can upgrade or downgrade between them.",
       );
     }
 
