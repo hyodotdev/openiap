@@ -12,6 +12,7 @@ export function kitClient(origin) {
   let session;
   async function request(route, body, token, raw = false) {
     let response;
+    let text;
     try {
       response = await fetch(`${origin}${raw ? "" : "/cli/v1"}${route}`, {
         method: raw ? "GET" : "POST",
@@ -23,29 +24,33 @@ export function kitClient(origin) {
         },
         body: JSON.stringify(body),
       });
-    } catch {
+      const limit = 16 * 1024 * 1024;
+      const chunks = [];
+      let size = 0;
+      const reader = response.body?.getReader();
+      if (reader) {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          size += value.byteLength;
+          if (size > limit) {
+            await reader.cancel().catch(() => {});
+            throw new KitError(
+              "RESPONSE_TOO_LARGE",
+              "Use a smaller page size.",
+            );
+          }
+          chunks.push(value);
+        }
+      }
+      text = Buffer.concat(chunks).toString("utf8");
+    } catch (error) {
+      if (error instanceof KitError) throw error;
       throw new KitError(
         "NETWORK_ERROR",
         "IAPKit could not be reached. Check --base-url and your connection.",
       );
     }
-    const limit = 16 * 1024 * 1024;
-    const chunks = [];
-    let size = 0;
-    const reader = response.body?.getReader();
-    if (reader) {
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        size += value.byteLength;
-        if (size > limit) {
-          await reader.cancel();
-          throw new KitError("RESPONSE_TOO_LARGE", "Use a smaller page size.");
-        }
-        chunks.push(value);
-      }
-    }
-    const text = Buffer.concat(chunks).toString("utf8");
     let result;
     try {
       result = JSON.parse(text);

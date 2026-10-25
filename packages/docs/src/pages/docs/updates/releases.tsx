@@ -681,14 +681,14 @@ function Releases() {
   const allNotes: Note[] = [
     {
       id: 'iapkit-cli-2026-10-25',
-      date: new Date('2026-10-25'),
+      date: new Date('2026-10-26'),
       element: (
         <div key="iapkit-cli-2026-10-25" style={noteCardStyle}>
           {IAPKIT_CLI_RELEASES.map((release) => (
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
           <AnchorLink id="iapkit-cli-2026-10-25" level="h4">
-            October 25, 2026 - Operate IAPKit from the terminal
+            October 26, 2026 - Operate IAPKit from the terminal
           </AnchorLink>
           <p>
             OpenIAP CLI 0.3.0 adds <code>openiap kit</code> for browser login,

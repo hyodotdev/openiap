@@ -26,6 +26,7 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-10-26",
     weekStart: "2026-10-26",
     date: "2026-10-26",
+    pullRequests: [564],
     tagline: "Terminal access, scoped automation and safe catalog previews.",
     items: [
       {

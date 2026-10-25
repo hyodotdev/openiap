@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeOrigin, saveSession } from "../src/kit/session.mjs";
+import { kitClient } from "../src/kit/client.mjs";
 
 const bin = fileURLToPath(new URL("../bin/openiap.mjs", import.meta.url));
 let directory, origin, server;
@@ -135,6 +136,45 @@ test("health probes the server independently of login", async () => {
   });
   assert.equal(result.status, 0, result.stderr);
   assert.equal(JSON.parse(result.stdout).data.status, "ok");
+});
+
+test("interrupted response bodies return the stable network error code", async (t) => {
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.error(
+              new DOMException("Connection interrupted", "AbortError"),
+            );
+          },
+        }),
+      ),
+  );
+  await assert.rejects(kitClient(origin).health(), { code: "NETWORK_ERROR" });
+});
+
+test("oversized responses keep their error code when cancellation fails", async (t) => {
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new Uint8Array(16 * 1024 * 1024 + 1));
+          },
+          cancel() {
+            throw new Error("Connection closed during cancellation");
+          },
+        }),
+      ),
+  );
+  await assert.rejects(kitClient(origin).health(), {
+    code: "RESPONSE_TOO_LARGE",
+  });
 });
 
 test("browser login persists a private session reused by separate CLI processes", async () => {
