@@ -702,7 +702,8 @@ npx --yes @hyodotdev/openiap kit projects list --json
 npx --yes @hyodotdev/openiap kit schema keys create --json`}</CodeBlock>
           <p>
             Coding agents discover inputs through JSON Schemas and receive
-            structured results without an MCP connection. Automation tokens have
+            structured results without an MCP connection. Invalid inputs are
+            rejected locally with schema guidance. Automation tokens have
             scopes, expiry and revocation. Store synchronization previews
             changes by default; applying changes requires{' '}
             <code>--apply --yes</code>. Key regeneration immediately disables

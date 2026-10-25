@@ -80,6 +80,10 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
+      "/health": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
       "/cli/v1": {
         target: "http://localhost:3000",
         changeOrigin: true,

@@ -75,7 +75,7 @@ function parse(argv, operation) {
       continue;
     }
     const key = Object.hasOwn(aliases, flag) ? aliases[flag] : camel(flag);
-    const field = fields[key];
+    const field = Object.hasOwn(fields, key) ? fields[key] : undefined;
     if (
       !field &&
       !values.has(flag) &&
@@ -240,20 +240,63 @@ async function login(client, origin, args, options) {
   );
 }
 
+function matchesSchema(value, schema) {
+  if (Object.hasOwn(schema, "const")) return value === schema.const;
+  if (schema.anyOf)
+    return schema.anyOf.some((option) => matchesSchema(value, option));
+  if (schema.type === "array")
+    return (
+      Array.isArray(value) &&
+      value.every((item) => matchesSchema(item, schema.items))
+    );
+  if (schema.type === "object") {
+    if (typeof value !== "object" || value === null || Array.isArray(value))
+      return false;
+    if (schema.required?.some((key) => !Object.hasOwn(value, key)))
+      return false;
+    return Object.entries(value).every(([key, item]) => {
+      const field = Object.hasOwn(schema.properties ?? {}, key)
+        ? schema.properties[key]
+        : schema.additionalProperties;
+      return field === undefined || field === true
+        ? true
+        : field !== false && matchesSchema(item, field);
+    });
+  }
+  if (schema.type === "null") return value === null;
+  if (schema.type === "number")
+    return typeof value === "number" && Number.isFinite(value);
+  return !schema.type || typeof value === schema.type;
+}
+
 function validate(operation, args) {
-  const fields = operation.args.value;
-  for (const [name, field] of Object.entries(fields)) {
-    if (!field.optional && !hidden.has(name) && args[name] === undefined)
+  const schema = commandSchema(operation).inputSchema;
+  for (const name of schema.required) {
+    if (args[name] === undefined)
       throw new KitError(
         "INVALID_INPUT",
         `Missing --${kebab(name)}. Use --help for the input schema.`,
       );
   }
   for (const key of Object.keys(args)) {
-    if (!(key in fields) && key !== "projectId")
-      throw new KitError("INVALID_INPUT", `Unknown input field: ${key}`);
     if (hidden.has(key))
       throw new KitError("INVALID_INPUT", `Reserved input field: ${key}`);
+    const field = Object.hasOwn(schema.properties, key)
+      ? schema.properties[key]
+      : undefined;
+    if (!field)
+      throw new KitError("INVALID_INPUT", `Unknown input field: ${key}`);
+    if (!matchesSchema(args[key], field)) {
+      const expected = field.anyOf?.every((option) =>
+        Object.hasOwn(option, "const"),
+      )
+        ? field.anyOf.map((option) => JSON.stringify(option.const)).join(" | ")
+        : (field.type ?? "a value matching the input schema");
+      throw new KitError(
+        "INVALID_INPUT",
+        `Invalid --${kebab(key)}. Expected ${expected}. Use --help for the input schema.`,
+      );
+    }
   }
 }
 

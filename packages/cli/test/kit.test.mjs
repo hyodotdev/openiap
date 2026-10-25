@@ -438,6 +438,65 @@ test("malformed JSON and unknown flags fail without echoing source secrets", asy
   assert.equal(unknown.status, 1);
 });
 
+test("generated input schemas reject invalid enums and nested values before authentication", async () => {
+  const cases = [
+    [
+      "subscriptions",
+      "status",
+      "--project",
+      "p",
+      "--user-id",
+      "u",
+      "--environment",
+      "Sandbox",
+    ],
+    ["keys", "create", "--project", "p", "--name", "CI", "--key-type", "owner"],
+    [
+      "products",
+      "create",
+      "--project",
+      "p",
+      "--product-id",
+      "item",
+      "--platform",
+      "IOS",
+      "--type",
+      "Consumable",
+      "--title",
+      "Item",
+      "--localizations",
+      '[{"locale":"ko-KR","title":42}]',
+    ],
+    ["products", "list", "--project", "p", "--limit", "null"],
+    ["projects", "list", "--org", "o", "--constructor", "hidden"],
+    [
+      "products",
+      "create",
+      "--project",
+      "p",
+      "--product-id",
+      "item",
+      "--platform",
+      "IOS",
+      "--type",
+      "Consumable",
+      "--title",
+      "Item",
+      "--localizations",
+      '[{"locale":"ko-KR","title":"Valid","toString":"hidden"}]',
+    ],
+  ];
+  const count = requests.length;
+  for (const args of cases) {
+    const result = await run([...args, "--json"]);
+    assert.equal(result.status, 1);
+    const error = JSON.parse(result.stdout).error;
+    assert.equal(error.code, "INVALID_INPUT");
+    assert.match(error.message, /Invalid --|Unknown option/);
+  }
+  assert.equal(requests.length, count);
+});
+
 test(
   "non-regular JSON inputs fail without hanging or contacting IAPKit",
   { skip: process.platform === "win32" },

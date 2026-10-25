@@ -36,7 +36,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "fix",
         topic: "Catalog sync",
-        text: "Local catalog purge previews list planned deletions without deleting products. Applying changes requires explicit confirmation in the CLI.",
+        text: "Local catalog purge and Google Play pull previews leave local products unchanged. Applying changes requires explicit confirmation in the CLI.",
       },
     ],
   },

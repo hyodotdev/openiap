@@ -43,6 +43,8 @@ npx --yes @hyodotdev/openiap kit keys create --help
 `keyId`. Other fields use kebab-case flags. Arrays and objects take JSON;
 `--file request.json` supplies a JSON body, and flags override its fields.
 Use `--file -` to read JSON from stdin.
+Inputs are checked against the generated schema before a request is sent;
+invalid enum choices, types and nested fields return `INVALID_INPUT`.
 
 | Group                                                                    | Operations                                                                                    |
 | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |

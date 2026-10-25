@@ -359,27 +359,28 @@ async function performAndroidSync(
                   `If it is a consumable, set its type in the dashboard; until then it verifies as pending-acknowledgment rather than ready-to-consume.`,
               });
             }
-            await ctx.runMutation(internal.products.sync.upsertFromStore, {
-              projectId: project._id,
-              productId: product.productId,
-              platform: "Android",
-              // Play tracks consumption per purchase, not per product; keep the
-              // kit-authored type so a pull never turns a consumable into a
-              // non-consumable.
-              type: preservePlayOneTimeType(existingType, "NonConsumable"),
-              ...splitStoreListings(
-                (product.listings ?? []).map((entry) => ({
-                  locale: entry.languageCode,
-                  title: entry.title,
-                  description: entry.description,
-                })),
-                product.productId,
-              ),
-              priceAmountMicros,
-              currency: preferred?.currencyCode ?? undefined,
-              storeRef: product.productId,
-              state: mapModernPlayOneTimeState(product.purchaseOptions),
-            });
+            if (!dryRun)
+              await ctx.runMutation(internal.products.sync.upsertFromStore, {
+                projectId: project._id,
+                productId: product.productId,
+                platform: "Android",
+                // Play tracks consumption per purchase, not per product; keep the
+                // kit-authored type so a pull never turns a consumable into a
+                // non-consumable.
+                type: preservePlayOneTimeType(existingType, "NonConsumable"),
+                ...splitStoreListings(
+                  (product.listings ?? []).map((entry) => ({
+                    locale: entry.languageCode,
+                    title: entry.title,
+                    description: entry.description,
+                  })),
+                  product.productId,
+                ),
+                priceAmountMicros,
+                currency: preferred?.currencyCode ?? undefined,
+                storeRef: product.productId,
+                state: mapModernPlayOneTimeState(product.purchaseOptions),
+              });
             pulled += 1;
           }
           token = resp.data.nextPageToken ?? undefined;
@@ -409,20 +410,21 @@ async function performAndroidSync(
           seenOneTimeSkus.add(product.sku);
           if (product.purchaseType === "subscription") continue;
           const existingType = existingTypesByProductId.get(product.sku);
-          await ctx.runMutation(internal.products.sync.upsertFromStore, {
-            projectId: project._id,
-            productId: product.sku,
-            platform: "Android",
-            type: preservePlayOneTimeType(
-              existingType,
-              mapPlayOneTimeType(product),
-            ),
-            ...splitLegacyPlayListings(product),
-            priceAmountMicros: parsePlayPriceMicros(product),
-            currency: pickPlayCurrency(product),
-            storeRef: product.sku,
-            state: mapPlayStatus(product.status),
-          });
+          if (!dryRun)
+            await ctx.runMutation(internal.products.sync.upsertFromStore, {
+              projectId: project._id,
+              productId: product.sku,
+              platform: "Android",
+              type: preservePlayOneTimeType(
+                existingType,
+                mapPlayOneTimeType(product),
+              ),
+              ...splitLegacyPlayListings(product),
+              priceAmountMicros: parsePlayPriceMicros(product),
+              currency: pickPlayCurrency(product),
+              storeRef: product.sku,
+              state: mapPlayStatus(product.status),
+            });
           pulled += 1;
         }
         token = oneTimes.data.tokenPagination?.nextPageToken ?? undefined;
@@ -477,28 +479,29 @@ async function performAndroidSync(
                   )
                 : offers.find((o) => o.kind === "BasePlan")
             )?.duration;
-            await ctx.runMutation(internal.products.sync.upsertFromStore, {
-              projectId: project._id,
-              productId: sub.productId,
-              platform: "Android",
-              type: "Subscription",
-              ...splitStoreListings(
-                (sub.listings ?? []).map((entry) => ({
-                  locale: entry.languageCode,
-                  title: entry.title,
-                  description: entry.description,
-                })),
-                sub.productId,
-              ),
-              priceAmountMicros,
-              currency,
-              storeRef: sub.productId,
-              state: mapModernPlayOneTimeState(sub.basePlans),
-              billingPeriod: coerceBillingPeriod(billingPeriod),
-              // Play has no subscription groups; base plans fill that role as
-              // BasePlan offers, so the ASC-only group fields stay unset.
-              offers,
-            });
+            if (!dryRun)
+              await ctx.runMutation(internal.products.sync.upsertFromStore, {
+                projectId: project._id,
+                productId: sub.productId,
+                platform: "Android",
+                type: "Subscription",
+                ...splitStoreListings(
+                  (sub.listings ?? []).map((entry) => ({
+                    locale: entry.languageCode,
+                    title: entry.title,
+                    description: entry.description,
+                  })),
+                  sub.productId,
+                ),
+                priceAmountMicros,
+                currency,
+                storeRef: sub.productId,
+                state: mapModernPlayOneTimeState(sub.basePlans),
+                billingPeriod: coerceBillingPeriod(billingPeriod),
+                // Play has no subscription groups; base plans fill that role as
+                // BasePlan offers, so the ASC-only group fields stay unset.
+                offers,
+              });
             pulled += 1;
           } catch (error) {
             failures.push({
