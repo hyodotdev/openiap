@@ -22,6 +22,8 @@ code against your terminal, and approve the connection. Use `login --no-browser`
 on a remote terminal and open the printed URL yourself. Codes expire after
 10 minutes; CLI sessions expire after 30 days. `logout` revokes the current
 CLI session and removes its local credentials.
+With `IAPKIT_TOKEN` set, `logout --yes` revokes that automation token and keeps
+the saved browser login. Unset `IAPKIT_TOKEN` to log out the saved login instead.
 
 Login survives separate `npx` runs. Credentials live in `~/.config/openiap/`,
 separately for each server origin, with a private directory and files on Unix.
@@ -115,8 +117,8 @@ npx --yes @hyodotdev/openiap kit projects list --json
 
 Tokens expire in 1–90 days and can be revoked with `tokens revoke --id ID --yes`.
 `read` permits reads, `write` also permits purchase/catalog/payload/sync writes,
-and `admin` also permits organization, key, store credential and token management
-and project deletion.
+and `admin` also permits organization, key, store credential, webhook destination
+and token management, plus project deletion.
 A token never grants more authority than the account's organization role.
 `IAPKIT_TOKEN` takes precedence over saved login and is not saved locally.
 

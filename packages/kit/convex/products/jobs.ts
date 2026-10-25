@@ -217,9 +217,7 @@ export const getSyncJobById = query({
   },
 });
 
-// Idempotent enqueue: if there's already a queued/running job for this
-// (project, platform) we return the existing jobId so a double-tap or
-// page reload doesn't fan out duplicate workers.
+// Identical requests reuse the active job; a different intent waits for the slot.
 export const enqueueProductSync = mutation({
   args: {
     apiKey: v.optional(v.string()),
@@ -235,6 +233,8 @@ export const enqueueProductSync = mutation({
   handler: async (ctx, args) => {
     await assertCliScope(ctx, "write");
     const { project, userId } = await resolveProjectForMutationArgs(ctx, args);
+    const direction = args.direction ?? "both";
+    const dryRun = args.dryRun ?? false;
     // Dedup through the project's `activeSyncJobIds` lock: concurrent
     // enqueues all read and patch the project doc, so OCC retries the losers,
     // which then see the lock. An index lookup alone would let both insert.
@@ -245,6 +245,11 @@ export const enqueueProductSync = mutation({
         lockedJob &&
         (lockedJob.status === "queued" || lockedJob.status === "running")
       ) {
+        if (lockedJob.direction !== direction || lockedJob.dryRun !== dryRun)
+          throw createError(
+            ErrorCode.INVALID_INPUT,
+            `A different sync is already running. Wait for or cancel job ${lockedJob._id} before changing direction or preview/apply mode.`,
+          );
         return { jobId: lockedJob._id, deduped: true };
       }
       // The lock points at a finished job, e.g. after a worker crash or a
@@ -254,8 +259,8 @@ export const enqueueProductSync = mutation({
     const jobId = await ctx.db.insert("productSyncJobs", {
       projectId: project._id,
       platform: args.platform,
-      direction: args.direction ?? "both",
-      dryRun: args.dryRun ?? false,
+      direction,
+      dryRun,
       status: "queued",
       progress: { phase: "queued" },
       // A worker that never starts must not hold the slot; the reaper fails it.
@@ -269,7 +274,7 @@ export const enqueueProductSync = mutation({
         [args.platform]: jobId,
       },
     });
-    if (args.direction === "purge-local") {
+    if (direction === "purge-local") {
       // Purge only deletes local rows, so it runs here in the V8 runtime
       // with no store credentials and no "use node" cost.
       await ctx.scheduler.runAfter(

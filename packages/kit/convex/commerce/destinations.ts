@@ -145,7 +145,7 @@ export const create = mutation({
     eventTypes: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
-    await assertCliScope(ctx, "write");
+    await assertCliScope(ctx, "admin");
     return createHandler(ctx, args);
   },
 });
@@ -209,7 +209,7 @@ export const update = mutation({
     description: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await assertCliScope(ctx, "write");
+    await assertCliScope(ctx, "admin");
     return updateHandler(ctx, args);
   },
 });
@@ -268,7 +268,7 @@ export const rotateSecret = mutation({
     revokePrevious: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    await assertCliScope(ctx, "write");
+    await assertCliScope(ctx, "admin");
     return rotateSecretHandler(
       ctx,
       args.destinationId,
@@ -317,7 +317,7 @@ export async function rotateSecretHandler(
 export const remove = mutation({
   args: { destinationId: v.id("outboundDestinations") },
   handler: async (ctx, args) => {
-    await assertCliScope(ctx, "write");
+    await assertCliScope(ctx, "admin");
     return removeHandler(ctx, args.destinationId);
   },
 });

@@ -23,6 +23,9 @@ import { kitClient } from "../src/kit/client.mjs";
 const bin = fileURLToPath(new URL("../bin/openiap.mjs", import.meta.url));
 let directory, origin, server;
 let logoutError;
+let loginPollErrors = [];
+let deviceLifetime = 5000;
+let syncConflict = false;
 const requests = [];
 const jwt = (exp = Date.now() / 1000 + 3600) =>
   `header.${Buffer.from(JSON.stringify({ exp, sub: "user|session" })).toString("base64url")}.signature`;
@@ -70,6 +73,47 @@ before(async () => {
       body,
       authorization: request.headers.authorization,
     });
+    if (
+      request.url === "/cli/v1/auth/token" &&
+      body.deviceCode &&
+      loginPollErrors.length
+    ) {
+      const failure = loginPollErrors.shift();
+      response.writeHead(failure.status, {
+        "Content-Type": failure.html ? "text/html" : "application/json",
+      });
+      if (failure.disconnect) {
+        response.flushHeaders();
+        response.write('{"ok":');
+        setImmediate(() => response.destroy());
+      } else
+        response.end(
+          failure.html
+            ? "Gateway temporarily unavailable"
+            : JSON.stringify({
+                ok: false,
+                error: {
+                  code: failure.code,
+                  message: "Fixture login response",
+                },
+              }),
+        );
+      return;
+    }
+    if (body.command === "sync products" && syncConflict) {
+      response.writeHead(400, { "Content-Type": "application/json" });
+      response.end(
+        JSON.stringify({
+          ok: false,
+          error: {
+            code: "INVALID_INPUT",
+            message:
+              "A different sync is already running. Wait for or cancel job preview-a.",
+          },
+        }),
+      );
+      return;
+    }
     if (body.command === "logout" && logoutError) {
       response.writeHead(401, { "Content-Type": "application/json" });
       response.end(
@@ -87,7 +131,7 @@ before(async () => {
         userCode: "ABCD123456",
         verificationUrl: `${origin}/cli/authorize?user_code=ABCD123456`,
         interval: 0,
-        expiresAt: Date.now() + 5000,
+        expiresAt: Date.now() + deviceLifetime,
       };
     else if (request.url.startsWith("/cli/v1/auth/")) data = tokens();
     else if (body.command === "orgs list")
@@ -452,10 +496,20 @@ test("automation tokens do not overwrite a developer's saved login", async () =>
   });
   assert.equal(result.status, 0, result.stderr);
   assert.equal(await readFile(path.join(directory, file), "utf8"), before);
-  const logout = await run(["logout", "--json"], {
+  const count = requests.length;
+  const unconfirmed = await run(["logout", "--json"], {
+    IAPKIT_TOKEN: "fixture-automation",
+  });
+  assert.equal(
+    JSON.parse(unconfirmed.stdout).error.code,
+    "CONFIRMATION_REQUIRED",
+  );
+  assert.equal(requests.length, count);
+  const logout = await run(["logout", "--yes", "--json"], {
     IAPKIT_TOKEN: "fixture-automation",
   });
   assert.equal(logout.status, 0, logout.stderr);
+  assert.equal(requests.at(-1).body.confirmed, true);
   assert.equal(await readFile(path.join(directory, file), "utf8"), before);
 });
 
@@ -611,4 +665,111 @@ test("logout clears local credentials when the server is unreachable", async () 
   assert.equal(result.status, 1);
   assert.equal(JSON.parse(result.stdout).error.code, "NETWORK_ERROR");
   assert.equal(await loadSession(unavailable), null);
+});
+
+test("login retries a transient server failure and pending approval before succeeding", async () => {
+  const count = requests.length;
+  loginPollErrors = [
+    { status: 503, code: "REQUEST_FAILED" },
+    { status: 428, code: "AUTHORIZATION_PENDING" },
+  ];
+  try {
+    const result = await run(["login", "--no-browser", "--json"]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).data.loggedIn, true);
+    assert.equal(
+      requests.slice(count).filter((r) => r.url === "/cli/v1/auth/token")
+        .length,
+      3,
+    );
+  } finally {
+    loginPollErrors = [];
+  }
+});
+
+test("login retries a lost response and an HTML gateway error", async () => {
+  loginPollErrors = [
+    { status: 200, disconnect: true },
+    { status: 502, html: true },
+  ];
+  deviceLifetime = 9000;
+  try {
+    const result = await run(["login", "--no-browser", "--json"]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).data.loggedIn, true);
+  } finally {
+    loginPollErrors = [];
+    deviceLifetime = 5000;
+  }
+});
+
+test("login retries stop when its approval code expires", async () => {
+  loginPollErrors = [{ status: 503, code: "REQUEST_FAILED" }];
+  deviceLifetime = 250;
+  const count = requests.length;
+  try {
+    const result = await run(["login", "--no-browser", "--json"]);
+    assert.equal(result.status, 1);
+    assert.equal(JSON.parse(result.stdout).error.code, "EXPIRED_TOKEN");
+    assert.equal(
+      requests.slice(count).filter((r) => r.url === "/cli/v1/auth/token")
+        .length,
+      1,
+    );
+  } finally {
+    loginPollErrors = [];
+    deviceLifetime = 5000;
+  }
+});
+
+for (const [code, status] of [
+  ["ACCESS_DENIED", 403],
+  ["EXPIRED_TOKEN", 400],
+  ["UNAUTHENTICATED", 401],
+  ["INVALID_INPUT", 400],
+]) {
+  test(`login does not retry terminal ${code}`, async () => {
+    loginPollErrors = [{ code, status }];
+    const count = requests.length;
+    try {
+      const result = await run(["login", "--no-browser", "--json"]);
+      assert.notEqual(result.status, 0);
+      assert.equal(JSON.parse(result.stdout).error.code, code);
+      assert.equal(
+        requests.slice(count).filter((r) => r.url === "/cli/v1/auth/token")
+          .length,
+        1,
+      );
+    } finally {
+      loginPollErrors = [];
+    }
+  });
+}
+
+test("an apply conflict exits without polling the unrelated preview", async () => {
+  await saveSession(origin, tokens());
+  const count = requests.length;
+  syncConflict = true;
+  try {
+    const result = await run([
+      "sync",
+      "products",
+      "--project",
+      "p",
+      "--store",
+      "apple",
+      "--apply",
+      "--yes",
+      "--wait",
+      "--json",
+    ]);
+    assert.equal(result.status, 1);
+    assert.equal(JSON.parse(result.stdout).error.code, "INVALID_INPUT");
+    assert.deepEqual(
+      requests.slice(count).map((r) => r.body.command),
+      ["sync products"],
+    );
+  } finally {
+    syncConflict = false;
+  }
 });

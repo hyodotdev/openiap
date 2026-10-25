@@ -180,9 +180,13 @@ describe("handleConvexError", () => {
 
   // Every Convex function /v1 calls can throw AppError; none may reach the body.
   it("does not expose dashboard-scoped AppError payloads", () => {
-    expect(handleConvexError(createError(ErrorCode.PROJECT_NOT_FOUND))).toBe(
-      null,
-    );
+    for (const code of [
+      ErrorCode.PROJECT_NOT_FOUND,
+      ErrorCode.PRODUCT_NOT_FOUND,
+      ErrorCode.API_KEY_NOT_FOUND,
+      ErrorCode.API_KEY_INVALID,
+    ])
+      expect(handleConvexError(createError(code))).toBe(null);
     expect(
       handleConvexError(
         createError(ErrorCode.INVALID_INPUT, "Sync job not found"),

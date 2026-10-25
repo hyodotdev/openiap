@@ -536,6 +536,219 @@ describe("IAPKit CLI authentication", () => {
     ]);
   });
 
+  it("write tokens cannot create, change, rotate or delete webhook credentials", async () => {
+    const { t, browser, userId, org } = await fixture();
+    const { projectId } = await browser.mutation(
+      api.projects.mutation.createProject,
+      { organizationId: org.organizationId, name: "Webhook scopes" },
+    );
+    const destination = await browser.mutation(
+      api.commerce.destinations.create,
+      { projectId, url: "https://example.com/events" },
+    );
+    const token = await browser.mutation(api.cli.mutation.createToken, {
+      name: "Write webhook test",
+      scope: "write",
+      expiresInDays: 1,
+    });
+    const credentials = await t.mutation(internal.cli.internal.consume, {
+      token: token.token,
+    });
+    const cli = t.withIdentity({
+      subject: `${userId}|${credentials!.sessionId}`,
+      issuer: "https://test.convex.site",
+      iapkitCli: true,
+    });
+    const before = await t.run((ctx) => ctx.db.get(destination.destinationId));
+    await expect(
+      cli.mutation(api.commerce.destinations.create, {
+        projectId,
+        url: "https://example.com/other",
+      }),
+    ).rejects.toThrow("INSUFFICIENT_SCOPE");
+    await expect(
+      cli.mutation(api.commerce.destinations.update, {
+        destinationId: destination.destinationId,
+        url: "https://example.com/other",
+      }),
+    ).rejects.toThrow("INSUFFICIENT_SCOPE");
+    await expect(
+      cli.mutation(api.commerce.destinations.rotateSecret, {
+        destinationId: destination.destinationId,
+        revokePrevious: true,
+      }),
+    ).rejects.toThrow("INSUFFICIENT_SCOPE");
+    await expect(
+      cli.mutation(api.commerce.destinations.remove, {
+        destinationId: destination.destinationId,
+      }),
+    ).rejects.toThrow("INSUFFICIENT_SCOPE");
+    expect(await t.run((ctx) => ctx.db.get(destination.destinationId))).toEqual(
+      before,
+    );
+    expect(
+      await t.run((ctx) => ctx.db.query("outboundDestinations").collect()),
+    ).toHaveLength(1);
+    await t.run((ctx) => ctx.db.patch(token.id, { scope: "admin" }));
+    await cli.mutation(api.commerce.destinations.update, {
+      destinationId: destination.destinationId,
+      description: "Admin edit",
+    });
+    const rotated = await cli.mutation(api.commerce.destinations.rotateSecret, {
+      destinationId: destination.destinationId,
+      revokePrevious: true,
+    });
+    expect(rotated.secret).not.toBe(destination.secret);
+    const created = await cli.mutation(api.commerce.destinations.create, {
+      projectId,
+      url: "https://example.com/other",
+    });
+    await cli.mutation(api.commerce.destinations.remove, {
+      destinationId: created.destinationId,
+    });
+    expect(await t.run((ctx) => ctx.db.get(created.destinationId))).toBeNull();
+  });
+
+  it("sync applies cannot join previews and changed directions preserve the active lock", async () => {
+    const { t, browser, org } = await fixture();
+    const { projectId } = await browser.mutation(
+      api.projects.mutation.createProject,
+      { organizationId: org.organizationId, name: "Sync intents" },
+    );
+    const preview = await browser.mutation(
+      api.products.jobs.enqueueProductSync,
+      { projectId, platform: "IOS", direction: "push", dryRun: true },
+    );
+    for (const status of ["queued", "running"] as const) {
+      await t.run((ctx) => ctx.db.patch(preview.jobId, { status }));
+      expect(
+        await browser.mutation(api.products.jobs.enqueueProductSync, {
+          projectId,
+          platform: "IOS",
+          direction: "push",
+          dryRun: true,
+        }),
+      ).toEqual({ jobId: preview.jobId, deduped: true });
+      for (const change of [
+        { direction: "push", dryRun: false },
+        { direction: "pull", dryRun: true },
+      ] as const) {
+        await expect(
+          browser.mutation(api.products.jobs.enqueueProductSync, {
+            projectId,
+            platform: "IOS",
+            ...change,
+          }),
+        ).rejects.toThrow("A different sync is already running");
+      }
+      expect(await t.run((ctx) => ctx.db.get(projectId))).toMatchObject({
+        activeSyncJobIds: { IOS: preview.jobId },
+      });
+      expect(
+        await t.run((ctx) => ctx.db.query("productSyncJobs").collect()),
+      ).toHaveLength(1);
+    }
+    await t.run((ctx) => ctx.db.patch(preview.jobId, { status: "queued" }));
+    await browser.mutation(api.products.jobs.cancelProductSync, {
+      projectId,
+      jobId: preview.jobId,
+    });
+    const apply = await browser.mutation(api.products.jobs.enqueueProductSync, {
+      projectId,
+      platform: "IOS",
+      direction: "push",
+      dryRun: false,
+    });
+    expect(apply.deduped).toBe(false);
+    expect(apply.jobId).not.toBe(preview.jobId);
+    expect(await t.run((ctx) => ctx.db.get(apply.jobId))).toMatchObject({
+      dryRun: false,
+      direction: "push",
+    });
+    await expect(
+      browser.mutation(api.products.jobs.enqueueProductSync, {
+        projectId,
+        platform: "IOS",
+        direction: "push",
+        dryRun: true,
+      }),
+    ).rejects.toThrow("A different sync is already running");
+  });
+
+  it("sync defaults deduplicate with explicit both/apply intent", async () => {
+    const { browser, org } = await fixture();
+    const { projectId } = await browser.mutation(
+      api.projects.mutation.createProject,
+      { organizationId: org.organizationId, name: "Sync defaults" },
+    );
+    const first = await browser.mutation(api.products.jobs.enqueueProductSync, {
+      projectId,
+      platform: "Android",
+    });
+    expect(
+      await browser.mutation(api.products.jobs.enqueueProductSync, {
+        projectId,
+        platform: "Android",
+        direction: "both",
+        dryRun: false,
+      }),
+    ).toEqual({ jobId: first.jobId, deduped: true });
+  });
+
+  it("missing keys, projects and products return private structured errors", async () => {
+    const { t, browser, org } = await fixture();
+    const { projectId, apiKeyId } = await browser.mutation(
+      api.projects.mutation.createProject,
+      { organizationId: org.organizationId, name: "Missing resources" },
+    );
+    await t.run((ctx) => ctx.db.delete(apiKeyId));
+    await expect(
+      browser.query(api.apiKeys.query.getById, { keyId: apiKeyId }),
+    ).rejects.toThrow("API_KEY_NOT_FOUND");
+    await expect(
+      browser.mutation(api.apiKeys.mutation.revoke, { keyId: apiKeyId }),
+    ).rejects.toThrow("API_KEY_NOT_FOUND");
+    await expect(
+      browser.mutation(api.products.mutation.setProductState, {
+        projectId,
+        platform: "IOS",
+        productId: "missing",
+        state: "Active",
+      }),
+    ).rejects.toThrow("PRODUCT_NOT_FOUND");
+    await expect(
+      browser.mutation(api.products.mutation.upsertProduct, {
+        projectId,
+        platform: "IOS",
+        productId: "invalid-price",
+        type: "Consumable",
+        title: "Invalid",
+        priceAmountMicros: -1,
+      }),
+    ).rejects.toThrow("INVALID_INPUT");
+    await t.run((ctx) => ctx.db.patch(projectId, { pendingDeletion: true }));
+    await expect(
+      browser.query(api.apiKeys.query.listProjectApiKeys, { projectId }),
+    ).rejects.toThrow("PROJECT_NOT_FOUND");
+    await expect(
+      browser.mutation(api.products.mutation.upsertProduct, {
+        projectId,
+        platform: "IOS",
+        productId: "missing",
+        type: "Consumable",
+        title: "Missing",
+      }),
+    ).rejects.toThrow("PROJECT_NOT_FOUND");
+    await expect(
+      browser.mutation(api.products.mutation.setProductState, {
+        projectId,
+        platform: "IOS",
+        productId: "missing",
+        state: "Active",
+      }),
+    ).rejects.toThrow("PROJECT_NOT_FOUND");
+  });
+
   it("read-only CLI members retain the dashboard's redacted operations reads", async () => {
     const { t, browser, org } = await fixture();
     const { projectId } = await browser.mutation(

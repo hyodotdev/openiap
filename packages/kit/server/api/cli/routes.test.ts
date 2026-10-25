@@ -7,7 +7,11 @@ import {
   assertCliStartSource,
   withCliStartSource,
 } from "../../../convex/cli/source";
-import { APP_ERROR_SCOPE } from "../../../convex/utils/errors";
+import {
+  APP_ERROR_SCOPE,
+  createError,
+  ErrorCode,
+} from "../../../convex/utils/errors";
 
 const transport = vi.hoisted(() => ({
   action: vi.fn(),
@@ -54,6 +58,7 @@ describe("CLI HTTP contract", () => {
     vi.resetAllMocks();
     transport.sourceLimited = false;
     transport.ip = undefined;
+    vi.stubEnv("IAPKIT_PUBLIC_BASE_URL", undefined);
     vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "a".repeat(64));
     transport.error.mockReturnValue(null);
     transport.query.mockResolvedValue({ user: { _id: "fixture-user" } });
@@ -156,6 +161,19 @@ describe("CLI HTTP contract", () => {
       error: { code: "REQUEST_FAILED" },
     });
     expect(transport.mutation).not.toHaveBeenCalled();
+  });
+
+  it("uses the canonical HTTPS public URL behind an HTTP proxy", async () => {
+    vi.stubEnv("IAPKIT_PUBLIC_BASE_URL", "https://canonical.example.test");
+    vi.stubEnv("SITE_URL", "http://internal:3000");
+    transport.mutation.mockResolvedValue({ userCode: "ABCD1234" });
+    const response = await post("http://internal:3000/auth/device", {});
+    expect(await response.json()).toMatchObject({
+      data: {
+        verificationUrl:
+          "https://canonical.example.test/cli/authorize?user_code=ABCD1234",
+      },
+    });
   });
 
   it.each([
@@ -279,6 +297,16 @@ describe("CLI HTTP contract", () => {
   );
 
   it.each([
+    [
+      createError(ErrorCode.API_KEY_NOT_FOUND, "API key not found"),
+      404,
+      "API_KEY_NOT_FOUND",
+    ],
+    [
+      createError(ErrorCode.PRODUCT_NOT_FOUND, "Product not found"),
+      404,
+      "PRODUCT_NOT_FOUND",
+    ],
     [new ConvexError("Not authenticated"), 401, "UNAUTHENTICATED"],
     [
       new ConvexError("Insufficient permissions for this operation"),

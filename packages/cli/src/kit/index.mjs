@@ -218,7 +218,8 @@ async function login(client, origin, args, options) {
   if (!options.noBrowser) openBrowser(device.verificationUrl);
   let interval = device.interval * 1000;
   while (Date.now() < device.expiresAt) {
-    await delay(interval);
+    await delay(Math.min(interval, device.expiresAt - Date.now()));
+    if (Date.now() >= device.expiresAt) break;
     try {
       const tokens = await client.request("/auth/token", {
         deviceCode: device.deviceCode,
@@ -229,6 +230,13 @@ async function login(client, origin, args, options) {
       if (error.code === "AUTHORIZATION_PENDING") continue;
       if (error.code === "RATE_LIMITED") {
         interval += 5000;
+        continue;
+      }
+      if (
+        error.code === "NETWORK_ERROR" ||
+        (error.status >= 500 && error.status < 600)
+      ) {
+        interval = Math.min(Math.max(interval * 2, 1000), 30_000);
         continue;
       }
       throw error;
@@ -368,8 +376,13 @@ export async function runKit(argv) {
     let data;
     if (command === "login") data = await login(client, origin, args, options);
     else if (command === "logout") {
+      if (process.env.IAPKIT_TOKEN && !options.yes)
+        throw new KitError(
+          "CONFIRMATION_REQUIRED",
+          "IAPKIT_TOKEN is set. Pass --yes to revoke that automation token; the saved browser login will remain.",
+        );
       try {
-        await client.run("logout");
+        await client.run("logout", {}, options.yes === true);
       } finally {
         if (!process.env.IAPKIT_TOKEN) await removeSession(origin);
       }

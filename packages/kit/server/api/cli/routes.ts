@@ -103,7 +103,9 @@ cliRoutes.post("/auth/:action", async (c) => {
         api.cli.mutation.start,
         await withCliStartSource({ name, scope }, getRequestIp(c) ?? "unknown"),
       );
-      const origin = new URL(process.env.SITE_URL ?? c.req.url).origin;
+      const origin = new URL(
+        process.env.IAPKIT_PUBLIC_BASE_URL ?? process.env.SITE_URL ?? c.req.url,
+      ).origin;
       return c.json({
         ok: true,
         data: {

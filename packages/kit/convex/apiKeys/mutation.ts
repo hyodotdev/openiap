@@ -1,6 +1,7 @@
+import { createError, ErrorCode } from "../utils/errors";
 import { assertCliScope } from "../cli/scope";
 import { mutation } from "../_generated/server";
-import { ConvexError, v } from "convex/values";
+import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { generateApiKey } from "../utils/helpers";
 import { getProjectById } from "../projects/helpers";
@@ -24,13 +25,13 @@ export const create = mutation({
     await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new ConvexError("Not authenticated");
+      throw createError(ErrorCode.NOT_AUTHENTICATED, "Not authenticated");
     }
 
     // Get project to verify access
     const project = await getProjectById(ctx, args.projectId);
     if (!project) {
-      throw new ConvexError("Project not found");
+      throw createError(ErrorCode.PROJECT_NOT_FOUND, "Project not found");
     }
 
     // Check organization membership with at least admin role
@@ -42,7 +43,10 @@ export const create = mutation({
       .first();
 
     if (!membership || membership.role === "member") {
-      throw new ConvexError("Insufficient permissions to create API keys");
+      throw createError(
+        ErrorCode.INSUFFICIENT_PERMISSIONS,
+        "Insufficient permissions to create API keys",
+      );
     }
 
     // Generate a new API key
@@ -94,18 +98,18 @@ export const update = mutation({
     await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new ConvexError("Not authenticated");
+      throw createError(ErrorCode.NOT_AUTHENTICATED, "Not authenticated");
     }
 
     const apiKey = await ctx.db.get(args.keyId);
     if (!apiKey) {
-      throw new ConvexError("API key not found");
+      throw createError(ErrorCode.API_KEY_NOT_FOUND, "API key not found");
     }
 
     // Get project to verify access
     const project = await getProjectById(ctx, apiKey.projectId);
     if (!project) {
-      throw new ConvexError("Project not found");
+      throw createError(ErrorCode.PROJECT_NOT_FOUND, "Project not found");
     }
 
     // Check organization membership with at least admin role
@@ -117,7 +121,10 @@ export const update = mutation({
       .first();
 
     if (!membership || membership.role === "member") {
-      throw new ConvexError("Insufficient permissions to update API keys");
+      throw createError(
+        ErrorCode.INSUFFICIENT_PERMISSIONS,
+        "Insufficient permissions to update API keys",
+      );
     }
 
     // Prepare update object
@@ -153,18 +160,18 @@ export const remove = mutation({
     await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new ConvexError("Not authenticated");
+      throw createError(ErrorCode.NOT_AUTHENTICATED, "Not authenticated");
     }
 
     const apiKey = await ctx.db.get(args.keyId);
     if (!apiKey) {
-      throw new ConvexError("API key not found");
+      throw createError(ErrorCode.API_KEY_NOT_FOUND, "API key not found");
     }
 
     // Get project to verify access
     const project = await getProjectById(ctx, apiKey.projectId);
     if (!project) {
-      throw new ConvexError("Project not found");
+      throw createError(ErrorCode.PROJECT_NOT_FOUND, "Project not found");
     }
 
     // Check organization membership with owner or admin role
@@ -176,7 +183,10 @@ export const remove = mutation({
       .first();
 
     if (!membership || membership.role === "member") {
-      throw new ConvexError("Insufficient permissions to delete API keys");
+      throw createError(
+        ErrorCode.INSUFFICIENT_PERMISSIONS,
+        "Insufficient permissions to delete API keys",
+      );
     }
 
     // Disable the legacy project-column fallback before deleting the row.
@@ -203,18 +213,18 @@ export const revoke = mutation({
     await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new ConvexError("Not authenticated");
+      throw createError(ErrorCode.NOT_AUTHENTICATED, "Not authenticated");
     }
 
     const apiKey = await ctx.db.get(args.keyId);
     if (!apiKey) {
-      throw new ConvexError("API key not found");
+      throw createError(ErrorCode.API_KEY_NOT_FOUND, "API key not found");
     }
 
     // Get project to verify access
     const project = await getProjectById(ctx, apiKey.projectId);
     if (!project) {
-      throw new ConvexError("Project not found");
+      throw createError(ErrorCode.PROJECT_NOT_FOUND, "Project not found");
     }
 
     // Check organization membership
@@ -226,7 +236,10 @@ export const revoke = mutation({
       .first();
 
     if (!membership || membership.role === "member") {
-      throw new ConvexError("Insufficient permissions to revoke API keys");
+      throw createError(
+        ErrorCode.INSUFFICIENT_PERMISSIONS,
+        "Insufficient permissions to revoke API keys",
+      );
     }
 
     // Deactivate the API key
@@ -254,18 +267,18 @@ export const regenerate = mutation({
     await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new ConvexError("Not authenticated");
+      throw createError(ErrorCode.NOT_AUTHENTICATED, "Not authenticated");
     }
 
     const oldApiKey = await ctx.db.get(args.keyId);
     if (!oldApiKey) {
-      throw new ConvexError("API key not found");
+      throw createError(ErrorCode.API_KEY_NOT_FOUND, "API key not found");
     }
 
     // Get project to verify access
     const project = await getProjectById(ctx, oldApiKey.projectId);
     if (!project) {
-      throw new ConvexError("Project not found");
+      throw createError(ErrorCode.PROJECT_NOT_FOUND, "Project not found");
     }
 
     // Check organization membership with at least admin role
@@ -277,7 +290,10 @@ export const regenerate = mutation({
       .first();
 
     if (!membership || membership.role === "member") {
-      throw new ConvexError("Insufficient permissions to regenerate API keys");
+      throw createError(
+        ErrorCode.INSUFFICIENT_PERMISSIONS,
+        "Insufficient permissions to regenerate API keys",
+      );
     }
 
     // Generate a new API key

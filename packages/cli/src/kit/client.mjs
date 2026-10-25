@@ -58,6 +58,7 @@ export function kitClient(origin) {
       throw new KitError(
         "INVALID_RESPONSE",
         "IAPKit did not return JSON. The server may need the CLI update deployed.",
+        { status: response.status },
       );
     }
     if (!response.ok || (!raw && !result.ok)) {

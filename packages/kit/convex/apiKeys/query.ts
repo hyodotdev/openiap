@@ -1,9 +1,9 @@
+import { createError, ErrorCode } from "../utils/errors";
 import { assertCliScope } from "../cli/scope";
 import { query } from "../_generated/server";
 import type { Doc } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { ConvexError } from "convex/values";
 import { getWritableProject } from "../projects/writable";
 import { apiKeyPreview } from "./helpers";
 
@@ -32,13 +32,13 @@ export const listProjectApiKeys = query({
     await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new ConvexError("Not authenticated");
+      throw createError(ErrorCode.NOT_AUTHENTICATED, "Not authenticated");
     }
 
     // Get project to verify access
     const project = await getWritableProject(ctx, args.projectId);
     if (!project) {
-      throw new ConvexError("Project not found");
+      throw createError(ErrorCode.PROJECT_NOT_FOUND, "Project not found");
     }
 
     // Check organization membership
@@ -50,7 +50,10 @@ export const listProjectApiKeys = query({
       .first();
 
     if (!membership) {
-      throw new ConvexError("Not a member of this organization");
+      throw createError(
+        ErrorCode.NOT_ORGANIZATION_MEMBER,
+        "Not a member of this organization",
+      );
     }
 
     // Get all API keys for the project
@@ -74,13 +77,13 @@ export const getActiveCount = query({
     await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new ConvexError("Not authenticated");
+      throw createError(ErrorCode.NOT_AUTHENTICATED, "Not authenticated");
     }
 
     // Get project to verify access
     const project = await getWritableProject(ctx, args.projectId);
     if (!project) {
-      throw new ConvexError("Project not found");
+      throw createError(ErrorCode.PROJECT_NOT_FOUND, "Project not found");
     }
 
     // Check organization membership
@@ -92,7 +95,10 @@ export const getActiveCount = query({
       .first();
 
     if (!membership) {
-      throw new ConvexError("Not a member of this organization");
+      throw createError(
+        ErrorCode.NOT_ORGANIZATION_MEMBER,
+        "Not a member of this organization",
+      );
     }
 
     // Count active API keys
@@ -120,18 +126,18 @@ export const getById = query({
     await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new ConvexError("Not authenticated");
+      throw createError(ErrorCode.NOT_AUTHENTICATED, "Not authenticated");
     }
 
     const apiKey = await ctx.db.get(args.keyId);
     if (!apiKey) {
-      throw new ConvexError("API key not found");
+      throw createError(ErrorCode.API_KEY_NOT_FOUND, "API key not found");
     }
 
     // Get project to verify access
     const project = await getWritableProject(ctx, apiKey.projectId);
     if (!project) {
-      throw new ConvexError("Project not found");
+      throw createError(ErrorCode.PROJECT_NOT_FOUND, "Project not found");
     }
 
     // Check organization membership with at least admin role for key details
@@ -143,7 +149,10 @@ export const getById = query({
       .first();
 
     if (!membership || membership.role === "member") {
-      throw new ConvexError("Insufficient permissions to view API key details");
+      throw createError(
+        ErrorCode.INSUFFICIENT_PERMISSIONS,
+        "Insufficient permissions to view API key details",
+      );
     }
 
     // Get creator info
