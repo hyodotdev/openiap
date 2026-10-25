@@ -72,8 +72,15 @@ const directionValidator = v.union(
 async function resolveProjectByApiKey(
   ctx: QueryCtx | MutationCtx,
   apiKey: string,
+  access: "read" | "write" = "write",
 ): Promise<{ project: Doc<"projects">; userId: Id<"users"> | null }> {
-  const resolved = await resolveProjectByApiKeyFromDb(ctx, apiKey, "admin");
+  const resolved = await resolveProjectByApiKeyFromDb(
+    ctx,
+    apiKey,
+    access === "read" && apiKey.startsWith("session-project:")
+      ? "client"
+      : "admin",
+  );
   const project = resolved?.project ?? null;
   if (!project) {
     throw createError(ErrorCode.PROJECT_NOT_FOUND);
@@ -144,14 +151,13 @@ async function resolveProjectForMutationArgs(
   throw createError(ErrorCode.INVALID_INPUT, "apiKey or projectId is required");
 }
 
-// The job must belong to the apiKey's project, so another project's key
-// cannot read or cancel it.
+// A job can only be read through its own project.
 async function resolveJobByApiKey(
   ctx: QueryCtx | MutationCtx,
   apiKey: string,
   rawJobId: string,
 ): Promise<{ job: Doc<"productSyncJobs">; project: Doc<"projects"> }> {
-  const { project } = await resolveProjectByApiKey(ctx, apiKey);
+  const { project } = await resolveProjectByApiKey(ctx, apiKey, "read");
   // Ids arrive from URL paths; a malformed one must read as "not found"
   // rather than fail argument validation into a 500.
   const jobId = ctx.db.normalizeId("productSyncJobs", rawJobId);

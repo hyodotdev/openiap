@@ -141,6 +141,8 @@ before(async () => {
       data = [{ _id: `${body.args.organizationId}-project` }];
     else if (body.command === "sync products") data = { jobId: "job-a" };
     else if (body.command === "sync status") data = { status: "succeeded" };
+    else if (body.command === "tokens create")
+      data = { token: "one-time-fixture-token" };
     else if (body.command === "credentials download")
       data = {
         fileName: "review.png",
@@ -268,6 +270,7 @@ test("expired access tokens refresh before sending a mutation", async () => {
     "CI",
     "--key-type",
     "secret",
+    "--yes",
     "--json",
   ]);
   assert.equal(result.status, 0, result.stderr);
@@ -343,6 +346,101 @@ test("output and timeout failures are checked before any secret or store mutatio
   ]);
   assert.equal(sync.status, 1);
   assert.equal(requests.length, count);
+});
+
+for (const args of [
+  [
+    "tokens",
+    "create",
+    "--name",
+    "CI",
+    "--scope",
+    "read",
+    "--expires-in-days",
+    "1",
+  ],
+  ["keys", "create", "--project", "p", "--name", "CI", "--key-type", "secret"],
+  [
+    "webhooks",
+    "create",
+    "--project",
+    "p",
+    "--url",
+    "https://example.com/events",
+  ],
+  ["credentials", "download", "--file-id", "file-a"],
+]) {
+  test(`${args.slice(0, 2).join(" ")} requires confirmation before credentials or network access`, async () => {
+    const count = requests.length;
+    const result = await run([...args, "--json"]);
+    assert.equal(JSON.parse(result.stdout).error.code, "CONFIRMATION_REQUIRED");
+    assert.equal(requests.length, count);
+    assert.doesNotMatch(
+      result.stdout + result.stderr,
+      /one-time-fixture-token/,
+    );
+  });
+}
+
+test("confirmed token output is private and absent from stdout", async () => {
+  const file = path.join(directory, "automation-token.json");
+  const result = await run([
+    "tokens",
+    "create",
+    "--name",
+    "CI",
+    "--scope",
+    "read",
+    "--expires-in-days",
+    "1",
+    "--yes",
+    "--output",
+    file,
+    "--json",
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(
+    JSON.parse(await readFile(file, "utf8")).token,
+    "one-time-fixture-token",
+  );
+  assert.equal((await stat(file)).mode & 0o777, 0o600);
+  assert.doesNotMatch(result.stdout + result.stderr, /one-time-fixture-token/);
+  assert.equal(requests.at(-1).body.confirmed, true);
+});
+
+test("key deactivation requires confirmation through flags and JSON input", async () => {
+  const count = requests.length;
+  const file = path.join(directory, "deactivate-key.json");
+  await writeFile(file, JSON.stringify({ keyId: "k", isActive: false }));
+  for (const args of [
+    ["--key", "k", "--is-active", "false"],
+    ["--file", file],
+  ]) {
+    const result = await run(["keys", "update", ...args, "--json"]);
+    assert.equal(JSON.parse(result.stdout).error.code, "CONFIRMATION_REQUIRED");
+    assert.equal(requests.length, count);
+  }
+  const rename = await run([
+    "keys",
+    "update",
+    "--key",
+    "k",
+    "--name",
+    "Renamed",
+    "--json",
+  ]);
+  assert.equal(rename.status, 0, rename.stderr);
+  const disable = await run([
+    "keys",
+    "update",
+    "--file",
+    file,
+    "--yes",
+    "--json",
+  ]);
+  assert.equal(disable.status, 0, disable.stderr);
+  assert.equal(requests.at(-1).body.args.isActive, false);
+  assert.equal(requests.at(-1).body.confirmed, true);
 });
 
 test("JSON files supply nested values and flags override selected fields", async () => {
@@ -441,6 +539,7 @@ test("downloads supported screenshot sizes without printing base64", async () =>
     "download",
     "--file-id",
     "file-a",
+    "--yes",
     "--output",
     file,
     "--json",

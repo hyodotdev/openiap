@@ -4,6 +4,7 @@ import { makeFunctionReference } from "convex/server";
 import { ConvexError, type Value } from "convex/values";
 import { api } from "@/convex";
 import operations from "../../../../cli/src/kit/operations.json";
+import { requiresConfirmation } from "../../../../cli/src/kit/effects.mjs";
 import { resolveServerConvexUrl, handleConvexError } from "../../convex";
 import { readJsonBodyWithLimit } from "../v1/request-body";
 import { sourceRateLimitMiddleware } from "../v1/rate-limit";
@@ -50,10 +51,7 @@ export function prepareArguments(
 ): Record<string, Value> {
   const args = { ...input };
   const fields = operation.args.value ?? {};
-  if (
-    operation.effect.includes("destructive") ||
-    operation.effect === "publish"
-  ) {
+  if (requiresConfirmation(operation, args)) {
     if (!confirmed)
       failure("CONFIRMATION_REQUIRED", "Pass --yes to apply this command.");
   }

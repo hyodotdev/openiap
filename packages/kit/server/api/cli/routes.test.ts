@@ -251,7 +251,11 @@ describe("CLI HTTP contract", () => {
   it("dispatches a mutation only after session validation", async () => {
     transport.mutation.mockResolvedValue({ key: "one-time-secret" });
     const args = { projectId: "project", name: "Backend", keyType: "secret" };
-    const response = await post("/run", { command: "keys create", args });
+    const response = await post("/run", {
+      command: "keys create",
+      args,
+      confirmed: true,
+    });
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       ok: true,
@@ -264,7 +268,11 @@ describe("CLI HTTP contract", () => {
     "rejects an inactive CLI session before writes (%j)",
     async (session) => {
       transport.query.mockResolvedValue(session);
-      const response = await post("/run", { command: "keys create", args: {} });
+      const response = await post("/run", {
+        command: "keys create",
+        args: {},
+        confirmed: true,
+      });
       expect(response.status).toBe(401);
       expect(await response.json()).toMatchObject({
         error: { code: "SESSION_EXPIRED" },
@@ -467,6 +475,51 @@ describe("CLI HTTP contract", () => {
         false,
       ),
     ).toThrow("--apply --yes");
+  });
+
+  it.each([
+    "tokens create",
+    "keys create",
+    "webhooks create",
+    "credentials download",
+  ])(
+    "rejects unconfirmed secret output for %s before dispatch",
+    async (command) => {
+      const response = await post("/run", { command, args: {} });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+        error: { code: "CONFIRMATION_REQUIRED" },
+      });
+      expect(transport.query).not.toHaveBeenCalled();
+      expect(transport.mutation).not.toHaveBeenCalled();
+      expect(transport.action).not.toHaveBeenCalled();
+    },
+  );
+
+  it("requires confirmation for key deactivation while allowing metadata updates", async () => {
+    const denied = await post("/run", {
+      command: "keys update",
+      args: { keyId: "k", isActive: false },
+    });
+    expect(await denied.json()).toMatchObject({
+      error: { code: "CONFIRMATION_REQUIRED" },
+    });
+    expect(transport.mutation).not.toHaveBeenCalled();
+    const rename = await post("/run", {
+      command: "keys update",
+      args: { keyId: "k", name: "Renamed" },
+    });
+    expect(rename.status).toBe(200);
+    const confirmed = await post("/run", {
+      command: "keys update",
+      args: { keyId: "k", isActive: false },
+      confirmed: true,
+    });
+    expect(confirmed.status).toBe(200);
+    expect(transport.mutation.mock.lastCall?.[1]).toEqual({
+      keyId: "k",
+      isActive: false,
+    });
   });
 
   it("uses account authorization for member-readable operations", () => {

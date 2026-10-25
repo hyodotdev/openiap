@@ -8,6 +8,7 @@ import { normalizeOrigin, saveSession, removeSession } from "./session.mjs";
 import { localCommands } from "./local-commands.mjs";
 import { uploadFile } from "./upload.mjs";
 import { commandSchema } from "./schema.mjs";
+import { requiresConfirmation } from "./effects.mjs";
 import {
   SETUP_FRAMEWORKS,
   renderSetupSnippet,
@@ -156,7 +157,7 @@ export function kitHelp(operation) {
       )
       .join(
         "\n",
-      )}\n\nUse --project for projectId, --org for organizationId, --file for a JSON body.\nOptions: ${commandSchema(operation).options.join(" ")}\n--json returns JSON; --yes confirms destructive or publishing actions.\n`;
+      )}\n\nUse --project for projectId, --org for organizationId, --file for a JSON body.\nOptions: ${commandSchema(operation).options.join(" ")}\n--json returns JSON; --yes confirms destructive actions, publishing and commands that return secrets.\n`;
   }
   return `openiap kit login [--no-browser] [--scope read|write|admin]\nopeniap kit logout\nopeniap kit schema [command] --json\n\n${operations.map((op) => `  ${op.command}`).join("\n")}\n\nAll commands accept --base-url and --json. Use --help on a command.\nIAPKIT_TOKEN supplies an automation token. Credentials are stored per origin.\n`;
 }
@@ -424,9 +425,7 @@ export async function runKit(argv) {
       } else {
         validate(operation, args);
         if (
-          (operation.effect.includes("destructive") ||
-            operation.effect === "publish" ||
-            options.apply) &&
+          (requiresConfirmation(operation, args) || options.apply) &&
           !options.yes
         )
           throw new KitError(

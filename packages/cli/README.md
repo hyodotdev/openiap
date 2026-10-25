@@ -70,7 +70,7 @@ new file; an existing file is never overwritten.
 
 ```bash
 npx @hyodotdev/openiap kit keys create \
-  --project PROJECT_ID --name CI --key-type secret --output new-key.json --json
+  --project PROJECT_ID --name CI --key-type secret --yes --output new-key.json --json
 
 npx @hyodotdev/openiap kit setup --framework expo --json
 npx @hyodotdev/openiap kit setup status --project PROJECT_ID --json
@@ -94,14 +94,16 @@ npx @hyodotdev/openiap kit sync products \
 Use purpose `apple_p8_asc_api_key` for an App Store Connect catalog key;
 `apple_p8_key` is the App Store Server key. `credentials configure --file ...`
 updates project settings, including Amazon and Horizon credentials. See its
-schema for field names. `credentials download --file-id FILE_ID --output key.p8`
+schema for field names. `credentials download --file-id FILE_ID --yes --output key.p8`
 writes decoded bytes; without `--output` it returns the base64 response.
 
 Store synchronization defaults to a dry run. `--apply --yes` applies changes;
 `--wait` waits for completion with `--timeout` in seconds (default 120).
 A timeout returns the job ID; use `sync status` rather than enqueueing again.
-Destructive commands, public payload publishing and webhook re-sends require
-`--yes`. The `npx --yes` option only approves npm execution; it does not confirm
+Destructive commands, key deactivation through `keys update`, public payload
+publishing, webhook re-sends and commands that return secrets require `--yes`.
+Without it, no secret is created or downloaded. Use `--output` to keep the
+confirmed secret in a private file instead of terminal or agent logs. The `npx --yes` option only approves npm execution; it does not confirm
 a CLI change. Sandbox purchase simulation prints instructions. Synthetic
 Google webhook simulation is restricted to localhost and requires the existing
 development Pub/Sub opt-in; Apple tests require a signed store notification.
@@ -110,7 +112,7 @@ development Pub/Sub opt-in; Apple tests require a signed store notification.
 
 ```bash
 npx @hyodotdev/openiap kit tokens create \
-  --name build-server --scope read --expires-in-days 30 --output ci-token.json --json
+  --name build-server --scope read --expires-in-days 30 --yes --output ci-token.json --json
 # Store the returned token in your CI secret manager as IAPKIT_TOKEN.
 npx --yes @hyodotdev/openiap kit projects list --json
 ```

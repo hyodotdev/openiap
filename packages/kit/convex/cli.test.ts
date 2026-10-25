@@ -536,6 +536,97 @@ describe("IAPKit CLI authentication", () => {
     ]);
   });
 
+  it("members can read their sync jobs without granting API keys or outsiders access", async () => {
+    const { t, browser, org } = await fixture();
+    const { projectId, apiKeyId } = await browser.mutation(
+      api.projects.mutation.createProject,
+      {
+        organizationId: org.organizationId,
+        name: "Member sync",
+      },
+    );
+    const other = await browser.mutation(api.projects.mutation.createProject, {
+      organizationId: org.organizationId,
+      name: "Other project",
+    });
+    const memberId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("users", { name: "Member" });
+      await ctx.db.insert("organizationMembers", {
+        organizationId: org.organizationId,
+        userId: id,
+        role: "member",
+        joinedAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      return id;
+    });
+    const member = t.withIdentity({
+      subject: `${memberId}|browser`,
+      issuer: "https://test.convex.site",
+    });
+    const token = await member.mutation(api.cli.mutation.createToken, {
+      name: "Member sync",
+      scope: "write",
+      expiresInDays: 1,
+    });
+    const credentials = await t.mutation(internal.cli.internal.consume, {
+      token: token.token,
+    });
+    const cli = t.withIdentity({
+      subject: `${memberId}|${credentials!.sessionId}`,
+      issuer: "https://test.convex.site",
+      iapkitCli: true,
+    });
+    const { jobId } = await cli.mutation(api.products.jobs.enqueueProductSync, {
+      projectId,
+      platform: "IOS",
+      direction: "purge-local",
+      dryRun: true,
+    });
+    await vi.advanceTimersByTimeAsync(1);
+    await t.finishInProgressScheduledFunctions();
+    await t.run((ctx) => ctx.db.patch(token.id, { scope: "read" }));
+    const jobArgs = { apiKey: `session-project:${projectId}`, jobId };
+    await expect(
+      cli.query(api.products.jobs.getSyncJobById, jobArgs),
+    ).resolves.toMatchObject({ _id: jobId, projectId, status: "succeeded" });
+    await expect(
+      cli.query(api.products.jobs.getSyncJobById, {
+        ...jobArgs,
+        apiKey: `session-project:${other.projectId}`,
+      }),
+    ).rejects.toThrow("Sync job not found");
+    await expect(
+      t.query(api.products.jobs.getSyncJobById, jobArgs),
+    ).rejects.toThrow("PROJECT_NOT_FOUND");
+    const outsiderId = await t.run((ctx) =>
+      ctx.db.insert("users", { name: "Outsider" }),
+    );
+    await expect(
+      t
+        .withIdentity({
+          subject: `${outsiderId}|browser`,
+          issuer: "https://test.convex.site",
+        })
+        .query(api.products.jobs.getSyncJobById, jobArgs),
+    ).rejects.toThrow("PROJECT_NOT_FOUND");
+    const publishable = await t.run((ctx) => ctx.db.get(apiKeyId));
+    await expect(
+      t.query(api.products.jobs.getSyncJobById, {
+        ...jobArgs,
+        apiKey: publishable!.key!,
+      }),
+    ).rejects.toThrow("INSUFFICIENT_SCOPE");
+    await expect(
+      cli.mutation(api.products.jobs.enqueueProductSync, {
+        projectId,
+        platform: "IOS",
+        direction: "purge-local",
+        dryRun: true,
+      }),
+    ).rejects.toThrow("INSUFFICIENT_SCOPE");
+  });
+
   it("write tokens cannot create, change, rotate or delete webhook credentials", async () => {
     const { t, browser, userId, org } = await fixture();
     const { projectId } = await browser.mutation(
