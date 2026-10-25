@@ -126,6 +126,15 @@ export const drainAccountDeletionBatch = internalMutation({
       return { done: false };
     }
 
+    for (const table of ["cliSessions", "cliDevices"] as const) {
+      const rows = await ctx.db
+        .query(table)
+        .withIndex("by_user_id", (q) => q.eq("userId", userId))
+        .take(ACCOUNT_DELETION_PAGE);
+      for (const row of rows) await ctx.db.delete(row._id);
+      if (rows.length > 0) return { done: false };
+    }
+
     // Phase: verification codes + the auth account they belong to.
     const account = await ctx.db
       .query("authAccounts")

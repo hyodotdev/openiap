@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -6,6 +7,7 @@ import { internal } from "../_generated/api";
 // Ensure user profile exists for authenticated user
 export const ensureUserProfile = mutation({
   handler: async (ctx) => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("User not authenticated");
@@ -44,6 +46,7 @@ export const ensureUserProfile = mutation({
 export const updateDisplayName = mutation({
   args: { displayName: v.string() },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("User not authenticated");
@@ -83,6 +86,7 @@ export const updateDisplayName = mutation({
 export const updateLocale = mutation({
   args: { locale: v.union(v.literal("en"), v.literal("ko"), v.literal("ja")) },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("User not authenticated");
@@ -118,6 +122,7 @@ export const deleteAccount = mutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("User not authenticated");

@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import { query, type QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -98,6 +99,7 @@ function projectForList(
 export const listOrganizationProjects = query({
   args: { organizationId: v.id("organizations") },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       return [];
@@ -154,6 +156,7 @@ export const getProject = query({
     projectSlug: v.string(),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       return null;
@@ -195,6 +198,7 @@ export const getProjectByOrgAndSlug = getProject;
 export const getProjectById = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       return null;
@@ -281,6 +285,7 @@ export const getWebhookEndpointPaths = query({
     }),
   ),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const resolved = await resolveProjectByIdForCurrentUserFromDb(
       ctx,
       args.projectId,
@@ -300,6 +305,7 @@ export const getWebhookEndpointPaths = query({
 
 export const hasProjects = query({
   handler: async (ctx) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       return false;

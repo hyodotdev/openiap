@@ -13,6 +13,8 @@ import { workspaceClosure } from "../bun-dependency-snapshot.mjs";
 const KIT_PATHS = [
   "packages/kit/",
   "packages/mcp-server/",
+  "packages/cli/src/kit/",
+  "packages/cli/scripts/",
   "specs/commerce-protocol/",
   "specs/client/src/kit-api.ts",
   "specs/client/package.json",

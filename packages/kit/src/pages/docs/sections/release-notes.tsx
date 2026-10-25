@@ -23,6 +23,24 @@ const CHANGE_GROUPS = [
 
 const RELEASES: ReleaseEntry[] = [
   {
+    id: "week-2026-10-26",
+    weekStart: "2026-10-26",
+    date: "2026-10-26",
+    tagline: "Terminal access, scoped automation and safe catalog previews.",
+    items: [
+      {
+        kind: "feature",
+        topic: "CLI access",
+        text: "Approve OpenIAP CLI logins in the browser and manage IAPKit from the terminal. Automation tokens support read, write or admin scopes, expiry and immediate revocation; organization roles still apply.",
+      },
+      {
+        kind: "fix",
+        topic: "Catalog sync",
+        text: "Local catalog purge previews list planned deletions without deleting products. Applying changes requires explicit confirmation in the CLI.",
+      },
+    ],
+  },
+  {
     id: "week-2026-10-19",
     weekStart: "2026-10-19",
     date: "2026-10-24",

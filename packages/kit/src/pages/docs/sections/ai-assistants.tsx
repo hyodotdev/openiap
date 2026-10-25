@@ -11,6 +11,23 @@ export default function AiAssistantsPage() {
       title="AI assistants"
       description="Point Claude, Cursor, and other LLM-powered tools at IAPKit's llms.txt so they can answer IAPKit questions without crawling this site."
     >
+      <h2>Use the CLI</h2>
+      <p>
+        Sign in once, then let your coding agent use IAPKit through commands
+        with JSON results. The CLI uses IAPKit directly and keeps your existing
+        organization permissions.
+      </p>
+      <CodeBlock language="bash">{`npx @hyodotdev/openiap kit login
+npx --yes @hyodotdev/openiap kit projects list --json
+npx --yes @hyodotdev/openiap kit schema keys create --json`}</CodeBlock>
+      <p>
+        See the{" "}
+        <a href="https://github.com/hyodotdev/openiap/tree/main/packages/cli#operate-iapkit">
+          CLI guide
+        </a>{" "}
+        for key management, store credentials, products, sync jobs, purchases,
+        webhooks and scoped automation tokens.
+      </p>
       <p>
         IAPKit publishes two AI-friendly reference files that follow the{" "}
         <a

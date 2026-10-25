@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import { mutation } from "../_generated/server";
 import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
@@ -40,6 +41,7 @@ export const bindUser = mutation({
     reason: v.optional(bindReasonValidator),
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const resolved = await resolveProjectByApiKeyFromDb(
       ctx,
       args.apiKey,
@@ -95,6 +97,7 @@ export const bindUserAsServer = mutation({
   args: bindArgs,
   returns: v.object({ ok: v.boolean(), bound: v.boolean() }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     // resolveProjectByApiKeyFromDb throws INSUFFICIENT_SCOPE for a valid but
     // under-scoped (publishable/legacy) key, and returns null for an unknown
     // or inactive one. The two must map to different protocol codes: an
@@ -146,6 +149,7 @@ export const rebindUser = mutation({
     notified: v.boolean(),
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const resolved = await resolveProjectByApiKeyFromDb(
       ctx,
       args.apiKey,
@@ -190,6 +194,7 @@ export const requestUserErasure = mutation({
     ),
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const resolved = await resolveProjectByApiKeyFromDb(
       ctx,
       args.apiKey,

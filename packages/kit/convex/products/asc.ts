@@ -1,4 +1,5 @@
 "use node";
+import { assertCliScope } from "../cli/scope";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
@@ -2654,6 +2655,7 @@ export const listSubscriptionGroupsAppleIOS = action({
     ctx,
     args,
   ): Promise<Array<{ id: string; referenceName: string }>> => {
+    await assertCliScope(ctx, "read");
     const project = await getProjectForActionArgs(ctx, args);
     if (!project.iosAppAppleId) {
       throw new Error("Project iosAppAppleId is not configured");

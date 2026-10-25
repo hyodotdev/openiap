@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 // Persistence half of outbound delivery: claim/lease, result recording and
 // replay. A "use node" module may hold only actions, so the HTTP half lives in
 // `delivery.ts` and calls these mutations.
@@ -458,6 +459,7 @@ export const replayDelivery = internalMutation({
 export const listFailed = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     await assertProjectAdmin(ctx, args.projectId);
     const deliveries = await ctx.db
       .query("outboundDeliveries")
@@ -496,6 +498,7 @@ export const replay = mutation({
   args: { deliveryId: v.id("outboundDeliveries") },
   returns: v.boolean(),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const delivery = await ctx.db.get(args.deliveryId);
     if (!delivery) return false;
     await assertProjectAdmin(ctx, delivery.projectId);
@@ -560,7 +563,10 @@ export const resend = mutation({
     eventId: v.id("commerceEvents"),
     status: v.literal("pending"),
   }),
-  handler: async (ctx, args) => resendDeliveryHandler(ctx, args),
+  handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
+    return resendDeliveryHandler(ctx, args);
+  },
 });
 
 export async function resendDeliveryHandler(
@@ -695,7 +701,10 @@ export const listDeliveries = query({
     paginationOpts: paginationOptsValidator,
   },
   returns: paginationResultValidator(deliveryViewValidator),
-  handler: async (ctx, args) => listDeliveriesHandler(ctx, args),
+  handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
+    return listDeliveriesHandler(ctx, args);
+  },
 });
 
 export async function listDeliveriesHandler(

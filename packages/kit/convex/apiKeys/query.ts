@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import { query } from "../_generated/server";
 import type { Doc } from "../_generated/dataModel";
 import { v } from "convex/values";
@@ -28,6 +29,7 @@ export const listProjectApiKeys = query({
     projectId: v.id("projects"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new ConvexError("Not authenticated");
@@ -69,6 +71,7 @@ export const getActiveCount = query({
     projectId: v.id("projects"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new ConvexError("Not authenticated");
@@ -114,6 +117,7 @@ export const getById = query({
     keyId: v.id("apiKeys"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new ConvexError("Not authenticated");

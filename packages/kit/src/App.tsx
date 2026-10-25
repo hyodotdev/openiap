@@ -5,8 +5,11 @@ import { ConfigProvider, theme } from "antd";
 import { useThemeMode } from "./hooks/useThemeMode";
 import { useMixpanelIdentify } from "./hooks/useMixpanelIdentify";
 import { ProductClientPayloadDialogRoot } from "./pages/auth/organization/project/ProductClientPayloadDialog";
+import { useLocation } from "react-router-dom";
+import CliAuthorize from "./pages/cli-authorize";
 
 export default function App() {
+  const location = useLocation();
   const { isDarkMode } = useThemeMode();
   useMixpanelIdentify();
 
@@ -24,7 +27,11 @@ export default function App() {
       }}
     >
       <ScrollToTop />
-      <AuthTransition />
+      {location.pathname === "/cli/authorize" ? (
+        <CliAuthorize />
+      ) : (
+        <AuthTransition />
+      )}
       <ProductClientPayloadDialogRoot />
     </ConfigProvider>
   );

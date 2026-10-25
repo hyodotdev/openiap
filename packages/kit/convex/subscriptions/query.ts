@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import { SUBSCRIPTION_SCAN_BYTES } from "./accessHistory";
 import { REVENUE_COUNTERS } from "./revenueCounters";
 import { query, type QueryCtx } from "../_generated/server";
@@ -350,6 +351,7 @@ export const subscriptionEvaluationSnapshot = query({
     fallback: v.union(subscriptionEvaluationRowShape, v.null()),
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const project = await requireAdminProjectByApiKey(ctx, args.apiKey);
 
     const rows = await userSubscriptionRows(ctx, project._id, args.userId);
@@ -376,6 +378,7 @@ export const subscriptionStatusV2 = query({
     environmentScope: v.optional(environmentScopeValidator),
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const project = await requireAdminProjectByApiKey(ctx, args.apiKey);
 
     const subs = (
@@ -412,6 +415,7 @@ export const entitlementsV2 = query({
     environmentScope: v.optional(environmentScopeValidator),
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const project = await requireAdminProjectByApiKey(ctx, args.apiKey);
 
     const all = await userSubscriptionRows(ctx, project._id, args.userId);
@@ -439,6 +443,7 @@ export const assertServerAccess = query({
   args: { apiKey: v.string() },
   returns: v.object({ ok: v.boolean() }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     await requireAdminProjectByApiKey(ctx, args.apiKey);
     return { ok: true };
   },
@@ -468,6 +473,7 @@ export const userErasureStatusV2 = query({
     }),
   ),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const project = await requireAdminProjectByApiKey(ctx, args.apiKey);
     const jobId = ctx.db.normalizeId("subscriptionUserErasureJobs", args.jobId);
     if (!jobId) return null;
@@ -496,6 +502,7 @@ export const subscriptionStatus = query({
     subscription: v.union(subscriptionShape, v.null()),
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const project = await requireAdminProjectByApiKey(ctx, args.apiKey);
 
     const subs = await userSubscriptionRows(ctx, project._id, args.userId);
@@ -526,6 +533,7 @@ export const entitlements = query({
     subscriptions: v.array(subscriptionShape),
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const project = await requireAdminProjectByApiKey(ctx, args.apiKey);
 
     const all = await userSubscriptionRows(ctx, project._id, args.userId);
@@ -556,6 +564,7 @@ export const listSubscriptions = query({
     total: v.number(),
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const access = await listReadAccess(ctx, args);
     if (!access) return { items: [], total: 0 };
     const { project } = access;
@@ -687,6 +696,7 @@ export const metricsSummary = query({
     ),
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const project = await projectForAdminRead(ctx, args);
     if (!project) {
       return {
@@ -963,6 +973,7 @@ export const getRevenueMetrics = query({
   },
   returns: revenueMetricsResponse,
   handler: async (ctx, args): Promise<Infer<typeof revenueMetricsResponse>> => {
+    await assertCliScope(ctx, "read");
     const project = await projectForAdminRead(ctx, args);
     const environment = args.environment ?? "Production";
     if (!project) {
@@ -1248,6 +1259,7 @@ export const userTimeline = query({
     truncated: v.boolean(),
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const project = await resolveOperatorProject(ctx, args, "read");
     if (!isValidSubscriptionUserId(args.appUserId)) {
       throw new ConvexError({

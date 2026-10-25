@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
@@ -21,6 +22,7 @@ import { getWritableProject } from "../projects/writable";
 import {
   PRODUCT_SYNC_JOB_DEADLINE_MS,
   PRODUCT_SYNC_MANUAL_ACTIONS_CAP,
+  PRODUCT_SYNC_PLANNED_WRITES_CAP,
   truncateManualActions,
   truncatePlannedWrites,
 } from "./syncResult";
@@ -191,6 +193,7 @@ export const getActiveSyncJob = query({
     platform: platformValidator,
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const project = await resolveProjectForReadArgs(ctx, args);
     return await ctx.db
       .query("productSyncJobs")
@@ -208,6 +211,7 @@ export const getSyncJobById = query({
     jobId: v.string(),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const { job } = await resolveJobByApiKey(ctx, args.apiKey, args.jobId);
     return job;
   },
@@ -229,6 +233,7 @@ export const enqueueProductSync = mutation({
     deduped: v.boolean(),
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { project, userId } = await resolveProjectForMutationArgs(ctx, args);
     // Dedup through the project's `activeSyncJobIds` lock: concurrent
     // enqueues all read and patch the project doc, so OCC retries the losers,
@@ -302,6 +307,48 @@ export const runProductSyncPurgeLocal = internalAction({
       jobId: args.jobId,
     });
     try {
+      if (job.dryRun) {
+        const plannedWrites: Array<{ productId: string; step: string }> = [];
+        let cursor: string | null = null;
+        let truncated = false;
+        for (let index = 0; index < 200; index++) {
+          if (
+            await ctx.runQuery(internal.products.jobs.isCancelRequested, {
+              jobId: job._id,
+            })
+          ) {
+            await ctx.runMutation(internal.products.jobs.markJobFailed, {
+              jobId: job._id,
+              error: "Cancelled by operator",
+            });
+            return;
+          }
+          const page: { productIds: string[]; cursor: string; done: boolean } =
+            await ctx.runQuery(internal.products.sync.previewPlatformCatalog, {
+              projectId: job.projectId,
+              platform: job.platform,
+              cursor,
+            });
+          for (const productId of page.productIds) {
+            if (plannedWrites.length < PRODUCT_SYNC_PLANNED_WRITES_CAP)
+              plannedWrites.push({ productId, step: "purge-local" });
+            else truncated = true;
+          }
+          if (page.done || truncated) break;
+          cursor = page.cursor;
+          if (index === 199) truncated = true;
+        }
+        await ctx.runMutation(internal.products.jobs.markJobSucceeded, {
+          jobId: job._id,
+          pulled: 0,
+          pushed: 0,
+          deleted: 0,
+          failures: [],
+          plannedWrites,
+          plannedWritesTruncated: truncated,
+        });
+        return;
+      }
       const PAGE = 100;
       let total = 0;
       // 200 pages caps a runaway loop at 20k rows, far past any real catalog.
@@ -359,6 +406,7 @@ export const cancelProductSync = mutation({
     jobId: v.string(),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { job } = await resolveJobForMutationArgs(ctx, args);
     if (job.status === "queued") {
       // No worker holds it yet, so end it here; a late worker sees "failed".
@@ -390,6 +438,7 @@ export const dismissCompletedJob = mutation({
     jobId: v.id("productSyncJobs"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { job } = await resolveJobForMutationArgs(ctx, args);
     if (job.status !== "succeeded" && job.status !== "failed") {
       return { ok: false as const };

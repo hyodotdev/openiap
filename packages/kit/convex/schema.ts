@@ -72,6 +72,32 @@ const schema = defineSchema({
   ...authTables,
   users: usersTable,
 
+  cliDevices: defineTable({
+    deviceHash: v.string(),
+    userCodeHash: v.string(),
+    name: v.string(),
+    scope: v.union(v.literal("read"), v.literal("write"), v.literal("admin")),
+    expiresAt: v.number(),
+    userId: v.optional(v.id("users")),
+    denied: v.optional(v.boolean()),
+  })
+    .index("by_device_hash", ["deviceHash"])
+    .index("by_user_code_hash", ["userCodeHash"])
+    .index("by_user_id", ["userId"]),
+  cliSessions: defineTable({
+    userId: v.id("users"),
+    sessionId: v.id("authSessions"),
+    name: v.string(),
+    scope: v.union(v.literal("read"), v.literal("write"), v.literal("admin")),
+    expiresAt: v.number(),
+    revoked: v.boolean(),
+    tokenHash: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_session_id", ["sessionId"])
+    .index("by_user_id", ["userId"])
+    .index("by_token_hash", ["tokenHash"]),
+
   // Organizations table
   organizations: defineTable({
     name: v.string(),

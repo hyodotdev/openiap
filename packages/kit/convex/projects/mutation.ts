@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import type { Doc } from "../_generated/dataModel";
 import { parseAmazonSnsTopic } from "../webhooks/amazonShared";
 import { mutation } from "../_generated/server";
@@ -214,6 +215,7 @@ export const createProject = mutation({
     platform: v.optional(projectPlatformValidator),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw createError(ErrorCode.NOT_AUTHENTICATED);
@@ -355,6 +357,7 @@ export const updateProject = mutation({
     reportingCurrency: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw createError(ErrorCode.NOT_AUTHENTICATED);
@@ -508,6 +511,7 @@ export const deleteProject = mutation({
     projectId: v.id("projects"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw createError(ErrorCode.NOT_AUTHENTICATED);
@@ -556,6 +560,7 @@ export const regenerateApiKey = mutation({
     projectId: v.id("projects"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw createError(ErrorCode.NOT_AUTHENTICATED);

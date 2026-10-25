@@ -80,6 +80,10 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
+      "/cli/v1": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
       "/v1": {
         target: "http://localhost:3000",
         changeOrigin: true,

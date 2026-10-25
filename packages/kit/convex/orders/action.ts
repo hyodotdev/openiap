@@ -1,4 +1,5 @@
 "use node";
+import { assertCliScope } from "../cli/scope";
 import {
   AppStoreServerAPIClient,
   Environment,
@@ -49,6 +50,7 @@ export const lookupOrder = action({
   },
   returns: orderLookupResponseValidator,
   handler: async (ctx, args): Promise<OrderLookupResponse> => {
+    await assertCliScope(ctx, "read");
     const { project, role } = await getProjectForMember(ctx, args.projectId);
     const orderId = args.orderId.trim();
     if (!orderId) {

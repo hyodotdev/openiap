@@ -1,4 +1,5 @@
 "use node";
+import { assertCliScope } from "../cli/scope";
 import { ConvexError, v } from "convex/values";
 import { OAuth2Client } from "google-auth-library";
 import { google, type androidpublisher_v3 } from "googleapis";
@@ -268,6 +269,7 @@ export const ingestGoogleRtdn = action({
     deduped: v.boolean(),
   }),
   handler: async (ctx, args): Promise<IngestResult> => {
+    await assertCliScope(ctx, "write");
     const project = await getProjectByApiKey(ctx, args.apiKey);
     let authenticatedPlayAuth: PlayProjectAuth | undefined;
     if (!isUnauthenticatedPubSubAllowed(process.env)) {

@@ -739,6 +739,26 @@ npm run demo:experience`}</CodeBlock>
       <details>
         <summary>Optional CLI tools</summary>
         <section>
+          <h3>Operate IAPKit from your terminal</h3>
+          <p>
+            Sign in once in your browser, then let your coding agent inspect and
+            operate IAPKit through commands with JSON results. Organization and
+            project roles still apply; no MCP connection is required.
+          </p>
+          <CodeBlock language="bash">{`npx @hyodotdev/openiap kit login
+npx --yes @hyodotdev/openiap kit projects list --json
+npx --yes @hyodotdev/openiap kit schema keys create --json`}</CodeBlock>
+          <p>
+            Use <code>kit --help</code> for key management, store credentials,
+            products, synchronization, payloads, subscriptions and webhooks. See
+            the{' '}
+            <a href="https://github.com/hyodotdev/openiap/tree/main/packages/cli#operate-iapkit">
+              CLI guide
+            </a>{' '}
+            for automation tokens, confirmation flags and file uploads.
+          </p>
+        </section>
+        <section>
           <AnchorLink id="start-in-your-project" level="h2">
             Optional: prepare a brief with the CLI
           </AnchorLink>
@@ -774,11 +794,11 @@ Role: App — connect purchases to access
 Framework hint: expo; confirm the target app
 Desired outcome: [describe one thing your customer should be able to do]`}</CodeBlock>
             <p>
-              The CLI reads local files and prints text. Your assistant reads
-              the purchase code and implements the connection after you give it
-              the brief. The CLI does not create files, install SDKs, fetch
-              guides, or call an AI; <code>npx</code> may download the CLI
-              itself.
+              The init command reads local files and prints text. Your assistant
+              reads the purchase code and implements the connection after you
+              give it the brief. The init command does not create files, install
+              SDKs, fetch guides, or call an AI; <code>npx</code> may download
+              the CLI itself.
             </p>
             <p>
               If your assistant already has the project context and the right

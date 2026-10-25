@@ -1,4 +1,5 @@
 "use node";
+import { assertCliScope } from "../cli/scope";
 import { createHash } from "node:crypto";
 import {
   AppStoreServerAPIClient,
@@ -74,6 +75,7 @@ export const verifyAppStoreReceiptInternalV1 = action({
   },
   returns: receiptResponseValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { sourceAuth, ...request } = args;
     assertVerificationSource("apple", request, sourceAuth);
     return verifyRecordingIssues(

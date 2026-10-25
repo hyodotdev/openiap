@@ -1,4 +1,5 @@
 "use node";
+import { assertCliScope } from "../cli/scope";
 
 // "Re-sync from store": an admin re-read of Apple or Google, saved through the
 // verification save path and `resync.ts`. One or two store calls finish well
@@ -77,6 +78,7 @@ export const resyncFromStore = action({
   },
   returns: resyncResultValidator,
   handler: async (ctx, args): Promise<ResyncResult> => {
+    await assertCliScope(ctx, "write");
     if (
       (args.purchaseId === undefined) ===
       (args.subscriptionId === undefined)

@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 // Read side of inbound store notifications, for operators. Not `query.ts`:
 // that module name belonged to the removed outbound stream, and the parity
 // audit keeps it out of the generated API.
@@ -60,7 +61,10 @@ export const listInboundNotifications = query({
     paginationOpts: paginationOptsValidator,
   },
   returns: paginationResultValidator(inboundNotificationValidator),
-  handler: async (ctx, args) => listInboundNotificationsHandler(ctx, args),
+  handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
+    return listInboundNotificationsHandler(ctx, args);
+  },
 });
 
 export async function listInboundNotificationsHandler(

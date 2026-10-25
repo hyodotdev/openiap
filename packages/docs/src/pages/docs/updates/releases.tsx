@@ -33,6 +33,10 @@ interface ReleaseChange extends ReleaseMetadata {
   description: React.ReactNode;
 }
 
+const IAPKIT_CLI_RELEASES: readonly ReleaseMetadata[] = [
+  { name: '@hyodotdev/openiap', version: '0.3.0', tag: 'openiap-0.3.0' },
+];
+
 const REACT_NATIVE_EXPO_GO_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: 'react-native-iap',
@@ -675,6 +679,65 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'iapkit-cli-2026-10-25',
+      date: new Date('2026-10-25'),
+      element: (
+        <div key="iapkit-cli-2026-10-25" style={noteCardStyle}>
+          {IAPKIT_CLI_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="iapkit-cli-2026-10-25" level="h4">
+            October 25, 2026 - Operate IAPKit from the terminal
+          </AnchorLink>
+          <p>
+            OpenIAP CLI 0.3.0 adds <code>openiap kit</code> for browser login,
+            organization and project administration, API keys, store
+            credentials, catalog sync, payloads, purchases, subscriptions,
+            webhooks and revenue analytics. Existing <code>init</code> and{' '}
+            <code>doctor</code> commands keep their local behavior.
+          </p>
+          <CodeBlock language="bash">{`npx @hyodotdev/openiap kit login
+npx --yes @hyodotdev/openiap kit projects list --json
+npx --yes @hyodotdev/openiap kit schema keys create --json`}</CodeBlock>
+          <p>
+            Coding agents discover inputs through JSON Schemas and receive
+            structured results without an MCP connection. Automation tokens have
+            scopes, expiry and revocation. Store synchronization previews
+            changes by default; applying changes requires{' '}
+            <code>--apply --yes</code>. Key regeneration immediately disables
+            the old key.
+          </p>
+          <p>
+            The CLI requires the matching IAPKit server update, including its
+            browser authorization page and <code>/cli/v1</code> endpoints.
+            Self-hosted operators deploy the server and Convex functions
+            together. See the{' '}
+            <a href="https://github.com/hyodotdev/openiap/tree/main/packages/cli#operate-iapkit">
+              CLI guide
+            </a>{' '}
+            for authentication, credential uploads and automation examples, and
+            the{' '}
+            <a href="https://kit.openiap.dev/docs/release-notes#week-2026-10-26">
+              IAPKit weekly history
+            </a>{' '}
+            for the server changes.
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            {IAPKIT_CLI_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                >
+                  {getReleaseLabel(release)}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
     {
       id: 'react-native-expo-go-2026-10-25',
       date: new Date('2026-10-25'),

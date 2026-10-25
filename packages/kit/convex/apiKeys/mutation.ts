@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import { mutation } from "../_generated/server";
 import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -20,6 +21,7 @@ export const create = mutation({
     keyType: apiKeyTypeValidator,
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new ConvexError("Not authenticated");
@@ -89,6 +91,7 @@ export const update = mutation({
     isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new ConvexError("Not authenticated");
@@ -147,6 +150,7 @@ export const remove = mutation({
     keyId: v.id("apiKeys"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new ConvexError("Not authenticated");
@@ -196,6 +200,7 @@ export const revoke = mutation({
     keyId: v.id("apiKeys"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new ConvexError("Not authenticated");
@@ -246,6 +251,7 @@ export const regenerate = mutation({
     keyId: v.id("apiKeys"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new ConvexError("Not authenticated");

@@ -1,0 +1,4678 @@
+[
+  {
+    "command": "whoami",
+    "target": "cli/query:session",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {}
+    }
+  },
+  {
+    "command": "logout",
+    "target": "cli/mutation:logout",
+    "kind": "mutation",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {}
+    }
+  },
+  {
+    "command": "tokens list",
+    "target": "cli/query:list",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "paginationOpts": {
+          "fieldType": {
+            "type": "object",
+            "value": {
+              "numItems": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": false
+              },
+              "cursor": {
+                "fieldType": {
+                  "type": "union",
+                  "value": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "optional": false
+              },
+              "endCursor": {
+                "fieldType": {
+                  "type": "union",
+                  "value": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "optional": true
+              },
+              "id": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "maximumRowsRead": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "maximumBytesRead": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              }
+            }
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "tokens create",
+    "target": "cli/mutation:createToken",
+    "kind": "mutation",
+    "effect": "secret",
+    "args": {
+      "type": "object",
+      "value": {
+        "name": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "scope": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "read"
+              },
+              {
+                "type": "literal",
+                "value": "write"
+              },
+              {
+                "type": "literal",
+                "value": "admin"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "expiresInDays": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "tokens revoke",
+    "target": "cli/mutation:revoke",
+    "kind": "mutation",
+    "effect": "destructive",
+    "args": {
+      "type": "object",
+      "value": {
+        "id": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "cliSessions"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "orgs list",
+    "target": "organizations/query:getUserOrganizations",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {}
+    }
+  },
+  {
+    "command": "orgs get",
+    "target": "organizations/query:getCurrentOrganization",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "organizationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "orgs create",
+    "target": "organizations/mutation:createOrganization",
+    "kind": "mutation",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "name": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "slug": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "orgs update",
+    "target": "organizations/mutation:updateOrganization",
+    "kind": "mutation",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "organizationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "name": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "billingEmail": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "taxId": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "taxIdType": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "members list",
+    "target": "organizations/query:listOrganizationMembers",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "organizationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "members invite",
+    "target": "organizations/mutation:inviteMember",
+    "kind": "mutation",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "organizationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "email": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "role": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "admin"
+              },
+              {
+                "type": "literal",
+                "value": "member"
+              }
+            ]
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "members remove",
+    "target": "organizations/mutation:removeMember",
+    "kind": "mutation",
+    "effect": "destructive",
+    "args": {
+      "type": "object",
+      "value": {
+        "organizationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "userId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "users"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "invitations list",
+    "target": "organizations/query:getMyInvitations",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "paginationOpts": {
+          "fieldType": {
+            "type": "object",
+            "value": {
+              "numItems": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": false
+              },
+              "cursor": {
+                "fieldType": {
+                  "type": "union",
+                  "value": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "optional": false
+              },
+              "endCursor": {
+                "fieldType": {
+                  "type": "union",
+                  "value": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "optional": true
+              },
+              "id": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "maximumRowsRead": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "maximumBytesRead": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              }
+            }
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "invitations pending",
+    "target": "organizations/query:getPendingInvitations",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "organizationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "paginationOpts": {
+          "fieldType": {
+            "type": "object",
+            "value": {
+              "numItems": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": false
+              },
+              "cursor": {
+                "fieldType": {
+                  "type": "union",
+                  "value": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "optional": false
+              },
+              "endCursor": {
+                "fieldType": {
+                  "type": "union",
+                  "value": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "optional": true
+              },
+              "id": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "maximumRowsRead": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "maximumBytesRead": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              }
+            }
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "invitations respond",
+    "target": "organizations/mutation:respondToInvitation",
+    "kind": "mutation",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "invitationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizationInvitations"
+          },
+          "optional": false
+        },
+        "accept": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "invitations cancel",
+    "target": "organizations/mutation:cancelInvitation",
+    "kind": "mutation",
+    "effect": "destructive",
+    "args": {
+      "type": "object",
+      "value": {
+        "invitationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizationInvitations"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "projects list",
+    "target": "projects/query:listOrganizationProjects",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "organizationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "projects get",
+    "target": "projects/query:getProjectById",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "setup status",
+    "target": "projects/setupStatus:getSetupStatus",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "projects create",
+    "target": "projects/mutation:createProject",
+    "kind": "mutation",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "organizationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "name": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "slug": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "react-native"
+              },
+              {
+                "type": "literal",
+                "value": "flutter"
+              },
+              {
+                "type": "literal",
+                "value": "kmp"
+              },
+              {
+                "type": "literal",
+                "value": "android"
+              },
+              {
+                "type": "literal",
+                "value": "ios"
+              },
+              {
+                "type": "literal",
+                "value": "node"
+              },
+              {
+                "type": "literal",
+                "value": "php"
+              },
+              {
+                "type": "literal",
+                "value": "dotnet"
+              },
+              {
+                "type": "literal",
+                "value": "unity"
+              },
+              {
+                "type": "literal",
+                "value": "web"
+              },
+              {
+                "type": "literal",
+                "value": "other"
+              }
+            ]
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "projects update",
+    "target": "projects/mutation:updateProject",
+    "kind": "mutation",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "name": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "react-native"
+              },
+              {
+                "type": "literal",
+                "value": "flutter"
+              },
+              {
+                "type": "literal",
+                "value": "kmp"
+              },
+              {
+                "type": "literal",
+                "value": "android"
+              },
+              {
+                "type": "literal",
+                "value": "ios"
+              },
+              {
+                "type": "literal",
+                "value": "node"
+              },
+              {
+                "type": "literal",
+                "value": "php"
+              },
+              {
+                "type": "literal",
+                "value": "dotnet"
+              },
+              {
+                "type": "literal",
+                "value": "unity"
+              },
+              {
+                "type": "literal",
+                "value": "web"
+              },
+              {
+                "type": "literal",
+                "value": "other"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "androidPackageName": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "iosBundleId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "iosAppAppleId": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "iosAppStoreIssuerId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "iosAppStoreKeyId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "iosAscIssuerId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "iosAscKeyId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "horizonEnabled": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        },
+        "horizonAppId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "horizonAppSecret": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "amazonSharedSecret": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "amazonSandboxEnabled": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        },
+        "amazonRtnTopicArn": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "reportingCurrency": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "projects delete",
+    "target": "projects/mutation:deleteProject",
+    "kind": "mutation",
+    "effect": "destructive",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "keys list",
+    "target": "apiKeys/query:listProjectApiKeys",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "keys get",
+    "target": "apiKeys/query:getById",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "keyId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "apiKeys"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "keys create",
+    "target": "apiKeys/mutation:create",
+    "kind": "mutation",
+    "effect": "secret",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "name": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "description": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "keyType": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "publishable"
+              },
+              {
+                "type": "literal",
+                "value": "secret"
+              }
+            ]
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "keys update",
+    "target": "apiKeys/mutation:update",
+    "kind": "mutation",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "keyId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "apiKeys"
+          },
+          "optional": false
+        },
+        "name": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "description": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "isActive": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "keys revoke",
+    "target": "apiKeys/mutation:revoke",
+    "kind": "mutation",
+    "effect": "destructive",
+    "args": {
+      "type": "object",
+      "value": {
+        "keyId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "apiKeys"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "keys regenerate",
+    "target": "apiKeys/mutation:regenerate",
+    "kind": "mutation",
+    "effect": "destructive-secret",
+    "args": {
+      "type": "object",
+      "value": {
+        "keyId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "apiKeys"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "keys delete",
+    "target": "apiKeys/mutation:remove",
+    "kind": "mutation",
+    "effect": "destructive",
+    "args": {
+      "type": "object",
+      "value": {
+        "keyId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "apiKeys"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "account get",
+    "target": "userProfiles/query:getCurrentUserProfile",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {}
+    }
+  },
+  {
+    "command": "account stats",
+    "target": "userProfiles/query:getUserStats",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {}
+    }
+  },
+  {
+    "command": "account update",
+    "target": "userProfiles/mutation:updateDisplayName",
+    "kind": "mutation",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "displayName": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "account delete",
+    "target": "userProfiles/mutation:deleteAccount",
+    "kind": "mutation",
+    "effect": "destructive",
+    "args": {
+      "type": "object",
+      "value": {}
+    }
+  },
+  {
+    "command": "products list",
+    "target": "products/query:listProductsPage",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "IOS"
+              },
+              {
+                "type": "literal",
+                "value": "Android"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "limit": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "products create",
+    "target": "products/mutation:upsertProduct",
+    "kind": "mutation",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        },
+        "productId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "IOS"
+              },
+              {
+                "type": "literal",
+                "value": "Android"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "type": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "Subscription"
+              },
+              {
+                "type": "literal",
+                "value": "NonConsumable"
+              },
+              {
+                "type": "literal",
+                "value": "Consumable"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "title": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "description": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "localizations": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "object",
+              "value": {
+                "locale": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": false
+                },
+                "title": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": false
+                },
+                "description": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": true
+                }
+              }
+            }
+          },
+          "optional": true
+        },
+        "regions": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "all"
+              },
+              {
+                "type": "array",
+                "value": {
+                  "type": "string"
+                }
+              }
+            ]
+          },
+          "optional": true
+        },
+        "priceAmountMicros": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "currency": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "billingPeriod": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "P1W"
+              },
+              {
+                "type": "literal",
+                "value": "P1M"
+              },
+              {
+                "type": "literal",
+                "value": "P2M"
+              },
+              {
+                "type": "literal",
+                "value": "P3M"
+              },
+              {
+                "type": "literal",
+                "value": "P6M"
+              },
+              {
+                "type": "literal",
+                "value": "P1Y"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "subscriptionGroupName": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "reviewNote": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "state": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "Draft"
+              },
+              {
+                "type": "literal",
+                "value": "Ready"
+              },
+              {
+                "type": "literal",
+                "value": "Active"
+              },
+              {
+                "type": "literal",
+                "value": "Removed"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "storeRef": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "products update",
+    "target": "products/mutation:upsertProduct",
+    "kind": "mutation",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        },
+        "productId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "IOS"
+              },
+              {
+                "type": "literal",
+                "value": "Android"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "type": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "Subscription"
+              },
+              {
+                "type": "literal",
+                "value": "NonConsumable"
+              },
+              {
+                "type": "literal",
+                "value": "Consumable"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "title": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "description": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "localizations": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "object",
+              "value": {
+                "locale": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": false
+                },
+                "title": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": false
+                },
+                "description": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": true
+                }
+              }
+            }
+          },
+          "optional": true
+        },
+        "regions": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "all"
+              },
+              {
+                "type": "array",
+                "value": {
+                  "type": "string"
+                }
+              }
+            ]
+          },
+          "optional": true
+        },
+        "priceAmountMicros": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "currency": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "billingPeriod": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "P1W"
+              },
+              {
+                "type": "literal",
+                "value": "P1M"
+              },
+              {
+                "type": "literal",
+                "value": "P2M"
+              },
+              {
+                "type": "literal",
+                "value": "P3M"
+              },
+              {
+                "type": "literal",
+                "value": "P6M"
+              },
+              {
+                "type": "literal",
+                "value": "P1Y"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "subscriptionGroupName": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "reviewNote": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "state": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "Draft"
+              },
+              {
+                "type": "literal",
+                "value": "Ready"
+              },
+              {
+                "type": "literal",
+                "value": "Active"
+              },
+              {
+                "type": "literal",
+                "value": "Removed"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "storeRef": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "products state",
+    "target": "products/mutation:setProductState",
+    "kind": "mutation",
+    "effect": "destructive",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        },
+        "productId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "IOS"
+              },
+              {
+                "type": "literal",
+                "value": "Android"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "state": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "Draft"
+              },
+              {
+                "type": "literal",
+                "value": "Ready"
+              },
+              {
+                "type": "literal",
+                "value": "Active"
+              },
+              {
+                "type": "literal",
+                "value": "Removed"
+              }
+            ]
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "products remove",
+    "target": "products/mutation:removeProduct",
+    "kind": "mutation",
+    "effect": "destructive",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        },
+        "productId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "IOS"
+              },
+              {
+                "type": "literal",
+                "value": "Android"
+              }
+            ]
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "products groups",
+    "target": "products/asc:listSubscriptionGroupsAppleIOS",
+    "kind": "action",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "payloads get",
+    "target": "products/query:getProductClientPayloadEditorState",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "IOS"
+              },
+              {
+                "type": "literal",
+                "value": "Android"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "productId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "payloads preview",
+    "target": "products/query:getProductClientPayloadSdkPreview",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "IOS"
+              },
+              {
+                "type": "literal",
+                "value": "Android"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "productId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "payloads set",
+    "target": "products/mutation:upsertProductClientPayload",
+    "kind": "mutation",
+    "effect": "publish",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "IOS"
+              },
+              {
+                "type": "literal",
+                "value": "Android"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "productId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "format": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "toml"
+              },
+              {
+                "type": "literal",
+                "value": "json"
+              },
+              {
+                "type": "literal",
+                "value": "text"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "body": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "expectedVersion": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "payloads remove",
+    "target": "products/mutation:removeProductClientPayload",
+    "kind": "mutation",
+    "effect": "destructive",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "IOS"
+              },
+              {
+                "type": "literal",
+                "value": "Android"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "productId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "expectedVersion": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "payloads draft get",
+    "target": "products/query:getProductClientPayloadWorkspace",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "IOS"
+              },
+              {
+                "type": "literal",
+                "value": "Android"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "productId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "payloads draft save",
+    "target": "products/mutation:saveProductClientPayloadDraft",
+    "kind": "mutation",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "IOS"
+              },
+              {
+                "type": "literal",
+                "value": "Android"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "productId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "format": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "toml"
+              },
+              {
+                "type": "literal",
+                "value": "json"
+              },
+              {
+                "type": "literal",
+                "value": "text"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "body": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "expectedDraftRevision": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "expectedVersion": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "payloads draft discard",
+    "target": "products/mutation:discardProductClientPayloadDraft",
+    "kind": "mutation",
+    "effect": "destructive",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "IOS"
+              },
+              {
+                "type": "literal",
+                "value": "Android"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "productId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "expectedDraftRevision": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "payloads publish",
+    "target": "products/mutation:publishProductClientPayloadDraft",
+    "kind": "mutation",
+    "effect": "publish",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "IOS"
+              },
+              {
+                "type": "literal",
+                "value": "Android"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "productId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "expectedVersion": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "expectedDraftRevision": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "note": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "payloads history",
+    "target": "products/query:listProductClientPayloadHistory",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "IOS"
+              },
+              {
+                "type": "literal",
+                "value": "Android"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "productId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "payloads version",
+    "target": "products/query:getProductClientPayloadHistoryVersion",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "IOS"
+              },
+              {
+                "type": "literal",
+                "value": "Android"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "productId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "version": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "payloads rollback",
+    "target": "products/mutation:rollbackProductClientPayload",
+    "kind": "mutation",
+    "effect": "publish",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "IOS"
+              },
+              {
+                "type": "literal",
+                "value": "Android"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "productId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "toVersion": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "expectedVersion": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "note": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "sync products",
+    "target": "products/jobs:enqueueProductSync",
+    "kind": "mutation",
+    "effect": "sync",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "IOS"
+              },
+              {
+                "type": "literal",
+                "value": "Android"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "direction": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "pull"
+              },
+              {
+                "type": "literal",
+                "value": "push"
+              },
+              {
+                "type": "literal",
+                "value": "both"
+              },
+              {
+                "type": "literal",
+                "value": "purge-local"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "dryRun": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "sync status",
+    "target": "products/jobs:getSyncJobById",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "jobId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "sync active",
+    "target": "products/jobs:getActiveSyncJob",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "IOS"
+              },
+              {
+                "type": "literal",
+                "value": "Android"
+              }
+            ]
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "sync cancel",
+    "target": "products/jobs:cancelProductSync",
+    "kind": "mutation",
+    "effect": "destructive",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        },
+        "jobId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "sync dismiss",
+    "target": "products/jobs:dismissCompletedJob",
+    "kind": "mutation",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        },
+        "jobId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "productSyncJobs"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "subscriptions list",
+    "target": "subscriptions/query:listSubscriptions",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        },
+        "state": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "Active"
+              },
+              {
+                "type": "literal",
+                "value": "InGracePeriod"
+              },
+              {
+                "type": "literal",
+                "value": "InBillingRetry"
+              },
+              {
+                "type": "literal",
+                "value": "Expired"
+              },
+              {
+                "type": "literal",
+                "value": "Revoked"
+              },
+              {
+                "type": "literal",
+                "value": "Refunded"
+              },
+              {
+                "type": "literal",
+                "value": "Paused"
+              },
+              {
+                "type": "literal",
+                "value": "Unknown"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "productId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "userId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "limit": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "subscriptions status",
+    "target": "subscriptions/query:subscriptionStatusV2",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "userId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "now": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "environment": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "production"
+              },
+              {
+                "type": "literal",
+                "value": "sandbox"
+              },
+              {
+                "type": "literal",
+                "value": "all"
+              }
+            ]
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "subscriptions entitlements",
+    "target": "subscriptions/query:entitlementsV2",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "userId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "now": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "environment": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "production"
+              },
+              {
+                "type": "literal",
+                "value": "sandbox"
+              },
+              {
+                "type": "literal",
+                "value": "all"
+              }
+            ]
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "subscriptions bind",
+    "target": "subscriptions/mutation:bindUserAsServer",
+    "kind": "mutation",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "purchaseToken": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "userId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "correlationId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "subscriptions rebind",
+    "target": "subscriptions/mutation:rebindUser",
+    "kind": "mutation",
+    "effect": "destructive",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "purchaseToken": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "userId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "subscriptions resync",
+    "target": "subscriptions/action:resyncFromStore",
+    "kind": "action",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        },
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "purchaseId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "subscriptionId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "users timeline",
+    "target": "subscriptions/query:userTimeline",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        },
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "appUserId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "users erase",
+    "target": "subscriptions/mutation:requestUserErasure",
+    "kind": "mutation",
+    "effect": "destructive",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "userId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "users erasure-status",
+    "target": "subscriptions/query:userErasureStatusV2",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "jobId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "purchases list",
+    "target": "purchases/query:getReceiptsByProject",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "store": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "apple"
+              },
+              {
+                "type": "literal",
+                "value": "google"
+              },
+              {
+                "type": "literal",
+                "value": "horizon"
+              },
+              {
+                "type": "literal",
+                "value": "amazon"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "paginationOpts": {
+          "fieldType": {
+            "type": "object",
+            "value": {
+              "numItems": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": false
+              },
+              "cursor": {
+                "fieldType": {
+                  "type": "union",
+                  "value": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "optional": false
+              },
+              "endCursor": {
+                "fieldType": {
+                  "type": "union",
+                  "value": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "optional": true
+              },
+              "id": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "maximumRowsRead": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "maximumBytesRead": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              }
+            }
+          },
+          "optional": false
+        },
+        "sortField": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "_creationTime"
+              },
+              {
+                "type": "literal",
+                "value": "updatedAt"
+              },
+              {
+                "type": "literal",
+                "value": "verificationDurationMs"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "sortDirection": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "asc"
+              },
+              {
+                "type": "literal",
+                "value": "desc"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "state": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "ENTITLED"
+              },
+              {
+                "type": "literal",
+                "value": "PENDING_ACKNOWLEDGMENT"
+              },
+              {
+                "type": "literal",
+                "value": "PENDING"
+              },
+              {
+                "type": "literal",
+                "value": "CANCELED"
+              },
+              {
+                "type": "literal",
+                "value": "EXPIRED"
+              },
+              {
+                "type": "literal",
+                "value": "READY_TO_CONSUME"
+              },
+              {
+                "type": "literal",
+                "value": "CONSUMED"
+              },
+              {
+                "type": "literal",
+                "value": "UNKNOWN"
+              },
+              {
+                "type": "literal",
+                "value": "INAUTHENTIC"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "isValid": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        },
+        "requestIpQuery": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "appUserId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "productId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "createdFrom": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "createdTo": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "purchases stats",
+    "target": "purchases/query:getOrganizationReceiptStats",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "organizationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "purchases get",
+    "target": "purchases/query:getPurchaseById",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "purchaseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "purchases"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "purchases verify apple",
+    "target": "purchases/action:verifyAppStoreReceipt",
+    "kind": "action",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "jws": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "expectedProductId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "requestIp": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "correlationId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "sourceAuth": {
+          "fieldType": {
+            "type": "object",
+            "value": {
+              "issuedAt": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": false
+              },
+              "mac": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": false
+              }
+            }
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "purchases verify google",
+    "target": "purchases/action:verifyGooglePlayReceipt",
+    "kind": "action",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "purchaseToken": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "expectedProductId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "requestIp": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "correlationId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "sourceAuth": {
+          "fieldType": {
+            "type": "object",
+            "value": {
+              "issuedAt": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": false
+              },
+              "mac": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": false
+              }
+            }
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "purchases verify amazon",
+    "target": "purchases/action:verifyAmazonReceipt",
+    "kind": "action",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "userId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "receiptId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "sandbox": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        },
+        "expectedProductId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "requestIp": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "correlationId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "sourceAuth": {
+          "fieldType": {
+            "type": "object",
+            "value": {
+              "issuedAt": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": false
+              },
+              "mac": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": false
+              }
+            }
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "purchases verify horizon",
+    "target": "purchases/horizon:verifyMetaHorizonReceiptInternalV1",
+    "kind": "action",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "userId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "sku": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "requestIp": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "correlationId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "sourceAuth": {
+          "fieldType": {
+            "type": "object",
+            "value": {
+              "issuedAt": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": false
+              },
+              "mac": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": false
+              }
+            }
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "orders lookup",
+    "target": "orders/action:lookupOrder",
+    "kind": "action",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "store": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "apple"
+              },
+              {
+                "type": "literal",
+                "value": "google"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "orderId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "analytics metrics",
+    "target": "subscriptions/query:metricsSummary",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        },
+        "refreshAt": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "analytics revenue",
+    "target": "subscriptions/query:getRevenueMetrics",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        },
+        "fromDay": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "toDay": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "environment": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "Sandbox"
+              },
+              {
+                "type": "literal",
+                "value": "Production"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "includeCohorts": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "webhooks endpoints",
+    "target": "projects/query:getWebhookEndpointPaths",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "webhooks list",
+    "target": "commerce/destinations:list",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "webhooks create",
+    "target": "commerce/destinations:create",
+    "kind": "mutation",
+    "effect": "secret",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "url": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "description": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "eventTypes": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "string"
+            }
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "webhooks update",
+    "target": "commerce/destinations:update",
+    "kind": "mutation",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "destinationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "outboundDestinations"
+          },
+          "optional": false
+        },
+        "url": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "enabled": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        },
+        "eventTypes": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "string"
+            }
+          },
+          "optional": true
+        },
+        "description": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "webhooks delete",
+    "target": "commerce/destinations:remove",
+    "kind": "mutation",
+    "effect": "destructive",
+    "args": {
+      "type": "object",
+      "value": {
+        "destinationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "outboundDestinations"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "webhooks rotate-secret",
+    "target": "commerce/destinations:rotateSecret",
+    "kind": "mutation",
+    "effect": "destructive-secret",
+    "args": {
+      "type": "object",
+      "value": {
+        "destinationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "outboundDestinations"
+          },
+          "optional": false
+        },
+        "revokePrevious": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "webhooks deliveries",
+    "target": "commerce/deliveryState:listDeliveries",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        },
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "status": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "pending"
+              },
+              {
+                "type": "literal",
+                "value": "delivering"
+              },
+              {
+                "type": "literal",
+                "value": "delivered"
+              },
+              {
+                "type": "literal",
+                "value": "failed"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "eventType": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "destinationId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "eventId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "paginationOpts": {
+          "fieldType": {
+            "type": "object",
+            "value": {
+              "numItems": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": false
+              },
+              "cursor": {
+                "fieldType": {
+                  "type": "union",
+                  "value": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "optional": false
+              },
+              "endCursor": {
+                "fieldType": {
+                  "type": "union",
+                  "value": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "optional": true
+              },
+              "id": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "maximumRowsRead": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "maximumBytesRead": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              }
+            }
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "webhooks resend",
+    "target": "commerce/deliveryState:resend",
+    "kind": "mutation",
+    "effect": "publish",
+    "args": {
+      "type": "object",
+      "value": {
+        "deliveryId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "webhooks notifications",
+    "target": "webhooks/inbound:listInboundNotifications",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        },
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "paginationOpts": {
+          "fieldType": {
+            "type": "object",
+            "value": {
+              "numItems": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": false
+              },
+              "cursor": {
+                "fieldType": {
+                  "type": "union",
+                  "value": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "optional": false
+              },
+              "endCursor": {
+                "fieldType": {
+                  "type": "union",
+                  "value": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "optional": true
+              },
+              "id": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "maximumRowsRead": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "maximumBytesRead": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              }
+            }
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "issues list",
+    "target": "purchaseIssues/query:listPurchaseIssues",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        },
+        "apiKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "paginationOpts": {
+          "fieldType": {
+            "type": "object",
+            "value": {
+              "numItems": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": false
+              },
+              "cursor": {
+                "fieldType": {
+                  "type": "union",
+                  "value": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "optional": false
+              },
+              "endCursor": {
+                "fieldType": {
+                  "type": "union",
+                  "value": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "optional": true
+              },
+              "id": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "maximumRowsRead": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              },
+              "maximumBytesRead": {
+                "fieldType": {
+                  "type": "number"
+                },
+                "optional": true
+              }
+            }
+          },
+          "optional": false
+        },
+        "cause": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "STORE_PENDING"
+              },
+              {
+                "type": "literal",
+                "value": "STORE_UNAVAILABLE"
+              },
+              {
+                "type": "literal",
+                "value": "RATE_LIMITED"
+              },
+              {
+                "type": "literal",
+                "value": "INAUTHENTIC"
+              },
+              {
+                "type": "literal",
+                "value": "PRODUCT_MISMATCH"
+              },
+              {
+                "type": "literal",
+                "value": "APP_MISMATCH"
+              },
+              {
+                "type": "literal",
+                "value": "MALFORMED_EVIDENCE"
+              },
+              {
+                "type": "literal",
+                "value": "SANDBOX_NOT_ALLOWED"
+              },
+              {
+                "type": "literal",
+                "value": "STORE_NOT_CONFIGURED"
+              },
+              {
+                "type": "literal",
+                "value": "CREDENTIALS_MISSING"
+              },
+              {
+                "type": "literal",
+                "value": "CREDENTIALS_REJECTED"
+              },
+              {
+                "type": "literal",
+                "value": "VERIFICATION_FAILED"
+              },
+              {
+                "type": "literal",
+                "value": "OWNERSHIP_CONFLICT"
+              },
+              {
+                "type": "literal",
+                "value": "BIND_LIMIT_REACHED"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "store": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "apple"
+              },
+              {
+                "type": "literal",
+                "value": "google"
+              },
+              {
+                "type": "literal",
+                "value": "horizon"
+              },
+              {
+                "type": "literal",
+                "value": "amazon"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "productId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "appUserId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "from": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "to": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "issues get",
+    "target": "purchaseIssues/query:getPurchaseIssue",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "issueId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "credentials list",
+    "target": "files/query:list",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "organizationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        },
+        "purpose": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "apple_p8_key"
+              },
+              {
+                "type": "literal",
+                "value": "apple_p8_asc_api_key"
+              },
+              {
+                "type": "literal",
+                "value": "android_service_account"
+              },
+              {
+                "type": "literal",
+                "value": "apple_iap_review_screenshot"
+              }
+            ]
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "credentials get",
+    "target": "files/query:get",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "fileId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "files"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "credentials download",
+    "target": "files/action:downloadFile",
+    "kind": "action",
+    "effect": "secret",
+    "args": {
+      "type": "object",
+      "value": {
+        "fileId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "files"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "credentials apple",
+    "target": "files/action:saveAppleP8Key",
+    "kind": "action",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "organizationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "purpose": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "apple_p8_key"
+              },
+              {
+                "type": "literal",
+                "value": "apple_p8_asc_api_key"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "fileName": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "fileType": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "content": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "credentials configure",
+    "target": "projects/mutation:updateProject",
+    "kind": "mutation",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "name": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "platform": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "react-native"
+              },
+              {
+                "type": "literal",
+                "value": "flutter"
+              },
+              {
+                "type": "literal",
+                "value": "kmp"
+              },
+              {
+                "type": "literal",
+                "value": "android"
+              },
+              {
+                "type": "literal",
+                "value": "ios"
+              },
+              {
+                "type": "literal",
+                "value": "node"
+              },
+              {
+                "type": "literal",
+                "value": "php"
+              },
+              {
+                "type": "literal",
+                "value": "dotnet"
+              },
+              {
+                "type": "literal",
+                "value": "unity"
+              },
+              {
+                "type": "literal",
+                "value": "web"
+              },
+              {
+                "type": "literal",
+                "value": "other"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "androidPackageName": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "iosBundleId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "iosAppAppleId": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "iosAppStoreIssuerId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "iosAppStoreKeyId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "iosAscIssuerId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "iosAscKeyId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "horizonEnabled": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        },
+        "horizonAppId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "horizonAppSecret": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "amazonSharedSecret": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "amazonSandboxEnabled": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        },
+        "amazonRtnTopicArn": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "reportingCurrency": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "credentials delete",
+    "target": "files/mutation:remove",
+    "kind": "mutation",
+    "effect": "destructive",
+    "args": {
+      "type": "object",
+      "value": {
+        "fileId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "files"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "files reserve",
+    "target": "files/mutation:generateUploadUrl",
+    "kind": "mutation",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "organizationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "files save",
+    "target": "files/mutation:saveFile",
+    "kind": "mutation",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "organizationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": true
+        },
+        "uploadReservationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "fileUploadReservations"
+          },
+          "optional": false
+        },
+        "storageId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "_storage"
+          },
+          "optional": false
+        },
+        "fileName": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "fileType": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "fileSize": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "purpose": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "apple_p8_key"
+              },
+              {
+                "type": "literal",
+                "value": "apple_p8_asc_api_key"
+              },
+              {
+                "type": "literal",
+                "value": "android_service_account"
+              },
+              {
+                "type": "literal",
+                "value": "apple_iap_review_screenshot"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "description": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "metadata": {
+          "fieldType": {
+            "type": "any"
+          },
+          "optional": true
+        },
+        "isInternal": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  {
+    "command": "files validate-google",
+    "target": "files/action:validateGoogleServiceAccountUpload",
+    "kind": "action",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "organizationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "uploadReservationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "fileUploadReservations"
+          },
+          "optional": false
+        },
+        "storageId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "_storage"
+          },
+          "optional": false
+        },
+        "fileName": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "fileType": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "fileSize": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "files validate-screenshot",
+    "target": "files/action:validateAppleReviewScreenshotUpload",
+    "kind": "action",
+    "effect": "write",
+    "args": {
+      "type": "object",
+      "value": {
+        "organizationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        },
+        "uploadReservationId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "fileUploadReservations"
+          },
+          "optional": false
+        },
+        "storageId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "_storage"
+          },
+          "optional": false
+        },
+        "fileName": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "fileType": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "fileSize": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "webhooks failed",
+    "target": "commerce/deliveryState:listFailed",
+    "kind": "query",
+    "effect": "read",
+    "args": {
+      "type": "object",
+      "value": {
+        "projectId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "projects"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  {
+    "command": "webhooks replay",
+    "target": "commerce/deliveryState:replay",
+    "kind": "mutation",
+    "effect": "publish",
+    "args": {
+      "type": "object",
+      "value": {
+        "deliveryId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "outboundDeliveries"
+          },
+          "optional": false
+        }
+      }
+    }
+  }
+]

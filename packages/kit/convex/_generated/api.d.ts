@@ -17,6 +17,10 @@ import type * as apiKeys_query from "../apiKeys/query.js";
 import type * as auth from "../auth.js";
 import type * as authWindow from "../authWindow.js";
 import type * as certificates_apple_root_certificates from "../certificates/apple_root_certificates.js";
+import type * as cli_internal from "../cli/internal.js";
+import type * as cli_mutation from "../cli/mutation.js";
+import type * as cli_query from "../cli/query.js";
+import type * as cli_scope from "../cli/scope.js";
 import type * as commerce_capabilities from "../commerce/capabilities.js";
 import type * as commerce_contract from "../commerce/contract.js";
 import type * as commerce_delivery from "../commerce/delivery.js";
@@ -94,6 +98,7 @@ import type * as subscriptions_query from "../subscriptions/query.js";
 import type * as subscriptions_resync from "../subscriptions/resync.js";
 import type * as subscriptions_revenueCohorts from "../subscriptions/revenueCohorts.js";
 import type * as subscriptions_revenueCounters from "../subscriptions/revenueCounters.js";
+import type * as subscriptions_revenueDiscovery from "../subscriptions/revenueDiscovery.js";
 import type * as subscriptions_revenueMetrics from "../subscriptions/revenueMetrics.js";
 import type * as subscriptions_selectLatest from "../subscriptions/selectLatest.js";
 import type * as subscriptions_stateMachine from "../subscriptions/stateMachine.js";
@@ -137,6 +142,10 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   authWindow: typeof authWindow;
   "certificates/apple_root_certificates": typeof certificates_apple_root_certificates;
+  "cli/internal": typeof cli_internal;
+  "cli/mutation": typeof cli_mutation;
+  "cli/query": typeof cli_query;
+  "cli/scope": typeof cli_scope;
   "commerce/capabilities": typeof commerce_capabilities;
   "commerce/contract": typeof commerce_contract;
   "commerce/delivery": typeof commerce_delivery;
@@ -214,6 +223,7 @@ declare const fullApi: ApiFromModules<{
   "subscriptions/resync": typeof subscriptions_resync;
   "subscriptions/revenueCohorts": typeof subscriptions_revenueCohorts;
   "subscriptions/revenueCounters": typeof subscriptions_revenueCounters;
+  "subscriptions/revenueDiscovery": typeof subscriptions_revenueDiscovery;
   "subscriptions/revenueMetrics": typeof subscriptions_revenueMetrics;
   "subscriptions/selectLatest": typeof subscriptions_selectLatest;
   "subscriptions/stateMachine": typeof subscriptions_stateMachine;
@@ -270,4 +280,5 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   migrations: import("@convex-dev/migrations/_generated/component.js").ComponentApi<"migrations">;
+  rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
 };

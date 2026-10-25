@@ -1,4 +1,5 @@
 "use node";
+import { assertCliScope } from "../cli/scope";
 import {
   Environment,
   SignedDataVerifier,
@@ -44,6 +45,7 @@ export const ingestAppleAsnIOS = action({
     deduped: v.boolean(),
   }),
   handler: async (ctx, args): Promise<IngestResult> => {
+    await assertCliScope(ctx, "write");
     const project = await getProjectByApiKey(ctx, args.apiKey);
 
     // Checked here, not in the route, to save a Convex round-trip.

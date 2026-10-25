@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 // Management of outbound destinations.
 //
 // Admin-only: a destination holds a signing secret and names an endpoint IAPKit
@@ -101,13 +102,17 @@ function publicView(destination: Doc<"outboundDestinations">) {
 
 export const list = query({
   args: { projectId: v.id("projects") },
-  handler: async (ctx, args) => listHandler(ctx, args.projectId),
+  handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
+    return listHandler(ctx, args.projectId);
+  },
 });
 
 export const canManage = query({
   args: { projectId: v.id("projects") },
   returns: v.boolean(),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const resolved = await resolveProjectByIdForCurrentUserFromDb(
       ctx,
       args.projectId,
@@ -139,7 +144,10 @@ export const create = mutation({
     description: v.optional(v.string()),
     eventTypes: v.optional(v.array(v.string())),
   },
-  handler: async (ctx, args) => createHandler(ctx, args),
+  handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
+    return createHandler(ctx, args);
+  },
 });
 
 export type CreateDestinationArgs = {
@@ -200,7 +208,10 @@ export const update = mutation({
     eventTypes: v.optional(v.array(v.string())),
     description: v.optional(v.string()),
   },
-  handler: async (ctx, args) => updateHandler(ctx, args),
+  handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
+    return updateHandler(ctx, args);
+  },
 });
 
 export type UpdateDestinationArgs = {
@@ -256,8 +267,14 @@ export const rotateSecret = mutation({
     destinationId: v.id("outboundDestinations"),
     revokePrevious: v.optional(v.boolean()),
   },
-  handler: async (ctx, args) =>
-    rotateSecretHandler(ctx, args.destinationId, args.revokePrevious ?? false),
+  handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
+    return rotateSecretHandler(
+      ctx,
+      args.destinationId,
+      args.revokePrevious ?? false,
+    );
+  },
 });
 
 export async function rotateSecretHandler(
@@ -299,7 +316,10 @@ export async function rotateSecretHandler(
 
 export const remove = mutation({
   args: { destinationId: v.id("outboundDestinations") },
-  handler: async (ctx, args) => removeHandler(ctx, args.destinationId),
+  handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
+    return removeHandler(ctx, args.destinationId);
+  },
 });
 
 export async function removeHandler(

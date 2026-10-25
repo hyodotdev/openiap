@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import { internalMutation, mutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
@@ -258,6 +259,7 @@ export const saveFile = mutation({
     isInternal: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "admin");
     const reservation = await ctx.db.get(args.uploadReservationId);
     if (
       !reservation ||
@@ -705,6 +707,7 @@ export const remove = mutation({
     fileId: v.id("files"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new ConvexError("Not authenticated");
@@ -783,6 +786,7 @@ export const generateUploadUrl = mutation({
     projectId: v.optional(v.id("projects")),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "admin");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new ConvexError("Not authenticated");

@@ -1,12 +1,127 @@
 # @hyodotdev/openiap
 
-Prepare an OpenIAP implementation brief and check local purchase configuration.
-Use `init` to choose a starting guide for your coding assistant; use `doctor`
-to catch known configuration mistakes before a build or after an AI edit.
+Prepare an OpenIAP implementation brief, check local purchase configuration,
+and operate IAPKit from a terminal or coding agent. `init` and `doctor` work
+locally; `kit` signs in to the selected IAPKit deployment.
 
 Requires Node.js 20 or later.
 
 [![npm](https://img.shields.io/npm/v/@hyodotdev/openiap/latest)](https://www.npmjs.com/package/@hyodotdev/openiap)
+
+## Operate IAPKit
+
+```bash
+npx @hyodotdev/openiap kit login
+npx @hyodotdev/openiap kit whoami --json
+npx @hyodotdev/openiap kit projects list --json
+npx @hyodotdev/openiap kit keys list --project PROJECT_ID --json
+```
+
+Login opens IAPKit in your browser. Sign in with GitHub, check the displayed
+code against your terminal, and approve the connection. Use `login --no-browser`
+on a remote terminal and open the printed URL yourself. Codes expire after
+10 minutes; CLI sessions expire after 30 days. `logout` revokes the current
+CLI session and removes its local credentials.
+
+Login survives separate `npx` runs. Credentials live in `~/.config/openiap/`,
+separately for each server origin, with a private directory and files on Unix.
+`OPENIAP_CONFIG_DIR` overrides that directory. Use `--base-url https://your-kit.example`
+or `IAPKIT_BASE_URL` for another instance; HTTP is allowed only on localhost.
+Credentials are never reused across origins.
+
+### Discover commands and inputs
+
+```bash
+npx --yes @hyodotdev/openiap kit --help
+npx --yes @hyodotdev/openiap kit schema --json
+npx --yes @hyodotdev/openiap kit schema keys create --json
+npx --yes @hyodotdev/openiap kit keys create --help
+```
+
+`schema` works offline and returns JSON Schemas for command inputs. Use
+`--project` for `projectId`, `--org` for `organizationId`, and `--key` for
+`keyId`. Other fields use kebab-case flags. Arrays and objects take JSON;
+`--file request.json` supplies a JSON body, and flags override its fields.
+Use `--file -` to read JSON from stdin.
+
+| Group                                                                    | Operations                                                                                    |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `orgs`, `members`, `invitations`                                         | Organizations, members, invitations                                                           |
+| `projects`, `keys`                                                       | Project settings and complete API key management                                              |
+| `credentials`, `files`                                                   | Store credentials, review screenshots, uploads, downloads                                     |
+| `products`, `sync`                                                       | Catalog, localizations, pricing, store synchronization and jobs                               |
+| `payloads`                                                               | Public rules, drafts, publish, history and rollback                                           |
+| `purchases`, `subscriptions`, `users`, `orders`                          | Verification, access, binding, resync, timeline and erasure                                   |
+| `webhooks`, `issues`, `analytics`                                        | Destinations, deliveries, notifications, diagnostics and revenue                              |
+| `account`, `tokens`                                                      | Profile and CLI session/automation token management                                           |
+| `health`, `setup`, `setup status`, `troubleshoot`, `inspect`, `simulate` | Server health, SDK snippets, configuration checks, operational summaries and sandbox guidance |
+
+Commands call IAPKit directly and do not require an MCP server. Organization
+roles remain enforced by IAPKit. Keys are listed as previews; a full key is
+returned once by `keys create` or `keys regenerate`. Regeneration immediately
+deactivates the old key. `--output new-file.json` saves a result in a private,
+new file; an existing file is never overwritten.
+
+### Common operations
+
+```bash
+npx @hyodotdev/openiap kit keys create \
+  --project PROJECT_ID --name CI --key-type secret --output new-key.json --json
+
+npx @hyodotdev/openiap kit setup --framework expo --json
+npx @hyodotdev/openiap kit setup status --project PROJECT_ID --json
+
+npx @hyodotdev/openiap kit credentials apple \
+  --project PROJECT_ID --org ORG_ID --purpose apple_p8_key \
+  --credential-file AuthKey.p8 --json
+npx @hyodotdev/openiap kit credentials google \
+  --project PROJECT_ID --org ORG_ID --credential-file service-account.json --json
+npx @hyodotdev/openiap kit files upload \
+  --project PROJECT_ID --org ORG_ID --purpose apple_iap_review_screenshot \
+  --path review.png --json
+
+npx @hyodotdev/openiap kit products create --file product.json --json
+npx @hyodotdev/openiap kit sync products \
+  --project PROJECT_ID --store apple --direction push --dry-run --json
+npx @hyodotdev/openiap kit sync products \
+  --project PROJECT_ID --store apple --direction push --apply --yes --wait --json
+```
+
+Use purpose `apple_p8_asc_api_key` for an App Store Connect catalog key;
+`apple_p8_key` is the App Store Server key. `credentials configure --file ...`
+updates project settings, including Amazon and Horizon credentials. See its
+schema for field names. `credentials download --file-id FILE_ID --output key.p8`
+writes decoded bytes; without `--output` it returns the base64 response.
+
+Store synchronization defaults to a dry run. `--apply --yes` applies changes;
+`--wait` waits for completion with `--timeout` in seconds (default 120).
+A timeout returns the job ID; use `sync status` rather than enqueueing again.
+Destructive commands, public payload publishing and webhook re-sends require
+`--yes`. The `npx --yes` option only approves npm execution; it does not confirm
+a CLI change. Sandbox purchase simulation prints instructions. Synthetic
+Google webhook simulation is restricted to localhost and requires the existing
+development Pub/Sub opt-in; Apple tests require a signed store notification.
+
+### Agents and CI
+
+```bash
+npx @hyodotdev/openiap kit tokens create \
+  --name build-server --scope read --expires-in-days 30 --output ci-token.json --json
+# Store the returned token in your CI secret manager as IAPKIT_TOKEN.
+npx --yes @hyodotdev/openiap kit projects list --json
+```
+
+Tokens expire in 1–90 days and can be revoked with `tokens revoke --id ID --yes`.
+`read` permits reads, `write` also permits purchase/catalog/payload/sync writes,
+and `admin` also permits organization, key, store credential and token management.
+A token never grants more authority than the account's organization role.
+`IAPKIT_TOKEN` takes precedence over saved login and is not saved locally.
+
+With `--json`, stdout contains one `{ok: true, data}` or
+`{ok: false, error: {code, message}}` object; login instructions go to stderr.
+Exit codes are `0` for success, `3` for missing authentication, `4` for
+insufficient access, and `1` for other failures. Non-interactive commands
+never open a selection prompt. Pin a published CLI version for reproducible CI.
 
 ## Start with your role
 
@@ -38,7 +153,7 @@ the output, redirect it yourself. This creates or replaces `openiap-brief.md`:
 npx @hyodotdev/openiap init --role commerce > openiap-brief.md
 ```
 
-The CLI itself only reads local files. It does not install SDKs, execute app
+`init` and `doctor` only read local files. They do not install SDKs, execute app
 configuration, fetch the linked guides, contact a service, or invoke an AI.
 `npx` may download the CLI and its dependencies before running it.
 

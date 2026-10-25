@@ -1,4 +1,5 @@
 "use node";
+import { assertCliScope } from "../cli/scope";
 
 import { buildHorizonRemoteId } from "./identity";
 export { buildHorizonRemoteId } from "./identity";
@@ -173,6 +174,7 @@ export const verifyMetaHorizonReceiptInternalV1 = action({
   },
   returns: receiptResponseValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { sourceAuth, ...request } = args;
     assertVerificationSource("horizon", request, sourceAuth);
     return verifyRecordingIssues(

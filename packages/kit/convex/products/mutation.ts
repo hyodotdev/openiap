@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import { invalidateSubscriptionStats } from "../subscriptions/stats";
 import { mutation, type MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
@@ -168,6 +169,7 @@ export const upsertProductClientPayloadWithApiKey = mutation({
   },
   returns: clientPayloadWriteResultValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key, author } = await resolveApiKeyClientPayloadWriter(ctx, args);
     return await publishClientPayload(ctx, key, {
       format: args.format,
@@ -189,6 +191,7 @@ export const upsertProductClientPayload = mutation({
   },
   returns: clientPayloadWriteResultValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key, author } = await resolveDashboardClientPayloadWriter(
       ctx,
       args,
@@ -206,6 +209,7 @@ export const removeProductClientPayload = mutation({
   args: { ...dashboardKeyArgs, expectedVersion: v.number() },
   returns: v.object({ ok: v.boolean() }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key, author } = await resolveDashboardClientPayloadWriter(
       ctx,
       args,
@@ -221,6 +225,7 @@ export const removeProductClientPayloadWithApiKey = mutation({
   args: { ...apiKeyKeyArgs, expectedVersion: v.optional(v.number()) },
   returns: v.object({ ok: v.boolean() }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key, author } = await resolveApiKeyClientPayloadWriter(ctx, args);
     return await removeClientPayload(ctx, key, {
       expectedVersion: args.expectedVersion,
@@ -233,6 +238,7 @@ export const saveProductClientPayloadDraft = mutation({
   args: { ...dashboardKeyArgs, ...draftArgs },
   returns: clientPayloadDraftWriteResultValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key, author } = await resolveDashboardClientPayloadWriter(
       ctx,
       args,
@@ -251,6 +257,7 @@ export const saveProductClientPayloadDraftWithApiKey = mutation({
   args: { ...apiKeyKeyArgs, ...draftArgs },
   returns: clientPayloadDraftWriteResultValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key } = await resolveApiKeyClientPayloadWriter(ctx, args);
     return await saveClientPayloadDraft(ctx, key, {
       format: args.format,
@@ -265,6 +272,7 @@ export const discardProductClientPayloadDraft = mutation({
   args: { ...dashboardKeyArgs, expectedDraftRevision: v.number() },
   returns: v.object({ ok: v.boolean() }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key } = await resolveDashboardClientPayloadWriter(ctx, args);
     return await discardClientPayloadDraft(ctx, key, args);
   },
@@ -274,6 +282,7 @@ export const discardProductClientPayloadDraftWithApiKey = mutation({
   args: { ...apiKeyKeyArgs, expectedDraftRevision: v.optional(v.number()) },
   returns: v.object({ ok: v.boolean() }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key } = await resolveApiKeyClientPayloadWriter(ctx, args);
     return await discardClientPayloadDraft(ctx, key, args);
   },
@@ -283,6 +292,7 @@ export const publishProductClientPayloadDraft = mutation({
   args: { ...dashboardKeyArgs, ...publishArgs },
   returns: clientPayloadWriteResultValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key, author } = await resolveDashboardClientPayloadWriter(
       ctx,
       args,
@@ -295,6 +305,7 @@ export const publishProductClientPayloadDraftWithApiKey = mutation({
   args: { ...apiKeyKeyArgs, ...publishArgs },
   returns: clientPayloadWriteResultValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key, author } = await resolveApiKeyClientPayloadWriter(ctx, args);
     return await publishClientPayloadDraft(ctx, key, { ...args, author });
   },
@@ -304,6 +315,7 @@ export const rollbackProductClientPayload = mutation({
   args: { ...dashboardKeyArgs, ...rollbackArgs },
   returns: clientPayloadWriteResultValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key, author } = await resolveDashboardClientPayloadWriter(
       ctx,
       args,
@@ -316,6 +328,7 @@ export const rollbackProductClientPayloadWithApiKey = mutation({
   args: { ...apiKeyKeyArgs, ...rollbackArgs },
   returns: clientPayloadWriteResultValidator,
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const { key, author } = await resolveApiKeyClientPayloadWriter(ctx, args);
     return await rollbackClientPayload(ctx, key, { ...args, author });
   },
@@ -356,6 +369,7 @@ export const upsertProduct = mutation({
     created: v.boolean(),
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const project = await resolveProjectForMutationArgs(ctx, args);
     if (!project) throw new Error("Invalid API key");
 
@@ -512,6 +526,7 @@ export const setProductState = mutation({
     state: stateValidator,
   }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const project = await resolveProjectForMutationArgs(ctx, args);
     if (!project) throw new Error("Invalid API key");
 
@@ -546,6 +561,7 @@ export const removeProduct = mutation({
   },
   returns: v.object({ ok: v.boolean() }),
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "write");
     const project = await resolveProjectForMutationArgs(ctx, args);
     if (!project) return { ok: false };
 

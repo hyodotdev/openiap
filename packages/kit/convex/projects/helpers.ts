@@ -47,6 +47,25 @@ export async function resolveProjectByApiKeyFromDb(
   apiKey: string,
   requiredAccess: ApiKeyAccess = "client",
 ): Promise<ApiKeyProjectResolution | null> {
+  // CLI sessions select a project without creating or recovering a secret key.
+  if (apiKey.startsWith("session-project:")) {
+    const projectId = ctx.db.normalizeId(
+      "projects",
+      apiKey.slice("session-project:".length),
+    );
+    if (!projectId) return null;
+    const resolved = await resolveProjectByIdForCurrentUserFromDb(
+      ctx,
+      projectId,
+    );
+    if (!resolved || (requiredAccess === "admin" && resolved.role === "member"))
+      return null;
+    return {
+      project: resolved.project,
+      keyType: "secret",
+      organizationId: resolved.project.organizationId,
+    };
+  }
   const keyRow = await getApiKeyByKey(ctx, apiKey);
   if (keyRow !== null) {
     if (keyRow.isActive === false) return null;

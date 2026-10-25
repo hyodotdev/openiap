@@ -1,3 +1,4 @@
+import { assertCliScope } from "../cli/scope";
 import { query, type QueryCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { v } from "convex/values";
@@ -44,6 +45,7 @@ export const list = query({
     ),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new ConvexError("Not authenticated");
@@ -144,6 +146,7 @@ export const get = query({
     fileId: v.id("files"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new ConvexError("Not authenticated");
@@ -221,6 +224,7 @@ export const count = query({
     ),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new ConvexError("Not authenticated");
@@ -273,6 +277,7 @@ export const getAppStoreFileByProject = query({
     projectId: v.id("projects"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       return null;
@@ -322,6 +327,7 @@ export const getAscApiKeyFileByProject = query({
     projectId: v.id("projects"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       return null;
@@ -361,6 +367,7 @@ export const getGooglePlayFileByProject = query({
     projectId: v.id("projects"),
   },
   handler: async (ctx, args) => {
+    await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       return null;
