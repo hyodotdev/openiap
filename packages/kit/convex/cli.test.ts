@@ -7,6 +7,7 @@ import { api, internal } from "./_generated/api";
 import schema from "./schema";
 import { sha256Hex } from "./utils/sha256";
 import { generateKeyPairSync } from "node:crypto";
+import type { FunctionArgs } from "convex/server";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -209,6 +210,91 @@ describe("IAPKit CLI authentication", () => {
       await t.mutation(internal.cli.internal.consume, { token: token.token }),
     ).toBeNull();
     expect(await t.run((ctx) => ctx.db.get(credentials!.sessionId))).toBeNull();
+  });
+
+  it("write scope cannot rotate legacy keys or change store credentials", async () => {
+    const { t, browser, userId, org } = await fixture();
+    const project = await browser.mutation(
+      api.projects.mutation.createProject,
+      {
+        organizationId: org.organizationId,
+        name: "Scoped project",
+      },
+    );
+    const token = await browser.mutation(api.cli.mutation.createToken, {
+      name: "Write CI",
+      scope: "write",
+      expiresInDays: 1,
+    });
+    const credentials = await t.mutation(internal.cli.internal.consume, {
+      token: token.token,
+    });
+    const cli = t.withIdentity({
+      subject: `${userId}|${credentials!.sessionId}`,
+      issuer: "https://test.convex.site",
+      iapkitCli: true,
+    });
+    const projectId = project.projectId;
+    await cli.mutation(api.projects.mutation.updateProject, {
+      projectId,
+      name: "Allowed edit",
+    });
+    const before = await t.run((ctx) => ctx.db.get(projectId));
+    await expect(
+      cli.mutation(api.projects.mutation.regenerateApiKey, { projectId }),
+    ).rejects.toThrow("INSUFFICIENT_SCOPE");
+    const credentialChanges: Array<
+      Omit<
+        FunctionArgs<typeof api.projects.mutation.updateProject>,
+        "projectId"
+      >
+    > = [
+      { androidPackageName: "dev.example.app" },
+      { iosBundleId: "dev.example.app" },
+      { iosAppAppleId: 123456789 },
+      { iosAppStoreIssuerId: "00000000-0000-0000-0000-000000000000" },
+      { iosAppStoreKeyId: "ABCDEFGHIJ" },
+      { iosAscIssuerId: "00000000-0000-0000-0000-000000000000" },
+      { iosAscKeyId: "ABCDEFGHIJ" },
+      { horizonEnabled: false },
+      { horizonAppId: "123456789" },
+      { horizonAppSecret: "fixture-secret" },
+      { amazonSharedSecret: null },
+      { amazonSandboxEnabled: true },
+      { amazonRtnTopicArn: null },
+    ];
+    for (const change of credentialChanges) {
+      await expect(
+        cli.mutation(api.projects.mutation.updateProject, {
+          projectId,
+          ...change,
+        }),
+      ).rejects.toThrow("INSUFFICIENT_SCOPE");
+    }
+    expect(await t.run((ctx) => ctx.db.get(projectId))).toEqual(before);
+    expect(await t.run((ctx) => ctx.db.get(project.apiKeyId))).toMatchObject({
+      isActive: true,
+    });
+
+    await t.run((ctx) => ctx.db.patch(token.id, { scope: "admin" }));
+    await cli.mutation(api.projects.mutation.updateProject, {
+      projectId,
+      amazonSandboxEnabled: true,
+    });
+    const replacement = await cli.mutation(
+      api.projects.mutation.regenerateApiKey,
+      {
+        projectId,
+      },
+    );
+    expect(replacement).not.toBe(project.apiKey);
+    expect(await t.run((ctx) => ctx.db.get(project.apiKeyId))).toMatchObject({
+      isActive: false,
+    });
+    expect(await t.run((ctx) => ctx.db.get(projectId))).toMatchObject({
+      amazonSandboxEnabled: true,
+      apiKey: replacement,
+    });
   });
 
   it("session project references require an authenticated member and preserve key roles", async () => {
