@@ -1,5 +1,11 @@
 # Changelog
 
+## 11.2.0 (2026-10-25)
+
+- refactor: keep the purchase flow core vendor-neutral
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-11.2.0
+
+
 ## 11.1.0 (2026-10-24)
 
 - feat: one purchase flow in every framework, with prepaid pending payments (#559)
