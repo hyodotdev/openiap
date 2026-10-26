@@ -6,6 +6,24 @@ import OpenIAP
 @available(iOS 15.0, macOS 14.0, tvOS 15.0, watchOS 8.0, *)
 final class ConnectOnDemandTests: XCTestCase {
 
+    func testTeardownSerializesTypedProviderFailureWithoutClearingTheConnection() async throws {
+        let hybrid = HybridRnIap()
+        _ = try await hybrid.enqueueConnectOperation { true }.value
+        let expected = PurchaseError.make(code: .notEnded, message: "Provider teardown failed")
+
+        do {
+            _ = try await hybrid.enqueueEndOperation { throw expected }.value
+            XCTFail("A failed teardown must reject")
+        } catch let error as OpenIapException {
+            let payload = try JSONDecoder().decode(PurchaseError.self, from: Data(error.localizedDescription.utf8))
+            XCTAssertEqual(payload.code, expected.code)
+            XCTAssertEqual(payload.message, expected.message)
+        }
+
+        XCTAssertTrue(inspectInitialized(hybrid))
+        _ = try await hybrid.enqueueEndOperation { true }.value
+    }
+
     func testDeliveredStoreErrorsDoNotReachTheRequestConnectionFailureHandler() async throws {
         let hybrid = HybridRnIap()
         let probe = EventProbe()

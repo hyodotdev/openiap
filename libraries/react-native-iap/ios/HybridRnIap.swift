@@ -222,7 +222,12 @@ class HybridRnIap: HybridRnIapSpec {
     ) -> Task<Bool, Error> {
         let operation = enqueueLifecycleOperation {
             RnIapLog.payload("endConnection", nil)
-            let result = try await endConnection()
+            let result: Bool
+            do {
+                result = try await endConnection()
+            } catch let purchaseError as PurchaseError {
+                throw OpenIapException.from(purchaseError)
+            }
             let subscriptions = self.detachConnectionState()
             self.removeSubscriptions(subscriptions)
             await MainActor.run {
