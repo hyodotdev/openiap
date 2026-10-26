@@ -1,0 +1,330 @@
+"use node";
+
+import { ConvexError, v } from "convex/values";
+import * as valibot from "valibot";
+import { action, internalAction } from "../_generated/server";
+import { internal } from "../_generated/api";
+import type { Id } from "../_generated/dataModel";
+import { assertCliScope } from "../cli/scope";
+import { hmacSha256Hex, sha256Hex } from "../utils/sha256";
+import {
+  assertVerificationSource,
+  verificationSourceSecret,
+  verificationSourceValidator,
+} from "./verificationSource";
+import {
+  decryptVerificationJob,
+  encryptVerificationJob,
+} from "./verificationJobCrypto";
+import {
+  verifyPurchaseInputSchema,
+  type VerificationInput,
+} from "./verificationInput";
+import { verifyAppStoreReceipt } from "./ios";
+import { verifyGooglePlayReceipt } from "./android";
+import { verifyAmazonReceipt } from "./amazon";
+import { verifyHorizonReceipt } from "./horizon";
+import {
+  classifyVerificationError,
+  verifyRecordingIssues,
+} from "../purchaseIssues/shared";
+import { STORE_OUTAGE_RETRY_AFTER_SEC } from "./errors";
+import type { ReceiptResponse } from "./shared";
+import {
+  expiredVerificationJobError,
+  VERIFICATION_JOB_IDEMPOTENCY_PATTERN,
+  VERIFICATION_JOB_IDEMPOTENCY_MESSAGE,
+  type VerificationJobError,
+  type VerificationJobView,
+} from "./verificationJobModel";
+
+function validIdempotencyKey(key: string): void {
+  if (!VERIFICATION_JOB_IDEMPOTENCY_PATTERN.test(key))
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: VERIFICATION_JOB_IDEMPOTENCY_MESSAGE,
+    });
+}
+
+export const enqueue = action({
+  args: {
+    apiKey: v.string(),
+    idempotencyKey: v.string(),
+    inputJson: v.string(),
+    requestIp: v.optional(v.string()),
+    correlationId: v.string(),
+    sourceAuth: verificationSourceValidator,
+  },
+  returns: v.object({ jobId: v.id("verificationJobs"), deduped: v.boolean() }),
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ jobId: Id<"verificationJobs">; deduped: boolean }> => {
+    function canonicalInput(input: Record<string, unknown>): string {
+      return JSON.stringify(
+        Object.fromEntries(
+          Object.entries(input)
+            .filter(([, value]) => value !== undefined)
+            .sort(([a], [b]) => a.localeCompare(b)),
+        ),
+      );
+    }
+
+    const { sourceAuth, ...request } = args;
+    assertVerificationSource("enqueue", request, sourceAuth);
+    await assertCliScope(ctx, "write");
+    validIdempotencyKey(args.idempotencyKey);
+    if (
+      args.inputJson.length > 20_000 ||
+      args.apiKey.length > 128 ||
+      args.correlationId.length > 128 ||
+      (args.requestIp?.length ?? 0) > 128
+    )
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Verification request is too large.",
+      });
+    let input: VerificationInput;
+    try {
+      input = valibot.parse(
+        verifyPurchaseInputSchema,
+        JSON.parse(args.inputJson),
+      );
+    } catch {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Invalid purchase verification request.",
+      });
+    }
+    const apiKeyHash = await sha256Hex(args.apiKey);
+    const idempotencyHash = await sha256Hex(args.idempotencyKey);
+    const hashKey = await hmacSha256Hex(
+      verificationSourceSecret("enqueue"),
+      "iapkit-verification-job-fingerprint-v1",
+    );
+    const requestHash = await hmacSha256Hex(
+      args.idempotencyKey,
+      `iapkit-verification-job-request-v1:${canonicalInput(input)}`,
+    );
+    const verdictHash = await hmacSha256Hex(
+      hashKey,
+      canonicalInput(
+        Object.fromEntries(
+          Object.entries(input).filter(
+            ([key]) =>
+              !["includeClientPayload", "includeTransactionDetails"].includes(
+                key,
+              ),
+          ),
+        ),
+      ),
+    );
+    const evidence = Object.fromEntries(
+      Object.entries(input).filter(
+        ([key]) =>
+          ![
+            "includeClientPayload",
+            "includeTransactionDetails",
+            "expectedProductId",
+          ].includes(key),
+      ),
+    );
+    const evidenceHash = await hmacSha256Hex(hashKey, canonicalInput(evidence));
+    const payload = encryptVerificationJob(
+      JSON.stringify({ apiKey: args.apiKey, input, requestIp: args.requestIp }),
+      JSON.stringify([apiKeyHash, idempotencyHash, requestHash]),
+    );
+    return ctx.runMutation(internal.purchases.verificationJobQueue.enqueue, {
+      apiKey: args.apiKey,
+      idempotencyHash,
+      requestHash,
+      evidenceHash,
+      verdictHash,
+      payload,
+      store: input.store,
+      includeClientPayload: input.includeClientPayload,
+      includeTransactionDetails: input.includeTransactionDetails,
+      correlationId: args.correlationId,
+    });
+  },
+});
+
+export const read = action({
+  args: {
+    apiKey: v.string(),
+    idempotencyKey: v.string(),
+    jobId: v.string(),
+    sourceAuth: verificationSourceValidator,
+  },
+  handler: async (ctx, args): Promise<VerificationJobView> => {
+    const { sourceAuth, ...request } = args;
+    assertVerificationSource("read", request, sourceAuth);
+    await assertCliScope(ctx, "read");
+    validIdempotencyKey(args.idempotencyKey);
+    if (args.apiKey.length > 128 || args.jobId.length > 128)
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Verification job not found.",
+      });
+    return ctx.runMutation(
+      internal.purchases.verificationJobQueue.read,
+      request,
+    );
+  },
+});
+
+export function verificationJobFailure(error: unknown): {
+  error: VerificationJobError;
+  retryAfterSec?: number;
+} {
+  let data: unknown = error instanceof ConvexError ? error.data : undefined;
+  if (typeof data === "string") {
+    try {
+      data = JSON.parse(data);
+    } catch {
+      data = undefined;
+    }
+  }
+  const parsed = valibot.safeParse(
+    valibot.object({
+      code: valibot.optional(valibot.string()),
+      error: valibot.optional(valibot.string()),
+      retryAfterSec: valibot.optional(valibot.number()),
+    }),
+    data,
+  );
+  const raw = parsed.success ? parsed.output : {};
+  const candidate = raw.code ?? raw.error;
+  const code =
+    candidate && /^[A-Z][A-Z0-9_]{0,79}$/.test(candidate)
+      ? candidate
+      : "VERIFICATION_FAILED";
+  const retryAfterSec =
+    typeof raw.retryAfterSec === "number" &&
+    Number.isFinite(raw.retryAfterSec) &&
+    raw.retryAfterSec > 0
+      ? Math.min(900, raw.retryAfterSec)
+      : code === "RATE_LIMITED"
+        ? 2
+        : classifyVerificationError(error)?.cause === "STORE_UNAVAILABLE"
+          ? STORE_OUTAGE_RETRY_AFTER_SEC
+          : undefined;
+  return {
+    error: {
+      code,
+      message:
+        retryAfterSec !== undefined
+          ? "Verification is temporarily unavailable."
+          : "Verification could not finish. Check the project configuration or contact support.",
+    },
+    ...(retryAfterSec !== undefined ? { retryAfterSec } : {}),
+  };
+}
+
+export const run = internalAction({
+  args: { jobId: v.id("verificationJobs"), lease: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    async function verifyQueuedReceipt(
+      apiKey: string,
+      input: VerificationInput,
+      requestIp: string | undefined,
+      correlationId: string,
+    ): Promise<ReceiptResponse> {
+      const base = { apiKey, requestIp, correlationId };
+      return verifyRecordingIssues(
+        ctx,
+        {
+          apiKey,
+          evidence: input,
+          expectedProductId:
+            "expectedProductId" in input ? input.expectedProductId : undefined,
+          correlationId,
+        },
+        async () => {
+          switch (input.store) {
+            case "apple":
+              return verifyAppStoreReceipt(ctx, {
+                ...base,
+                jws: input.jws,
+                expectedProductId: input.expectedProductId,
+              });
+            case "google":
+              return verifyGooglePlayReceipt(ctx, {
+                ...base,
+                purchaseToken: input.purchaseToken,
+                expectedProductId: input.expectedProductId,
+              });
+            case "amazon":
+              return verifyAmazonReceipt(ctx, {
+                ...base,
+                userId: input.userId,
+                receiptId: input.receiptId,
+                sandbox: input.sandbox,
+                expectedProductId: input.expectedProductId,
+              });
+            case "horizon":
+              return verifyHorizonReceipt(ctx, {
+                ...base,
+                userId: input.userId,
+                sku: input.sku,
+              });
+          }
+        },
+      );
+    }
+
+    const job = await ctx.runMutation(
+      internal.purchases.verificationJobQueue.forWorker,
+      args,
+    );
+    if (!job) return null;
+    if (
+      !job.payload ||
+      job.status !== "running" ||
+      job.expiresAt <= Date.now()
+    ) {
+      await ctx.runMutation(internal.purchases.verificationJobQueue.complete, {
+        ...args,
+        error: expiredVerificationJobError(),
+      });
+      return null;
+    }
+    try {
+      const decoded: unknown = JSON.parse(
+        decryptVerificationJob(
+          job.payload,
+          JSON.stringify([
+            job.apiKeyHash,
+            job.idempotencyHash,
+            job.requestHash,
+          ]),
+        ),
+      );
+      const payload = valibot.parse(
+        valibot.object({
+          apiKey: valibot.string(),
+          input: verifyPurchaseInputSchema,
+          requestIp: valibot.optional(valibot.string()),
+        }),
+        decoded,
+      );
+      const receipt = await verifyQueuedReceipt(
+        payload.apiKey,
+        payload.input,
+        payload.requestIp,
+        job.correlationId,
+      );
+      await ctx.runMutation(internal.purchases.verificationJobQueue.complete, {
+        ...args,
+        receipt,
+      });
+    } catch (error) {
+      await ctx.runMutation(internal.purchases.verificationJobQueue.complete, {
+        ...args,
+        ...verificationJobFailure(error),
+      });
+    }
+    return null;
+  },
+});

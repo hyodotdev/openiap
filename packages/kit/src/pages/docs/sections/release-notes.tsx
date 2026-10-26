@@ -26,9 +26,14 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-10-26",
     weekStart: "2026-10-26",
     date: "2026-10-26",
-    pullRequests: [564],
+    pullRequests: [564, 571],
     tagline: "Terminal access, scoped automation and safe catalog previews.",
     items: [
+      {
+        kind: "feature",
+        topic: "Queued verification",
+        text: "Opt in to durable purchase verification with POST /v1/purchase/verification-jobs and read its result using the same API credential and random Idempotency-Key. Accepted work survives caller disconnects and server restarts, retries temporary failures and records a final verdict or processing failure. Existing synchronous SDK calls are unchanged; queue acceptance grants no access.",
+      },
       {
         kind: "feature",
         topic: "CLI access",

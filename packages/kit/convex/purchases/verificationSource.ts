@@ -2,10 +2,16 @@
 
 import { Buffer } from "node:buffer";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { ReceiptVerificationError } from "./errors";
 
-type VerificationStore = "apple" | "google" | "amazon" | "horizon";
+type VerificationScope =
+  | "apple"
+  | "google"
+  | "amazon"
+  | "horizon"
+  | "enqueue"
+  | "read";
 interface SourceAuthentication {
   issuedAt: number;
   mac: string;
@@ -18,7 +24,13 @@ export const verificationSourceValidator = v.optional(
   }),
 );
 
-function unavailable(): never {
+function unavailable(scope: VerificationScope): never {
+  if (scope === "enqueue" || scope === "read")
+    throw new ConvexError({
+      code: "UNKNOWN_ERROR",
+      message: "Verification is temporarily unavailable.",
+      retryAfterSec: 5,
+    });
   throw new ReceiptSourceUnavailableError();
 }
 
@@ -39,14 +51,14 @@ export function verificationSourceConfigured(
   return Boolean(secret && /^[a-f0-9]{64}$/.test(secret));
 }
 
-function sourceSecret(): string {
+export function verificationSourceSecret(scope: VerificationScope): string {
   const secret = process.env.IAPKIT_VERIFICATION_SOURCE_SECRET;
-  if (!secret || !verificationSourceConfigured(secret)) unavailable();
+  if (!secret || !verificationSourceConfigured(secret)) unavailable(scope);
   return secret;
 }
 
 function signature(
-  store: VerificationStore,
+  scope: VerificationScope,
   args: Record<string, unknown>,
   issuedAt: number,
   secret: string,
@@ -56,13 +68,22 @@ function signature(
     .sort()
     .map((key) => [key, args[key]]);
   return createHmac("sha256", secret)
-    .update(JSON.stringify(["iapkit-verification-v1", store, issuedAt, fields]))
+    .update(
+      JSON.stringify([
+        scope === "enqueue" || scope === "read"
+          ? "iapkit-verification-job-v1"
+          : "iapkit-verification-v1",
+        scope,
+        issuedAt,
+        fields,
+      ]),
+    )
     .digest("hex");
 }
 
 /** Called only after Bun has admitted the exact verification request. */
 export function withVerificationSource<T extends Record<string, unknown>>(
-  store: VerificationStore,
+  scope: VerificationScope,
   args: T,
 ): T & { sourceAuth: SourceAuthentication } {
   const issuedAt = Date.now();
@@ -70,18 +91,18 @@ export function withVerificationSource<T extends Record<string, unknown>>(
     ...args,
     sourceAuth: {
       issuedAt,
-      mac: signature(store, args, issuedAt, sourceSecret()),
+      mac: signature(scope, args, issuedAt, verificationSourceSecret(scope)),
     },
   };
 }
 
 /** Convex repeats the source check before issues, quota, database or store work. */
 export function assertVerificationSource(
-  store: VerificationStore,
+  scope: VerificationScope,
   args: Record<string, unknown>,
   sourceAuth: SourceAuthentication | undefined,
 ): void {
-  const secret = sourceSecret();
+  const secret = verificationSourceSecret(scope);
   const now = Date.now();
   if (
     !sourceAuth ||
@@ -91,13 +112,13 @@ export function assertVerificationSource(
     sourceAuth.mac.length !== 64 ||
     !/^[a-f0-9]{64}$/.test(sourceAuth.mac)
   )
-    unavailable();
-  const expected = signature(store, args, sourceAuth.issuedAt, secret);
+    unavailable(scope);
+  const expected = signature(scope, args, sourceAuth.issuedAt, secret);
   if (
     !timingSafeEqual(
       Buffer.from(sourceAuth.mac, "hex"),
       Buffer.from(expected, "hex"),
     )
   )
-    unavailable();
+    unavailable(scope);
 }
