@@ -1301,6 +1301,10 @@
 
 /* Mobile Responsive Styles */
 @media (max-width: 768px) {
+  .anchor-heading {
+    scroll-margin-top: 128px;
+  }
+
   .docs-container {
     padding: 0;
     min-height: calc(100vh - 56px);
