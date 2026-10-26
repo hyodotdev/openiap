@@ -7,7 +7,7 @@ import {
   isUserCancelledError,
   restorePurchases,
 } from '../index';
-import {ErrorCode} from '../types';
+import {ErrorCode, type PurchaseAndroid} from '../types';
 import {parseErrorStringToJsonObj} from '../utils/error';
 
 const mockIap = {
@@ -18,6 +18,18 @@ const mockIap = {
   hasActiveSubscriptions: jest.fn(),
   restorePurchases: jest.fn(),
 };
+
+const purchase = {
+  id: 'transaction',
+  purchaseToken: 'token',
+  productId: 'premium',
+  isAutoRenewing: false,
+  purchaseState: 'purchased',
+  quantity: 1,
+  store: 'google',
+  storeId: 'play',
+  transactionDate: 1,
+} satisfies PurchaseAndroid;
 
 jest.mock('react-native', () => ({
   Platform: {
@@ -49,20 +61,7 @@ describe('Android native rejection transport', () => {
     {
       name: 'finishTransaction',
       reject: mockIap.finishTransaction,
-      invoke: () =>
-        finishTransaction({
-          purchase: {
-            id: 'transaction',
-            purchaseToken: 'token',
-            productId: 'premium',
-            isAutoRenewing: false,
-            purchaseState: 'purchased',
-            quantity: 1,
-            store: 'google',
-            storeId: 'play',
-            transactionDate: 1,
-          },
-        }),
+      invoke: () => finishTransaction({purchase}),
     },
     {
       name: 'getActiveSubscriptions',
@@ -122,6 +121,26 @@ describe('Android native rejection transport', () => {
     await rejection.catch((caught: unknown) => {
       expect(parseErrorStringToJsonObj(caught)).toEqual(payload);
     });
+  });
+
+  it('preserves diagnostics when Android resolves a failed purchase result', async () => {
+    const payload = {
+      code: ErrorCode.QueryProduct,
+      message: 'Store query failed',
+      responseCode: -1,
+      debugMessage: 'Service disconnected',
+      productId: 'premium',
+      productIds: ['premium'],
+      productType: 'subs',
+      isEmptyProductList: false,
+      subResponseCodeAndroid: 'no-applicable-sub-response-code',
+    };
+    mockIap.finishTransaction.mockResolvedValueOnce({
+      ...payload,
+      purchaseToken: 'token',
+    });
+
+    await expect(finishTransaction({purchase})).rejects.toMatchObject(payload);
   });
 
   it('recognizes a cancelled restore without logging it as an error', async () => {

@@ -20,12 +20,10 @@ export const getSuccessFromPurchaseVariant = (
 
   const normalizedCode = normalizeErrorCodeFromNative(variant.code);
   const errorPayload = {
+    ...variant,
     code: normalizedCode,
     nativeCode: variant.code,
     message: variant.message || `Failed to ${context}`,
-    responseCode: variant.responseCode,
-    debugMessage: variant.debugMessage,
-    purchaseToken: variant.purchaseToken,
   };
 
   throw new Error(JSON.stringify(errorPayload));
