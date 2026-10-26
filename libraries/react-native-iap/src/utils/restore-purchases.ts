@@ -13,12 +13,7 @@ export const toRestorePurchaseError = (
   error: unknown,
 ): PurchaseErrorInstance => {
   const parsedError = parseErrorStringToJsonObj(error);
-  return createPurchaseError({
-    code: parsedError.code,
-    message: parsedError.message,
-    responseCode: parsedError.responseCode,
-    debugMessage: parsedError.debugMessage,
-  });
+  return createPurchaseError(parsedError);
 };
 
 export const restorePurchasesNative = async (): Promise<void> => {

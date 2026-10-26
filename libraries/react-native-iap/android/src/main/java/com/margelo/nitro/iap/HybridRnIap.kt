@@ -68,7 +68,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Carries only the OpenIAP error JSON, so JavaScript never sees a Java/Kotlin stack trace. */
+/** Carries OpenIAP JSON; fbjni may append the retained cause's stack trace. */
 class OpenIapException(private val errorJson: String, cause: Throwable? = null) : Exception(cause) {
     override val message: String
         get() = errorJson
@@ -76,7 +76,7 @@ class OpenIapException(private val errorJson: String, cause: Throwable? = null) 
     override fun toString(): String = errorJson
 
     override fun fillInStackTrace(): Throwable {
-        // Don't fill in stack trace to avoid it being serialized
+        // Omit the wrapper stack; the native cause remains available for diagnostics.
         return this
     }
 }

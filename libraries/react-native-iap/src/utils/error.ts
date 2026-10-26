@@ -20,12 +20,24 @@ export interface IapError {
 const parseJsonPayload = (
   payload: string,
   fallbackMessage: string,
+  stringEncoded = false,
 ): IapError | null => {
   const trimmed = payload.trim();
   const candidates = [trimmed];
 
-  if (trimmed.includes('\\"')) {
-    candidates.push(trimmed.replace(/\\"/g, '"'));
+  if (/^\{\s*\\"/.test(trimmed)) {
+    if (stringEncoded) {
+      try {
+        const decoded: unknown = JSON.parse(`"${trimmed}"`);
+        if (typeof decoded === 'string') {
+          candidates.push(decoded);
+        }
+      } catch {
+        // Try the other NSError fields when the quoted payload is malformed.
+      }
+    } else {
+      candidates.push(trimmed.replace(/\\"/g, '"'));
+    }
   }
 
   for (const candidate of candidates) {
@@ -50,6 +62,7 @@ const parseJsonPayload = (
 const extractBalancedJsonObject = (
   value: string,
   startIndex: number,
+  stringEncoded = false,
 ): string | null => {
   for (let index = startIndex; index < value.length; index += 1) {
     if (value[index] !== '}') {
@@ -57,7 +70,7 @@ const extractBalancedJsonObject = (
     }
 
     const candidate = value.substring(startIndex, index + 1);
-    if (parseJsonPayload(candidate, value)) {
+    if (parseJsonPayload(candidate, value, stringEncoded)) {
       return candidate;
     }
   }
@@ -66,7 +79,7 @@ const extractBalancedJsonObject = (
 };
 
 const parseNSErrorJsonPayload = (rawString: string): IapError | null => {
-  const payloads: string[] = [];
+  const payloads: {value: string; stringEncoded: boolean}[] = [];
   const quotedPayloadMatch = /Code=-?\d+\s+"/.exec(rawString);
 
   if (quotedPayloadMatch?.index !== undefined) {
@@ -79,7 +92,10 @@ const parseNSErrorJsonPayload = (rawString: string): IapError | null => {
         : rawString.lastIndexOf('"');
 
     if (contentEnd > contentStart) {
-      payloads.push(rawString.substring(contentStart, contentEnd));
+      payloads.push({
+        value: rawString.substring(contentStart, contentEnd),
+        stringEncoded: true,
+      });
     }
   }
 
@@ -94,15 +110,20 @@ const parseNSErrorJsonPayload = (rawString: string): IapError | null => {
 
     const firstBraceIndex = rawString.indexOf('{', valueStart);
     if (firstBraceIndex >= 0 && firstBraceIndex <= valueStart + 2) {
-      const payload = extractBalancedJsonObject(rawString, firstBraceIndex);
+      const stringEncoded = rawString[valueStart] === '"';
+      const payload = extractBalancedJsonObject(
+        rawString,
+        firstBraceIndex,
+        stringEncoded,
+      );
       if (payload) {
-        payloads.push(payload);
+        payloads.push({value: payload, stringEncoded});
       }
     }
   }
 
-  for (const payload of payloads) {
-    const parsed = parseJsonPayload(payload, rawString);
+  for (const {value, stringEncoded} of payloads) {
+    const parsed = parseJsonPayload(value, rawString, stringEncoded);
     if (parsed?.code && parsed.code !== ErrorCode.Unknown) {
       return parsed;
     }
@@ -172,6 +193,16 @@ export function parseErrorStringToJsonObj(
   const jsonPayload = parseJsonPayload(errorString, errorString);
   if (jsonPayload) {
     return jsonPayload;
+  }
+
+  // fbjni appends cause stacks after the Android error JSON.
+  const trimmedError = errorString.trimStart();
+  if (trimmedError.startsWith('{')) {
+    const payload = extractBalancedJsonObject(trimmedError, 0);
+    const parsed = payload && parseJsonPayload(payload, errorString);
+    if (parsed) {
+      return parsed;
+    }
   }
 
   const nsErrorPayload = parseNSErrorJsonPayload(errorString);

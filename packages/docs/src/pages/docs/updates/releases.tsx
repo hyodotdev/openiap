@@ -37,6 +37,14 @@ const IAPKIT_CLI_RELEASES: readonly ReleaseMetadata[] = [
   { name: '@hyodotdev/openiap', version: '0.3.0', tag: 'openiap-0.3.0' },
 ];
 
+const REACT_NATIVE_ERROR_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: 'react-native-iap',
+    version: '17.2.3',
+    tag: 'react-native-iap-17.2.3',
+  },
+];
+
 const REACT_NATIVE_EXPO_GO_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: 'react-native-iap',
@@ -679,6 +687,45 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'react-native-android-errors-2026-10-26',
+      date: new Date('2026-10-26'),
+      element: (
+        <div key="react-native-android-errors-2026-10-26" style={noteCardStyle}>
+          {REACT_NATIVE_ERROR_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="react-native-android-errors-2026-10-26" level="h4">
+            October 26, 2026 - Preserve native rejection codes
+          </AnchorLink>
+          <p>
+            react-native-iap 17.2.3 preserves the OpenIAP error payload when
+            Nitro appends a Java cause chain after its JSON. Service
+            disconnections, cancellations and other store failures keep their
+            original codes and diagnostics instead of becoming{' '}
+            <code>unknown</code>. This fixes error handling in product queries,
+            subscription queries, transaction completion and purchase restore.
+            Error conversion also retains product IDs and Android sub-response
+            details across APIs. Quoted JSON inside an Android or iOS error
+            message no longer changes its code or incorrectly signals a
+            cancellation. See{' '}
+            <a href="https://github.com/hyodotdev/openiap/issues/569">#569</a>.
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            {REACT_NATIVE_ERROR_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                >
+                  {getReleaseLabel(release)}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
     {
       id: 'iapkit-cli-2026-10-26',
       date: new Date('2026-10-26'),
