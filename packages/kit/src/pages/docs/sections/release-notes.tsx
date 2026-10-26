@@ -31,6 +31,11 @@ const RELEASES: ReleaseEntry[] = [
     items: [
       {
         kind: "feature",
+        topic: "Queued verification",
+        text: "Opt in to durable purchase verification with POST /v1/purchase/verification-jobs and read its result using the same API credential and random Idempotency-Key. Accepted work survives caller disconnects and server restarts, retries temporary failures and records a final verdict or processing failure. Existing synchronous SDK calls are unchanged; queue acceptance grants no access.",
+      },
+      {
+        kind: "feature",
         topic: "CLI access",
         text: "Approve OpenIAP CLI logins in the browser and manage IAPKit from the terminal. Automation tokens support read, write or admin scopes, expiry and immediate revocation; organization roles still apply.",
       },

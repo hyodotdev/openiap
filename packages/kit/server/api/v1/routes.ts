@@ -15,13 +15,12 @@ import {
   FALLBACK_PURCHASE_STATE,
   verifyPurchaseSuccessResponseSchema,
 } from "./route-response-schemas";
-import { enforceVerifyResponseContract } from "./response-contract";
-import { normalizeEnvironment } from "../../../convex/commerce/contract";
+import { verificationResult } from "./verification-result";
+import { verificationJobRoutes } from "./verification-jobs";
 import type { TransactionDetails } from "../../../convex/purchases/shared";
 import { apiKeyMiddleware } from "./middleware";
 import { getRequestIp, multiAxisRateLimitMiddleware } from "./rate-limit";
 import {
-  isSettledRejection,
   isStableRejection,
   isStoreOutageError,
   replayGuardMiddleware,
@@ -413,13 +412,6 @@ type VerifyPurchaseJson = {
     }
 );
 
-type ProductClientPayload = {
-  format: "toml" | "json" | "text";
-  body: string;
-  version: number;
-  updatedAt: number;
-};
-
 // Types `c.req.valid("json")` for this route so the handler needs no cast;
 // declaring `in` and `out` keeps validator → handler type-checked.
 type VerifyPurchaseInput = {
@@ -449,7 +441,7 @@ const verifyPurchaseHandler = async (
       transactionDetails?: TransactionDetails;
     },
   ) => {
-    const { stableRejection, transactionDetails, ...publicReceipt } = receipt;
+    const { stableRejection } = receipt;
     const outcome = {
       isValid: receipt.isValid,
       state: receipt.state,
@@ -457,55 +449,12 @@ const verifyPurchaseHandler = async (
     };
     setOutcome(outcome);
 
-    let clientPayload: ProductClientPayload | null = null;
-    if (
-      json.includeClientPayload === true &&
-      receipt.isValid &&
-      receipt.productId &&
-      (store === "apple" || store === "google")
-    ) {
-      try {
-        clientPayload = await client.query(
-          api.products.query.getProductClientPayload,
-          {
-            apiKey,
-            platform: store === "apple" ? "IOS" : "Android",
-            // Use only the product id returned by store verification. The
-            // caller-provided expectedProductId is a check, not an authority
-            // for selecting project metadata.
-            productId: receipt.productId,
-          },
-        );
-      } catch (error) {
-        // Optional enrichment: verification must still succeed if this read
-        // fails. Log only the error type, never payload bodies.
-        console.error(
-          "[purchase/verify] CLIENT_PAYLOAD_LOOKUP_FAILED: %s",
-          error instanceof Error ? error.name : typeof error,
-        );
-      }
-    }
-
-    const contract = enforceVerifyResponseContract({
+    const contract = await verificationResult({
+      apiKey,
       store,
-      ...publicReceipt,
-      ...(clientPayload ? { clientPayload } : {}),
-      ...(json.includeTransactionDetails === true
-        ? {
-            ...transactionDetails,
-            ...(receipt.environment
-              ? {
-                  commerceEnvironment: normalizeEnvironment(
-                    receipt.environment,
-                  ),
-                }
-              : {}),
-            correlationId,
-            ...(receipt.isValid
-              ? {}
-              : { finalVerdict: isSettledRejection(store, receipt) }),
-          }
-        : {}),
+      receipt,
+      input: json,
+      correlationId,
     });
     if (contract.violations.length > 0) {
       // Field names only — never values.
@@ -686,6 +635,8 @@ app.post(
   verifyPurchaseRouteDescription,
   ...verifyMiddleware,
 );
+
+app.route("/purchase/verification-jobs", verificationJobRoutes);
 
 // Compatibility alias for older clients.
 app.post("/verify-purchase", ...verifyMiddleware);

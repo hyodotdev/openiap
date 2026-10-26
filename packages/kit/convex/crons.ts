@@ -6,6 +6,13 @@ import { PURCHASE_ISSUE_RETENTION_MS } from "./purchaseIssues/internal";
 
 const crons = cronJobs();
 
+crons.interval(
+  "recover and prune purchase verification jobs",
+  { minutes: 1 },
+  internal.purchases.verificationJobQueue.maintain,
+  {},
+);
+
 crons.monthly(
   "reset monthly request counts",
   {

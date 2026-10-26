@@ -61,6 +61,21 @@ header-authenticated `POST /v1/subscriptions/bind-user` for ownership binding.
 Canonical v1 account routes require a secret admin key and reject publishable
 keys with `403 INSUFFICIENT_SCOPE`. Never ship a secret key in an app.
 
+## Optional durable verification
+
+For callers that need to recover from disconnects, opt in to
+`POST /v1/purchase/verification-jobs` and
+`GET /v1/purchase/verification-jobs/{jobId}`. Use the original API credential
+and the same cryptographically random 64-hex-character `Idempotency-Key` for
+acceptance retries and result reads; keep this request capability private.
+HTTP 202 acknowledges durable acceptance, not a valid receipt or access grant.
+Poll pending jobs using `Retry-After`. A succeeded job contains the existing
+verification result and can still have `isValid:false`; failed/expired work
+never authorizes fulfillment. Existing synchronous SDK and Commerce Protocol
+operations remain unchanged. Integrate the optional endpoints explicitly.
+See https://kit.openiap.dev/docs/api#verification-jobs for retention, admission
+limits, statuses and fulfillment requirements.
+
 ## Request shapes (discriminated on `store`)
 
 - Apple — `{ store: "apple", jws, expectedProductId?, includeClientPayload? }` where `jws` is a StoreKit 2 JWS (≤ 16 KB)

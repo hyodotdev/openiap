@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Callout } from "../components/Callout";
 import { CodeBlock } from "../components/CodeBlock";
 import { DocsPage } from "../components/DocsPage";
+import { VerificationJobsReference } from "./api-verification-jobs";
 
 export default function ApiReferencePage() {
   return (
@@ -306,6 +307,8 @@ export default function ApiReferencePage() {
         <code>isValid: false</code> with <code>state: "INAUTHENTIC"</code> on
         mismatch.
       </p>
+
+      <VerificationJobsReference />
 
       <h2 className="mt-10 text-2xl font-semibold">
         Read account access through your backend

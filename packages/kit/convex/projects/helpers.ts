@@ -13,6 +13,7 @@ import {
 } from "../apiKeys/helpers";
 import { deleteFileAndStorageIfUnreferenced } from "../files/storage";
 import { deleteClientPayloadVersion } from "../products/clientPayloads";
+import { deleteVerificationJob } from "../purchases/verificationJobState";
 export {
   getWritableOrganization as getOrganizationById,
   getWritableProject as getProjectById,
@@ -263,6 +264,25 @@ export async function deleteProjectWithData(
     await deleteClientPayloadVersion(ctx, version);
   }
   if (productClientPayloadVersions.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
+  const verificationJobs = await ctx.db
+    .query("verificationJobs")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const job of verificationJobs) await deleteVerificationJob(ctx, job);
+  if (verificationJobs.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+  const verificationQueues = await ctx.db
+    .query("verificationJobQueues")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const queue of verificationQueues) await ctx.db.delete(queue._id);
+  if (verificationQueues.length > 0) {
     await scheduleProjectDeletionContinuation(ctx, projectId);
     return false;
   }

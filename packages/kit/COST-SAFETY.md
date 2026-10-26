@@ -111,6 +111,53 @@ rotates projects, and each project can register at most 10 destinations. Retries
 back off to six hours, stop after 14 attempts, and a 20-failure circuit breaker
 disables a destination, bounding load when a receiver is unavailable.
 
+## Optional purchase verification queue
+
+`POST /v1/purchase/verification-jobs` persists accepted work before returning 202. Existing synchronous verification and Commerce Protocol operations keep
+their final-verdict response contracts. Queueing is opt-in; acceptance grants
+no access and does not finish a store transaction.
+
+A project can hold 128 active jobs and run 2 workers; global limits are 1,024
+active jobs and 8 workers. The enqueue transaction updates both counters and
+schedules the dispatcher atomically. Project readiness rotates as jobs are
+claimed, so a project cannot occupy every worker. The project enqueue bucket
+allows 600 initial tokens and replenishes 10 per second. Per-evidence admission
+allows 30 initial requests and replenishes one per minute across the fleet;
+changing output flags, expected-product match guards or Idempotency-Key does not bypass it. A settled negative verdict also blocks new admissions for the same match guard for five minutes; Horizon and revivable states remain retryable. True acknowledgment
+retries return the original job without consuming another queue/replay token.
+Normal edge key/source/global limits also apply. Store attempts use the existing
+verification admission budget, shared with synchronous calls.
+
+Jobs expire 15 minutes after acceptance and make at most 5 processing attempts.
+Transient failures wait with exponential backoff, respecting the store's retry
+hint. Invalid receipts are completed verifications with `isValid:false`;
+configuration and authentication errors stop as processing failures. An expiring
+12-minute execution lease is renewed atomically at actual worker startup,
+exceeds Convex's 10-minute action lifetime and fences late worker completion.
+A second startup using the same lease cannot begin store work. Expiry erases the job's encrypted payload; a running
+worker retains only lease accounting until it acknowledges completion or its
+lease ends. That prevents expired work from releasing a slot while it still
+executes. Maintenance runs each minute to recover interrupted dispatch/workers
+and expire abandoned jobs; a result read also materializes an expired job.
+
+Credentials and evidence are AES-256-GCM encrypted with a domain-separated key
+derived from `IAPKIT_VERIFICATION_SOURCE_SECRET`, and erased from the job at
+terminal completion/expiry. Rotating that secret can make in-flight payloads
+unreadable; such jobs fail without store work. No plaintext credential is added
+to persistent queue state. API credential hashes and random idempotency-key
+hashes isolate result reads. Secret keys can therefore remain hash-only in the
+API-key table. Results contain a historical verdict, not a current account
+access decision, and expose no raw evidence or worker error details.
+
+Retain terminal metadata/results for 24 hours. Logical expiry applies to reads
+and acknowledgment deduplication before physical pruning; after retention a
+POST may start a new verification. Pruning deletes 64 rows per mutation and
+schedules another bounded pass while a batch is full. Project deletion drains
+jobs through the same capacity owner before removing project queue state. Still-running actions leave only anonymous lease tombstones in global capacity until acknowledgment or lease expiry; deleting a project cannot create extra worker capacity. Expired queued backlogs also drain through bounded scheduled continuations.
+An empty maintenance tick performs bounded index reads, with no worker fanout.
+Queue storage, polling and retries still consume resources; a queue does not
+turn the team's spend-disable threshold into a hard all-provider invoice cap.
+
 ## Analytics rollups
 
 Analytics run only in scheduled Convex mutations; no public request computes

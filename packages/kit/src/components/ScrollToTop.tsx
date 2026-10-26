@@ -26,13 +26,19 @@ export function ScrollToTop() {
     }
 
     if (hash) {
-      // If there's a hash, scroll to that element
-      const element = document.getElementById(hash.slice(1));
-      if (element) {
-        setTimeout(() => {
-          element.scrollIntoView({ behavior: "smooth" });
-        }, 100);
-      }
+      const scrollToTarget = () => {
+        const element = document.getElementById(hash.slice(1));
+        if (!element) return false;
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+        return true;
+      };
+      if (scrollToTarget()) return;
+      // Lazy routes may mount the hash target after this effect runs.
+      const observer = new MutationObserver(() => {
+        if (scrollToTarget()) observer.disconnect();
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+      return () => observer.disconnect();
     } else if (!isFeaturePage) {
       window.scrollTo(0, 0);
       if (mainElement) {

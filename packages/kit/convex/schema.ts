@@ -3,6 +3,12 @@ import { v } from "convex/values";
 import { accessHistoryValidator } from "./subscriptions/accessHistory";
 import { authTables } from "@convex-dev/auth/server";
 import { harmonizedPurchaseStateValidator } from "./purchases/purchaseState";
+import { receiptResponseValidator } from "./purchases/shared";
+import {
+  verificationJobCiphertext,
+  verificationJobError,
+  verificationJobStatus,
+} from "./purchases/verificationJobModel";
 import {
   admissionBucketValidator,
   cancellationReasonValidator,
@@ -71,6 +77,70 @@ export const purchaseRequestDataValidator = v.union(
 const schema = defineSchema({
   ...authTables,
   users: usersTable,
+
+  verificationJobs: defineTable({
+    projectId: v.id("projects"),
+    apiKeyHash: v.string(),
+    idempotencyHash: v.string(),
+    requestHash: v.string(),
+    evidenceHash: v.string(),
+    verdictHash: v.string(),
+    rejectedAt: v.optional(v.number()),
+    replayTokens: v.number(),
+    replayRefilledAt: v.number(),
+    store: purchaseStoreValidator,
+    includeClientPayload: v.optional(v.boolean()),
+    includeTransactionDetails: v.optional(v.boolean()),
+    correlationId: v.string(),
+    payload: v.optional(verificationJobCiphertext),
+    status: verificationJobStatus,
+    attempts: v.number(),
+    nextAttemptAt: v.number(),
+    executionStartedAt: v.optional(v.number()),
+    lease: v.optional(v.string()),
+    leaseUntil: v.optional(v.number()),
+    receipt: v.optional(receiptResponseValidator),
+    error: v.optional(verificationJobError),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_key_idempotency", ["apiKeyHash", "idempotencyHash"])
+    .index("by_project", ["projectId"])
+    .index("by_project_evidence", ["projectId", "evidenceHash", "createdAt"])
+    .index("by_project_verdict_rejected", [
+      "projectId",
+      "verdictHash",
+      "rejectedAt",
+    ])
+    .index("by_project_status_due", ["projectId", "status", "nextAttemptAt"])
+    .index("by_status_expiry", ["status", "expiresAt"])
+    .index("by_status_lease", ["status", "leaseUntil"])
+    .index("by_completed", ["completedAt"]),
+
+  verificationJobQueues: defineTable({
+    scope: v.string(),
+    projectId: v.optional(v.id("projects")),
+    active: v.number(),
+    running: v.number(),
+    readyAt: v.optional(v.number()),
+    dispatchAt: v.optional(v.number()),
+    detachedLeases: v.optional(
+      v.array(
+        v.object({
+          lease: v.string(),
+          until: v.number(),
+          started: v.boolean(),
+        }),
+      ),
+    ),
+    generation: v.optional(v.number()),
+    tokens: v.optional(v.number()),
+    refilledAt: v.optional(v.number()),
+  })
+    .index("by_scope", ["scope"])
+    .index("by_ready", ["readyAt"])
+    .index("by_project", ["projectId"]),
 
   cliDevices: defineTable({
     deviceHash: v.string(),

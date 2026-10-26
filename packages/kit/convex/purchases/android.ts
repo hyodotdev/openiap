@@ -80,7 +80,7 @@ export const verifyGooglePlayReceiptInternalV1 = action({
   },
 });
 
-async function verifyGooglePlayReceipt(
+export async function verifyGooglePlayReceipt(
   ctx: ActionCtx,
   args: Infer<typeof googlePlayVerificationArgs>,
 ): Promise<ReceiptResponse> {

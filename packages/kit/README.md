@@ -15,6 +15,14 @@ from the App Store, Google Play, Amazon Appstore, and Meta Horizon; maintains
 subscription and entitlement state; and provides catalog, analytics, and store
 management workflows.
 
+For verification that must survive a caller disconnect, the optional
+`POST /v1/purchase/verification-jobs` API stores accepted work and exposes its
+result through `GET /v1/purchase/verification-jobs/{jobId}`. Keep the same
+API credential and random `Idempotency-Key` for retries and result reads.
+Existing SDK verification stays synchronous. See the
+[queue integration guide](https://kit.openiap.dev/docs/api#verification-jobs)
+for lifecycle states, limits and fulfillment requirements.
+
 IAPKit is neutral infrastructure, not a paywall or growth-optimization SaaS.
 Operational revenue and subscription analytics remain in scope; paywall
 creation, audience targeting, experimentation, lifecycle marketing, and

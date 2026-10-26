@@ -91,7 +91,7 @@ export const verifyAppStoreReceiptInternalV1 = action({
   },
 });
 
-async function verifyAppStoreReceipt(
+export async function verifyAppStoreReceipt(
   ctx: ActionCtx,
   args: Infer<typeof appStoreVerificationArgs>,
 ): Promise<ReceiptResponse> {
