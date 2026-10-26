@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 
-export function ScrollToTop() {
+export function ScrollToTop(): null {
   const { pathname, hash } = useLocation();
   // React Router splits the location into pathname/hash — `pathname` alone
   // never contains `#`, so checks like `pathname === "/#features"` never
@@ -35,10 +35,15 @@ export function ScrollToTop() {
       if (scrollToTarget()) return;
       // Lazy routes may mount the hash target after this effect runs.
       const observer = new MutationObserver(() => {
-        if (scrollToTarget()) observer.disconnect();
+        if (scrollToTarget()) stopWaiting();
       });
+      const timeout = window.setTimeout(stopWaiting, 10_000);
+      function stopWaiting(): void {
+        observer.disconnect();
+        window.clearTimeout(timeout);
+      }
       observer.observe(document.body, { childList: true, subtree: true });
-      return () => observer.disconnect();
+      return stopWaiting;
     } else if (!isFeaturePage) {
       window.scrollTo(0, 0);
       if (mainElement) {
