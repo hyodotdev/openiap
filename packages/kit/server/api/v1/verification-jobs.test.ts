@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { assertVerificationJobSource } from "../../../convex/purchases/verificationJobSource";
+import { assertVerificationSource } from "../../../convex/purchases/verificationSource";
 
 vi.mock("hono/bun", () => ({
   getConnInfo: () => ({ remote: { address: "127.0.0.1" } }),
@@ -51,12 +51,10 @@ describe("optional verification job transport", () => {
       deduped: false,
     });
     const { sourceAuth, ...args } = transport.action.mock.calls[0][1];
-    await expect(
-      assertVerificationJobSource("enqueue", args, sourceAuth),
-    ).resolves.toBeUndefined();
-    await expect(
-      assertVerificationJobSource("read", args, sourceAuth),
-    ).rejects.toThrow();
+    expect(() =>
+      assertVerificationSource("enqueue", args, sourceAuth),
+    ).not.toThrow();
+    expect(() => assertVerificationSource("read", args, sourceAuth)).toThrow();
   });
 
   it("rejects malformed headers and evidence before reaching Convex", async () => {

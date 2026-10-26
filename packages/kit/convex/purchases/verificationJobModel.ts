@@ -11,6 +11,9 @@ export const VERIFICATION_JOB_GLOBAL_CAPACITY = 1_024;
 export const VERIFICATION_JOB_PROJECT_WORKERS = 2;
 export const VERIFICATION_JOB_GLOBAL_WORKERS = 8;
 export const VERIFICATION_JOB_POLL_SECONDS = 2;
+export const VERIFICATION_JOB_IDEMPOTENCY_PATTERN = /^[a-f0-9]{64}$/;
+export const VERIFICATION_JOB_IDEMPOTENCY_MESSAGE =
+  "Idempotency-Key must be 32 random bytes encoded as 64 lowercase hex characters.";
 
 export const verificationJobStatus = v.union(
   v.literal("queued"),

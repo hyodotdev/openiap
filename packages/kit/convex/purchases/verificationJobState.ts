@@ -183,3 +183,22 @@ export async function deleteVerificationJob(
   }
   await ctx.db.delete(job._id);
 }
+
+export async function requeueVerificationJob(
+  ctx: MutationCtx,
+  job: Doc<"verificationJobs">,
+  nextAttemptAt: number,
+): Promise<void> {
+  await ctx.db.patch(job._id, {
+    status: "queued",
+    nextAttemptAt,
+    lease: undefined,
+    leaseUntil: undefined,
+  });
+  for (const queue of [
+    await verificationQueue(ctx),
+    await verificationQueue(ctx, job.projectId),
+  ])
+    await ctx.db.patch(queue._id, { running: queue.running - 1 });
+  await readyVerificationProject(ctx, job.projectId);
+}

@@ -89,7 +89,6 @@ import type * as purchases_verificationInput from "../purchases/verificationInpu
 import type * as purchases_verificationJobCrypto from "../purchases/verificationJobCrypto.js";
 import type * as purchases_verificationJobModel from "../purchases/verificationJobModel.js";
 import type * as purchases_verificationJobQueue from "../purchases/verificationJobQueue.js";
-import type * as purchases_verificationJobSource from "../purchases/verificationJobSource.js";
 import type * as purchases_verificationJobState from "../purchases/verificationJobState.js";
 import type * as purchases_verificationJobs from "../purchases/verificationJobs.js";
 import type * as purchases_verificationSource from "../purchases/verificationSource.js";
@@ -223,7 +222,6 @@ declare const fullApi: ApiFromModules<{
   "purchases/verificationJobCrypto": typeof purchases_verificationJobCrypto;
   "purchases/verificationJobModel": typeof purchases_verificationJobModel;
   "purchases/verificationJobQueue": typeof purchases_verificationJobQueue;
-  "purchases/verificationJobSource": typeof purchases_verificationJobSource;
   "purchases/verificationJobState": typeof purchases_verificationJobState;
   "purchases/verificationJobs": typeof purchases_verificationJobs;
   "purchases/verificationSource": typeof purchases_verificationSource;

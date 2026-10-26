@@ -3,8 +3,12 @@ import { describeRoute, resolver } from "hono-openapi";
 import * as v from "valibot";
 import { api } from "@/convex";
 import { client, handleConvexError } from "../../convex";
-import { withVerificationJobSource } from "../../../convex/purchases/verificationJobSource";
-import { VERIFICATION_JOB_POLL_SECONDS } from "../../../convex/purchases/verificationJobModel";
+import { withVerificationSource } from "../../../convex/purchases/verificationSource";
+import {
+  VERIFICATION_JOB_POLL_SECONDS,
+  VERIFICATION_JOB_IDEMPOTENCY_PATTERN,
+  VERIFICATION_JOB_IDEMPOTENCY_MESSAGE,
+} from "../../../convex/purchases/verificationJobModel";
 import { verifyPurchaseInputSchema } from "./route-input-schemas";
 import {
   apiErrorResponseSchema,
@@ -46,14 +50,17 @@ app.use("*", async (c, next) => {
 });
 app.use("*", apiKeyMiddleware, multiAxisRateLimitMiddleware());
 app.use("*", async (c, next) => {
-  if (!/^[a-f0-9]{64}$/.test(c.req.header("Idempotency-Key") ?? ""))
+  if (
+    !VERIFICATION_JOB_IDEMPOTENCY_PATTERN.test(
+      c.req.header("Idempotency-Key") ?? "",
+    )
+  )
     return c.json(
       {
         errors: [
           {
             code: "INVALID_INPUT",
-            message:
-              "Idempotency-Key must be 32 random bytes encoded as 64 lowercase hex characters.",
+            message: VERIFICATION_JOB_IDEMPOTENCY_MESSAGE,
           },
         ],
       },
@@ -135,7 +142,10 @@ app.post(
         name: "Idempotency-Key",
         in: "header",
         required: true,
-        schema: { type: "string", pattern: "^[a-f0-9]{64}$" },
+        schema: {
+          type: "string",
+          pattern: VERIFICATION_JOB_IDEMPOTENCY_PATTERN.source,
+        },
       },
     ],
     responses: {
@@ -157,7 +167,7 @@ app.post(
     try {
       const result = await client.action(
         api.purchases.verificationJobs.enqueue,
-        await withVerificationJobSource("enqueue", {
+        withVerificationSource("enqueue", {
           apiKey: c.var.apiKey,
           idempotencyKey: c.req.header("Idempotency-Key")!,
           inputJson: JSON.stringify(c.req.valid("json")),
@@ -187,7 +197,10 @@ app.get(
         name: "Idempotency-Key",
         in: "header",
         required: true,
-        schema: { type: "string", pattern: "^[a-f0-9]{64}$" },
+        schema: {
+          type: "string",
+          pattern: VERIFICATION_JOB_IDEMPOTENCY_PATTERN.source,
+        },
       },
       { name: "jobId", in: "path", required: true, schema: { type: "string" } },
     ],
@@ -203,7 +216,7 @@ app.get(
     try {
       const job = await client.action(
         api.purchases.verificationJobs.read,
-        await withVerificationJobSource("read", {
+        withVerificationSource("read", {
           apiKey: c.var.apiKey,
           idempotencyKey: c.req.header("Idempotency-Key")!,
           jobId: c.req.param("jobId"),

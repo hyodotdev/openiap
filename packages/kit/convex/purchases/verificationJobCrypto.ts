@@ -7,14 +7,16 @@ import {
   randomBytes,
 } from "node:crypto";
 import type { Infer } from "convex/values";
-import { verificationJobSecret } from "./verificationJobSource";
+import { verificationSourceSecret } from "./verificationSource";
 import type { verificationJobCiphertext } from "./verificationJobModel";
 
 type Ciphertext = Infer<typeof verificationJobCiphertext>;
 
 function encryptionKey(): Buffer {
   return createHash("sha256")
-    .update(`iapkit-verification-job-encryption-v1:${verificationJobSecret()}`)
+    .update(
+      `iapkit-verification-job-encryption-v1:${verificationSourceSecret("enqueue")}`,
+    )
     .digest();
 }
 

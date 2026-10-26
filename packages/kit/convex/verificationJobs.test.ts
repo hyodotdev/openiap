@@ -6,7 +6,7 @@ import { api, internal } from "./_generated/api";
 import schema from "./schema";
 import { HarmonizedPurchaseState } from "./purchases/purchaseState";
 import { sha256Hex } from "./utils/sha256";
-import { withVerificationJobSource } from "./purchases/verificationJobSource";
+import { withVerificationSource } from "./purchases/verificationSource";
 import { decryptVerificationJob } from "./purchases/verificationJobCrypto";
 import {
   VERIFICATION_JOB_DEADLINE_MS,
@@ -58,7 +58,7 @@ async function fixture(shared?: ReturnType<typeof makeTest>, suffix = "") {
   async function add(n = 1, input: object = request) {
     return t.action(
       api.purchases.verificationJobs.enqueue,
-      await withVerificationJobSource("enqueue", {
+      withVerificationSource("enqueue", {
         apiKey,
         idempotencyKey: idem(n),
         inputJson: JSON.stringify(input),
@@ -69,7 +69,7 @@ async function fixture(shared?: ReturnType<typeof makeTest>, suffix = "") {
   async function read(jobId: string, n = 1, key = apiKey) {
     return t.action(
       api.purchases.verificationJobs.read,
-      await withVerificationJobSource("read", {
+      withVerificationSource("read", {
         apiKey: key,
         idempotencyKey: idem(n),
         jobId,

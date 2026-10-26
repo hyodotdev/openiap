@@ -14,6 +14,7 @@ import {
   readyVerificationProject,
   wakeVerificationQueue,
   finishVerificationJob,
+  requeueVerificationJob,
   releaseExpiredVerificationLease,
   releaseDetachedVerificationLease,
   deleteVerificationJob,
@@ -375,18 +376,7 @@ export const complete = internalMutation({
       job.attempts < VERIFICATION_JOB_MAX_ATTEMPTS &&
       retryAt < job.expiresAt
     ) {
-      await ctx.db.patch(job._id, {
-        status: "queued",
-        nextAttemptAt: retryAt,
-        lease: undefined,
-        leaseUntil: undefined,
-      });
-      for (const queue of [
-        await verificationQueue(ctx),
-        await verificationQueue(ctx, job.projectId),
-      ])
-        await ctx.db.patch(queue._id, { running: queue.running - 1 });
-      await readyVerificationProject(ctx, job.projectId);
+      await requeueVerificationJob(ctx, job, retryAt);
     } else {
       await finishVerificationJob(
         ctx,
@@ -471,18 +461,7 @@ export const maintain = internalMutation({
           },
         });
       } else {
-        await ctx.db.patch(job._id, {
-          status: "queued",
-          lease: undefined,
-          leaseUntil: undefined,
-          nextAttemptAt: now,
-        });
-        for (const queue of [
-          await verificationQueue(ctx),
-          await verificationQueue(ctx, job.projectId),
-        ])
-          await ctx.db.patch(queue._id, { running: queue.running - 1 });
-        await readyVerificationProject(ctx, job.projectId);
+        await requeueVerificationJob(ctx, job, now);
       }
     }
     if (expiredQueued.length === 32)

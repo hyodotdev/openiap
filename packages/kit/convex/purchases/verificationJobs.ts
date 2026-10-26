@@ -8,10 +8,10 @@ import type { Id } from "../_generated/dataModel";
 import { assertCliScope } from "../cli/scope";
 import { hmacSha256Hex, sha256Hex } from "../utils/sha256";
 import {
-  assertVerificationJobSource,
-  verificationJobSecret,
-  verificationJobSource,
-} from "./verificationJobSource";
+  assertVerificationSource,
+  verificationSourceSecret,
+  verificationSourceValidator,
+} from "./verificationSource";
 import {
   decryptVerificationJob,
   encryptVerificationJob,
@@ -35,19 +35,19 @@ import {
 } from "./errors";
 import { HarmonizedPurchaseState } from "./purchaseState";
 import type { ReceiptResponse } from "./shared";
-import type {
-  VerificationJobError,
-  VerificationJobView,
+import {
+  expiredVerificationJobError,
+  VERIFICATION_JOB_IDEMPOTENCY_PATTERN,
+  VERIFICATION_JOB_IDEMPOTENCY_MESSAGE,
+  type VerificationJobError,
+  type VerificationJobView,
 } from "./verificationJobModel";
 
-const IDEMPOTENCY_PATTERN = /^[a-f0-9]{64}$/;
-
 function validIdempotencyKey(key: string): void {
-  if (!IDEMPOTENCY_PATTERN.test(key))
+  if (!VERIFICATION_JOB_IDEMPOTENCY_PATTERN.test(key))
     throw new ConvexError({
       code: "INVALID_INPUT",
-      message:
-        "Idempotency-Key must be 32 random bytes encoded as 64 lowercase hex characters.",
+      message: VERIFICATION_JOB_IDEMPOTENCY_MESSAGE,
     });
 }
 
@@ -58,7 +58,7 @@ export const enqueue = action({
     inputJson: v.string(),
     requestIp: v.optional(v.string()),
     correlationId: v.string(),
-    sourceAuth: verificationJobSource,
+    sourceAuth: verificationSourceValidator,
   },
   returns: v.object({ jobId: v.id("verificationJobs"), deduped: v.boolean() }),
   handler: async (
@@ -76,7 +76,7 @@ export const enqueue = action({
     }
 
     const { sourceAuth, ...request } = args;
-    await assertVerificationJobSource("enqueue", request, sourceAuth);
+    assertVerificationSource("enqueue", request, sourceAuth);
     await assertCliScope(ctx, "write");
     validIdempotencyKey(args.idempotencyKey);
     if (
@@ -104,7 +104,7 @@ export const enqueue = action({
     const apiKeyHash = await sha256Hex(args.apiKey);
     const idempotencyHash = await sha256Hex(args.idempotencyKey);
     const hashKey = await hmacSha256Hex(
-      verificationJobSecret(),
+      verificationSourceSecret("enqueue"),
       "iapkit-verification-job-fingerprint-v1",
     );
     const requestHash = await hmacSha256Hex(
@@ -159,11 +159,11 @@ export const read = action({
     apiKey: v.string(),
     idempotencyKey: v.string(),
     jobId: v.string(),
-    sourceAuth: verificationJobSource,
+    sourceAuth: verificationSourceValidator,
   },
   handler: async (ctx, args): Promise<VerificationJobView> => {
     const { sourceAuth, ...request } = args;
-    await assertVerificationJobSource("read", request, sourceAuth);
+    assertVerificationSource("read", request, sourceAuth);
     await assertCliScope(ctx, "read");
     validIdempotencyKey(args.idempotencyKey);
     if (args.apiKey.length > 128 || args.jobId.length > 128)
@@ -303,10 +303,7 @@ export const run = internalAction({
     ) {
       await ctx.runMutation(internal.purchases.verificationJobQueue.complete, {
         ...args,
-        error: {
-          code: "VERIFICATION_EXPIRED",
-          message: "Verification did not finish before its deadline.",
-        },
+        error: expiredVerificationJobError(),
       });
       return null;
     }

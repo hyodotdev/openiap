@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Infer } from "convex/values";
 import { testableFunction } from "../test.setup";
@@ -92,6 +93,73 @@ afterEach(() => {
 });
 
 describe("verification source boundary", () => {
+  it.each(["apple", "enqueue", "read"] as const)(
+    "keeps the %s source domain and signed bytes unchanged",
+    (scope) => {
+      vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+      const args = { z: "last", a: "first", omitted: undefined };
+      const proof = withVerificationSource(scope, args).sourceAuth;
+      const domain =
+        scope === "apple"
+          ? "iapkit-verification-v1"
+          : "iapkit-verification-job-v1";
+      const expected = createHmac("sha256", "2".repeat(64))
+        .update(
+          JSON.stringify([
+            domain,
+            scope,
+            1_000_000,
+            [
+              ["a", "first"],
+              ["z", "last"],
+            ],
+          ]),
+        )
+        .digest("hex");
+      expect(proof.mac).toBe(expected);
+      expect(() => assertVerificationSource(scope, args, proof)).not.toThrow();
+      for (const other of ["apple", "enqueue", "read"] as const) {
+        if (other !== scope)
+          expect(() => assertVerificationSource(other, args, proof)).toThrow();
+      }
+    },
+  );
+
+  it.each(["enqueue", "read"] as const)(
+    "%s preserves structured queue errors for invalid proofs and missing configuration",
+    (scope) => {
+      const now = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+      const args = { apiKey: "fixture", idempotencyKey: "a".repeat(64) };
+      const proof = withVerificationSource(scope, args).sourceAuth;
+      for (const malformed of [
+        undefined,
+        { ...proof, mac: "z".repeat(64) },
+        { ...proof, mac: "0".repeat(65) },
+        { ...proof, issuedAt: 879_999 },
+        { ...proof, issuedAt: 1_030_001 },
+      ]) {
+        expect(() => assertVerificationSource(scope, args, malformed)).toThrow(
+          "UNKNOWN_ERROR",
+        );
+      }
+      now.mockReturnValue(1_120_000);
+      expect(() => assertVerificationSource(scope, args, proof)).not.toThrow();
+      now.mockReturnValue(1_120_001);
+      expect(() => assertVerificationSource(scope, args, proof)).toThrow(
+        "UNKNOWN_ERROR",
+      );
+      for (const secret of [undefined, "short"]) {
+        vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", secret);
+        expect(() => withVerificationSource(scope, args)).toThrow(
+          "UNKNOWN_ERROR",
+        );
+        expect(() => assertVerificationSource(scope, args, proof)).toThrow(
+          "UNKNOWN_ERROR",
+        );
+      }
+    },
+  );
+
   it.each(entries)(
     "$name rejects a public key without valid service proof before any I/O",
     async ({ call }) => {
