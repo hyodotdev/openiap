@@ -2,13 +2,14 @@
 
 import { ConvexError, v } from "convex/values";
 import * as valibot from "valibot";
-import { action, internalAction, type ActionCtx } from "../_generated/server";
+import { action, internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { assertCliScope } from "../cli/scope";
-import { sha256Hex } from "../utils/sha256";
+import { hmacSha256Hex, sha256Hex } from "../utils/sha256";
 import {
   assertVerificationJobSource,
+  verificationJobSecret,
   verificationJobSource,
 } from "./verificationJobSource";
 import {
@@ -41,16 +42,6 @@ function validIdempotencyKey(key: string): void {
     });
 }
 
-function canonicalInput(input: Record<string, unknown>): string {
-  return JSON.stringify(
-    Object.fromEntries(
-      Object.entries(input)
-        .filter(([, value]) => value !== undefined)
-        .sort(([a], [b]) => a.localeCompare(b)),
-    ),
-  );
-}
-
 export const enqueue = action({
   args: {
     apiKey: v.string(),
@@ -65,6 +56,16 @@ export const enqueue = action({
     ctx,
     args,
   ): Promise<{ jobId: Id<"verificationJobs">; deduped: boolean }> => {
+    function canonicalInput(input: Record<string, unknown>): string {
+      return JSON.stringify(
+        Object.fromEntries(
+          Object.entries(input)
+            .filter(([, value]) => value !== undefined)
+            .sort(([a], [b]) => a.localeCompare(b)),
+        ),
+      );
+    }
+
     await assertCliScope(ctx, "write");
     const { sourceAuth, ...request } = args;
     await assertVerificationJobSource("enqueue", request, sourceAuth);
@@ -93,8 +94,16 @@ export const enqueue = action({
     }
     const apiKeyHash = await sha256Hex(args.apiKey);
     const idempotencyHash = await sha256Hex(args.idempotencyKey);
-    const requestHash = await sha256Hex(canonicalInput(input));
-    const verdictHash = await sha256Hex(
+    const hashKey = await hmacSha256Hex(
+      verificationJobSecret(),
+      "iapkit-verification-job-fingerprint-v1",
+    );
+    const requestHash = await hmacSha256Hex(
+      args.idempotencyKey,
+      `iapkit-verification-job-request-v1:${canonicalInput(input)}`,
+    );
+    const verdictHash = await hmacSha256Hex(
+      hashKey,
       canonicalInput(
         Object.fromEntries(
           Object.entries(input).filter(
@@ -116,7 +125,7 @@ export const enqueue = action({
           ].includes(key),
       ),
     );
-    const evidenceHash = await sha256Hex(canonicalInput(evidence));
+    const evidenceHash = await hmacSha256Hex(hashKey, canonicalInput(evidence));
     const payload = encryptVerificationJob(
       JSON.stringify({ apiKey: args.apiKey, input, requestIp: args.requestIp }),
       JSON.stringify([apiKeyHash, idempotencyHash, requestHash]),
@@ -159,56 +168,6 @@ export const read = action({
     );
   },
 });
-
-async function verifyQueuedReceipt(
-  ctx: ActionCtx,
-  apiKey: string,
-  input: VerificationInput,
-  requestIp: string | undefined,
-  correlationId: string,
-): Promise<ReceiptResponse> {
-  const base = { apiKey, requestIp, correlationId };
-  return verifyRecordingIssues(
-    ctx,
-    {
-      apiKey,
-      evidence: input,
-      expectedProductId:
-        "expectedProductId" in input ? input.expectedProductId : undefined,
-      correlationId,
-    },
-    async () => {
-      switch (input.store) {
-        case "apple":
-          return verifyAppStoreReceipt(ctx, {
-            ...base,
-            jws: input.jws,
-            expectedProductId: input.expectedProductId,
-          });
-        case "google":
-          return verifyGooglePlayReceipt(ctx, {
-            ...base,
-            purchaseToken: input.purchaseToken,
-            expectedProductId: input.expectedProductId,
-          });
-        case "amazon":
-          return verifyAmazonReceipt(ctx, {
-            ...base,
-            userId: input.userId,
-            receiptId: input.receiptId,
-            sandbox: input.sandbox,
-            expectedProductId: input.expectedProductId,
-          });
-        case "horizon":
-          return verifyHorizonReceipt(ctx, {
-            ...base,
-            userId: input.userId,
-            sku: input.sku,
-          });
-      }
-    },
-  );
-}
 
 export function verificationJobFailure(error: unknown): {
   error: VerificationJobError;
@@ -260,6 +219,55 @@ export const run = internalAction({
   args: { jobId: v.id("verificationJobs"), lease: v.string() },
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
+    async function verifyQueuedReceipt(
+      apiKey: string,
+      input: VerificationInput,
+      requestIp: string | undefined,
+      correlationId: string,
+    ): Promise<ReceiptResponse> {
+      const base = { apiKey, requestIp, correlationId };
+      return verifyRecordingIssues(
+        ctx,
+        {
+          apiKey,
+          evidence: input,
+          expectedProductId:
+            "expectedProductId" in input ? input.expectedProductId : undefined,
+          correlationId,
+        },
+        async () => {
+          switch (input.store) {
+            case "apple":
+              return verifyAppStoreReceipt(ctx, {
+                ...base,
+                jws: input.jws,
+                expectedProductId: input.expectedProductId,
+              });
+            case "google":
+              return verifyGooglePlayReceipt(ctx, {
+                ...base,
+                purchaseToken: input.purchaseToken,
+                expectedProductId: input.expectedProductId,
+              });
+            case "amazon":
+              return verifyAmazonReceipt(ctx, {
+                ...base,
+                userId: input.userId,
+                receiptId: input.receiptId,
+                sandbox: input.sandbox,
+                expectedProductId: input.expectedProductId,
+              });
+            case "horizon":
+              return verifyHorizonReceipt(ctx, {
+                ...base,
+                userId: input.userId,
+                sku: input.sku,
+              });
+          }
+        },
+      );
+    }
+
     const job = await ctx.runMutation(
       internal.purchases.verificationJobQueue.forWorker,
       args,
@@ -299,7 +307,6 @@ export const run = internalAction({
         decoded,
       );
       const receipt = await verifyQueuedReceipt(
-        ctx,
         payload.apiKey,
         payload.input,
         payload.requestIp,

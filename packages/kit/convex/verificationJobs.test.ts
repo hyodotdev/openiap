@@ -131,6 +131,29 @@ describe("durable purchase verification admission", () => {
     expect(await f.read(first.jobId)).toMatchObject({ status: "queued" });
   });
 
+  it("keys stored purchase fingerprints while keeping acknowledgment retries deterministic", async () => {
+    const f = await fixture();
+    const input = { store: "horizon", userId: "123456789", sku: "premium" };
+    const first = await f.add(1, input);
+    const before = (await f.t.run((ctx) => ctx.db.get(first.jobId)))!;
+    vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "b".repeat(64));
+    expect(await f.add(1, input)).toEqual({ ...first, deduped: true });
+    expect(await f.read(first.jobId)).toMatchObject({ status: "queued" });
+    const second = await f.add(2, input);
+    const after = (await f.t.run((ctx) => ctx.db.get(second.jobId)))!;
+    for (const field of ["verdictHash", "evidenceHash"] as const)
+      expect(after[field]).not.toBe(before[field]);
+    const third = await f.add(3, input);
+    const sameSource = (await f.t.run((ctx) => ctx.db.get(third.jobId)))!;
+    expect(sameSource.requestHash).not.toBe(after.requestHash);
+    expect(sameSource.verdictHash).toBe(after.verdictHash);
+    expect(sameSource.evidenceHash).toBe(after.evidenceHash);
+    expect(after.apiKeyHash).toBe(before.apiKeyHash);
+    expect(before.idempotencyHash).toBe(await sha256Hex(idem(1)));
+    expect(after.idempotencyHash).toBe(await sha256Hex(idem(2)));
+    expect(await f.add(2, input)).toEqual({ ...second, deduped: true });
+  });
+
   it("rejects missing/tampered source proof and malformed receipts before writing", async () => {
     const f = await fixture();
     await expect(

@@ -26,7 +26,7 @@ export function ScrollToTop() {
     }
 
     if (hash) {
-      const scrollToTarget = () => {
+      const scrollToTarget = (): boolean => {
         const element = document.getElementById(hash.slice(1));
         if (!element) return false;
         element.scrollIntoView({ behavior: "smooth", block: "start" });

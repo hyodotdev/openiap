@@ -149,6 +149,14 @@ hashes isolate result reads. Secret keys can therefore remain hash-only in the
 API-key table. Results contain a historical verdict, not a current account
 access decision, and expose no raw evidence or worker error details.
 
+Request fingerprints use an HMAC keyed by the private Idempotency-Key, so
+acknowledgment retries survive a source-secret rotation. Cross-job evidence and
+rejection fingerprints use a separate HMAC key derived from the source secret.
+Rotation resets those replay/cooldown guards; project and global admission
+limits remain in force. Neither kind of fingerprint exposes dictionary-testable
+purchase identifiers. Retained result reads do not depend on the source secret
+that accepted the job.
+
 Retain terminal metadata/results for 24 hours. Logical expiry applies to reads
 and acknowledgment deduplication before physical pruning; after retention a
 POST may start a new verification. Pruning deletes 64 rows per mutation and

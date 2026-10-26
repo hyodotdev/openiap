@@ -9,12 +9,12 @@ import { isSettledRejection } from "./replay-guard";
 import type { TransactionDetails } from "../../../convex/purchases/shared";
 import type { VerificationInput } from "../../../convex/purchases/verificationInput";
 
-type ProductClientPayload = {
+interface ProductClientPayload {
   format: "toml" | "json" | "text";
   body: string;
   version: number;
   updatedAt: number;
-};
+}
 
 export interface VerificationReceipt {
   isValid: boolean;

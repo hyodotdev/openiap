@@ -36,7 +36,9 @@ const responseSchema = v.variant("status", [
 ]);
 const acceptedSchema = v.object({ jobId: v.string(), deduped: v.boolean() });
 
-type JobEnv = { Variables: { apiKey: string; apiKeyHash: string } };
+interface JobEnv {
+  Variables: { apiKey: string; apiKeyHash: string };
+}
 const app = new Hono<JobEnv>();
 app.use("*", async (c, next) => {
   c.header("Cache-Control", "private, no-store");
