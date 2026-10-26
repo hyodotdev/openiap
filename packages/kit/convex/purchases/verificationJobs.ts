@@ -24,7 +24,16 @@ import { verifyAppStoreReceipt } from "./ios";
 import { verifyGooglePlayReceipt } from "./android";
 import { verifyAmazonReceipt } from "./amazon";
 import { verifyHorizonReceipt } from "./horizon";
-import { verifyRecordingIssues } from "../purchaseIssues/shared";
+import {
+  classifyVerificationError,
+  verifyRecordingIssues,
+} from "../purchaseIssues/shared";
+import {
+  PlayStorePurchaseNotFoundError,
+  PlayStoreVerificationError,
+  STORE_OUTAGE_RETRY_AFTER_SEC,
+} from "./errors";
+import { HarmonizedPurchaseState } from "./purchaseState";
 import type { ReceiptResponse } from "./shared";
 import type {
   VerificationJobError,
@@ -66,9 +75,9 @@ export const enqueue = action({
       );
     }
 
-    await assertCliScope(ctx, "write");
     const { sourceAuth, ...request } = args;
     await assertVerificationJobSource("enqueue", request, sourceAuth);
+    await assertCliScope(ctx, "write");
     validIdempotencyKey(args.idempotencyKey);
     if (
       args.inputJson.length > 20_000 ||
@@ -153,9 +162,9 @@ export const read = action({
     sourceAuth: verificationJobSource,
   },
   handler: async (ctx, args): Promise<VerificationJobView> => {
-    await assertCliScope(ctx, "read");
     const { sourceAuth, ...request } = args;
     await assertVerificationJobSource("read", request, sourceAuth);
+    await assertCliScope(ctx, "read");
     validIdempotencyKey(args.idempotencyKey);
     if (args.apiKey.length > 128 || args.jobId.length > 128)
       throw new ConvexError({
@@ -202,7 +211,9 @@ export function verificationJobFailure(error: unknown): {
       ? Math.min(900, raw.retryAfterSec)
       : code === "RATE_LIMITED"
         ? 2
-        : undefined;
+        : classifyVerificationError(error)?.cause === "STORE_UNAVAILABLE"
+          ? STORE_OUTAGE_RETRY_AFTER_SEC
+          : undefined;
   return {
     error: {
       code,
@@ -244,11 +255,23 @@ export const run = internalAction({
                 expectedProductId: input.expectedProductId,
               });
             case "google":
-              return verifyGooglePlayReceipt(ctx, {
-                ...base,
-                purchaseToken: input.purchaseToken,
-                expectedProductId: input.expectedProductId,
-              });
+              try {
+                return await verifyGooglePlayReceipt(ctx, {
+                  ...base,
+                  purchaseToken: input.purchaseToken,
+                  expectedProductId: input.expectedProductId,
+                });
+              } catch (error) {
+                if (
+                  error instanceof PlayStoreVerificationError &&
+                  error.inner instanceof PlayStorePurchaseNotFoundError
+                )
+                  return {
+                    isValid: false,
+                    state: HarmonizedPurchaseState.INAUTHENTIC,
+                  };
+                throw error;
+              }
             case "amazon":
               return verifyAmazonReceipt(ctx, {
                 ...base,
