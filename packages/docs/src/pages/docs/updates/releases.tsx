@@ -699,17 +699,17 @@ function Releases() {
             October 26, 2026 - Preserve native rejection codes
           </AnchorLink>
           <p>
-            react-native-iap 17.2.3 preserves the OpenIAP error payload when the
-            Android bridge appends a Java cause chain after its JSON. Service
-            disconnections, cancellations and other store failures keep their
-            original codes and diagnostics instead of becoming{' '}
-            <code>unknown</code>. This fixes error handling in product queries,
-            subscription queries, transaction completion and purchase restore.
-            Error conversion also retains product IDs and Android sub-response
-            details across APIs. JSON-like text inside structured error payloads
-            no longer changes their codes or incorrectly signals a cancellation.
-            Legacy Java exception prefixes and multiline NSError payloads also
-            retain their codes. See{' '}
+            react-native-iap 17.2.3 preserves native purchase error codes and
+            diagnostics across product queries, subscription queries,
+            transaction completion and purchase restore. Service disconnections,
+            cancellations and other store failures keep their codes instead of
+            becoming <code>unknown</code>. Android rejections carry JSON without
+            an appended Java cause chain. iOS rejections retain every diagnostic
+            field defined by the PurchaseError specification. JSON-like text
+            inside structured payloads no longer changes their codes or
+            incorrectly signals a cancellation. Existing Java exception
+            prefixes, cause chains and multiline NSError payloads remain
+            supported. Rebuild your native app to receive the bridge fixes. See{' '}
             <a href="https://github.com/hyodotdev/openiap/issues/569">#569</a>.
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>

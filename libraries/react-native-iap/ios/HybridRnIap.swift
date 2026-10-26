@@ -1489,7 +1489,11 @@ class HybridRnIap: HybridRnIapSpec {
                     message: "Connection ended before the store operation started."
                 )
             }
-            return try await operation()
+            do {
+                return try await operation()
+            } catch let purchaseError as PurchaseError {
+                throw OpenIapException.from(purchaseError)
+            }
         }
     }
 
@@ -1525,7 +1529,7 @@ class HybridRnIap: HybridRnIapSpec {
                 return result
             } catch let purchaseError as PurchaseError {
                 self.deliverRequestPurchaseError(purchaseError)
-                throw purchaseError
+                return nil
             } catch {
                 // A provider that enqueued its own error owns delivery.
                 RnIapLog.failure("requestPurchase", error: error)

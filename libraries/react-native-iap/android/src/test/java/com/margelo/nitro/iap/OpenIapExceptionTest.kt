@@ -2,6 +2,10 @@ package com.margelo.nitro.iap
 
 import org.junit.Test
 import org.junit.Assert.*
+import java.io.ByteArrayOutputStream
+import java.io.PrintStream
+import java.io.PrintWriter
+import java.io.StringWriter
 
 /**
  * Unit tests for OpenIapException to verify that error messages
@@ -11,6 +15,48 @@ import org.junit.Assert.*
  * stack traces were breaking JSON parsing on the JavaScript side.
  */
 class OpenIapExceptionTest {
+
+    @Test
+    fun `the installed fbjni formatter returns parseable JSON with a retained cause`() {
+        val json = """{"code":"service-disconnected","message":"Disconnected"}"""
+        val cause = IllegalStateException("Native failure")
+        val exception = OpenIapException(json, cause)
+        // fbjni's C++ exception adapter calls this private Java entry point.
+        val formatter = Class.forName("com.facebook.jni.ExceptionHelper")
+            .getDeclaredMethod("getErrorDescription", Throwable::class.java)
+        formatter.isAccessible = true
+
+        assertEquals(json + System.lineSeparator(), formatter.invoke(null, exception))
+        assertSame(cause, exception.cause)
+    }
+
+    @Test
+    fun `fbjni print writer receives only JSON even with a cause and suppressed error`() {
+        val json = """{"code":"service-disconnected","message":"Disconnected","debugMessage":"line one\nline two"}"""
+        val cause = IllegalStateException("""{"code":"user-cancelled","message":"unrelated cause"}""")
+        val exception = OpenIapException(json, cause)
+        exception.addSuppressed(IllegalArgumentException("suppressed diagnostic"))
+        val output = StringWriter()
+
+        exception.printStackTrace(PrintWriter(output))
+
+        assertEquals(json + System.lineSeparator(), output.toString())
+        assertSame(cause, exception.cause)
+        assertTrue(cause.stackTrace.isNotEmpty())
+        assertEquals(1, exception.suppressed.size)
+    }
+
+    @Test
+    fun `print stream transport matches the no-cause JSON output`() {
+        val json = """{"code":"unknown","message":"Quotes: \"x\", braces: {}, path: C:\\billing"}"""
+        for (cause in listOf(null, RuntimeException("native failure"))) {
+            val output = ByteArrayOutputStream()
+            PrintStream(output).use { stream ->
+                OpenIapException(json, cause).printStackTrace(stream)
+            }
+            assertEquals(json + System.lineSeparator(), output.toString("UTF-8"))
+        }
+    }
 
     @Test
     fun `test OpenIapException message returns clean JSON`() {

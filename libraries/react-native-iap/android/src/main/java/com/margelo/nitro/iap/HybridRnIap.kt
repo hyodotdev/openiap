@@ -61,6 +61,8 @@ import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.helpers.OpenIapFirstPurchaseNotice
 import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.utils.redeemOfferCode
+import java.io.PrintStream
+import java.io.PrintWriter
 import java.util.Locale
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -68,15 +70,19 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Carries OpenIAP JSON; fbjni may append the retained cause's stack trace. */
+/** Sends only PurchaseError JSON through fbjni while retaining the native cause. */
 class OpenIapException(private val errorJson: String, cause: Throwable? = null) : Exception(cause) {
     override val message: String
         get() = errorJson
 
     override fun toString(): String = errorJson
 
+    override fun printStackTrace(stream: PrintStream) = stream.println(errorJson)
+
+    override fun printStackTrace(writer: PrintWriter) = writer.println(errorJson)
+
     override fun fillInStackTrace(): Throwable {
-        // Omit the wrapper stack; the native cause remains available for diagnostics.
+        // The cause retains the native frames; the wrapper needs none.
         return this
     }
 }
