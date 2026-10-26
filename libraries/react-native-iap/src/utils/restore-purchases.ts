@@ -2,7 +2,7 @@ import {Platform} from 'react-native';
 import {ErrorCode} from '../types';
 import {isVegaOS} from '../vega';
 import {getNativeIapInstance} from './native-instance';
-import {parseNativePurchaseError} from './native-error';
+import {normalizePurchaseError} from './native-error';
 import {
   createPurchaseError,
   type PurchaseError as PurchaseErrorInstance,
@@ -12,7 +12,7 @@ import {
 export const toRestorePurchaseError = (
   error: unknown,
 ): PurchaseErrorInstance => {
-  const parsedError = parseNativePurchaseError(error);
+  const parsedError = normalizePurchaseError(error);
   return createPurchaseError(parsedError);
 };
 

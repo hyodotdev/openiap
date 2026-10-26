@@ -1,6 +1,6 @@
 import {ErrorCode, type PurchaseError} from '../../types';
 import {parseErrorStringToJsonObj} from '../../utils/error';
-import {parseNativePurchaseError} from '../../utils/native-error';
+import {parseNativePurchaseError} from '../../utils/legacy-native-error';
 
 describe('native PurchaseError contract decoding', () => {
   const payload = {

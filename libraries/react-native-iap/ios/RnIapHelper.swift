@@ -546,17 +546,23 @@ enum RnIapHelper {
         _ productId: String? = nil,
         debugMessage: String? = nil
     ) -> NitroPurchaseResult {
-        return NitroPurchaseResult(
-            responseCode: -1,
-            debugMessage: debugMessage,
-            code: code.rawValue,
-            message: message,
+        makePurchaseErrorResult(PurchaseError(
+            code: code, debugMessage: debugMessage, message: message, productId: productId
+        ))
+    }
+
+    static func makePurchaseErrorResult(_ error: PurchaseError) -> NitroPurchaseResult {
+        NitroPurchaseResult(
+            responseCode: error.responseCode.map(Double.init) ?? -1,
+            debugMessage: error.debugMessage,
+            code: error.code.rawValue,
+            message: error.message,
             purchaseToken: nil,
-            productId: productId,
-            productIds: nil,
-            productType: nil,
-            isEmptyProductList: nil,
-            subResponseCodeAndroid: nil
+            productId: error.productId,
+            productIds: error.productIds,
+            productType: error.productType,
+            isEmptyProductList: error.isEmptyProductList,
+            subResponseCodeAndroid: error.subResponseCodeAndroid.flatMap { SubResponseCodeAndroid(fromString: $0.rawValue) }
         )
     }
 

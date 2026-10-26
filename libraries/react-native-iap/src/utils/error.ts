@@ -3,7 +3,7 @@
  */
 
 import {ErrorCode} from '../types';
-import {readNativeErrorPayload} from './native-error';
+import {readNativeErrorPayload} from './legacy-native-error';
 import {isUserCancelledError as isUserCancelledCode} from './errorMapping';
 
 export interface IapError {

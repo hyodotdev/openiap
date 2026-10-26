@@ -4628,7 +4628,9 @@ describe('Public API (src/index.ts)', () => {
         jest.fn().mockRejectedValue(nativeError),
       );
 
-      await expect(testCase.invoke()).rejects.toBe(nativeError);
+      await expect(testCase.invoke()).rejects.toMatchObject({
+        code: ErrorCode.Unknown, message: nativeError.message,
+      });
     });
 
     it.each([
@@ -4650,7 +4652,9 @@ describe('Public API (src/index.ts)', () => {
         jest.fn().mockRejectedValue(nativeError),
       );
 
-      await expect(testCase.invoke()).rejects.toBe(nativeError);
+      await expect(testCase.invoke()).rejects.toMatchObject({
+        code: ErrorCode.Unknown, message: nativeError.message,
+      });
     });
   });
 

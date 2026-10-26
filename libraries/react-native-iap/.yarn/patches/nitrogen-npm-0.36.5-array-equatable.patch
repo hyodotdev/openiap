@@ -32,3 +32,445 @@ index 135076c24d8e1c1569cce64349203c22b5fce9b3..7077f6f3fb2fd6101dfc440cb28a4247
    }
  
    getCode(language: Language, options?: GetCodeOptions): string {
+diff --git a/lib/syntax/getReferencedTypes.js b/lib/syntax/getReferencedTypes.js
+--- a/lib/syntax/getReferencedTypes.js
++++ b/lib/syntax/getReferencedTypes.js
+@@ -11,35 +11,35 @@
+-    switch (type.kind) {
+-        case 'array':
+-            const array = getTypeAs(type, ArrayType);
+-            return [type, ...getReferencedTypes(array.itemType)];
+-        case 'function':
+-            const func = getTypeAs(type, FunctionType);
+-            return [
+-                type,
+-                ...getReferencedTypes(func.returnType),
+-                ...func.parameters.flatMap((t) => getReferencedTypes(t)),
+-            ];
+-        case 'optional':
+-            const optional = getTypeAs(type, OptionalType);
+-            return [type, ...getReferencedTypes(optional.wrappingType)];
+-        case 'promise':
+-            const promise = getTypeAs(type, PromiseType);
+-            return [type, ...getReferencedTypes(promise.resultingType)];
+-        case 'record':
+-            const record = getTypeAs(type, RecordType);
+-            return [
+-                type,
+-                ...getReferencedTypes(record.keyType),
+-                ...getReferencedTypes(record.valueType),
+-            ];
+-        case 'struct':
+-            const struct = getTypeAs(type, StructType);
+-            return [type, ...struct.properties.flatMap((p) => getReferencedTypes(p))];
+-        case 'tuple':
+-            const tuple = getTypeAs(type, TupleType);
+-            return [type, ...tuple.itemTypes.flatMap((t) => getReferencedTypes(t))];
+-        case 'variant':
+-            const variant = getTypeAs(type, VariantType);
+-            return [type, ...variant.variants.flatMap((t) => getReferencedTypes(t))];
+-        default:
+-            return [type];
++  const visited = new Set();
++  const visit = (current) => {
++    if (visited.has(current)) return;
++    visited.add(current);
++    switch (current.kind) {
++      case "array":
++        visit(getTypeAs(current, ArrayType).itemType);
++        break;
++      case "function": {
++        const value = getTypeAs(current, FunctionType);
++        visit(value.returnType);
++        value.parameters.forEach(visit);
++        break;
++      }
++      case "optional":
++        visit(getTypeAs(current, OptionalType).wrappingType);
++        break;
++      case "promise":
++        visit(getTypeAs(current, PromiseType).resultingType);
++        break;
++      case "record": {
++        const value = getTypeAs(current, RecordType);
++        visit(value.keyType);
++        visit(value.valueType);
++        break;
++      }
++      case "struct":
++        getTypeAs(current, StructType).properties.forEach(visit);
++        break;
++      case "tuple":
++        getTypeAs(current, TupleType).itemTypes.forEach(visit);
++        break;
++      case "variant":
++        getTypeAs(current, VariantType).variants.forEach(visit);
++        break;
+@@ -46,0 +47,3 @@
++  };
++  visit(type);
++  return Array.from(visited);
+diff --git a/src/syntax/getReferencedTypes.ts b/src/syntax/getReferencedTypes.ts
+--- a/src/syntax/getReferencedTypes.ts
++++ b/src/syntax/getReferencedTypes.ts
+@@ -13,44 +13,39 @@
+-  switch (type.kind) {
+-    case 'array':
+-      const array = getTypeAs(type, ArrayType)
+-      return [type, ...getReferencedTypes(array.itemType)]
+-
+-    case 'function':
+-      const func = getTypeAs(type, FunctionType)
+-      return [
+-        type,
+-        ...getReferencedTypes(func.returnType),
+-        ...func.parameters.flatMap((t) => getReferencedTypes(t)),
+-      ]
+-
+-    case 'optional':
+-      const optional = getTypeAs(type, OptionalType)
+-      return [type, ...getReferencedTypes(optional.wrappingType)]
+-
+-    case 'promise':
+-      const promise = getTypeAs(type, PromiseType)
+-      return [type, ...getReferencedTypes(promise.resultingType)]
+-
+-    case 'record':
+-      const record = getTypeAs(type, RecordType)
+-      return [
+-        type,
+-        ...getReferencedTypes(record.keyType),
+-        ...getReferencedTypes(record.valueType),
+-      ]
+-
+-    case 'struct':
+-      const struct = getTypeAs(type, StructType)
+-      return [type, ...struct.properties.flatMap((p) => getReferencedTypes(p))]
+-
+-    case 'tuple':
+-      const tuple = getTypeAs(type, TupleType)
+-      return [type, ...tuple.itemTypes.flatMap((t) => getReferencedTypes(t))]
+-
+-    case 'variant':
+-      const variant = getTypeAs(type, VariantType)
+-      return [type, ...variant.variants.flatMap((t) => getReferencedTypes(t))]
+-
+-    default:
+-      return [type]
+-  }
++  const visited = new Set<Type>();
++  const visit = (current: Type): void => {
++    if (visited.has(current)) return;
++    visited.add(current);
++    switch (current.kind) {
++      case "array":
++        visit(getTypeAs(current, ArrayType).itemType);
++        break;
++      case "function": {
++        const value = getTypeAs(current, FunctionType);
++        visit(value.returnType);
++        value.parameters.forEach(visit);
++        break;
++      }
++      case "optional":
++        visit(getTypeAs(current, OptionalType).wrappingType);
++        break;
++      case "promise":
++        visit(getTypeAs(current, PromiseType).resultingType);
++        break;
++      case "record": {
++        const value = getTypeAs(current, RecordType);
++        visit(value.keyType);
++        visit(value.valueType);
++        break;
++      }
++      case "struct":
++        getTypeAs(current, StructType).properties.forEach(visit);
++        break;
++      case "tuple":
++        getTypeAs(current, TupleType).itemTypes.forEach(visit);
++        break;
++      case "variant":
++        getTypeAs(current, VariantType).variants.forEach(visit);
++        break;
++    }
++  };
++  visit(type);
++  return Array.from(visited);
+diff --git a/lib/syntax/swift/SwiftCxxBridgedType.js b/lib/syntax/swift/SwiftCxxBridgedType.js
+--- a/lib/syntax/swift/SwiftCxxBridgedType.js
++++ b/lib/syntax/swift/SwiftCxxBridgedType.js
+@@ -110,21 +110,17 @@
+-    getRequiredImports(language) {
+-        const imports = this.type.getRequiredImports(language);
+-        if (language === 'c++') {
+-            if (this.type.kind === 'array-buffer') {
+-                imports.push({
+-                    name: 'NitroModules/ArrayBufferHolder.hpp',
+-                    forwardDeclaration: getForwardDeclaration('class', 'ArrayBufferHolder', 'NitroModules'),
+-                    language: 'c++',
+-                    space: 'system',
+-                });
+-            }
+-        }
+-        // Recursively look into referenced types (e.g. the `T` of a `optional<T>`, or `T` of a `T[]`)
+-        const referencedTypes = getReferencedTypes(this.type);
+-        referencedTypes.forEach((t) => {
+-            if (t === this.type) {
+-                // break a recursion - we already know this type
+-                return;
+-            }
+-            const bridged = new SwiftCxxBridgedType(t);
+-            imports.push(...bridged.getRequiredImports(language));
++  getRequiredImports(language) {
++    const imports = [];
++    // getReferencedTypes already returns the transitive closure.
++    for (const type of new Set(getReferencedTypes(this.type))) {
++      for (const requiredImport of type.getRequiredImports(language)) {
++        imports.push(requiredImport);
++      }
++      if (language === "c++" && type.kind === "array-buffer") {
++        imports.push({
++          name: "NitroModules/ArrayBufferHolder.hpp",
++          forwardDeclaration: getForwardDeclaration(
++            "class",
++            "ArrayBufferHolder",
++            "NitroModules",
++          ),
++          language: "c++",
++          space: "system",
+@@ -132,53 +128,44 @@
+-        return imports;
+-    }
+-    getExtraFiles() {
+-        const files = [];
+-        switch (this.type.kind) {
+-            case 'struct': {
+-                const struct = getTypeAs(this.type, StructType);
+-                const extensionFile = createSwiftStructBridge(struct);
+-                files.push(extensionFile);
+-                extensionFile.referencedTypes.forEach((t) => {
+-                    const bridge = new SwiftCxxBridgedType(t);
+-                    files.push(...bridge.getExtraFiles());
+-                });
+-                break;
+-            }
+-            case 'enum': {
+-                const enumType = getTypeAs(this.type, EnumType);
+-                const extensionFile = createSwiftEnumBridge(enumType);
+-                files.push(extensionFile);
+-                break;
+-            }
+-            case 'function': {
+-                const functionType = getTypeAs(this.type, FunctionType);
+-                const extensionFile = createSwiftFunctionBridge(functionType);
+-                files.push(extensionFile);
+-                break;
+-            }
+-            case 'promise': {
+-                // Promise needs resolver and rejecter funcs in Swift
+-                const promiseType = getTypeAs(this.type, PromiseType);
+-                files.push(createSwiftFunctionBridge(promiseType.resolverFunction));
+-                files.push(createSwiftFunctionBridge(promiseType.rejecterFunction));
+-                break;
+-            }
+-            case 'variant': {
+-                const variant = getTypeAs(this.type, VariantType);
+-                const file = createSwiftVariant(variant);
+-                files.push(file);
+-                break;
+-            }
+-        }
+-        // Recursively look into referenced types (e.g. the `T` of a `optional<T>`, or `T` of a `T[]`)
+-        const referencedTypes = getReferencedTypes(this.type);
+-        referencedTypes.forEach((t) => {
+-            if (t === this.type) {
+-                // break a recursion - we already know this type
+-                return;
+-            }
+-            const bridged = new SwiftCxxBridgedType(t);
+-            files.push(...bridged.getExtraFiles());
+-        });
+-        return files;
+-    }
++      }
++    }
++    return imports;
++  }
++
++  getExtraFiles() {
++    const files = [];
++    for (const type of getReferencedTypes(this.type)) {
++      switch (type.kind) {
++        case "struct": {
++          const struct = getTypeAs(type, StructType);
++          const extensionFile = createSwiftStructBridge(struct);
++          files.push(extensionFile);
++          break;
++        }
++        case "enum": {
++          const enumType = getTypeAs(type, EnumType);
++          const extensionFile = createSwiftEnumBridge(enumType);
++          files.push(extensionFile);
++          break;
++        }
++        case "function": {
++          const functionType = getTypeAs(type, FunctionType);
++          const extensionFile = createSwiftFunctionBridge(functionType);
++          files.push(extensionFile);
++          break;
++        }
++        case "promise": {
++          // Promise needs resolver and rejecter funcs in Swift
++          const promiseType = getTypeAs(type, PromiseType);
++          files.push(createSwiftFunctionBridge(promiseType.resolverFunction));
++          files.push(createSwiftFunctionBridge(promiseType.rejecterFunction));
++          break;
++        }
++        case "variant": {
++          const variant = getTypeAs(type, VariantType);
++          const file = createSwiftVariant(variant);
++          files.push(file);
++          break;
++        }
++      }
++    }
++    return files;
++  }
+diff --git a/src/syntax/swift/SwiftCxxBridgedType.ts b/src/syntax/swift/SwiftCxxBridgedType.ts
+--- a/src/syntax/swift/SwiftCxxBridgedType.ts
++++ b/src/syntax/swift/SwiftCxxBridgedType.ts
+@@ -132,4 +132,7 @@
+-    const imports = this.type.getRequiredImports(language)
+-
+-    if (language === 'c++') {
+-      if (this.type.kind === 'array-buffer') {
++    const imports: SourceImport[] = [];
++    // getReferencedTypes already returns the transitive closure.
++    for (const type of new Set(getReferencedTypes(this.type))) {
++      for (const requiredImport of type.getRequiredImports(language)) {
++        imports.push(requiredImport);
++      }
++      if (language === "c++" && type.kind === "array-buffer") {
+@@ -137 +140 @@
+-          name: 'NitroModules/ArrayBufferHolder.hpp',
++          name: "NitroModules/ArrayBufferHolder.hpp",
+@@ -139,3 +142,3 @@
+-            'class',
+-            'ArrayBufferHolder',
+-            'NitroModules'
++            "class",
++            "ArrayBufferHolder",
++            "NitroModules",
+@@ -143,3 +146,3 @@
+-          language: 'c++',
+-          space: 'system',
+-        })
++          language: "c++",
++          space: "system",
++        });
+@@ -148,13 +151 @@
+-
+-    // Recursively look into referenced types (e.g. the `T` of a `optional<T>`, or `T` of a `T[]`)
+-    const referencedTypes = getReferencedTypes(this.type)
+-    referencedTypes.forEach((t) => {
+-      if (t === this.type) {
+-        // break a recursion - we already know this type
+-        return
+-      }
+-      const bridged = new SwiftCxxBridgedType(t)
+-      imports.push(...bridged.getRequiredImports(language))
+-    })
+-
+-    return imports
++    return imports;
+@@ -164,37 +155,34 @@
+-    const files: SourceFile[] = []
+-
+-    switch (this.type.kind) {
+-      case 'struct': {
+-        const struct = getTypeAs(this.type, StructType)
+-        const extensionFile = createSwiftStructBridge(struct)
+-        files.push(extensionFile)
+-        extensionFile.referencedTypes.forEach((t) => {
+-          const bridge = new SwiftCxxBridgedType(t)
+-          files.push(...bridge.getExtraFiles())
+-        })
+-        break
+-      }
+-      case 'enum': {
+-        const enumType = getTypeAs(this.type, EnumType)
+-        const extensionFile = createSwiftEnumBridge(enumType)
+-        files.push(extensionFile)
+-        break
+-      }
+-      case 'function': {
+-        const functionType = getTypeAs(this.type, FunctionType)
+-        const extensionFile = createSwiftFunctionBridge(functionType)
+-        files.push(extensionFile)
+-        break
+-      }
+-      case 'promise': {
+-        // Promise needs resolver and rejecter funcs in Swift
+-        const promiseType = getTypeAs(this.type, PromiseType)
+-        files.push(createSwiftFunctionBridge(promiseType.resolverFunction))
+-        files.push(createSwiftFunctionBridge(promiseType.rejecterFunction))
+-        break
+-      }
+-      case 'variant': {
+-        const variant = getTypeAs(this.type, VariantType)
+-        const file = createSwiftVariant(variant)
+-        files.push(file)
+-        break
++    const files: SourceFile[] = [];
++    for (const type of getReferencedTypes(this.type)) {
++      switch (type.kind) {
++        case "struct": {
++          const struct = getTypeAs(type, StructType);
++          const extensionFile = createSwiftStructBridge(struct);
++          files.push(extensionFile);
++          break;
++        }
++        case "enum": {
++          const enumType = getTypeAs(type, EnumType);
++          const extensionFile = createSwiftEnumBridge(enumType);
++          files.push(extensionFile);
++          break;
++        }
++        case "function": {
++          const functionType = getTypeAs(type, FunctionType);
++          const extensionFile = createSwiftFunctionBridge(functionType);
++          files.push(extensionFile);
++          break;
++        }
++        case "promise": {
++          // Promise needs resolver and rejecter funcs in Swift
++          const promiseType = getTypeAs(type, PromiseType);
++          files.push(createSwiftFunctionBridge(promiseType.resolverFunction));
++          files.push(createSwiftFunctionBridge(promiseType.rejecterFunction));
++          break;
++        }
++        case "variant": {
++          const variant = getTypeAs(type, VariantType);
++          const file = createSwiftVariant(variant);
++          files.push(file);
++          break;
++        }
+@@ -203,15 +191,2 @@
+-
+-    // Recursively look into referenced types (e.g. the `T` of a `optional<T>`, or `T` of a `T[]`)
+-    const referencedTypes = getReferencedTypes(this.type)
+-    referencedTypes.forEach((t) => {
+-      if (t === this.type) {
+-        // break a recursion - we already know this type
+-        return
+-      }
+-      const bridged = new SwiftCxxBridgedType(t)
+-      files.push(...bridged.getExtraFiles())
+-    })
+-
+-    return files
+-  }
+-
++    return files;
++  }

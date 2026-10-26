@@ -10391,7 +10391,7 @@ __metadata:
 
 "nitrogen@patch:nitrogen@npm%3A0.36.5#./.yarn/patches/nitrogen-npm-0.36.5-array-equatable.patch::locator=react-native-iap%40workspace%3A.":
   version: 0.36.5
-  resolution: "nitrogen@patch:nitrogen@npm%3A0.36.5#./.yarn/patches/nitrogen-npm-0.36.5-array-equatable.patch::version=0.36.5&hash=e67457&locator=react-native-iap%40workspace%3A."
+  resolution: "nitrogen@patch:nitrogen@npm%3A0.36.5#./.yarn/patches/nitrogen-npm-0.36.5-array-equatable.patch::version=0.36.5&hash=e34f54&locator=react-native-iap%40workspace%3A."
   dependencies:
     chalk: ^5.3.0
     react-native-nitro-modules: ^0.36.5
@@ -10400,7 +10400,7 @@ __metadata:
     zod: ^4.4.3
   bin:
     nitrogen: lib/index.js
-  checksum: ecb70dd7383ce7b55334d0f8ed5ed402789a8667dd940d233cf08902be5f3b26d3fbbbbe5c9e4c3b809db05db15b3589822441f805fa697c49bad00e01766351
+  checksum: 5e254be66caaf315f3713e26409ec98476c4b320a23c76c805ee08d887833f83ed3df05696594b632748f191596a177473e37a9afa19409c3448f66a5c97b129
   languageName: node
   linkType: hard
 

@@ -4,6 +4,8 @@ import OpenIAP
 /// Carries the canonical PurchaseError payload through Nitro's NSError bridge.
 @available(iOS 15.0, *)
 class OpenIapException: NSError, @unchecked Sendable {
+    private(set) var purchaseError: PurchaseError?
+
     static let domain = "com.margelo.nitro.rniap"
 
     convenience init(_ json: String) {
@@ -25,9 +27,10 @@ class OpenIapException: NSError, @unchecked Sendable {
     }
 
     static func from(_ error: PurchaseError) -> OpenIapException {
-        guard let data = try? JSONEncoder().encode(error) else {
-            return OpenIapException(#"{"code":"unknown","message":"Failed to serialize native purchase error"}"#)
-        }
-        return OpenIapException(String(decoding: data, as: UTF8.self))
+        let json = (try? JSONEncoder().encode(error)).map { String(decoding: $0, as: UTF8.self) }
+            ?? #"{"code":"unknown","message":"Failed to serialize native purchase error"}"#
+        let exception = OpenIapException(json)
+        exception.purchaseError = error
+        return exception
     }
 }

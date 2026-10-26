@@ -70,7 +70,7 @@ import {
   convertNitroSubscriptionStatusToSubscriptionStatusIOS,
 } from './utils/type-bridge';
 import {isUserCancelledError} from './utils/error';
-import {parseNativePurchaseError} from './utils/native-error';
+import {normalizePurchaseError} from './utils/native-error';
 import {
   normalizeErrorCodeFromNative,
   createPurchaseError,
@@ -140,8 +140,8 @@ type NitroPromotedProductListener = Parameters<
 const parseErrorAndLogIfNeeded = (
   message: string,
   error: unknown,
-): ReturnType<typeof parseNativePurchaseError> => {
-  const parsedError = parseNativePurchaseError(error);
+): ReturnType<typeof normalizePurchaseError> => {
+  const parsedError = normalizePurchaseError(error);
   if (!isUserCancelledError(parsedError)) {
     RnIapConsole.error(message, error);
   }
@@ -1154,7 +1154,7 @@ export const verifyAppOwnership: QueryField<'verifyAppOwnership'> = async (
     ) as import('./types').AppOwnershipVerificationResult;
   } catch (error) {
     throw createPurchaseError({
-      ...parseNativePurchaseError(error),
+      ...normalizePurchaseError(error),
       platform: Platform.OS === 'ios' ? 'ios' : 'android',
     });
   }
@@ -1930,7 +1930,7 @@ export const finishTransaction: MutationField<'finishTransaction'> = async (
     showFirstPurchaseNotice(purchase);
     return;
   } catch (error) {
-    const parsedError = parseNativePurchaseError(error);
+    const parsedError = normalizePurchaseError(error);
     if (!isUserCancelledError(parsedError)) {
       RnIapConsole.error('Failed to finish transaction:', error);
     }

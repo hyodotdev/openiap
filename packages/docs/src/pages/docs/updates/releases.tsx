@@ -696,21 +696,20 @@ function Releases() {
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
           <AnchorLink id="react-native-android-errors-2026-10-26" level="h4">
-            October 26, 2026 - Preserve native rejection codes
+            October 26, 2026 - Structured native purchase errors
           </AnchorLink>
           <p>
-            react-native-iap 17.2.3 preserves native purchase error codes and
-            diagnostics across product queries, subscription queries,
-            transaction completion and purchase restore. Service disconnections,
-            cancellations and other store failures keep their codes instead of
-            becoming <code>unknown</code>. Android rejections carry JSON without
-            an appended Java cause chain. iOS rejections retain every diagnostic
-            field defined by the PurchaseError specification. A failed iOS
-            request no longer hides a later error for the same product.
-            JSON-like text inside structured payloads no longer changes their
-            codes or incorrectly signals a cancellation. Existing Java exception
-            prefixes, cause chains and multiline NSError payloads remain
-            supported. Rebuild your native app to receive the bridge fixes. See{' '}
+            react-native-iap 17.2.3 transports native failures as typed
+            PurchaseError objects on iOS and Android. Error codes and all
+            specification diagnostics reach JavaScript without decoding JSON
+            from exception messages. Rejected Error instances carry the actual
+            store message and structured fields across queries, purchases,
+            transaction completion, restore and platform-specific APIs. A failed
+            iOS request no longer hides a later error for the same product.
+            JSON-like diagnostic text cannot replace the error code or signal a
+            cancellation. Rebuild your native app to enable the structured
+            bridge. Older native binaries retain the compatible string decoder
+            for Java prefixes, cause chains and NSError descriptions. See{' '}
             <a href="https://github.com/hyodotdev/openiap/issues/569">#569</a>.
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>

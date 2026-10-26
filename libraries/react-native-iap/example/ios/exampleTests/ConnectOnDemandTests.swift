@@ -6,6 +6,47 @@ import OpenIAP
 @available(iOS 15.0, macOS 14.0, tvOS 15.0, watchOS 8.0, *)
 final class ConnectOnDemandTests: XCTestCase {
 
+    func testProtocolResolvesTypedFailureBeforeNitroCanEraseItsFields() async throws {
+        let bridge = HybridRnIapProtocol()
+        XCTAssertTrue((bridge.core as AnyObject) === (bridge.core as AnyObject))
+        let outcome = try await bridge.isBillingProgramAvailableAndroid(program: .externalOffer).await()
+        XCTAssertNil(outcome.value)
+        let error = try XCTUnwrap(outcome.error)
+        XCTAssertEqual(error.code, "feature-not-supported")
+        XCTAssertEqual(error.message, "Billing Programs API is Android-only")
+        XCTAssertNil(error.productIds)
+        XCTAssertNil(error.responseCode)
+    }
+
+    func testProtocolAndListenerPreserveEveryCanonicalErrorDiagnostic() throws {
+        let payload = PurchaseError(
+            code: .queryProduct,
+            debugMessage: "Caused by: diagnostic text",
+            isEmptyProductList: false,
+            message: #"Query failed: {"code":"user-cancelled"} is text"#,
+            productId: "premium",
+            productIds: ["premium", "other"],
+            productType: "subs",
+            responseCode: -1,
+            subResponseCodeAndroid: .userIneligible
+        )
+        let typed = protocolPurchaseError(OpenIapException.from(payload))
+        XCTAssertEqual(typed.code, "query-product")
+        XCTAssertEqual(typed.message, payload.message)
+        XCTAssertEqual(typed.debugMessage?.asType(String.self), payload.debugMessage)
+        XCTAssertEqual(typed.isEmptyProductList?.asType(Bool.self), false)
+        XCTAssertEqual(typed.productId?.asType(String.self), payload.productId)
+        XCTAssertEqual(typed.productIds?.asType([String].self), payload.productIds)
+        XCTAssertEqual(typed.productType?.asType(String.self), payload.productType)
+        XCTAssertEqual(typed.responseCode?.asType(Double.self), -1)
+        XCTAssertEqual(typed.subResponseCodeAndroid, .userIneligible)
+        let listener = RnIapHelper.makePurchaseErrorResult(payload)
+        XCTAssertEqual(listener.productIds, payload.productIds)
+        XCTAssertEqual(listener.productType, payload.productType)
+        XCTAssertEqual(listener.isEmptyProductList, false)
+        XCTAssertEqual(listener.subResponseCodeAndroid, .userIneligible)
+    }
+
     func testTeardownSerializesTypedProviderFailureWithoutClearingTheConnection() async throws {
         let hybrid = HybridRnIap()
         _ = try await hybrid.enqueueConnectOperation { true }.value

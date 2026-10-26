@@ -16,6 +16,11 @@ final class OpenIapExceptionTests: XCTestCase {
             subResponseCodeAndroid: .userIneligible
         )
         let error = OpenIapException.from(payload)
+        let retained = try XCTUnwrap(error.purchaseError)
+        XCTAssertEqual(retained.code, payload.code)
+        XCTAssertEqual(retained.message, payload.message)
+        XCTAssertEqual(retained.productIds, payload.productIds)
+        XCTAssertEqual(retained.subResponseCodeAndroid, payload.subResponseCodeAndroid)
         let decoded = try JSONDecoder().decode(PurchaseError.self, from: Data(error.localizedDescription.utf8))
 
         XCTAssertEqual(decoded.code, payload.code)

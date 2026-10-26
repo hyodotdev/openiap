@@ -24,6 +24,14 @@ function Errors() {
           All purchase errors follow a consistent structure for easy handling.
           The <code>PurchaseError</code> shape is defined below.
         </p>
+        <p>
+          React Native IAP rejects with an <code>Error</code> carrying these
+          structured fields. Read <code>error.code</code> and the diagnostic
+          properties directly; <code>error.message</code> is human-readable
+          text. Rebuild the native app after upgrading to 17.2.3 to enable
+          structured error transport. Older native binaries use the
+          compatibility decoder.
+        </p>
         <LanguageTabs>
           {{
             typescript: (

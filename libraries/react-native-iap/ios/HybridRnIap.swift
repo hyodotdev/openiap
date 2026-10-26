@@ -178,12 +178,7 @@ class HybridRnIap: HybridRnIapSpec {
                     // A provider failure already names its fix; keep its code.
                     let err: NitroPurchaseResult
                     if let purchaseError = error as? PurchaseError {
-                        err = RnIapHelper.makePurchaseErrorResult(
-                            code: purchaseError.code,
-                            message: purchaseError.message,
-                            purchaseError.productId,
-                            debugMessage: purchaseError.debugMessage
-                        )
+                        err = RnIapHelper.makePurchaseErrorResult(purchaseError)
                     } else {
                         err = RnIapHelper.makePurchaseErrorResult(
                             code: .initConnection,
@@ -1711,12 +1706,7 @@ class HybridRnIap: HybridRnIapSpec {
     }
 
     private func deliverRequestPurchaseFallbackError(_ error: PurchaseError) {
-        let result = RnIapHelper.makePurchaseErrorResult(
-            code: error.code,
-            message: error.message,
-            error.productId,
-            debugMessage: error.debugMessage
-        )
+        let result = RnIapHelper.makePurchaseErrorResult(error)
         sendPurchaseError(result, productId: error.productId, dedupe: false)
     }
 
@@ -1737,12 +1727,7 @@ class HybridRnIap: HybridRnIapSpec {
                 return
             }
             let payload = RnIapHelper.sanitizeDictionary(OpenIapSerialization.encode(error))
-            let nitroError = RnIapHelper.makePurchaseErrorResult(
-                code: error.code,
-                message: error.message,
-                error.productId,
-                debugMessage: error.debugMessage
-            )
+            let nitroError = RnIapHelper.makePurchaseErrorResult(error)
             await MainActor.run {
                 guard self.isCurrentEpoch(expectedEpoch) else { return }
                 RnIapLog.result("purchaseErrorListener", payload)

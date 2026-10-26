@@ -106,7 +106,7 @@ describe('Android native rejection transport', () => {
     },
   );
 
-  it('keeps getAvailablePurchases rejections parseable without replacing the Error', async () => {
+  it('normalizes legacy getAvailablePurchases rejections into structured Errors', async () => {
     const payload = {
       code: ErrorCode.ServiceDisconnected,
       message: 'Disconnected',
@@ -117,9 +117,10 @@ describe('Android native rejection transport', () => {
     mockIap.getAvailablePurchases.mockRejectedValueOnce(error);
 
     const rejection = getAvailablePurchases();
-    await expect(rejection).rejects.toBe(error);
+    await expect(rejection).rejects.toBeInstanceOf(Error);
+    await expect(rejection).rejects.toMatchObject(payload);
     await rejection.catch((caught: unknown) => {
-      expect(parseErrorStringToJsonObj(caught)).toEqual(payload);
+      expect(parseErrorStringToJsonObj(caught)).toMatchObject(payload);
     });
   });
 

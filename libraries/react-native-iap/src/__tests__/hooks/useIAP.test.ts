@@ -863,7 +863,7 @@ describe('hooks/useIAP (renderer)', () => {
 
     it('keeps the native error code on a cancelled restore', async () => {
       mockRestorePurchases.mockRejectedValueOnce(
-        new Error('{"code":"user-cancelled","message":"User cancelled"}'),
+        Object.assign(new Error('User cancelled'), {code: IAP.ErrorCode.UserCancelled}),
       );
 
       let api: any;
