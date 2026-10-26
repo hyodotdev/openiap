@@ -699,16 +699,17 @@ function Releases() {
             October 26, 2026 - Preserve native rejection codes
           </AnchorLink>
           <p>
-            react-native-iap 17.2.3 preserves the OpenIAP error payload when
-            Nitro appends a Java cause chain after its JSON. Service
+            react-native-iap 17.2.3 preserves the OpenIAP error payload when the
+            Android bridge appends a Java cause chain after its JSON. Service
             disconnections, cancellations and other store failures keep their
             original codes and diagnostics instead of becoming{' '}
             <code>unknown</code>. This fixes error handling in product queries,
             subscription queries, transaction completion and purchase restore.
             Error conversion also retains product IDs and Android sub-response
-            details across APIs. Quoted JSON inside an Android or iOS error
-            message no longer changes its code or incorrectly signals a
-            cancellation. See{' '}
+            details across APIs. JSON-like text inside structured error payloads
+            no longer changes their codes or incorrectly signals a cancellation.
+            Legacy Java exception prefixes and multiline NSError payloads also
+            retain their codes. See{' '}
             <a href="https://github.com/hyodotdev/openiap/issues/569">#569</a>.
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>

@@ -124,16 +124,23 @@ describe('Error utilities', () => {
       },
     );
 
-    it.each(['quoted-error', 'quoted-description'])(
-      'decodes backslashes and embedded JSON in a string-encoded NSError %s',
-      (format) => {
+    it.each([
+      ['quoted-error', undefined],
+      ['quoted-description', undefined],
+      ['quoted-error', 2],
+      ['quoted-description', 2],
+    ])(
+      'decodes a string-encoded NSError %s with JSON indentation %s',
+      (format, space) => {
         const payload = {
           code: ErrorCode.ServiceDisconnected,
           message: '\",\"code\":\"user-cancelled\"}',
           debugMessage: 'Store path C:\\billing\nNext line',
           productId: 'premium',
         };
-        const encoded = JSON.stringify(JSON.stringify(payload)).slice(1, -1);
+        const encoded = JSON.stringify(
+          JSON.stringify(payload, null, space),
+        ).slice(1, -1);
         const message =
           format === 'quoted-error'
             ? `Error Domain=Test Code=-1 "${encoded}"`
@@ -144,6 +151,89 @@ describe('Error utilities', () => {
         expect(isUserCancelledError(error)).toBe(false);
       },
     );
+
+    it('keeps NSError frame markers inside the JSON message as data', () => {
+      const payload = {
+        code: ErrorCode.ServiceDisconnected,
+        message:
+          'Store returned UserInfo=details and NSLocalizedDescription=details',
+        debugMessage: 'Nested Code=-1 "diagnostic"',
+      };
+      const error = new Error(
+        `Error Domain=Test Code=-1 "${JSON.stringify(payload)}"`,
+      );
+
+      expect(parseErrorStringToJsonObj(error)).toEqual(payload);
+    });
+
+    it('ignores metadata-looking text in the NSError display message', () => {
+      const payload = {code: ErrorCode.ServiceError, message: 'Store failed'};
+      const display = JSON.stringify(
+        'Nested NSLocalizedDescription={"code":"user-cancelled"}',
+      );
+      const error = new Error(
+        `Error Domain=Test Code=-1 ${display} UserInfo={NSLocalizedDescription=${JSON.stringify(payload)}}`,
+      );
+
+      expect(parseErrorStringToJsonObj(error)).toEqual(payload);
+      expect(isUserCancelledError(error)).toBe(false);
+    });
+
+    it('does not read code-like text from raw NSError display quotes', () => {
+      const error = new Error(
+        'Error Domain=Test Code=-1 "a "b" NSLocalizedDescription={"code":"user-cancelled"}"',
+      );
+
+      expect(parseErrorStringToJsonObj(error)).toEqual({
+        code: ErrorCode.Unknown,
+        message: error.message,
+      });
+      expect(isUserCancelledError(error)).toBe(false);
+    });
+
+    it('retains the escaped presentation quotes accepted by the old NSError adapter', () => {
+      const payload = {
+        code: ErrorCode.ServiceDisconnected,
+        message: 'Store returned "quoted" text and a path C:\\billing',
+      };
+      const escaped = JSON.stringify(payload).replace(/"/g, '\\"');
+      const error = new Error(
+        'Error Domain=Test Code=-1 "Failure" UserInfo={NSLocalizedDescription=\\"' +
+          escaped +
+          '\\"}',
+      );
+
+      expect(parseErrorStringToJsonObj(error)).toEqual(payload);
+    });
+
+    it('keeps a canonical unknown code instead of reading codes from its message', () => {
+      const payload = {
+        code: ErrorCode.Unknown,
+        message: 'Nested NSLocalizedDescription={"code":"user-cancelled"}',
+      };
+      const error = new Error(
+        `Error Domain=Test Code=-1 "${JSON.stringify(payload)}"`,
+      );
+
+      expect(parseErrorStringToJsonObj(error)).toEqual(payload);
+      expect(isUserCancelledError(error)).toBe(false);
+    });
+
+    it('reads the Java exception wrapper reported in react-native-iap #3075', () => {
+      const payload = {
+        code: ErrorCode.InitConnection,
+        message: 'Failed to initialize connection',
+        responseCode: -1,
+        debugMessage: 'Failed to initialize billing connection',
+      };
+      const error = new Error(
+        'java.lang.Exception: ' +
+          JSON.stringify(payload) +
+          '\n\tat com.margelo.nitro.iap.HybridRnIap.initConnection(HybridRnIap.kt:181)',
+      );
+
+      expect(parseErrorStringToJsonObj(error)).toEqual(payload);
+    });
 
     it('keeps structured fields authoritative over a JSON message', () => {
       const message =

@@ -20,116 +20,150 @@ export interface IapError {
 const parseJsonPayload = (
   payload: string,
   fallbackMessage: string,
-  stringEncoded = false,
 ): IapError | null => {
-  const trimmed = payload.trim();
-  const candidates = [trimmed];
-
-  if (/^\{\s*\\"/.test(trimmed)) {
-    if (stringEncoded) {
-      try {
-        const decoded: unknown = JSON.parse(`"${trimmed}"`);
-        if (typeof decoded === 'string') {
-          candidates.push(decoded);
-        }
-      } catch {
-        // Try the other NSError fields when the quoted payload is malformed.
-      }
-    } else {
-      candidates.push(trimmed.replace(/\\"/g, '"'));
+  try {
+    const parsed: unknown = JSON.parse(payload);
+    if (typeof parsed === 'object' && parsed !== null) {
+      const parsedError = parsed as Partial<IapError>;
+      return {
+        ...parsedError,
+        code: parsedError.code || ErrorCode.Unknown,
+        message: parsedError.message || fallbackMessage,
+      };
     }
-  }
-
-  for (const candidate of candidates) {
-    try {
-      const parsed = JSON.parse(candidate);
-      if (typeof parsed === 'object' && parsed !== null) {
-        const parsedError = parsed as Partial<IapError>;
-        return {
-          ...parsedError,
-          code: parsedError.code || ErrorCode.Unknown,
-          message: parsedError.message || fallbackMessage,
-        };
-      }
-    } catch {
-      // Try the next candidate.
-    }
+  } catch {
+    // Native descriptions can contain text around the JSON value.
   }
 
   return null;
 };
 
-const extractBalancedJsonObject = (
+const readJsonValue = (
   value: string,
   startIndex: number,
-  stringEncoded = false,
+  escapedQuotes = false,
 ): string | null => {
-  for (let index = startIndex; index < value.length; index += 1) {
-    if (value[index] !== '}') {
+  const opening = value[startIndex];
+  if (opening !== '{' && opening !== '"') {
+    return null;
+  }
+
+  let json = opening;
+  let depth = opening === '{' ? 1 : 0;
+  let inString = opening === '"';
+  let escaped = false;
+
+  for (let index = startIndex + 1; index < value.length; index += 1) {
+    let character = value[index]!;
+    // Preserve the quote-only escaping accepted by the legacy NSError adapter.
+    if (escapedQuotes && character === '\\' && value[index + 1] === '"') {
+      character = '"';
+      index += 1;
+    }
+    json += character;
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === '\\') {
+        escaped = true;
+      } else if (character === '"') {
+        inString = false;
+        if (opening === '"') {
+          return json;
+        }
+      }
       continue;
     }
 
-    const candidate = value.substring(startIndex, index + 1);
-    if (parseJsonPayload(candidate, value, stringEncoded)) {
-      return candidate;
+    if (character === '"') {
+      inString = true;
+    } else if (character === '{') {
+      depth += 1;
+    } else if (character === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return json;
+      }
+    } else if (character === '\\') {
+      return null;
     }
   }
 
   return null;
 };
 
-const parseNSErrorJsonPayload = (rawString: string): IapError | null => {
-  const payloads: {value: string; stringEncoded: boolean}[] = [];
-  const quotedPayloadMatch = /Code=-?\d+\s+"/.exec(rawString);
+const skipWhitespace = (value: string, startIndex: number): number => {
+  const remaining = value.slice(startIndex);
+  return startIndex + remaining.length - remaining.trimStart().length;
+};
 
-  if (quotedPayloadMatch?.index !== undefined) {
-    const contentStart =
-      quotedPayloadMatch.index + quotedPayloadMatch[0].length;
-    const userInfoIndex = rawString.indexOf('UserInfo=', contentStart);
-    const contentEnd =
-      userInfoIndex > contentStart
-        ? rawString.lastIndexOf('"', userInfoIndex)
-        : rawString.lastIndexOf('"');
-
-    if (contentEnd > contentStart) {
-      payloads.push({
-        value: rawString.substring(contentStart, contentEnd),
-        stringEncoded: true,
-      });
-    }
+const parseNativePayloadAt = (
+  value: string,
+  startIndex: number,
+): IapError | null => {
+  let start = skipWhitespace(value, startIndex);
+  const escapedPresentationQuote =
+    value[start] === '\\' && value[start + 1] === '"';
+  if (escapedPresentationQuote) {
+    start = skipWhitespace(value, start + 2);
   }
+  const quoted = value[start] === '"';
 
-  const localizedDescription = 'NSLocalizedDescription=';
-  const descriptionIndex = rawString.indexOf(localizedDescription);
-
-  if (descriptionIndex >= 0) {
-    let valueStart = descriptionIndex + localizedDescription.length;
-    while (/\s/.test(rawString[valueStart] ?? '')) {
-      valueStart += 1;
-    }
-
-    const firstBraceIndex = rawString.indexOf('{', valueStart);
-    if (firstBraceIndex >= 0 && firstBraceIndex <= valueStart + 2) {
-      const stringEncoded = rawString[valueStart] === '"';
-      const payload = extractBalancedJsonObject(
-        rawString,
-        firstBraceIndex,
-        stringEncoded,
-      );
-      if (payload) {
-        payloads.push({value: payload, stringEncoded});
+  if (quoted) {
+    const jsonString = readJsonValue(value, start);
+    if (jsonString) {
+      try {
+        const decoded: unknown = JSON.parse(jsonString);
+        if (typeof decoded === 'string') {
+          const parsed = parseJsonPayload(decoded, value);
+          if (parsed) {
+            return parsed;
+          }
+        }
+      } catch {
+        // NSError also displays raw JSON inside unescaped presentation quotes.
       }
     }
+    start = skipWhitespace(value, start + 1);
   }
 
-  for (const {value, stringEncoded} of payloads) {
-    const parsed = parseJsonPayload(value, rawString, stringEncoded);
-    if (parsed?.code && parsed.code !== ErrorCode.Unknown) {
+  if (value[start] !== '{') {
+    return null;
+  }
+  const keyStart = skipWhitespace(value, start + 1);
+  const escapedQuotes =
+    escapedPresentationQuote ||
+    (!quoted && value[keyStart] === '\\' && value[keyStart + 1] === '"');
+  const payload = readJsonValue(value, start, escapedQuotes);
+  return payload ? parseJsonPayload(payload, value) : null;
+};
+
+const parseNSErrorJsonPayload = (rawString: string): IapError | null => {
+  const quotedPayloadMatch = /Code=-?\d+\s+"/.exec(rawString);
+  let descriptionStart = 0;
+
+  if (quotedPayloadMatch) {
+    const start = quotedPayloadMatch.index + quotedPayloadMatch[0].length - 1;
+    const parsed = parseNativePayloadAt(rawString, start);
+    if (parsed) {
       return parsed;
+    }
+    const quotedText = readJsonValue(rawString, start);
+    if (quotedText) {
+      descriptionStart = start + quotedText.length;
     }
   }
 
-  return null;
+  const userInfoIndex = rawString.indexOf('UserInfo={', descriptionStart);
+  if (userInfoIndex < 0) {
+    return null;
+  }
+  const marker = 'NSLocalizedDescription=';
+  const descriptionIndex = rawString.indexOf(marker, userInfoIndex);
+  return descriptionIndex < 0
+    ? null
+    : parseNativePayloadAt(rawString, descriptionIndex + marker.length);
 };
 
 const parseStructuredError = (error: object): IapError | null => {
@@ -195,14 +229,15 @@ export function parseErrorStringToJsonObj(
     return jsonPayload;
   }
 
-  // fbjni appends cause stacks after the Android error JSON.
-  const trimmedError = errorString.trimStart();
-  if (trimmedError.startsWith('{')) {
-    const payload = extractBalancedJsonObject(trimmedError, 0);
-    const parsed = payload && parseJsonPayload(payload, errorString);
-    if (parsed) {
-      return parsed;
-    }
+  // Older Android builds used the standard Java exception prefix (#3075).
+  const prefix = 'java.lang.Exception:';
+  const start = skipWhitespace(errorString, 0);
+  const payloadStart = errorString.startsWith(prefix, start)
+    ? start + prefix.length
+    : start;
+  const leadingPayload = parseNativePayloadAt(errorString, payloadStart);
+  if (leadingPayload) {
+    return leadingPayload;
   }
 
   const nsErrorPayload = parseNSErrorJsonPayload(errorString);
