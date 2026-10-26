@@ -64,16 +64,6 @@ class HybridRnIapProtocol: HybridRnIapProtocolSpec() {
             { NitroFinishTransactionOutcome(value = it, error = null) },
             { NitroFinishTransactionOutcome(value = null, error = it) })
 
-    override fun getAppTransactionIOS(): Promise<NitroGetAppTransactionIOSOutcome> =
-        lift({ implementation.getAppTransactionIOS() },
-            { NitroGetAppTransactionIOSOutcome(value = it, error = null) },
-            { NitroGetAppTransactionIOSOutcome(value = null, error = it) })
-
-    override fun getPromotedProductIOS(): Promise<NitroGetPromotedProductIOSOutcome> =
-        lift({ implementation.getPromotedProductIOS() },
-            { NitroGetPromotedProductIOSOutcome(value = it, error = null) },
-            { NitroGetPromotedProductIOSOutcome(value = null, error = it) })
-
     override fun verifyAppOwnership(optionsJson: String): Promise<NitroStringOutcome> =
         lift({ implementation.verifyAppOwnership(optionsJson) },
             { NitroStringOutcome(value = it, error = null) },
@@ -83,6 +73,36 @@ class HybridRnIapProtocol: HybridRnIapProtocolSpec() {
         lift({ implementation.openRedeemOfferCode() },
             { NitroOpenRedeemOfferCodeOutcome(value = it, error = null) },
             { NitroOpenRedeemOfferCodeOutcome(value = null, error = it) })
+
+    override fun restorePurchases(): Promise<NitroBooleanOutcome> =
+        lift({ implementation.restorePurchases() },
+            { NitroBooleanOutcome(value = it, error = null) },
+            { NitroBooleanOutcome(value = null, error = it) })
+
+    override fun verifyPurchase(params: NitroPurchaseVerificationParams): Promise<NitroVerifyPurchaseOutcome> =
+        lift({ implementation.verifyPurchase(params) },
+            { NitroVerifyPurchaseOutcome(value = it, error = null) },
+            { NitroVerifyPurchaseOutcome(value = null, error = it) })
+
+    override fun verifyPurchaseWithProvider(params: NitroVerifyPurchaseWithProviderProps): Promise<NitroVerifyPurchaseWithProviderResultOutcome> =
+        lift({ implementation.verifyPurchaseWithProvider(params) },
+            { NitroVerifyPurchaseWithProviderResultOutcome(value = it, error = null) },
+            { NitroVerifyPurchaseWithProviderResultOutcome(value = null, error = it) })
+
+    override fun getStorefront(): Promise<NitroStringOutcome> =
+        lift({ implementation.getStorefront() },
+            { NitroStringOutcome(value = it, error = null) },
+            { NitroStringOutcome(value = null, error = it) })
+
+    override fun getAppTransactionIOS(): Promise<NitroGetAppTransactionIOSOutcome> =
+        lift({ implementation.getAppTransactionIOS() },
+            { NitroGetAppTransactionIOSOutcome(value = it, error = null) },
+            { NitroGetAppTransactionIOSOutcome(value = null, error = it) })
+
+    override fun getPromotedProductIOS(): Promise<NitroGetPromotedProductIOSOutcome> =
+        lift({ implementation.getPromotedProductIOS() },
+            { NitroGetPromotedProductIOSOutcome(value = it, error = null) },
+            { NitroGetPromotedProductIOSOutcome(value = null, error = it) })
 
     override fun clearTransactionIOS(): Promise<NitroVoidOutcome> =
         lift({ implementation.clearTransactionIOS() },
@@ -118,11 +138,6 @@ class HybridRnIapProtocol: HybridRnIapProtocolSpec() {
         lift({ implementation.getAllTransactionsIOS() },
             { NitroPurchaseListOutcome(value = it, error = null) },
             { NitroPurchaseListOutcome(value = null, error = it) })
-
-    override fun restorePurchases(): Promise<NitroBooleanOutcome> =
-        lift({ implementation.restorePurchases() },
-            { NitroBooleanOutcome(value = it, error = null) },
-            { NitroBooleanOutcome(value = null, error = it) })
 
     override fun syncIOS(): Promise<NitroBooleanOutcome> =
         lift({ implementation.syncIOS() },
@@ -164,20 +179,35 @@ class HybridRnIapProtocol: HybridRnIapProtocolSpec() {
             { NitroGetAppTransactionIOSOutcome(value = it, error = null) },
             { NitroGetAppTransactionIOSOutcome(value = null, error = it) })
 
-    override fun verifyPurchase(params: NitroPurchaseVerificationParams): Promise<NitroVerifyPurchaseOutcome> =
-        lift({ implementation.verifyPurchase(params) },
-            { NitroVerifyPurchaseOutcome(value = it, error = null) },
-            { NitroVerifyPurchaseOutcome(value = null, error = it) })
+    override fun canPresentExternalPurchaseNoticeIOS(): Promise<NitroBooleanOutcome> =
+        lift({ implementation.canPresentExternalPurchaseNoticeIOS() },
+            { NitroBooleanOutcome(value = it, error = null) },
+            { NitroBooleanOutcome(value = null, error = it) })
 
-    override fun verifyPurchaseWithProvider(params: NitroVerifyPurchaseWithProviderProps): Promise<NitroVerifyPurchaseWithProviderResultOutcome> =
-        lift({ implementation.verifyPurchaseWithProvider(params) },
-            { NitroVerifyPurchaseWithProviderResultOutcome(value = it, error = null) },
-            { NitroVerifyPurchaseWithProviderResultOutcome(value = null, error = it) })
+    override fun presentExternalPurchaseNoticeSheetIOS(): Promise<NitroExternalPurchaseNoticeResultIOSOutcome> =
+        lift({ implementation.presentExternalPurchaseNoticeSheetIOS() },
+            { NitroExternalPurchaseNoticeResultIOSOutcome(value = it, error = null) },
+            { NitroExternalPurchaseNoticeResultIOSOutcome(value = null, error = it) })
 
-    override fun getStorefront(): Promise<NitroStringOutcome> =
-        lift({ implementation.getStorefront() },
-            { NitroStringOutcome(value = it, error = null) },
-            { NitroStringOutcome(value = null, error = it) })
+    override fun presentExternalPurchaseLinkIOS(url: String): Promise<NitroExternalPurchaseLinkResultIOSOutcome> =
+        lift({ implementation.presentExternalPurchaseLinkIOS(url) },
+            { NitroExternalPurchaseLinkResultIOSOutcome(value = it, error = null) },
+            { NitroExternalPurchaseLinkResultIOSOutcome(value = null, error = it) })
+
+    override fun isEligibleForExternalPurchaseCustomLinkIOS(): Promise<NitroBooleanOutcome> =
+        lift({ implementation.isEligibleForExternalPurchaseCustomLinkIOS() },
+            { NitroBooleanOutcome(value = it, error = null) },
+            { NitroBooleanOutcome(value = null, error = it) })
+
+    override fun getExternalPurchaseCustomLinkTokenIOS(tokenType: ExternalPurchaseCustomLinkTokenTypeIOS): Promise<NitroExternalPurchaseCustomLinkTokenResultIOSOutcome> =
+        lift({ implementation.getExternalPurchaseCustomLinkTokenIOS(tokenType) },
+            { NitroExternalPurchaseCustomLinkTokenResultIOSOutcome(value = it, error = null) },
+            { NitroExternalPurchaseCustomLinkTokenResultIOSOutcome(value = null, error = it) })
+
+    override fun showExternalPurchaseCustomLinkNoticeIOS(noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS): Promise<NitroExternalPurchaseCustomLinkNoticeResultIOSOutcome> =
+        lift({ implementation.showExternalPurchaseCustomLinkNoticeIOS(noticeType) },
+            { NitroExternalPurchaseCustomLinkNoticeResultIOSOutcome(value = it, error = null) },
+            { NitroExternalPurchaseCustomLinkNoticeResultIOSOutcome(value = null, error = it) })
 
     override fun deepLinkToSubscriptionsAndroid(options: NitroDeepLinkOptionsAndroid): Promise<NitroVoidOutcome> =
         lift({ implementation.deepLinkToSubscriptionsAndroid(options) },
@@ -220,37 +250,6 @@ class HybridRnIapProtocol: HybridRnIapProtocolSpec() {
         lift({ implementation.launchExternalLinkAndroid(params) },
             { NitroBooleanOutcome(value = it, error = null) },
             { NitroBooleanOutcome(value = null, error = it) })
-
-    override fun canPresentExternalPurchaseNoticeIOS(): Promise<NitroBooleanOutcome> =
-        lift({ implementation.canPresentExternalPurchaseNoticeIOS() },
-            { NitroBooleanOutcome(value = it, error = null) },
-            { NitroBooleanOutcome(value = null, error = it) })
-
-    override fun presentExternalPurchaseNoticeSheetIOS(): Promise<NitroExternalPurchaseNoticeResultIOSOutcome> =
-        lift({ implementation.presentExternalPurchaseNoticeSheetIOS() },
-            { NitroExternalPurchaseNoticeResultIOSOutcome(value = it, error = null) },
-            { NitroExternalPurchaseNoticeResultIOSOutcome(value = null, error = it) })
-
-    override fun presentExternalPurchaseLinkIOS(url: String): Promise<NitroExternalPurchaseLinkResultIOSOutcome> =
-        lift({ implementation.presentExternalPurchaseLinkIOS(url) },
-            { NitroExternalPurchaseLinkResultIOSOutcome(value = it, error = null) },
-            { NitroExternalPurchaseLinkResultIOSOutcome(value = null, error = it) })
-
-    override fun isEligibleForExternalPurchaseCustomLinkIOS(): Promise<NitroBooleanOutcome> =
-        lift({ implementation.isEligibleForExternalPurchaseCustomLinkIOS() },
-            { NitroBooleanOutcome(value = it, error = null) },
-            { NitroBooleanOutcome(value = null, error = it) })
-
-    override fun getExternalPurchaseCustomLinkTokenIOS(tokenType: ExternalPurchaseCustomLinkTokenTypeIOS): Promise<NitroExternalPurchaseCustomLinkTokenResultIOSOutcome> =
-        lift({ implementation.getExternalPurchaseCustomLinkTokenIOS(tokenType) },
-            { NitroExternalPurchaseCustomLinkTokenResultIOSOutcome(value = it, error = null) },
-            { NitroExternalPurchaseCustomLinkTokenResultIOSOutcome(value = null, error = it) })
-
-    override fun showExternalPurchaseCustomLinkNoticeIOS(noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS): Promise<NitroExternalPurchaseCustomLinkNoticeResultIOSOutcome> =
-        lift({ implementation.showExternalPurchaseCustomLinkNoticeIOS(noticeType) },
-            { NitroExternalPurchaseCustomLinkNoticeResultIOSOutcome(value = it, error = null) },
-            { NitroExternalPurchaseCustomLinkNoticeResultIOSOutcome(value = null, error = it) })
-
 }
 
 internal fun protocolPurchaseError(error: Throwable): NitroPurchaseError {

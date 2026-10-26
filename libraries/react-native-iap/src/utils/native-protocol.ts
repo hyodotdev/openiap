@@ -76,7 +76,7 @@ const unwrap = (result: unknown, isVoid: boolean): unknown => {
   if ('error' in result && result.error != null) {
     throw createPurchaseError(normalizePurchaseError(result.error));
   }
-  if ('value' in result) return result.value;
+  if ('value' in result && result.value !== undefined) return result.value;
   if (isVoid) return undefined;
   throw createPurchaseError({
     code: 'unknown',

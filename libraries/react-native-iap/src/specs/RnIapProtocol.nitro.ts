@@ -41,8 +41,17 @@ import type {
   RequestPurchaseResult,
 } from '../types';
 
-export interface NitroPurchaseError extends Omit<SchemaPurchaseError, 'code'> {
+// Explicit schema field aliases keep native constructor order stable.
+export interface NitroPurchaseError {
   code: string;
+  debugMessage?: SchemaPurchaseError['debugMessage'];
+  isEmptyProductList?: SchemaPurchaseError['isEmptyProductList'];
+  message: SchemaPurchaseError['message'];
+  productId?: SchemaPurchaseError['productId'];
+  productIds?: SchemaPurchaseError['productIds'];
+  productType?: SchemaPurchaseError['productType'];
+  responseCode?: SchemaPurchaseError['responseCode'];
+  subResponseCodeAndroid?: SchemaPurchaseError['subResponseCodeAndroid'];
 }
 
 export interface NitroBooleanOutcome {
@@ -187,10 +196,18 @@ export interface RnIapProtocol extends HybridObject<{
   finishTransaction(
     params: NitroFinishTransactionParams,
   ): Promise<NitroFinishTransactionOutcome>;
-  getAppTransactionIOS(): Promise<NitroGetAppTransactionIOSOutcome>;
-  getPromotedProductIOS(): Promise<NitroGetPromotedProductIOSOutcome>;
   verifyAppOwnership(optionsJson: string): Promise<NitroStringOutcome>;
   openRedeemOfferCode(): Promise<NitroOpenRedeemOfferCodeOutcome>;
+  restorePurchases(): Promise<NitroBooleanOutcome>;
+  verifyPurchase(
+    params: NitroPurchaseVerificationParams,
+  ): Promise<NitroVerifyPurchaseOutcome>;
+  verifyPurchaseWithProvider(
+    params: NitroVerifyPurchaseWithProviderProps,
+  ): Promise<NitroVerifyPurchaseWithProviderResultOutcome>;
+  getStorefront(): Promise<NitroStringOutcome>;
+  getAppTransactionIOS(): Promise<NitroGetAppTransactionIOSOutcome>;
+  getPromotedProductIOS(): Promise<NitroGetPromotedProductIOSOutcome>;
   clearTransactionIOS(): Promise<NitroVoidOutcome>;
   beginRefundRequestIOS(sku: string): Promise<NitroGetAppTransactionIOSOutcome>;
   subscriptionStatusIOS(
@@ -200,7 +217,6 @@ export interface RnIapProtocol extends HybridObject<{
   latestTransactionIOS(sku: string): Promise<NitroOpenRedeemOfferCodeOutcome>;
   getPendingTransactionsIOS(): Promise<NitroPurchaseListOutcome>;
   getAllTransactionsIOS(): Promise<NitroPurchaseListOutcome>;
-  restorePurchases(): Promise<NitroBooleanOutcome>;
   syncIOS(): Promise<NitroBooleanOutcome>;
   showManageSubscriptionsIOS(): Promise<NitroPurchaseListOutcome>;
   deepLinkToSubscriptionsIOS(): Promise<NitroBooleanOutcome>;
@@ -209,13 +225,18 @@ export interface RnIapProtocol extends HybridObject<{
   requestReceiptRefreshIOS(): Promise<NitroStringOutcome>;
   isTransactionVerifiedIOS(sku: string): Promise<NitroBooleanOutcome>;
   getTransactionJwsIOS(sku: string): Promise<NitroGetAppTransactionIOSOutcome>;
-  verifyPurchase(
-    params: NitroPurchaseVerificationParams,
-  ): Promise<NitroVerifyPurchaseOutcome>;
-  verifyPurchaseWithProvider(
-    params: NitroVerifyPurchaseWithProviderProps,
-  ): Promise<NitroVerifyPurchaseWithProviderResultOutcome>;
-  getStorefront(): Promise<NitroStringOutcome>;
+  canPresentExternalPurchaseNoticeIOS(): Promise<NitroBooleanOutcome>;
+  presentExternalPurchaseNoticeSheetIOS(): Promise<NitroExternalPurchaseNoticeResultIOSOutcome>;
+  presentExternalPurchaseLinkIOS(
+    url: string,
+  ): Promise<NitroExternalPurchaseLinkResultIOSOutcome>;
+  isEligibleForExternalPurchaseCustomLinkIOS(): Promise<NitroBooleanOutcome>;
+  getExternalPurchaseCustomLinkTokenIOS(
+    tokenType: ExternalPurchaseCustomLinkTokenTypeIOS,
+  ): Promise<NitroExternalPurchaseCustomLinkTokenResultIOSOutcome>;
+  showExternalPurchaseCustomLinkNoticeIOS(
+    noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS,
+  ): Promise<NitroExternalPurchaseCustomLinkNoticeResultIOSOutcome>;
   deepLinkToSubscriptionsAndroid?(
     options: NitroDeepLinkOptionsAndroid,
   ): Promise<NitroVoidOutcome>;
@@ -239,16 +260,4 @@ export interface RnIapProtocol extends HybridObject<{
   launchExternalLinkAndroid(
     params: NitroLaunchExternalLinkParamsAndroid,
   ): Promise<NitroBooleanOutcome>;
-  canPresentExternalPurchaseNoticeIOS(): Promise<NitroBooleanOutcome>;
-  presentExternalPurchaseNoticeSheetIOS(): Promise<NitroExternalPurchaseNoticeResultIOSOutcome>;
-  presentExternalPurchaseLinkIOS(
-    url: string,
-  ): Promise<NitroExternalPurchaseLinkResultIOSOutcome>;
-  isEligibleForExternalPurchaseCustomLinkIOS(): Promise<NitroBooleanOutcome>;
-  getExternalPurchaseCustomLinkTokenIOS(
-    tokenType: ExternalPurchaseCustomLinkTokenTypeIOS,
-  ): Promise<NitroExternalPurchaseCustomLinkTokenResultIOSOutcome>;
-  showExternalPurchaseCustomLinkNoticeIOS(
-    noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS,
-  ): Promise<NitroExternalPurchaseCustomLinkNoticeResultIOSOutcome>;
 }

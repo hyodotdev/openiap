@@ -228,7 +228,9 @@ export function readNativeErrorPayload(errorString: string | Error | unknown): {
 }
 
 // Only binaries without RnIapProtocol require decoding exception descriptions.
-export const parseNativePurchaseError = (error: unknown) => {
+export const parseNativePurchaseError = (
+  error: unknown,
+): ReturnType<typeof normalizePurchaseError> => {
   const {payload, fallbackMessage} = readNativeErrorPayload(error);
   return normalizePurchaseError(payload, fallbackMessage);
 };

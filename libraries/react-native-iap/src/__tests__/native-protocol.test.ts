@@ -107,10 +107,13 @@ describe('structured native error protocol', () => {
     ).toThrow(payload.message);
   });
 
-  it('rejects malformed successful outcomes', async () => {
-    mockProtocol.initConnection.mockResolvedValueOnce({});
-    await expect(getNativeIapInstance().initConnection()).rejects.toMatchObject(
-      {code: ErrorCode.Unknown},
-    );
-  });
+  it.each([{}, {value: undefined, error: undefined}])(
+    'rejects malformed successful outcome %p',
+    async (outcome) => {
+      mockProtocol.initConnection.mockResolvedValueOnce(outcome);
+      await expect(
+        getNativeIapInstance().initConnection(),
+      ).rejects.toMatchObject({code: ErrorCode.Unknown});
+    },
+  );
 });

@@ -688,28 +688,33 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
-      id: 'react-native-android-errors-2026-10-26',
+      id: 'react-native-errors-2026-10-26',
       date: new Date('2026-10-26'),
       element: (
-        <div key="react-native-android-errors-2026-10-26" style={noteCardStyle}>
+        <div key="react-native-errors-2026-10-26" style={noteCardStyle}>
+          <span
+            id="react-native-android-errors-2026-10-26"
+            aria-hidden="true"
+          />
           {REACT_NATIVE_ERROR_RELEASES.map((release) => (
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
-          <AnchorLink id="react-native-android-errors-2026-10-26" level="h4">
+          <AnchorLink id="react-native-errors-2026-10-26" level="h4">
             October 26, 2026 - Structured native purchase errors
           </AnchorLink>
           <p>
-            react-native-iap 17.2.3 transports native failures as typed
-            PurchaseError objects on iOS and Android. Error codes and all
-            specification diagnostics reach JavaScript without decoding JSON
-            from exception messages. Rejected Error instances carry the actual
-            store message and structured fields across queries, purchases,
-            transaction completion, restore and platform-specific APIs. A failed
-            iOS request no longer hides a later error for the same product.
-            JSON-like diagnostic text cannot replace the error code or signal a
-            cancellation. Rebuild your native app to enable the structured
-            bridge. Older native binaries retain the compatible string decoder
-            for Java prefixes, cause chains and NSError descriptions. See{' '}
+            react-native-iap 17.2.3 preserves native error codes and diagnostics
+            on iOS and Android across queries, purchases, transaction completion
+            and restore. Errors expose readable messages and structured fields;
+            iOS request failures no longer hide later errors for the same
+            product.
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <p>
+            Rebuild your native app to enable structured error transport. Read
+            error codes and diagnostics directly from their properties. Existing
+            Java prefixes, cause chains and NSError descriptions remain
+            supported for older native binaries. See{' '}
             <a href="https://github.com/hyodotdev/openiap/issues/569">#569</a>.
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>

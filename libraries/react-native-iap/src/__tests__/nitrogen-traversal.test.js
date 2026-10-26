@@ -36,3 +36,92 @@ it('visits shared result types once and retains their Swift bridge files', () =>
   );
   expect(result).toContain('traversal verified');
 });
+
+it('keeps native error constructor order stable when schema fields are reordered', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const root = path.resolve(__dirname, '../..');
+  const temporary = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'rn-iap-error-order-'),
+  );
+  const source = fs.readFileSync(
+    path.join(root, 'src/specs/RnIapProtocol.nitro.ts'),
+    'utf8',
+  );
+  const errorInterface = source.slice(
+    source.indexOf('export interface NitroPurchaseError {'),
+    source.indexOf('\nexport interface NitroBooleanOutcome'),
+  );
+  const fields = [
+    'code: string',
+    'debugMessage?: string | null',
+    'isEmptyProductList?: boolean | null',
+    'message: string',
+    'productId?: string | null',
+    'productIds?: string[] | null',
+    'productType?: string | null',
+    'responseCode?: number | null',
+    'subResponseCodeAndroid?: SubResponseCodeAndroid | null',
+  ];
+  try {
+    const outputs = [fields, [...fields].reverse()].map((ordered, index) => {
+      const directory = path.join(temporary, String(index));
+      fs.mkdirSync(path.join(directory, 'src/specs'), {recursive: true});
+      fs.symlinkSync(
+        path.join(root, 'node_modules'),
+        path.join(directory, 'node_modules'),
+        'junction',
+      );
+      fs.writeFileSync(
+        path.join(directory, 'nitro.json'),
+        JSON.stringify({
+          cxxNamespace: ['errororder'],
+          ios: {iosModuleName: 'ErrorOrder'},
+          android: {
+            androidNamespace: ['errororder'],
+            androidCxxLibName: 'ErrorOrder',
+          },
+          autolinking: {},
+          ignorePaths: ['node_modules'],
+        }),
+      );
+      fs.writeFileSync(
+        path.join(directory, 'tsconfig.json'),
+        JSON.stringify({
+          compilerOptions: {
+            strict: true,
+            moduleResolution: 'bundler',
+            module: 'ESNext',
+          },
+        }),
+      );
+      fs.writeFileSync(
+        path.join(directory, 'src/types.ts'),
+        `export interface PurchaseError {${ordered.join(';')};}\nexport type SubResponseCodeAndroid = 'no-applicable-sub-response-code' | 'payment-declined-due-to-insufficient-funds' | 'user-ineligible';`,
+      );
+      fs.writeFileSync(
+        path.join(directory, 'src/specs/ErrorOrder.nitro.ts'),
+        `import type {HybridObject} from 'react-native-nitro-modules';\nimport type {PurchaseError as SchemaPurchaseError} from '../types';\n${errorInterface}\nexport interface ErrorOrder extends HybridObject<{ios:'swift'; android:'kotlin'}> {run(): Promise<NitroPurchaseError>;}`,
+      );
+      execFileSync(
+        process.execPath,
+        [
+          path.join(root, 'node_modules/nitrogen/lib/index.js'),
+          '.',
+          '--out',
+          './generated',
+          '--log-level',
+          'error',
+        ],
+        {cwd: directory, stdio: 'pipe'},
+      );
+      return fs.readFileSync(
+        path.join(directory, 'generated/ios/swift/NitroPurchaseError.swift'),
+        'utf8',
+      );
+    });
+    expect(outputs[1]).toBe(outputs[0]);
+  } finally {
+    fs.rmSync(temporary, {recursive: true, force: true});
+  }
+}, 20000);

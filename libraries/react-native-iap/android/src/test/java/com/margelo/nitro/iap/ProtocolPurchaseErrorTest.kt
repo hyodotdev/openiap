@@ -1,5 +1,6 @@
 package com.margelo.nitro.iap
 
+import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.ErrorCode
 import dev.hyo.openiap.PurchaseError
 import dev.hyo.openiap.SubResponseCodeAndroid as SchemaSubResponseCode
@@ -34,6 +35,15 @@ class ProtocolPurchaseErrorTest {
         assertEquals("subs", result.productType?.asType<String>())
         assertEquals(-1.0, result.responseCode?.asType<Double>())
         assertEquals(SubResponseCodeAndroid.USER_INELIGIBLE, result.subResponseCodeAndroid)
+    }
+
+    @Test
+    fun `canonical diagnostics retain an empty product array`() {
+        val error = OpenIapError.QueryProduct(isEmptyProductList = true, productIds = emptyList())
+        val canonical = toPurchaseError(error)
+        assertEquals(emptyList<String>(), canonical.productIds)
+        assertEquals(true, canonical.isEmptyProductList)
+        assertArrayEquals(emptyArray<String>(), protocolPurchaseError(OpenIapException(canonical)).productIds?.asType<Array<String>>())
     }
 
     @Test

@@ -36,8 +36,14 @@ export function parseErrorStringToJsonObj(
   const parsedError = payload as Partial<IapError>;
   return {
     ...parsedError,
-    code: parsedError.code || ErrorCode.Unknown,
-    message: parsedError.message || fallbackMessage,
+    code:
+      typeof parsedError.code === 'string' && parsedError.code
+        ? parsedError.code
+        : ErrorCode.Unknown,
+    message:
+      typeof parsedError.message === 'string' && parsedError.message
+        ? parsedError.message
+        : fallbackMessage,
   };
 }
 

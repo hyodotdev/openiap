@@ -70,18 +70,6 @@ final class HybridRnIapProtocol: HybridRnIapProtocolSpec {
              failure: { NitroFinishTransactionOutcome(value: nil, error: $0) })
     }
 
-    func getAppTransactionIOS() -> Promise<NitroGetAppTransactionIOSOutcome> {
-        lift({ try implementation.getAppTransactionIOS() },
-             success: { NitroGetAppTransactionIOSOutcome(value: $0, error: nil) },
-             failure: { NitroGetAppTransactionIOSOutcome(value: nil, error: $0) })
-    }
-
-    func getPromotedProductIOS() -> Promise<NitroGetPromotedProductIOSOutcome> {
-        lift({ try implementation.getPromotedProductIOS() },
-             success: { NitroGetPromotedProductIOSOutcome(value: $0, error: nil) },
-             failure: { NitroGetPromotedProductIOSOutcome(value: nil, error: $0) })
-    }
-
     func verifyAppOwnership(optionsJson: String) -> Promise<NitroStringOutcome> {
         lift({ try implementation.verifyAppOwnership(optionsJson: optionsJson) },
              success: { NitroStringOutcome(value: $0, error: nil) },
@@ -92,6 +80,42 @@ final class HybridRnIapProtocol: HybridRnIapProtocolSpec {
         lift({ try implementation.openRedeemOfferCode() },
              success: { NitroOpenRedeemOfferCodeOutcome(value: $0, error: nil) },
              failure: { NitroOpenRedeemOfferCodeOutcome(value: nil, error: $0) })
+    }
+
+    func restorePurchases() -> Promise<NitroBooleanOutcome> {
+        lift({ try implementation.restorePurchases() },
+             success: { NitroBooleanOutcome(value: $0, error: nil) },
+             failure: { NitroBooleanOutcome(value: nil, error: $0) })
+    }
+
+    func verifyPurchase(params: NitroPurchaseVerificationParams) -> Promise<NitroVerifyPurchaseOutcome> {
+        lift({ try implementation.verifyPurchase(params: params) },
+             success: { NitroVerifyPurchaseOutcome(value: $0, error: nil) },
+             failure: { NitroVerifyPurchaseOutcome(value: nil, error: $0) })
+    }
+
+    func verifyPurchaseWithProvider(params: NitroVerifyPurchaseWithProviderProps) -> Promise<NitroVerifyPurchaseWithProviderResultOutcome> {
+        lift({ try implementation.verifyPurchaseWithProvider(params: params) },
+             success: { NitroVerifyPurchaseWithProviderResultOutcome(value: $0, error: nil) },
+             failure: { NitroVerifyPurchaseWithProviderResultOutcome(value: nil, error: $0) })
+    }
+
+    func getStorefront() -> Promise<NitroStringOutcome> {
+        lift({ try implementation.getStorefront() },
+             success: { NitroStringOutcome(value: $0, error: nil) },
+             failure: { NitroStringOutcome(value: nil, error: $0) })
+    }
+
+    func getAppTransactionIOS() -> Promise<NitroGetAppTransactionIOSOutcome> {
+        lift({ try implementation.getAppTransactionIOS() },
+             success: { NitroGetAppTransactionIOSOutcome(value: $0, error: nil) },
+             failure: { NitroGetAppTransactionIOSOutcome(value: nil, error: $0) })
+    }
+
+    func getPromotedProductIOS() -> Promise<NitroGetPromotedProductIOSOutcome> {
+        lift({ try implementation.getPromotedProductIOS() },
+             success: { NitroGetPromotedProductIOSOutcome(value: $0, error: nil) },
+             failure: { NitroGetPromotedProductIOSOutcome(value: nil, error: $0) })
     }
 
     func clearTransactionIOS() -> Promise<NitroVoidOutcome> {
@@ -134,12 +158,6 @@ final class HybridRnIapProtocol: HybridRnIapProtocolSpec {
         lift({ try implementation.getAllTransactionsIOS() },
              success: { NitroPurchaseListOutcome(value: $0, error: nil) },
              failure: { NitroPurchaseListOutcome(value: nil, error: $0) })
-    }
-
-    func restorePurchases() -> Promise<NitroBooleanOutcome> {
-        lift({ try implementation.restorePurchases() },
-             success: { NitroBooleanOutcome(value: $0, error: nil) },
-             failure: { NitroBooleanOutcome(value: nil, error: $0) })
     }
 
     func syncIOS() -> Promise<NitroBooleanOutcome> {
@@ -190,22 +208,40 @@ final class HybridRnIapProtocol: HybridRnIapProtocolSpec {
              failure: { NitroGetAppTransactionIOSOutcome(value: nil, error: $0) })
     }
 
-    func verifyPurchase(params: NitroPurchaseVerificationParams) -> Promise<NitroVerifyPurchaseOutcome> {
-        lift({ try implementation.verifyPurchase(params: params) },
-             success: { NitroVerifyPurchaseOutcome(value: $0, error: nil) },
-             failure: { NitroVerifyPurchaseOutcome(value: nil, error: $0) })
+    func canPresentExternalPurchaseNoticeIOS() -> Promise<NitroBooleanOutcome> {
+        lift({ try implementation.canPresentExternalPurchaseNoticeIOS() },
+             success: { NitroBooleanOutcome(value: $0, error: nil) },
+             failure: { NitroBooleanOutcome(value: nil, error: $0) })
     }
 
-    func verifyPurchaseWithProvider(params: NitroVerifyPurchaseWithProviderProps) -> Promise<NitroVerifyPurchaseWithProviderResultOutcome> {
-        lift({ try implementation.verifyPurchaseWithProvider(params: params) },
-             success: { NitroVerifyPurchaseWithProviderResultOutcome(value: $0, error: nil) },
-             failure: { NitroVerifyPurchaseWithProviderResultOutcome(value: nil, error: $0) })
+    func presentExternalPurchaseNoticeSheetIOS() -> Promise<NitroExternalPurchaseNoticeResultIOSOutcome> {
+        lift({ try implementation.presentExternalPurchaseNoticeSheetIOS() },
+             success: { NitroExternalPurchaseNoticeResultIOSOutcome(value: $0, error: nil) },
+             failure: { NitroExternalPurchaseNoticeResultIOSOutcome(value: nil, error: $0) })
     }
 
-    func getStorefront() -> Promise<NitroStringOutcome> {
-        lift({ try implementation.getStorefront() },
-             success: { NitroStringOutcome(value: $0, error: nil) },
-             failure: { NitroStringOutcome(value: nil, error: $0) })
+    func presentExternalPurchaseLinkIOS(url: String) -> Promise<NitroExternalPurchaseLinkResultIOSOutcome> {
+        lift({ try implementation.presentExternalPurchaseLinkIOS(url: url) },
+             success: { NitroExternalPurchaseLinkResultIOSOutcome(value: $0, error: nil) },
+             failure: { NitroExternalPurchaseLinkResultIOSOutcome(value: nil, error: $0) })
+    }
+
+    func isEligibleForExternalPurchaseCustomLinkIOS() -> Promise<NitroBooleanOutcome> {
+        lift({ try implementation.isEligibleForExternalPurchaseCustomLinkIOS() },
+             success: { NitroBooleanOutcome(value: $0, error: nil) },
+             failure: { NitroBooleanOutcome(value: nil, error: $0) })
+    }
+
+    func getExternalPurchaseCustomLinkTokenIOS(tokenType: ExternalPurchaseCustomLinkTokenTypeIOS) -> Promise<NitroExternalPurchaseCustomLinkTokenResultIOSOutcome> {
+        lift({ try implementation.getExternalPurchaseCustomLinkTokenIOS(tokenType: tokenType) },
+             success: { NitroExternalPurchaseCustomLinkTokenResultIOSOutcome(value: $0, error: nil) },
+             failure: { NitroExternalPurchaseCustomLinkTokenResultIOSOutcome(value: nil, error: $0) })
+    }
+
+    func showExternalPurchaseCustomLinkNoticeIOS(noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS) -> Promise<NitroExternalPurchaseCustomLinkNoticeResultIOSOutcome> {
+        lift({ try implementation.showExternalPurchaseCustomLinkNoticeIOS(noticeType: noticeType) },
+             success: { NitroExternalPurchaseCustomLinkNoticeResultIOSOutcome(value: $0, error: nil) },
+             failure: { NitroExternalPurchaseCustomLinkNoticeResultIOSOutcome(value: nil, error: $0) })
     }
 
     func deepLinkToSubscriptionsAndroid(options: NitroDeepLinkOptionsAndroid) -> Promise<NitroVoidOutcome> {
@@ -258,43 +294,6 @@ final class HybridRnIapProtocol: HybridRnIapProtocolSpec {
              success: { NitroBooleanOutcome(value: $0, error: nil) },
              failure: { NitroBooleanOutcome(value: nil, error: $0) })
     }
-
-    func canPresentExternalPurchaseNoticeIOS() -> Promise<NitroBooleanOutcome> {
-        lift({ try implementation.canPresentExternalPurchaseNoticeIOS() },
-             success: { NitroBooleanOutcome(value: $0, error: nil) },
-             failure: { NitroBooleanOutcome(value: nil, error: $0) })
-    }
-
-    func presentExternalPurchaseNoticeSheetIOS() -> Promise<NitroExternalPurchaseNoticeResultIOSOutcome> {
-        lift({ try implementation.presentExternalPurchaseNoticeSheetIOS() },
-             success: { NitroExternalPurchaseNoticeResultIOSOutcome(value: $0, error: nil) },
-             failure: { NitroExternalPurchaseNoticeResultIOSOutcome(value: nil, error: $0) })
-    }
-
-    func presentExternalPurchaseLinkIOS(url: String) -> Promise<NitroExternalPurchaseLinkResultIOSOutcome> {
-        lift({ try implementation.presentExternalPurchaseLinkIOS(url: url) },
-             success: { NitroExternalPurchaseLinkResultIOSOutcome(value: $0, error: nil) },
-             failure: { NitroExternalPurchaseLinkResultIOSOutcome(value: nil, error: $0) })
-    }
-
-    func isEligibleForExternalPurchaseCustomLinkIOS() -> Promise<NitroBooleanOutcome> {
-        lift({ try implementation.isEligibleForExternalPurchaseCustomLinkIOS() },
-             success: { NitroBooleanOutcome(value: $0, error: nil) },
-             failure: { NitroBooleanOutcome(value: nil, error: $0) })
-    }
-
-    func getExternalPurchaseCustomLinkTokenIOS(tokenType: ExternalPurchaseCustomLinkTokenTypeIOS) -> Promise<NitroExternalPurchaseCustomLinkTokenResultIOSOutcome> {
-        lift({ try implementation.getExternalPurchaseCustomLinkTokenIOS(tokenType: tokenType) },
-             success: { NitroExternalPurchaseCustomLinkTokenResultIOSOutcome(value: $0, error: nil) },
-             failure: { NitroExternalPurchaseCustomLinkTokenResultIOSOutcome(value: nil, error: $0) })
-    }
-
-    func showExternalPurchaseCustomLinkNoticeIOS(noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS) -> Promise<NitroExternalPurchaseCustomLinkNoticeResultIOSOutcome> {
-        lift({ try implementation.showExternalPurchaseCustomLinkNoticeIOS(noticeType: noticeType) },
-             success: { NitroExternalPurchaseCustomLinkNoticeResultIOSOutcome(value: $0, error: nil) },
-             failure: { NitroExternalPurchaseCustomLinkNoticeResultIOSOutcome(value: nil, error: $0) })
-    }
-
 }
 
 @available(iOS 15.0, *)

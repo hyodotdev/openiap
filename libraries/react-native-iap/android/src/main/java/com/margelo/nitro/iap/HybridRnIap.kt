@@ -1,5 +1,6 @@
 package com.margelo.nitro.iap
 
+import androidx.annotation.VisibleForTesting
 import android.content.Context
 import com.facebook.react.bridge.ReactApplicationContext
 import com.margelo.nitro.NitroModules
@@ -89,6 +90,7 @@ class OpenIapException private constructor(
     internal val purchaseError: OpenIapPurchaseError?,
     cause: Throwable?,
 ) : Exception(cause) {
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     constructor(errorJson: String, cause: Throwable? = null) : this(errorJson, null, cause)
 
     internal constructor(error: OpenIapPurchaseError, cause: Throwable? = null) : this(
@@ -199,36 +201,17 @@ internal fun toPurchaseError(
     val message = messageOverride?.takeIf { it.isNotBlank() }
         ?: error.message.takeIf { it.isNotBlank() }
         ?: OpenIapError.Companion.defaultMessage(code)
-    val diagnostics = error.toJSON()
-    val responseCode = (diagnostics["responseCode"] as? Number)?.toInt()
-    val diagnosticProductId = productId
-        ?: diagnostics["productId"] as? String
+    val errorMap = error.toJSON().toMutableMap()
+    errorMap["code"] = code
+    errorMap["message"] = message
+    errorMap["productId"] = productId
+        ?: errorMap["productId"] as? String
         ?: when (error) {
             is OpenIapError.ProductNotFound -> error.productId
             is OpenIapError.SkuNotFound -> error.sku
             else -> null
         }
-    val productIds = diagnostics["productIds"] as? List<*>
-    val productType = diagnostics["productType"] as? String
-    val isEmptyProductList = diagnostics["isEmptyProductList"] as? Boolean
-
-    val errorMap = mutableMapOf<String, Any?>(
-        "code" to code,
-        "message" to message
-    )
-
-    responseCode?.let { errorMap["responseCode"] = it }
-    debugMessage
-        ?.let { errorMap["debugMessage"] = it }
-        ?: (diagnostics["debugMessage"] as? String)?.let { errorMap["debugMessage"] = it }
-        ?: error.message.let { errorMap["debugMessage"] = it }
-    diagnosticProductId?.let { errorMap["productId"] = it }
-    if (!productIds.isNullOrEmpty()) errorMap["productIds"] = productIds
-    productType?.let { errorMap["productType"] = it }
-    isEmptyProductList?.let { errorMap["isEmptyProductList"] = it }
-    (diagnostics["subResponseCodeAndroid"] as? String)?.let {
-        errorMap["subResponseCodeAndroid"] = it
-    }
+    errorMap["debugMessage"] = debugMessage ?: errorMap["debugMessage"] as? String ?: error.message
 
     return OpenIapPurchaseError.fromJson(errorMap)
 }

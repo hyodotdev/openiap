@@ -38,6 +38,21 @@ describe('Error utilities', () => {
       });
     });
 
+    it.each([
+      (json: string) => json,
+      (json: string) => `java.lang.Exception: ${json}\nCaused by: native error`,
+      (json: string) =>
+        `Error Domain=iap Code=-1 "${json}" UserInfo={NSLocalizedDescription=${json}}`,
+    ])('validates required fields in legacy frame %p', (frame) => {
+      const input = frame(
+        JSON.stringify({code: 42, message: {nested: 'text'}}),
+      );
+      expect(parseErrorStringToJsonObj(input)).toMatchObject({
+        code: ErrorCode.Unknown,
+        message: input,
+      });
+    });
+
     it('should handle Error object with JSON message', () => {
       const errorObj = {
         code: ErrorCode.NetworkError,
