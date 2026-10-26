@@ -109,7 +109,7 @@ describe('Error utilities', () => {
         const json = JSON.stringify(payload);
         const localizedDescription =
           platform === 'ios-escaped'
-            ? json.replace(/"/g, '\\"').replace('{', '{\n  ')
+            ? '{\n  ' + json.slice(1).replace(/"/g, '\\"')
             : json;
         const message =
           platform === 'android'
