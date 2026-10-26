@@ -22,9 +22,8 @@ export async function verificationQueue(
   if (existing) return existing;
   const id = await ctx.db.insert("verificationJobQueues", {
     scope,
-    ...(projectId ? { projectId } : {}),
+    ...(projectId ? { projectId } : { workers: [] }),
     active: 0,
-    running: 0,
   });
   const created = await ctx.db.get(id);
   if (!created) throw new Error("Verification queue insert failed");
@@ -36,8 +35,10 @@ export async function readyVerificationProject(
   projectId: Id<"projects">,
 ): Promise<void> {
   const queue = await verificationQueue(ctx, projectId);
+  const global = await verificationQueue(ctx);
   const next =
-    queue.running < VERIFICATION_JOB_PROJECT_WORKERS
+    (global.workers ?? []).filter((worker) => worker.projectId === projectId)
+      .length < VERIFICATION_JOB_PROJECT_WORKERS
       ? await ctx.db
           .query("verificationJobs")
           .withIndex("by_project_status_due", (q) =>
@@ -71,7 +72,6 @@ export async function finishVerificationJob(
   outcome:
     | { status: "succeeded"; receipt: ReceiptResponse }
     | { status: "failed" | "expired"; error: VerificationJobError },
-  workFinished = true,
 ): Promise<void> {
   if (!activeVerificationJob(job.status)) return;
   const now = Date.now();
@@ -79,13 +79,10 @@ export async function finishVerificationJob(
     now >= job.expiresAt
       ? { status: "expired" as const, error: expiredVerificationJobError() }
       : outcome;
-  const retainLease = job.status === "running" && !workFinished;
   await ctx.db.patch(job._id, {
     status: terminal.status,
     completedAt: now,
     payload: undefined,
-    lease: retainLease ? job.lease : undefined,
-    leaseUntil: retainLease ? job.leaseUntil : undefined,
     receipt: terminal.status === "succeeded" ? terminal.receipt : undefined,
     error: terminal.status === "succeeded" ? undefined : terminal.error,
   });
@@ -95,8 +92,6 @@ export async function finishVerificationJob(
   ]) {
     await ctx.db.patch(queue._id, {
       active: queue.active - 1,
-      running:
-        queue.running - (job.status === "running" && !retainLease ? 1 : 0),
     });
   }
   if (
@@ -108,69 +103,24 @@ export async function finishVerificationJob(
   await readyVerificationProject(ctx, job.projectId);
 }
 
-export async function releaseExpiredVerificationLease(
-  ctx: MutationCtx,
-  job: Doc<"verificationJobs">,
-): Promise<void> {
-  if (job.status !== "expired" || !job.lease) return;
-  await ctx.db.patch(job._id, { lease: undefined, leaseUntil: undefined });
-  for (const queue of [
-    await verificationQueue(ctx),
-    await verificationQueue(ctx, job.projectId),
-  ]) {
-    await ctx.db.patch(queue._id, { running: queue.running - 1 });
-  }
-  await readyVerificationProject(ctx, job.projectId);
-}
-
-export async function releaseDetachedVerificationLease(
+export async function releaseVerificationWorker(
   ctx: MutationCtx,
   lease: string,
-  onlyUnstarted = false,
-): Promise<boolean> {
+): Promise<void> {
   const global = await verificationQueue(ctx);
-  const existing = global.detachedLeases ?? [];
-  if (
-    !existing.some(
-      (item) => item.lease === lease && (!onlyUnstarted || !item.started),
-    )
-  )
-    return false;
+  const worker = global.workers?.find((item) => item.lease === lease);
+  if (!worker) return;
   await ctx.db.patch(global._id, {
-    running: global.running - 1,
-    detachedLeases: existing.filter((item) => item.lease !== lease),
+    workers: global.workers!.filter((item) => item.lease !== lease),
   });
-  return true;
+  if (worker.projectId) await readyVerificationProject(ctx, worker.projectId);
 }
 
 export async function deleteVerificationJob(
   ctx: MutationCtx,
   job: Doc<"verificationJobs">,
 ): Promise<void> {
-  if (job.lease && (job.leaseUntil ?? 0) > Date.now()) {
-    const global = await verificationQueue(ctx);
-    const project = await verificationQueue(ctx, job.projectId);
-    const active = activeVerificationJob(job.status) ? 1 : 0;
-    await ctx.db.patch(global._id, {
-      active: global.active - active,
-      detachedLeases: [
-        ...(global.detachedLeases ?? []),
-        {
-          lease: job.lease,
-          until: job.leaseUntil!,
-          started: job.executionStartedAt !== undefined,
-        },
-      ],
-    });
-    await ctx.db.patch(project._id, {
-      active: project.active - active,
-      running: project.running - 1,
-    });
-    await ctx.db.delete(job._id);
-    await readyVerificationProject(ctx, job.projectId);
-    return;
-  }
-  if (activeVerificationJob(job.status)) {
+  if (activeVerificationJob(job.status))
     await finishVerificationJob(ctx, job, {
       status: "failed",
       error: {
@@ -178,8 +128,19 @@ export async function deleteVerificationJob(
         message: "Verification credentials are no longer available.",
       },
     });
-  } else {
-    await releaseExpiredVerificationLease(ctx, job);
+  const global = await verificationQueue(ctx);
+  const worker = global.workers?.find((item) => item.jobId === job._id);
+  if (worker) {
+    if (worker.until <= Date.now())
+      await releaseVerificationWorker(ctx, worker.lease);
+    else
+      await ctx.db.patch(global._id, {
+        workers: global.workers!.map((item) =>
+          item.lease === worker.lease
+            ? { lease: item.lease, until: item.until }
+            : item,
+        ),
+      });
   }
   await ctx.db.delete(job._id);
 }
@@ -192,13 +153,6 @@ export async function requeueVerificationJob(
   await ctx.db.patch(job._id, {
     status: "queued",
     nextAttemptAt,
-    lease: undefined,
-    leaseUntil: undefined,
   });
-  for (const queue of [
-    await verificationQueue(ctx),
-    await verificationQueue(ctx, job.projectId),
-  ])
-    await ctx.db.patch(queue._id, { running: queue.running - 1 });
   await readyVerificationProject(ctx, job.projectId);
 }

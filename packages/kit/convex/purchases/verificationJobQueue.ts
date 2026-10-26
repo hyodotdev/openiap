@@ -15,8 +15,7 @@ import {
   wakeVerificationQueue,
   finishVerificationJob,
   requeueVerificationJob,
-  releaseExpiredVerificationLease,
-  releaseDetachedVerificationLease,
+  releaseVerificationWorker,
   deleteVerificationJob,
 } from "./verificationJobState";
 import {
@@ -183,7 +182,7 @@ export const enqueue = internalMutation({
       refilledAt: now,
     });
     await readyVerificationProject(ctx, resolved.project._id);
-    if (global.running < VERIFICATION_JOB_GLOBAL_WORKERS)
+    if ((global.workers?.length ?? 0) < VERIFICATION_JOB_GLOBAL_WORKERS)
       await wakeVerificationQueue(ctx);
     return { jobId, deduped: false };
   },
@@ -207,12 +206,10 @@ export const read = internalMutation({
     )
       return notFound();
     if (activeVerificationJob(job.status) && Date.now() >= job.expiresAt) {
-      await finishVerificationJob(
-        ctx,
-        job,
-        { status: "expired", error: expiredVerificationJobError() },
-        false,
-      );
+      await finishVerificationJob(ctx, job, {
+        status: "expired",
+        error: expiredVerificationJobError(),
+      });
       job = await ctx.db.get(job._id);
       if (!job) return notFound();
     }
@@ -242,11 +239,11 @@ export const dispatch = internalMutation({
     if (global.generation !== args.generation) return null;
     await ctx.db.patch(global._id, { dispatchAt: undefined });
     const now = Date.now();
-    let running = global.running;
+    const workers = [...(global.workers ?? [])];
     for (
       let count = 0;
       count < VERIFICATION_JOB_GLOBAL_WORKERS &&
-      running < VERIFICATION_JOB_GLOBAL_WORKERS;
+      workers.length < VERIFICATION_JOB_GLOBAL_WORKERS;
       count++
     ) {
       const project = await ctx.db
@@ -263,7 +260,11 @@ export const dispatch = internalMutation({
             .lte("nextAttemptAt", now),
         )
         .first();
-      if (!job || project.running >= VERIFICATION_JOB_PROJECT_WORKERS) {
+      if (
+        !job ||
+        workers.filter((worker) => worker.projectId === project.projectId)
+          .length >= VERIFICATION_JOB_PROJECT_WORKERS
+      ) {
         await readyVerificationProject(ctx, project.projectId);
         continue;
       }
@@ -278,20 +279,21 @@ export const dispatch = internalMutation({
       await ctx.db.patch(job._id, {
         status: "running",
         attempts: job.attempts + 1,
-        executionStartedAt: undefined,
-        lease,
-        leaseUntil: now + VERIFICATION_JOB_LEASE_MS,
       });
-      await ctx.db.patch(project._id, { running: project.running + 1 });
-      running++;
+      workers.push({
+        lease,
+        until: now + VERIFICATION_JOB_LEASE_MS,
+        jobId: job._id,
+        projectId: job.projectId,
+      });
+      await ctx.db.patch(global._id, { workers });
       await readyVerificationProject(ctx, project.projectId);
       await ctx.scheduler.runAfter(0, internal.purchases.verificationJobs.run, {
         jobId: job._id,
         lease,
       });
     }
-    await ctx.db.patch(global._id, { running });
-    if (running < VERIFICATION_JOB_GLOBAL_WORKERS) {
+    if (workers.length < VERIFICATION_JOB_GLOBAL_WORKERS) {
       const next = await ctx.db
         .query("verificationJobQueues")
         .withIndex("by_ready", (q) => q.gte("readyAt", 0))
@@ -309,23 +311,14 @@ export const dispatch = internalMutation({
 export const forWorker = internalMutation({
   args: { jobId: v.id("verificationJobs"), lease: v.string() },
   handler: async (ctx, args): Promise<Doc<"verificationJobs"> | null> => {
+    const global = await verificationQueue(ctx);
+    const worker = global.workers?.find((item) => item.lease === args.lease);
+    if (!worker || worker.until <= Date.now()) return null;
     const job = await ctx.db.get(args.jobId);
-    if (!job) {
-      if (await releaseDetachedVerificationLease(ctx, args.lease, true))
-        await wakeVerificationQueue(ctx);
-      return null;
-    }
-    if (
-      (job.status !== "running" && job.status !== "expired") ||
-      job.lease !== args.lease ||
-      (job.leaseUntil ?? 0) <= Date.now() ||
-      job.executionStartedAt !== undefined
-    )
-      return null;
-    if (job.status === "expired" || job.expiresAt <= Date.now()) {
-      if (job.status === "expired")
-        await releaseExpiredVerificationLease(ctx, job);
-      else
+    if (worker.jobId !== job?._id) return null;
+    if (!job || job.status !== "running" || job.expiresAt <= Date.now()) {
+      await releaseVerificationWorker(ctx, args.lease);
+      if (job?.status === "running")
         await finishVerificationJob(ctx, job, {
           status: "expired",
           error: expiredVerificationJobError(),
@@ -333,10 +326,14 @@ export const forWorker = internalMutation({
       await wakeVerificationQueue(ctx);
       return null;
     }
-    const executionStartedAt = Date.now();
-    const leaseUntil = executionStartedAt + VERIFICATION_JOB_LEASE_MS;
-    await ctx.db.patch(job._id, { executionStartedAt, leaseUntil });
-    return { ...job, executionStartedAt, leaseUntil };
+    await ctx.db.patch(global._id, {
+      workers: global.workers!.map((item) =>
+        item.lease === args.lease
+          ? { ...item, until: Date.now() + VERIFICATION_JOB_LEASE_MS }
+          : item,
+      ),
+    });
+    return job;
   },
 });
 
@@ -350,20 +347,13 @@ export const complete = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const global = await verificationQueue(ctx);
+    const worker = global.workers?.find((item) => item.lease === args.lease);
+    if (!worker || worker.until <= Date.now()) return null;
     const job = await ctx.db.get(args.jobId);
-    if (!job) {
-      if (await releaseDetachedVerificationLease(ctx, args.lease))
-        await wakeVerificationQueue(ctx);
-      return null;
-    }
-    if (
-      (job.status !== "running" && job.status !== "expired") ||
-      job.lease !== args.lease ||
-      (job.leaseUntil ?? 0) <= Date.now()
-    )
-      return null;
-    if (job.status === "expired") {
-      await releaseExpiredVerificationLease(ctx, job);
+    if (worker.jobId !== job?._id) return null;
+    await releaseVerificationWorker(ctx, args.lease);
+    if (!job || job.status !== "running") {
       await wakeVerificationQueue(ctx);
       return null;
     }
@@ -406,9 +396,23 @@ export const maintain = internalMutation({
       .query("verificationJobQueues")
       .withIndex("by_scope", (q) => q.eq("scope", "global"))
       .unique();
-    for (const lease of capacity?.detachedLeases ?? []) {
-      if (lease.until <= now)
-        await releaseDetachedVerificationLease(ctx, lease.lease);
+    for (const worker of capacity?.workers ?? []) {
+      if (worker.until > now) continue;
+      await releaseVerificationWorker(ctx, worker.lease);
+      const job = worker.jobId ? await ctx.db.get(worker.jobId) : null;
+      if (job?.status !== "running") continue;
+      if (now >= job.expiresAt || job.attempts >= VERIFICATION_JOB_MAX_ATTEMPTS)
+        await finishVerificationJob(ctx, job, {
+          status: now >= job.expiresAt ? "expired" : "failed",
+          error: {
+            code: "VERIFICATION_FAILED",
+            message: "Verification worker did not finish.",
+          },
+        });
+      else {
+        await requeueVerificationJob(ctx, job, now);
+        await wakeVerificationQueue(ctx);
+      }
     }
     for (const job of await ctx.db
       .query("verificationJobs")
@@ -416,20 +420,10 @@ export const maintain = internalMutation({
         q.eq("status", "running").lte("expiresAt", now),
       )
       .take(VERIFICATION_JOB_GLOBAL_WORKERS)) {
-      await finishVerificationJob(
-        ctx,
-        job,
-        { status: "expired", error: expiredVerificationJobError() },
-        false,
-      );
-    }
-    for (const job of await ctx.db
-      .query("verificationJobs")
-      .withIndex("by_status_lease", (q) =>
-        q.eq("status", "expired").gt("leaseUntil", 0).lte("leaseUntil", now),
-      )
-      .take(VERIFICATION_JOB_GLOBAL_WORKERS)) {
-      await releaseExpiredVerificationLease(ctx, job);
+      await finishVerificationJob(ctx, job, {
+        status: "expired",
+        error: expiredVerificationJobError(),
+      });
     }
     const expiredQueued = await ctx.db
       .query("verificationJobs")
@@ -442,27 +436,6 @@ export const maintain = internalMutation({
         status: "expired",
         error: expiredVerificationJobError(),
       });
-    }
-    for (const job of await ctx.db
-      .query("verificationJobs")
-      .withIndex("by_status_lease", (q) =>
-        q.eq("status", "running").lte("leaseUntil", now),
-      )
-      .take(VERIFICATION_JOB_GLOBAL_WORKERS)) {
-      if (
-        now >= job.expiresAt ||
-        job.attempts >= VERIFICATION_JOB_MAX_ATTEMPTS
-      ) {
-        await finishVerificationJob(ctx, job, {
-          status: now >= job.expiresAt ? "expired" : "failed",
-          error: {
-            code: "VERIFICATION_FAILED",
-            message: "Verification worker did not finish.",
-          },
-        });
-      } else {
-        await requeueVerificationJob(ctx, job, now);
-      }
     }
     if (expiredQueued.length === 32)
       await ctx.scheduler.runAfter(
@@ -478,7 +451,7 @@ export const maintain = internalMutation({
     if (
       global &&
       global.active > 0 &&
-      global.running < VERIFICATION_JOB_GLOBAL_WORKERS &&
+      (global.workers?.length ?? 0) < VERIFICATION_JOB_GLOBAL_WORKERS &&
       (global.dispatchAt === undefined || global.dispatchAt < now - 60_000)
     ) {
       await ctx.db.patch(global._id, { dispatchAt: undefined });

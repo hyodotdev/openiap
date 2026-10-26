@@ -76,18 +76,40 @@ async function fixture(shared?: ReturnType<typeof makeTest>, suffix = "") {
       }),
     );
   }
-  async function dispatch() {
-    const queue = await t.run((ctx) =>
+  async function queue() {
+    return t.run((ctx) =>
       ctx.db
         .query("verificationJobQueues")
         .withIndex("by_scope", (q) => q.eq("scope", "global"))
         .unique(),
     );
+  }
+  async function dispatch() {
+    const global = await queue();
     await t.mutation(internal.purchases.verificationJobQueue.dispatch, {
-      generation: queue!.generation!,
+      generation: global!.generation!,
     });
   }
-  return { t, apiKey, projectId, keyId, add, read, dispatch };
+  async function workers() {
+    return (await queue())?.workers ?? [];
+  }
+  async function worker(jobId: string) {
+    const found = (await workers()).find((item) => item.jobId === jobId);
+    if (!found) throw new Error("Expected a claimed verification worker");
+    return found;
+  }
+  return {
+    t,
+    apiKey,
+    projectId,
+    keyId,
+    add,
+    read,
+    dispatch,
+    queue,
+    workers,
+    worker,
+  };
 }
 
 beforeEach(() => {
@@ -236,7 +258,7 @@ describe("durable purchase verification admission", () => {
     const job = (await f.t.run((ctx) => ctx.db.get(first.jobId)))!;
     await f.t.mutation(internal.purchases.verificationJobQueue.complete, {
       jobId: job._id,
-      lease: job.lease!,
+      lease: (await f.worker(job._id)).lease,
       receipt: { isValid: false, state: HarmonizedPurchaseState.INAUTHENTIC },
     });
     vi.setSystemTime(Date.now() + VERIFICATION_JOB_RETENTION_MS + 1_000);
@@ -247,72 +269,71 @@ describe("durable purchase verification admission", () => {
 });
 
 describe("verification worker ownership and recovery", () => {
-  it("renews the lease at actual worker startup and refuses duplicate starts", async () => {
+  it("renews the single worker entry at actual startup", async () => {
     const f = await fixture();
     const { jobId } = await f.add();
     await f.dispatch();
-    const claimed = (await f.t.run((ctx) => ctx.db.get(jobId)))!;
+    const claimed = await f.worker(jobId);
     vi.setSystemTime(Date.now() + 11 * 60_000);
-    const started = await f.t.mutation(
-      internal.purchases.verificationJobQueue.forWorker,
-      { jobId, lease: claimed.lease! },
-    );
-    expect(started!.leaseUntil).toBeGreaterThan(claimed.leaseUntil!);
-    expect(
-      await f.t.mutation(internal.purchases.verificationJobQueue.forWorker, {
-        jobId,
-        lease: claimed.lease!,
-      }),
-    ).toBeNull();
+    await f.t.mutation(internal.purchases.verificationJobQueue.forWorker, {
+      jobId,
+      lease: claimed.lease,
+    });
+    expect((await f.worker(jobId)).until).toBeGreaterThan(claimed.until);
     vi.setSystemTime(Date.now() + 61_000);
     await f.t.mutation(internal.purchases.verificationJobQueue.maintain, {});
     expect(await f.read(jobId)).toMatchObject({ status: "running" });
-    const global = await f.t.run((ctx) =>
-      ctx.db
-        .query("verificationJobQueues")
-        .withIndex("by_scope", (q) => q.eq("scope", "global"))
-        .unique(),
-    );
-    expect(global).toMatchObject({ active: 1, running: 1 });
+    expect(await f.workers()).toHaveLength(1);
   });
 
-  it("a refused duplicate startup cannot release a deleted worker that already began", async () => {
+  it("fences late starts and completions after a lease is reaped", async () => {
     const f = await fixture();
     const { jobId } = await f.add();
     await f.dispatch();
-    const claimed = (await f.t.run((ctx) => ctx.db.get(jobId)))!;
+    const old = await f.worker(jobId);
+    vi.setSystemTime(Date.now() + VERIFICATION_JOB_LEASE_MS + 1);
+    await f.t.mutation(internal.purchases.verificationJobQueue.maintain, {});
+    expect(await f.read(jobId)).toMatchObject({ status: "queued" });
+    await f.dispatch();
+    const replacement = await f.worker(jobId);
+    expect(replacement.lease).not.toBe(old.lease);
+    expect(
+      await f.t.mutation(internal.purchases.verificationJobQueue.forWorker, {
+        jobId,
+        lease: old.lease,
+      }),
+    ).toBeNull();
+    await f.t.mutation(internal.purchases.verificationJobQueue.complete, {
+      jobId,
+      lease: old.lease,
+      receipt: { isValid: true, state: HarmonizedPurchaseState.ENTITLED },
+    });
+    expect(await f.workers()).toEqual([replacement]);
+    expect(await f.read(jobId)).toMatchObject({ status: "running" });
+  });
+
+  it("anonymizes an executing worker on project deletion until acknowledgment", async () => {
+    const f = await fixture();
+    const { jobId } = await f.add();
+    await f.dispatch();
+    const claimed = await f.worker(jobId);
     await f.t.mutation(internal.purchases.verificationJobQueue.forWorker, {
       jobId,
-      lease: claimed.lease!,
+      lease: claimed.lease,
     });
+    const executing = await f.worker(jobId);
     await f.t.run((ctx) =>
       ctx.db.patch(f.projectId, { pendingDeletion: true }),
     );
     await f.t.run((ctx) => deleteProjectWithData(ctx, f.projectId));
-    expect(
-      await f.t.mutation(internal.purchases.verificationJobQueue.forWorker, {
-        jobId,
-        lease: claimed.lease!,
-      }),
-    ).toBeNull();
-    const held = await f.t.run((ctx) =>
-      ctx.db
-        .query("verificationJobQueues")
-        .withIndex("by_scope", (q) => q.eq("scope", "global"))
-        .unique(),
-    );
-    expect(held).toMatchObject({ active: 0, running: 1 });
+    expect(await f.workers()).toEqual([
+      { lease: executing.lease, until: executing.until },
+    ]);
     await f.t.mutation(internal.purchases.verificationJobQueue.complete, {
       jobId,
-      lease: claimed.lease!,
+      lease: executing.lease,
     });
-    const released = await f.t.run((ctx) =>
-      ctx.db
-        .query("verificationJobQueues")
-        .withIndex("by_scope", (q) => q.eq("scope", "global"))
-        .unique(),
-    );
-    expect(released).toMatchObject({ active: 0, running: 0 });
+    expect(await f.workers()).toEqual([]);
   });
   it("bounds project concurrency and stores invalid receipts as completed verifications, erasing evidence", async () => {
     const f = await fixture();
@@ -328,7 +349,7 @@ describe("verification worker ownership and recovery", () => {
     const job = running[0];
     await f.t.mutation(internal.purchases.verificationJobQueue.complete, {
       jobId: job._id,
-      lease: job.lease!,
+      lease: (await f.worker(job._id)).lease,
       receipt: { isValid: false, state: HarmonizedPurchaseState.INAUTHENTIC },
     });
     const complete = await f.t.run((ctx) => ctx.db.get(job._id));
@@ -341,35 +362,36 @@ describe("verification worker ownership and recovery", () => {
     const queues = await f.t.run((ctx) =>
       ctx.db.query("verificationJobQueues").collect(),
     );
-    expect(queues.every((q) => q.active === 2 && q.running === 1)).toBe(true);
+    expect(queues.every((q) => q.active === 2)).toBe(true);
+    expect(await f.workers()).toHaveLength(1);
   });
 
   it("delays transient failures and prevents stale attempts from completing a reclaimed job", async () => {
     const f = await fixture();
     const { jobId } = await f.add();
     await f.dispatch();
-    const old = (await f.t.run((ctx) => ctx.db.get(jobId)))!;
+    const old = await f.worker(jobId);
     await f.t.mutation(internal.purchases.verificationJobQueue.complete, {
       jobId,
-      lease: old.lease!,
+      lease: old.lease,
       error: { code: "STORE_UNAVAILABLE", message: "Retry" },
       retryAfterSec: 5,
     });
     expect(await f.read(jobId)).toMatchObject({ status: "queued" });
     vi.setSystemTime(Date.now() + 6_000);
     await f.dispatch();
-    const next = (await f.t.run((ctx) => ctx.db.get(jobId)))!;
-    expect(next.status).toBe("running");
+    const next = await f.worker(jobId);
+    expect(await f.read(jobId)).toMatchObject({ status: "running" });
     expect(next.lease).not.toBe(old.lease);
     await f.t.mutation(internal.purchases.verificationJobQueue.complete, {
       jobId,
-      lease: old.lease!,
+      lease: old.lease,
       receipt: { isValid: true, state: HarmonizedPurchaseState.ENTITLED },
     });
     expect(await f.read(jobId)).toMatchObject({ status: "running" });
     await f.t.mutation(internal.purchases.verificationJobQueue.complete, {
       jobId,
-      lease: next.lease!,
+      lease: next.lease,
       receipt: { isValid: true, state: HarmonizedPurchaseState.ENTITLED },
     });
     expect(await f.read(jobId)).toMatchObject({ status: "succeeded" });
@@ -400,12 +422,7 @@ describe("verification worker ownership and recovery", () => {
     await f.add(2);
     await f.add(3);
     await f.dispatch();
-    const running = await f.t.run((ctx) =>
-      ctx.db
-        .query("verificationJobs")
-        .withIndex("by_status_expiry", (q) => q.eq("status", "running"))
-        .collect(),
-    );
+    const workers = await f.workers();
     await f.t.run((ctx) =>
       ctx.db.patch(f.projectId, { pendingDeletion: true }),
     );
@@ -413,26 +430,18 @@ describe("verification worker ownership and recovery", () => {
     expect(
       await f.t.run((ctx) => ctx.db.query("verificationJobs").collect()),
     ).toEqual([]);
-    const global = await f.t.run((ctx) =>
-      ctx.db
-        .query("verificationJobQueues")
-        .withIndex("by_scope", (q) => q.eq("scope", "global"))
-        .unique(),
+    const global = await f.queue();
+    expect(global).toMatchObject({ active: 0 });
+    expect(await f.workers()).toEqual(
+      workers.map(({ lease, until }) => ({ lease, until })),
     );
-    expect(global).toMatchObject({ active: 0, running: 2 });
-    expect(global!.detachedLeases).toHaveLength(2);
-    for (const job of running)
+    for (const worker of workers)
       await f.t.mutation(internal.purchases.verificationJobQueue.forWorker, {
-        jobId: job._id,
-        lease: job.lease!,
+        jobId: worker.jobId!,
+        lease: worker.lease,
       });
-    const after = await f.t.run((ctx) =>
-      ctx.db
-        .query("verificationJobQueues")
-        .withIndex("by_scope", (q) => q.eq("scope", "global"))
-        .unique(),
-    );
-    expect(after).toMatchObject({ active: 0, running: 0, detachedLeases: [] });
+    const after = await f.queue();
+    expect(after).toMatchObject({ active: 0, workers: [] });
   });
 
   it("keeps the settled rejection cooldown without charging acknowledgment retries", async () => {
@@ -442,7 +451,7 @@ describe("verification worker ownership and recovery", () => {
     const job = (await f.t.run((ctx) => ctx.db.get(jobId)))!;
     await f.t.mutation(internal.purchases.verificationJobQueue.complete, {
       jobId,
-      lease: job.lease!,
+      lease: (await f.worker(job._id)).lease,
       receipt: { isValid: false, state: HarmonizedPurchaseState.EXPIRED },
     });
     await expect(f.add(2)).rejects.toThrow("RATE_LIMITED");
@@ -462,7 +471,7 @@ describe("verification worker ownership and recovery", () => {
       const job = (await f.t.run((ctx) => ctx.db.get(jobId)))!;
       await f.t.mutation(internal.purchases.verificationJobQueue.complete, {
         jobId,
-        lease: job.lease!,
+        lease: (await f.worker(job._id)).lease,
         receipt: { isValid: false, state: HarmonizedPurchaseState.EXPIRED },
       });
     }
@@ -487,13 +496,8 @@ describe("verification worker ownership and recovery", () => {
     vi.setSystemTime(Date.now() + VERIFICATION_JOB_RETENTION_MS + 1_000);
     const replacement = await f.add();
     expect(replacement.jobId).not.toBe(jobId);
-    const global = await f.t.run((ctx) =>
-      ctx.db
-        .query("verificationJobQueues")
-        .withIndex("by_scope", (q) => q.eq("scope", "global"))
-        .unique(),
-    );
-    expect(global).toMatchObject({ active: 1, running: 0 });
+    const global = await f.queue();
+    expect(global).toMatchObject({ active: 1, workers: [] });
   });
 
   it("drains more than one expiry batch without waiting for another cron tick", async () => {
@@ -513,13 +517,9 @@ describe("verification worker ownership and recovery", () => {
     expect(
       jobs.every((j) => j.status === "expired" && j.payload === undefined),
     ).toBe(true);
-    const global = await f.t.run((ctx) =>
-      ctx.db
-        .query("verificationJobQueues")
-        .withIndex("by_scope", (q) => q.eq("scope", "global"))
-        .unique(),
-    );
-    expect(global).toMatchObject({ active: 0, running: 0 });
+    const global = await f.queue();
+    expect(global).toMatchObject({ active: 0 });
+    expect(await f.workers()).toEqual([]);
   });
 
   it("erases expired evidence immediately but holds the executing lease until acknowledgment", async () => {
@@ -527,33 +527,171 @@ describe("verification worker ownership and recovery", () => {
     const { jobId } = await f.add();
     vi.setSystemTime(Date.now() + VERIFICATION_JOB_DEADLINE_MS - 60_000);
     await f.dispatch();
-    const running = (await f.t.run((ctx) => ctx.db.get(jobId)))!;
-    expect(running.status).toBe("running");
+    const running = await f.worker(jobId);
+    expect(await f.read(jobId)).toMatchObject({ status: "running" });
     vi.setSystemTime(Date.now() + 61_000);
     expect(await f.read(jobId)).toMatchObject({ status: "expired" });
     const expired = (await f.t.run((ctx) => ctx.db.get(jobId)))!;
     expect(expired.payload).toBeUndefined();
-    expect(expired.lease).toBe(running.lease);
-    const before = await f.t.run((ctx) =>
-      ctx.db
-        .query("verificationJobQueues")
-        .withIndex("by_scope", (q) => q.eq("scope", "global"))
-        .unique(),
-    );
-    expect(before).toMatchObject({ active: 0, running: 1 });
+    expect(await f.workers()).toEqual([running]);
+    const before = await f.queue();
+    expect(before).toMatchObject({ active: 0 });
+    expect(await f.workers()).toHaveLength(1);
     await f.t.mutation(internal.purchases.verificationJobQueue.complete, {
       jobId,
-      lease: running.lease!,
+      lease: running.lease,
       receipt: { isValid: true, state: HarmonizedPurchaseState.ENTITLED },
     });
     expect(await f.read(jobId)).toMatchObject({ status: "expired" });
-    const after = await f.t.run((ctx) =>
-      ctx.db
+    const after = await f.queue();
+    expect(after).toMatchObject({ active: 0, workers: [] });
+  });
+
+  it("keeps unresolved Google failures out of the rejection cooldown", async () => {
+    const f = await fixture();
+    const { jobId } = await f.add();
+    await f.dispatch();
+    await f.t.mutation(internal.purchases.verificationJobQueue.complete, {
+      jobId,
+      lease: (await f.worker(jobId)).lease,
+      error: {
+        code: "PLAY_STORE_VERIFICATION_ERROR",
+        message: "Verification could not finish.",
+      },
+    });
+    expect(await f.read(jobId)).toMatchObject({ status: "failed" });
+    const job = await f.t.run((ctx) => ctx.db.get(jobId));
+    expect(job?.receipt).toBeUndefined();
+    expect(job?.rejectedAt).toBeUndefined();
+    expect(await f.add(2)).toMatchObject({ deduped: false });
+  });
+
+  it("rate limits durable admissions after failures free active capacity", async () => {
+    const f = await fixture();
+    const { jobId } = await f.add();
+    await f.dispatch();
+    await f.t.mutation(internal.purchases.verificationJobQueue.complete, {
+      jobId,
+      lease: (await f.worker(jobId)).lease,
+      error: {
+        code: "PROJECT_ANDROID_PACKAGE_NAME_NOT_CONFIGURED",
+        message: "Missing configuration.",
+      },
+    });
+    expect(await f.workers()).toEqual([]);
+    await f.t.run(async (ctx) => {
+      const project = await ctx.db
         .query("verificationJobQueues")
-        .withIndex("by_scope", (q) => q.eq("scope", "global"))
-        .unique(),
+        .withIndex("by_project", (q) => q.eq("projectId", f.projectId))
+        .unique();
+      expect(project?.active).toBe(0);
+      await ctx.db.patch(project!._id, { tokens: 0, refilledAt: Date.now() });
+    });
+    await expect(
+      f.add(2, {
+        ...request,
+        purchaseToken: "different_purchase_token_123456789",
+      }),
+    ).rejects.toThrow("RATE_LIMITED");
+    expect(
+      await f.t.run((ctx) => ctx.db.query("verificationJobs").collect()),
+    ).toHaveLength(1);
+  });
+
+  it("counts expired workers against the project limit until acknowledgment", async () => {
+    const f = await fixture();
+    const a = await f.add(1),
+      b = await f.add(2);
+    vi.setSystemTime(Date.now() + VERIFICATION_JOB_DEADLINE_MS - 60_000);
+    await f.dispatch();
+    const old = await f.worker(a.jobId);
+    vi.setSystemTime(Date.now() + 61_000);
+    expect(await f.read(a.jobId, 1)).toMatchObject({ status: "expired" });
+    expect(await f.read(b.jobId, 2)).toMatchObject({ status: "expired" });
+    const next = await f.add(3);
+    await f.dispatch();
+    expect(await f.read(next.jobId, 3)).toMatchObject({ status: "queued" });
+    expect(await f.workers()).toHaveLength(2);
+    await f.t.mutation(internal.purchases.verificationJobQueue.complete, {
+      jobId: a.jobId,
+      lease: old.lease,
+    });
+    await f.dispatch();
+    expect(await f.read(next.jobId, 3)).toMatchObject({ status: "running" });
+    expect(await f.workers()).toHaveLength(2);
+  });
+
+  it("keeps anonymous deleted workers inside the global limit and fences other jobs", async () => {
+    const first = await fixture();
+    const fixtures = [first];
+    for (let n = 1; n < 5; n++)
+      fixtures.push(await fixture(first.t, `bound${n}`));
+    const jobs = [];
+    for (const f of fixtures.slice(0, 4))
+      jobs.push([await f.add(1), await f.add(2)]);
+    await first.dispatch();
+    const reserved = await first.workers();
+    expect(reserved).toHaveLength(8);
+    const old = await first.worker(jobs[0][0].jobId);
+    await first.t.run((ctx) =>
+      ctx.db.patch(first.projectId, { pendingDeletion: true }),
     );
-    expect(after).toMatchObject({ active: 0, running: 0 });
+    await first.t.run((ctx) => deleteProjectWithData(ctx, first.projectId));
+    expect(
+      (await first.workers()).filter((worker) => !worker.jobId),
+    ).toHaveLength(2);
+    const other = fixtures[4];
+    const next = await other.add();
+    await other.dispatch();
+    expect(await other.read(next.jobId)).toMatchObject({ status: "queued" });
+    expect(await first.workers()).toHaveLength(8);
+    await first.t.mutation(internal.purchases.verificationJobQueue.complete, {
+      jobId: jobs[0][0].jobId,
+      lease: old.lease,
+    });
+    await other.dispatch();
+    expect(await other.read(next.jobId)).toMatchObject({ status: "running" });
+    const anonymous = (await first.workers()).find((worker) => !worker.jobId)!;
+    expect(
+      await first.t.mutation(
+        internal.purchases.verificationJobQueue.forWorker,
+        { jobId: next.jobId, lease: anonymous.lease },
+      ),
+    ).toBeNull();
+    await first.t.mutation(internal.purchases.verificationJobQueue.complete, {
+      jobId: next.jobId,
+      lease: anonymous.lease,
+      receipt: { isValid: true, state: HarmonizedPurchaseState.ENTITLED },
+    });
+    expect(await other.read(next.jobId)).toMatchObject({ status: "running" });
+    expect(await first.workers()).toHaveLength(8);
+  });
+
+  it("preempts a later scheduled retry when recovering a worker due now", async () => {
+    const first = await fixture();
+    const a = await first.add();
+    await first.dispatch();
+    vi.setSystemTime(Date.now() + 11 * 60_000);
+    const other = await fixture(first.t, "recovery");
+    const b = await other.add();
+    await other.dispatch();
+    await other.t.mutation(internal.purchases.verificationJobQueue.complete, {
+      jobId: b.jobId,
+      lease: (await other.worker(b.jobId)).lease,
+      error: { code: "STORE_UNAVAILABLE", message: "Retry" },
+      retryAfterSec: 300,
+    });
+    await other.dispatch();
+    const later = await first.queue();
+    expect(later?.dispatchAt).toBeGreaterThan(Date.now() + 299_000);
+    vi.setSystemTime(Date.now() + 60_001);
+    await first.t.mutation(
+      internal.purchases.verificationJobQueue.maintain,
+      {},
+    );
+    expect(await first.read(a.jobId)).toMatchObject({ status: "queued" });
+    const recovered = await first.queue();
+    expect(recovered!.dispatchAt!).toBeLessThanOrEqual(Date.now() + 1_000);
   });
 
   it("drains a retention backlog in bounded scheduled batches", async () => {

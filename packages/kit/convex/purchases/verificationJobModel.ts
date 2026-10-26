@@ -24,6 +24,13 @@ export const verificationJobStatus = v.union(
 );
 export type VerificationJobStatus = Infer<typeof verificationJobStatus>;
 
+export const verificationWorker = v.object({
+  lease: v.string(),
+  until: v.number(),
+  jobId: v.optional(v.id("verificationJobs")),
+  projectId: v.optional(v.id("projects")),
+});
+
 export const verificationJobCiphertext = v.object({
   iv: v.string(),
   ciphertext: v.string(),

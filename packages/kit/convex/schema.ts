@@ -6,6 +6,7 @@ import { harmonizedPurchaseStateValidator } from "./purchases/purchaseState";
 import { receiptResponseValidator } from "./purchases/shared";
 import {
   verificationJobCiphertext,
+  verificationWorker,
   verificationJobError,
   verificationJobStatus,
 } from "./purchases/verificationJobModel";
@@ -96,9 +97,6 @@ const schema = defineSchema({
     status: verificationJobStatus,
     attempts: v.number(),
     nextAttemptAt: v.number(),
-    executionStartedAt: v.optional(v.number()),
-    lease: v.optional(v.string()),
-    leaseUntil: v.optional(v.number()),
     receipt: v.optional(receiptResponseValidator),
     error: v.optional(verificationJobError),
     createdAt: v.number(),
@@ -115,25 +113,15 @@ const schema = defineSchema({
     ])
     .index("by_project_status_due", ["projectId", "status", "nextAttemptAt"])
     .index("by_status_expiry", ["status", "expiresAt"])
-    .index("by_status_lease", ["status", "leaseUntil"])
     .index("by_completed", ["completedAt"]),
 
   verificationJobQueues: defineTable({
     scope: v.string(),
     projectId: v.optional(v.id("projects")),
     active: v.number(),
-    running: v.number(),
     readyAt: v.optional(v.number()),
     dispatchAt: v.optional(v.number()),
-    detachedLeases: v.optional(
-      v.array(
-        v.object({
-          lease: v.string(),
-          until: v.number(),
-          started: v.boolean(),
-        }),
-      ),
-    ),
+    workers: v.optional(v.array(verificationWorker)),
     generation: v.optional(v.number()),
     tokens: v.optional(v.number()),
     refilledAt: v.optional(v.number()),

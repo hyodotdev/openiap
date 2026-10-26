@@ -20,7 +20,6 @@ import {
   PlayStorePurchaseNotFoundError,
   PlayStoreVerificationError,
 } from "./errors";
-import { HarmonizedPurchaseState } from "./purchaseState";
 
 const verifiers = vi.hoisted(() => ({
   apple: vi.fn(),
@@ -164,7 +163,7 @@ describe("queued verification uses the existing store adapters", () => {
     expect(ctx.runMutation).toHaveBeenCalledTimes(2);
   });
 
-  it("completes Google's persisted not-found verdict as an invalid receipt", async () => {
+  it("keeps Google purchase-not-found unresolved without a final verdict", async () => {
     const input = {
       store: "google",
       purchaseToken: "test_purchase_token_123456789",
@@ -196,9 +195,10 @@ describe("queued verification uses the existing store adapters", () => {
     expect(ctx.runMutation.mock.lastCall?.[1]).toEqual({
       jobId,
       lease: "lease",
-      receipt: {
-        isValid: false,
-        state: HarmonizedPurchaseState.INAUTHENTIC,
+      error: {
+        code: "PLAY_STORE_VERIFICATION_ERROR",
+        message:
+          "Verification could not finish. Check the project configuration or contact support.",
       },
     });
   });

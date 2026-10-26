@@ -28,12 +28,7 @@ import {
   classifyVerificationError,
   verifyRecordingIssues,
 } from "../purchaseIssues/shared";
-import {
-  PlayStorePurchaseNotFoundError,
-  PlayStoreVerificationError,
-  STORE_OUTAGE_RETRY_AFTER_SEC,
-} from "./errors";
-import { HarmonizedPurchaseState } from "./purchaseState";
+import { STORE_OUTAGE_RETRY_AFTER_SEC } from "./errors";
 import type { ReceiptResponse } from "./shared";
 import {
   expiredVerificationJobError,
@@ -255,23 +250,11 @@ export const run = internalAction({
                 expectedProductId: input.expectedProductId,
               });
             case "google":
-              try {
-                return await verifyGooglePlayReceipt(ctx, {
-                  ...base,
-                  purchaseToken: input.purchaseToken,
-                  expectedProductId: input.expectedProductId,
-                });
-              } catch (error) {
-                if (
-                  error instanceof PlayStoreVerificationError &&
-                  error.inner instanceof PlayStorePurchaseNotFoundError
-                )
-                  return {
-                    isValid: false,
-                    state: HarmonizedPurchaseState.INAUTHENTIC,
-                  };
-                throw error;
-              }
+              return verifyGooglePlayReceipt(ctx, {
+                ...base,
+                purchaseToken: input.purchaseToken,
+                expectedProductId: input.expectedProductId,
+              });
             case "amazon":
               return verifyAmazonReceipt(ctx, {
                 ...base,
