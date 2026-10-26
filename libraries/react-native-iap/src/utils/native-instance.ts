@@ -57,6 +57,7 @@ export function getNativeIapInstance(): RnIap {
     const {
       NitroModules,
     }: typeof import('react-native-nitro-modules') = require('react-native-nitro-modules');
+    // The older-binary fallback is removed in the next major release (18.0.0).
     iapRef =
       typeof NitroModules.hasHybridObject === 'function' &&
       NitroModules.hasHybridObject('RnIapProtocol')

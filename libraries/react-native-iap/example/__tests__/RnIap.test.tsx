@@ -246,6 +246,7 @@ describe('RnIap Complete Test Suite', () => {
       expect(RNIap.ErrorCode.DeveloperError).toBeDefined();
     });
 
+    // Deprecated parser export fixture: removed in the next major release (18.0.0).
     it('should export parseErrorStringToJsonObj', () => {
       expect(RNIap.parseErrorStringToJsonObj).toBeDefined();
       expect(typeof RNIap.parseErrorStringToJsonObj).toBe('function');

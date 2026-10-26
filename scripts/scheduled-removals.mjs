@@ -284,6 +284,49 @@ export const scheduledRemovalRules = [
     catalog: ["OpenIapAndroidStore"],
   },
   {
+    label: "react-native-iap legacy error string parsing",
+    packages: [
+      {
+        name: "react-native-iap",
+        major: 17,
+        file: "libraries/react-native-iap/package.json",
+        pattern: PACKAGE_JSON_VERSION,
+      },
+    ],
+    sources: [
+      {
+        file: "libraries/react-native-iap/src/utils/error.ts",
+        tokens: ["parseErrorStringToJsonObj"],
+      },
+      {
+        file: "libraries/react-native-iap/src/utils/legacy-native-error.ts",
+        tokens: ["readNativeErrorPayload", "parseNativePurchaseError"],
+      },
+      {
+        file: "libraries/react-native-iap/src/utils/native-protocol.ts",
+        tokens: ["createLegacyIap"],
+      },
+      {
+        file: "libraries/react-native-iap/src/utils/native-instance.ts",
+        tokens: ["createLegacyIap"],
+      },
+      {
+        file: "libraries/react-native-iap/example/jest.setup.js",
+        tokens: ["parseErrorStringToJsonObj"],
+      },
+      {
+        file: "libraries/react-native-iap/example/__tests__/RnIap.test.tsx",
+        tokens: ["parseErrorStringToJsonObj"],
+      },
+    ],
+    catalog: [
+      "parseErrorStringToJsonObj",
+      "isUserCancelledError(string)",
+      "isUserCancelledError(new Error(encodedMessage))",
+      "legacy native error strings",
+    ],
+  },
+  {
     label: "react-native-iap NitroProduct price fields",
     packages: [
       {

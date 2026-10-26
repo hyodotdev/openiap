@@ -19,7 +19,9 @@ export interface IapError {
 }
 
 /**
- * Parses error string from native modules into a structured error object
+ * Parses error strings from older native binaries.
+ * @deprecated Read PurchaseError.code, message and diagnostics directly.
+ * Removed in the next major release (18.0.0).
  *
  * Native modules return errors in different formats:
  * - Android: JSON string like '{"code":"E_USER_CANCELLED","message":"User cancelled the purchase","responseCode":1}'
@@ -49,7 +51,8 @@ export function parseErrorStringToJsonObj(
 
 /**
  * Checks if an error code indicates user cancellation
- * @param error - Error object or string
+ * @param error Structured purchase error. String inputs and decoding Error.message
+ * without a code are deprecated and removed in the next major release (18.0.0).
  * @returns true if the error is a user cancellation
  */
 export function isUserCancelledError(

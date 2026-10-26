@@ -714,7 +714,10 @@ function Releases() {
             Rebuild your native app to enable structured error transport. Read
             error codes and diagnostics directly from their properties. Existing
             Java prefixes, cause chains and NSError descriptions remain
-            supported for older native binaries. See{' '}
+            supported for older native binaries through 17.x. The legacy string
+            parser and cancellation detection from strings or code-less
+            Error.message are deprecated for removal in react-native-iap 18.0.0.
+            See{' '}
             <a href="https://github.com/hyodotdev/openiap/issues/569">#569</a>.
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>

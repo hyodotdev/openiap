@@ -116,7 +116,10 @@ export const createProtocolIap = (protocol: RnIapProtocol): RnIap => {
   });
 };
 
-// The legacy object is selected once, only when the binary lacks RnIapProtocol.
+/**
+ * @deprecated Removed in the next major release (18.0.0).
+ * Rebuild iOS/Android apps for typed outcomes; retain Vega normalization with a structured replacement.
+ */
 export const createLegacyIap = (core: RnIap): RnIap =>
   new Proxy(core, {
     get(target, key) {

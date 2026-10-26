@@ -39,11 +39,12 @@ describe('Error utilities', () => {
     });
 
     it.each([
-      (json: string) => json,
-      (json: string) => `java.lang.Exception: ${json}\nCaused by: native error`,
-      (json: string) =>
+      (json: string): string => json,
+      (json: string): string =>
+        `java.lang.Exception: ${json}\nCaused by: native error`,
+      (json: string): string =>
         `Error Domain=iap Code=-1 "${json}" UserInfo={NSLocalizedDescription=${json}}`,
-    ])('validates required fields in legacy frame %p', (frame) => {
+    ])('validates required fields in legacy frame %p', (frame): void => {
       const input = frame(
         JSON.stringify({code: 42, message: {nested: 'text'}}),
       );
@@ -486,6 +487,13 @@ describe('Error utilities', () => {
   });
 
   describe('isUserCancelledError', () => {
+    it.each([ErrorCode.UserCancelled, new Error(ErrorCode.UserCancelled)])(
+      'does not treat bare code text as a structured cancellation: %p',
+      (error): void => {
+        expect(isUserCancelledError(error)).toBe(false);
+      },
+    );
+
     it('recognizes cancellation before a Java cause chain', () => {
       const error = new Error(
         '{"code":"user-cancelled","message":"Cancelled"}\nCaused by: UserCancelled',

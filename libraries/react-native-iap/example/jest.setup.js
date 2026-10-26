@@ -153,6 +153,7 @@ jest.mock('../src/index', () => {
     useIAP: mockUseIAP,
 
     // Utility functions
+    // Deprecated string parser mock: removed in the next major release (18.0.0).
     parseErrorStringToJsonObj: jest.fn((error) => {
       if (typeof error === 'string') {
         try {

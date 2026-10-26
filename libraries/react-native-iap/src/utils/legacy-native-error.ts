@@ -146,6 +146,7 @@ const parseNSErrorJsonPayload = (
     : parseNativePayloadAt(rawString, descriptionIndex + marker.length);
 };
 
+/** @deprecated Removed in the next major release (18.0.0). Rebuild the native app for typed errors. */
 export function readNativeErrorPayload(errorString: string | Error | unknown): {
   payload: Record<string, unknown>;
   fallbackMessage: string;
@@ -227,7 +228,7 @@ export function readNativeErrorPayload(errorString: string | Error | unknown): {
   return {payload: {}, fallbackMessage: errorString};
 }
 
-// Only binaries without RnIapProtocol require decoding exception descriptions.
+/** @deprecated Removed in the next major release (18.0.0). Only older native binaries require this decoder. */
 export const parseNativePurchaseError = (
   error: unknown,
 ): ReturnType<typeof normalizePurchaseError> => {
