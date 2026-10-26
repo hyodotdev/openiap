@@ -26,6 +26,8 @@ xcrun --sdk macosx swiftc \
   -Xlinker -rpath -Xlinker "$XCTEST_MODULES" \
   -Xlinker -rpath -Xlinker "$BUILD_DIR" \
   "$REPO_ROOT/libraries/react-native-iap/ios/OpenIapException.swift" \
+  "$REPO_ROOT/libraries/react-native-iap/ios/RequestPurchaseErrorObservation.swift" \
+  "$REPO_ROOT/libraries/react-native-iap/tests/ios/RequestPurchaseErrorObservationTests.swift" \
   "$REPO_ROOT/libraries/react-native-iap/tests/ios/OpenIapExceptionTests.swift" \
   -o "$BUILD_DIR/rn-iap-error-tests"
 

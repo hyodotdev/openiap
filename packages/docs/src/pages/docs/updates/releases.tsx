@@ -705,9 +705,10 @@ function Releases() {
             cancellations and other store failures keep their codes instead of
             becoming <code>unknown</code>. Android rejections carry JSON without
             an appended Java cause chain. iOS rejections retain every diagnostic
-            field defined by the PurchaseError specification. JSON-like text
-            inside structured payloads no longer changes their codes or
-            incorrectly signals a cancellation. Existing Java exception
+            field defined by the PurchaseError specification. A failed iOS
+            request no longer hides a later error for the same product.
+            JSON-like text inside structured payloads no longer changes their
+            codes or incorrectly signals a cancellation. Existing Java exception
             prefixes, cause chains and multiline NSError payloads remain
             supported. Rebuild your native app to receive the bridge fixes. See{' '}
             <a href="https://github.com/hyodotdev/openiap/issues/569">#569</a>.

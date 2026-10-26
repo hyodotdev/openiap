@@ -83,9 +83,8 @@ class HybridRnIap: HybridRnIapSpec {
     private var purchasePayloadById: [String: [String: Any]] = [:]
     private var deliveredPurchaseUpdateIds = Set<String>()
     private var pendingDuplicatePurchaseUpdateSuppressions: [String: Int] = [:]
-    private var pendingRequestPurchaseErrorSuppressions: [String: Int] = [:]
     private var pendingOnDemandInitErrorSuppressions: [String: Int] = [:]
-    private var requestErrorObservation: (productId: String?, enqueued: Bool)?
+    private var requestErrorObservation: RequestPurchaseErrorObservation?
     private let pendingPurchaseUpdates = PendingEventBuffer<NitroPurchase>(
         capacity: HybridRnIap.maxPendingEvents,
         label: "pendingPurchaseUpdates"
@@ -1520,7 +1519,7 @@ class HybridRnIap: HybridRnIapSpec {
         try await runConnectedOperation {
             let epoch = self.currentConnectionEpoch()
             self.listenerLock.withLock {
-                self.requestErrorObservation = (productId, false)
+                self.requestErrorObservation = RequestPurchaseErrorObservation(productId: productId)
             }
             defer {
                 self.listenerLock.withLock { self.requestErrorObservation = nil }
@@ -1539,7 +1538,7 @@ class HybridRnIap: HybridRnIapSpec {
                 // A provider that enqueued its own error owns delivery.
                 RnIapLog.failure("requestPurchase", error: error)
                 let providerEnqueuedError = self.listenerLock.withLock {
-                    self.requestErrorObservation?.enqueued ?? false
+                    self.requestErrorObservation?.hasEnqueuedError ?? false
                 }
                 if !providerEnqueuedError {
                     self.deliverRequestPurchaseFallbackError(
@@ -1705,17 +1704,12 @@ class HybridRnIap: HybridRnIapSpec {
     }
 
     private func deliverRequestPurchaseError(_ error: PurchaseError) {
-        let key = RnIapHelper.makeErrorDedupKey(
-            code: error.code.rawValue,
-            productId: error.productId
-        )
         listenerLock.withLock {
-            pendingRequestPurchaseErrorSuppressions[key, default: 0] += 1
+            requestErrorObservation?.suppressQueuedDuplicate(of: error)
         }
         deliverRequestPurchaseFallbackError(error)
     }
 
-    // No suppression: a fallback provider never emits the same error later.
     private func deliverRequestPurchaseFallbackError(_ error: PurchaseError) {
         let result = RnIapHelper.makePurchaseErrorResult(
             code: error.code,
@@ -1726,39 +1720,20 @@ class HybridRnIap: HybridRnIapSpec {
         sendPurchaseError(result, productId: error.productId, dedupe: false)
     }
 
-    private func consumeRequestPurchaseErrorSuppression(_ error: PurchaseError) -> Bool {
-        let key = RnIapHelper.makeErrorDedupKey(
-            code: error.code.rawValue,
-            productId: error.productId
-        )
-        return listenerLock.withLock {
-            guard let count = pendingRequestPurchaseErrorSuppressions[key] else {
-                return false
-            }
-            if count == 1 {
-                pendingRequestPurchaseErrorSuppressions.removeValue(forKey: key)
-            } else {
-                pendingRequestPurchaseErrorSuppressions[key] = count - 1
-            }
-            return true
-        }
-    }
-
     func enqueuePurchaseErrorDelivery(
         _ error: PurchaseError,
         expectedEpoch: UInt64
     ) -> Task<Void, Error> {
-        listenerLock.withLock {
-            if connectionEpoch == expectedEpoch,
-               let observation = requestErrorObservation,
-               observation.productId == error.productId {
-                requestErrorObservation?.enqueued = true
-            }
+        let requestDelivery = listenerLock.withLock {
+            connectionEpoch == expectedEpoch ? requestErrorObservation?.record(error) : nil
         }
         return enqueueLifecycleOperation {
+            let isSuppressed = self.listenerLock.withLock {
+                requestDelivery?.isSuppressed ?? false
+            }
             guard self.isCurrentEpoch(expectedEpoch),
-                  !self.consumeOnDemandInitErrorSuppression(error),
-                  !self.consumeRequestPurchaseErrorSuppression(error) else {
+                  !isSuppressed,
+                  !self.consumeOnDemandInitErrorSuppression(error) else {
                 return
             }
             let payload = RnIapHelper.sanitizeDictionary(OpenIapSerialization.encode(error))
@@ -2152,7 +2127,6 @@ class HybridRnIap: HybridRnIapSpec {
             lastPurchaseErrorTimestamp = 0
             deliveredPurchaseUpdateIds.removeAll()
             pendingDuplicatePurchaseUpdateSuppressions.removeAll()
-            pendingRequestPurchaseErrorSuppressions.removeAll()
             pendingOnDemandInitErrorSuppressions.removeAll()
             pendingPurchaseUpdates.clear()
             pendingDuplicatePurchaseUpdates.clear()

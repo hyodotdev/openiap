@@ -61,6 +61,9 @@ private enum OpenIapExceptionTestRunner {
         let suite = XCTestSuite(name: "OpenIapException")
         suite.addTest(OpenIapExceptionTests(selector: #selector(OpenIapExceptionTests.testAllPurchaseErrorFieldsSurviveSerialization)))
         suite.addTest(OpenIapExceptionTests(selector: #selector(OpenIapExceptionTests.testMakeEscapesMessagesAndOmitsAbsentDiagnostics)))
+        suite.addTest(RequestPurchaseErrorObservationTests(selector: #selector(RequestPurchaseErrorObservationTests.testNoCallbackLeavesNoSuppressionForLaterSamePayload)))
+        suite.addTest(RequestPurchaseErrorObservationTests(selector: #selector(RequestPurchaseErrorObservationTests.testOnlyOneAlreadyQueuedIdenticalPayloadIsSuppressed)))
+        suite.addTest(RequestPurchaseErrorObservationTests(selector: #selector(RequestPurchaseErrorObservationTests.testGenericFailureOwnershipStillMatchesTheRequestedProduct)))
         suite.run()
         precondition(suite.testRun?.hasSucceeded == true)
     }
