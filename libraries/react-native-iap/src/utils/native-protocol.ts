@@ -1,6 +1,6 @@
 import type {RnIap} from '../specs/RnIap.nitro';
 import type {RnIapProtocol} from '../specs/RnIapProtocol.nitro';
-import {createPurchaseError} from './errorMapping';
+import {createPurchaseError, type PurchaseErrorProps} from './errorMapping';
 import {normalizePurchaseError} from './native-error';
 import {parseNativePurchaseError} from './legacy-native-error';
 
@@ -116,11 +116,12 @@ export const createProtocolIap = (protocol: RnIapProtocol): RnIap => {
   });
 };
 
-/**
- * @deprecated Removed in the next major release (18.0.0).
- * Rebuild iOS/Android apps for typed outcomes; retain Vega normalization with a structured replacement.
- */
-export const createLegacyIap = (core: RnIap): RnIap =>
+export const createNormalizedIap = (
+  core: RnIap,
+  normalizeError: (
+    error: unknown,
+  ) => PurchaseErrorProps = normalizePurchaseError,
+): RnIap =>
   new Proxy(core, {
     get(target, key) {
       const value: unknown = Reflect.get(target, key, target);
@@ -131,15 +132,17 @@ export const createLegacyIap = (core: RnIap): RnIap =>
           const result: unknown = Reflect.apply(value, target, args);
           if (key === 'enableBillingProgramAndroid') return result;
           return Promise.resolve(result).catch((error) => {
-            throw createPurchaseError(parseNativePurchaseError(error));
+            throw createPurchaseError(normalizeError(error));
           });
         } catch (error) {
-          const normalized = createPurchaseError(
-            parseNativePurchaseError(error),
-          );
+          const normalized = createPurchaseError(normalizeError(error));
           if (key === 'enableBillingProgramAndroid') throw normalized;
           return Promise.reject(normalized);
         }
       };
     },
   });
+
+/** @deprecated Removed in the next major release (18.0.0); rebuild iOS/Android apps for typed outcomes. */
+export const createLegacyIap = (core: RnIap): RnIap =>
+  createNormalizedIap(core, parseNativePurchaseError);

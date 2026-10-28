@@ -140,9 +140,7 @@ Access these from the Run and Debug panel (⌘⇧D) in VSCode.
 
 ### Commit Message Convention
 
-Follow the monorepo
-[Git Commit Message Format](../../knowledge/internal/06-git-deployment.md#git-commit-message-format)
-with the `rn` scope, e.g. `feat(rn): add offer redemption`.
+Follow the monorepo [Git Commit Message Format](../../knowledge/internal/06-git-deployment.md#git-commit-message-format) with the `rn` scope, e.g. `feat(rn): add offer redemption`.
 
 ### Code Style
 
@@ -254,9 +252,11 @@ yarn install && yarn typecheck && yarn lint --fix
 
 The project uses a centralized error handling approach across all platforms:
 
-**TypeScript (`src/utils/error.ts` + `src/types.ts`)**
+**TypeScript (`src/utils/native-protocol.ts`, `native-error.ts` and `src/types.ts`)**
 
-- `parseErrorStringToJsonObj()` - **Internal utility** - Parses native error strings (used by library internals)
+- `RnIapProtocol` - **Private Nitro transport** - Returns typed native outcomes and shares the existing core and listeners
+- `normalizePurchaseError()` - **Internal utility** - Normalizes structured native and Vega errors
+- `parseErrorStringToJsonObj()` - **Deprecated compatibility export** - Retained through 17.x for legacy strings; removed in 18.0.0
 - `normalizeErrorCodeFromNative()` - **Internal utility** - Converts native error codes to ErrorCode enum
 - `isUserCancelledError()` - **Public helper** - Check for user cancellation
 - `getUserFriendlyErrorMessage()` - **Public helper** - Get user-friendly error messages
@@ -372,7 +372,7 @@ const errorSubscription = purchaseErrorListener((error) => {
 errorSubscription.remove();
 ```
 
-**Note:** `parseErrorStringToJsonObj()` is an internal utility used by the library to convert native error strings. As an end-user, you should never need to call it directly - errors are already parsed for you.
+Older native binaries use the compatibility decoder through 17.x. Rebuild iOS and Android apps for typed outcomes before upgrading to 18.0.0. Application code reads `PurchaseError` fields directly.
 
 ### Common Error Codes
 
@@ -395,7 +395,7 @@ All error codes are defined in the `ErrorCode` enum:
 - Use Platform.OS checks for platform-specific code
 - **Error Handling**: Use `useIAP` hook - errors are automatically normalized to `ErrorCode` enum
 - **Helper Functions**: Use `isUserCancelledError()` and `getUserFriendlyErrorMessage()` for common error checks
-- **Avoid Direct Parsing**: Never call `parseErrorStringToJsonObj()` in user code - it's handled internally
+- **Avoid Direct Parsing**: Read structured `PurchaseError` fields; string decoding is only a 17.x compatibility path
 - Test error scenarios on both platforms
 
 ## Troubleshooting

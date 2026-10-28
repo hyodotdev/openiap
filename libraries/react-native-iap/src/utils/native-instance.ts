@@ -1,5 +1,9 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-import {createLegacyIap, createProtocolIap} from './native-protocol';
+import {
+  createLegacyIap,
+  createNormalizedIap,
+  createProtocolIap,
+} from './native-protocol';
 import type {RnIapProtocol} from '../specs/RnIapProtocol.nitro';
 import type {RnIap} from '../specs/RnIap.nitro';
 import {getVegaIapModule as getVegaAdapter, isVegaOS} from '../vega';
@@ -44,7 +48,7 @@ export function getNativeIapInstance(): RnIap {
         'Amazon Vega IAP module is unavailable. Install @amazon-devices/keplerscript-appstore-iap-lib in the Vega app target and build with the React Native for Vega kepler platform.',
       );
     }
-    iapRef = createLegacyIap(vegaModule);
+    iapRef = createNormalizedIap(vegaModule);
     return iapRef;
   }
 

@@ -1,5 +1,16 @@
 import {getNativeIapInstance} from '../utils/native-instance';
 import {ErrorCode} from '../types';
+import {parseNativePurchaseError} from '../utils/legacy-native-error';
+
+jest.mock('../utils/legacy-native-error', () => {
+  const actual = jest.requireActual<
+    typeof import('../utils/legacy-native-error')
+  >('../utils/legacy-native-error');
+  return {
+    ...actual,
+    parseNativePurchaseError: jest.fn(actual.parseNativePurchaseError),
+  };
+});
 
 const mockVega = {getAvailablePurchases: jest.fn()};
 jest.mock('../vega', () => ({
@@ -28,4 +39,5 @@ it('retains Vega error normalization when the old-native fallback is retired', a
     ...payload,
     name: '[react-native-iap]: PurchaseError',
   });
+  expect(parseNativePurchaseError).not.toHaveBeenCalled();
 });

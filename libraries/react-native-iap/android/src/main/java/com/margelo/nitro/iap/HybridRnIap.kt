@@ -85,19 +85,12 @@ internal fun mapSubResponseCode(
 }
 
 /** Sends only PurchaseError JSON through fbjni while retaining the native cause. */
-class OpenIapException private constructor(
-    private val errorJson: String?,
-    internal val purchaseError: OpenIapPurchaseError?,
-    cause: Throwable?,
+class OpenIapException internal constructor(
+    internal val purchaseError: OpenIapPurchaseError,
+    cause: Throwable? = null,
 ) : Exception(cause) {
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    constructor(errorJson: String, cause: Throwable? = null) : this(errorJson, null, cause)
-
-    internal constructor(error: OpenIapPurchaseError, cause: Throwable? = null) : this(
-        null, error, cause,
-    )
     override val message: String
-        get() = errorJson ?: serializePurchaseError(checkNotNull(purchaseError))
+        get() = serializePurchaseError(purchaseError)
 
     override fun toString(): String = message
 
@@ -218,17 +211,9 @@ internal fun toPurchaseError(
 
 private fun serializePurchaseError(error: OpenIapPurchaseError): String = try {
     JSONObject(error.toJson().filter { (key, value) -> key != "__typename" && value != null }).toString()
-        ?: "${error.code.rawValue}: ${error.message}"
 } catch (_: Exception) {
     "${error.code.rawValue}: ${error.message}"
 }
-
-internal fun toErrorJson(
-    error: OpenIapError,
-    productId: String? = null,
-    debugMessage: String? = null,
-    messageOverride: String? = null,
-): String = serializePurchaseError(toPurchaseError(error, productId, debugMessage, messageOverride))
 
 /** openiap-google refuses a rebuild during a purchase and keeps the live client. */
 internal fun isRefusedRebuild(error: Throwable): Boolean =
@@ -2490,37 +2475,18 @@ class HybridRnIap : HybridRnIapSpec() {
         debugMessage: String? = null,
         messageOverride: String? = null
     ): NitroPurchaseResult {
-        val code = OpenIapError.Companion.toCode(error)
-        val message = messageOverride?.takeIf { it.isNotBlank() }
-            ?: error.message.takeIf { it.isNotBlank() }
-            ?: OpenIapError.Companion.defaultMessage(code)
-        val diagnostics = error.toJSON()
-        val responseCode = (diagnostics["responseCode"] as? Number)?.toDouble()
-        val diagnosticMessage = diagnostics["debugMessage"] as? String
-        val diagnosticProductId = productId
-            ?: diagnostics["productId"] as? String
-            ?: when (error) {
-                is OpenIapError.ProductNotFound -> error.productId
-                is OpenIapError.SkuNotFound -> error.sku
-                else -> null
-            }
-        val productIds = (diagnostics["productIds"] as? Iterable<*>)
-            ?.filterIsInstance<String>()
-            ?.toTypedArray()
-        val subResponseCode = (diagnostics["subResponseCodeAndroid"] as? String)?.let {
-            runCatching { OpenIapSubResponseCodeAndroid.fromJson(it) }.getOrNull()
-        }
+        val purchaseError = toPurchaseError(error, productId, debugMessage, messageOverride)
         return NitroPurchaseResult(
-            responseCode = responseCode ?: -1.0,
-            debugMessage = debugMessage ?: diagnosticMessage ?: error.message,
-            code = code,
-            message = message,
+            responseCode = purchaseError.responseCode?.toDouble() ?: -1.0,
+            debugMessage = purchaseError.debugMessage,
+            code = purchaseError.code.rawValue,
+            message = purchaseError.message,
             purchaseToken = null,
-            productId = diagnosticProductId,
-            productIds = productIds,
-            productType = diagnostics["productType"] as? String,
-            isEmptyProductList = diagnostics["isEmptyProductList"] as? Boolean,
-            subResponseCodeAndroid = mapSubResponseCode(subResponseCode)
+            productId = purchaseError.productId,
+            productIds = purchaseError.productIds?.toTypedArray(),
+            productType = purchaseError.productType,
+            isEmptyProductList = purchaseError.isEmptyProductList,
+            subResponseCodeAndroid = mapSubResponseCode(purchaseError.subResponseCodeAndroid)
         )
     }
 }

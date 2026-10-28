@@ -305,7 +305,7 @@ const scheduledRemovals = [
       ],
       [
         'legacy native error strings',
-        'Rebuild iOS and Android apps with the upgraded SDK before updating JavaScript; the older-binary fallback is removed in 18.0.0. Preserve Vega error normalization with a structured replacement for the removed wrapper',
+        'Rebuild iOS and Android apps with the upgraded SDK before updating JavaScript; the older-binary fallback is removed in 18.0.0',
       ],
       [
         'NitroProduct.originalPriceAndroid, originalPriceAmountMicrosAndroid, introductoryPriceValueAndroid, introductoryPriceCyclesAndroid, introductoryPricePeriodAndroid, subscriptionPeriodAndroid, freeTrialPeriodAndroid',
