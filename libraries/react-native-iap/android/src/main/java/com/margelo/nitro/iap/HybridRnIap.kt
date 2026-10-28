@@ -1,6 +1,5 @@
 package com.margelo.nitro.iap
 
-import androidx.annotation.VisibleForTesting
 import android.content.Context
 import com.facebook.react.bridge.ReactApplicationContext
 import com.margelo.nitro.NitroModules
