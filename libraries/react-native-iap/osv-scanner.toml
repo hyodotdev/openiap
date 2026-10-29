@@ -2,3 +2,8 @@
 id = "GHSA-86w9-cpqp-85rv"
 ignoreUntil = 2026-12-15
 reason = "No patched node-forge release exists; 1.4.0 is npm latest and still affected. Reached only via @expo/cli and @expo/code-signing-certificates for development certificate tooling; it is excluded from the published SDK runtime. Development certificate verification remains affected: https://github.com/advisories/GHSA-86w9-cpqp-85rv."
+
+[[IgnoredVulns]]
+id = "GHSA-gcqx-w48m-w2h4"
+ignoreUntil = 2026-11-04
+reason = "No patched deepmerge release exists. This lock reaches it only through Jest, Expo configuration, or React Native/Kepler CLI configuration used for trusted local builds and tests; mobile entry points and the published SDK runtime do not import those tools. Do not load untrusted project configuration. Revisit the upstream fix before expiry: https://github.com/advisories/GHSA-gcqx-w48m-w2h4."
