@@ -17,3 +17,8 @@ reason = "decode-uri-component 0.5.0 is the only patched release and is ESM-only
 id = "GHSA-w3rx-r6r6-pgpr"
 ignoreUntil = 2026-12-15
 reason = "image-size reaches this lock only through the nested Metro 0.76.9 under the stale @react-native-community/cli 11.4.1 and @react-native/metro-config 0.72.12 peer resolutions; re-resolving them drops it. Metro uses it only during trusted local builds."
+
+[[IgnoredVulns]]
+id = "GHSA-gcqx-w48m-w2h4"
+ignoreUntil = 2026-11-04
+reason = "No patched deepmerge release exists. This lock reaches it only through Jest, Expo configuration, or React Native/Kepler CLI configuration used for trusted local builds and tests; mobile entry points and the published SDK runtime do not import those tools. Do not load untrusted project configuration. Revisit the upstream fix before expiry: https://github.com/advisories/GHSA-gcqx-w48m-w2h4."

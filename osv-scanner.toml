@@ -1,0 +1,4 @@
+[[IgnoredVulns]]
+id = "GHSA-gcqx-w48m-w2h4"
+ignoreUntil = 2026-11-04
+reason = "No patched deepmerge release exists. The root lock reaches it through Resend -> @react-email/render -> html-to-text. ResendOTP sends server-built HTML, not a react payload or caller-supplied rendering options, so it does not enter that object-merge path. Do not pass untrusted objects to these rendering options. Revisit the upstream fix before expiry: https://github.com/advisories/GHSA-gcqx-w48m-w2h4."
