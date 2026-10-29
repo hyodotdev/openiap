@@ -126,7 +126,7 @@ jobs:
           persist-credentials: false
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           languages: ${{ matrix.language }}
           build-mode: none
@@ -134,7 +134,7 @@ jobs:
           config-file: ./.github/codeql/codeql-config.yml
 
       - name: Analyze
-        uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           category: /language:${{ matrix.language }}
 
@@ -163,7 +163,7 @@ jobs:
           cache-read-only: true
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           languages: java-kotlin
           build-mode: manual
@@ -194,7 +194,7 @@ jobs:
             :library:compileAmazonDebugKotlinAndroid
 
       - name: Analyze
-        uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           category: /language:java-kotlin
 
@@ -248,7 +248,7 @@ jobs:
           cache-sdk: true
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           languages: java-kotlin
           build-mode: manual
@@ -314,7 +314,7 @@ jobs:
             :openiap:assembleRelease -PopeniapCompileStore=play
 
       - name: Analyze
-        uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           category: /language:java-kotlin/component:${{ matrix.component }}
 
@@ -343,7 +343,7 @@ jobs:
         run: swift test
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           languages: swift
           build-mode: manual
@@ -358,7 +358,7 @@ jobs:
           swift build --build-tests
 
       - name: Analyze
-        uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           category: /language:swift
 
@@ -428,7 +428,7 @@ jobs:
           swift test
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           languages: swift
           build-mode: manual
@@ -513,6 +513,6 @@ jobs:
           swift build --build-tests
 
       - name: Analyze
-        uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           category: /language:swift/component:${{ matrix.component }}
