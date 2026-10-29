@@ -7,10 +7,18 @@ import 'purchase_flow.dart';
 
 /// Amazon options for [IapkitConfirmationOptions].
 final class IapkitAmazonOptions {
-  const IapkitAmazonOptions({this.sandbox = false, this.verifiedProductId});
+  const IapkitAmazonOptions({
+    this.sandbox = false,
+    this.verifiedProductId,
+    this.expectedEnvironment,
+  });
 
   /// Verify App Tester receipts with the Amazon RVS Cloud Sandbox.
   final bool sandbox;
+
+  /// Expected verdict environment; defaults to Sandbox with sandbox,
+  /// otherwise Production.
+  final String? expectedEnvironment;
 
   /// RVS reports a subscription term under its parent SKU; maps one to the
   /// other.
@@ -171,6 +179,9 @@ VerifyPurchaseWithProviderProps toIapkitVerificationProps(
   final userIdAmazon =
       purchase is PurchaseAndroid ? purchase.userIdAmazon : null;
   final store = _verifyingStore(purchase, options.verifyAs);
+  if (store == IapStore.Amazon) {
+    _amazonExpectedEnvironment(options.amazon);
+  }
   if (store == IapStore.Unknown) {
     throw PurchaseError(
       code: ErrorCode.FeatureNotSupported,
@@ -301,6 +312,24 @@ IapStore _verifyingStore(
 String _amazonProductId(Purchase purchase, IapkitAmazonOptions? amazon) =>
     amazon?.verifiedProductId?.call(purchase.productId) ?? purchase.productId;
 
+String _amazonExpectedEnvironment(IapkitAmazonOptions? amazon) {
+  final expected = amazon?.expectedEnvironment ??
+      (amazon?.sandbox == true ? 'Sandbox' : 'Production');
+  if (expected != 'Sandbox' && expected != 'Production') {
+    throw PurchaseError(
+      code: ErrorCode.DeveloperError,
+      message: 'Amazon expectedEnvironment must be Sandbox or Production',
+    );
+  }
+  if (amazon?.sandbox == true && expected == 'Production') {
+    throw PurchaseError(
+      code: ErrorCode.DeveloperError,
+      message: 'Amazon Cloud Sandbox requires expectedEnvironment Sandbox',
+    );
+  }
+  return expected;
+}
+
 String? _environmentMismatch(
   String? environment,
   IapStore store,
@@ -308,7 +337,7 @@ String? _environmentMismatch(
   IapkitAmazonOptions? amazon,
 ) {
   final expected = switch (store) {
-    IapStore.Amazon => amazon?.sandbox == true ? 'Sandbox' : 'Production',
+    IapStore.Amazon => _amazonExpectedEnvironment(amazon),
     IapStore.Apple => purchase is PurchaseIOS ? purchase.environmentIOS : null,
     _ => null,
   };

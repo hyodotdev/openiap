@@ -62,6 +62,14 @@ class IapConstants {
 
   static const amazonSubscriptionBaseId = 'dev.hyo.martie.premium.base';
 
+  /// Set Sandbox for LAT; unset keeps the adapter's routing-based default.
+  static String? get amazonExpectedEnvironment =>
+      const bool.hasEnvironment('AMAZON_EXPECTED_ENVIRONMENT')
+          ? const String.fromEnvironment('AMAZON_EXPECTED_ENVIRONMENT')
+          : dotenv.isInitialized
+              ? dotenv.env['AMAZON_EXPECTED_ENVIRONMENT']
+              : null;
+
   /// Amazon lists a restored term under its base SKU and the term as its plan.
   static String? subscriptionProductId(
     String productId,

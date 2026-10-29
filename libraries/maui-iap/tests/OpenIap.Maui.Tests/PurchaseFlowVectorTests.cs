@@ -84,6 +84,7 @@ public class PurchaseFlowVectorTests
                 ? new IapkitAmazonOptions
                 {
                     Sandbox = (bool)amazon["sandbox"]!,
+                    ExpectedEnvironment = (string?)amazon["expectedEnvironment"],
                     VerifiedProductId = id => (string?)productIds?[id] ?? id,
                 }
                 : null,

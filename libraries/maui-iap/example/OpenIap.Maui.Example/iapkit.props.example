@@ -8,5 +8,9 @@
     <IapkitBaseUrl></IapkitBaseUrl>
     <!-- true only for Amazon App Tester receipts. -->
     <AmazonRvsSandbox>false</AmazonRvsSandbox>
+    <!-- LAT uses real RVS: leave sandbox false; uncomment only for test builds.
+         Remove for production builds; the default expectation is Production.
+    <AmazonExpectedEnvironment>Sandbox</AmazonExpectedEnvironment>
+    -->
   </PropertyGroup>
 </Project>

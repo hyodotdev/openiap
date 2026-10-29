@@ -39,6 +39,7 @@
     <AssemblyMetadata Include="IapkitApiKey" Value="$(IapkitApiKey)" Condition="'$(IapkitApiKey)' != ''" />
     <AssemblyMetadata Include="IapkitBaseUrl" Value="$(IapkitBaseUrl)" Condition="'$(IapkitBaseUrl)' != ''" />
     <AssemblyMetadata Include="AmazonRvsSandbox" Value="$(AmazonRvsSandbox)" Condition="'$(AmazonRvsSandbox)' != ''" />
+    <AssemblyMetadata Include="AmazonExpectedEnvironment" Value="$(AmazonExpectedEnvironment)" Condition="'$(AmazonExpectedEnvironment)' != ''" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-android' or '$(TargetFramework)' == 'net10.0-ios' or '$(TargetFramework)' == 'net10.0-maccatalyst'">

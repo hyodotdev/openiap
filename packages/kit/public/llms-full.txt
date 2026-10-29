@@ -124,6 +124,13 @@ production shared secret to the sandbox endpoint. Handled Amazon results add
 `environment: "Sandbox" | "Production"`. An `expectedProductId` mismatch is a
 caller-scoped rejection and does not overwrite the store-verified purchase row.
 
+LAT uses real RVS (`sandbox: false`) but valid test evidence reports `Sandbox`.
+In SDK purchase flows set `amazon.expectedEnvironment: "Sandbox"` for that
+test build; omit it for production. This adapter-only expectation never goes
+on the wire or changes routing. Missing or mismatched final environments fail
+without granting or finishing. Cloud Sandbox with a Production expectation is
+invalid. GDScript names the option `expected_environment`.
+
 Active Amazon purchase rows become due for rechecking after 48 hours. That is a
 scheduling cadence, not a completion guarantee: the bounded worker handles at
 most 20 rows per five-minute tick (5,760/day, or 17,280 over 72 hours before

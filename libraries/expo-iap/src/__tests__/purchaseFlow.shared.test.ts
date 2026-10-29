@@ -43,7 +43,11 @@ const vectors: {
     isConsumable: boolean;
     apiKey?: string | null;
     baseUrl?: string;
-    amazon?: {sandbox: boolean; verifiedProductIds: Record<string, string>};
+    amazon?: {
+      sandbox: boolean;
+      expectedEnvironment?: unknown;
+      verifiedProductIds: Record<string, string>;
+    };
     verifyAs?: Record<string, 'apple' | 'google' | 'amazon' | 'horizon'>;
     noGrant?: true;
     props: IapkitVerificationProps | null;
@@ -156,6 +160,12 @@ describe('shared vectors', () => {
         verifyAs: (p: PurchaseFlowPurchase) => stores[p.storeId ?? ''],
         ...(vector.noGrant ? {} : {grant}),
       };
+      if (amazon && options.amazon && 'expectedEnvironment' in amazon) {
+        // Runtime-invalid fixture values must reach the adapter unchanged.
+        Object.assign(options.amazon, {
+          expectedEnvironment: amazon.expectedEnvironment,
+        });
+      }
       const verify = jest.fn(
         async (_props: IapkitVerificationProps) => vector.result ?? {},
       );

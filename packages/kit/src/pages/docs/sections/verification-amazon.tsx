@@ -85,10 +85,16 @@ export default function VerificationAmazonPage() {
       <p>
         Omit <code>sandbox</code> for production and Live App Testing (LAT). LAT
         uses the real shared secret and production RVS endpoint; verified
-        beta/test evidence still returns <code>Sandbox</code>.{" "}
-        <code>userId</code> is capped at 512 characters, <code>receiptId</code>{" "}
-        at 4 KiB, and the optional <code>expectedProductId</code> at 256
-        characters.
+        beta/test evidence still returns <code>Sandbox</code>. With the SDK
+        purchase flow, set{" "}
+        <code>amazon.expectedEnvironment: &apos;Sandbox&apos;</code> in the LAT
+        build and remove it for production. See the{" "}
+        <Link to="/docs/purchase-flow" className="text-primary underline">
+          purchase flow guide
+        </Link>
+        . <code>userId</code> is capped at 512 characters,{" "}
+        <code>receiptId</code> at 4 KiB, and the optional{" "}
+        <code>expectedProductId</code> at 256 characters.
       </p>
       <CodeBlock title="200 OK" language="json">
         {`{

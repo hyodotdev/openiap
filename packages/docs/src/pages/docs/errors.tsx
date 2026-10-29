@@ -28,7 +28,7 @@ function Errors() {
           React Native IAP rejects with an <code>Error</code> carrying these
           structured fields. Read <code>error.code</code> and the diagnostic
           properties directly; <code>error.message</code> is human-readable
-          text. Rebuild the native app after upgrading to 17.2.3 to enable
+          text. Rebuild the native app after upgrading to 17.3.0 to enable
           structured error transport. Older native binaries use the
           compatibility decoder through 17.x. The string parser{' '}
           <code>parseErrorStringToJsonObj</code> and cancellation detection from

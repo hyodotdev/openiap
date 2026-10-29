@@ -14,6 +14,8 @@ export const loadVegaBuildEnvironment = ({
 
   return {
     amazonRvsSandbox: systemEnv.EXPO_PUBLIC_AMAZON_RVS_SANDBOX ?? '',
+    amazonExpectedEnvironment:
+      systemEnv.EXPO_PUBLIC_AMAZON_EXPECTED_ENVIRONMENT,
     iapkitApiKey: systemEnv.EXPO_PUBLIC_IAPKIT_API_KEY ?? '',
     iapkitBaseUrl: systemEnv.EXPO_PUBLIC_IAPKIT_BASE_URL ?? '',
   };

@@ -28,6 +28,7 @@ test('loads Expo public IAPKit values from the normal environment file chain', (
       path.join(projectRoot, '.env.local'),
       [
         'EXPO_PUBLIC_AMAZON_RVS_SANDBOX=true',
+        'EXPO_PUBLIC_AMAZON_EXPECTED_ENVIRONMENT=Sandbox',
         'EXPO_PUBLIC_IAPKIT_API_KEY=local-key',
         'EXPO_PUBLIC_IAPKIT_BASE_URL=http://local.example',
         '',
@@ -43,6 +44,7 @@ test('loads Expo public IAPKit values from the normal environment file chain', (
 
     assert.deepEqual(result, {
       amazonRvsSandbox: 'true',
+      amazonExpectedEnvironment: 'Sandbox',
       iapkitApiKey: 'local-key',
       iapkitBaseUrl: 'http://local.example',
     });
@@ -69,6 +71,7 @@ test('keeps explicitly exported values ahead of environment files', () => {
 
     const systemEnv = {
       EXPO_PUBLIC_AMAZON_RVS_SANDBOX: 'true',
+      EXPO_PUBLIC_AMAZON_EXPECTED_ENVIRONMENT: '',
       EXPO_PUBLIC_IAPKIT_API_KEY: 'exported-key',
       EXPO_PUBLIC_IAPKIT_BASE_URL: 'http://exported.example',
     };
@@ -80,6 +83,7 @@ test('keeps explicitly exported values ahead of environment files', () => {
 
     assert.deepEqual(result, {
       amazonRvsSandbox: 'true',
+      amazonExpectedEnvironment: '',
       iapkitApiKey: 'exported-key',
       iapkitBaseUrl: 'http://exported.example',
     });

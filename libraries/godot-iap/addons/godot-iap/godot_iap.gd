@@ -1572,8 +1572,11 @@ func create_purchase_flow(options: Dictionary) -> PurchaseFlow:
 ## pass it as [code]confirm_with_backend[/code].
 ## [param options]: [code]api_key[/code], a publishable key, safe to ship;
 ## [code]base_url[/code], a self-hosted or local IAPKit origin;
-## [code]amazon: {sandbox, verified_product_id(product_id)}[/code], the RVS
-## Cloud Sandbox and the parent SKU RVS reports a subscription term under;
+## [code]amazon: {sandbox, expected_environment, verified_product_id(product_id)}[/code]:
+## [code]sandbox[/code] selects RVS Cloud Sandbox; [code]expected_environment[/code]
+## is exactly [code]"Sandbox"[/code] or [code]"Production"[/code]. LAT uses false
+## with "Sandbox"; null keeps the routing-based default. The product mapper
+## returns the parent SKU RVS reports a subscription term under;
 ## [code]verify_as(purchase)[/code], the IAPKit store that verifies a community
 ## store's evidence; [code]grant(purchase, is_consumable)[/code], which gives the
 ## user what they bought before the flow finishes (and so consumes) it, then

@@ -443,6 +443,18 @@ const flow = createPurchaseFlow({
           <code>'Production'</code> in <code>environment</code>; require the
           value expected by the build.
         </p>
+        <p>
+          Amazon Live App Testing (LAT) uses real RVS with{' '}
+          <code>sandbox: false</code>, but a valid test receipt reports{' '}
+          <code>Sandbox</code>. With <code>confirmWithIapkit</code>, set{' '}
+          <code>amazon.expectedEnvironment: &apos;Sandbox&apos;</code> in the
+          LAT build. Leave it unset for production. This option checks the
+          returned verdict; it never changes the RVS endpoint or travels in the
+          verification request. Rebuild without the Sandbox setting before
+          submitting to production; promoting the LAT binary unchanged would
+          reject real purchases after payment. Missing or mismatched final
+          environments do not grant access or finish the purchase.
+        </p>
         <LanguageTabs>
           {{
             typescript: (

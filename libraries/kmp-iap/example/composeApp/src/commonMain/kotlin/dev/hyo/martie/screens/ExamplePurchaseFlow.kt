@@ -125,6 +125,7 @@ internal object ExamplePurchaseFlow {
             baseUrl = baseUrl,
             amazon = IapkitConfirmationOptions.Amazon(
                 sandbox = AppConfig.amazonRvsSandbox,
+                expectedEnvironment = AppConfig.amazonExpectedEnvironment,
                 verifiedProductId = ::amazonVerifiedProductId,
             ),
             verifyAs = { if (it.storeId == AmazonExampleStoreId) IapStore.Amazon else null },

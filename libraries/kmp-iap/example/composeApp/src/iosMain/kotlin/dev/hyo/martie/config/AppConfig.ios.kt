@@ -25,4 +25,8 @@ actual object AppConfig {
 
     actual val amazonRvsSandbox: Boolean
         get() = readSetting("AMAZON_RVS_SANDBOX").equals("true", ignoreCase = true)
+
+    actual val amazonExpectedEnvironment: String?
+        get() = NSBundle.mainBundle.objectForInfoDictionaryKey("AMAZON_EXPECTED_ENVIRONMENT") as? String
+            ?: NSProcessInfo.processInfo.environment["AMAZON_EXPECTED_ENVIRONMENT"] as? String
 }

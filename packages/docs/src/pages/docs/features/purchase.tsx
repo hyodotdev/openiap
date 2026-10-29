@@ -872,6 +872,16 @@ async Task<bool> VerifyOnServerAsync(Purchase purchase)
           <code>'Production'</code> in <code>environment</code>; require the
           value expected by the build.
         </p>
+        <p>
+          LAT test receipts use real RVS (<code>sandbox: false</code>) and
+          report <code>Sandbox</code>. In a LAT build, configure the expected
+          verdict separately. The purchase-flow adapter accepts{' '}
+          <code>amazon.expectedEnvironment: &apos;Sandbox&apos;</code>; raw
+          callers must perform the same check, as below. Remove that test
+          setting when building for production. A failed RVS lookup can still
+          report <code>Production</code>; do not relabel it as a sandbox success
+          or finish that unresolved purchase.
+        </p>
 
         <Callout kind="note" title="Get a project key">
           Sign up at{' '}
@@ -894,12 +904,15 @@ async Task<bool> VerifyOnServerAsync(Purchase purchase)
           {{
             typescript: (
               <CodeBlock language="typescript">{`// expo-iap
-import { verifyPurchaseWithProvider, type Purchase } from 'expo-iap';
+import { verifyPurchaseWithProvider, type Purchase, type VerifyPurchaseWithProviderResult } from 'expo-iap';
 // Same API in react-native-iap:
-// import { verifyPurchaseWithProvider, type Purchase } from 'react-native-iap';
+// import { verifyPurchaseWithProvider, type Purchase, type VerifyPurchaseWithProviderResult } from 'react-native-iap';
 
 const amazonSandbox =
   process.env.EXPO_PUBLIC_AMAZON_RVS_SANDBOX === 'true';
+const amazonExpectedEnvironment =
+  process.env.EXPO_PUBLIC_AMAZON_EXPECTED_ENVIRONMENT ??
+  (amazonSandbox ? 'Sandbox' : 'Production');
 
 // purchase.store names the store that sold it, so a build that follows the
 // connected device needs no store flag here.
@@ -910,6 +923,10 @@ const iapkitPayloadFor = (purchase: Purchase) => {
     case 'apple':
       return { apple: { jws: token } };
     case 'amazon': // Fire OS and Vega OS
+      if (
+        !['Sandbox', 'Production'].includes(amazonExpectedEnvironment) ||
+        (amazonSandbox && amazonExpectedEnvironment === 'Production')
+      ) throw new Error('Invalid Amazon verification environment');
       return {
         amazon: {
           expectedProductId: purchase.productId,
@@ -924,6 +941,18 @@ const iapkitPayloadFor = (purchase: Purchase) => {
   }
 };
 
+const hasExpectedEvidence = (
+  verified: VerifyPurchaseWithProviderResult['iapkit'],
+  purchase: Purchase,
+) =>
+  verified?.isValid === true &&
+  verified.store === purchase.store &&
+  (!purchase.storeId || verified.storeId === purchase.storeId) &&
+  verified.productId != null &&
+  verified.productId === purchase.productId &&
+  (purchase.store !== 'amazon' ||
+    verified.environment === amazonExpectedEnvironment);
+
 const verifyWithIapkit = async (purchase: Purchase) => {
   const result = await verifyPurchaseWithProvider({
     provider: 'iapkit',
@@ -936,17 +965,8 @@ const verifyWithIapkit = async (purchase: Purchase) => {
   });
 
   const verified = result.iapkit;
-  const verifiedProductId = verified?.productId;
-  const hasExpectedEnvironment =
-    verified?.store !== 'amazon' ||
-    verified?.environment === (amazonSandbox ? 'Sandbox' : 'Production');
-  if (
-    verified?.isValid === true &&
-    hasExpectedEnvironment &&
-    verifiedProductId != null &&
-    verifiedProductId === purchase.productId
-  ) {
-    console.log('IAPKit verified:', verified.state);
+  if (hasExpectedEvidence(verified, purchase)) {
+    console.log('IAPKit verified:', verified?.state);
     return true;
   }
 
@@ -969,14 +989,7 @@ function PurchaseScreen() {
           },
         });
         const verified = result.iapkit;
-        if (
-          verified?.isValid !== true ||
-          (verified.store === 'amazon' &&
-            verified.environment !==
-              (amazonSandbox ? 'Sandbox' : 'Production')) ||
-          verified.productId == null ||
-          verified.productId !== purchase.productId
-        ) {
+        if (!hasExpectedEvidence(verified, purchase)) {
           console.error('IAPKit verification failed');
         }
       })().catch((error) => console.warn('IAPKit verification failed:', error));

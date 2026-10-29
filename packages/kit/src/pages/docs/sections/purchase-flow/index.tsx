@@ -255,6 +255,19 @@ const flow = createPurchaseFlow({
         <code>amazon.verifiedProductId</code> to map one to the other, and{" "}
         <code>amazon.sandbox</code> for App Tester receipts.
       </p>
+      <p>
+        For Amazon Live App Testing (LAT), keep{" "}
+        <code>amazon.sandbox: false</code> and set{" "}
+        <code>amazon.expectedEnvironment: &apos;Sandbox&apos;</code>. LAT uses
+        real RVS but returns a sandbox verdict. The option checks that verdict;
+        it does not change the endpoint or add a request field. Unset it in
+        production builds, whose default expectation remains{" "}
+        <code>Production</code>. Rebuild before submitting to production:
+        promoting the LAT binary unchanged would reject real purchases after
+        payment. Missing or mismatched final environments stay failed and
+        unfinished. App Tester&apos;s Cloud Sandbox cannot be combined with a{" "}
+        <code>Production</code> expectation.
+      </p>
 
       <h2 className="mt-10 text-2xl font-semibold">States</h2>
       <div className="my-4 overflow-x-auto rounded-lg border border-border">

@@ -23,6 +23,8 @@ export interface IapkitConfirmationOptions<
   amazon?: {
     /** Verify App Tester receipts with the Amazon RVS Cloud Sandbox. */
     sandbox?: boolean;
+    /** Expected verdict environment; defaults to Sandbox with sandbox, otherwise Production. */
+    expectedEnvironment?: "Sandbox" | "Production";
     /** RVS reports a subscription term under its parent SKU; maps one to the other. */
     verifiedProductId?: (productId: string) => string;
   };
@@ -193,6 +195,7 @@ export function toIapkitVerificationProps<P extends PurchaseFlowPurchase>(
         iapkit: { ...base, google: { purchaseToken: token() } },
       };
     case "amazon":
+      amazonExpectedEnvironment(options.amazon);
       return {
         provider: "iapkit",
         iapkit: {
@@ -302,6 +305,22 @@ function amazonProductId(
   );
 }
 
+function amazonExpectedEnvironment(
+  amazon: IapkitConfirmationOptions["amazon"],
+): "Sandbox" | "Production" {
+  const expected =
+    amazon?.expectedEnvironment ?? (amazon?.sandbox ? "Sandbox" : "Production");
+  if (expected !== "Sandbox" && expected !== "Production") {
+    throw new Error("Amazon expectedEnvironment must be Sandbox or Production");
+  }
+  if (amazon?.sandbox && expected === "Production") {
+    throw new Error(
+      "Amazon Cloud Sandbox requires expectedEnvironment Sandbox",
+    );
+  }
+  return expected;
+}
+
 function environmentMismatch(
   environment: string | null | undefined,
   store: string,
@@ -310,9 +329,7 @@ function environmentMismatch(
 ): string | null {
   const expected =
     store === "amazon"
-      ? options.amazon?.sandbox
-        ? "Sandbox"
-        : "Production"
+      ? amazonExpectedEnvironment(options.amazon)
       : store === "apple"
         ? purchase.environmentIOS
         : null;

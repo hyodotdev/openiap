@@ -28,11 +28,12 @@ Open `/iosApp/iosApp.xcodeproj` in Xcode and run the project.
 Copy `example/.env.example` to `example/.env` and fill in (the build also
 reads `libraries/kmp-iap/.env`, so either location works):
 
-| Key                  | Purpose                                                |
-| -------------------- | ------------------------------------------------------ |
-| `IAPKIT_API_KEY`     | `openiap-kit_pk_` publishable key, never an `sk_` key. |
-| `IAPKIT_BASE_URL`    | Origin of a local IAPKit server; empty uses the host.  |
-| `AMAZON_RVS_SANDBOX` | `true` for Amazon App Tester receipts.                 |
+| Key                           | Purpose                                                |
+| ----------------------------- | ------------------------------------------------------ |
+| `IAPKIT_API_KEY`              | `openiap-kit_pk_` publishable key, never an `sk_` key. |
+| `IAPKIT_BASE_URL`             | Origin of a local IAPKit server; empty uses the host.  |
+| `AMAZON_RVS_SANDBOX`          | `true` for Amazon App Tester receipts.                 |
+| `AMAZON_EXPECTED_ENVIRONMENT` | `Sandbox` for LAT with real RVS; omit for production.  |
 
 `IAPKIT_BASE_URL` is an origin, not the verify path. For **Local (IAPKit)** the
 key and the local server must target the same Convex deployment. An Android

@@ -101,7 +101,9 @@ func _run() -> void:
 	plugin._native_plugin = android
 	plugin._platform = "Android"
 	manager.verification_method = Config.Method.IAPKIT
-	var environment := "Sandbox" if Config.amazon_rvs_sandbox() else "Production"
+	var environment = Config.amazon_expected_environment()
+	if environment == null:
+		environment = "Sandbox" if Config.amazon_rvs_sandbox() else "Production"
 	for store_id in ["amazon", "amazon_example"]:
 		var receipt := _android_purchase("example-" + store_id, manager.PRODUCT_PREMIUM, store_id)
 		receipt["userIdAmazon"] = "fixture-user"

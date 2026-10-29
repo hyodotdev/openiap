@@ -7,3 +7,6 @@ api_key=""
 base_url=""
 ; true only for Amazon App Tester receipts, which verify against the RVS sandbox.
 amazon_rvs_sandbox=false
+; LAT uses real RVS: keep sandbox false and uncomment for the test build.
+; Remove for production builds; the default expectation is Production.
+; amazon_expected_environment="Sandbox"

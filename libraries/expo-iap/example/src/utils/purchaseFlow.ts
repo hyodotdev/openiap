@@ -13,6 +13,7 @@ import {CONSUMABLE_PRODUCT_IDS} from './constants';
 import {formatErrorForDisplay} from './errorUtils';
 import {
   getAmazonVerificationProductId,
+  getAmazonExpectedEnvironment,
   getConfiguredIapkitApiKey,
   getDefaultVerificationMethod,
   isAmazonRvsSandboxEnabled,
@@ -77,6 +78,7 @@ export function getReceiptPurchaseFlow(): PurchaseFlow<Purchase> {
             baseUrl: resolveIapkitVerificationBaseUrl(method),
             amazon: {
               sandbox: isAmazonRvsSandboxEnabled(),
+              expectedEnvironment: getAmazonExpectedEnvironment(),
               verifiedProductId: getAmazonVerificationProductId,
             },
             // The educational amazon_example provider carries Amazon receipts.
