@@ -108,7 +108,7 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('libraries/expo-iap/bun.lock') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('libraries/expo-iap/bun.lock', 'libraries/expo-iap/example/bun.lock') }}
           restore-keys: ${{ runner.os }}-bun-
 
       - name: Install dependencies
@@ -127,6 +127,14 @@ jobs:
 
       - name: Test plugin
         run: bun run test:plugin
+
+      - name: Install example dependencies
+        working-directory: libraries/expo-iap/example
+        run: bun install --frozen-lockfile
+
+      - name: Test example screens and URI decoding
+        working-directory: libraries/expo-iap/example
+        run: bun run test --runInBand
 
       - name: Consumer install smoke test
         run: bun run verify:consumer-install

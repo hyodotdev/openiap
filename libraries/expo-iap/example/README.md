@@ -6,17 +6,19 @@ This example app demonstrates the **expo-iap** library's best practice implement
 
 ```bash
 # Install dependencies
-npm install
+bun install --frozen-lockfile
 
 # Start the development server
-npm start
+bun start
 
 # Run on iOS
-npm run ios
+bun run ios
 
 # Run on Android
-npm run android
+bun run android
 ```
+
+Use Bun for this example. Its lockfile includes the URI decoder security fix and a compatibility patch for Expo Router's CommonJS dependency.
 
 ## Purchase Verification
 
