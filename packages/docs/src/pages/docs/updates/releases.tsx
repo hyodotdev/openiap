@@ -731,51 +731,78 @@ function Releases() {
             October 31, 2026 - iOS receipt recovery and error helper exports
           </AnchorLink>
           <p>
-            iOS leaves unfinished subscription receipts for your app to
-            reconcile. Event-based recovery can deliver verified purchases even
-            when another transaction fails verification. React Native and Expo
-            also expose the existing recoverable-error helper from their package
-            entry points.
+            iOS apps can recover unfinished receipts and, with opt-in event
+            recovery, verified purchases from a failed inventory query. React
+            Native and Expo also expose their existing recoverable-error helper.
           </p>
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>Apple and iOS frameworks</h5>
-          <p>
-            Expired, upgraded or revoked subscription transactions are no longer
-            finished automatically. Recover them with{' '}
-            <code>getPendingTransactionsIOS</code>, record your backend&apos;s
-            verdict, then finish them explicitly. A receipt or event alone does
-            not establish an active entitlement. See{' '}
-            <a href="https://github.com/hyodotdev/openiap/issues/572">#572</a>.
-          </p>
-          <p>
-            With <code>alsoPublishToEventListenerIOS: true</code>,{' '}
-            <code>getAvailablePurchases</code> continues past failed
-            verification and publishes each verified purchase. The query still
-            rejects when any entry fails; it never returns a successful partial
-            inventory. Default queries and return-only restore paths remain
-            strict. See{' '}
-            <Link to="/docs/apis/get-available-purchases#failure-semantics">
-              recovery and failure behavior
-            </Link>{' '}
-            and{' '}
-            <a href="https://github.com/hyodotdev/openiap/issues/573">#573</a>.
-          </p>
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>React Native and Expo</h5>
-          <p>
-            Import <code>isRecoverableError</code> directly from{' '}
-            <code>react-native-iap</code> or <code>expo-iap</code>, including
-            Vega entry points. The existing classifier and accepted inputs are
-            unchanged; the helper does not retry purchases automatically. See{' '}
-            <a href="https://github.com/hyodotdev/openiap/issues/563">#563</a>.
-          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Protocols and native packages
+          </h5>
+          <ul>
+            <li>
+              <strong>openiap-apple 4.0.7</strong>:
+              <ul>
+                <li>
+                  Preserves expired, upgraded and revoked subscription receipts
+                  for explicit app reconciliation (
+                  <a href="https://github.com/hyodotdev/openiap/issues/572">
+                    #572
+                  </a>
+                  ).
+                </li>
+                <li>
+                  <Link to="/docs/apis/get-available-purchases#failure-semantics">
+                    Opt-in event recovery
+                  </Link>{' '}
+                  publishes verified purchases while failed queries still
+                  reject; default and return-only restore paths remain strict (
+                  <a href="https://github.com/hyodotdev/openiap/issues/573">
+                    #573
+                  </a>
+                  ).
+                </li>
+              </ul>
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul>
+            <li>
+              <strong>react-native-iap 17.3.1 and expo-iap 6.4.1</strong>:
+              export the unchanged <code>isRecoverableError</code> classifier
+              from default and Vega entry points without automatic purchase
+              retries (
+              <a href="https://github.com/hyodotdev/openiap/issues/563">#563</a>
+              ).
+            </li>
+            <li>
+              <strong>kmp-iap 4.2.1 and OpenIap.Maui 3.2.1</strong>: add the{' '}
+              <a href="#amazon-lat-confirmation-2026-10-30">
+                Amazon LAT confirmation update
+              </a>{' '}
+              shipped in the other four SDKs on October 30.
+            </li>
+          </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
           <p>
             Rebuild iOS apps with the framework patches below to include Apple
-            4.0.7. Keep purchase handlers idempotent and never clear ownership
-            after a failed restore. KMP 4.2.1 and MAUI 3.2.1 also include the{' '}
-            <a href="#amazon-lat-confirmation-2026-10-30">
-              Amazon LAT confirmation update
-            </a>{' '}
-            from the previous train; they ship as patches.
+            4.0.7. Recover unfinished receipts with{' '}
+            <Link to="/docs/apis/ios/get-pending-transactions-ios">
+              <code>getPendingTransactionsIOS</code>
+            </Link>{' '}
+            and record your app&apos;s entitlement decision before finishing
+            them. A receipt or event alone does not establish active access.
+            Keep handlers idempotent and never clear ownership after a failed
+            restore.
+          </p>
+          <p>
+            With <code>confirmOnDeviceIOS</code>, inactive receipts produce a{' '}
+            <code>failed</code> purchase-flow result and remain unfinished.
+            Reconcile the verified receipt and finish it explicitly; do not
+            finish every failed verification. See the{' '}
+            <Link to="/docs/features/validation">
+              device-only cleanup guidance
+            </Link>
+            .
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
           <div

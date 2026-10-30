@@ -37,8 +37,12 @@ function GetPendingTransactionsIOS() {
       <p>
         Swift, Flutter, and Godot also run this query on macOS. Match the
         returned transaction ID, product, store identity, and known environment
-        to the receipt being handled. Reject revoked, upgraded, or expired
-        receipts before granting access or finishing a purchase.
+        to the receipt being handled. Revoked, upgraded or expired receipts must
+        not grant access. Once a verified matching receipt is reconciled as
+        inactive and that decision is recorded,{' '}
+        <Link to="/docs/apis/finish-transaction">finish it explicitly</Link> to
+        stop replaying it. Other verification failures must remain unfinished
+        until resolved; a failure alone is not a reason to finish a purchase.
       </p>
 
       <h2>Signature</h2>

@@ -168,9 +168,9 @@ func get_available_purchases_result(options = null) -> Dictionary
         individually verified purchases through{' '}
         <code>purchaseUpdatedListener</code> even when another transaction fails
         verification. Unverified transactions are never published, and the query
-        still rejects. Verify each delivered purchase on your backend before
-        granting access or finishing it. Keep the listener attached: callbacks
-        can arrive after the query rejects. The default option remains{' '}
+        still rejects. Reconcile each delivered purchase with your verifier
+        before granting access or finishing it. Keep the listener attached:
+        callbacks can arrive after the query rejects. The default option remains{' '}
         <code>false</code>.
       </p>
       <p>

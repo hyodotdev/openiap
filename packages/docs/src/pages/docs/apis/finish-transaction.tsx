@@ -227,9 +227,9 @@ await OpenIapClient.Mutation.FinishTransactionAsync(
       <p>
         OpenIAP leaves unfinished iOS subscription transactions for your app to
         reconcile, even after they expire or are upgraded or revoked. Record
-        your backend&apos;s verification result before finishing them. A pending
-        receipt or purchase event alone does not mean the subscription is still
-        active. Use{' '}
+        your app&apos;s entitlement decision before finishing them; if you use a
+        backend, persist its verdict first. A pending receipt or purchase event
+        alone does not mean the subscription is still active. Use{' '}
         <Link to="/docs/apis/ios/get-pending-transactions-ios">
           <code>getPendingTransactionsIOS</code>
         </Link>{' '}

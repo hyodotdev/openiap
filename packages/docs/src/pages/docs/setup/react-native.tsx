@@ -468,7 +468,9 @@ if (!ended) console.warn('Store teardown did not complete');`}
           <Link to="/docs/errors">
             <code>ErrorCode</code>
           </Link>{' '}
-          enum. Use the provided helper functions:
+          enum. The default SDK entry point exports the helper set below.{' '}
+          <code>isRecoverableError</code> is also available from the Vega entry
+          point.
         </p>
         <CodeBlock language="typescript">
           {`import {
@@ -488,8 +490,12 @@ if (isRecoverableError(error)) {
 Alert.alert('Error', getUserFriendlyErrorMessage(error));`}
         </CodeBlock>
         <p>
-          Use the helper to choose recovery for the failed operation. Check for
-          pending purchases before retrying a purchase request.
+          Use the helper to choose recovery for the failed operation. Before
+          another purchase request,{' '}
+          <Link to="/docs/errors#retry-strategy">
+            reconcile pending and completed or owned purchases
+          </Link>
+          .
         </p>
       </section>
 
