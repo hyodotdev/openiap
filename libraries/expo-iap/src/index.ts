@@ -1568,6 +1568,7 @@ export {
   createPurchaseError,
   createPurchaseErrorFromPlatform,
   getUserFriendlyErrorMessage,
+  isRecoverableError,
   isUserCancelledError,
 } from './utils/errorMapping';
 export type {

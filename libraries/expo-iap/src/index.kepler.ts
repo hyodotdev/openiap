@@ -32,6 +32,7 @@ import {decodeAndroidPurchases} from './utils/availablePurchases';
 import {createPurchaseError} from './utils/errorMapping';
 
 export * from './types';
+export {isRecoverableError} from './utils/errorMapping';
 export * from './vega';
 export * from './useIAP';
 export {kitApi, KitApiError, resolveLocalizedPayload} from './kit-api';
