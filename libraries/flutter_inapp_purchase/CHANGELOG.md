@@ -1,5 +1,11 @@
 # Changelog
 
+## 11.3.0 (2026-10-30)
+
+- fix: preserve native purchase errors and confirm Amazon LAT receipts (#570)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-11.3.0
+
+
 ## 11.2.0 (2026-10-25)
 
 - refactor: keep the purchase flow core vendor-neutral
