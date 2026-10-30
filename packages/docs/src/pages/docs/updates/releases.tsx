@@ -37,12 +37,28 @@ const IAPKIT_CLI_RELEASES: readonly ReleaseMetadata[] = [
   { name: '@hyodotdev/openiap', version: '0.3.0', tag: 'openiap-0.3.0' },
 ];
 
-const REACT_NATIVE_ERROR_RELEASES: readonly ReleaseMetadata[] = [
+const PURCHASE_ENVIRONMENT_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '1.3.1',
+    tag: 'openiap-client-protocol-1.3.1',
+  },
+  { name: 'openiap-apple', version: '4.0.6', tag: '4.0.6' },
+  { name: 'openiap-google', version: '4.0.7', tag: 'google-4.0.7' },
   {
     name: 'react-native-iap',
-    version: '17.2.3',
-    tag: 'react-native-iap-17.2.3',
+    version: '17.3.0',
+    tag: 'react-native-iap-17.3.0',
   },
+  { name: 'expo-iap', version: '6.4.0', tag: 'expo-iap-6.4.0' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '11.3.0',
+    tag: 'flutter-iap-11.3.0',
+  },
+  { name: 'godot-iap', version: '4.3.0', tag: 'godot-iap-4.3.0' },
+  { name: 'kmp-iap', version: '4.3.0', tag: 'kmp-iap-4.3.0' },
+  { name: 'OpenIap.Maui', version: '3.3.0', tag: 'maui-iap-3.3.0' },
 ];
 
 const REACT_NATIVE_EXPO_GO_RELEASES: readonly ReleaseMetadata[] = [
@@ -688,50 +704,84 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
-      id: 'react-native-errors-2026-10-26',
-      date: new Date('2026-10-26'),
+      id: 'amazon-lat-confirmation-2026-10-30',
+      date: new Date('2026-10-30'),
       element: (
-        <div key="react-native-errors-2026-10-26" style={noteCardStyle}>
+        <div key="amazon-lat-confirmation-2026-10-30" style={noteCardStyle}>
+          <span id="react-native-errors-2026-10-26" aria-hidden="true" />
           <span
             id="react-native-android-errors-2026-10-26"
             aria-hidden="true"
           />
-          {REACT_NATIVE_ERROR_RELEASES.map((release) => (
+          {PURCHASE_ENVIRONMENT_RELEASES.map((release) => (
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
-          <AnchorLink id="react-native-errors-2026-10-26" level="h4">
-            October 26, 2026 - Structured native purchase errors
+          <AnchorLink id="amazon-lat-confirmation-2026-10-30" level="h4">
+            October 30, 2026 - Amazon LAT verification and native errors
           </AnchorLink>
           <p>
-            react-native-iap 17.2.3 preserves native error codes and diagnostics
-            on iOS and Android across queries, purchases, transaction completion
-            and restore. Errors expose readable messages and structured fields;
-            iOS request failures no longer hide later errors for the same
-            product.
+            The six framework SDKs can confirm Amazon LAT receipts through real
+            RVS while accepting only Sandbox verdicts in a test build. React
+            Native also exposes structured native purchase errors across calls
+            and listeners.
           </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Protocols and native packages
+          </h5>
+          <ul>
+            <li>
+              <strong>Client Protocol 1.3.1</strong> adds Amazon verdict
+              expectations to the IAPKit helper and confirmation vectors; direct
+              helper and vector consumers need this release for the new cases.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul>
+            <li>
+              <strong>react-native-iap 17.3.0</strong> preserves native error
+              codes and diagnostics across queries, purchases, completion and
+              restore; iOS failures no longer hide later errors for the same
+              product.
+            </li>
+          </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
           <p>
-            Rebuild your native app to enable structured error transport. Read
-            error codes and diagnostics directly from their properties. Existing
-            Java prefixes, cause chains and NSError descriptions remain
-            supported for older native binaries through 17.x. The legacy string
+            In a LAT build, use{' '}
+            <code>amazon.expectedEnvironment: &apos;Sandbox&apos;</code> with{' '}
+            <code>amazon.sandbox: false</code>. Godot names the option{' '}
+            <code>expected_environment</code>. Rebuild without the Sandbox
+            setting before submitting to production: promoting the LAT binary
+            unchanged would reject real purchases after payment. See the{' '}
+            <Link to="/docs/features/validation">verification guide</Link>.
+          </p>
+          <p>
+            Rebuild React Native apps for structured error transport, then read
+            error codes and diagnostics directly from their properties. Older
+            native binaries remain supported through 17.x. The legacy string
             parser and cancellation detection from strings or code-less
-            Error.message are deprecated for removal in react-native-iap 18.0.0.
-            See{' '}
+            Error.message are deprecated for removal in 18.0.0. See{' '}
             <a href="https://github.com/hyodotdev/openiap/issues/569">#569</a>.
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
-          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
-            {REACT_NATIVE_ERROR_RELEASES.map((release) => (
-              <li key={release.tag}>
-                <a
-                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
-                >
-                  {getReleaseLabel(release)}
-                </a>
-              </li>
-            ))}
-          </ul>
+          <div
+            style={{
+              border: '1px solid var(--border-color)',
+              borderRadius: '0.5rem',
+              padding: '1rem',
+            }}
+          >
+            <ul style={{ marginBottom: 0, paddingLeft: '1.25rem' }}>
+              {PURCHASE_ENVIRONMENT_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  >
+                    {getReleaseLabel(release)}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       ),
     },
