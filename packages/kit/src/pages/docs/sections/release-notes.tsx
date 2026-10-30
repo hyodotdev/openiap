@@ -25,8 +25,8 @@ const RELEASES: ReleaseEntry[] = [
   {
     id: "week-2026-10-26",
     weekStart: "2026-10-26",
-    date: "2026-10-26",
-    pullRequests: [564, 571],
+    date: "2026-10-30",
+    pullRequests: [564, 571, 570],
     tagline: "Terminal access, scoped automation and safe catalog previews.",
     items: [
       {
@@ -43,6 +43,11 @@ const RELEASES: ReleaseEntry[] = [
         kind: "fix",
         topic: "Catalog sync",
         text: "Local catalog purge and Google Play pull previews leave local products unchanged. Applying changes requires explicit confirmation in the CLI. A sync that differs from the active job asks you to wait or cancel it instead of joining that job.",
+      },
+      {
+        kind: "security",
+        topic: "Runtime image",
+        text: "Updates the runtime image to Debian 13 with the OpenSSL fix for CVE-2026-84782. Self-hosted deployments should rebuild their image.",
       },
     ],
   },

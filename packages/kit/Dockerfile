@@ -76,7 +76,7 @@ RUN --mount=type=secret,id=VITE_KIT_MIXPANEL_TOKEN,required=false \
     bun run build:all
 
 # --- Runtime image (single binary + static assets) -----------------------
-FROM gcr.io/distroless/base-debian12:nonroot@sha256:7f0c72cd138b442ae0deeb69c08b1acf5525439ba251a49ad93c320a061567e5 AS runtime
+FROM gcr.io/distroless/base-debian13:nonroot@sha256:f9518b74815721f537a7458cc693b4406208c04fce23bbffab511516117f34fd AS runtime
 WORKDIR /srv
 
 ARG IAPKIT_REVISION=unknown

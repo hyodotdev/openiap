@@ -762,6 +762,14 @@ function Releases() {
             Error.message are deprecated for removal in 18.0.0. See{' '}
             <a href="https://github.com/hyodotdev/openiap/issues/569">#569</a>.
           </p>
+          <p>
+            IAPKit also updates its runtime image for an OpenSSL security fix.
+            Self-hosted deployments should rebuild; see the{' '}
+            <a href="https://kit.openiap.dev/docs/release-notes#week-2026-10-26">
+              hosted release notes
+            </a>
+            .
+          </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
           <div
             style={{
