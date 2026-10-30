@@ -24,6 +24,18 @@ function Errors() {
           All purchase errors follow a consistent structure for easy handling.
           The <code>PurchaseError</code> shape is defined below.
         </p>
+        <p>
+          React Native IAP rejects with an <code>Error</code> carrying these
+          structured fields. Read <code>error.code</code> and the diagnostic
+          properties directly; <code>error.message</code> is human-readable
+          text. Rebuild the native app after upgrading to 17.3.0 to enable
+          structured error transport. Older native binaries use the
+          compatibility decoder through 17.x. The string parser{' '}
+          <code>parseErrorStringToJsonObj</code> and cancellation detection from
+          strings or <code>Error.message</code> without a <code>code</code> are
+          deprecated and removed in react-native-iap 18.0.0. Pass structured
+          errors to <code>isUserCancelledError</code>; these remain supported.
+        </p>
         <LanguageTabs>
           {{
             typescript: (

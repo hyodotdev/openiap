@@ -47,6 +47,7 @@ func _run() -> void:
 		await _run_sequence_vector(vector)
 	for vector in vectors.device:
 		await _run_device_vector(vector)
+	await _test_amazon_environment_types()
 	await _test_confirm_timeout()
 	await _test_confirm_timeout_ignores_time_scale()
 	await _test_finish_results()
@@ -67,6 +68,23 @@ func _run() -> void:
 	await _test_flows_share_the_replay_setting()
 	print("Results: %d passed, %d failed" % [_passed, _failed])
 	quit(1 if _failed > 0 else 0)
+
+
+func _test_amazon_environment_types() -> void:
+	var calls := []
+	var verify := func(_props: Dictionary) -> Dictionary:
+		calls.append("verify")
+		return {}
+	var grant := func(_purchase: Dictionary, _consumable: bool) -> bool:
+		calls.append("grant")
+		return true
+	for environment in [false, 0, {}, ["Sandbox"], &"Sandbox"]:
+		var confirm := PurchaseConfirmers.create_iapkit_confirmation(verify, {
+			"amazon": {"expected_environment": environment}, "grant": grant,
+		})
+		var answer = await confirm.call(_purchase("lat", {"store": "amazon"}), true)
+		_check(answer is PurchaseFlow.Failure, "Non-string Amazon environment is rejected")
+	_check(calls.is_empty(), "Invalid Amazon configuration never verifies or grants")
 
 
 func _run_process_vector(vector: Dictionary) -> void:
@@ -123,6 +141,7 @@ func _run_iapkit_vector(vector: Dictionary) -> void:
 		var product_ids: Dictionary = amazon.verifiedProductIds
 		options["amazon"] = {
 			"sandbox": amazon.sandbox,
+			"expected_environment": amazon.get("expectedEnvironment"),
 			"verified_product_id": func(product_id: String) -> String: return product_ids.get(product_id, product_id),
 		}
 	if not vector.get("noGrant", false):

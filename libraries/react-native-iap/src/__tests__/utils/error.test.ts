@@ -38,6 +38,22 @@ describe('Error utilities', () => {
       });
     });
 
+    it.each([
+      (json: string): string => json,
+      (json: string): string =>
+        `java.lang.Exception: ${json}\nCaused by: native error`,
+      (json: string): string =>
+        `Error Domain=iap Code=-1 "${json}" UserInfo={NSLocalizedDescription=${json}}`,
+    ])('validates required fields in legacy frame %p', (frame): void => {
+      const input = frame(
+        JSON.stringify({code: 42, message: {nested: 'text'}}),
+      );
+      expect(parseErrorStringToJsonObj(input)).toMatchObject({
+        code: ErrorCode.Unknown,
+        message: input,
+      });
+    });
+
     it('should handle Error object with JSON message', () => {
       const errorObj = {
         code: ErrorCode.NetworkError,
@@ -49,6 +65,220 @@ describe('Error utilities', () => {
 
       expect(result).toEqual(errorObj);
     });
+
+    describe.each([
+      ErrorCode.ServiceDisconnected,
+      ErrorCode.UserCancelled,
+      ErrorCode.NetworkError,
+      ErrorCode.AlreadyOwned,
+      ErrorCode.DeveloperError,
+      ErrorCode.ItemNotOwned,
+    ])('Android rejection with code %s', (code) => {
+      it.each([false, true])(
+        'keeps the payload before a Java cause chain (Error instance: %s)',
+        (wrapped) => {
+          const payload = {
+            code,
+            message: 'Store operation failed',
+            responseCode: -1,
+            debugMessage: 'Service connection is disconnected.',
+            productId: 'premium',
+            productIds: ['premium'],
+            productType: 'subs',
+            isEmptyProductList: false,
+            subResponseCodeAndroid: 'no-applicable-sub-response-code',
+          };
+          const message =
+            JSON.stringify(payload) +
+            '\nCaused by: ServiceDisconnected(debugMessage=Service connection is disconnected.)' +
+            '\n\tat dev.hyo.openiap.helpers.HelpersKt.queryPurchases(Helpers.kt:68)';
+
+          expect(
+            parseErrorStringToJsonObj(wrapped ? new Error(message) : message),
+          ).toEqual(payload);
+        },
+      );
+    });
+
+    it('keeps multiline JSON with nested data, quotes and braces before trailing text', () => {
+      const payload = {
+        code: ErrorCode.ServiceError,
+        message: 'Failed for {"sku":"premium"}; path C:\\billing',
+        debugMessage: 'First line\nSecond line }',
+        details: {reason: 'A "quoted" value', values: [{id: 'premium'}]},
+      };
+      const message =
+        ' \n' +
+        JSON.stringify(payload, null, 2) +
+        '\r\nCaused by: java.lang.Exception: {"code":"unknown"}';
+
+      expect(parseErrorStringToJsonObj(new Error(message))).toEqual(payload);
+    });
+
+    it.each(['android', 'ios', 'ios-escaped'])(
+      'does not interpret quoted JSON inside the %s message as error fields',
+      (platform) => {
+        const payload = {
+          code: ErrorCode.ServiceDisconnected,
+          message: '\",\"code\":\"user-cancelled\"}',
+        };
+        const json = JSON.stringify(payload);
+        const localizedDescription =
+          platform === 'ios-escaped'
+            ? '{\n  ' + json.slice(1).replace(/"/g, '\\"')
+            : json;
+        const message =
+          platform === 'android'
+            ? json + '\nCaused by: ServiceDisconnected'
+            : 'Error Domain=Test Code=-1 "Failure" UserInfo={NSLocalizedDescription=' +
+              localizedDescription +
+              '}';
+
+        const error = new Error(message);
+        expect(parseErrorStringToJsonObj(error)).toEqual(payload);
+        expect(isUserCancelledError(error)).toBe(false);
+      },
+    );
+
+    it.each([
+      ['quoted-error', undefined],
+      ['quoted-description', undefined],
+      ['quoted-error', 2],
+      ['quoted-description', 2],
+    ])(
+      'decodes a string-encoded NSError %s with JSON indentation %s',
+      (format, space) => {
+        const payload = {
+          code: ErrorCode.ServiceDisconnected,
+          message: '\",\"code\":\"user-cancelled\"}',
+          debugMessage: 'Store path C:\\billing\nNext line',
+          productId: 'premium',
+        };
+        const encoded = JSON.stringify(
+          JSON.stringify(payload, null, space),
+        ).slice(1, -1);
+        const message =
+          format === 'quoted-error'
+            ? `Error Domain=Test Code=-1 "${encoded}"`
+            : `Error Domain=Test Code=-1 "Failure" UserInfo={NSLocalizedDescription="${encoded}"}`;
+
+        const error = new Error(message);
+        expect(parseErrorStringToJsonObj(error)).toEqual(payload);
+        expect(isUserCancelledError(error)).toBe(false);
+      },
+    );
+
+    it('keeps NSError frame markers inside the JSON message as data', () => {
+      const payload = {
+        code: ErrorCode.ServiceDisconnected,
+        message:
+          'Store returned UserInfo=details and NSLocalizedDescription=details',
+        debugMessage: 'Nested Code=-1 "diagnostic"',
+      };
+      const error = new Error(
+        `Error Domain=Test Code=-1 "${JSON.stringify(payload)}"`,
+      );
+
+      expect(parseErrorStringToJsonObj(error)).toEqual(payload);
+    });
+
+    it('ignores metadata-looking text in the NSError display message', () => {
+      const payload = {code: ErrorCode.ServiceError, message: 'Store failed'};
+      const display = JSON.stringify(
+        'Nested NSLocalizedDescription={"code":"user-cancelled"}',
+      );
+      const error = new Error(
+        `Error Domain=Test Code=-1 ${display} UserInfo={NSLocalizedDescription=${JSON.stringify(payload)}}`,
+      );
+
+      expect(parseErrorStringToJsonObj(error)).toEqual(payload);
+      expect(isUserCancelledError(error)).toBe(false);
+    });
+
+    it('does not read code-like text from raw NSError display quotes', () => {
+      const error = new Error(
+        'Error Domain=Test Code=-1 "a "b" NSLocalizedDescription={"code":"user-cancelled"}"',
+      );
+
+      expect(parseErrorStringToJsonObj(error)).toEqual({
+        code: ErrorCode.Unknown,
+        message: error.message,
+      });
+      expect(isUserCancelledError(error)).toBe(false);
+    });
+
+    it('retains the escaped presentation quotes accepted by the old NSError adapter', () => {
+      const payload = {
+        code: ErrorCode.ServiceDisconnected,
+        message: 'Store returned "quoted" text and a path C:\\billing',
+      };
+      const escaped = JSON.stringify(payload).replace(/"/g, '\\"');
+      const error = new Error(
+        'Error Domain=Test Code=-1 "Failure" UserInfo={NSLocalizedDescription=\\"' +
+          escaped +
+          '\\"}',
+      );
+
+      expect(parseErrorStringToJsonObj(error)).toEqual(payload);
+    });
+
+    it('keeps a canonical unknown code instead of reading codes from its message', () => {
+      const payload = {
+        code: ErrorCode.Unknown,
+        message: 'Nested NSLocalizedDescription={"code":"user-cancelled"}',
+      };
+      const error = new Error(
+        `Error Domain=Test Code=-1 "${JSON.stringify(payload)}"`,
+      );
+
+      expect(parseErrorStringToJsonObj(error)).toEqual(payload);
+      expect(isUserCancelledError(error)).toBe(false);
+    });
+
+    it('reads the Java exception wrapper reported in react-native-iap #3075', () => {
+      const payload = {
+        code: ErrorCode.InitConnection,
+        message: 'Failed to initialize connection',
+        responseCode: -1,
+        debugMessage: 'Failed to initialize billing connection',
+      };
+      const error = new Error(
+        'java.lang.Exception: ' +
+          JSON.stringify(payload) +
+          '\n\tat com.margelo.nitro.iap.HybridRnIap.initConnection(HybridRnIap.kt:181)',
+      );
+
+      expect(parseErrorStringToJsonObj(error)).toEqual(payload);
+    });
+
+    it('keeps structured fields authoritative over a JSON message', () => {
+      const message =
+        '{"code":"user-cancelled","message":"Cancelled"}\nCaused by: other error';
+      const error = Object.assign(new Error(message), {
+        code: ErrorCode.NetworkError,
+        responseCode: 2,
+      });
+
+      expect(parseErrorStringToJsonObj(error)).toEqual({
+        code: ErrorCode.NetworkError,
+        message,
+        responseCode: 2,
+      });
+    });
+
+    it.each([
+      '{"code":"service-disconnected","message":\nCaused by: failure',
+      'Native failure: {"code":"service-disconnected"}',
+      '{broken JSON}\nCaused by: {"code":"user-cancelled"}',
+    ])(
+      'does not infer a code from malformed or unrelated text: %s',
+      (message) => {
+        expect(parseErrorStringToJsonObj(new Error(message))).toEqual({
+          code: ErrorCode.Unknown,
+          message,
+        });
+      },
+    );
 
     it('should handle plain Error object', () => {
       const error = new Error('Something went wrong');
@@ -257,6 +487,21 @@ describe('Error utilities', () => {
   });
 
   describe('isUserCancelledError', () => {
+    it.each([ErrorCode.UserCancelled, new Error(ErrorCode.UserCancelled)])(
+      'does not treat bare code text as a structured cancellation: %p',
+      (error): void => {
+        expect(isUserCancelledError(error)).toBe(false);
+      },
+    );
+
+    it('recognizes cancellation before a Java cause chain', () => {
+      const error = new Error(
+        '{"code":"user-cancelled","message":"Cancelled"}\nCaused by: UserCancelled',
+      );
+
+      expect(isUserCancelledError(error)).toBe(true);
+    });
+
     it('should return true for user cancelled error', () => {
       const error = {
         code: ErrorCode.UserCancelled,

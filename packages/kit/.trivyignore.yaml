@@ -1,14 +1,1 @@
-vulnerabilities:
-  - id: CVE-2026-84782
-    purls:
-      - pkg:deb/debian/libssl3@3.0.20-1~deb12u2
-    expired_at: 2026-10-30
-    statement: >-
-      OpenSSL's advisory of 2026-09-29 places this flaw in the DTLS handshake
-      retransmission logic. Debian 12 has no fix (the 3.0.22 in its security
-      pocket is affected too), and upstream releases the 3.0 fix, 3.0.23, to
-      premium support customers only. The Kit serves HTTP over TCP, and
-      neither its source nor its image starts a DTLS (UDP) client or server,
-      so the flawed path is never reached. Recheck Debian's tracker and the
-      distroless digest for a fixed libssl3, or remove this exception, by the
-      expiry date.
+vulnerabilities: []

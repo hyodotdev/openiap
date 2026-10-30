@@ -3,7 +3,7 @@ import { after, before, test } from 'node:test';
 import { readFile, readdir } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';
 import { fileURLToPath } from 'node:url';
-import { createServer } from 'vite';
+import { createServer, transformWithEsbuild } from 'vite';
 import { createElement as h } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Route, Routes, StaticRouter } from 'react-router-dom';
@@ -375,5 +375,83 @@ test('custom verifier example rejects evidence for another purchase or environme
       await assert.rejects(result, /evidence does not match/);
       assert.deepEqual(grants, []);
     }
+  }
+});
+
+test('raw IAPKit sample binds its verdict to the requested store and environment', async () => {
+  const source = await readFile(
+    new URL('../src/pages/docs/features/purchase.tsx', import.meta.url),
+    'utf8'
+  );
+  const snippet = [
+    ...source.matchAll(
+      /<CodeBlock language="typescript">\{`([\s\S]*?)`\}<\/CodeBlock>/g
+    ),
+  ].find(([, code]) => code.includes('const verifyWithIapkit ='))?.[1];
+  assert.ok(snippet, 'the published raw verification sample exists');
+  const { code } = await transformWithEsbuild(snippet, 'verification.ts', {
+    loader: 'ts',
+    format: 'cjs',
+  });
+  const purchase = {
+    productId: 'coins',
+    store: 'amazon',
+    storeId: 'amazon',
+    purchaseToken: 'fixture',
+  };
+  const valid = {
+    productId: 'coins',
+    store: 'amazon',
+    storeId: 'amazon',
+    environment: 'Sandbox',
+    isValid: true,
+  };
+  for (const [changes, accepted] of [
+    [{}, true],
+    [{ store: 'google', storeId: 'play' }, false],
+    [{ storeId: 'another-provider' }, false],
+    [{ store: undefined }, false],
+    [{ productId: undefined }, false],
+    [{ productId: 'cheap' }, false],
+    [{ environment: 'Production' }, false],
+    [{ environment: undefined }, false],
+    [{ isValid: false }, false],
+  ]) {
+    const errors = [];
+    let hookOptions;
+    const api = {
+      verifyPurchaseWithProvider: async () => ({
+        iapkit: { ...valid, ...changes },
+      }),
+      useIAP: (options) => {
+        hookOptions = options;
+        return api;
+      },
+    };
+    const sample = runInNewContext(
+      `${code}; ({verifyWithIapkit, PurchaseScreen})`,
+      {
+        exports: {},
+        require: (name) => {
+          assert.equal(name, 'expo-iap');
+          return api;
+        },
+        process: {
+          env: { EXPO_PUBLIC_AMAZON_EXPECTED_ENVIRONMENT: 'Sandbox' },
+        },
+        console: {
+          log() {},
+          error: (...args) => errors.push(args),
+          warn: (...args) => errors.push(args),
+        },
+      }
+    );
+    assert.equal(await sample.verifyWithIapkit(purchase), accepted);
+    assert.equal(errors.length, accepted ? 0 : 1);
+    errors.length = 0;
+    sample.PurchaseScreen();
+    hookOptions.onPurchaseSuccess(purchase);
+    await new Promise(setImmediate);
+    assert.equal(errors.length, accepted ? 0 : 1);
   }
 });

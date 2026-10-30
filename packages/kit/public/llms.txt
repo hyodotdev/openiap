@@ -87,6 +87,9 @@ limits, statuses and fulfillment requirements.
   where `userId` and `receiptId` come from Amazon Appstore RVS. Production uses
   the project-held RVS shared secret; sandbox requires the project's explicit
   App Tester / Cloud Sandbox opt-in and never sends that production secret.
+  LAT uses real RVS (`sandbox: false`) with Sandbox verdicts. For the SDK
+  purchase flow set `amazon.expectedEnvironment: "Sandbox"` in the test build
+  only; omit it for production. This expectation is not a wire field.
 
 ## Success response
 

@@ -30,7 +30,7 @@ export function getSubscriptionProductId(
   const term = currentPlanId ? catalog[currentPlanId] : undefined;
   return term?.itemType === 'SUBSCRIPTION' &&
     productId === term.subscriptionBase
-    ? currentPlanId ?? undefined
+    ? (currentPlanId ?? undefined)
     : undefined;
 }
 
@@ -38,12 +38,13 @@ export function getSubscriptionProductId(
 export function getAmazonVerificationProductId(productId: string): string {
   const item = catalog[productId];
   return item?.itemType === 'SUBSCRIPTION'
-    ? item.subscriptionBase ?? item.subscriptionParent ?? productId
+    ? (item.subscriptionBase ?? item.subscriptionParent ?? productId)
     : productId;
 }
 
 type ExpoExtraWithIapkit = {
   amazonRvsSandbox?: string;
+  amazonExpectedEnvironment?: string;
   iapkitApiKey?: string;
   iapkitBaseUrl?: string;
 };
@@ -69,6 +70,19 @@ export function isAmazonRvsSandboxEnabled(): boolean {
   const configuredValue =
     extra?.amazonRvsSandbox ?? process.env.EXPO_PUBLIC_AMAZON_RVS_SANDBOX;
   return configuredValue === 'true';
+}
+
+export function getAmazonExpectedEnvironment():
+  | 'Sandbox'
+  | 'Production'
+  | undefined {
+  const extra = Constants.expoConfig?.extra as ExpoExtraWithIapkit | undefined;
+  // The adapter validates build configuration at the Amazon request boundary.
+  return (extra?.amazonExpectedEnvironment ??
+    process.env.EXPO_PUBLIC_AMAZON_EXPECTED_ENVIRONMENT) as
+    | 'Sandbox'
+    | 'Production'
+    | undefined;
 }
 
 export function getDefaultVerificationMethod(

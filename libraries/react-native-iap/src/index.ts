@@ -69,7 +69,8 @@ import {
   validateNitroPurchase,
   convertNitroSubscriptionStatusToSubscriptionStatusIOS,
 } from './utils/type-bridge';
-import {isUserCancelledError, parseErrorStringToJsonObj} from './utils/error';
+import {isUserCancelledError} from './utils/error';
+import {normalizePurchaseError} from './utils/native-error';
 import {
   normalizeErrorCodeFromNative,
   createPurchaseError,
@@ -139,8 +140,8 @@ type NitroPromotedProductListener = Parameters<
 const parseErrorAndLogIfNeeded = (
   message: string,
   error: unknown,
-): ReturnType<typeof parseErrorStringToJsonObj> => {
-  const parsedError = parseErrorStringToJsonObj(error);
+): ReturnType<typeof normalizePurchaseError> => {
+  const parsedError = normalizePurchaseError(error);
   if (!isUserCancelledError(parsedError)) {
     RnIapConsole.error(message, error);
   }
@@ -951,8 +952,7 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 
     if (normalizedType === 'all') {
       const converted = (await fetchAndConvert('all')) as (
-        | Product
-        | ProductSubscription
+        Product | ProductSubscription
       )[];
 
       RnIapConsole.debug(
@@ -1003,14 +1003,7 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
       error,
     );
     throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-      productId: parsedError.productId,
-      productIds: parsedError.productIds,
-      productType: parsedError.productType,
-      isEmptyProductList: parsedError.isEmptyProductList,
+      ...parsedError,
       platform: Platform.OS === 'ios' ? 'ios' : 'android',
     });
   }
@@ -1103,12 +1096,7 @@ export const getPromotedProductIOS: QueryField<
       '[getPromotedProductIOS] Failed:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -1134,10 +1122,7 @@ export const getStorefront: QueryField<'getStorefront'> = async () => {
       error,
     );
     throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
+      ...parsedError,
       platform: Platform.OS === 'ios' ? 'ios' : 'android',
     });
   }
@@ -1169,7 +1154,7 @@ export const verifyAppOwnership: QueryField<'verifyAppOwnership'> = async (
     ) as import('./types').AppOwnershipVerificationResult;
   } catch (error) {
     throw createPurchaseError({
-      ...parseErrorStringToJsonObj(error),
+      ...normalizePurchaseError(error),
       platform: Platform.OS === 'ios' ? 'ios' : 'android',
     });
   }
@@ -1223,12 +1208,7 @@ export const getAppTransactionIOS: QueryField<
       'Failed to get app transaction:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -1259,12 +1239,7 @@ export const subscriptionStatusIOS: QueryField<
       '[subscriptionStatusIOS] Failed:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -1297,12 +1272,7 @@ export const currentEntitlementIOS: QueryField<
       '[currentEntitlementIOS] Failed:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -1335,12 +1305,7 @@ export const latestTransactionIOS: QueryField<'latestTransactionIOS'> = async (
       '[latestTransactionIOS] Failed:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -1366,12 +1331,7 @@ export const getPendingTransactionsIOS: QueryField<
       '[getPendingTransactionsIOS] Failed:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -1395,12 +1355,7 @@ export const getAllTransactionsIOS: QueryField<
       '[getAllTransactionsIOS] Failed:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -1426,12 +1381,7 @@ export const showManageSubscriptionsIOS: MutationField<
       '[showManageSubscriptionsIOS] Failed:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -1457,12 +1407,7 @@ export const isEligibleForIntroOfferIOS: QueryField<
       '[isEligibleForIntroOfferIOS] Failed:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -1491,12 +1436,7 @@ export const getReceiptDataIOS: QueryField<'getReceiptDataIOS'> = async () => {
       '[getReceiptDataIOS] Failed:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -1521,12 +1461,7 @@ export const requestReceiptRefreshIOS = async (): Promise<string> => {
       '[requestReceiptRefreshIOS] Failed:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -1552,12 +1487,7 @@ export const isTransactionVerifiedIOS: QueryField<
       '[isTransactionVerifiedIOS] Failed:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -1583,12 +1513,7 @@ export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
       '[getTransactionJwsIOS] Failed:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -1639,12 +1564,7 @@ export const initConnection: MutationField<'initConnection'> = async (
       'Failed to initialize IAP connection:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -1665,12 +1585,7 @@ export const endConnection: MutationField<'endConnection'> = async () => {
       'Failed to end IAP connection:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -1937,13 +1852,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
       'Failed to request purchase:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-      productId: parsedError.productId,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -2021,16 +1930,11 @@ export const finishTransaction: MutationField<'finishTransaction'> = async (
     showFirstPurchaseNotice(purchase);
     return;
   } catch (error) {
-    const parsedError = parseErrorStringToJsonObj(error);
+    const parsedError = normalizePurchaseError(error);
     if (!isUserCancelledError(parsedError)) {
       RnIapConsole.error('Failed to finish transaction:', error);
     }
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -2068,12 +1972,7 @@ export const acknowledgePurchaseAndroid: MutationField<
       'Failed to acknowledge purchase Android:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -2111,12 +2010,7 @@ export const consumePurchaseAndroid: MutationField<
       'Failed to consume purchase Android:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -2269,12 +2163,7 @@ export const verifyPurchase: MutationField<'verifyPurchase'> = async (
       '[verifyPurchase] Failed:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -2347,12 +2236,7 @@ export const verifyPurchaseWithProvider: MutationField<
       '[verifyPurchaseWithProvider] Failed:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -2435,12 +2319,7 @@ export const syncIOS: MutationField<'syncIOS'> = async () => {
     return Boolean(result);
   } catch (error) {
     const parsedError = parseErrorAndLogIfNeeded('[syncIOS] Failed:', error);
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -2475,12 +2354,7 @@ export const openRedeemOfferCode: MutationField<
       '[openRedeemOfferCode] Failed:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -2506,12 +2380,7 @@ export const clearTransactionIOS: MutationField<
       '[clearTransactionIOS] Failed:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -2538,12 +2407,7 @@ export const beginRefundRequestIOS: MutationField<
       '[beginRefundRequestIOS] Failed:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -2580,12 +2444,7 @@ export const deepLinkToSubscriptions: MutationField<
       '[deepLinkToSubscriptions] Failed:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -2605,12 +2464,7 @@ export const deepLinkToSubscriptionsIOS = async (): Promise<boolean> => {
       '[deepLinkToSubscriptionsIOS] Failed:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 
@@ -2686,12 +2540,7 @@ export const getActiveSubscriptions: QueryField<
       'Failed to get active subscriptions:',
       error,
     );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    throw createPurchaseError(parsedError);
   }
 };
 

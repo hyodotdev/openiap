@@ -4337,17 +4337,40 @@ function checkFrameworkDependencyHygiene() {
     ["package-lock.json"],
     "root gitignore must prevent npm lockfile drift in Bun-managed packages",
   );
+  const bunPackageManager = readJson("package.json").packageManager;
+  const bunVersion =
+    typeof bunPackageManager === "string" &&
+    bunPackageManager.startsWith("bun@")
+      ? bunPackageManager.slice(4)
+      : "";
+  if (!bunVersion) fail("The monorepo packageManager must pin Bun");
   for (const bunPackageJson of [
     "specs/client/package.json",
     "packages/docs/package.json",
     "packages/google/package.json",
     "packages/apple/package.json",
+    "libraries/expo-iap/example/package.json",
   ]) {
     expectIncludes(
       bunPackageJson,
-      ['"packageManager": "bun@1.3.13"'],
+      [`"packageManager": "${bunPackageManager}"`],
       `${bunPackageJson} package manager must match the monorepo Bun version`,
     );
+  }
+  const easBuildProfiles =
+    readJson("libraries/expo-iap/example/eas.json").build ?? {};
+  if (easBuildProfiles.base?.bun !== bunVersion) {
+    fail("Expo example EAS Bun version must match the monorepo Bun version");
+  }
+  for (const [profileName, profile] of Object.entries(easBuildProfiles)) {
+    if (
+      profile?.android?.bun !== undefined ||
+      profile?.ios?.bun !== undefined ||
+      (profileName !== "base" &&
+        (profile?.extends !== "base" || Object.hasOwn(profile, "bun")))
+    ) {
+      fail(`Expo example EAS profile ${profileName} must use only base.bun`);
+    }
   }
   for (const bunWorkflow of [
     ".github/workflows/ci.yml",

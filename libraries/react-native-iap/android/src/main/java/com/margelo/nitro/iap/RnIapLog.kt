@@ -32,7 +32,8 @@ internal object RnIapLog {
     }
 
     fun failure(name: String, error: Throwable) {
-        Log.e(TAG, "$name failed: ${error.localizedMessage}", error)
+        val diagnostic = if (error is OpenIapException) error.cause ?: error else error
+        Log.e(TAG, "$name failed: ${error.localizedMessage}", diagnostic)
     }
 
     fun debug(message: String) {

@@ -767,3 +767,74 @@ test("the compiled AI context names the scheduled expo-iap flag removal major", 
     "migration catalog names a different removal major",
   );
 });
+
+test("React Native legacy error strings are retained in 17.x and block 18.x until removed", () => {
+  const rule = scheduledRemovalRules.find(
+    (entry) => entry.label === "react-native-iap legacy error string parsing",
+  );
+  assert.ok(rule, "legacy error removal schedule is missing");
+  assert.equal(rule.packages.length, 1);
+  assert.equal(rule.packages[0].name, "react-native-iap");
+  assert.equal(rule.packages[0].major, 17);
+  const versionFile = rule.packages[0].file;
+  const sourceFiles = new Set(rule.sources.map((source) => source.file));
+  const read = (file) => fs.readFileSync(path.join(repoRoot, file), "utf8");
+  const atVersion =
+    (version, removed = false) =>
+    (file) => {
+      if (file === versionFile) return JSON.stringify({ version });
+      if (removed && sourceFiles.has(file)) return "";
+      return read(file);
+    };
+  assert.deepEqual(
+    collectScheduledRemovalFailures([rule], atVersion("17.2.3")),
+    [],
+  );
+  assert.ok(
+    collectScheduledRemovalFailures([rule], atVersion("17.2.3", true)).some(
+      (failure) => failure.includes("before the next major release"),
+    ),
+  );
+  assert.ok(
+    collectScheduledRemovalFailures([rule], atVersion("18.0.0")).some(
+      (failure) => failure.includes("past the major that deprecated"),
+    ),
+  );
+  assert.match(
+    releaseGateFailure(
+      "react-native-iap",
+      "major",
+      [rule],
+      atVersion("17.2.3"),
+    ),
+    /still ships react-native-iap legacy error string parsing/,
+  );
+  assert.equal(
+    releaseGateFailure(
+      "react-native-iap",
+      "minor",
+      [rule],
+      atVersion("17.2.3"),
+    ),
+    null,
+  );
+  const dropped = { ...rule, dropped: true };
+  assert.deepEqual(
+    collectScheduledRemovalFailures([dropped], atVersion("18.0.0", true)),
+    [],
+  );
+  assert.match(
+    releaseGateFailure(
+      "react-native-iap",
+      "patch",
+      [dropped],
+      atVersion("17.2.3", true),
+    ),
+    /must release with version=major/,
+  );
+  assert.ok(
+    collectScheduledRemovalFailures([dropped], atVersion("18.0.0")).some(
+      (failure) => failure.includes("marked dropped but still has"),
+    ),
+  );
+});

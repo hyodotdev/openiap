@@ -293,6 +293,8 @@ void main() {
                 ? null
                 : IapkitAmazonOptions(
                     sandbox: amazon['sandbox'] as bool,
+                    expectedEnvironment:
+                        amazon['expectedEnvironment'] as String?,
                     verifiedProductId: (id) => productIds[id] as String? ?? id,
                   ),
             verifyAs: (purchase) => switch (stores[purchase.storeId]) {

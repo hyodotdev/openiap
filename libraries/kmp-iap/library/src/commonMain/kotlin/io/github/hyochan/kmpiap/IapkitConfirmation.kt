@@ -42,7 +42,20 @@ class IapkitConfirmationOptions(
         val sandbox: Boolean = false,
         /** RVS reports a subscription term under its parent SKU; maps one to the other. */
         val verifiedProductId: (productId: String) -> String = { it },
-    )
+    ) {
+        /** Expected verdict environment; null keeps the routing-based default. */
+        var expectedEnvironment: String? = null
+            private set
+
+        // Keep the original constructor and default bridge for existing binaries.
+        constructor(
+            sandbox: Boolean = false,
+            verifiedProductId: (productId: String) -> String = { it },
+            expectedEnvironment: String?,
+        ) : this(sandbox, verifiedProductId) {
+            this.expectedEnvironment = expectedEnvironment
+        }
+    }
 }
 
 private const val IAPKIT_UNKNOWN_RETRY_MS = 30_000L
@@ -86,7 +99,9 @@ internal fun iapkitVerificationProps(purchase: Purchase, options: IapkitConfirma
     val baseUrl = options.baseUrl?.trim()?.ifEmpty { null }
     fun token(): String = purchase.purchaseToken?.ifEmpty { null }
         ?: throw IllegalArgumentException("Purchase ${purchase.productId} has no purchase token to verify")
-    val iapkit = when (verifyingStore(purchase, options)) {
+    val store = verifyingStore(purchase, options)
+    if (store == IapStore.Amazon) amazonExpectedEnvironment(options.amazon)
+    val iapkit = when (store) {
         IapStore.Apple -> RequestVerifyPurchaseWithIapkitProps(
             apiKey = apiKey,
             baseUrl = baseUrl,
@@ -145,7 +160,7 @@ internal fun iapkitVerification(
     val store = verifyingStore(purchase, options)
     val expectedProductId = if (store == IapStore.Amazon) amazonProductId(purchase, options) else purchase.productId
     val expectedEnvironment = when (store) {
-        IapStore.Amazon -> if (options.amazon?.sandbox == true) "Sandbox" else "Production"
+        IapStore.Amazon -> amazonExpectedEnvironment(options.amazon)
         IapStore.Apple -> (purchase as? PurchaseIOS)?.environmentIOS
         else -> null
     }
@@ -184,6 +199,17 @@ internal fun iapkitVerification(
             "${if (isConsumable) "consumable" else "non-consumable"} ${purchase.store.rawValue} purchase"
     }
     return PurchaseConfirmation.Entitled(alreadyGranted = false)
+}
+
+private fun amazonExpectedEnvironment(amazon: IapkitConfirmationOptions.Amazon?): String {
+    val expected = amazon?.expectedEnvironment ?: if (amazon?.sandbox == true) "Sandbox" else "Production"
+    require(expected == "Sandbox" || expected == "Production") {
+        "Amazon expectedEnvironment must be Sandbox or Production"
+    }
+    require(amazon?.sandbox != true || expected != "Production") {
+        "Amazon Cloud Sandbox requires expectedEnvironment Sandbox"
+    }
+    return expected
 }
 
 private fun verifyingStore(purchase: Purchase, options: IapkitConfirmationOptions): IapStore =

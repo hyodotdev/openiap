@@ -19,6 +19,9 @@ expect object AppConfig {
 
     /** App Tester receipts only verify against Amazon's RVS Cloud Sandbox. */
     val amazonRvsSandbox: Boolean
+
+    /** Set Sandbox for LAT; null keeps the adapter's routing-based default. */
+    val amazonExpectedEnvironment: String?
 }
 
 /**

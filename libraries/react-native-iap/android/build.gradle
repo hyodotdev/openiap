@@ -263,6 +263,7 @@ dependencies {
   testImplementation "junit:junit:$junitVersion"
   testImplementation 'org.jetbrains.kotlin:kotlin-test'
   testImplementation 'org.jetbrains.kotlin:kotlin-test-junit'
+  testImplementation 'org.json:json:20260719'
 }
 
 configurations.all {

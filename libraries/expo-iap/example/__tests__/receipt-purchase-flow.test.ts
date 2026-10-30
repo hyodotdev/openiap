@@ -20,7 +20,8 @@ jest.mock('expo-constants', () => ({
   default: {
     expoConfig: {
       extra: {
-        amazonRvsSandbox: 'true',
+        amazonRvsSandbox: 'false',
+        amazonExpectedEnvironment: 'Sandbox',
         iapkitApiKey: 'test-api-key',
         iapkitBaseUrl: 'http://localhost:3100',
       },
@@ -206,7 +207,7 @@ describe('receipt-check purchase flow', () => {
           amazon: {
             receiptId: 'amazon-receipt',
             expectedProductId: 'dev.hyo.martie.premium.base',
-            sandbox: true,
+            sandbox: false,
           },
         },
       });

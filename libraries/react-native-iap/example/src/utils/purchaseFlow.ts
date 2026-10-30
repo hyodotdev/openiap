@@ -7,7 +7,12 @@ import {
   type PurchaseFlowGuidanceKey,
   type PurchaseFlowStatus,
 } from 'react-native-iap';
-import {AMAZON_RVS_SANDBOX, IAPKIT_API_KEY, IAPKIT_BASE_URL} from '@env';
+import {
+  AMAZON_EXPECTED_ENVIRONMENT,
+  AMAZON_RVS_SANDBOX,
+  IAPKIT_API_KEY,
+  IAPKIT_BASE_URL,
+} from '@env';
 import {CONSUMABLE_PRODUCT_IDS} from './constants';
 import {getErrorMessage} from './errorUtils';
 import {
@@ -17,7 +22,10 @@ import {
 } from './vegaRuntime';
 
 export type VerificationMethod =
-  'ignore' | 'local' | 'iapkit-localhost' | 'iapkit';
+  | 'ignore'
+  | 'local'
+  | 'iapkit-localhost'
+  | 'iapkit';
 
 export function getDefaultVerificationMethod(
   iapkitApiKey?: string | null,
@@ -84,6 +92,7 @@ export const purchaseFlow = createPurchaseFlow({
           baseUrl: resolveIapkitVerificationBaseUrl(method, IAPKIT_BASE_URL),
           amazon: {
             sandbox: AMAZON_RVS_SANDBOX === 'true',
+            expectedEnvironment: AMAZON_EXPECTED_ENVIRONMENT,
             verifiedProductId: getAmazonVerificationProductId,
           },
           // The educational amazon_example provider carries Amazon receipts.

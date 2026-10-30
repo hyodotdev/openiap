@@ -1,10 +1,9 @@
-import {normalizeErrorCodeFromNative} from './errorMapping';
+import {createPurchaseError} from './errorMapping';
+import {normalizePurchaseError} from './native-error';
 import type {NitroPurchaseResult} from '../specs/RnIap.nitro';
 
 export type PurchaseOperationContext =
-  | 'finishTransaction'
-  | 'acknowledgePurchaseAndroid'
-  | 'consumePurchaseAndroid';
+  'finishTransaction' | 'acknowledgePurchaseAndroid' | 'consumePurchaseAndroid';
 
 export const getSuccessFromPurchaseVariant = (
   variant: NitroPurchaseResult | boolean,
@@ -18,15 +17,10 @@ export const getSuccessFromPurchaseVariant = (
     return true;
   }
 
-  const normalizedCode = normalizeErrorCodeFromNative(variant.code);
-  const errorPayload = {
-    code: normalizedCode,
-    nativeCode: variant.code,
-    message: variant.message || `Failed to ${context}`,
-    responseCode: variant.responseCode,
-    debugMessage: variant.debugMessage,
-    purchaseToken: variant.purchaseToken,
-  };
-
-  throw new Error(JSON.stringify(errorPayload));
+  throw createPurchaseError(
+    normalizePurchaseError({
+      ...variant,
+      message: variant.message || `Failed to ${context}`,
+    }),
+  );
 };

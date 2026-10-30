@@ -212,6 +212,38 @@ jobs:
             VITE_KIT_CONVEX_URL=https://placeholder-build-1.convex.cloud
             IAPKIT_REVISION=${{ github.sha }}
 
+      - name: Smoke test runtime image
+        run: |
+          smoke_container=""
+          cleanup() {
+            smoke_status=$?
+            if [ -n "$smoke_container" ]; then
+              docker logs "$smoke_container" || true
+              docker rm --force "$smoke_container" >/dev/null 2>&1 || true
+            fi
+            exit "$smoke_status"
+          }
+          trap cleanup EXIT
+          smoke_container="$(docker create \
+            --publish 127.0.0.1::3000 \
+            --env APP_ENV=test \
+            --env CONVEX_URL=https://placeholder-build-1.convex.cloud \
+            openiap-kit:security-scan)"
+          docker start "$smoke_container" >/dev/null
+          SMOKE_URL="http://$(docker port "$smoke_container" 3000/tcp)"
+          export SMOKE_URL
+          curl --fail --silent --show-error --retry 20 --retry-all-errors \
+            --retry-delay 1 --max-time 3 "$SMOKE_URL/health" \
+            > "$RUNNER_TEMP/kit-image-health.json"
+          bun -e '
+            const health = await Bun.file(process.env.RUNNER_TEMP + "/kit-image-health.json").json();
+            if (health.ok !== true || health.environment !== "test" || health.revision !== process.env.GITHUB_SHA?.slice(0, 12)) {
+              throw new Error("Runtime image health contract failed");
+            }
+          '
+          bun scripts/smoke-browser.ts
+          test "$(docker inspect --format '{{.State.Running}}' "$smoke_container")" = true
+
       - name: Install Trivy v0.74.0
         working-directory: ${{ github.workspace }}
         run: scripts/install-security-tool.sh trivy "$RUNNER_TEMP/trivy"

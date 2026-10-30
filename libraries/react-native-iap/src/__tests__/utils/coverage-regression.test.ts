@@ -38,9 +38,7 @@ describe('utility fallback coverage', () => {
         } as never,
         'consumePurchaseAndroid',
       ),
-    ).toThrow(
-      /"code":"network-error".*"message":"Failed to consumePurchaseAndroid"/,
-    );
+    ).toThrow('Failed to consumePurchaseAndroid');
   });
 
   it('emits opt-in development logs through both supported switches', () => {

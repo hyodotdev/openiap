@@ -1,52 +1,6 @@
 import Foundation
 import OpenIAP
 
-/// Custom error that preserves error messages through Nitro bridge.
-/// Similar to Android's OpenIapException, this wraps errors with JSON-serialized messages.
-/// Uses NSError for better compatibility with Objective-C bridging in Nitro.
-@available(iOS 15.0, *)
-class OpenIapException: NSError, @unchecked Sendable {
-    static let domain = "com.margelo.nitro.rniap"
-
-    convenience init(_ json: String) {
-        self.init(domain: OpenIapException.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: json])
-    }
-
-    static func make(
-        code: ErrorCode,
-        message: String? = nil,
-        productId: String? = nil,
-        debugMessage: String? = nil
-    ) -> OpenIapException {
-        let errorMessage = message ?? code.rawValue
-        var dict: [String: Any] = [
-            "code": code.rawValue,
-            "message": errorMessage
-        ]
-        if let productId = productId {
-            dict["productId"] = productId
-        }
-        if let debugMessage = debugMessage {
-            dict["debugMessage"] = debugMessage
-        }
-
-        if let data = try? JSONSerialization.data(withJSONObject: dict),
-           let json = String(data: data, encoding: .utf8) {
-            return OpenIapException(json)
-        }
-        return OpenIapException("{\"code\":\"\(code.rawValue)\",\"message\":\"\(errorMessage)\"}")
-    }
-
-    static func from(_ error: PurchaseError) -> OpenIapException {
-        return make(
-            code: error.code,
-            message: error.message,
-            productId: error.productId,
-            debugMessage: error.debugMessage
-        )
-    }
-}
-
 @available(iOS 15.0, *)
 enum RnIapHelper {
     // MARK: - Sanitizers
@@ -592,17 +546,23 @@ enum RnIapHelper {
         _ productId: String? = nil,
         debugMessage: String? = nil
     ) -> NitroPurchaseResult {
-        return NitroPurchaseResult(
-            responseCode: -1,
-            debugMessage: debugMessage,
-            code: code.rawValue,
-            message: message,
+        makePurchaseErrorResult(PurchaseError(
+            code: code, debugMessage: debugMessage, message: message, productId: productId
+        ))
+    }
+
+    static func makePurchaseErrorResult(_ error: PurchaseError) -> NitroPurchaseResult {
+        NitroPurchaseResult(
+            responseCode: error.responseCode.map(Double.init) ?? -1,
+            debugMessage: error.debugMessage,
+            code: error.code.rawValue,
+            message: error.message,
             purchaseToken: nil,
-            productId: productId,
-            productIds: nil,
-            productType: nil,
-            isEmptyProductList: nil,
-            subResponseCodeAndroid: nil
+            productId: error.productId,
+            productIds: error.productIds,
+            productType: error.productType,
+            isEmptyProductList: error.isEmptyProductList,
+            subResponseCodeAndroid: error.subResponseCodeAndroid.flatMap { SubResponseCodeAndroid(fromString: $0.rawValue) }
         )
     }
 

@@ -1,9 +1,13 @@
 {
   "cli": {
-    "version": ">= 3.8.1"
+    "version": ">= 16.31.0"
   },
   "build": {
+    "base": {
+      "bun": "1.3.13"
+    },
     "development": {
+      "extends": "base",
       "channel": "development",
       "developmentClient": true,
       "distribution": "internal",
@@ -15,6 +19,7 @@
       }
     },
     "preview": {
+      "extends": "base",
       "channel": "preview",
       "cache": {
         "disabled": true
@@ -25,12 +30,14 @@
       }
     },
     "production": {
+      "extends": "base",
       "channel": "production",
       "cache": {
         "disabled": true
       }
     },
     "quest": {
+      "extends": "base",
       "android": {
         "buildType": "apk"
       },
@@ -39,6 +46,7 @@
       }
     },
     "fire": {
+      "extends": "base",
       "env": {
         "ORG_GRADLE_PROJECT_openiapStore": "amazon"
       }

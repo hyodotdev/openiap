@@ -12,7 +12,7 @@ internal static class IapKitSettings
     private static readonly IReadOnlyDictionary<string, string> BuildMetadata =
         typeof(IapKitSettings).Assembly
             .GetCustomAttributes<AssemblyMetadataAttribute>()
-            .Where(attribute => !string.IsNullOrWhiteSpace(attribute.Value))
+            .Where(attribute => attribute.Value is not null)
             .GroupBy(attribute => attribute.Key, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First().Value!, StringComparer.Ordinal);
 
@@ -61,6 +61,8 @@ internal static class IapKitSettings
         Amazon = new IapkitAmazonOptions
         {
             Sandbox = AmazonRvsSandbox,
+            ExpectedEnvironment = Environment.GetEnvironmentVariable("AMAZON_EXPECTED_ENVIRONMENT")
+                ?? FromBuild("AmazonExpectedEnvironment"),
             // These term-to-base IDs belong to Martie's Amazon catalog.
             VerifiedProductId = productId =>
                 Constants.SubscriptionProductIds.Contains(productId) ? AmazonSubscriptionBaseId : productId,

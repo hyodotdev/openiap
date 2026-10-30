@@ -39,6 +39,9 @@ public sealed record IapkitAmazonOptions
     /// <summary>Verify App Tester receipts with the Amazon RVS Cloud Sandbox.</summary>
     public bool Sandbox { get; init; }
 
+    /// <summary>Expected verdict environment; null keeps the routing-based default.</summary>
+    public string? ExpectedEnvironment { get; init; }
+
     /// <summary>RVS reports a subscription term under its parent SKU; maps one to the other.</summary>
     public Func<string, string>? VerifiedProductId { get; init; }
 }
@@ -92,7 +95,9 @@ internal static class IapkitConfirmationImplementation
         string Token() => string.IsNullOrEmpty(purchase.PurchaseToken)
             ? throw new InvalidOperationException($"Purchase {purchase.ProductId} has no purchase token to verify")
             : purchase.PurchaseToken;
-        iapkit = VerifyingStore(purchase, options) switch
+        var store = VerifyingStore(purchase, options);
+        if (store == IapStore.Amazon) AmazonExpectedEnvironment(options.Amazon);
+        iapkit = store switch
         {
             IapStore.Apple => iapkit with { Apple = new() { Jws = Token() } },
             IapStore.Google => iapkit with { Google = new() { PurchaseToken = Token() } },
@@ -188,6 +193,16 @@ internal static class IapkitConfirmationImplementation
     private static string AmazonProductId(Purchase purchase, IapkitConfirmationOptions options) =>
         options.Amazon?.VerifiedProductId?.Invoke(purchase.ProductId) ?? purchase.ProductId;
 
+    private static string AmazonExpectedEnvironment(IapkitAmazonOptions? amazon)
+    {
+        var expected = amazon?.ExpectedEnvironment ?? (amazon?.Sandbox == true ? "Sandbox" : "Production");
+        if (expected is not ("Sandbox" or "Production"))
+            throw new ArgumentException("Amazon expectedEnvironment must be Sandbox or Production", nameof(amazon));
+        if (amazon?.Sandbox == true && expected == "Production")
+            throw new ArgumentException("Amazon Cloud Sandbox requires expectedEnvironment Sandbox", nameof(amazon));
+        return expected;
+    }
+
     private static string? EnvironmentMismatch(
         string? environment,
         IapStore store,
@@ -196,7 +211,7 @@ internal static class IapkitConfirmationImplementation
     {
         var expected = store switch
         {
-            IapStore.Amazon => options.Amazon?.Sandbox == true ? "Sandbox" : "Production",
+            IapStore.Amazon => AmazonExpectedEnvironment(options.Amazon),
             IapStore.Apple => (purchase as PurchaseIOS)?.EnvironmentIOS,
             _ => null,
         };

@@ -6,6 +6,111 @@ import OpenIAP
 @available(iOS 15.0, macOS 14.0, tvOS 15.0, watchOS 8.0, *)
 final class ConnectOnDemandTests: XCTestCase {
 
+    func testProtocolResolvesTypedFailureBeforeNitroCanEraseItsFields() async throws {
+        let bridge = HybridRnIapProtocol()
+        XCTAssertTrue((bridge.core as AnyObject) === (bridge.core as AnyObject))
+        let outcome = try await bridge.isBillingProgramAvailableAndroid(program: .externalOffer).await()
+        XCTAssertNil(outcome.value)
+        let error = try XCTUnwrap(outcome.error)
+        XCTAssertEqual(error.code, "feature-not-supported")
+        XCTAssertEqual(error.message, "Billing Programs API is Android-only")
+        XCTAssertNil(error.productIds)
+        XCTAssertNil(error.responseCode)
+    }
+
+    func testProtocolAndListenerPreserveEveryCanonicalErrorDiagnostic() throws {
+        let payload = PurchaseError(
+            code: .queryProduct,
+            debugMessage: "Caused by: diagnostic text",
+            isEmptyProductList: false,
+            message: #"Query failed: {"code":"user-cancelled"} is text"#,
+            productId: "premium",
+            productIds: ["premium", "other"],
+            productType: "subs",
+            responseCode: -1,
+            subResponseCodeAndroid: .userIneligible
+        )
+        let typed = protocolPurchaseError(OpenIapException.from(payload))
+        XCTAssertEqual(typed.code, "query-product")
+        XCTAssertEqual(typed.message, payload.message)
+        XCTAssertEqual(typed.debugMessage?.asType(String.self), payload.debugMessage)
+        XCTAssertEqual(typed.isEmptyProductList?.asType(Bool.self), false)
+        XCTAssertEqual(typed.productId?.asType(String.self), payload.productId)
+        XCTAssertEqual(typed.productIds?.asType([String].self), payload.productIds)
+        XCTAssertEqual(typed.productType?.asType(String.self), payload.productType)
+        XCTAssertEqual(typed.responseCode?.asType(Double.self), -1)
+        XCTAssertEqual(typed.subResponseCodeAndroid, .userIneligible)
+        let listener = RnIapHelper.makePurchaseErrorResult(payload)
+        XCTAssertEqual(listener.productIds, payload.productIds)
+        XCTAssertEqual(listener.productType, payload.productType)
+        XCTAssertEqual(listener.isEmptyProductList, false)
+        XCTAssertEqual(listener.subResponseCodeAndroid, .userIneligible)
+    }
+
+    func testTeardownSerializesTypedProviderFailureWithoutClearingTheConnection() async throws {
+        let hybrid = HybridRnIap()
+        _ = try await hybrid.enqueueConnectOperation { true }.value
+        let expected = PurchaseError.make(code: .notEnded, message: "Provider teardown failed")
+
+        do {
+            _ = try await hybrid.enqueueEndOperation { throw expected }.value
+            XCTFail("A failed teardown must reject")
+        } catch let error as OpenIapException {
+            let payload = try JSONDecoder().decode(PurchaseError.self, from: Data(error.localizedDescription.utf8))
+            XCTAssertEqual(payload.code, expected.code)
+            XCTAssertEqual(payload.message, expected.message)
+        }
+
+        XCTAssertTrue(inspectInitialized(hybrid))
+        _ = try await hybrid.enqueueEndOperation { true }.value
+    }
+
+    func testDeliveredStoreErrorsDoNotReachTheRequestConnectionFailureHandler() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in probe.record(error.code) }
+        _ = try await hybrid.enqueueConnectOperation { true }.value
+
+        for code in [ErrorCode.userCancelled, .networkError] {
+            do {
+                let result = try await hybrid.runRequestPurchaseOperation {
+                    throw PurchaseError.make(code: code, message: "Store failure")
+                }
+                XCTAssertNil(result)
+            } catch {
+                XCTFail("A delivered store error must not reach requestPurchase's connection-failure catch: \(error)")
+            }
+        }
+
+        XCTAssertEqual(probe.events, [ErrorCode.userCancelled.rawValue, ErrorCode.networkError.rawValue])
+        _ = try await hybrid.enqueueEndOperation { true }.value
+    }
+
+    func testConnectedOperationSerializesPurchaseErrorBeforeNitroReceivesIt() async throws {
+        let hybrid = HybridRnIap()
+        _ = try await hybrid.enqueueConnectOperation { true }.value
+        let expected = PurchaseError(
+            code: .networkError,
+            debugMessage: "line one\nline two",
+            message: "Store unavailable",
+            productIds: ["premium"],
+            responseCode: -1
+        )
+
+        do {
+            let _: Bool = try await hybrid.enqueueConnectedOperation { throw expected }.value
+            XCTFail("A failed store operation must reject")
+        } catch let error as OpenIapException {
+            let payload = try JSONDecoder().decode(PurchaseError.self, from: Data(error.localizedDescription.utf8))
+            XCTAssertEqual(payload.code, expected.code)
+            XCTAssertEqual(payload.message, expected.message)
+            XCTAssertEqual(payload.debugMessage, expected.debugMessage)
+            XCTAssertEqual(payload.productIds, expected.productIds)
+            XCTAssertEqual(payload.responseCode, expected.responseCode)
+        }
+        _ = try await hybrid.enqueueEndOperation { true }.value
+    }
+
     func testFinishResolvesRestoredPurchaseWithoutBridgeCache() async throws {
         let hybrid = HybridRnIap()
         guard case .purchaseIos(let other) = try makePurchase(id: "100"),
@@ -703,7 +808,66 @@ final class ConnectOnDemandTests: XCTestCase {
         XCTAssertEqual(probe.events, [ErrorCode.purchaseError.rawValue])
     }
 
-    func testDelayedPurchaseErrorCallbacksAreSuppressedBeforeTeardown() async throws {
+    func testTypedFailureLeavesNoSuppressionForLaterSamePayload() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in probe.record(error.code) }
+        _ = try await hybrid.enqueueConnectOperation { true }.value
+        let error = PurchaseError.make(code: .userCancelled, productId: "premium", message: "Cancelled")
+
+        let result = try await hybrid.runRequestPurchaseOperation(productId: "premium") { throw error }
+        XCTAssertNil(result)
+        _ = try await hybrid.enqueuePurchaseErrorDelivery(error, expectedEpoch: hybrid.currentConnectionEpoch()).value
+
+        XCTAssertEqual(probe.events, [ErrorCode.userCancelled.rawValue, ErrorCode.userCancelled.rawValue])
+        _ = try await hybrid.enqueueEndOperation { true }.value
+    }
+
+    func testQueuedSameKeyErrorWithDifferentDiagnosticsStillDelivers() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in probe.record(error.debugMessage ?? "") }
+        _ = try await hybrid.enqueueConnectOperation { true }.value
+        let epoch = hybrid.currentConnectionEpoch()
+        let holder = DeliveryTaskHolder()
+        let primary = PurchaseError.make(code: .networkError, productId: "premium", message: "Offline", debugMessage: "Primary failure")
+        let independent = PurchaseError.make(code: .networkError, productId: "premium", message: "Offline", debugMessage: "Independent failure")
+
+        _ = try await hybrid.runRequestPurchaseOperation(productId: "premium") {
+            await holder.set(hybrid.enqueuePurchaseErrorDelivery(independent, expectedEpoch: epoch))
+            throw primary
+        }
+        let task = await holder.task
+        _ = try await XCTUnwrap(task).value
+
+        XCTAssertEqual(probe.events, ["Primary failure", "Independent failure"])
+        _ = try await hybrid.enqueueEndOperation { true }.value
+    }
+
+    func testRequestDuplicateDoesNotConsumeOnDemandInitSuppression() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in probe.record(error.code) }
+        _ = try await hybrid.enqueueOnDemandConnectOperation { false }.value
+        _ = try await hybrid.enqueueConnectOperation { true }.value
+        let error = PurchaseError.make(code: .iapNotAvailable, message: "Store unavailable")
+        let epoch = hybrid.currentConnectionEpoch()
+        let holder = DeliveryTaskHolder()
+
+        _ = try await hybrid.runRequestPurchaseOperation {
+            await holder.set(hybrid.enqueuePurchaseErrorDelivery(error, expectedEpoch: epoch))
+            throw error
+        }
+        let task = await holder.task
+        _ = try await XCTUnwrap(task).value
+        _ = try await hybrid.enqueuePurchaseErrorDelivery(error, expectedEpoch: epoch).value
+        XCTAssertEqual(probe.events, [ErrorCode.iapNotAvailable.rawValue])
+        _ = try await hybrid.enqueuePurchaseErrorDelivery(error, expectedEpoch: epoch).value
+        XCTAssertEqual(probe.events, [ErrorCode.iapNotAvailable.rawValue, ErrorCode.iapNotAvailable.rawValue])
+        _ = try await hybrid.enqueueEndOperation { true }.value
+    }
+
+    func testQueuedPurchaseErrorCallbacksAreSuppressedBeforeTeardown() async throws {
         let hybrid = HybridRnIap()
         let probe = EventProbe()
         try hybrid.addPurchaseErrorListener { error in
@@ -717,31 +881,21 @@ final class ConnectOnDemandTests: XCTestCase {
             message: "cancelled"
         )
         let epoch = hybrid.currentConnectionEpoch()
+        let holder = DeliveryTaskHolder()
 
-        for _ in 0..<2 {
-            do {
-                _ = try await hybrid.runRequestPurchaseOperation {
-                    throw purchaseError
-                }
-                XCTFail("the injected purchase error must be preserved")
-            } catch let error as PurchaseError {
-                XCTAssertEqual(error.code, .userCancelled)
+        for attempt in 1...2 {
+            let result = try await hybrid.runRequestPurchaseOperation(productId: "premium") {
+                await holder.set(hybrid.enqueuePurchaseErrorDelivery(purchaseError, expectedEpoch: epoch))
+                throw purchaseError
             }
+            XCTAssertNil(result)
+            XCTAssertEqual(probe.events.count, attempt)
+            let task = await holder.task
+            _ = try await XCTUnwrap(task).value
+            XCTAssertEqual(probe.events.count, attempt)
         }
 
-        _ = hybrid.enqueueConnectedOperation {
-            try await Task.sleep(nanoseconds: 250_000_000)
-        }
-        let firstNativeDelivery = hybrid.enqueuePurchaseErrorDelivery(
-            purchaseError,
-            expectedEpoch: epoch
-        )
-        let secondNativeDelivery = hybrid.enqueuePurchaseErrorDelivery(
-            purchaseError,
-            expectedEpoch: epoch
-        )
-        _ = try await firstNativeDelivery.value
-        _ = try await secondNativeDelivery.value
+        XCTAssertEqual(probe.events, [ErrorCode.userCancelled.rawValue, ErrorCode.userCancelled.rawValue])
         _ = try await hybrid.endConnection().await()
         XCTAssertEqual(
             probe.events,

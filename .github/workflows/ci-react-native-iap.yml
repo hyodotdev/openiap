@@ -27,6 +27,7 @@ on:
       - "scripts/assert-lcov-coverage.mjs"
       - ".github/actions/coverage-report/**"
       - "scripts/test-ios-log-sanitizers.sh"
+      - "scripts/test-rn-error-serialization.sh"
       - ".github/workflows/ci-react-native-iap.yml"
       - ".github/actions/setup-ruby/action.yml"
       - ".java-version"
@@ -58,6 +59,7 @@ on:
       - "scripts/assert-lcov-coverage.mjs"
       - ".github/actions/coverage-report/**"
       - "scripts/test-ios-log-sanitizers.sh"
+      - "scripts/test-rn-error-serialization.sh"
       - ".github/workflows/ci-react-native-iap.yml"
       - ".github/actions/setup-ruby/action.yml"
       - ".java-version"
@@ -274,6 +276,9 @@ jobs:
 
       - name: Test iOS log sanitizer
         run: bash ../../scripts/test-ios-log-sanitizers.sh react-native
+
+      - name: Test native PurchaseError serialization
+        run: bash ../../scripts/test-rn-error-serialization.sh
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:

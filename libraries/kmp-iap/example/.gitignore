@@ -24,3 +24,6 @@ captures
 
 # iOS configuration with secrets
 iosApp/Configuration/Secrets.xcconfig
+.swiftpm-locks/**
+!.swiftpm-locks/**/
+!.swiftpm-locks/**/Package.resolved

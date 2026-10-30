@@ -13,6 +13,7 @@ static var _loaded := false
 static var _api_key := ""
 static var _base_url := ""
 static var _amazon_rvs_sandbox := false
+static var _amazon_expected_environment: Variant = null
 
 
 static func _ensure_loaded() -> void:
@@ -34,6 +35,8 @@ static func _ensure_loaded() -> void:
 		_api_key = ""
 	_base_url = str(config.get_value("iapkit", "base_url", "")).strip_edges()
 	_amazon_rvs_sandbox = bool(config.get_value("iapkit", "amazon_rvs_sandbox", false))
+	if config.has_section_key("iapkit", "amazon_expected_environment"):
+		_amazon_expected_environment = config.get_value("iapkit", "amazon_expected_environment")
 
 
 ## Publishable key sent as `Bearer {api_key}`; empty when unset.
@@ -52,6 +55,12 @@ static func local_base_url() -> String:
 static func amazon_rvs_sandbox() -> bool:
 	_ensure_loaded()
 	return _amazon_rvs_sandbox
+
+
+## Set Sandbox for LAT; null keeps the adapter's routing-based default.
+static func amazon_expected_environment() -> Variant:
+	_ensure_loaded()
+	return _amazon_expected_environment
 
 
 ## Mirrors the other examples: no key skips, a local origin prefers it.

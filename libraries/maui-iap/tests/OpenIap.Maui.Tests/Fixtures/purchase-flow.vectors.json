@@ -1412,6 +1412,600 @@
       "props": null,
       "error": true,
       "granted": false
+    },
+    {
+      "name": "confirms an Amazon LAT receipt through real RVS",
+      "purchase": {
+        "id": "receipt-lat-1",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "receipt-lat-1",
+        "store": "amazon",
+        "storeId": "amazon"
+      },
+      "isConsumable": true,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "amazon": {
+            "receiptId": "receipt-lat-1",
+            "expectedProductId": "coins_100",
+            "sandbox": false
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "amazon",
+          "storeId": "amazon",
+          "environment": "Sandbox",
+          "isValid": true,
+          "state": "ready-to-consume",
+          "productId": "coins_100"
+        }
+      },
+      "granted": true,
+      "amazon": {
+        "sandbox": false,
+        "verifiedProductIds": {},
+        "expectedEnvironment": "Sandbox"
+      },
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      }
+    },
+    {
+      "name": "confirms an explicit Amazon production environment",
+      "purchase": {
+        "id": "receipt-lat-2",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "receipt-lat-2",
+        "store": "amazon",
+        "storeId": "amazon"
+      },
+      "isConsumable": true,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "amazon": {
+            "receiptId": "receipt-lat-2",
+            "expectedProductId": "coins_100",
+            "sandbox": false
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "amazon",
+          "storeId": "amazon",
+          "environment": "Production",
+          "isValid": true,
+          "state": "ready-to-consume",
+          "productId": "coins_100"
+        }
+      },
+      "granted": true,
+      "amazon": {
+        "sandbox": false,
+        "verifiedProductIds": {},
+        "expectedEnvironment": "Production"
+      },
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      }
+    },
+    {
+      "name": "refuses production evidence in an Amazon LAT build",
+      "purchase": {
+        "id": "receipt-lat-3",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "receipt-lat-3",
+        "store": "amazon",
+        "storeId": "amazon"
+      },
+      "isConsumable": true,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "amazon": {
+            "receiptId": "receipt-lat-3",
+            "expectedProductId": "coins_100",
+            "sandbox": false
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "amazon",
+          "storeId": "amazon",
+          "environment": "Production",
+          "isValid": true,
+          "state": "ready-to-consume",
+          "productId": "coins_100"
+        }
+      },
+      "granted": false,
+      "amazon": {
+        "sandbox": false,
+        "verifiedProductIds": {},
+        "expectedEnvironment": "Sandbox"
+      },
+      "error": true
+    },
+    {
+      "name": "refuses missing Amazon LAT verdict environment",
+      "purchase": {
+        "id": "receipt-lat-4",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "receipt-lat-4",
+        "store": "amazon",
+        "storeId": "amazon"
+      },
+      "isConsumable": true,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "amazon": {
+            "receiptId": "receipt-lat-4",
+            "expectedProductId": "coins_100",
+            "sandbox": false
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "amazon",
+          "storeId": "amazon",
+          "isValid": true,
+          "state": "ready-to-consume",
+          "productId": "coins_100"
+        }
+      },
+      "granted": false,
+      "amazon": {
+        "sandbox": false,
+        "verifiedProductIds": {},
+        "expectedEnvironment": "Sandbox"
+      },
+      "error": true
+    },
+    {
+      "name": "refuses an unknown Amazon LAT verdict environment",
+      "purchase": {
+        "id": "receipt-lat-5",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "receipt-lat-5",
+        "store": "amazon",
+        "storeId": "amazon"
+      },
+      "isConsumable": true,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "amazon": {
+            "receiptId": "receipt-lat-5",
+            "expectedProductId": "coins_100",
+            "sandbox": false
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "amazon",
+          "storeId": "amazon",
+          "environment": "Unrecognized",
+          "isValid": true,
+          "state": "ready-to-consume",
+          "productId": "coins_100"
+        }
+      },
+      "granted": false,
+      "amazon": {
+        "sandbox": false,
+        "verifiedProductIds": {},
+        "expectedEnvironment": "Sandbox"
+      },
+      "error": true
+    },
+    {
+      "name": "rejects Cloud Sandbox with expected Production before verification",
+      "purchase": {
+        "id": "receipt-lat-6",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "receipt-lat-6",
+        "store": "amazon",
+        "storeId": "amazon"
+      },
+      "isConsumable": true,
+      "props": null,
+      "result": {
+        "iapkit": {
+          "store": "amazon",
+          "storeId": "amazon",
+          "environment": "Sandbox",
+          "isValid": true,
+          "state": "ready-to-consume",
+          "productId": "coins_100"
+        }
+      },
+      "granted": false,
+      "amazon": {
+        "sandbox": true,
+        "verifiedProductIds": {},
+        "expectedEnvironment": "Production"
+      },
+      "error": true
+    },
+    {
+      "name": "rejects an empty Amazon expected environment before verification",
+      "purchase": {
+        "id": "receipt-lat-7",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "receipt-lat-7",
+        "store": "amazon",
+        "storeId": "amazon"
+      },
+      "isConsumable": true,
+      "props": null,
+      "result": {
+        "iapkit": {
+          "store": "amazon",
+          "storeId": "amazon",
+          "environment": "Production",
+          "isValid": true,
+          "state": "ready-to-consume",
+          "productId": "coins_100"
+        }
+      },
+      "granted": false,
+      "amazon": {
+        "sandbox": false,
+        "verifiedProductIds": {},
+        "expectedEnvironment": ""
+      },
+      "error": true
+    },
+    {
+      "name": "rejects a lowercase Amazon expected environment before verification",
+      "purchase": {
+        "id": "receipt-lat-8",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "receipt-lat-8",
+        "store": "amazon",
+        "storeId": "amazon"
+      },
+      "isConsumable": true,
+      "props": null,
+      "result": {
+        "iapkit": {
+          "store": "amazon",
+          "storeId": "amazon",
+          "environment": "Production",
+          "isValid": true,
+          "state": "ready-to-consume",
+          "productId": "coins_100"
+        }
+      },
+      "granted": false,
+      "amazon": {
+        "sandbox": false,
+        "verifiedProductIds": {},
+        "expectedEnvironment": "sandbox"
+      },
+      "error": true
+    },
+    {
+      "name": "keeps the Amazon production default when the expected environment is null",
+      "purchase": {
+        "id": "receipt-lat-9",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "receipt-lat-9",
+        "store": "amazon",
+        "storeId": "amazon"
+      },
+      "isConsumable": true,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "amazon": {
+            "receiptId": "receipt-lat-9",
+            "expectedProductId": "coins_100",
+            "sandbox": false
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "amazon",
+          "storeId": "amazon",
+          "environment": "Production",
+          "isValid": true,
+          "state": "ready-to-consume",
+          "productId": "coins_100"
+        }
+      },
+      "granted": true,
+      "amazon": {
+        "sandbox": false,
+        "verifiedProductIds": {},
+        "expectedEnvironment": null
+      },
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      }
+    },
+    {
+      "name": "ignores an unused invalid Amazon environment on Google",
+      "purchase": {
+        "id": "tx-8",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-8",
+        "store": "google",
+        "storeId": "play"
+      },
+      "isConsumable": false,
+      "baseUrl": " http://localhost:3000 ",
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "baseUrl": "http://localhost:3000",
+          "google": {
+            "purchaseToken": "token-8"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "google",
+          "storeId": "play",
+          "isValid": true,
+          "state": "pending-acknowledgment",
+          "productId": "premium"
+        }
+      },
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "granted": true,
+      "amazon": {
+        "sandbox": false,
+        "verifiedProductIds": {},
+        "expectedEnvironment": "sandbox"
+      }
+    },
+    {
+      "name": "confirms mapped community Amazon LAT evidence through real RVS",
+      "purchase": {
+        "id": "receipt-36",
+        "productId": "premium_monthly_term",
+        "purchaseState": "purchased",
+        "purchaseToken": "receipt-36",
+        "store": "unknown",
+        "storeId": "amazon_example"
+      },
+      "isConsumable": false,
+      "verifyAs": {
+        "amazon_example": "amazon"
+      },
+      "amazon": {
+        "sandbox": false,
+        "verifiedProductIds": {
+          "premium_monthly_term": "premium"
+        },
+        "expectedEnvironment": "Sandbox"
+      },
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "amazon": {
+            "receiptId": "receipt-36",
+            "expectedProductId": "premium",
+            "sandbox": false
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "unknown",
+          "storeId": "amazon_example",
+          "environment": "Sandbox",
+          "isValid": true,
+          "state": "entitled",
+          "productId": "premium"
+        }
+      },
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "granted": true
+    },
+    {
+      "name": "keeps a route-labeled Amazon LAT rejection failed",
+      "purchase": {
+        "id": "receipt-lat-12",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "receipt-lat-12",
+        "store": "amazon",
+        "storeId": "amazon"
+      },
+      "isConsumable": true,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "amazon": {
+            "receiptId": "receipt-lat-12",
+            "expectedProductId": "coins_100",
+            "sandbox": false
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "amazon",
+          "storeId": "amazon",
+          "environment": "Production",
+          "isValid": false,
+          "state": "canceled",
+          "productId": "coins_100"
+        }
+      },
+      "granted": false,
+      "amazon": {
+        "sandbox": false,
+        "verifiedProductIds": {},
+        "expectedEnvironment": "Sandbox"
+      },
+      "error": true
+    },
+    {
+      "name": "keeps Amazon LAT pending evidence unsettled",
+      "purchase": {
+        "id": "receipt-lat-13",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "receipt-lat-13",
+        "store": "amazon",
+        "storeId": "amazon"
+      },
+      "isConsumable": true,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "amazon": {
+            "receiptId": "receipt-lat-13",
+            "expectedProductId": "coins_100",
+            "sandbox": false
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "amazon",
+          "storeId": "amazon",
+          "isValid": true,
+          "state": "pending",
+          "productId": "coins_100"
+        }
+      },
+      "granted": false,
+      "amazon": {
+        "sandbox": false,
+        "verifiedProductIds": {},
+        "expectedEnvironment": "Sandbox"
+      },
+      "confirmation": {
+        "status": "store_pending"
+      }
+    },
+    {
+      "name": "keeps Amazon LAT unknown evidence unsettled",
+      "purchase": {
+        "id": "receipt-lat-14",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "receipt-lat-14",
+        "store": "amazon",
+        "storeId": "amazon"
+      },
+      "isConsumable": true,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "amazon": {
+            "receiptId": "receipt-lat-14",
+            "expectedProductId": "coins_100",
+            "sandbox": false
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "amazon",
+          "storeId": "amazon",
+          "isValid": true,
+          "state": "unknown",
+          "productId": "coins_100"
+        }
+      },
+      "granted": false,
+      "amazon": {
+        "sandbox": false,
+        "verifiedProductIds": {},
+        "expectedEnvironment": "Sandbox"
+      },
+      "confirmation": {
+        "status": "verification_delayed",
+        "retryAfterMs": 30000
+      }
+    },
+    {
+      "name": "confirms explicit Amazon Cloud Sandbox evidence",
+      "purchase": {
+        "id": "receipt-lat-15",
+        "productId": "coins_100",
+        "purchaseState": "purchased",
+        "purchaseToken": "receipt-lat-15",
+        "store": "amazon",
+        "storeId": "amazon"
+      },
+      "isConsumable": true,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "amazon": {
+            "receiptId": "receipt-lat-15",
+            "expectedProductId": "coins_100",
+            "sandbox": true
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "amazon",
+          "storeId": "amazon",
+          "environment": "Sandbox",
+          "isValid": true,
+          "state": "ready-to-consume",
+          "productId": "coins_100"
+        }
+      },
+      "granted": true,
+      "amazon": {
+        "sandbox": true,
+        "verifiedProductIds": {},
+        "expectedEnvironment": "Sandbox"
+      },
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      }
     }
   ],
   "sequences": [

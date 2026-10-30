@@ -131,7 +131,11 @@ func _confirm(purchase: Dictionary, is_consumable: bool) -> Variant:
 			var confirm := GodotIapPlugin.confirm_with_iapkit({
 				"api_key": IapkitConfig.api_key(),
 				"base_url": IapkitConfig.local_base_url() if verification_method == IapkitConfig.Method.IAPKIT_LOCAL else "",
-				"amazon": {"sandbox": IapkitConfig.amazon_rvs_sandbox(), "verified_product_id": _amazon_parent_sku},
+				"amazon": {
+					"sandbox": IapkitConfig.amazon_rvs_sandbox(),
+					"expected_environment": IapkitConfig.amazon_expected_environment(),
+					"verified_product_id": _amazon_parent_sku,
+				},
 				"verify_as": _verify_as,
 				"grant": _grant,
 			})

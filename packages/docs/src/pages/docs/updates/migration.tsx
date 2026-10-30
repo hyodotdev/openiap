@@ -296,6 +296,18 @@ const scheduledRemovals = [
     title: 'Removal in react-native-iap 18.0',
     rows: [
       [
+        'parseErrorStringToJsonObj',
+        'Read PurchaseError.code, message and diagnostics directly; keep string decoding only through 17.x',
+      ],
+      [
+        'isUserCancelledError(string) / isUserCancelledError(new Error(encodedMessage))',
+        'Pass a structured PurchaseError with a code; decoding strings or Error.message without a code is removed, while structured error support remains available',
+      ],
+      [
+        'legacy native error strings',
+        'Rebuild iOS and Android apps with the upgraded SDK before updating JavaScript; the older-binary fallback is removed in 18.0.0',
+      ],
+      [
         'NitroProduct.originalPriceAndroid, originalPriceAmountMicrosAndroid, introductoryPriceValueAndroid, introductoryPriceCyclesAndroid, introductoryPricePeriodAndroid, subscriptionPeriodAndroid, freeTrialPeriodAndroid',
         'subscriptionOffers and discountOffers on the product that fetchProducts returns',
       ],

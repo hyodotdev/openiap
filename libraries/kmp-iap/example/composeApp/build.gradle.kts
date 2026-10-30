@@ -136,6 +136,12 @@ android {
             "AMAZON_RVS_SANDBOX",
             envProperties.getProperty("AMAZON_RVS_SANDBOX", "false").toBoolean().toString()
         )
+        buildConfigField(
+            "String",
+            "AMAZON_EXPECTED_ENVIRONMENT",
+            envProperties.getProperty("AMAZON_EXPECTED_ENVIRONMENT")
+                ?.let { groovy.json.JsonOutput.toJson(it) } ?: "null"
+        )
     }
 
     flavorDimensions += "platform"

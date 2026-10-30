@@ -81,7 +81,8 @@ void main() {
       expect(props.amazon?.expectedProductId, 'dev.hyo.martie.premium.base');
       expect(props.amazon?.sandbox, IapConstants.amazonRvsSandbox);
       final environment =
-          IapConstants.amazonRvsSandbox ? 'Sandbox' : 'Production';
+          IapConstants.amazonExpectedEnvironment ??
+          (IapConstants.amazonRvsSandbox ? 'Sandbox' : 'Production');
       VerifyPurchaseWithProviderResult result({
         String productId = 'dev.hyo.martie.premium.base',
         String? env,

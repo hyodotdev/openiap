@@ -125,6 +125,9 @@ static func to_iapkit_verification_props(purchase: Dictionary, options: Dictiona
 		"google":
 			iapkit["google"] = {"purchaseToken": token}
 		"amazon":
+			var expected = _amazon_expected_environment(options)
+			if expected is Failure:
+				return expected
 			iapkit["amazon"] = {
 				"receiptId": token,
 				"expectedProductId": _amazon_product_id(purchase, options),
@@ -160,7 +163,7 @@ static func read_iapkit_verification(result: Dictionary, purchase: Dictionary, i
 			return {"status": "verification_delayed", "retryAfterMs": IAPKIT_UNKNOWN_RETRY_MS}
 	var store := _verifying_store(purchase, options)
 	var expected_product_id = _amazon_product_id(purchase, options) if store == "amazon" else purchase.productId
-	var mismatch := ""
+	var mismatch: Variant = ""
 	if not _same(verified.get("store"), purchase.get("store")):
 		mismatch = "store %s, expected %s" % [verified.get("store"), purchase.get("store")]
 	elif purchase.get("storeId") and not _same(verified.get("storeId"), purchase.storeId):
@@ -170,7 +173,9 @@ static func read_iapkit_verification(result: Dictionary, purchase: Dictionary, i
 		mismatch = "product %s, expected %s" % ["(none)" if product_id == null else product_id, expected_product_id]
 	else:
 		mismatch = _environment_mismatch(verified.get("environment"), store, purchase, options)
-	if not mismatch.is_empty():
+	if mismatch is Failure:
+		return mismatch
+	if mismatch is String and not mismatch.is_empty():
 		return Failure.new("IAPKit verified " + mismatch)
 	if not _same(verified.get("isValid"), true):
 		match state:
@@ -199,10 +204,24 @@ static func _amazon_product_id(purchase: Dictionary, options: Dictionary) -> Str
 	return purchase.productId if product_id == null else product_id
 
 
-static func _environment_mismatch(environment: Variant, store: String, purchase: Dictionary, options: Dictionary) -> String:
+static func _amazon_expected_environment(options: Dictionary) -> Variant:
+	var amazon = options.get("amazon", {})
+	var expected = amazon.get("expected_environment")
+	if expected == null:
+		expected = "Sandbox" if amazon.get("sandbox", false) else "Production"
+	if not expected is String or (expected != "Sandbox" and expected != "Production"):
+		return Failure.new("Amazon expectedEnvironment must be Sandbox or Production")
+	if amazon.get("sandbox", false) and expected == "Production":
+		return Failure.new("Amazon Cloud Sandbox requires expectedEnvironment Sandbox")
+	return expected
+
+
+static func _environment_mismatch(environment: Variant, store: String, purchase: Dictionary, options: Dictionary) -> Variant:
 	var expected = null
 	if store == "amazon":
-		expected = "Sandbox" if options.get("amazon", {}).get("sandbox", false) else "Production"
+		expected = _amazon_expected_environment(options)
+		if expected is Failure:
+			return expected
 	elif store == "apple":
 		expected = purchase.get("environmentIOS")
 	if not expected or _same(environment, expected):

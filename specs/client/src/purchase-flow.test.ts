@@ -83,7 +83,11 @@ const vectors: {
     isConsumable: boolean;
     apiKey?: string | null;
     baseUrl?: string;
-    amazon?: { sandbox: boolean; verifiedProductIds: Record<string, string> };
+    amazon?: {
+      sandbox: boolean;
+      verifiedProductIds: Record<string, string>;
+      expectedEnvironment?: unknown;
+    };
     verifyAs?: Record<string, "apple" | "google" | "amazon" | "horizon">;
     noGrant?: true;
     props: IapkitVerificationProps | null;
@@ -142,7 +146,7 @@ function purchase(
 }
 
 function flowWith(
-  confirm: (p: PurchaseFlowPurchase) => Promise<PurchaseConfirmation>,
+  confirm: PurchaseFlowOptions<PurchaseFlowPurchase>["confirmWithBackend"],
   overrides: Partial<PurchaseFlowOptions<PurchaseFlowPurchase>> = {},
 ) {
   const options = {
@@ -176,6 +180,61 @@ afterEach(() => {
 });
 
 describe("processPurchase", () => {
+  it.each([true, false])(
+    "grants an Amazon LAT receipt before finishing only when the environment matches: %s",
+    async (matches) => {
+      const order: string[] = [];
+      const item = purchase({
+        store: "amazon",
+        storeId: "amazon",
+        productId: "coins_100",
+      });
+      const confirm = createIapkitConfirmation(
+        async () => ({
+          iapkit: {
+            store: "amazon",
+            storeId: "amazon",
+            productId: item.productId,
+            environment: matches ? "Sandbox" : "Production",
+            isValid: true,
+            state: "ready-to-consume",
+          },
+        }),
+        {
+          amazon: { sandbox: false, expectedEnvironment: "Sandbox" },
+          grant: async () => {
+            order.push("grant");
+          },
+        },
+      );
+      const { flow } = flowWith(confirm, {
+        finishTransaction: async () => {
+          order.push("finish");
+        },
+      });
+      expect((await flow.processPurchase(item)).status).toBe(
+        matches ? "entitled" : "failed",
+      );
+      expect(order).toEqual(matches ? ["grant", "finish"] : []);
+    },
+  );
+
+  it.each([false, 0, {}, ["Sandbox"]])(
+    "rejects a runtime-invalid Amazon environment before verification: %j",
+    async (expectedEnvironment) => {
+      const verify = vi.fn(async () => ({}));
+      const grant = vi.fn(async () => {});
+      const options = { amazon: { sandbox: false }, grant };
+      Object.assign(options.amazon, { expectedEnvironment });
+      const confirm = createIapkitConfirmation(verify, options);
+      await expect(
+        confirm(purchase({ store: "amazon" }), { isConsumable: true }),
+      ).rejects.toThrow("expectedEnvironment");
+      expect(verify).not.toHaveBeenCalled();
+      expect(grant).not.toHaveBeenCalled();
+    },
+  );
+
   it.each(["apple", "google"])(
     "leaves unsupported %s quantities unfinished",
     async (store) => {
@@ -1230,6 +1289,12 @@ describe("shared vectors", () => {
         verifyAs: (p: PurchaseFlowPurchase) => stores[p.storeId ?? ""],
         ...(vector.noGrant ? {} : { grant }),
       };
+      // Include invalid runtime values without weakening the public option type.
+      if (amazon && options.amazon && "expectedEnvironment" in amazon) {
+        Object.assign(options.amazon, {
+          expectedEnvironment: amazon.expectedEnvironment,
+        });
+      }
       const verify = vi.fn(
         async (_props: IapkitVerificationProps) => vector.result ?? {},
       );

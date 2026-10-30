@@ -1,0 +1,19 @@
+diff --git a/index.js b/index.js
+index 4dfca40..b6bb6ab 100644
+--- a/index.js
++++ b/index.js
+@@ -139 +139 @@ function customDecodeURIComponent(input) {
+-export default function decodeUriComponent(encodedURI) {
++function decodeUriComponent(encodedURI) {
+@@ -151,0 +152,4 @@ export default function decodeUriComponent(encodedURI) {
++
++module.exports = encodedURI => decodeUriComponent(
++	typeof encodedURI === 'string' ? encodedURI.replace(/\+/g, ' ') : encodedURI,
++);
+diff --git a/package.json b/package.json
+index 5991062..c8f1380 100644
+--- a/package.json
++++ b/package.json
+@@ -13 +13 @@
+-	"type": "module",
++	"type": "commonjs",

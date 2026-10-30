@@ -16,11 +16,12 @@ flutter build apk --release
 
 Pass these as `--dart-define`, which overrides the bundled `env.example`:
 
-| Key                  | Purpose                                                |
-| -------------------- | ------------------------------------------------------ |
-| `IAPKIT_API_KEY`     | `openiap-kit_pk_` publishable key, never an `sk_` key. |
-| `IAPKIT_BASE_URL`    | Origin of a local IAPKit server; empty uses the host.  |
-| `AMAZON_RVS_SANDBOX` | `true` for Amazon App Tester receipts.                 |
+| Key                           | Purpose                                                |
+| ----------------------------- | ------------------------------------------------------ |
+| `IAPKIT_API_KEY`              | `openiap-kit_pk_` publishable key, never an `sk_` key. |
+| `IAPKIT_BASE_URL`             | Origin of a local IAPKit server; empty uses the host.  |
+| `AMAZON_RVS_SANDBOX`          | `true` for Amazon App Tester receipts.                 |
+| `AMAZON_EXPECTED_ENVIRONMENT` | `Sandbox` for LAT with real RVS; omit for production.  |
 
 ```bash
 flutter run \

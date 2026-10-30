@@ -123,6 +123,7 @@ class AppPurchaseFlow {
       baseUrl: local ? localBaseUrl : null,
       amazon: IapkitAmazonOptions(
         sandbox: IapConstants.amazonRvsSandbox,
+        expectedEnvironment: IapConstants.amazonExpectedEnvironment,
         verifiedProductId: IapConstants.amazonVerifiedProductId,
       ),
       // The educational community provider wraps Amazon receipts.

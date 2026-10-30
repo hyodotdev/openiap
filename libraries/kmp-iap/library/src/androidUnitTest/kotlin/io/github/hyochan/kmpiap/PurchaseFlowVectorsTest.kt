@@ -92,7 +92,11 @@ class PurchaseFlowVectorsTest {
             apiKey = if ("apiKey" in vector) vector.string("apiKey") else "pk",
             baseUrl = vector.string("baseUrl"),
             amazon = amazon?.let {
-                IapkitConfirmationOptions.Amazon(sandbox = it.bool("sandbox"), verifiedProductId = { id -> productIds[id] ?: id })
+                IapkitConfirmationOptions.Amazon(
+                    sandbox = it.bool("sandbox"),
+                    verifiedProductId = { id -> productIds[id] ?: id },
+                    expectedEnvironment = it.string("expectedEnvironment"),
+                )
             },
             verifyAs = { stores[it.storeId] },
             grant = if (vector.bool("noGrant")) null else { _, _ -> grants++ },
