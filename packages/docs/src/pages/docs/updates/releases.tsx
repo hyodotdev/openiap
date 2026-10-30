@@ -57,8 +57,24 @@ const PURCHASE_ENVIRONMENT_RELEASES: readonly ReleaseMetadata[] = [
     tag: 'flutter-iap-11.3.0',
   },
   { name: 'godot-iap', version: '4.3.0', tag: 'godot-iap-4.3.0' },
-  { name: 'kmp-iap', version: '4.3.0', tag: 'kmp-iap-4.3.0' },
-  { name: 'OpenIap.Maui', version: '3.3.0', tag: 'maui-iap-3.3.0' },
+];
+
+const IOS_RECOVERY_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'openiap-apple', version: '4.0.7', tag: '4.0.7' },
+  {
+    name: 'react-native-iap',
+    version: '17.3.1',
+    tag: 'react-native-iap-17.3.1',
+  },
+  { name: 'expo-iap', version: '6.4.1', tag: 'expo-iap-6.4.1' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '11.3.1',
+    tag: 'flutter-iap-11.3.1',
+  },
+  { name: 'godot-iap', version: '4.3.1', tag: 'godot-iap-4.3.1' },
+  { name: 'kmp-iap', version: '4.2.1', tag: 'kmp-iap-4.2.1' },
+  { name: 'OpenIap.Maui', version: '3.2.1', tag: 'maui-iap-3.2.1' },
 ];
 
 const REACT_NATIVE_EXPO_GO_RELEASES: readonly ReleaseMetadata[] = [
@@ -704,6 +720,114 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
+      id: 'ios-receipt-recovery-2026-10-31',
+      date: new Date('2026-10-31'),
+      element: (
+        <div key="ios-receipt-recovery-2026-10-31" style={noteCardStyle}>
+          {IOS_RECOVERY_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="ios-receipt-recovery-2026-10-31" level="h4">
+            October 31, 2026 - iOS receipt recovery and error helper exports
+          </AnchorLink>
+          <p>
+            iOS apps can recover unfinished receipts and, with opt-in event
+            recovery, verified purchases from a failed inventory query. React
+            Native and Expo also expose their existing recoverable-error helper.
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Protocols and native packages
+          </h5>
+          <ul>
+            <li>
+              <strong>openiap-apple 4.0.7</strong>:
+              <ul>
+                <li>
+                  Preserves expired, upgraded and revoked subscription receipts
+                  for explicit app reconciliation (
+                  <a href="https://github.com/hyodotdev/openiap/issues/572">
+                    #572
+                  </a>
+                  ).
+                </li>
+                <li>
+                  <Link to="/docs/apis/get-available-purchases#failure-semantics">
+                    Opt-in event recovery
+                  </Link>{' '}
+                  publishes verified purchases while failed queries still
+                  reject; default and return-only restore paths remain strict (
+                  <a href="https://github.com/hyodotdev/openiap/issues/573">
+                    #573
+                  </a>
+                  ).
+                </li>
+              </ul>
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul>
+            <li>
+              <strong>react-native-iap 17.3.1 and expo-iap 6.4.1</strong>:
+              export the unchanged <code>isRecoverableError</code> classifier
+              from default and Vega entry points without automatic purchase
+              retries (
+              <a href="https://github.com/hyodotdev/openiap/issues/563">#563</a>
+              ).
+            </li>
+            <li>
+              <strong>kmp-iap 4.2.1 and OpenIap.Maui 3.2.1</strong>: add the{' '}
+              <a href="#amazon-lat-confirmation-2026-10-30">
+                Amazon LAT confirmation update
+              </a>{' '}
+              shipped in the other four SDKs on October 30.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <p>
+            Rebuild iOS apps with the framework patches below to include Apple
+            4.0.7. Recover unfinished receipts with{' '}
+            <Link to="/docs/apis/ios/get-pending-transactions-ios">
+              <code>getPendingTransactionsIOS</code>
+            </Link>{' '}
+            and record your app&apos;s entitlement decision before finishing
+            them. A receipt or event alone does not establish active access.
+            Keep handlers idempotent and never clear ownership after a failed
+            restore.
+          </p>
+          <p>
+            <code>confirmOnDeviceIOS</code> can report <code>failed</code> for a
+            past-expiry receipt even during billing grace; this is not a final
+            no-access verdict. Check current subscription status before cleanup,
+            following the{' '}
+            <Link to="/docs/features/validation">
+              device-only cleanup guidance
+            </Link>
+            .
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <div
+            style={{
+              border: '1px solid var(--border-color)',
+              borderRadius: '0.5rem',
+              padding: '1rem',
+            }}
+          >
+            <ul style={{ marginBottom: 0, paddingLeft: '1.25rem' }}>
+              {IOS_RECOVERY_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  >
+                    {getReleaseLabel(release)}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+    {
       id: 'amazon-lat-confirmation-2026-10-30',
       date: new Date('2026-10-30'),
       element: (
@@ -720,10 +844,10 @@ function Releases() {
             October 30, 2026 - Amazon LAT verification and native errors
           </AnchorLink>
           <p>
-            The six framework SDKs can confirm Amazon LAT receipts through real
-            RVS while accepting only Sandbox verdicts in a test build. React
-            Native also exposes structured native purchase errors across calls
-            and listeners.
+            React Native, Expo, Flutter and Godot can confirm Amazon LAT
+            receipts through real RVS while accepting only Sandbox verdicts in a
+            test build. React Native also exposes structured native purchase
+            errors across calls and listeners.
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
             Protocols and native packages

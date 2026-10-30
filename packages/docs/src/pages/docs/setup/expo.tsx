@@ -537,31 +537,35 @@ function Store() {
           <Link to="/docs/errors">
             <code>ErrorCode</code>
           </Link>{' '}
-          enum. Use the provided helper functions:
+          enum. The default SDK entry point exports the helper set below.{' '}
+          <code>isRecoverableError</code> is also available from the Vega entry
+          point.
         </p>
         <CodeBlock language="typescript">
           {`import {
-  ErrorCode,
   isUserCancelledError,
+  isRecoverableError,
   getUserFriendlyErrorMessage,
 } from 'expo-iap';
 
 // In useIAP onPurchaseError callback:
 if (isUserCancelledError(error)) return;
 
-const message = getUserFriendlyErrorMessage(error);
-Alert.alert('Error', message);
+if (isRecoverableError(error)) {
+  showRetryDialog();
+  return;
+}
 
-// Or use switch for specific handling:
-switch (error.code) {
-  case ErrorCode.NetworkError:
-    showRetryDialog();
-    break;
-  case ErrorCode.ItemUnavailable:
-    showUnavailableMessage();
-    break;
-}`}
+Alert.alert('Error', getUserFriendlyErrorMessage(error));`}
         </CodeBlock>
+        <p>
+          Use the helper to choose recovery for the failed operation. Before
+          another purchase request,{' '}
+          <Link to="/docs/errors#retry-strategy">
+            reconcile pending and completed or owned purchases
+          </Link>
+          .
+        </p>
       </section>
 
       <section>

@@ -155,6 +155,23 @@ final class ErrorNormalizationTests: XCTestCase {
         XCTAssertEqual(PurchaseError.wrap(unmapped, fallback: .purchaseError).code, .purchaseError)
     }
 
+    #if compiler(>=6.4)
+    func testInvalidPresentationContextPreservesTheCallersFallback() throws {
+        guard #available(iOS 27.0, macOS 27.0, tvOS 27.0, watchOS 27.0, visionOS 27.0, *) else {
+            throw XCTSkip("StoreKit presentation context errors require OS 27.")
+        }
+        for fallback: ErrorCode in [.purchaseError, .serviceError] {
+            let error = PurchaseError.wrap(
+                StoreKitError.invalidPresentationContext,
+                fallback: fallback,
+                productId: "p1"
+            )
+            XCTAssertEqual(error.code, fallback)
+            XCTAssertEqual(error.productId, "p1")
+        }
+    }
+    #endif
+
     func testWrapPreservesAnExistingPurchaseError() {
         let original = PurchaseError.make(code: .developerError, productId: "p1")
 

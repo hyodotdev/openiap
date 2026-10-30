@@ -340,10 +340,10 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
           framework exports as <code>createPurchaseFlow</code>. It listens for
           purchases, confirms each one, finishes it once access is granted,
           recovers unfinished purchases, and reports each outcome. Without a
-          backend, pass <code>confirmWithIapkit</code> with your publishable
-          key, or <code>confirmOnDeviceIOS</code> for App Store purchases
-          StoreKit verified on the device, and credit consumables in its{' '}
-          <code>grant</code> callback, which runs before the purchase is
+          backend of your own, pass <code>confirmWithIapkit</code> with your
+          publishable key, or <code>confirmOnDeviceIOS</code> for App Store
+          purchases StoreKit verified on the device, and credit consumables in
+          its <code>grant</code> callback, which runs before the purchase is
           consumed. When your own backend owns user accounts, confirm through it
           instead. See the{' '}
           <a
@@ -356,6 +356,25 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
           </a>
           .
         </p>
+        <Callout kind="warning" title="Device-only receipt cleanup">
+          With <code>confirmOnDeviceIOS</code>, the purchase flow reports{' '}
+          <code>failed</code> for expired, upgraded or revoked receipts and
+          leaves them unfinished. This is not a final no-access verdict: a past
+          expiration date can still fall within billing grace. Check the
+          subscription group&apos;s current StoreKit status and verified renewal
+          information as described in{' '}
+          <Link to="/docs/apis/ios/get-pending-transactions-ios">
+            pending receipt recovery
+          </Link>
+          , preserving access during <code>inGracePeriod</code>. Only after
+          reconciling a verified matching receipt as inactive and recording that
+          decision,{' '}
+          <Link to="/docs/apis/finish-transaction">
+            finish that receipt explicitly
+          </Link>{' '}
+          to stop replaying it. Do not finish a purchase merely because
+          verification failed.
+        </Callout>
         <p>
           Any other verification service plugs in the same way. Before reporting
           a valid verdict, your backend must bind the store-verified evidence to

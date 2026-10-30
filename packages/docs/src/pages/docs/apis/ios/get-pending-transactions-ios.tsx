@@ -37,8 +37,41 @@ function GetPendingTransactionsIOS() {
       <p>
         Swift, Flutter, and Godot also run this query on macOS. Match the
         returned transaction ID, product, store identity, and known environment
-        to the receipt being handled. Reject revoked, upgraded, or expired
-        receipts before granting access or finishing a purchase.
+        to the receipt being handled. Revoked or upgraded receipts alone do not
+        establish current access.
+      </p>
+      <p>
+        A past expiration date is not a final no-access verdict. Call{' '}
+        <Link to="/docs/apis/ios/subscription-status-ios">
+          <code>subscriptionStatusIOS</code>
+        </Link>{' '}
+        with the receipt&apos;s product ID and inspect every returned
+        subscription-group status, not just the first. This API omits
+        transaction identity, so match the receipt separately as described
+        above.
+      </p>
+      <p>
+        Preserve verified subscription-group access when any current status is{' '}
+        <code>subscribed</code> or <code>inGracePeriod</code>;{' '}
+        <Link to="/docs/types/ios/renewal-info-ios">
+          <code>gracePeriodExpirationDate</code>
+        </Link>{' '}
+        marks the end of billing grace. Do not rely on{' '}
+        <code>getActiveSubscriptions</code> alone: its expiration-based{' '}
+        <code>isActive</code> can be false during grace. Record no access only
+        when the read succeeds with at least one status, every status is{' '}
+        <code>expired</code>, <code>revoked</code> or{' '}
+        <code>inBillingRetryPeriod</code>, and every entry has verified{' '}
+        <code>renewalInfo</code>. Empty or failed reads, unknown states and
+        missing or unverified renewal information are unresolved: leave the
+        receipt unfinished. A failure alone neither grants nor revokes access.
+      </p>
+      <p>
+        Once a trusted matching receipt is confirmed inactive and that decision
+        is recorded,{' '}
+        <Link to="/docs/apis/finish-transaction">finish it explicitly</Link> to
+        stop replaying it. A failed verification or status check alone is never
+        a reason to finish a purchase.
       </p>
 
       <h2>Signature</h2>

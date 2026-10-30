@@ -288,8 +288,12 @@ struct SubscriptionFlowScreen: View {
         }
         billingIssuePurchase = nil
         Task {
-            try await iapStore.endConnection()
-            print("✅ [SubscriptionFlow] Connection ended")
+            do {
+                try await iapStore.endConnection()
+                print("✅ [SubscriptionFlow] Connection ended")
+            } catch {
+                print("⚠️ [SubscriptionFlow] Connection cleanup failed: \(error.localizedDescription)")
+            }
         }
     }
     

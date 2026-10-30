@@ -111,8 +111,10 @@ func get_available_purchases_result(options = null) -> Dictionary
           <em>
             (optional, <code>boolean</code>, default <code>false</code>)
           </em>{' '}
-          — <strong>iOS.</strong> Re-emit results on{' '}
-          <code>purchaseUpdatedListener</code>.
+          — <strong>iOS.</strong> Publish verified purchases on{' '}
+          <code>purchaseUpdatedListener</code>, including when another entry
+          fails verification. See{' '}
+          <a href="#failure-semantics">Failure semantics</a>.
         </li>
         <li>
           <code>onlyIncludeActiveItemsIOS</code>{' '}
@@ -160,6 +162,16 @@ func get_available_purchases_result(options = null) -> Dictionary
         return <code>success = false</code>) with an error such as{' '}
         <code>billing-response-json-parse-error</code>; OpenIAP does not return
         a partial list.
+      </p>
+      <p>
+        On iOS, set <code>alsoPublishToEventListenerIOS: true</code> to recover
+        individually verified purchases through{' '}
+        <code>purchaseUpdatedListener</code> even when another transaction fails
+        verification. Unverified transactions are never published, and the query
+        still rejects. Reconcile each delivered purchase with your verifier
+        before granting access or finishing it. Keep the listener attached:
+        callbacks can arrive after the query rejects. The default option remains{' '}
+        <code>false</code>.
       </p>
       <p>
         Godot keeps <code>get_available_purchases()</code> for compatibility, so

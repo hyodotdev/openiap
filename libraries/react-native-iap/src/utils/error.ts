@@ -70,5 +70,6 @@ export function isUserCancelledError(
 // Re-export from errorMapping for public API convenience
 export {
   isDuplicatePurchaseError,
+  isRecoverableError,
   DUPLICATE_PURCHASE_CODE,
 } from './errorMapping';

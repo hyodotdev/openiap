@@ -294,8 +294,12 @@ struct AlternativeBillingScreen: View {
     private func teardownConnection() {
         print("🔷 [AlternativeBilling] Tearing down connection...")
         Task {
-            try await iapStore.endConnection()
-            print("✅ [AlternativeBilling] Connection ended")
+            do {
+                try await iapStore.endConnection()
+                print("✅ [AlternativeBilling] Connection ended")
+            } catch {
+                print("⚠️ [AlternativeBilling] Connection cleanup failed: \(error.localizedDescription)")
+            }
         }
     }
 
