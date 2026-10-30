@@ -488,9 +488,10 @@ function isUserCancellation(error: { code?: unknown }) {
         <h3>Retry Strategy</h3>
         <p>Implement retry logic for transient errors:</p>
         <div className="info-note">
-          <strong>Note:</strong> These retry strategies are automatically
-          handled within the OpenIAP module. You don't need to implement them
-          manually.
+          Choose a recovery strategy for the failed operation and store. These
+          are app-level suggestions, not automatic retries for every SDK call.
+          Check for a pending purchase before submitting another purchase
+          request.
         </div>
         <table className="error-table">
           <thead>

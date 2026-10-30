@@ -224,6 +224,18 @@ await OpenIapClient.Mutation.FinishTransactionAsync(
         automatically refunded. iOS transactions will replay on every app launch
         if not finished.
       </Callout>
+      <p>
+        OpenIAP leaves unfinished iOS subscription transactions for your app to
+        reconcile, even after they expire or are upgraded or revoked. Record
+        your backend&apos;s verification result before finishing them. A pending
+        receipt or purchase event alone does not mean the subscription is still
+        active. Use{' '}
+        <Link to="/docs/apis/ios/get-pending-transactions-ios">
+          <code>getPendingTransactionsIOS</code>
+        </Link>{' '}
+        to recover unfinished receipts, including revoked transactions that the
+        update listener does not emit.
+      </p>
     </div>
   );
 }

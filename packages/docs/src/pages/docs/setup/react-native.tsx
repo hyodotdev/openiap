@@ -472,27 +472,25 @@ if (!ended) console.warn('Store teardown did not complete');`}
         </p>
         <CodeBlock language="typescript">
           {`import {
-  ErrorCode,
   isUserCancelledError,
+  isRecoverableError,
   getUserFriendlyErrorMessage,
 } from 'react-native-iap';
 
 // In useIAP onPurchaseError callback:
 if (isUserCancelledError(error)) return;
 
-const message = getUserFriendlyErrorMessage(error);
-Alert.alert('Error', message);
+if (isRecoverableError(error)) {
+  showRetryDialog();
+  return;
+}
 
-// Or use switch for specific handling:
-switch (error.code) {
-  case ErrorCode.NetworkError:
-    showRetryDialog();
-    break;
-  case ErrorCode.ItemUnavailable:
-    showUnavailableMessage();
-    break;
-}`}
+Alert.alert('Error', getUserFriendlyErrorMessage(error));`}
         </CodeBlock>
+        <p>
+          Use the helper to choose recovery for the failed operation. Check for
+          pending purchases before retrying a purchase request.
+        </p>
       </section>
 
       <section>

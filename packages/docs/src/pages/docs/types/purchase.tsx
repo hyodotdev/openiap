@@ -872,13 +872,16 @@ function Purchase() {
                 <code>false</code>
               </td>
               <td>
-                When <code>true</code>, every purchase returned by the query is
-                also re-emitted on{' '}
+                When <code>true</code>, verified purchases are emitted on{' '}
                 <Link to="/docs/events/purchase-updated-listener">
                   <code>purchaseUpdatedListener</code>
                 </Link>{' '}
-                so existing listeners can process them with the same code path
-                used for live purchases.
+                even if another entry fails verification and the query rejects.
+                See{' '}
+                <Link to="/docs/apis/get-available-purchases#failure-semantics">
+                  failure semantics
+                </Link>
+                .
               </td>
             </tr>
             <tr>
