@@ -448,8 +448,12 @@ struct PurchaseFlowScreen: View {
     private func teardownConnection() {
         print("🔷 [PurchaseFlow] Tearing down connection...")
         Task {
-            try await iapStore.endConnection()
-            print("✅ [PurchaseFlow] Connection ended")
+            do {
+                try await iapStore.endConnection()
+                print("✅ [PurchaseFlow] Connection ended")
+            } catch {
+                print("⚠️ [PurchaseFlow] Connection cleanup failed: \(error.localizedDescription)")
+            }
         }
     }
     

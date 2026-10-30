@@ -119,8 +119,12 @@ struct OfferCodeScreen: View {
     private func teardownConnection() {
         print("🔷 [OfferCode] Tearing down connection...")
         Task {
-            try await iapStore.endConnection()
-            print("✅ [OfferCode] Connection ended")
+            do {
+                try await iapStore.endConnection()
+                print("✅ [OfferCode] Connection ended")
+            } catch {
+                print("⚠️ [OfferCode] Connection cleanup failed: \(error.localizedDescription)")
+            }
         }
     }
     

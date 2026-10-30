@@ -326,8 +326,12 @@ struct AvailablePurchasesScreen: View {
     private func teardownConnection() {
         print("🔷 [AvailablePurchases] Tearing down connection...")
         Task {
-            try await iapStore.endConnection()
-            print("✅ [AvailablePurchases] Connection ended")
+            do {
+                try await iapStore.endConnection()
+                print("✅ [AvailablePurchases] Connection ended")
+            } catch {
+                print("⚠️ [AvailablePurchases] Connection cleanup failed: \(error.localizedDescription)")
+            }
         }
     }
     
