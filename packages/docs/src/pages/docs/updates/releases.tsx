@@ -57,8 +57,8 @@ const PURCHASE_ENVIRONMENT_RELEASES: readonly ReleaseMetadata[] = [
     tag: 'flutter-iap-11.3.0',
   },
   { name: 'godot-iap', version: '4.3.0', tag: 'godot-iap-4.3.0' },
-  { name: 'kmp-iap', version: '4.3.0', tag: 'kmp-iap-4.3.0' },
-  { name: 'OpenIap.Maui', version: '3.3.0', tag: 'maui-iap-3.3.0' },
+  { name: 'kmp-iap', version: '4.2.1', tag: 'kmp-iap-4.2.1' },
+  { name: 'OpenIap.Maui', version: '3.2.1', tag: 'maui-iap-3.2.1' },
 ];
 
 const REACT_NATIVE_EXPO_GO_RELEASES: readonly ReleaseMetadata[] = [
