@@ -188,6 +188,10 @@ public extension PurchaseError {
                 mappedCode = .unknown
             case .unsupported:
                 mappedCode = .featureNotSupported
+            #if compiler(>=6.4)
+            case .invalidPresentationContext:
+                mappedCode = fallback
+            #endif
             @unknown default:
                 mappedCode = fallback
             }

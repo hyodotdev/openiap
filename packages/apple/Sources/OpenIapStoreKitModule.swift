@@ -195,7 +195,6 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
     private let connection = OpenIapConnectionLifecycle()
     private let messageListenerRegistrationLock = NSLock()
     private static let initRetryDelayNanoseconds: UInt64 = 1_000_000
-    private static let subscriptionPreflightTimeoutNanoseconds: UInt64 = 750_000_000
     @TaskLocal private static var suppressPurchaseErrorEmission = false
 
     #if os(iOS)
@@ -206,11 +205,6 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
     private let promotedPurchaseIntentOffers =
         PromotedPurchaseIntentOfferStore<StoreKit.Product.SubscriptionOffer>()
     #endif
-
-    private enum SubscriptionPreflightOutcome {
-        case completed
-        case timedOut
-    }
 
     override init() {
         super.init()
@@ -491,10 +485,6 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             throw error
         }
 
-        if StoreKitTypesBridge.isAutoRenewingSubscriptionProductType(product.type) {
-            await preflightInactiveUnfinishedSubscriptions(productId: sku)
-        }
-
         let result: StoreKit.Product.PurchaseResult
         do {
             // iOS 17.0+, tvOS 17.0+, macOS 15.2+: Use purchase(confirmIn:options:) for better purchase confirmation UI
@@ -554,25 +544,6 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         switch result {
         case .success(let verification):
             let transaction = try checkVerified(verification)
-            if StoreKitTypesBridge.isAutoRenewingSubscriptionProductType(product.type),
-               isInactiveSubscriptionTransaction(transaction) {
-                await transaction.finish()
-                await state.removePending(id: String(transaction.id))
-                OpenIapLog.debug("""
-                    🧹 [requestPurchase] Finished inactive subscription transaction before emitting:
-                    - SKU: \(transaction.productID)
-                    - Transaction ID: \(transaction.id)
-                    - Expiration: \(transaction.expirationDate?.description ?? "none")
-                    - Revoked: \(transaction.revocationDate?.description ?? "none")
-                    - Upgraded: \(transaction.isUpgraded)
-                    """)
-                let error = PurchaseError.make(
-                    code: .purchaseError,
-                    productId: sku,
-                    message: "Finished an inactive subscription transaction. Please retry the purchase."
-                )
-                throw error
-            }
             let purchase = await StoreKitTypesBridge.purchase(from: transaction, jwsRepresentation: verification.jwsRepresentation)
             let transactionId = String(transaction.id)
             let shouldAutoFinish = iosProps.andDangerouslyFinishTransactionAutomatically == true
@@ -587,7 +558,6 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                 - Purchase Date: \(transaction.purchaseDate)
                 - Product Type: \(isSubscription ? "subscription" : "non-subscription")
                 - SKU matches: \(transaction.productID == sku)
-                - Note: \(isSubscription ? "Subscription transactions will be emitted via Transaction.updates" : "Emitting directly")
                 """)
 
             let shouldEmit = await state.recordPurchaseUpdateEmission(
@@ -640,9 +610,9 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
     ///
     /// - Parameter options: Optional iOS-specific flags. `onlyIncludeActiveItemsIOS`
     ///   toggles between `Transaction.all` (default) and `Transaction.currentEntitlements`.
-    ///   `alsoPublishToEventListenerIOS` re-emits each purchase on the update listener.
+    ///   `alsoPublishToEventListenerIOS` publishes verified items even if another entry fails.
     /// - Returns: An array of `Purchase` values matching the selected scope.
-    /// - Throws: When the StoreKit query fails.
+    /// - Throws: When the StoreKit query or transaction verification fails.
     ///
     /// See: https://openiap.dev/docs/apis/get-available-purchases
     public func getAvailablePurchases(_ options: PurchaseOptions?) async throws -> [Purchase] {
@@ -650,31 +620,50 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         let onlyActive = options?.onlyIncludeActiveItemsIOS ?? false
         let shouldPublish = options?.alsoPublishToEventListenerIOS ?? false
         let statusCache = StoreKitTypesBridge.SubscriptionStatusCache()
-        var purchasedItems: [Purchase] = []
-
-        for await verification in (onlyActive ? Transaction.currentEntitlements : Transaction.all) {
+        let purchasedItems = try await collectAvailablePurchases(
+            from: onlyActive ? Transaction.currentEntitlements : Transaction.all,
+            shouldPublish: shouldPublish
+        ) { verification -> Purchase? in
             let transaction = try checkVerified(verification)
-
             if onlyActive, let expirationDate = transaction.expirationDate, expirationDate <= Date() {
-                continue
+                return nil
             }
-
-            let purchase = await StoreKitTypesBridge.purchase(
+            return await StoreKitTypesBridge.purchase(
                 from: transaction,
                 jwsRepresentation: verification.jwsRepresentation,
                 statusCache: statusCache
             )
-            purchasedItems.append(purchase)
-        }
-
-        // Publish only after the complete sequence verifies successfully so a
-        // failed query cannot leak a partial authoritative result via events.
-        if shouldPublish {
-            purchasedItems.forEach { emitPurchaseUpdate($0) }
+        } publish: { purchase in
+            emitPurchaseUpdate(purchase)
         }
 
         OpenIapLog.debug("🔍 getAvailablePurchases: \(purchasedItems.count) purchases (onlyActive=\(onlyActive))")
         return purchasedItems
+    }
+
+    func collectAvailablePurchases<S: AsyncSequence, Item>(
+        from sequence: S,
+        shouldPublish: Bool,
+        transform: (S.Element) async throws -> Item?,
+        publish: (Item) -> Void
+    ) async throws -> [Item] {
+        var purchases: [Item] = []
+        var firstError: Error?
+        for try await entry in sequence {
+            do {
+                if let purchase = try await transform(entry) {
+                    purchases.append(purchase)
+                }
+            } catch {
+                guard shouldPublish else { throw error }
+                if firstError == nil { firstError = error }
+            }
+        }
+        if shouldPublish {
+            purchases.forEach(publish)
+        }
+        if let firstError { throw firstError }
+        return purchases
     }
 
     /// Get the full StoreKit 2 transaction history as `PurchaseIOS` values.
@@ -2156,24 +2145,6 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                             - revocationDate: \(transaction.revocationDate?.description ?? "nil")
                             """)
 
-                        if StoreKitTypesBridge.isAutoRenewingSubscriptionProductType(
-                            transaction.productType
-                        ),
-                           self.isInactiveSubscriptionTransaction(transaction) {
-                            await transaction.finish()
-                            guard self.connection.isCurrentGeneration(generation) else { return }
-                            await self.state.removePending(id: transactionId)
-                            OpenIapLog.debug("""
-                                🧹 [TransactionListener] Finished inactive subscription update without emitting:
-                                - SKU: \(transaction.productID)
-                                - Transaction ID: \(transaction.id)
-                                - Expiration: \(transaction.expirationDate?.description ?? "none")
-                                - Revoked: \(transaction.revocationDate?.description ?? "none")
-                                - Upgraded: \(transaction.isUpgraded)
-                                """)
-                            continue
-                        }
-
                         if transaction.revocationDate != nil {
                             OpenIapLog.debug("⏭️ Skipping revoked transaction: \(transactionId)")
                             continue
@@ -2233,103 +2204,12 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             guard connection.isCurrentGeneration(generation) else { return }
             do {
                 let transaction = try checkVerified(verification)
-                if StoreKitTypesBridge.isAutoRenewingSubscriptionProductType(
-                    transaction.productType
-                ),
-                   isInactiveSubscriptionTransaction(transaction) {
-                    await transaction.finish()
-                    guard connection.isCurrentGeneration(generation) else { return }
-                    await state.removePending(id: String(transaction.id))
-                    OpenIapLog.debug("""
-                        🧹 [processUnfinishedTransactions] Finished inactive subscription transaction:
-                        - SKU: \(transaction.productID)
-                        - Transaction ID: \(transaction.id)
-                        - Expiration: \(transaction.expirationDate?.description ?? "none")
-                        - Revoked: \(transaction.revocationDate?.description ?? "none")
-                        - Upgraded: \(transaction.isUpgraded)
-                        """)
-                    continue
-                }
                 guard connection.isCurrentGeneration(generation) else { return }
                 await state.storePending(id: String(transaction.id), transaction: transaction)
             } catch {
                 continue
             }
         }
-    }
-
-    private func finishInactiveUnfinishedSubscriptions(productId: String) async {
-        for await verification in Transaction.unfinished {
-            if Task.isCancelled { return }
-
-            do {
-                let transaction = try checkVerified(verification)
-                guard StoreKitTypesBridge.isAutoRenewingSubscriptionProductType(
-                    transaction.productType
-                ),
-                      transaction.productID == productId,
-                      isInactiveSubscriptionTransaction(transaction)
-                else {
-                    continue
-                }
-
-                await transaction.finish()
-                await state.removePending(id: String(transaction.id))
-                OpenIapLog.debug("""
-                    🧹 [requestPurchase] Cleared inactive unfinished subscription before purchase:
-                    - SKU: \(transaction.productID)
-                    - Transaction ID: \(transaction.id)
-                    - Expiration: \(transaction.expirationDate?.description ?? "none")
-                    - Revoked: \(transaction.revocationDate?.description ?? "none")
-                    - Upgraded: \(transaction.isUpgraded)
-                    """)
-            } catch {
-                OpenIapLog.debug("⚠️ Failed to clear inactive unfinished subscription: \(error.localizedDescription)")
-                continue
-            }
-        }
-    }
-
-    private func preflightInactiveUnfinishedSubscriptions(productId: String) async {
-        let outcome = await withTaskGroup(
-            of: SubscriptionPreflightOutcome.self,
-            returning: SubscriptionPreflightOutcome.self
-        ) { group in
-            group.addTask { [weak self] in
-                guard let self else { return .completed }
-                await self.finishInactiveUnfinishedSubscriptions(productId: productId)
-                return .completed
-            }
-
-            group.addTask {
-                do {
-                    try await Task.sleep(nanoseconds: Self.subscriptionPreflightTimeoutNanoseconds)
-                    return .timedOut
-                } catch {
-                    return .completed
-                }
-            }
-
-            let outcome = await group.next() ?? .completed
-            group.cancelAll()
-            return outcome
-        }
-
-        if case .timedOut = outcome {
-            OpenIapLog.debug("⚠️ [requestPurchase] Inactive subscription cleanup timed out; continuing purchase flow")
-        }
-    }
-
-    private func isInactiveSubscriptionTransaction(_ transaction: StoreKit.Transaction) -> Bool {
-        if transaction.revocationDate != nil || transaction.isUpgraded {
-            return true
-        }
-
-        if let expirationDate = transaction.expirationDate {
-            return expirationDate <= Date()
-        }
-
-        return false
     }
 
     func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
