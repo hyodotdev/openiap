@@ -795,10 +795,10 @@ function Releases() {
             restore.
           </p>
           <p>
-            With <code>confirmOnDeviceIOS</code>, inactive receipts produce a{' '}
-            <code>failed</code> purchase-flow result and remain unfinished.
-            Reconcile the verified receipt and finish it explicitly; do not
-            finish every failed verification. See the{' '}
+            <code>confirmOnDeviceIOS</code> can report <code>failed</code> for a
+            past-expiry receipt even during billing grace; this is not a final
+            no-access verdict. Check current subscription status before cleanup,
+            following the{' '}
             <Link to="/docs/features/validation">
               device-only cleanup guidance
             </Link>
