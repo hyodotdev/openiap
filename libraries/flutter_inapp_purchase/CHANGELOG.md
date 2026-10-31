@@ -1,5 +1,12 @@
 # Changelog
 
+## 11.3.1 (2026-10-31)
+
+- fix(google): stop replaying finished purchases and repair dependency audits (#575)
+- fix: preserve iOS receipts and export isRecoverableError (#574)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-11.3.1
+
+
 ## 11.3.0 (2026-10-30)
 
 - fix: preserve native purchase errors and confirm Amazon LAT receipts (#570)
