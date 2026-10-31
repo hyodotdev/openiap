@@ -1,9 +1,14 @@
 [[IgnoredVulns]]
-id = "GHSA-86w9-cpqp-85rv"
-ignoreUntil = 2026-12-15
-reason = "No patched node-forge release exists; 1.4.0 is npm latest and still affected. Reached only via @expo/cli and @expo/code-signing-certificates for development certificate tooling; it is excluded from the published SDK runtime. Development certificate verification remains affected: https://github.com/advisories/GHSA-86w9-cpqp-85rv."
-
-[[IgnoredVulns]]
 id = "GHSA-gcqx-w48m-w2h4"
 ignoreUntil = 2026-11-04
 reason = "No patched deepmerge release exists. This lock reaches it only through Jest, Expo configuration, or React Native/Kepler CLI configuration used for trusted local builds and tests; mobile entry points and the published SDK runtime do not import those tools. Do not load untrusted project configuration. Revisit the upstream fix before expiry: https://github.com/advisories/GHSA-gcqx-w48m-w2h4."
+
+[[IgnoredVulns]]
+id = "GHSA-3g3m-2fjr-6pw4"
+ignoreUntil = 2026-11-04
+reason = "The fix is glob 14.0.2, outside the React Native/Expo and native-build tool ranges in this lock. Uses include local source discovery and fsevents -> node-gyp -> make-fetch-happen -> cacache package-cache traversal; the published react-native-iap mobile runtime does not import these Node tools. Only trusted build inputs and package caches are allowed. Cancellation must not be treated as an enforced traversal budget. Do not process untrusted trees or expose build globbing as a public request handler. Recheck compatible upstream upgrades before expiry: https://github.com/advisories/GHSA-3g3m-2fjr-6pw4."
+
+[[IgnoredVulns]]
+id = "GHSA-g3hv-75wg-m249"
+ignoreUntil = 2026-11-04
+reason = "The fix is minimatch 11.0.1, outside the Jest, ESLint, ts-morph, React Native/Expo and native-build tool dependency ranges. These copies match repository-owned patterns for trusted source discovery, package-cache traversal, lint and test coverage; the published react-native-iap mobile runtime does not import them. Do not process untrusted project configuration or expose build globbing as a public request handler. Recheck compatible upstream upgrades before expiry: https://github.com/advisories/GHSA-g3hv-75wg-m249."

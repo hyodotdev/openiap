@@ -4,11 +4,6 @@ ignoreUntil = 2026-12-15
 reason = "image-size reaches this lock only through the nested Metro 0.76.9 under the stale @react-native-community/cli 11.4.1 and @react-native/metro-config 0.72.12 peer resolutions; re-resolving them drops it. Metro uses it only during trusted local builds."
 
 [[IgnoredVulns]]
-id = "GHSA-86w9-cpqp-85rv"
-ignoreUntil = 2026-12-15
-reason = "No patched node-forge release exists; 1.4.0 is npm latest and still affected. This example uses Expo's Node CLI for development and builds; its mobile entry points do not import the CLI certificate tools. Development certificate verification remains affected: https://github.com/advisories/GHSA-86w9-cpqp-85rv."
-
-[[IgnoredVulns]]
 id = "GHSA-w3rx-r6r6-pgpr"
 ignoreUntil = 2026-12-15
 reason = "image-size reaches this lock only through the nested Metro 0.76.9 under the stale @react-native-community/cli 11.4.1 and @react-native/metro-config 0.72.12 peer resolutions; re-resolving them drops it. Metro uses it only during trusted local builds."
@@ -17,3 +12,13 @@ reason = "image-size reaches this lock only through the nested Metro 0.76.9 unde
 id = "GHSA-gcqx-w48m-w2h4"
 ignoreUntil = 2026-11-04
 reason = "No patched deepmerge release exists. This lock reaches it only through Jest, Expo configuration, or React Native/Kepler CLI configuration used for trusted local builds and tests; mobile entry points and the published SDK runtime do not import those tools. Do not load untrusted project configuration. Revisit the upstream fix before expiry: https://github.com/advisories/GHSA-gcqx-w48m-w2h4."
+
+[[IgnoredVulns]]
+id = "GHSA-3g3m-2fjr-6pw4"
+ignoreUntil = 2026-11-04
+reason = "The fix is glob 14.0.2, outside Expo 57 and React Native TV configuration dependency ranges. Expo uses glob for trusted local project discovery and builds, including early cancellation after the first match; cancellation must not be treated as an enforced traversal budget. The example mobile entry points and published expo-iap runtime do not import glob. Do not run this tooling on untrusted directory trees or expose it as a public request handler. Recheck compatible upstream upgrades before expiry: https://github.com/advisories/GHSA-3g3m-2fjr-6pw4."
+
+[[IgnoredVulns]]
+id = "GHSA-g3hv-75wg-m249"
+ignoreUntil = 2026-11-04
+reason = "The fix is minimatch 11.0.1, outside the Expo 57, React Native TV configuration, React Native CLI and Jest dependency ranges. These copies serve local project discovery, fingerprinting, lint and coverage; the example mobile entry points and published expo-iap runtime do not import them. Patterns come from the trusted checkout and build configuration; do not load untrusted project patterns or expose this tooling as a public request handler. Recheck compatible upstream upgrades before expiry: https://github.com/advisories/GHSA-g3hv-75wg-m249."
