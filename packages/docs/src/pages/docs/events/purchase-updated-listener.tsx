@@ -192,7 +192,7 @@ OpenIapModule.shared.removeListener(subscription)`}</CodeBlock>
           kotlin: (
             <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
 
-// Using Flow
+// Using Flow; finishTransaction clears currentPurchase, so a later collector skips it
 lifecycleScope.launch {
     openIapStore.currentPurchase.collect { purchase ->
         purchase ?: return@collect

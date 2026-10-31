@@ -125,6 +125,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     val availablePurchases: StateFlow<List<Purchase>> = _availablePurchases.asStateFlow()
 
     private val _currentPurchase = MutableStateFlow<Purchase?>(null)
+    /** The latest purchase update; [finishTransaction] clears it, so a later collector skips a finished purchase. */
     val currentPurchase: StateFlow<Purchase?> = _currentPurchase.asStateFlow()
 
     private val _status = MutableStateFlow(IapStatus())
@@ -450,6 +451,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
 
     /**
      * Complete a purchase transaction. Call after server-side verification.
+     * Clears [currentPurchase] when it holds this purchase, as the Apple store does.
      *
      * @param purchase The [PurchaseInput] to finalize.
      * @param isConsumable Pass `true` for consumables (consumes the token so the SKU can be
@@ -462,6 +464,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      */
     val finishTransaction: MutationFinishTransactionHandler = { purchaseInput, isConsumable ->
         finishOncePerToken(purchaseInput, isConsumable)
+        _currentPurchase.update { if (it?.id == purchaseInput.id) null else it }
     }
 
     /**

@@ -1,5 +1,6 @@
 package dev.hyo.martie.util
 
+import dev.hyo.martie.IapConstants
 import dev.hyo.openiap.IapStore
 import dev.hyo.openiap.IapkitPurchaseState
 import dev.hyo.openiap.PurchaseAndroid
@@ -64,6 +65,37 @@ class IapkitConfigTest {
         val consumable = subscription.copy(productId = "dev.hyo.martie.10bulbs")
         assertTrue(IapkitConfig.acceptsVerification(verified(purchase = consumable, state = IapkitPurchaseState.ReadyToConsume), consumable))
         assertFalse(IapkitConfig.acceptsVerification(verified(purchase = consumable), consumable))
+    }
+
+    @Test fun consumedMeansAlreadyGrantedNotAFailure() {
+        val bulbs = subscription.copy(productId = "dev.hyo.martie.10bulbs", store = IapStore.Google, storeId = "play")
+        val consumed = verified(purchase = bulbs, valid = false, state = IapkitPurchaseState.Consumed)
+        assertTrue(IapkitConfig.alreadyGranted(consumed, bulbs))
+        assertFalse("a consumed purchase is never granted again", IapkitConfig.acceptsVerification(consumed, bulbs))
+        assertFalse(IapkitConfig.alreadyGranted(verified(purchase = bulbs, valid = true, state = IapkitPurchaseState.Consumed), bulbs))
+        assertFalse(IapkitConfig.alreadyGranted(verified(purchase = bulbs, valid = false, state = IapkitPurchaseState.Canceled), bulbs))
+        assertFalse(IapkitConfig.alreadyGranted(
+            verified(purchase = bulbs, valid = false, state = IapkitPurchaseState.Consumed, productId = "dev.hyo.martie.30bulbs"),
+            bulbs,
+        ))
+        assertFalse(IapkitConfig.alreadyGranted(null, bulbs))
+        val amazon = bulbs.copy(store = IapStore.Amazon, storeId = "amazon")
+        assertTrue(IapkitConfig.alreadyGranted(verified(purchase = amazon, valid = false, state = IapkitPurchaseState.Consumed), amazon))
+        val otherEnvironment = if (IapkitConfig.amazonRvsSandbox) "Production" else "Sandbox"
+        assertFalse(IapkitConfig.alreadyGranted(
+            verified(purchase = amazon, valid = false, state = IapkitPurchaseState.Consumed, environment = otherEnvironment),
+            amazon,
+        ))
+    }
+
+    @Test fun onlyUnfinishedPurchasesAreRecovered() {
+        assertFalse(IapConstants.isUnfinished(subscription.copy(isAcknowledgedAndroid = true)))
+        assertTrue(IapConstants.isUnfinished(subscription.copy(isAcknowledgedAndroid = false)))
+        assertTrue("a store without acknowledgment stays unfinished", IapConstants.isUnfinished(subscription))
+        assertTrue(
+            "a listed consumable is still unconsumed",
+            IapConstants.isUnfinished(subscription.copy(productId = "dev.hyo.martie.10bulbs", isAcknowledgedAndroid = true)),
+        )
     }
 
     @Test fun invalidOrMissingVerificationCannotGrant() {

@@ -18,7 +18,6 @@ import androidx.navigation.NavController
 import dev.hyo.martie.IapConstants
 import dev.hyo.martie.models.AppColors
 import dev.hyo.martie.screens.uis.*
-import dev.hyo.openiap.IapkitPurchaseState
 import dev.hyo.openiap.AppOwnershipVerificationResult
 import dev.hyo.openiap.ErrorCode
 import dev.hyo.openiap.OpenIapError
@@ -27,6 +26,7 @@ import dev.hyo.openiap.VerifyAppOwnershipProps
 import dev.hyo.openiap.store.PurchaseResultStatus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import dev.hyo.openiap.ProductAndroid
@@ -77,17 +77,10 @@ fun PurchaseFlowScreen(
     val uiScope = rememberCoroutineScope()
     val iapStore = currentOpenIapStore()
     val products by iapStore.products.collectAsState()
-    val purchases by iapStore.availablePurchases.collectAsState()
     val androidProducts = remember(products) { products.filterIsInstance<ProductAndroid>() }
-    val androidPurchases = remember(purchases) { purchases.filterIsInstance<PurchaseAndroid>() }
     val status by iapStore.status.collectAsState()
-    val lastPurchase by iapStore.currentPurchase.collectAsState(initial = null)
-    val lastPurchaseAndroid: PurchaseAndroid? = remember(lastPurchase) {
-        when (val purchase = lastPurchase) {
-            is PurchaseAndroid -> purchase
-            else -> null
-        }
-    }
+    // Kept for Details: the store clears currentPurchase once it is finished.
+    var latestPurchase by remember { mutableStateOf<PurchaseAndroid?>(null) }
     val connectionStatus by iapStore.isConnected.collectAsState()
     val statusMessage = status.lastPurchaseResult
     // Modal states
@@ -492,8 +485,8 @@ fun PurchaseFlowScreen(
                         )
                         if (result.status == PurchaseResultStatus.Success) {
                             OutlinedButton(
-                                onClick = { lastPurchaseAndroid?.let { selectedPurchase = it } },
-                                enabled = lastPurchaseAndroid != null,
+                                onClick = { latestPurchase?.let { selectedPurchase = it } },
+                                enabled = latestPurchase != null,
                                 modifier = Modifier
                                     .align(Alignment.End)
                                     .padding(horizontal = 16.dp)
@@ -639,7 +632,7 @@ fun PurchaseFlowScreen(
     }
 
     suspend fun handlePurchased(purchase: PurchaseAndroid) {
-        if (purchase.productId !in IapConstants.INAPP_SKUS) return
+        if (purchase.productId !in IapConstants.INAPP_SKUS || !IapConstants.isUnfinished(purchase)) return
         val method = verificationMethod
         if (method == VerificationMethod.None || method == VerificationMethod.Local) {
             verificationResultMessage = "Receipt retained. Choose IAPKit verification to retry this receipt."
@@ -708,6 +701,15 @@ fun PurchaseFlowScreen(
                                     "${it.format.rawValue}, v${it.version.toInt()}"
                                 } ?: "not returned")
                         )
+                        if (IapkitConfig.alreadyGranted(result, purchase)) {
+                            verificationResultMessage = "✅ $label: already granted and consumed\nStore product: $storeProductId"
+                            iapStore.postStatusMessage(
+                                message = "Purchase already granted",
+                                status = PurchaseResultStatus.Success,
+                                productId = purchase.productId
+                            )
+                            return
+                        }
                         verificationResultMessage = """
                             ${if (isVerifiedPurchase) "✅ $label verification passed" else "❌ $label verification failed"}
                             Store product: $storeProductId
@@ -761,9 +763,7 @@ fun PurchaseFlowScreen(
             // 4) Finish transaction
             val purchaseInput = purchase.toPurchaseInput()
             try {
-                if (isConsumable || purchase.isAcknowledgedAndroid != true) {
-                    iapStore.finishTransaction(purchaseInput, isConsumable)
-                }
+                iapStore.finishTransaction(purchaseInput, isConsumable)
                 finished = true
                 iapStore.postStatusMessage(
                     message = "Purchase finished successfully",
@@ -802,7 +802,6 @@ fun PurchaseFlowScreen(
         }
     }
 
-    val purchaseKey = lastPurchaseAndroid?.let { "${it.id}_${it.transactionDate}" }
     LaunchedEffect(verificationMethod, connectionStatus, recoveryRequest) {
         if (!connectionStatus) return@LaunchedEffect
         try {
@@ -814,8 +813,12 @@ fun PurchaseFlowScreen(
         }
     }
 
-    LaunchedEffect(purchaseKey) {
-        lastPurchaseAndroid?.let { handlePurchased(it) }
+    // Collected, not keyed: finishing clears currentPurchase and must not cancel its own handling.
+    LaunchedEffect(iapStore) {
+        iapStore.currentPurchase.filterIsInstance<PurchaseAndroid>().collect { purchase ->
+            latestPurchase = purchase
+            handlePurchased(purchase)
+        }
     }
 
     LaunchedEffect(Unit) {
