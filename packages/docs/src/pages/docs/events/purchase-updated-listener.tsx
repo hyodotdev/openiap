@@ -192,7 +192,8 @@ OpenIapModule.shared.removeListener(subscription)`}</CodeBlock>
           kotlin: (
             <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
 
-// Using Flow; finishTransaction clears currentPurchase, so a later collector skips it
+// A successful finish clears only the matching currentPurchase.
+// Failed or cancelled finishes keep it; make deliverProduct idempotent.
 lifecycleScope.launch {
     openIapStore.currentPurchase.collect { purchase ->
         purchase ?: return@collect
@@ -200,7 +201,7 @@ lifecycleScope.launch {
 
         // Verify and deliver
         if (verifyPurchaseOnServer(purchase)) {
-            deliverProduct(purchase.productId)
+            deliverProduct(purchase)
             openIapStore.finishTransaction(purchase, false) // false: non-consumable
         }
     }

@@ -154,9 +154,10 @@ test("JSX punctuation normalization preserves intentional spacing", () => {
   assert.notEqual(normalize("storeId ; recompile"), "storeId; recompile");
 });
 
-function cardSource() {
+function cardSource(id = "community-store-providers-2026-10-02") {
   const source = fs.readFileSync(path.join(repoRoot, RELEASE_NOTES), "utf8");
-  const start = source.indexOf("id: 'community-store-providers-2026-10-02'");
+  const start = source.indexOf(`id: '${id}'`);
+  assert.notEqual(start, -1, `release card is missing: ${id}`);
   const end = source.indexOf("id: '", start + 1);
   return source.slice(start, end === -1 ? undefined : end);
 }
@@ -164,6 +165,17 @@ function cardSource() {
 function cardText() {
   return normalize(cardSource());
 }
+
+test("the purchase recovery card covers successful finish and retry behavior", () => {
+  const card = normalize(cardSource("ios-receipt-recovery-2026-10-31"));
+  for (const behavior of [
+    "<strong>openiap-google 0.0.0</strong>",
+    "<code>OpenIapStore.finishTransaction</code> clears <code>currentPurchase</code> when it holds that finished purchase",
+    "Failed finishes retain the purchase for retry.",
+  ]) {
+    assert.ok(card.includes(behavior), `recovery card is missing: ${behavior}`);
+  }
+});
 
 // Only the Breaking list: a bullet moved to Common changes must fail.
 function breakingSlice() {

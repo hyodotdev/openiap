@@ -542,6 +542,7 @@ fun PurchaseFlowScreen(
                             scope.launch {
                                 try {
                                     val restored = iapStore.getAvailablePurchases(null)
+                                    latestPurchase = null
                                     iapStore.postStatusMessage(
                                         message = "Restored ${restored.size} purchases",
                                         status = PurchaseResultStatus.Success
@@ -703,6 +704,7 @@ fun PurchaseFlowScreen(
                         )
                         if (IapkitConfig.alreadyGranted(result, purchase)) {
                             verificationResultMessage = "✅ $label: already granted and consumed\nStore product: $storeProductId"
+                            latestPurchase = purchase
                             iapStore.postStatusMessage(
                                 message = "Purchase already granted",
                                 status = PurchaseResultStatus.Success,
@@ -765,6 +767,7 @@ fun PurchaseFlowScreen(
             try {
                 iapStore.finishTransaction(purchaseInput, isConsumable)
                 finished = true
+                latestPurchase = purchase
                 iapStore.postStatusMessage(
                     message = "Purchase finished successfully",
                     status = PurchaseResultStatus.Success,
