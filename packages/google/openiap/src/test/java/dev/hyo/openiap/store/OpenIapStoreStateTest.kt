@@ -183,6 +183,23 @@ class OpenIapStoreStateTest {
         assertEquals(newerPurchase, store.currentPurchase.value)
     }
 
+    @Test
+    fun `a cancelled finish keeps currentPurchase for retry`() = runBlocking {
+        val current = purchase("cancelled-token")
+        module.emitPurchase(current)
+        module.finishGate = CompletableDeferred()
+        val finishing = launch(start = CoroutineStart.UNDISPATCHED) {
+            store.finishTransaction(current, true)
+        }
+
+        finishing.cancelAndJoin()
+        assertEquals(current, store.currentPurchase.value)
+
+        module.finishGate = null
+        store.finishTransaction(current, true)
+        assertNull(store.currentPurchase.value)
+    }
+
     private fun hammer(
         iterations: Int = ITERATIONS,
         block: suspend (worker: Int, iteration: Int) -> Unit,

@@ -733,10 +733,10 @@ function Releases() {
           </AnchorLink>
           <p>
             iOS apps can recover unfinished receipts and, with opt-in event
-            recovery, verified purchases from a failed inventory query. Android
-            apps no longer replay finished purchases when a screen opens again.
-            React Native and Expo also expose their existing recoverable-error
-            helper.
+            recovery, verified purchases from a failed inventory query. Native
+            Android apps that collect <code>OpenIapStore.currentPurchase</code>{' '}
+            no longer replay finished purchases when a screen opens again. React
+            Native and Expo also expose their existing recoverable-error helper.
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
             Protocols and native packages
