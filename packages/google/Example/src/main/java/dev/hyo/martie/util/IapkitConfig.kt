@@ -41,17 +41,24 @@ object IapkitConfig {
         if (purchase.store == IapStore.Unknown && purchase.storeId == "amazon_example")
             IapStore.Amazon else purchase.store
 
+    private fun isFor(result: RequestVerifyPurchaseWithIapkitResult, purchase: PurchaseAndroid): Boolean {
+        val store = verificationStore(purchase)
+        return result.store == purchase.store && result.storeId == purchase.storeId &&
+            result.productId == verificationProductId(purchase.productId, store) &&
+            (store != IapStore.Amazon || result.environment == if (amazonRvsSandbox) "Sandbox" else "Production")
+    }
+
+    /** Play consumed it, and the app grants before consuming: access stands and nothing is left to finish. */
+    fun alreadyGranted(result: RequestVerifyPurchaseWithIapkitResult?, purchase: PurchaseAndroid): Boolean =
+        result != null && !result.isValid && isFor(result, purchase) && result.state == IapkitPurchaseState.Consumed
+
     fun acceptsVerification(result: RequestVerifyPurchaseWithIapkitResult?, purchase: PurchaseAndroid): Boolean {
-        if (result == null || !result.isValid || result.store != purchase.store ||
-            result.storeId != purchase.storeId ||
-            result.productId != verificationProductId(purchase.productId, verificationStore(purchase))) return false
+        if (result == null || !result.isValid || !isFor(result, purchase)) return false
         val consumable = purchase.productId in IapConstants.CONSUMABLE_SKUS
         val store = verificationStore(purchase)
         return when (store) {
             IapStore.Apple, IapStore.Amazon ->
-                (store != IapStore.Amazon || result.environment ==
-                    if (amazonRvsSandbox) "Sandbox" else "Production") &&
-                    result.state == if (consumable) IapkitPurchaseState.ReadyToConsume else IapkitPurchaseState.Entitled
+                result.state == if (consumable) IapkitPurchaseState.ReadyToConsume else IapkitPurchaseState.Entitled
             IapStore.Google -> result.state == IapkitPurchaseState.Entitled ||
                 result.state == IapkitPurchaseState.PendingAcknowledgment ||
                 (consumable && result.state == IapkitPurchaseState.ReadyToConsume)

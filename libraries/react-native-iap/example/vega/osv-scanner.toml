@@ -12,3 +12,8 @@ reason = "The fix is image-size 2.0.3, but Metro pins ^1.0.2 so the lock cannot 
 id = "GHSA-gcqx-w48m-w2h4"
 ignoreUntil = 2026-11-04
 reason = "No patched deepmerge release exists. This lock reaches it only through Jest, Expo configuration, or React Native/Kepler CLI configuration used for trusted local builds and tests; mobile entry points and the published SDK runtime do not import those tools. Do not load untrusted project configuration. Revisit the upstream fix before expiry: https://github.com/advisories/GHSA-gcqx-w48m-w2h4."
+
+[[IgnoredVulns]]
+id = "GHSA-g3hv-75wg-m249"
+ignoreUntil = 2026-11-04
+reason = "The fix is minimatch 11.0.1, outside the legacy React Native 0.72/Kepler CLI and codegen ranges. These copies are used for trusted local source discovery and configuration; mobile entry points do not import the Node CLI/codegen tools. Do not process untrusted project configuration or glob patterns. Preserve legacy callable APIs until parent upgrades are compatible. Recheck upstream fixes before expiry: https://github.com/advisories/GHSA-g3hv-75wg-m249."

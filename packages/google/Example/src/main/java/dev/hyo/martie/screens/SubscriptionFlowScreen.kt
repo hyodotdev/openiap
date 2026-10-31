@@ -48,6 +48,7 @@ import dev.hyo.openiap.VerifyPurchaseWithProviderProps
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
 import dev.hyo.openiap.SubscriptionReplacementModeAndroid
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.launch
 import dev.hyo.martie.util.PREMIUM_SUBSCRIPTION_PRODUCT_ID
 import dev.hyo.martie.util.SUBSCRIPTION_PREFS_NAME
@@ -91,13 +92,6 @@ fun SubscriptionFlowScreen(
     val androidPurchases = remember(purchases) { purchases.filterIsInstance<PurchaseAndroid>() }
     val status by iapStore.status.collectAsState()
     val connectionStatus by iapStore.isConnected.collectAsState()
-    val lastPurchase by iapStore.currentPurchase.collectAsState(initial = null)
-    val lastPurchaseAndroid: PurchaseAndroid? = remember(lastPurchase) {
-        when (val purchase = lastPurchase) {
-            is PurchaseAndroid -> purchase
-            else -> null
-        }
-    }
 
     // Real-time subscription status (expiry/renewal). This requires server validation.
     data class SubscriptionUiInfo(
@@ -795,7 +789,7 @@ fun SubscriptionFlowScreen(
                                                                 println("SubscriptionFlow: Subscription change successful, saved offer: $newOfferBasePlanId")
 
                                                                 // Don't post success message here - let LaunchedEffect handle verification
-                                                                // The purchase listener will update lastPurchaseAndroid which triggers verification
+                                                                // The store's currentPurchase update triggers verification
                                                             }
                                                         } catch (e: Exception) {
                                                             println("SubscriptionFlow: Error changing subscription: ${e.message}")
@@ -1021,7 +1015,7 @@ fun SubscriptionFlowScreen(
                                                                 println("SubscriptionFlow: Subscription change successful, saved offer: $newOfferBasePlanId")
 
                                                                 // Don't post success message here - let LaunchedEffect handle verification
-                                                                // The purchase listener will update lastPurchaseAndroid which triggers verification
+                                                                // The store's currentPurchase update triggers verification
                                                             }
                                                         } catch (e: Exception) {
                                                             println("SubscriptionFlow: Error changing subscription: ${e.message}")
@@ -1292,7 +1286,7 @@ fun SubscriptionFlowScreen(
     }
 
     suspend fun handlePurchased(purchase: PurchaseAndroid) {
-        if (IapkitConfig.subscriptionProductId(purchase) !in subscriptionSkus) return
+        if (IapkitConfig.subscriptionProductId(purchase) !in subscriptionSkus || !IapConstants.isUnfinished(purchase)) return
         val method = verificationMethod
         if (method == VerificationMethod.None || method == VerificationMethod.Local) {
             verificationResultMessage = "Receipt retained. Choose IAPKit verification to retry this receipt."
@@ -1390,9 +1384,7 @@ fun SubscriptionFlowScreen(
 
             // 4) Finish transaction
             try {
-                if (isConsumable || purchase.isAcknowledgedAndroid != true) {
-                    iapStore.finishTransaction(purchase, isConsumable)
-                }
+                iapStore.finishTransaction(purchase, isConsumable)
                 finished = true
                 iapStore.postStatusMessage(
                     message = "Transaction finished successfully",
@@ -1430,7 +1422,6 @@ fun SubscriptionFlowScreen(
         }
     }
 
-    val purchaseKey = lastPurchaseAndroid?.let { "${it.id}_${it.transactionDate}" }
     LaunchedEffect(verificationMethod, connectionStatus, recoveryRequest) {
         if (!connectionStatus) return@LaunchedEffect
         try {
@@ -1442,8 +1433,9 @@ fun SubscriptionFlowScreen(
         }
     }
 
-    LaunchedEffect(purchaseKey) {
-        lastPurchaseAndroid?.let { handlePurchased(it) }
+    // Collected, not keyed: finishing clears currentPurchase and must not cancel its own handling.
+    LaunchedEffect(iapStore) {
+        iapStore.currentPurchase.filterIsInstance<PurchaseAndroid>().collect { handlePurchased(it) }
     }
 
     LaunchedEffect(Unit) {

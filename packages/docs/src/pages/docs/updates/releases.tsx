@@ -59,8 +59,9 @@ const PURCHASE_ENVIRONMENT_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'godot-iap', version: '4.3.0', tag: 'godot-iap-4.3.0' },
 ];
 
-const IOS_RECOVERY_RELEASES: readonly ReleaseMetadata[] = [
+const PURCHASE_RECOVERY_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'openiap-apple', version: '4.0.7', tag: '4.0.7' },
+  { name: 'openiap-google', version: '4.0.8', tag: 'google-4.0.8' },
   {
     name: 'react-native-iap',
     version: '17.3.1',
@@ -724,15 +725,17 @@ function Releases() {
       date: new Date('2026-10-31'),
       element: (
         <div key="ios-receipt-recovery-2026-10-31" style={noteCardStyle}>
-          {IOS_RECOVERY_RELEASES.map((release) => (
+          {PURCHASE_RECOVERY_RELEASES.map((release) => (
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
           <AnchorLink id="ios-receipt-recovery-2026-10-31" level="h4">
-            October 31, 2026 - iOS receipt recovery and error helper exports
+            October 31, 2026 - Receipt recovery and purchase completion
           </AnchorLink>
           <p>
             iOS apps can recover unfinished receipts and, with opt-in event
-            recovery, verified purchases from a failed inventory query. React
+            recovery, verified purchases from a failed inventory query. Native
+            Android apps that collect <code>OpenIapStore.currentPurchase</code>{' '}
+            no longer replay finished purchases when a screen opens again. React
             Native and Expo also expose their existing recoverable-error helper.
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
@@ -763,6 +766,16 @@ function Releases() {
                 </li>
               </ul>
             </li>
+            <li>
+              <strong>openiap-google 4.0.8</strong>:{' '}
+              <code>OpenIapStore.finishTransaction</code> clears{' '}
+              <code>currentPurchase</code> when it holds that finished purchase,
+              as the Apple store does. A collector that starts later, such as a
+              screen opened again, no longer handles it again. Failed finishes
+              retain the purchase for retry. The native example screens skip
+              settled purchases and show matching consumed receipts as already
+              granted, without granting or consuming them again.
+            </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
           <ul>
@@ -784,8 +797,8 @@ function Releases() {
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
           <p>
-            Rebuild iOS apps with the framework patches below to include Apple
-            4.0.7. Recover unfinished receipts with{' '}
+            Rebuild apps with the framework patches below to include Apple 4.0.7
+            and Google 4.0.8. Recover unfinished iOS receipts with{' '}
             <Link to="/docs/apis/ios/get-pending-transactions-ios">
               <code>getPendingTransactionsIOS</code>
             </Link>{' '}
@@ -813,7 +826,7 @@ function Releases() {
             }}
           >
             <ul style={{ marginBottom: 0, paddingLeft: '1.25rem' }}>
-              {IOS_RECOVERY_RELEASES.map((release) => (
+              {PURCHASE_RECOVERY_RELEASES.map((release) => (
                 <li key={release.tag}>
                   <a
                     href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}

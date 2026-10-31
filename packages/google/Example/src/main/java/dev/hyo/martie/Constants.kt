@@ -1,10 +1,15 @@
 package dev.hyo.martie
 
 import android.os.Build
+import dev.hyo.openiap.PurchaseAndroid
 
 object IapConstants {
     val CONSUMABLE_SKUS = listOf("dev.hyo.martie.10bulbs", "dev.hyo.martie.30bulbs")
     val INAPP_SKUS = CONSUMABLE_SKUS + "dev.hyo.martie.certified"
+
+    /** Play keeps an acknowledged purchase finished; a listed consumable is still unconsumed. */
+    fun isUnfinished(purchase: PurchaseAndroid): Boolean =
+        purchase.isAcknowledgedAndroid != true || purchase.productId in CONSUMABLE_SKUS
 
     // Google Play: Two separate subscription products
     private val SUBS_SKUS_PLAY = listOf(

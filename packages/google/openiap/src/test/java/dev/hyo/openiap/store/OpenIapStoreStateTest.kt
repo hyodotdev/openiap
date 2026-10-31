@@ -26,6 +26,7 @@ import java.util.concurrent.CountDownLatch
 import kotlin.concurrent.thread
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -145,6 +146,58 @@ class OpenIapStoreStateTest {
         store.finishTransaction(purchase("retry-token"), false)
 
         assertEquals(2, module.finishTransactionCalls.get())
+    }
+
+    @Test
+    fun `only a finished purchase leaves currentPurchase`() = runBlocking {
+        val current = purchase("current-token")
+        module.emitPurchase(current)
+
+        store.finishTransaction(purchase("other-token"), false)
+        assertEquals(current, store.currentPurchase.value)
+
+        module.finishError = IllegalStateException("store unavailable")
+        runCatching { store.finishTransaction(current, true) }
+        assertEquals("a failed finish keeps it for a retry", current, store.currentPurchase.value)
+
+        module.finishError = null
+        store.finishTransaction(current, true)
+        assertNull("a new collector must not handle a finished purchase", store.currentPurchase.value)
+    }
+
+    @Test
+    fun `finishing a purchase preserves a newer purchase update`() = runBlocking {
+        val finishingPurchase = purchase("finishing-token")
+        val newerPurchase = purchase("newer-token")
+        val gate = CompletableDeferred<Unit>()
+        module.finishGate = gate
+        module.emitPurchase(finishingPurchase)
+        val finishing = async(start = CoroutineStart.UNDISPATCHED) {
+            store.finishTransaction(finishingPurchase, true)
+        }
+
+        module.emitPurchase(newerPurchase)
+        gate.complete(Unit)
+        finishing.await()
+
+        assertEquals(newerPurchase, store.currentPurchase.value)
+    }
+
+    @Test
+    fun `a cancelled finish keeps currentPurchase for retry`() = runBlocking {
+        val current = purchase("cancelled-token")
+        module.emitPurchase(current)
+        module.finishGate = CompletableDeferred()
+        val finishing = launch(start = CoroutineStart.UNDISPATCHED) {
+            store.finishTransaction(current, true)
+        }
+
+        finishing.cancelAndJoin()
+        assertEquals(current, store.currentPurchase.value)
+
+        module.finishGate = null
+        store.finishTransaction(current, true)
+        assertNull(store.currentPurchase.value)
     }
 
     private fun hammer(
