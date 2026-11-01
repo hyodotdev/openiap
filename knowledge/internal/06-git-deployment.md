@@ -342,16 +342,16 @@ equivalent package-publishing command from a local terminal.
   write runs only from the immutable tag-push `publish-flutter.yml` workflow.
   pub.dev rejects OIDC publishing from a `workflow_dispatch` event even when
   that run checks out a tag.
-- The MAUI publish job pushes to NuGet through Trusted Publishing instead of
-  a stored API key. The nuget.org policy, created by `hyochan`, trusts owner
+- The MAUI release pushes to NuGet through Trusted Publishing instead of a
+  stored API key. The nuget.org policy, created by `hyochan`, trusts owner
   `hyodotdev`, repository `openiap`, workflow `release-maui.yml` and
-  environment `release`, and allows only new `OpenIap.Maui` versions.
-  `NuGet/login` exchanges the job's OIDC token for a one-hour key after packing
-  and before the tag push, so a policy that does not match the repository,
-  workflow or environment stops the release untagged. A package-scope
-  mismatch fails only at the push; finish that release with `version=current`.
-  As in NuGet's example, `id-token: write` covers the whole job: any step could
-  mint a key, but such a step could already alter the package the job pushes.
+  environment `release`, and allows only new `OpenIap.Maui` versions. Only two
+  jobs hold `id-token: write`, and neither runs build code:
+  `nuget-login-check` logs in before `publish` builds and tags, so a policy
+  that does not match the repository, workflow or environment stops the release
+  untagged; `publish-nuget` logs in again for a one-hour key and pushes the
+  package that `publish` uploaded. A package-scope mismatch fails only at that
+  push; finish the release with `version=current`.
 - Local registry-facing commands in a release workflow are limited to read-only
   verification; local build and test commands remain allowed.
 - Jobs that read a stored publishing or deploy secret run in a GitHub

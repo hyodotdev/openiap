@@ -53,7 +53,7 @@ const releaseWorkflows = {
   godot: { filename: "release-godot.yml", guardedJobs: 2 },
   google: { filename: "release-google.yml", guardedJobs: 1 },
   kmp: { filename: "release-kmp.yml", guardedJobs: 2 },
-  maui: { filename: "release-maui.yml", guardedJobs: 2 },
+  maui: { filename: "release-maui.yml", guardedJobs: 3 },
   "react-native": {
     filename: "release-react-native.yml",
     guardedJobs: 2,
@@ -1334,7 +1334,7 @@ test("framework release workflows refuse stale dispatch heads", () => {
   assert.match(mauiWorkflow, /Check if NuGet package already published/);
   assert.match(
     mauiWorkflow,
-    /if: steps\.check_nuget\.outputs\.exists == 'false'/,
+    /if: needs\.publish\.outputs\.package_exists == 'false'/,
   );
 });
 

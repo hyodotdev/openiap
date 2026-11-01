@@ -5105,43 +5105,66 @@ function checkFrameworkDependencyHygiene() {
       "steps.version.outputs.skip_version_commit != 'true' || steps.check_tag.outputs.exists != 'true'",
       "Check if NuGet package already published",
       "Unable to verify OpenIap.Maui $VERSION on NuGet.org",
-      "if: steps.check_nuget.outputs.exists == 'false'",
+      "if: needs.publish.outputs.package_exists == 'false'",
     ],
     "MAUI current-mode release must verify an untagged dispatch head",
   );
-  // A failed NuGet login must stop the release before the tag is pushed.
+  // Only jobs that run no build code may mint a NuGet key, and nuget.org must
+  // accept the run before publish pushes the tag.
   {
     const mauiRelease = ".github/workflows/release-maui.yml";
     const mauiDoc = exists(mauiRelease)
       ? parseDocument(read(mauiRelease))
       : undefined;
-    const publishJob = mauiDoc?.errors.length
-      ? undefined
-      : mauiDoc?.toJS()?.jobs?.publish;
-    const steps = Array.isArray(publishJob?.steps) ? publishJob.steps : [];
-    const [login, tag, push] = [
-      "Log in to NuGet.org",
+    const jobs = mauiDoc?.errors.length ? {} : (mauiDoc?.toJS()?.jobs ?? {});
+    const stepsOf = (job) => (Array.isArray(job?.steps) ? job.steps : []);
+    const needsOf = (job) => [].concat(job?.needs ?? []);
+    const isLogin = (step) =>
+      /^NuGet\/login@[0-9a-f]{40}$/.test(step?.uses ?? "");
+    const indexIn = (steps, name) =>
+      steps.findIndex((step) => step?.name === name);
+    const oidcJobs = Object.keys(jobs)
+      .filter((id) => jobs[id]?.permissions?.["id-token"] === "write")
+      .sort();
+    const checkSteps = stepsOf(jobs["nuget-login-check"]);
+    const publishSteps = stepsOf(jobs.publish);
+    const pushSteps = stepsOf(jobs["publish-nuget"]);
+    const [checkNuget, upload, tag] = [
+      "Check if NuGet package already published",
+      "Upload NuGet package",
       "Create and push tag",
-      "Publish to NuGet.org",
-    ].map((name) => steps.findIndex((step) => step?.name === name));
-    const unpublished = "steps.check_nuget.outputs.exists == 'false'";
+    ].map((name) => indexIn(publishSteps, name));
+    const [login, push] = ["Log in to NuGet.org", "Publish to NuGet.org"].map(
+      (name) => indexIn(pushSteps, name),
+    );
+    const unpublished = "needs.publish.outputs.package_exists == 'false'";
     if (
-      publishJob?.permissions?.["id-token"] !== "write" ||
-      !(login >= 0 && login < tag && tag < push) ||
-      !/^NuGet\/login@[0-9a-f]{40}$/.test(steps[login].uses ?? "") ||
-      steps[login].id !== "nuget-login" ||
-      steps[login].if !== unpublished ||
-      "continue-on-error" in steps[login] ||
-      ![undefined, "success()"].includes(steps[tag].if) ||
-      "continue-on-error" in steps[tag] ||
-      steps[push].if !== unpublished ||
-      steps[push].env?.NUGET_API_KEY !==
+      oidcJobs.join() !== "nuget-login-check,publish-nuget" ||
+      jobs["nuget-login-check"].environment !== "release" ||
+      jobs["publish-nuget"].environment !== "release" ||
+      checkSteps.length !== 1 ||
+      !isLogin(checkSteps[0]) ||
+      "continue-on-error" in checkSteps[0] ||
+      !needsOf(jobs.publish).includes("nuget-login-check") ||
+      publishSteps.some(isLogin) ||
+      !(checkNuget >= 0 && checkNuget < upload && upload < tag) ||
+      ![undefined, "success()"].includes(publishSteps[tag].if) ||
+      "continue-on-error" in publishSteps[tag] ||
+      jobs.publish.outputs?.package_exists !==
+        "${{ steps.check_nuget.outputs.exists }}" ||
+      !needsOf(jobs["publish-nuget"]).includes("publish") ||
+      !(login >= 0 && login < push) ||
+      pushSteps[login].id !== "nuget-login" ||
+      pushSteps[login].if !== unpublished ||
+      "continue-on-error" in pushSteps[login] ||
+      pushSteps[push].if !== unpublished ||
+      pushSteps[push].env?.NUGET_API_KEY !==
         "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" ||
-      !String(steps[push].run).includes('--api-key "$NUGET_API_KEY"') ||
-      /secrets/i.test(JSON.stringify(steps[push]))
+      !String(pushSteps[push].run).includes('--api-key "$NUGET_API_KEY"') ||
+      /secrets/i.test(JSON.stringify(pushSteps[push]))
     ) {
       fail(
-        `${mauiRelease} must publish through NuGet Trusted Publishing, logging in before it tags`,
+        `${mauiRelease} must publish through NuGet Trusted Publishing from jobs that run no build code, logging in before it tags`,
       );
     }
   }
