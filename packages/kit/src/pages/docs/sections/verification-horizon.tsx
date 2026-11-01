@@ -135,7 +135,9 @@ access_token=OC%7C{APP_ID}%7C{APP_SECRET}&user_id={userId}&sku={sku}
         IAPKit multiplies <code>grant_time</code> by 1000 before persisting so
         it stays in milliseconds (the same unit Apple and Google store).{" "}
         <code>success: true</code> maps to <code>ENTITLED</code>,{" "}
-        <code>false</code> to <code>INAUTHENTIC</code>.
+        <code>false</code> to <code>INAUTHENTIC</code>. That includes a
+        consumable your app already consumed: Meta no longer reports that
+        entitlement, so record consumable fulfillment in your app.
       </p>
       <p>
         A receipt-history row is written only when Meta returns a successful
