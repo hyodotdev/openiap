@@ -5130,17 +5130,24 @@ function checkFrameworkDependencyHygiene() {
     const oidcJobs = Object.keys(jobs)
       .filter((id) => grantsOidc(jobs[id]?.permissions ?? workflow.permissions))
       .sort();
-    // publish-nuget may run only these steps, so no build code shares its key.
-    const pushStepLabels = [
-      "actions/checkout",
-      "Setup .NET 10 SDK",
-      "Download NuGet package",
-      "Log in to NuGet.org",
-      "Publish to NuGet.org",
-      "Generate release notes",
-      "Create GitHub Release",
-      "Dispatch SBOM",
+    // publish-nuget runs exactly these steps, so no build code shares its key.
+    const pushStepSpec = [
+      ["Setup .NET 10 SDK", "actions/setup-dotnet"],
+      ["Download NuGet package", "actions/download-artifact"],
+      ["Log in to NuGet.org", "NuGet/login"],
+      ["Publish to NuGet.org"],
     ];
+    const pushScript = [
+      'if [ "$(ls nupkgs)" != "OpenIap.Maui.$VERSION.nupkg" ]; then',
+      '  echo "::error::expected only OpenIap.Maui.$VERSION.nupkg from the publish job"',
+      "  exit 1",
+      "fi",
+      'dotnet nuget push "./nupkgs/OpenIap.Maui.$VERSION.nupkg" \\',
+      '  --api-key "$NUGET_API_KEY" \\',
+      "  --source https://api.nuget.org/v3/index.json \\",
+      "  --skip-duplicate",
+      "",
+    ].join("\n");
     const checkSteps = stepsOf(jobs["nuget-login-check"]);
     const publishSteps = stepsOf(jobs.publish);
     const pushSteps = stepsOf(jobs["publish-nuget"]);
@@ -5175,14 +5182,22 @@ function checkFrameworkDependencyHygiene() {
       !onlyGithubToken(jobs["publish-nuget"]) ||
       publishSteps.some(isLogin) ||
       !(checkNuget >= 0 && checkNuget < upload && upload < tag) ||
+      publishSteps[checkNuget].id !== "check_nuget" ||
       ![undefined, "success()"].includes(publishSteps[tag].if) ||
       "continue-on-error" in publishSteps[tag] ||
       jobs.publish.outputs?.package_exists !==
         "${{ steps.check_nuget.outputs.exists }}" ||
       !needsOf(jobs["publish-nuget"]).includes("publish") ||
-      pushSteps
-        .map((step) => step?.name ?? step?.uses?.split("@")[0])
-        .join() !== pushStepLabels.join() ||
+      pushSteps.length !== pushStepSpec.length ||
+      pushStepSpec.some(
+        ([name, uses], index) =>
+          pushSteps[index]?.name !== name ||
+          (uses
+            ? pushSteps[index].uses?.split("@")[0] !== uses ||
+              "run" in pushSteps[index]
+            : "uses" in pushSteps[index] ||
+              pushSteps[index].run !== pushScript),
+      ) ||
       read(mauiRelease).split("nuget-login.outputs").length !== 2 ||
       !(login >= 0 && login < push) ||
       pushSteps[login].id !== "nuget-login" ||
@@ -5191,9 +5206,7 @@ function checkFrameworkDependencyHygiene() {
       pushSteps[push].if !== unpublished ||
       "continue-on-error" in pushSteps[push] ||
       pushSteps[push].env?.NUGET_API_KEY !==
-        "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" ||
-      !String(pushSteps[push].run).includes('--api-key "$NUGET_API_KEY"') ||
-      /secrets/i.test(JSON.stringify(pushSteps[push]))
+        "${{ steps.nuget-login.outputs.NUGET_API_KEY }}"
     ) {
       fail(
         `${mauiRelease} must publish through NuGet Trusted Publishing from jobs that run no build code, logging in before it tags`,

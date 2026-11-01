@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-11-01T12:55:49.244Z
+> Last updated: 2026-11-01T13:32:13.883Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2873,9 +2873,10 @@ equivalent package-publishing command from a local terminal.
   `nuget-login-check` logs in before `publish` builds and tags, so a policy
   that does not match the repository, workflow or environment stops the release
   untagged; `publish-nuget` logs in again for a one-hour key and pushes the
-  package that `publish` uploaded. A package-scope mismatch fails only at that
-  push: fix the policy, then re-run the failed `publish-nuget` job within the
-  artifact's 7 days, or finish with `version=current`.
+  package that `publish` uploaded; `github-release` then writes the notes,
+  GitHub Release and SBOM without a NuGet key. A package-scope mismatch fails
+  only at that push: fix the policy, then re-run the failed `publish-nuget`
+  job within the artifact's 7 days, or finish with `version=current`.
 - Local registry-facing commands in a release workflow are limited to read-only
   verification; local build and test commands remain allowed.
 - Jobs that read a stored publishing or deploy secret run in a GitHub
