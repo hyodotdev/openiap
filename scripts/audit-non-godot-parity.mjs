@@ -5127,7 +5127,11 @@ function checkFrameworkDependencyHygiene() {
           typeof item === "string"
             ? item.replace(/@[0-9a-f]{40}$/, "@<sha>")
             : item && typeof item === "object" && !Array.isArray(item)
-              ? Object.fromEntries(Object.entries(item).sort())
+              ? Object.fromEntries(
+                  Object.entries(item).sort(([a], [b]) =>
+                    a < b ? -1 : a > b ? 1 : 0,
+                  ),
+                )
               : item,
         );
       } catch {
