@@ -344,17 +344,39 @@ validated, release a new reviewed version instead of recreating the tag.
 
 ## Godot Asset Library
 
-The GitHub Release does not update Asset Library entry 4627. After a stable
-Godot release, the agent edits
-`https://godotengine.org/asset-library/asset/4627` directly through the
-maintainer's logged-in browser session: update the version string and the
-download commit/URL to the new `godot-iap-{version}` release, then submit the
-edit for review. Never enter credentials; if no logged-in session is
-available, report the exact version and release ZIP URL so the maintainer can
-perform the edit, and record it as pending work. The accepted version is
-`curl -s https://godotengine.org/asset-library/api/asset/4627 | jq -r .version_string`;
-until moderation accepts the edit, report its edit id as pending. 3.6.1 was
-missed because this step was left for later.
+The GitHub Release does not update Asset Library entry 4627. Hyo's standing
+instruction authorizes the agent to submit its update after every stable Godot
+release, without asking again or handing the final submission to Hyo. Submit
+the edit and verify its receipt before reporting the release complete.
+
+After verifying the public release ZIP, open
+`https://godotengine.org/asset-library/asset/4627/edit` through the maintainer's
+logged-in browser session. Set the version string to `{version}`, keep the
+repository provider as Custom, and update both URLs:
+
+- Download: `https://github.com/hyodotdev/openiap/releases/download/godot-iap-{version}/godot-iap-{version}.zip`
+- Repository browse: `https://github.com/hyodotdev/openiap/tree/godot-iap-{version}/libraries/godot-iap`
+
+Check for an existing pending edit for that version before submitting to avoid
+duplicates. Submit the prepared edit, then verify the resulting edit page shows
+the expected version and URLs as pending moderator approval. Save and report
+its edit ID and URL. If submission fails a CSRF check, reopen the edit form,
+restore the same values, and retry once with the fresh form.
+
+Never enter credentials; if no logged-in session is available or submission
+remains blocked, report the blocker, exact version and release ZIP URL as
+unfinished submission work. Preparing the form alone is not submission.
+
+The accepted public version is
+`curl -s https://godotengine.org/asset-library/api/asset/4627 | jq -r .version_string`.
+Moderator approval is separate from submission: the public listing may keep
+the previous version while the submitted edit is pending.
+
+## Blog Coverage
+
+A release does not authorize blog writing or publication. For important
+user-facing changes, propose an article and wait for Hyo's approval before
+drafting, and again before publishing it.
 
 ## Final Report
 
