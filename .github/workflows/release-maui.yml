@@ -411,14 +411,14 @@ jobs:
               ;;
           esac
 
-      # Log in before tagging, so a missing or mismatched Trusted Publishing
-      # policy stops the release before anything is pushed. The key lasts 1 hour.
+      # Log in before tagging, so a policy that does not match this repository,
+      # workflow or environment stops the release untagged. The key lasts 1 hour.
       - name: Log in to NuGet.org
         id: nuget-login
         if: steps.check_nuget.outputs.exists == 'false'
         uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
         with:
-          user: hyochan # nuget.org profile that owns the OpenIap.Maui policy
+          user: hyochan # nuget.org user who created the Trusted Publishing policy
 
       - name: Create release push token
         id: release-token

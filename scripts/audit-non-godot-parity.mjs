@@ -5110,14 +5110,37 @@ function checkFrameworkDependencyHygiene() {
     "MAUI current-mode release must verify an untagged dispatch head",
   );
   // A failed NuGet login must stop the release before the tag is pushed.
-  expectMatch(
+  {
+    const mauiRelease = ".github/workflows/release-maui.yml";
+    const publishJob = parseDocument(read(mauiRelease)).toJS()?.jobs?.publish;
+    const steps = publishJob?.steps ?? [];
+    const [login, tag, push] = [
+      "Log in to NuGet.org",
+      "Create and push tag",
+      "Publish to NuGet.org",
+    ].map((name) => steps.findIndex((step) => step.name === name));
+    const unpublished = "steps.check_nuget.outputs.exists == 'false'";
+    if (
+      publishJob?.permissions?.["id-token"] !== "write" ||
+      !(login >= 0 && login < tag && tag < push) ||
+      !/^NuGet\/login@[0-9a-f]{40}$/.test(steps[login].uses ?? "") ||
+      steps[login].id !== "nuget-login" ||
+      steps[login].if !== unpublished ||
+      "continue-on-error" in steps[login] ||
+      ![undefined, "success()"].includes(steps[tag].if) ||
+      "continue-on-error" in steps[tag] ||
+      steps[push].if !== unpublished ||
+      steps[push].env?.NUGET_API_KEY !==
+        "${{ steps.nuget-login.outputs.NUGET_API_KEY }}"
+    ) {
+      fail(
+        `${mauiRelease} must publish through NuGet Trusted Publishing, logging in before it tags`,
+      );
+    }
+  }
+  expectNoMatch(
     ".github/workflows/release-maui.yml",
-    /id-token: write[\s\S]*- name: Log in to NuGet\.org\n\s+id: nuget-login\n\s+if: steps\.check_nuget\.outputs\.exists == 'false'\n\s+uses: NuGet\/login@[0-9a-f]{40} [\s\S]*- name: Create and push tag[\s\S]*- name: Publish to NuGet\.org[\s\S]*NUGET_API_KEY: \$\{\{ steps\.nuget-login\.outputs\.NUGET_API_KEY \}\}/,
-    "MAUI release must publish through NuGet Trusted Publishing, logging in before it tags",
-  );
-  expectNotIncludes(
-    ".github/workflows/release-maui.yml",
-    ["secrets.NUGET_API_KEY"],
+    /secrets\s*(?:\.\s*|\[\s*['"])NUGET_API_KEY/,
     "MAUI release must not fall back to a long-lived NuGet API key",
   );
   for (const [npmReleaseWorkflow, npmPackage] of [

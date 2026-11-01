@@ -1315,12 +1315,14 @@ test("framework release workflows refuse stale dispatch heads", () => {
         workflow.indexOf('"HEAD:$RELEASE_BRANCH"'),
       filename,
     );
+    const credentialStep = workflow.indexOf(
+      filename === "release-kmp.yml"
+        ? "- name: Preflight Maven Central publication"
+        : "- name: Log in to NuGet.org",
+    );
     assert.ok(
-      workflow.indexOf(
-        filename === "release-kmp.yml"
-          ? "- name: Preflight Maven Central publication"
-          : "- name: Preflight NuGet publication",
-      ) < workflow.indexOf("- name: Create and push tag"),
+      credentialStep >= 0 &&
+        credentialStep < workflow.indexOf("- name: Create and push tag"),
       `${filename} must validate publication credentials before pushing the release tag`,
     );
     assert.ok(
