@@ -53,7 +53,7 @@ const releaseWorkflows = {
   godot: { filename: "release-godot.yml", guardedJobs: 2 },
   google: { filename: "release-google.yml", guardedJobs: 1 },
   kmp: { filename: "release-kmp.yml", guardedJobs: 2 },
-  maui: { filename: "release-maui.yml", guardedJobs: 2 },
+  maui: { filename: "release-maui.yml", guardedJobs: 3 },
   "react-native": {
     filename: "release-react-native.yml",
     guardedJobs: 2,
@@ -1315,12 +1315,14 @@ test("framework release workflows refuse stale dispatch heads", () => {
         workflow.indexOf('"HEAD:$RELEASE_BRANCH"'),
       filename,
     );
+    const credentialStep = workflow.indexOf(
+      filename === "release-kmp.yml"
+        ? "- name: Preflight Maven Central publication"
+        : "- name: Log in to NuGet.org",
+    );
     assert.ok(
-      workflow.indexOf(
-        filename === "release-kmp.yml"
-          ? "- name: Preflight Maven Central publication"
-          : "- name: Preflight NuGet publication",
-      ) < workflow.indexOf("- name: Create and push tag"),
+      credentialStep >= 0 &&
+        credentialStep < workflow.indexOf("- name: Create and push tag"),
       `${filename} must validate publication credentials before pushing the release tag`,
     );
     assert.ok(
@@ -1332,7 +1334,7 @@ test("framework release workflows refuse stale dispatch heads", () => {
   assert.match(mauiWorkflow, /Check if NuGet package already published/);
   assert.match(
     mauiWorkflow,
-    /if: steps\.check_nuget\.outputs\.exists == 'false'/,
+    /if: needs\.publish\.outputs\.package_exists == 'false'/,
   );
 });
 

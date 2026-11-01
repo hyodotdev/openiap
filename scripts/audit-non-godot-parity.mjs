@@ -5105,10 +5105,137 @@ function checkFrameworkDependencyHygiene() {
       "steps.version.outputs.skip_version_commit != 'true' || steps.check_tag.outputs.exists != 'true'",
       "Check if NuGet package already published",
       "Unable to verify OpenIap.Maui $VERSION on NuGet.org",
-      "if: steps.check_nuget.outputs.exists == 'false'",
-      "NUGET_API_KEY secret is required",
+      "if: needs.publish.outputs.package_exists == 'false'",
     ],
     "MAUI current-mode release must verify an untagged dispatch head",
+  );
+  // Only nuget-login-check and publish-nuget may mint a NuGet key. Both must
+  // match these exact shapes, so no build code, extra input or environment
+  // shares the key, and nuget.org accepts the run before publish tags it.
+  // Action pins may move to another commit SHA but must stay SHAs.
+  {
+    const mauiRelease = ".github/workflows/release-maui.yml";
+    const mauiDoc = exists(mauiRelease)
+      ? parseDocument(read(mauiRelease))
+      : undefined;
+    const workflow = mauiDoc?.errors.length ? {} : (mauiDoc?.toJS() ?? {});
+    const jobs = workflow.jobs ?? {};
+    // A value that cannot be serialized, such as a YAML alias cycle, mismatches.
+    const canonical = (value) => {
+      try {
+        return JSON.stringify(value ?? null, (_, item) =>
+          typeof item === "string"
+            ? item.replace(/@[0-9a-f]{40}$/, "@<sha>")
+            : item && typeof item === "object" && !Array.isArray(item)
+              ? Object.fromEntries(
+                  Object.entries(item).sort(([a], [b]) =>
+                    a < b ? -1 : a > b ? 1 : 0,
+                  ),
+                )
+              : item,
+        );
+      } catch {
+        return "<unserializable>";
+      }
+    };
+    const login = {
+      name: "Log in to NuGet.org",
+      uses: "NuGet/login@<sha>",
+      with: { user: "hyochan" },
+    };
+    const unpublished = "needs.publish.outputs.package_exists == 'false'";
+    const keyJobs = {
+      "nuget-login-check": {
+        needs: ["release-branch"],
+        name: "Check NuGet Trusted Publishing",
+        environment: "release",
+        permissions: { "id-token": "write" },
+        "runs-on": "ubuntu-latest",
+        "timeout-minutes": 10,
+        steps: [login],
+      },
+      "publish-nuget": {
+        needs: ["publish"],
+        name: "Publish to NuGet.org",
+        environment: "release",
+        permissions: { "id-token": "write" },
+        "runs-on": "ubuntu-latest",
+        "timeout-minutes": 15,
+        env: { VERSION: "${{ needs.publish.outputs.version }}" },
+        steps: [
+          {
+            name: "Setup .NET 10 SDK",
+            uses: "actions/setup-dotnet@<sha>",
+            with: { "dotnet-version": "10.0.x" },
+          },
+          {
+            name: "Download NuGet package",
+            uses: "actions/download-artifact@<sha>",
+            with: { name: "nupkg", path: "nupkgs" },
+          },
+          { ...login, id: "nuget-login", if: unpublished },
+          {
+            name: "Publish to NuGet.org",
+            if: unpublished,
+            env: {
+              NUGET_API_KEY: "${{ steps.nuget-login.outputs.NUGET_API_KEY }}",
+            },
+            run: [
+              'if [ "$(ls nupkgs)" != "OpenIap.Maui.$VERSION.nupkg" ]; then',
+              '  echo "::error::expected only OpenIap.Maui.$VERSION.nupkg from the publish job"',
+              "  exit 1",
+              "fi",
+              'dotnet nuget push "./nupkgs/OpenIap.Maui.$VERSION.nupkg" \\',
+              '  --api-key "$NUGET_API_KEY" \\',
+              "  --source https://api.nuget.org/v3/index.json \\",
+              "  --skip-duplicate",
+              "",
+            ].join("\n"),
+          },
+        ],
+      },
+    };
+    // A job without its own permissions inherits the workflow's.
+    const grantsOidc = (permissions) =>
+      permissions === "write-all" || permissions?.["id-token"] === "write";
+    const oidcJobs = Object.keys(jobs)
+      .filter((id) => grantsOidc(jobs[id]?.permissions ?? workflow.permissions))
+      .sort();
+    const needsOf = (job) => [].concat(job?.needs ?? []);
+    const publish =
+      jobs.publish && typeof jobs.publish === "object" ? jobs.publish : {};
+    const publishSteps = Array.isArray(publish.steps) ? publish.steps : [];
+    const [checkNuget, upload, tag] = [
+      "Check if NuGet package already published",
+      "Upload NuGet package",
+      "Create and push tag",
+    ].map((name) => publishSteps.findIndex((step) => step?.name === name));
+    if (
+      oidcJobs.join() !== Object.keys(keyJobs).join() ||
+      Object.entries(keyJobs).some(
+        ([id, job]) => canonical(jobs[id]) !== canonical(job),
+      ) ||
+      !needsOf(publish).includes("nuget-login-check") ||
+      "if" in publish ||
+      "continue-on-error" in publish ||
+      canonical(publish.permissions) !== canonical({ contents: "read" }) ||
+      !(checkNuget >= 0 && checkNuget < upload && upload < tag) ||
+      publishSteps[checkNuget].id !== "check_nuget" ||
+      ![undefined, "success()"].includes(publishSteps[tag].if) ||
+      "continue-on-error" in publishSteps[tag] ||
+      publish.outputs?.package_exists !==
+        "${{ steps.check_nuget.outputs.exists }}" ||
+      !needsOf(jobs["github-release"]).includes("publish-nuget")
+    ) {
+      fail(
+        `${mauiRelease} must publish through NuGet Trusted Publishing from jobs that run no build code, logging in before it tags`,
+      );
+    }
+  }
+  expectNoMatch(
+    ".github/workflows/release-maui.yml",
+    /secrets\s*(?:\.\s*|\[\s*['"])NUGET_API_KEY/i,
+    "MAUI release must not fall back to a long-lived NuGet API key",
   );
   for (const [npmReleaseWorkflow, npmPackage] of [
     [".github/workflows/release-expo.yml", "expo-iap"],

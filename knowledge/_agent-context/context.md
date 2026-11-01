@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-25T08:00:28.402Z
+> Last updated: 2026-11-01T13:32:13.883Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2853,9 +2853,9 @@ release again.
 
 ### CI-Only Package Publishing
 
-External registry publication for npm and Flutter packages is CI-only. Never
-run `npm publish`, `flutter pub publish`, or an equivalent package-publishing
-command from a local terminal.
+External registry publication for npm, Flutter and NuGet packages is CI-only.
+Never run `npm publish`, `flutter pub publish`, `dotnet nuget push`, or an
+equivalent package-publishing command from a local terminal.
 
 - Enter a stable or prerelease package release only through its guarded
   `workflow_dispatch` source workflow on the allowed release branch.
@@ -2865,6 +2865,18 @@ command from a local terminal.
   write runs only from the immutable tag-push `publish-flutter.yml` workflow.
   pub.dev rejects OIDC publishing from a `workflow_dispatch` event even when
   that run checks out a tag.
+- The MAUI release pushes to NuGet through Trusted Publishing instead of a
+  stored API key. The nuget.org policy, created by `hyochan`, trusts owner
+  `hyodotdev`, repository `openiap`, workflow `release-maui.yml` and
+  environment `release`, and allows only new `OpenIap.Maui` versions. Only two
+  jobs hold `id-token: write`, and neither runs build code:
+  `nuget-login-check` logs in before `publish` builds and tags, so a policy
+  that does not match the repository, workflow or environment stops the release
+  untagged; `publish-nuget` logs in again for a one-hour key and pushes the
+  package that `publish` uploaded; `github-release` then writes the notes,
+  GitHub Release and SBOM without a NuGet key. A package-scope mismatch fails
+  only at that push: fix the policy, then re-run the failed `publish-nuget`
+  job within the artifact's 7 days, or finish with `version=current`.
 - Local registry-facing commands in a release workflow are limited to read-only
   verification; local build and test commands remain allowed.
 - Jobs that read a stored publishing or deploy secret run in a GitHub
