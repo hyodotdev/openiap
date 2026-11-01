@@ -330,9 +330,9 @@ release again.
 
 ### CI-Only Package Publishing
 
-External registry publication for npm and Flutter packages is CI-only. Never
-run `npm publish`, `flutter pub publish`, or an equivalent package-publishing
-command from a local terminal.
+External registry publication for npm, Flutter and NuGet packages is CI-only.
+Never run `npm publish`, `flutter pub publish`, `dotnet nuget push`, or an
+equivalent package-publishing command from a local terminal.
 
 - Enter a stable or prerelease package release only through its guarded
   `workflow_dispatch` source workflow on the allowed release branch.
@@ -342,6 +342,12 @@ command from a local terminal.
   write runs only from the immutable tag-push `publish-flutter.yml` workflow.
   pub.dev rejects OIDC publishing from a `workflow_dispatch` event even when
   that run checks out a tag.
+- The MAUI publish job writes to NuGet through Trusted Publishing, with no
+  stored API key. The nuget.org policy, owned by `hyochan`, trusts owner
+  `hyodotdev`, repository `openiap`, workflow `release-maui.yml` and
+  environment `release`. `NuGet/login` exchanges the job's OIDC token for a
+  one-hour key after packing and before the tag push, so a missing or
+  mismatched policy stops the release before anything is tagged.
 - Local registry-facing commands in a release workflow are limited to read-only
   verification; local build and test commands remain allowed.
 - Jobs that read a stored publishing or deploy secret run in a GitHub

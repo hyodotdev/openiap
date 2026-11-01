@@ -157,6 +157,7 @@ jobs:
     permissions:
       actions: write
       contents: write
+      id-token: write # exchange for a short-lived NuGet key (Trusted Publishing)
     # Rebuild the exact native sidecar packed into NuGet with an App Store
     # submission toolchain. Xcode 27 remains validation-only until Apple
     # accepts its SDK for App Store uploads.
@@ -410,15 +411,14 @@ jobs:
               ;;
           esac
 
-      - name: Preflight NuGet publication
+      # Log in before tagging, so a missing or mismatched Trusted Publishing
+      # policy stops the release before anything is pushed. The key lasts 1 hour.
+      - name: Log in to NuGet.org
+        id: nuget-login
         if: steps.check_nuget.outputs.exists == 'false'
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        run: |
-          if [ -z "$NUGET_API_KEY" ]; then
-            echo "::error::NUGET_API_KEY secret is required before creating the release tag"
-            exit 1
-          fi
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: hyochan # nuget.org profile that owns the OpenIap.Maui policy
 
       - name: Create release push token
         id: release-token
@@ -460,7 +460,7 @@ jobs:
       - name: Publish to NuGet.org
         if: steps.check_nuget.outputs.exists == 'false'
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
         run: |
           dotnet nuget push './nupkgs/*.nupkg' \
             --api-key "$NUGET_API_KEY" \

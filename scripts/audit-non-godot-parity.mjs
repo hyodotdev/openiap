@@ -5106,9 +5106,19 @@ function checkFrameworkDependencyHygiene() {
       "Check if NuGet package already published",
       "Unable to verify OpenIap.Maui $VERSION on NuGet.org",
       "if: steps.check_nuget.outputs.exists == 'false'",
-      "NUGET_API_KEY secret is required",
     ],
     "MAUI current-mode release must verify an untagged dispatch head",
+  );
+  // A failed NuGet login must stop the release before the tag is pushed.
+  expectMatch(
+    ".github/workflows/release-maui.yml",
+    /id-token: write[\s\S]*- name: Log in to NuGet\.org\n\s+id: nuget-login\n\s+if: steps\.check_nuget\.outputs\.exists == 'false'\n\s+uses: NuGet\/login@[0-9a-f]{40} [\s\S]*- name: Create and push tag[\s\S]*- name: Publish to NuGet\.org[\s\S]*NUGET_API_KEY: \$\{\{ steps\.nuget-login\.outputs\.NUGET_API_KEY \}\}/,
+    "MAUI release must publish through NuGet Trusted Publishing, logging in before it tags",
+  );
+  expectNotIncludes(
+    ".github/workflows/release-maui.yml",
+    ["secrets.NUGET_API_KEY"],
+    "MAUI release must not fall back to a long-lived NuGet API key",
   );
   for (const [npmReleaseWorkflow, npmPackage] of [
     [".github/workflows/release-expo.yml", "expo-iap"],
