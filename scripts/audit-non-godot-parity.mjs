@@ -5153,6 +5153,12 @@ function checkFrameworkDependencyHygiene() {
       (name) => indexIn(pushSteps, name),
     );
     const unpublished = "needs.publish.outputs.package_exists == 'false'";
+    const onlyGithubToken = (job) =>
+      [
+        ...JSON.stringify(job ?? {}).matchAll(
+          /secrets\s*(?:\.\s*|\[\s*\\?['"])\s*(\w+)/gi,
+        ),
+      ].every(([, name]) => name.toUpperCase() === "GITHUB_TOKEN");
     if (
       oidcJobs.join() !== "nuget-login-check,publish-nuget" ||
       jobs["nuget-login-check"].environment !== "release" ||
@@ -5163,6 +5169,10 @@ function checkFrameworkDependencyHygiene() {
       "if" in checkSteps[0] ||
       "continue-on-error" in jobs["nuget-login-check"] ||
       !needsOf(jobs.publish).includes("nuget-login-check") ||
+      "if" in jobs.publish ||
+      "if" in jobs["publish-nuget"] ||
+      !onlyGithubToken(jobs["nuget-login-check"]) ||
+      !onlyGithubToken(jobs["publish-nuget"]) ||
       publishSteps.some(isLogin) ||
       !(checkNuget >= 0 && checkNuget < upload && upload < tag) ||
       ![undefined, "success()"].includes(publishSteps[tag].if) ||

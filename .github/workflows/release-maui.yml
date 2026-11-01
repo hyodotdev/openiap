@@ -171,7 +171,7 @@ jobs:
     needs: [validate, validate-multitarget, nuget-login-check]
     environment: release
     permissions:
-      contents: write
+      contents: read # pushes use the release App token
     outputs:
       version: ${{ steps.version.outputs.version }}
       is_prerelease: ${{ steps.version.outputs.is_prerelease }}
