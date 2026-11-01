@@ -5188,6 +5188,7 @@ function checkFrameworkDependencyHygiene() {
       jobs.publish.outputs?.package_exists !==
         "${{ steps.check_nuget.outputs.exists }}" ||
       !needsOf(jobs["publish-nuget"]).includes("publish") ||
+      !needsOf(jobs["github-release"]).includes("publish-nuget") ||
       pushSteps.length !== pushStepSpec.length ||
       pushStepSpec.some(
         ([name, uses], index) =>
