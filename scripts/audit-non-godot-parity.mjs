@@ -5168,6 +5168,8 @@ function checkFrameworkDependencyHygiene() {
       "continue-on-error" in checkSteps[0] ||
       "if" in checkSteps[0] ||
       "continue-on-error" in jobs["nuget-login-check"] ||
+      "continue-on-error" in jobs.publish ||
+      "continue-on-error" in jobs["publish-nuget"] ||
       !needsOf(jobs.publish).includes("nuget-login-check") ||
       "if" in jobs.publish ||
       "if" in jobs["publish-nuget"] ||
