@@ -5112,13 +5112,18 @@ function checkFrameworkDependencyHygiene() {
   // A failed NuGet login must stop the release before the tag is pushed.
   {
     const mauiRelease = ".github/workflows/release-maui.yml";
-    const publishJob = parseDocument(read(mauiRelease)).toJS()?.jobs?.publish;
-    const steps = publishJob?.steps ?? [];
+    const mauiDoc = exists(mauiRelease)
+      ? parseDocument(read(mauiRelease))
+      : undefined;
+    const publishJob = mauiDoc?.errors.length
+      ? undefined
+      : mauiDoc?.toJS()?.jobs?.publish;
+    const steps = Array.isArray(publishJob?.steps) ? publishJob.steps : [];
     const [login, tag, push] = [
       "Log in to NuGet.org",
       "Create and push tag",
       "Publish to NuGet.org",
-    ].map((name) => steps.findIndex((step) => step.name === name));
+    ].map((name) => steps.findIndex((step) => step?.name === name));
     const unpublished = "steps.check_nuget.outputs.exists == 'false'";
     if (
       publishJob?.permissions?.["id-token"] !== "write" ||
@@ -5131,7 +5136,9 @@ function checkFrameworkDependencyHygiene() {
       "continue-on-error" in steps[tag] ||
       steps[push].if !== unpublished ||
       steps[push].env?.NUGET_API_KEY !==
-        "${{ steps.nuget-login.outputs.NUGET_API_KEY }}"
+        "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" ||
+      !String(steps[push].run).includes('--api-key "$NUGET_API_KEY"') ||
+      /secrets/i.test(JSON.stringify(steps[push]))
     ) {
       fail(
         `${mauiRelease} must publish through NuGet Trusted Publishing, logging in before it tags`,
@@ -5140,7 +5147,7 @@ function checkFrameworkDependencyHygiene() {
   }
   expectNoMatch(
     ".github/workflows/release-maui.yml",
-    /secrets\s*(?:\.\s*|\[\s*['"])NUGET_API_KEY/,
+    /secrets\s*(?:\.\s*|\[\s*['"])NUGET_API_KEY/i,
     "MAUI release must not fall back to a long-lived NuGet API key",
   );
   for (const [npmReleaseWorkflow, npmPackage] of [
