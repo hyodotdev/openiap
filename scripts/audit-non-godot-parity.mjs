@@ -5116,16 +5116,31 @@ function checkFrameworkDependencyHygiene() {
     const mauiDoc = exists(mauiRelease)
       ? parseDocument(read(mauiRelease))
       : undefined;
-    const jobs = mauiDoc?.errors.length ? {} : (mauiDoc?.toJS()?.jobs ?? {});
+    const workflow = mauiDoc?.errors.length ? {} : (mauiDoc?.toJS() ?? {});
+    const jobs = workflow.jobs ?? {};
     const stepsOf = (job) => (Array.isArray(job?.steps) ? job.steps : []);
     const needsOf = (job) => [].concat(job?.needs ?? []);
     const isLogin = (step) =>
       /^NuGet\/login@[0-9a-f]{40}$/.test(step?.uses ?? "");
     const indexIn = (steps, name) =>
       steps.findIndex((step) => step?.name === name);
+    // A job without its own permissions inherits the workflow's.
+    const grantsOidc = (permissions) =>
+      permissions === "write-all" || permissions?.["id-token"] === "write";
     const oidcJobs = Object.keys(jobs)
-      .filter((id) => jobs[id]?.permissions?.["id-token"] === "write")
+      .filter((id) => grantsOidc(jobs[id]?.permissions ?? workflow.permissions))
       .sort();
+    // publish-nuget may run only these steps, so no build code shares its key.
+    const pushStepLabels = [
+      "actions/checkout",
+      "Setup .NET 10 SDK",
+      "Download NuGet package",
+      "Log in to NuGet.org",
+      "Publish to NuGet.org",
+      "Generate release notes",
+      "Create GitHub Release",
+      "Dispatch SBOM",
+    ];
     const checkSteps = stepsOf(jobs["nuget-login-check"]);
     const publishSteps = stepsOf(jobs.publish);
     const pushSteps = stepsOf(jobs["publish-nuget"]);
@@ -5145,6 +5160,8 @@ function checkFrameworkDependencyHygiene() {
       checkSteps.length !== 1 ||
       !isLogin(checkSteps[0]) ||
       "continue-on-error" in checkSteps[0] ||
+      "if" in checkSteps[0] ||
+      "continue-on-error" in jobs["nuget-login-check"] ||
       !needsOf(jobs.publish).includes("nuget-login-check") ||
       publishSteps.some(isLogin) ||
       !(checkNuget >= 0 && checkNuget < upload && upload < tag) ||
@@ -5153,11 +5170,16 @@ function checkFrameworkDependencyHygiene() {
       jobs.publish.outputs?.package_exists !==
         "${{ steps.check_nuget.outputs.exists }}" ||
       !needsOf(jobs["publish-nuget"]).includes("publish") ||
+      pushSteps
+        .map((step) => step?.name ?? step?.uses?.split("@")[0])
+        .join() !== pushStepLabels.join() ||
+      read(mauiRelease).split("nuget-login.outputs").length !== 2 ||
       !(login >= 0 && login < push) ||
       pushSteps[login].id !== "nuget-login" ||
       pushSteps[login].if !== unpublished ||
       "continue-on-error" in pushSteps[login] ||
       pushSteps[push].if !== unpublished ||
+      "continue-on-error" in pushSteps[push] ||
       pushSteps[push].env?.NUGET_API_KEY !==
         "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" ||
       !String(pushSteps[push].run).includes('--api-key "$NUGET_API_KEY"') ||

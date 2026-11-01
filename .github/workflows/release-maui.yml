@@ -435,7 +435,8 @@ jobs:
           name: nupkg
           path: nupkgs/*.nupkg
           if-no-files-found: error
-          retention-days: 1
+          overwrite: true # a re-run of publish uploads it again
+          retention-days: 7
 
       - name: Create release push token
         id: release-token
