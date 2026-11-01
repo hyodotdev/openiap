@@ -5120,14 +5120,20 @@ function checkFrameworkDependencyHygiene() {
       : undefined;
     const workflow = mauiDoc?.errors.length ? {} : (mauiDoc?.toJS() ?? {});
     const jobs = workflow.jobs ?? {};
-    const canonical = (value) =>
-      JSON.stringify(value ?? null, (_, item) =>
-        typeof item === "string"
-          ? item.replace(/@[0-9a-f]{40}$/, "@<sha>")
-          : item && typeof item === "object" && !Array.isArray(item)
-            ? Object.fromEntries(Object.entries(item).sort())
-            : item,
-      );
+    // A value that cannot be serialized, such as a YAML alias cycle, mismatches.
+    const canonical = (value) => {
+      try {
+        return JSON.stringify(value ?? null, (_, item) =>
+          typeof item === "string"
+            ? item.replace(/@[0-9a-f]{40}$/, "@<sha>")
+            : item && typeof item === "object" && !Array.isArray(item)
+              ? Object.fromEntries(Object.entries(item).sort())
+              : item,
+        );
+      } catch {
+        return "<unserializable>";
+      }
+    };
     const login = {
       name: "Log in to NuGet.org",
       uses: "NuGet/login@<sha>",
