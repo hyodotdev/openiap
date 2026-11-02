@@ -751,6 +751,21 @@ void main() {
           )),
         );
 
+    test('restores from the full iOS history', () async {
+      final iap = await connected('ios');
+      final flow = iap.createPurchaseFlow(
+        confirmWithBackend: (purchase, {required isConsumable}) async =>
+            const PurchaseInvalid(reason: 'expired'),
+        isConsumable: (_) => false,
+      );
+
+      await flow.recoverPurchases(includeFinished: true);
+
+      final read = calls.singleWhere((c) => c.method == 'getAvailableItems');
+      expect((read.arguments as Map)['onlyIncludeActiveItemsIOS'], isFalse);
+      flow.dispose();
+    });
+
     test('counts deliveries of requested products as requested', () async {
       final iap = await connected('android');
       final flow = iap.createPurchaseFlow(

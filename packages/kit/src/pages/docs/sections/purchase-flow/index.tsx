@@ -356,9 +356,10 @@ const flow = createPurchaseFlow({
         <code>restorePurchases()</code> on the hook does: the same account gets{" "}
         <code>entitled</code> with <code>alreadyGranted</code>, and another
         account gets <code>ownership_conflict</code>. Nothing is transferred. On
-        iOS a restore confirms each purchase once, through its newest
-        transaction, so past subscription renewals cost no extra verification.
-        If <code>getPendingTransactionsIOS</code> throws, as one unverified
+        iOS a restore reads the full transaction history and confirms each
+        purchase once, through its newest transaction, so a subscription in
+        billing grace comes back and past renewals cost nothing extra. If{" "}
+        <code>getPendingTransactionsIOS</code> throws, as one unverified
         transaction makes it do, recovery confirms every Apple purchase{" "}
         <code>getAvailablePurchases</code> lists instead.
       </p>

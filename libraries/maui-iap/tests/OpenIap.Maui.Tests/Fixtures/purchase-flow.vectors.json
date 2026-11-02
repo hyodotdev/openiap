@@ -2525,6 +2525,70 @@
       }
     },
     {
+      "name": "restores every Apple transaction when the pending list fails",
+      "purchases": {
+        "a1": {
+          "purchaseState": "purchased",
+          "id": "a1",
+          "productId": "premium",
+          "purchaseToken": "j1",
+          "store": "apple",
+          "originalTransactionIdentifierIOS": "o1",
+          "transactionDate": 1000
+        },
+        "a2": {
+          "purchaseState": "purchased",
+          "id": "a2",
+          "productId": "premium",
+          "purchaseToken": "j2",
+          "store": "apple",
+          "originalTransactionIdentifierIOS": "o1",
+          "transactionDate": 2000
+        }
+      },
+      "answers": {
+        "*": [
+          {
+            "status": "entitled",
+            "alreadyGranted": true
+          }
+        ]
+      },
+      "pendingIOS": "throw",
+      "available": ["a1", "a2"],
+      "steps": [
+        {
+          "recover": {
+            "includeFinished": true
+          },
+          "outcomes": [
+            {
+              "id": "a1",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": true
+              }
+            },
+            {
+              "id": "a2",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": true
+              }
+            }
+          ]
+        }
+      ],
+      "confirms": {
+        "a1": 1,
+        "a2": 1
+      },
+      "finishes": {
+        "a1": 1,
+        "a2": 1
+      }
+    },
+    {
       "name": "restores only the newest transaction of each Apple purchase",
       "purchases": {
         "r0": {

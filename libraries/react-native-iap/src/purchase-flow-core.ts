@@ -31,6 +31,7 @@ export interface PurchaseFlowPurchase {
   expirationDateIOS?: number | null;
   /** Shared by an Apple subscription's renewals, so a restore reads only the newest. */
   originalTransactionIdentifierIOS?: string | null;
+  /** Milliseconds since the epoch. */
   transactionDate?: number;
 }
 
@@ -475,14 +476,19 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
   };
 }
 
-// Keeps each Apple purchase's newest transaction, in list order.
+// Keeps each Apple purchase's newest transaction, in list order. One without
+// an original id or a date cannot be ranked, so it stays.
 function newestAppleTransactions<P extends PurchaseFlowPurchase>(
   purchases: P[],
 ): P[] {
+  const chainOf = (purchase: P) =>
+    purchase.store === "apple" && typeof purchase.transactionDate === "number"
+      ? purchase.originalTransactionIdentifierIOS || undefined
+      : undefined;
   const newest = new Map<string, P>();
   for (const purchase of purchases) {
-    const key = purchase.originalTransactionIdentifierIOS;
-    if (purchase.store !== "apple" || !key) continue;
+    const key = chainOf(purchase);
+    if (!key) continue;
     const kept = newest.get(key);
     if (
       !kept ||
@@ -492,8 +498,8 @@ function newestAppleTransactions<P extends PurchaseFlowPurchase>(
     }
   }
   return purchases.filter((purchase) => {
-    const key = purchase.originalTransactionIdentifierIOS;
-    return purchase.store !== "apple" || !key || newest.get(key) === purchase;
+    const key = chainOf(purchase);
+    return !key || newest.get(key) === purchase;
   });
 }
 

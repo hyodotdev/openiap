@@ -164,8 +164,10 @@ public static class OpenIapClient
             FinishTransaction = options.FinishTransaction
                 ?? ((purchase, isConsumable) =>
                     Resolver<MutationResolver>(instance).FinishTransactionAsync(new PurchaseInput(purchase), isConsumable)),
+            // The active-only iOS list drops subscriptions in billing grace.
             GetAvailablePurchases = options.GetAvailablePurchases
-                ?? (() => Resolver<QueryResolver>(instance).GetAvailablePurchasesAsync()),
+                ?? (() => Resolver<QueryResolver>(instance).GetAvailablePurchasesAsync(
+                    new PurchaseOptions { OnlyIncludeActiveItemsIOS = false })),
 #if IOS || MACCATALYST
             GetPendingTransactionsIOS = options.GetPendingTransactionsIOS
                 ?? (async () => await Resolver<QueryResolver>(instance).GetPendingTransactionsIOSAsync()),

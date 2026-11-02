@@ -495,7 +495,11 @@ describe('Public API (src/index.ts)', () => {
       ).resolves.toHaveLength(1);
 
       expect(mockIap.getPendingTransactionsIOS).toHaveBeenCalled();
-      expect(mockIap.getAvailablePurchases).toHaveBeenCalled();
+      expect(mockIap.getAvailablePurchases).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ios: expect.objectContaining({onlyIncludeActiveItemsIOS: false}),
+        }),
+      );
       expect(mockIap.finishTransaction).toHaveBeenCalledTimes(1);
       flow.dispose();
     });

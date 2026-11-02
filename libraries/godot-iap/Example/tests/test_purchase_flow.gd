@@ -47,6 +47,7 @@ func _run() -> void:
 		await _run_sequence_vector(vector)
 	for vector in vectors.device:
 		await _run_device_vector(vector)
+	_test_undated_renewals_stay()
 	await _test_amazon_environment_types()
 	await _test_confirm_timeout()
 	await _test_confirm_timeout_ignores_time_scale()
@@ -265,6 +266,16 @@ func _run_sequence_vector(vector: Dictionary) -> void:
 	_check(_equal(finishes, vector.finishes), name + " finishes")
 	if vector.has("published"):
 		_check(_equal(published, vector.published), name + " publishes")
+
+
+func _test_undated_renewals_stay() -> void:
+	var renewals := [
+		_purchase("r1", {"originalTransactionIdentifierIOS": "o1"}),
+		_purchase("r2", {"originalTransactionIdentifierIOS": "o1", "transactionDate": null}),
+		_purchase("r3", {"originalTransactionIdentifierIOS": "o1", "transactionDate": 1000.0}),
+	]
+	var kept: Array = PurchaseFlow._newest_apple_transactions(renewals).map(func(p): return p.id)
+	_check(_equal(kept, ["r1", "r2", "r3"]), "A renewal without a date stays in a restore")
 
 
 func _test_confirm_timeout() -> void:

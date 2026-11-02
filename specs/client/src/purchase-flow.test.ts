@@ -915,6 +915,26 @@ describe("recoverPurchases", () => {
     expect(options.finishTransaction).toHaveBeenCalledOnce();
   });
 
+  it("restores every renewal that has no date", async () => {
+    const renewals = [
+      purchase({ id: "r1", originalTransactionIdentifierIOS: "o1" }),
+      purchase({ id: "r2", originalTransactionIdentifierIOS: "o1" }),
+    ];
+    const { flow } = flowWith(
+      async () => ({ status: "entitled", alreadyGranted: true }),
+      {
+        getPendingTransactionsIOS: vi.fn(async () => []),
+        getAvailablePurchases: vi.fn(async () => renewals),
+      },
+    );
+
+    const outcomes = await flow.recoverPurchases({ includeFinished: true });
+    expect(outcomes.map((outcome) => outcome.purchase.id)).toEqual([
+      "r1",
+      "r2",
+    ]);
+  });
+
   it("stops rechecking an expired iOS renewal once it is finished", async () => {
     const unfinished = [purchase({ id: "renewal-2" })];
     const { flow, options } = flowWith(

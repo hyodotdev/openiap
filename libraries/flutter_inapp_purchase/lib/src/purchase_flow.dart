@@ -487,8 +487,6 @@ final class PurchaseFlow {
     return outcomes;
   }
 
-  // Amazon and most community stores report no acknowledgment, and Amazon
-  // approves a Kids purchase later; a listed consumable is unconsumed.
   // Keeps each Apple purchase's newest transaction, in list order.
   static List<Purchase> _newestAppleTransactions(List<Purchase> purchases) {
     String? originalOf(Purchase purchase) =>
@@ -510,6 +508,8 @@ final class PurchaseFlow {
     }).toList();
   }
 
+  // Amazon and most community stores report no acknowledgment, and Amazon
+  // approves a Kids purchase later; a listed consumable is unconsumed.
   bool _isUnfinished(Purchase purchase) =>
       _isAcknowledgedAndroid(purchase) != true ||
       _isConsumable(purchase.productId);

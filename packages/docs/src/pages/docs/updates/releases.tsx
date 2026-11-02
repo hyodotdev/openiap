@@ -61,6 +61,11 @@ const PURCHASE_ENVIRONMENT_RELEASES: readonly ReleaseMetadata[] = [
 
 const RESTORE_NEWEST_TRANSACTION_RELEASES: readonly ReleaseMetadata[] = [
   {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '1.3.2',
+    tag: 'openiap-client-protocol-1.3.2',
+  },
+  {
     name: 'react-native-iap',
     version: '17.3.2',
     tag: 'react-native-iap-17.3.2',
@@ -752,27 +757,34 @@ function Releases() {
             November 2, 2026 - One check per purchase on an iOS restore
           </AnchorLink>
           <p>
-            A restore on iOS now confirms each purchase once, through its newest
-            transaction, so a long-running subscription costs one verification
-            instead of one per renewal.
+            A purchase flow restore on iOS now works the same in every
+            framework: it reads the full transaction history and confirms each
+            purchase once, through its newest transaction.
           </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Protocols and native packages
+          </h5>
+          <ul>
+            <li>
+              <strong>Client Protocol 1.3.2</strong>: the purchase flow core and
+              its vectors skip older transactions of the same Apple purchase on
+              a restore.
+            </li>
+          </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
           <ul>
             <li>
+              <strong>godot-iap 4.3.2 and kmp-iap 4.2.2</strong>:{' '}
+              <code>recoverPurchases</code> with <code>includeFinished</code> no
+              longer verifies every past subscription renewal.
+            </li>
+            <li>
               <strong>
                 react-native-iap 17.3.2, expo-iap 6.4.2, flutter_inapp_purchase
-                11.3.2, godot-iap 4.3.2, kmp-iap 4.2.2 and OpenIap.Maui 3.2.2
+                11.3.2 and OpenIap.Maui 3.2.2
               </strong>
-              : a purchase flow restore (<code>recoverPurchases</code> with{' '}
-              <code>includeFinished</code>) skips older transactions of the same
-              Apple purchase, such as past subscription renewals. A subscription
-              in billing grace is still confirmed. Unfinished transactions still
-              come from{' '}
-              <Link to="/docs/apis/ios/get-pending-transactions-ios">
-                <code>getPendingTransactionsIOS</code>
-              </Link>
-              , and when that read fails, recovery still confirms every
-              transaction listed.
+              : a restore now also confirms a subscription in billing grace,
+              which the active-only purchase list left out.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>

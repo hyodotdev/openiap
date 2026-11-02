@@ -333,19 +333,28 @@ func _recover(include_finished: bool) -> Variant:
 	return outcomes
 
 
-# Keeps each Apple purchase's newest transaction, in list order.
+# Keeps each Apple purchase's newest transaction, in list order. One without
+# an original id or a date cannot be ranked, so it stays.
 static func _newest_apple_transactions(purchases: Array) -> Array:
 	var newest := {}
 	for purchase in purchases:
-		var key = purchase.get("originalTransactionIdentifierIOS")
-		if purchase.get("store") != "apple" or not key:
+		var key := _apple_chain(purchase)
+		if key.is_empty():
 			continue
 		var kept = newest.get(key)
-		if kept == null or float(purchase.get("transactionDate", 0)) > float(kept.get("transactionDate", 0)):
+		if kept == null or float(purchase.transactionDate) > float(kept.transactionDate):
 			newest[key] = purchase
 	return purchases.filter(func(purchase) -> bool:
-		var key = purchase.get("originalTransactionIdentifierIOS")
-		return purchase.get("store") != "apple" or not key or newest.get(key) == purchase)
+		var key := _apple_chain(purchase)
+		return key.is_empty() or is_same(newest.get(key), purchase))
+
+
+static func _apple_chain(purchase: Dictionary) -> String:
+	var key = purchase.get("originalTransactionIdentifierIOS")
+	var date = purchase.get("transactionDate")
+	if purchase.get("store") != "apple" or not key or not (date is int or date is float):
+		return ""
+	return str(key)
 
 
 func _is_unfinished(purchase: Dictionary) -> bool:

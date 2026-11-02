@@ -611,7 +611,6 @@ public sealed class PurchaseFlow : IDisposable
         return outcomes;
     }
 
-    // Amazon and community stores report no acknowledgment, and a listed consumable is unconsumed.
     // Keeps each Apple purchase's newest transaction, in list order.
     private static IReadOnlyList<Purchase> NewestAppleTransactions(IReadOnlyList<Purchase> purchases)
     {
@@ -628,6 +627,7 @@ public sealed class PurchaseFlow : IDisposable
         return purchases.Where(purchase => OriginalOf(purchase) is not { } key || ReferenceEquals(newest[key], purchase)).ToList();
     }
 
+    // Amazon and community stores report no acknowledgment, and a listed consumable is unconsumed.
     private bool IsUnfinished(Purchase purchase) =>
         purchase is not PurchaseAndroid { IsAcknowledgedAndroid: true } || _options.IsConsumable(purchase.ProductId);
 

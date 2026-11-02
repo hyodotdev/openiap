@@ -7,6 +7,7 @@
 // (xUnit runs the methods of one class sequentially) and restores a fresh
 // fallback instance afterwards.
 
+using System.Reflection;
 using OpenIap.Maui.Tests.TestSupport;
 using Xunit;
 
@@ -306,6 +307,30 @@ public class OpenIapClientFacadeTests
         }
     }
 
+    [Fact]
+    public async Task CreatePurchaseFlow_RestoresFromTheFullIOSHistory()
+    {
+        var instance = DispatchProxy.Create<IQueryIap, AvailablePurchasesProxy>();
+        try
+        {
+            OpenIapClient.OverrideInstance(instance);
+            using var flow = OpenIapClient.CreatePurchaseFlow(new PurchaseFlowOptions
+            {
+                ConfirmWithBackend = PurchaseFlowTests.Answer(new PurchaseConfirmation.Entitled(true)),
+                IsConsumable = _ => false,
+            });
+
+            await flow.RecoverPurchasesAsync(includeFinished: true);
+
+            var options = Assert.IsType<PurchaseOptions>(((AvailablePurchasesProxy)(object)instance).Options);
+            Assert.False(options.OnlyIncludeActiveItemsIOS);
+        }
+        finally
+        {
+            OpenIapClient.OverrideInstance(new UnsupportedOpenIap());
+        }
+    }
+
     private static double Now() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
     private static PurchaseAndroid Bought(string id, string productId) =>
@@ -323,6 +348,25 @@ public class OpenIapClientFacadeTests
         Type = ProductQueryType.Subs,
         RequestSubscription = new() { Apple = new() { Sku = sku }, Google = new() { Skus = [sku] } },
     };
+
+    public interface IQueryIap : IOpenIap, QueryResolver
+    {
+    }
+
+    // Records the available-purchases read and leaves every other call to the unsupported fallback.
+    public class AvailablePurchasesProxy : DispatchProxy
+    {
+        private readonly UnsupportedOpenIap _fallback = new();
+
+        public PurchaseOptions? Options { get; private set; }
+
+        protected override object? Invoke(MethodInfo? method, object?[]? args)
+        {
+            if (method?.Name != nameof(QueryResolver.GetAvailablePurchasesAsync)) return method?.Invoke(_fallback, args);
+            Options = (PurchaseOptions?)args?[0];
+            return Task.FromResult<IReadOnlyList<Purchase>>([]);
+        }
+    }
 
     private sealed class StreamingFakeIap : IOpenIap
     {
