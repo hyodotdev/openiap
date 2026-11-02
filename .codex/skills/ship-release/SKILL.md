@@ -72,9 +72,7 @@ package publication, use a preview under
 will not resume, follow that section's incomplete-train rule through §4.
 
 For Godot releases, complete the Asset Library submission and receipt check in
-`.claude/commands/release.md#godot-asset-library`. That section records Hyo's
-standing submission authorization and defines how to report moderation or
-blocked submission.
+`.claude/commands/release.md#godot-asset-library`.
 
 ## 3. Verify the release note
 

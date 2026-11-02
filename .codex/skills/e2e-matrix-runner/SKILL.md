@@ -93,14 +93,15 @@ adb -s "$QUEST" pull /sdcard/ui.xml .
 adb -s "$QUEST" shell input tap X Y  # coordinates from the dump
 ```
 
-An idle, unworn Quest raises the VR keyguard profile picker over display 0,
+An idle, unworn Quest can raise the VR keyguard profile picker over display 0,
 and it hides the Horizon checkout dialog. The checkout then times out after
 30 s (`launchCheckoutFlow` statusCode 1, client code 6), and the stuck
 checkout makes later product queries in that process time out too. This looks
 like a store outage but is not one. Before each checkout, dump display 0: if the
 picker is showing, tap the already-active user's tile to dismiss it (no
-profile switch, no authentication), then start a fresh process. BACK does not
-dismiss the picker.
+profile switch, no authentication). BACK does not dismiss the picker. If a
+checkout already timed out in that app process, force-stop and relaunch the
+app before trying again.
 
 Resolve the launcher activity per framework (`cmd package resolve-activity
 --brief ...`, or `monkey -p <pkg> -c android.intent.category.LAUNCHER 1`):

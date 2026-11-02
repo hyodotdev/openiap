@@ -344,10 +344,10 @@ validated, release a new reviewed version instead of recreating the tag.
 
 ## Godot Asset Library
 
-The GitHub Release does not update Asset Library entry 4627. Hyo's standing
-instruction authorizes the agent to submit its update after every stable Godot
-release, without asking again or handing the final submission to Hyo. Submit
-the edit and verify its receipt before reporting the release complete.
+The GitHub Release does not update Asset Library entry 4627, so after every
+stable Godot release the agent submits that update itself and verifies its
+receipt before reporting the release complete. Hyo set this as a standing
+instruction; the submission needs no separate approval or hand-off.
 
 After verifying the public release ZIP, open
 `https://godotengine.org/asset-library/asset/4627/edit` through the maintainer's
@@ -371,12 +371,6 @@ The accepted public version is
 `curl -s https://godotengine.org/asset-library/api/asset/4627 | jq -r .version_string`.
 Moderator approval is separate from submission: the public listing may keep
 the previous version while the submitted edit is pending.
-
-## Blog Coverage
-
-A release does not authorize blog writing or publication. For important
-user-facing changes, propose an article and wait for Hyo's approval before
-drafting, and again before publishing it.
 
 ## Final Report
 
