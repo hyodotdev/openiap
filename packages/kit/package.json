@@ -37,7 +37,7 @@
     "@convex-dev/auth": "^0.0.96",
     "@convex-dev/migrations": "0.3.7",
     "@convex-dev/rate-limiter": "^0.4.2",
-    "@hono/standard-validator": "^0.3.0",
+    "@hono/standard-validator": "^0.4.1",
     "@hyodotdev/openiap-commerce-protocol": "workspace:*",
     "@hyodotdev/openiap-mcp-server": "workspace:*",
     "@icons-pack/react-simple-icons": "^13.7.0",
