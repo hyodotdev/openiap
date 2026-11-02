@@ -4,7 +4,10 @@
        xmlns:pages="clr-namespace:OpenIap.Maui.Example.Pages"
        x:Class="OpenIap.Maui.Example.AppShell"
        Title="OpenIap MAUI Examples"
-       FlyoutBehavior="Disabled">
+       FlyoutBehavior="Disabled"
+       Shell.BackgroundColor="{OnPlatform iOS=White}">
+
+    <!-- An opaque iOS bar keeps pages in place after a system alert closes. -->
 
     <ShellContent Title="OpenIap MAUI Examples"
                   ContentTemplate="{DataTemplate pages:HomePage}"
