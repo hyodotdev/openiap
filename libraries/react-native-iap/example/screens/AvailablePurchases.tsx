@@ -316,7 +316,13 @@ export default function AvailablePurchases() {
             >
               <View style={styles.purchaseRow}>
                 <Text style={styles.label}>Product ID:</Text>
-                <Text style={styles.value}>{purchase.productId}</Text>
+                <Text
+                  style={styles.value}
+                  numberOfLines={1}
+                  ellipsizeMode="middle"
+                >
+                  {purchase.productId}
+                </Text>
               </View>
               <View style={styles.purchaseRow}>
                 <Text style={styles.label}>Store:</Text>
@@ -333,7 +339,13 @@ export default function AvailablePurchases() {
               {purchase.id && (
                 <View style={styles.purchaseRow}>
                   <Text style={styles.label}>Transaction ID:</Text>
-                  <Text style={styles.value}>{purchase.id}</Text>
+                  <Text
+                    style={styles.value}
+                    numberOfLines={1}
+                    ellipsizeMode="middle"
+                  >
+                    {purchase.id}
+                  </Text>
                 </View>
               )}
 
