@@ -189,7 +189,7 @@ var result = await GodotIapPlugin.verify_app_ownership({"apple": {"refresh": tru
       <p>
         The two native examples and all six framework examples have an{' '}
         <strong>App Ownership</strong> screen below Alternative Billing; Godot
-        shows it as the last section. Select{' '}
+        opens it from an App Ownership button beside Store. Select{' '}
         <strong>Check app ownership</strong> to see the status, store, reason,
         and evidence lengths. For Google Play, enter the linked Cloud project
         number and a request hash from your backend. Leave both fields empty on

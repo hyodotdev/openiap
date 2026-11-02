@@ -783,8 +783,8 @@ function Releases() {
                 react-native-iap 17.3.2, expo-iap 6.4.2, flutter_inapp_purchase
                 11.3.2 and OpenIap.Maui 3.2.2
               </strong>
-              : a restore now also confirms a subscription in billing grace,
-              which the active-only purchase list left out.
+              : a restore now reads the full history, once per purchase, so it
+              also confirms a subscription in billing grace.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>

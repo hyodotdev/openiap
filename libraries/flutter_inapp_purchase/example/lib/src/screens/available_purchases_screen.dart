@@ -99,6 +99,7 @@ class _AvailablePurchasesScreenState extends State<AvailablePurchasesScreen> {
     setState(() {
       _connected = connected;
       _loading = connected;
+      _error = connected ? null : 'Not connected to the store.';
     });
     if (connected) await _loadPurchases();
   }
@@ -214,20 +215,18 @@ class _AvailablePurchasesScreenState extends State<AvailablePurchasesScreen> {
       _restoreStatus = 'Restoring purchases...';
     });
     try {
-      final outcomes =
-          await _purchases.flow.recoverPurchases(includeFinished: true);
-      final granted = outcomes.where((o) => o.status is PurchaseEntitled);
+      await _purchases.flow.recoverPurchases(includeFinished: true);
       if (!mounted) return;
       setState(() {
-        _restoreStatus =
-            'Restored ${granted.length} of ${outcomes.length} purchase(s)';
+        _restoreStatus = 'Purchases restored.';
       });
       await _loadPurchases();
     } catch (error) {
       debugPrint('Error restoring purchases: $error');
       if (!mounted) return;
       setState(() {
-        _restoreStatus = 'Restore failed: $error';
+        _restoreStatus = 'Restore failed: '
+            '${error is PurchaseError ? error.message : error}';
       });
     } finally {
       if (mounted) {

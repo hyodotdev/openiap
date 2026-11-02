@@ -14,6 +14,7 @@ void main() {
   const channel = MethodChannel('flutter_inapp');
   bool? nativeRenewal;
   PlatformException? restoreFailure;
+  bool connects = true;
   Completer<void>? storeReply;
   late List<MethodCall> log;
   late AppPurchaseFlow purchases;
@@ -25,6 +26,7 @@ void main() {
     );
     nativeRenewal = true;
     restoreFailure = null;
+    connects = true;
     storeReply = null;
     log = <MethodCall>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -32,7 +34,7 @@ void main() {
       log.add(call);
       switch (call.method) {
         case 'initConnection':
-          return true;
+          return connects;
         case 'getAvailableItems':
           await storeReply?.future;
           if (restoreFailure != null) throw restoreFailure!;
@@ -100,8 +102,20 @@ void main() {
     // Ignore is the default method, so the flow keeps the receipt unverified.
     expect(log.map((call) => call.method), contains('getAvailableItems'));
     expect(log.where((call) => call.method == 'finishTransaction'), isEmpty);
-    expect(find.text('Restored 0 of 1 purchase(s)'), findsOneWidget);
+    expect(find.text('Purchases restored.'), findsOneWidget);
     expect(find.text('dev.hyo.martie.premium'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('explains a failed store connection', (tester) async {
+    connects = false;
+    await tester.pumpWidget(
+      MaterialApp(home: AvailablePurchasesScreen(purchases: purchases)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Not connected to the store.'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
   });

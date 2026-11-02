@@ -628,28 +628,22 @@ fun SubscriptionFlowScreen(
                                     // Try to resolve from SharedPreferences first
                                     val currentOfferInfo = resolvePremiumOfferInfo(prefs, subscription)
 
-                                    // Detect current plan
-                                    // On Horizon: all offers have same base plan ID, use billing period to distinguish
-                                    // On Play: base plan ID differs (premium vs premium-year)
-                                    val isMonthlyPlan = if (currentOfferInfo != null) {
-                                        when {
-                                            // If billing period is available (Horizon), use that
-                                            currentOfferInfo.billingPeriod != null ->
-                                                currentOfferInfo.billingPeriod == "P1M"
-                                            // Otherwise use base plan ID (Play Store)
-                                            else ->
-                                                currentOfferInfo.basePlanId == IapConstants.PREMIUM_MONTHLY_BASE_PLAN
-                                        }
-                                    } else {
-                                        // Default to monthly
-                                        true
+                                    // Horizon offers share one base plan, so the billing period tells them
+                                    // apart; Play's base plans differ. An unknown plan offers no switch.
+                                    val isMonthlyPlan = when {
+                                        currentOfferInfo == null -> true
+                                        currentOfferInfo.billingPeriod != null ->
+                                            currentOfferInfo.billingPeriod == "P1M"
+                                        currentOfferInfo.basePlanId == IapConstants.PREMIUM_MONTHLY_BASE_PLAN -> true
+                                        currentOfferInfo.basePlanId == IapConstants.PREMIUM_YEARLY_BASE_PLAN -> false
+                                        else -> null
                                     }
 
-                                    val currentOffer = if (isMonthlyPlan) monthlyOffer else yearlyOffer
-                                    val targetOffer = if (isMonthlyPlan) yearlyOffer else monthlyOffer
+                                    val currentOffer = isMonthlyPlan?.let { if (it) monthlyOffer else yearlyOffer }
+                                    val targetOffer = isMonthlyPlan?.let { if (it) yearlyOffer else monthlyOffer }
 
                                     // Only show upgrade UI if both offers exist
-                                    if (monthlyOffer != null && yearlyOffer != null && currentOffer != null && targetOffer != null) {
+                                    if (isMonthlyPlan != null && currentOffer != null && targetOffer != null) {
                                     Spacer(modifier = Modifier.height(12.dp))
                                     HorizontalDivider(
                                         modifier = Modifier.fillMaxWidth(),
@@ -793,7 +787,13 @@ fun SubscriptionFlowScreen(
                                                             println("SubscriptionFlow: Error changing subscription: ${e.message}")
 
                                                             iapStore.postStatusMessage(
-                                                                message = "Subscription change failed: ${e.message}",
+                                                                message = when {
+                                                                    e.message?.contains("replacement mode") == true ->
+                                                                        "Subscriptions may not be in the same group. Contact support."
+                                                                    e.message?.contains("DEVELOPER_ERROR") == true ->
+                                                                        "Invalid subscription configuration. Check Play Console settings."
+                                                                    else -> "Subscription change failed: ${e.message}"
+                                                                },
                                                                 status = PurchaseResultStatus.Error,
                                                                 productId = IapConstants.PREMIUM_PRODUCT_ID
                                                             )

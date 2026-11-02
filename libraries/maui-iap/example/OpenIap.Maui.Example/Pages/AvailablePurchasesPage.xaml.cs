@@ -161,9 +161,8 @@ public partial class AvailablePurchasesPage : ContentPage
         try
         {
             // includeFinished re-confirms every owned purchase, not only unfinished ones.
-            var outcomes = await IapLifecycle.Flow.RecoverPurchasesAsync(includeFinished: true);
-            var restored = outcomes.Count(outcome => outcome.Status is PurchaseFlowStatus.Entitled);
-            RestoreStatusLabel.Text = $"Restore done: {restored} of {outcomes.Count} purchase(s) confirmed.";
+            await IapLifecycle.Flow.RecoverPurchasesAsync(includeFinished: true);
+            RestoreStatusLabel.Text = "Purchases restored.";
             await RefreshAsync();
         }
         catch (Exception ex)

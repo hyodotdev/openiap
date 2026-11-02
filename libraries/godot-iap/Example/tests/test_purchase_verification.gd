@@ -298,15 +298,16 @@ func _test_verification_picker(plugin: Node) -> void:
 	plugin._platform = "macOS"
 	fake.responses["restorePurchases"] = JSON.stringify({"success": false, "code": "network-error", "error": "Restore offline"})
 	await connecting_scene._on_restore_pressed()
-	_check(connecting_scene.status_label.text == "Restore failed", "A failed store restore reads as failed")
+	_check(connecting_scene.status_label.text == "Restore failed: Restore offline", "A failed store restore reads as failed")
+	_check(connecting_scene.restore_status_label.text == connecting_scene.status_label.text, "The store panel shows the restore status")
 	fake.responses["restorePurchases"] = JSON.stringify({"success": true})
 	fake.responses["getPendingTransactionsIOS"] = JSON.stringify({"success": true, "transactionsJson": "[]"})
 	fake.responses["getAvailablePurchases"] = JSON.stringify({"success": false, "code": "network-error", "error": "Offline"})
 	await connecting_scene._on_restore_pressed()
-	_check(connecting_scene.status_label.text == "Restore failed", "A failed recovery pass reads as failed")
+	_check(connecting_scene.status_label.text.begins_with("Restore failed: "), "A failed recovery pass reads as failed")
 	fake.responses["getAvailablePurchases"] = JSON.stringify({"success": true, "purchasesJson": "[]"})
 	await connecting_scene._on_restore_pressed()
-	_check(connecting_scene.status_label.text == "Purchases restored", "A completed restore reads as restored")
+	_check(connecting_scene.status_label.text == "Purchases restored.", "A completed restore reads as restored")
 	connecting_scene.queue_free()
 	await process_frame
 	manager.store_connected = previous_connection

@@ -2589,6 +2589,68 @@
       }
     },
     {
+      "name": "restores every renewal that has no date",
+      "purchases": {
+        "u1": {
+          "purchaseState": "purchased",
+          "id": "u1",
+          "productId": "premium",
+          "purchaseToken": "j1",
+          "store": "apple",
+          "originalTransactionIdentifierIOS": "o1"
+        },
+        "u2": {
+          "purchaseState": "purchased",
+          "id": "u2",
+          "productId": "premium",
+          "purchaseToken": "j2",
+          "store": "apple",
+          "originalTransactionIdentifierIOS": "o1"
+        }
+      },
+      "answers": {
+        "*": [
+          {
+            "status": "entitled",
+            "alreadyGranted": true
+          }
+        ]
+      },
+      "pendingIOS": [],
+      "available": ["u1", "u2"],
+      "steps": [
+        {
+          "recover": {
+            "includeFinished": true
+          },
+          "outcomes": [
+            {
+              "id": "u1",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": true
+              }
+            },
+            {
+              "id": "u2",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": true
+              }
+            }
+          ]
+        }
+      ],
+      "confirms": {
+        "u1": 1,
+        "u2": 1
+      },
+      "finishes": {
+        "u1": 1,
+        "u2": 1
+      }
+    },
+    {
       "name": "restores only the newest transaction of each Apple purchase",
       "purchases": {
         "r0": {

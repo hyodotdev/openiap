@@ -487,12 +487,14 @@ final class PurchaseFlow {
     return outcomes;
   }
 
-  // Keeps each Apple purchase's newest transaction, in list order.
+  // Keeps each Apple purchase's newest transaction, in list order. One without
+  // an original id or a date cannot be ranked, so it stays.
   static List<Purchase> _newestAppleTransactions(List<Purchase> purchases) {
-    String? originalOf(Purchase purchase) =>
-        purchase is PurchaseIOS && purchase.store == IapStore.Apple
-            ? purchase.originalTransactionIdentifierIOS
-            : null;
+    String? originalOf(Purchase purchase) => purchase is PurchaseIOS &&
+            purchase.store == IapStore.Apple &&
+            purchase.transactionDate > 0
+        ? purchase.originalTransactionIdentifierIOS
+        : null;
     final newest = <String, Purchase>{};
     for (final purchase in purchases) {
       final key = originalOf(purchase);

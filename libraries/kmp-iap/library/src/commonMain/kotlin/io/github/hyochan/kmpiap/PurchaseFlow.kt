@@ -388,10 +388,11 @@ class PurchaseFlow internal constructor(
         return outcomes
     }
 
-    // Keeps each Apple purchase's newest transaction, in list order.
+    // Keeps each Apple purchase's newest transaction, in list order. One without
+    // an original id or a date cannot be ranked, so it stays.
     private fun newestAppleTransactions(purchases: List<Purchase>): List<Purchase> {
         fun originalOf(purchase: Purchase): String? = (purchase as? PurchaseIOS)
-            ?.takeIf { it.store == IapStore.Apple }
+            ?.takeIf { it.store == IapStore.Apple && it.transactionDate > 0 }
             ?.originalTransactionIdentifierIOS
             ?.takeIf { it.isNotEmpty() }
         val newest = mutableMapOf<String, Purchase>()

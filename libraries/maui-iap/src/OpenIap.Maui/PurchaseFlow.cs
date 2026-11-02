@@ -611,11 +611,11 @@ public sealed class PurchaseFlow : IDisposable
         return outcomes;
     }
 
-    // Keeps each Apple purchase's newest transaction, in list order.
+    // Keeps each Apple purchase's newest transaction, in list order. One without an original id or a date cannot be ranked, so it stays.
     private static IReadOnlyList<Purchase> NewestAppleTransactions(IReadOnlyList<Purchase> purchases)
     {
         static string? OriginalOf(Purchase purchase) =>
-            purchase is PurchaseIOS { Store: IapStore.Apple } ios && !string.IsNullOrEmpty(ios.OriginalTransactionIdentifierIOS)
+            purchase is PurchaseIOS { Store: IapStore.Apple, TransactionDate: > 0 } ios && !string.IsNullOrEmpty(ios.OriginalTransactionIdentifierIOS)
                 ? ios.OriginalTransactionIdentifierIOS
                 : null;
         var newest = new Dictionary<string, Purchase>(StringComparer.Ordinal);

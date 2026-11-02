@@ -31,6 +31,7 @@ var difficulty_timer: float = 0.0
 @onready var status_label: Label = $UI/StatusLabel
 
 var verification_picker: OptionButton
+var restore_status_label: Label
 var ownership_project_number: LineEdit
 var ownership_request_hash: LineEdit
 var ownership_result_label: Label
@@ -105,6 +106,11 @@ func _setup_store_panel() -> void:
 	var restore_btn = store_contents.get_node_or_null("RestoreButton")
 	if restore_btn:
 		restore_btn.pressed.connect(_on_restore_pressed)
+		# The store panel covers the HUD status, so restore reports here too.
+		restore_status_label = Label.new()
+		restore_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		restore_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		store_contents.add_child(restore_status_label)
 
 	_setup_verification_picker()
 	_update_store_panel_buttons()
@@ -288,9 +294,10 @@ func _on_store_button_pressed() -> void:
 
 
 func _set_panel_visible(panel: Panel, shown: bool) -> void:
-	overlay.visible = shown
 	panel.visible = shown
-	player.ui_blocking = shown
+	var any_open := store_panel.visible or ownership_panel.visible
+	overlay.visible = any_open
+	player.ui_blocking = any_open
 	player.touch_target_x = -1.0  # Reset touch target
 
 
@@ -317,9 +324,15 @@ func _on_buy_premium_year_pressed() -> void:
 
 
 func _on_restore_pressed() -> void:
-	status_label.text = "Restoring purchases..."
-	var restored: bool = await IapManager.restore_purchases()
-	status_label.text = "Purchases restored" if restored else "Restore failed"
+	_show_restore_status("Restoring purchases...")
+	var failure: String = await IapManager.restore_purchases()
+	_show_restore_status("Purchases restored." if failure.is_empty() else "Restore failed: " + failure)
+
+
+func _show_restore_status(text: String) -> void:
+	status_label.text = text
+	if restore_status_label:
+		restore_status_label.text = text
 
 
 func _on_purchase_completed(product_id: String) -> void:

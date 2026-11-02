@@ -555,7 +555,7 @@ function expectNotIncludes(relativePath, needles, label = relativePath) {
 }
 
 // App Ownership is its own screen, listed right after Alternative Billing,
-// and Purchase Flow no longer carries it.
+// and Purchase Flow neither calls nor links it.
 function expectAppOwnershipScreen({
   home,
   previous,
@@ -565,7 +565,13 @@ function expectAppOwnershipScreen({
   api,
 }) {
   expectIncludes(screen, [api], `${screen} app ownership`);
-  expectNotIncludes(purchaseFlow, [api], `${purchaseFlow} app ownership`);
+  for (const file of [purchaseFlow].flat()) {
+    expectNotIncludes(
+      file,
+      ["AppOwnership", "app-ownership", "app_ownership"],
+      `${file} app ownership`,
+    );
+  }
   expectFile(home);
   if (!exists(home)) return;
   const text = read(home);
@@ -1995,6 +2001,11 @@ function checkExpoRouterExample(base, importSource) {
     routes.map((route) => `/${route}`),
     `${base} home`,
   );
+  expectIncludes(
+    rel(base, "App.kepler.tsx"),
+    routes.map((route) => `'/${route}'`),
+    `${base} Vega navigation`,
+  );
   expectIncludes(rel(base, "app/index.tsx"), ["getStorefront"], `${base} home`);
   expectIncludes(
     rel(base, "app/alternative-billing.tsx"),
@@ -2048,6 +2059,11 @@ function checkReactNativeClassic() {
       `${base} navigation`,
     );
   }
+  expectIncludes(
+    rel(base, "App.kepler.tsx"),
+    Object.keys(screens),
+    `${base} Vega navigation`,
+  );
   expectIncludes(
     rel(base, "screens/Home.tsx"),
     [
@@ -2907,6 +2923,19 @@ function checkGoogle() {
     ],
     "Google home",
   );
+  expectIncludes(
+    rel(base, "Example/src/main/java/dev/hyo/martie/MainActivity.kt"),
+    [
+      "all_products",
+      "purchase_flow",
+      "subscription_flow",
+      "available_purchases",
+      "offer_code",
+      "alternative_billing",
+      "app_ownership",
+    ].map((route) => `composable("${route}")`),
+    "Google navigation",
+  );
   expectAppOwnershipScreen({
     home: rel(
       base,
@@ -2986,7 +3015,10 @@ function checkMaui() {
     previous: "Alternative Billing",
     item: "App Ownership",
     screen: rel(base, "Pages/AppOwnershipPage.xaml.cs"),
-    purchaseFlow: rel(base, "Pages/PurchaseFlowPage.xaml.cs"),
+    purchaseFlow: [
+      rel(base, "Pages/PurchaseFlowPage.xaml"),
+      rel(base, "Pages/PurchaseFlowPage.xaml.cs"),
+    ],
     api: "VerifyAppOwnershipAsync",
   });
   expectIncludes(rel(base, "AppShell.xaml.cs"), routes, "MAUI routes");

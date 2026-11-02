@@ -482,7 +482,7 @@ function newestAppleTransactions<P extends PurchaseFlowPurchase>(
   purchases: P[],
 ): P[] {
   const chainOf = (purchase: P) =>
-    purchase.store === "apple" && typeof purchase.transactionDate === "number"
+    purchase.store === "apple" && (purchase.transactionDate ?? 0) > 0
       ? purchase.originalTransactionIdentifierIOS || undefined
       : undefined;
   const newest = new Map<string, P>();

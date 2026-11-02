@@ -352,7 +352,7 @@ static func _newest_apple_transactions(purchases: Array) -> Array:
 static func _apple_chain(purchase: Dictionary) -> String:
 	var key = purchase.get("originalTransactionIdentifierIOS")
 	var date = purchase.get("transactionDate")
-	if purchase.get("store") != "apple" or not key or not (date is int or date is float):
+	if purchase.get("store") != "apple" or not key or not (date is int or date is float) or date <= 0:
 		return ""
 	return str(key)
 

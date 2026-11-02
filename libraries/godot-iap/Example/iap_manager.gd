@@ -391,15 +391,15 @@ func purchase_with_discount(product_id: String) -> void:
 		_purchase(product_id)
 
 
-## Returns false when the store or the flow's recovery pass failed.
-func restore_purchases() -> bool:
+## Returns why the store or the flow's recovery pass failed, or "" on success.
+func restore_purchases() -> String:
 	print("[IAPManager] Restoring purchases...")
-	var result: Types.VoidResult = await GodotIapPlugin.restore_purchases()
+	var result = await GodotIapPlugin.restore_purchases()
 	if not result.success:
-		return false
+		return result.error
 	var recovered = await flow.recover_purchases(true)
 	await refresh_subscriptions()
-	return not recovered is PurchaseFlow.Failure
+	return str(recovered) if recovered is PurchaseFlow.Failure else ""
 
 
 ## Premium follows the store's active subscriptions.

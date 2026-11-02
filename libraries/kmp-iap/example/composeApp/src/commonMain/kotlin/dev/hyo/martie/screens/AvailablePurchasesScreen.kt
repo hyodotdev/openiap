@@ -52,6 +52,19 @@ fun AvailablePurchasesScreen(navController: NavController) {
         errorMessage = if (activePurchases.isEmpty()) "No active purchases found" else null
     }
 
+    suspend fun refresh() {
+        isRefreshing = true
+        try {
+            loadPurchases()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            errorMessage = "Failed to refresh: ${e.message}"
+        } finally {
+            isRefreshing = false
+        }
+    }
+
     // Restore re-confirms every owned purchase through the app's purchase flow.
     fun restorePurchases() {
         scope.launch {
@@ -59,7 +72,6 @@ fun AvailablePurchasesScreen(navController: NavController) {
             restoreStatus = "Restoring purchases..."
             try {
                 ExamplePurchaseFlow.flow.recoverPurchases(includeFinished = true)
-                loadPurchases()
                 restoreStatus = "Purchases restored."
             } catch (e: CancellationException) {
                 throw e
@@ -68,6 +80,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
             } finally {
                 isRestoring = false
             }
+            refresh()
         }
     }
 
@@ -195,18 +208,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
                     }
 
                     IconButton(
-                        onClick = {
-                            scope.launch {
-                                isRefreshing = true
-                                try {
-                                    loadPurchases()
-                                } catch (e: Exception) {
-                                    errorMessage = "Failed to refresh: ${e.message}"
-                                } finally {
-                                    isRefreshing = false
-                                }
-                            }
-                        },
+                        onClick = { scope.launch { refresh() } },
                         enabled = !isRefreshing && connected
                     ) {
                         if (isRefreshing) {

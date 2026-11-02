@@ -54,17 +54,13 @@ fun AvailablePurchasesScreen(
 
     fun restorePurchases() {
         scope.launch {
+            iapStore.postStatusMessage("Restoring purchases...", PurchaseResultStatus.Info)
             try {
-                val restored = iapStore.getAvailablePurchases(null)
-                iapStore.postStatusMessage(
-                    message = "Restored ${restored.size} purchases",
-                    status = PurchaseResultStatus.Success
-                )
+                iapStore.restorePurchases()
+                iapStore.getAvailablePurchases(null)
+                iapStore.postStatusMessage("Purchases restored.", PurchaseResultStatus.Success)
             } catch (e: Exception) {
-                iapStore.postStatusMessage(
-                    message = e.message ?: "Restore failed",
-                    status = PurchaseResultStatus.Error
-                )
+                iapStore.postStatusMessage("Restore failed: ${e.message}", PurchaseResultStatus.Error)
             }
         }
     }
@@ -157,7 +153,7 @@ fun AvailablePurchasesScreen(
                         }
                         
                         Text(
-                            "View all your active purchases including consumables not yet consumed, non-consumables, and active subscriptions. Tap 'Restore' to recover purchases from your $accountStoreName account.",
+                            "View all your active purchases including consumables not yet consumed, non-consumables, and active subscriptions. Tap 'Restore Purchases' to recover purchases from your $accountStoreName account.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = AppColors.textSecondary
                         )
@@ -339,11 +335,11 @@ fun AvailablePurchasesScreen(
             
             // Action Buttons
             item {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
                         onClick = {
@@ -358,22 +354,22 @@ fun AvailablePurchasesScreen(
                                 }
                             }
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
                         enabled = !isInitializing && !status.isLoading
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Refresh")
+                        Text("Refresh Purchases")
                     }
                     
                     Button(
                         onClick = { restorePurchases() },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
                         enabled = !isInitializing && !status.isLoading
                     ) {
                         Icon(Icons.Default.Restore, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Restore")
+                        Text("Restore Purchases")
                     }
                 }
             }
