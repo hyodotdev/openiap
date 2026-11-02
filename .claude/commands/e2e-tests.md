@@ -98,8 +98,9 @@ Notes:
   The checkout then times out after 30 s (`launchCheckoutFlow` statusCode 1,
   client code 6), and every later IAP call in that process times out too. It
   looks like a store outage but is not one. Before each checkout, dump display
-  0 with `adb -s "$HORIZON_SERIAL" shell uiautomator dump /sdcard/ui.xml` and
-  pull `/sdcard/ui.xml`, as above. If the picker shows, find the active user
+  0 with `adb -s "$HORIZON_SERIAL" shell uiautomator dump /sdcard/ui.xml`, run
+  `adb -s "$HORIZON_SERIAL" pull /sdcard/ui.xml .`, and parse `./ui.xml`. If
+  the picker shows, find the active user
   with `adb -s "$HORIZON_SERIAL" shell am get-current-user` and
   `adb -s "$HORIZON_SERIAL" shell pm list users`, and tap only that user's
   tile, matched by its content-desc, at the centre of its `bounds` with
