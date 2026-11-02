@@ -106,8 +106,8 @@ Notes:
   does not dismiss the picker. Dump display 0 again: a checkout dialog from an
   earlier, timed-out attempt can still be open with its Confirm button, even
   after the app restarts, so tap its `Close` button (or BACK) without
-  confirming. After a timed-out
-  checkout, force-stop and relaunch the app before trying again.
+  confirming. After a timed-out checkout, force-stop and relaunch the app
+  before trying again.
 - Onside is Expo-only and build-only; do not require Onside purchase approval.
 - Every framework must appear in the final report for FireOS and Horizon. Do
   not count the Play build as FireOS or Horizon coverage; each row's store line

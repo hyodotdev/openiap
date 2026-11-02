@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-11-02T02:24:11.953Z
+> Last updated: 2026-11-02T02:27:46.574Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -3051,9 +3051,9 @@ same version. If the public listing already shows `{version}` (the command at
 the end of this section), stop: the update is done. Otherwise list the pending
 edits with
 `curl -sg 'https://godotengine.org/asset-library/api/asset/edit?asset=4627&status[new]=1&status[in_review]=1' | jq -r '.result[] | .edit_id + " " + .version_string'`.
-If one is for that version, report its ID and URL instead of submitting. Otherwise submit the prepared edit, then verify the
-resulting edit page shows the expected version and URLs as pending moderator
-approval. Save and report its edit ID and URL. If submission fails a CSRF
+If one is for that version, report its ID and URL instead of submitting.
+Otherwise submit the prepared edit, then verify the resulting edit page shows
+the expected version and URLs as pending moderator approval. Save and report its edit ID and URL. If submission fails a CSRF
 check, repeat the duplicate check, reopen the edit form, restore the same
 values, and retry once with the fresh form.
 

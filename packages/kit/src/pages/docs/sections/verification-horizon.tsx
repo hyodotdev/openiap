@@ -86,10 +86,11 @@ export default function VerificationHorizonPage() {
           Horizon verification answers whether the user holds the SKU now,
           through the SDK&apos;s IAPKit verification,{" "}
           <code>confirmWithIapkit</code>, a queued verification job, or the raw{" "}
-          <code>POST /v1/purchase/verify</code> route shown below. It does not
-          create a subscription record or run a background reconciliation job.
-          Reverify the exact <code>userId</code> + <code>sku</code> pair
-          whenever your backend needs a current entitlement decision.
+          <code>POST /v1/purchase/verify</code> route shown below. IAPKit does
+          not create a subscription record or reconcile Horizon entitlements in
+          the background. Reverify the exact <code>userId</code> +{" "}
+          <code>sku</code> pair whenever your backend needs a current
+          entitlement decision.
         </p>
         <p>
           Meta&apos;s binary response does not identify whether the SKU is a
