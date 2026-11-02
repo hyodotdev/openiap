@@ -237,6 +237,45 @@ public class PurchaseFlowTests
     }
 
     [Fact]
+    public async Task RecoverPurchases_RestoresWhatTheListenerSettledMeanwhileWithoutConfirmingIt()
+    {
+        var opened = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var listenerSettled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var confirms = 0;
+        Action<Purchase>? deliver = null;
+        using var flow = new PurchaseFlow(Flow(async (_, _) =>
+        {
+            Interlocked.Increment(ref confirms);
+            await opened.Task;
+            return new PurchaseConfirmation.Entitled(true);
+        }) with
+        {
+            ListenForPurchases = onPurchase =>
+            {
+                deliver = onPurchase;
+                return new DisposableAction(() => deliver = null);
+            },
+            // The listener's confirmation settles after the restore began.
+            GetAvailablePurchases = async () =>
+            {
+                opened.SetResult();
+                await listenerSettled.Task;
+                return [Play("GPA.1"), Play("GPA.2")];
+            },
+        });
+        flow.OutcomePublished += (_, outcome) =>
+        {
+            if (outcome.Purchase.Id == "GPA.2") listenerSettled.TrySetResult();
+        };
+
+        deliver!(Play("GPA.2"));
+        var restored = await flow.RecoverPurchasesAsync(includeFinished: true);
+
+        Assert.Equal(["GPA.1", "GPA.2"], restored.Select(outcome => outcome.Purchase.Id));
+        Assert.Equal(2, confirms);
+    }
+
+    [Fact]
     public async Task Dispose_StopsARunningRecoveryPassAfterTheConfirmationInFlight()
     {
         var answer = new TaskCompletionSource<PurchaseConfirmation?>();

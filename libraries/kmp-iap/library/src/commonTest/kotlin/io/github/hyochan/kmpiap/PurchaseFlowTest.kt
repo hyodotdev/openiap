@@ -271,6 +271,33 @@ class PurchaseFlowTest {
     }
 
     @Test
+    fun aRestoreTakesWhatTheListenerSettledMeanwhileWithoutConfirmingIt() = runTest {
+        val opened = CompletableDeferred<Unit>()
+        val listenerFinished = CompletableDeferred<Unit>()
+        var confirms = 0
+        val store = MutableSharedFlow<Purchase>(extraBufferCapacity = 1)
+        val flow = flowWith(
+            { _, _ -> confirms++; opened.await(); PurchaseConfirmation.Entitled(alreadyGranted = true) },
+            listenForPurchases = store,
+            finishTransaction = { purchase, _ -> if (purchase.id == "b") listenerFinished.complete(Unit) },
+            // The listener's confirmation settles after the restore began.
+            getAvailablePurchases = {
+                opened.complete(Unit)
+                listenerFinished.await()
+                listOf(purchase(id = "a"), purchase(id = "b"))
+            },
+        )
+        runCurrent()
+
+        store.tryEmit(purchase(id = "b"))
+        runCurrent()
+        val restored = flow.recoverPurchases(includeFinished = true)
+
+        assertEquals(listOf("a", "b"), restored.map { it.purchase.id })
+        assertEquals(2, confirms)
+    }
+
+    @Test
     fun anUngrantedOwnershipConflictIsConfirmedAgainOnItsNextDelivery() = runTest {
         var confirms = 0
         val flow = flowWith({ _, _ -> confirms++; PurchaseConfirmation.OwnershipConflict(alreadyGranted = false) })

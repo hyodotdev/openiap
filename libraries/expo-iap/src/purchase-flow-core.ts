@@ -397,6 +397,7 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
     includeFinished: boolean,
   ): Promise<PurchaseFlowOutcome<P>[]> {
     const { getPendingTransactionsIOS } = options;
+    const settledBefore = new Set(settled.keys());
     // iOS lists unfinished transactions directly; other stores list owned
     // purchases, and isUnfinished picks the ones still to settle.
     let pendingIOS: P[] | undefined;
@@ -443,7 +444,15 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
       // The next account's flow confirms the rest with its own session.
       if (disposed) break;
       if (!includeFinished && settled.has(purchase.id)) continue;
-      const status = await deliver(purchase, false, includeFinished);
+      // A restore re-confirms what settled before it, not what the listener
+      // settled while it ran.
+      const settledMeanwhile =
+        settled.has(purchase.id) && !settledBefore.has(purchase.id);
+      const status = await deliver(
+        purchase,
+        false,
+        includeFinished && !settledMeanwhile,
+      );
       outcomes.push({ purchase, status });
     }
     return outcomes;

@@ -802,6 +802,33 @@ describe("listening", () => {
     expect(options.getAvailablePurchases).toHaveBeenCalledTimes(1);
   });
 
+  it("restores what the listener settled meanwhile without confirming it again", async () => {
+    const renewal = purchase({ id: "tx-1" });
+    const certified = purchase({ id: "tx-2", productId: "certified" });
+    const { opened, open } = gate();
+    const { flow, options, store, published } = listeningFlow(
+      async () => {
+        await opened;
+        return { status: "entitled", alreadyGranted: true };
+      },
+      {
+        getPendingTransactionsIOS: vi.fn(async () => [renewal]),
+        // The listener's confirmation settles after the restore began.
+        getAvailablePurchases: vi.fn(async () => {
+          open();
+          await vi.waitFor(() => expect(published).toHaveLength(1));
+          return [renewal, certified];
+        }),
+      },
+    );
+
+    store.deliver?.(certified);
+    const outcomes = await flow.recoverPurchases({ includeFinished: true });
+
+    expect(outcomes.map(({ purchase: p }) => p.id)).toEqual(["tx-1", "tx-2"]);
+    expect(options.confirmWithBackend).toHaveBeenCalledTimes(2);
+  });
+
   it("confirms nothing more for a recovery pass once disposed", async () => {
     const { opened, open } = gate();
     const { flow, options } = listeningFlow(

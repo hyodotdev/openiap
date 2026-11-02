@@ -565,6 +565,8 @@ public sealed class PurchaseFlow : IDisposable
     private async Task<IReadOnlyList<PurchaseFlowOutcome>> RecoverAsync(bool includeFinished)
     {
         var getPendingTransactionsIOS = _options.GetPendingTransactionsIOS;
+        HashSet<string> settledBefore;
+        lock (_gate) settledBefore = new HashSet<string>(_settled.Keys, StringComparer.Ordinal);
         // iOS lists unfinished transactions directly; other stores list owned
         // purchases, and IsUnfinished picks the ones still to settle.
         IReadOnlyList<Purchase>? pendingIOS = null;
@@ -602,10 +604,16 @@ public sealed class PurchaseFlow : IDisposable
         {
             // The next account's flow confirms the rest with its own session.
             if (_disposed) break;
-            bool skip;
-            lock (_gate) skip = !includeFinished && _settled.ContainsKey(purchase.Id);
+            bool skip, settledMeanwhile;
+            lock (_gate)
+            {
+                skip = !includeFinished && _settled.ContainsKey(purchase.Id);
+                // A restore re-confirms what settled before it, not what the
+                // listener settled while it ran.
+                settledMeanwhile = _settled.ContainsKey(purchase.Id) && !settledBefore.Contains(purchase.Id);
+            }
             if (skip) continue;
-            var status = await Deliver(purchase, requested: false, reconfirm: includeFinished).ConfigureAwait(false);
+            var status = await Deliver(purchase, requested: false, reconfirm: includeFinished && !settledMeanwhile).ConfigureAwait(false);
             outcomes.Add(new PurchaseFlowOutcome(purchase, status));
         }
         return outcomes;

@@ -291,6 +291,7 @@ func _recover_into(pass_: _Pending, include_finished: bool) -> void:
 
 func _recover(include_finished: bool) -> Variant:
 	var get_pending_ios = _options.get("get_pending_transactions_ios")
+	var settled_before := _settled.duplicate()
 	# iOS lists unfinished transactions directly; other stores list owned
 	# purchases, and _is_unfinished picks the ones still to settle.
 	var pending_ios = null
@@ -329,7 +330,10 @@ func _recover(include_finished: bool) -> Variant:
 			break
 		if not include_finished and _settled.has(purchase.id):
 			continue
-		outcomes.append({"purchase": purchase, "status": await _deliver(purchase, false, include_finished)})
+		# A restore re-confirms what settled before it, not what the listener
+		# settled while it ran.
+		var settled_meanwhile := _settled.has(purchase.id) and not settled_before.has(purchase.id)
+		outcomes.append({"purchase": purchase, "status": await _deliver(purchase, false, include_finished and not settled_meanwhile)})
 	return outcomes
 
 

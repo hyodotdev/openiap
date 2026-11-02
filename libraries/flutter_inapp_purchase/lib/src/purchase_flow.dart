@@ -431,6 +431,7 @@ final class PurchaseFlow {
 
   Future<List<PurchaseFlowOutcome>> _recover(bool includeFinished) async {
     final getPendingTransactionsIOS = _getPendingTransactionsIOS;
+    final settledBefore = _settled.keys.toSet();
     // iOS lists unfinished transactions directly; other stores list owned
     // purchases, and _isUnfinished picks the ones still to settle.
     List<Purchase>? pendingIOS;
@@ -477,10 +478,14 @@ final class PurchaseFlow {
       // The next account's flow confirms the rest with its own session.
       if (_disposed) break;
       if (!includeFinished && _settled.containsKey(purchase.id)) continue;
+      // A restore re-confirms what settled before it, not what the listener
+      // settled while it ran.
+      final settledMeanwhile = _settled.containsKey(purchase.id) &&
+          !settledBefore.contains(purchase.id);
       final status = await _deliver(
         purchase,
         false,
-        reconfirm: includeFinished,
+        reconfirm: includeFinished && !settledMeanwhile,
       );
       outcomes.add(PurchaseFlowOutcome(purchase: purchase, status: status));
     }

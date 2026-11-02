@@ -366,8 +366,9 @@ const flow = createPurchaseFlow({
       <p>
         Repeating is safe: your backend grants a one-time purchase once, a
         subscription links once, finishing twice is harmless, concurrent
-        deliveries of one transaction share a backend call, and a later delivery
-        of a settled purchase is answered without one. IAPKit replay-limits each
+        deliveries of one transaction share a backend call, a restore reuses
+        what the listener settled while it ran, and a later delivery of a
+        settled purchase is answered without one. IAPKit replay-limits each
         receipt to about one verification a minute after a burst, so respect{" "}
         <code>retryAfterMs</code> instead of looping. The reference backend
         reports <code>429 REPEATED_FAILURE</code>, a receipt IAPKit rejected in

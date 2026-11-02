@@ -743,18 +743,18 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
-      id: 'ios-restore-newest-transaction-2026-11-02',
-      date: new Date('2026-11-02'),
+      id: 'ios-restore-newest-transaction-2026-11-03',
+      date: new Date('2026-11-03'),
       element: (
         <div
-          key="ios-restore-newest-transaction-2026-11-02"
+          key="ios-restore-newest-transaction-2026-11-03"
           style={noteCardStyle}
         >
           {RESTORE_NEWEST_TRANSACTION_RELEASES.map((release) => (
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
-          <AnchorLink id="ios-restore-newest-transaction-2026-11-02" level="h4">
-            November 2, 2026 - One check per purchase on an iOS restore
+          <AnchorLink id="ios-restore-newest-transaction-2026-11-03" level="h4">
+            November 3, 2026 - One check per purchase on an iOS restore
           </AnchorLink>
           <p>
             A purchase flow restore on iOS now works the same in every
@@ -766,9 +766,10 @@ function Releases() {
           </h5>
           <ul>
             <li>
-              <strong>Client Protocol 1.3.2</strong>: the purchase flow core and
-              its vectors skip older transactions of the same Apple purchase on
-              a restore.
+              <strong>Client Protocol 1.3.2</strong>: on a restore, the purchase
+              flow core skips older transactions of the same Apple purchase, and
+              a purchase the listener settled while the restore ran is not
+              confirmed again.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
@@ -785,6 +786,11 @@ function Releases() {
               </strong>
               : a restore now reads the full history, once per purchase, so it
               also confirms a subscription in billing grace.
+            </li>
+            <li>
+              <strong>All six</strong>: a purchase the listener confirms while a
+              restore runs, as after the App Store sign-in a restore can ask
+              for, is not confirmed a second time.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>

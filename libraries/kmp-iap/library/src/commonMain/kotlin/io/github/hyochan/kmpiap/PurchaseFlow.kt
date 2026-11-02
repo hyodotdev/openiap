@@ -351,6 +351,7 @@ class PurchaseFlow internal constructor(
         }
 
     private suspend fun recover(includeFinished: Boolean): List<PurchaseFlowOutcome> {
+        val settledBefore = mutex.withLock { settled.keys.toSet() }
         // iOS lists unfinished transactions directly; other stores list owned
         // purchases, and isUnfinished picks the ones still to settle.
         var pendingIOS: List<Purchase>? = null
@@ -380,8 +381,11 @@ class PurchaseFlow internal constructor(
             if (disposed) break
             // One lock, so a purchase the listener settles meanwhile is not published twice.
             val answer = mutex.withLock {
+                // A restore re-confirms what settled before it, not what the
+                // listener settled while it ran.
+                val settledMeanwhile = purchase.id in settled && purchase.id !in settledBefore
                 if (!includeFinished && purchase.id in settled) null
-                else admit(purchase, requested = false, reconfirm = includeFinished)
+                else admit(purchase, requested = false, reconfirm = includeFinished && !settledMeanwhile)
             } ?: continue
             outcomes += PurchaseFlowOutcome(purchase, forDelivery(purchase, answer.await(), requested = false))
         }
