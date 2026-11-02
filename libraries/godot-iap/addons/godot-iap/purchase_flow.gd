@@ -332,8 +332,7 @@ func _recover(include_finished: bool) -> Variant:
 			continue
 		# A restore re-confirms what settled before it, not what the listener
 		# settled while it ran.
-		var settled_meanwhile := _settled.has(purchase.id) and not settled_before.has(purchase.id)
-		outcomes.append({"purchase": purchase, "status": await _deliver(purchase, false, include_finished and not settled_meanwhile)})
+		outcomes.append({"purchase": purchase, "status": await _deliver(purchase, false, include_finished and settled_before.has(purchase.id))})
 	return outcomes
 
 

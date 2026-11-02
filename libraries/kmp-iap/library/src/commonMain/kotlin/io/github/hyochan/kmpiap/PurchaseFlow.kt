@@ -381,11 +381,10 @@ class PurchaseFlow internal constructor(
             if (disposed) break
             // One lock, so a purchase the listener settles meanwhile is not published twice.
             val answer = mutex.withLock {
+                if (!includeFinished && purchase.id in settled) null
                 // A restore re-confirms what settled before it, not what the
                 // listener settled while it ran.
-                val settledMeanwhile = purchase.id in settled && purchase.id !in settledBefore
-                if (!includeFinished && purchase.id in settled) null
-                else admit(purchase, requested = false, reconfirm = includeFinished && !settledMeanwhile)
+                else admit(purchase, requested = false, reconfirm = includeFinished && purchase.id in settledBefore)
             } ?: continue
             outcomes += PurchaseFlowOutcome(purchase, forDelivery(purchase, answer.await(), requested = false))
         }

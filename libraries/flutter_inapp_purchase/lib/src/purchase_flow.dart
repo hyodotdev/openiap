@@ -480,12 +480,10 @@ final class PurchaseFlow {
       if (!includeFinished && _settled.containsKey(purchase.id)) continue;
       // A restore re-confirms what settled before it, not what the listener
       // settled while it ran.
-      final settledMeanwhile = _settled.containsKey(purchase.id) &&
-          !settledBefore.contains(purchase.id);
       final status = await _deliver(
         purchase,
         false,
-        reconfirm: includeFinished && !settledMeanwhile,
+        reconfirm: includeFinished && settledBefore.contains(purchase.id),
       );
       outcomes.add(PurchaseFlowOutcome(purchase: purchase, status: status));
     }

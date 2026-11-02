@@ -767,9 +767,8 @@ function Releases() {
           <ul>
             <li>
               <strong>Client Protocol 1.3.2</strong>: on a restore, the purchase
-              flow core skips older transactions of the same Apple purchase, and
-              a purchase the listener settled while the restore ran is not
-              confirmed again.
+              flow core skips older transactions of the same Apple purchase and
+              reuses what the listener settled during the recovery pass.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
@@ -788,9 +787,9 @@ function Releases() {
               also confirms a subscription in billing grace.
             </li>
             <li>
-              <strong>All six</strong>: a purchase the listener confirms while a
-              restore runs, as after the App Store sign-in a restore can ask
-              for, is not confirmed a second time.
+              <strong>All six</strong>: a purchase the listener finishes
+              confirming during a restore&apos;s recovery pass is not confirmed
+              a second time.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>

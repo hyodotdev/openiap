@@ -604,16 +604,12 @@ public sealed class PurchaseFlow : IDisposable
         {
             // The next account's flow confirms the rest with its own session.
             if (_disposed) break;
-            bool skip, settledMeanwhile;
-            lock (_gate)
-            {
-                skip = !includeFinished && _settled.ContainsKey(purchase.Id);
-                // A restore re-confirms what settled before it, not what the
-                // listener settled while it ran.
-                settledMeanwhile = _settled.ContainsKey(purchase.Id) && !settledBefore.Contains(purchase.Id);
-            }
+            bool skip;
+            lock (_gate) skip = !includeFinished && _settled.ContainsKey(purchase.Id);
             if (skip) continue;
-            var status = await Deliver(purchase, requested: false, reconfirm: includeFinished && !settledMeanwhile).ConfigureAwait(false);
+            // A restore re-confirms what settled before it, not what the
+            // listener settled while it ran.
+            var status = await Deliver(purchase, requested: false, reconfirm: includeFinished && settledBefore.Contains(purchase.Id)).ConfigureAwait(false);
             outcomes.Add(new PurchaseFlowOutcome(purchase, status));
         }
         return outcomes;

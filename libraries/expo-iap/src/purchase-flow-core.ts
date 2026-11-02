@@ -446,12 +446,10 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
       if (!includeFinished && settled.has(purchase.id)) continue;
       // A restore re-confirms what settled before it, not what the listener
       // settled while it ran.
-      const settledMeanwhile =
-        settled.has(purchase.id) && !settledBefore.has(purchase.id);
       const status = await deliver(
         purchase,
         false,
-        includeFinished && !settledMeanwhile,
+        includeFinished && settledBefore.has(purchase.id),
       );
       outcomes.push({ purchase, status });
     }
