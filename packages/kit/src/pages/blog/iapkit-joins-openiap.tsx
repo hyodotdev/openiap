@@ -116,7 +116,7 @@ export default function IapkitJoinsOpenIap() {
           IAPKit joins OpenIAP. Validation is now free.
         </h1>
         <div className="mt-8 flex items-center gap-3 pt-6 border-t border-border">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-600 to-accent flex items-center justify-center text-white font-semibold">
+          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
             H
           </div>
           <div>

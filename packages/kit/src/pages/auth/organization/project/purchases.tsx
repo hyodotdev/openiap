@@ -313,17 +313,14 @@ export default function ProjectPurchases() {
     return <PageLoading />;
   }
 
-  const statConfig: Array<{ key: CardKey; accent: string }> = [
-    {
-      key: "total",
-      accent: "from-violet-500/10 to-transparent",
-    },
-    { key: "apple", accent: "from-blue-500/10 to-transparent" },
-    { key: "google", accent: "from-green-500/10 to-transparent" },
-    { key: "horizon", accent: "from-sky-500/10 to-transparent" },
-    { key: "amazon", accent: "from-orange-500/10 to-transparent" },
-    { key: "valid", accent: "from-emerald-500/10 to-transparent" },
-    { key: "invalid", accent: "from-rose-500/10 to-transparent" },
+  const statConfig: Array<{ key: CardKey }> = [
+    { key: "total" },
+    { key: "apple" },
+    { key: "google" },
+    { key: "horizon" },
+    { key: "amazon" },
+    { key: "valid" },
+    { key: "invalid" },
   ];
 
   return (
@@ -405,17 +402,17 @@ export default function ProjectPurchases() {
               }}
               aria-label={STATS_LABELS[stat.key]}
             >
-              <div
-                className={cn(
-                  "absolute inset-0 bg-gradient-to-br opacity-80 pointer-events-none",
-                  stat.accent,
-                )}
-              ></div>
-              <div className="relative">
+              <div>
                 <p className="text-sm text-muted-foreground">
                   {STATS_LABELS[stat.key]}
                 </p>
-                <p className="text-3xl font-semibold mt-2">
+                <p
+                  className={cn(
+                    "text-3xl font-semibold mt-2",
+                    stat.key === "valid" && "text-success",
+                    stat.key === "invalid" && "text-danger",
+                  )}
+                >
                   {cardValues[stat.key].toLocaleString()}
                 </p>
               </div>

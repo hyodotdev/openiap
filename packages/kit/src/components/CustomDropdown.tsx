@@ -71,7 +71,7 @@ export function CustomDropdown({
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg">
+        <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg">
           <div className="py-1">
             {options.map((option) => (
               <button
@@ -81,11 +81,11 @@ export function CustomDropdown({
                 className={`
                   w-full px-3 py-2 text-left
                   flex items-center justify-between
-                  hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors
+                  hover:bg-muted transition-colors
                   ${
                     value === option.value
-                      ? "bg-gray-100 dark:bg-gray-800 text-primary"
-                      : "text-gray-900 dark:text-gray-100"
+                      ? "bg-muted text-primary"
+                      : "text-foreground"
                   }
                 `}
               >

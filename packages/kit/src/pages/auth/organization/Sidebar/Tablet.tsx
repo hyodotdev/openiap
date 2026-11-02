@@ -108,7 +108,7 @@ export function TabletSidebar({
               void onSelectOrganization(org);
             }}
           >
-            <span className="block text-sm font-medium text-gray-900 dark:text-gray-100 break-words">
+            <span className="block text-sm font-medium text-foreground break-words">
               {org.name}
             </span>
             <span className="block text-xs text-muted-foreground break-words">
@@ -295,15 +295,15 @@ export function TabletSidebar({
             isSidebarOpen ? "" : "justify-center"
           }`}
         >
-          <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
-            <User className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+          <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
+            <User className="w-4 h-4 text-muted-foreground" />
           </div>
           {isSidebarOpen && (
             <div className="flex-1 min-w-0 text-left">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+              <p className="text-sm font-medium text-foreground truncate">
                 {profile?.displayName || loggedInUser?.name || "User"}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+              <p className="text-xs text-muted-foreground truncate">
                 {loggedInUser?.email}
               </p>
             </div>

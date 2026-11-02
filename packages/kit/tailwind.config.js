@@ -51,6 +51,9 @@ export default {
           DEFAULT: "var(--accent)",
           foreground: "var(--accent-foreground)",
         },
+        success: "var(--success)",
+        warning: "var(--warning)",
+        danger: "var(--danger)",
         popover: {
           DEFAULT: "var(--popover)",
           foreground: "var(--popover-foreground)",
@@ -67,7 +70,7 @@ export default {
       },
       fontFamily: {
         sans: [
-          "Roboto",
+          "IBM Plex Sans",
           "ui-sans-serif",
           "system-ui",
           "-apple-system",
@@ -79,6 +82,7 @@ export default {
           "sans-serif",
         ],
         mono: [
+          "IBM Plex Mono",
           "ui-monospace",
           "SFMono-Regular",
           "Monaco",

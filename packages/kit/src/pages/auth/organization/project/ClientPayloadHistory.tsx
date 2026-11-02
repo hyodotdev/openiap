@@ -128,7 +128,7 @@ export function ClientPayloadHistory({
             confirmingVersion === selected.version ? (
               <div
                 role="alert"
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-warning/30 bg-warning/10 p-3"
               >
                 <p className="min-w-0">
                   Publish v{selected.version}&apos;s body as a new version? Apps

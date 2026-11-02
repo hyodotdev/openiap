@@ -26,6 +26,7 @@ import ProjectPurchaseDetail from "./organization/project/purchase-detail";
 import ProjectOrders from "./organization/project/orders";
 import OrganizationUsagePage from "./organization/usage";
 import BlogLayout from "../blog/BlogLayout";
+import { SiteLayout } from "@/components/SiteLayout";
 import BlogIndex from "../blog";
 import IapkitJoinsOpenIap from "../blog/iapkit-joins-openiap";
 import DocsLayout from "../docs/DocsLayout";
@@ -120,42 +121,45 @@ export default function AuthenticatedPages() {
       <Route path="docs" element={<DocsLayout />}>
         {docsChildRoutes}
       </Route>
-      <Route path="blog" element={<BlogLayout />}>
-        <Route index element={<BlogIndex />} />
-        <Route path="iapkit-joins-openiap" element={<IapkitJoinsOpenIap />} />
+      {/* Public pages keep the site header when signed in. */}
+      <Route element={<SiteLayout />}>
+        <Route path="blog" element={<BlogLayout />}>
+          <Route index element={<BlogIndex />} />
+          <Route path="iapkit-joins-openiap" element={<IapkitJoinsOpenIap />} />
+        </Route>
+        <Route
+          path="about"
+          element={
+            <PageWithTitle title="About">
+              <About />
+            </PageWithTitle>
+          }
+        />
+        <Route
+          path="contact"
+          element={
+            <PageWithTitle title="Contact">
+              <Contact />
+            </PageWithTitle>
+          }
+        />
+        <Route
+          path="terms-of-service"
+          element={
+            <PageWithTitle title="Terms of Service">
+              <Terms />
+            </PageWithTitle>
+          }
+        />
+        <Route
+          path="privacy-policy"
+          element={
+            <PageWithTitle title="Privacy Policy">
+              <Privacy />
+            </PageWithTitle>
+          }
+        />
       </Route>
-      <Route
-        path="about"
-        element={
-          <PageWithTitle title="About">
-            <About />
-          </PageWithTitle>
-        }
-      />
-      <Route
-        path="contact"
-        element={
-          <PageWithTitle title="Contact">
-            <Contact />
-          </PageWithTitle>
-        }
-      />
-      <Route
-        path="terms-of-service"
-        element={
-          <PageWithTitle title="Terms of Service">
-            <Terms />
-          </PageWithTitle>
-        }
-      />
-      <Route
-        path="privacy-policy"
-        element={
-          <PageWithTitle title="Privacy Policy">
-            <Privacy />
-          </PageWithTitle>
-        }
-      />
       <Route
         path="termsofservice"
         element={<Navigate to="/terms-of-service" replace />}

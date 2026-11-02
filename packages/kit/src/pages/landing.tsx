@@ -1,369 +1,335 @@
-import { useState, useEffect } from "react";
 import { openAuthModal } from "../lib/signals";
-import {
-  ArrowRight,
-  Shield,
-  Globe,
-  Zap,
-  CreditCard,
-  CheckCircle2,
-} from "lucide-react";
+import type { ReactNode } from "react";
+import { CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Footer from "../components/Footer";
 
-const ROTATING_TEXTS = [
-  "fitness app 🏋️‍♀️",
-  "mobile game 🕹️",
-  "health tracker 🫀",
-  "dating app 💖",
+interface ReceiptLine {
+  field: string;
+  value: string;
+}
+
+// A real /v1/purchase/verify response shape (route-response-schemas.ts).
+const RECEIPT_LINES: ReceiptLine[] = [
+  { field: "store", value: "apple" },
+  { field: "environment", value: "Production" },
+  { field: "productId", value: "premium_monthly" },
+  { field: "transactionId", value: "2000000812345678" },
+  { field: "state", value: "ENTITLED" },
 ];
+
+interface LandingRow {
+  title: string;
+  body: string;
+}
+
+const FEATURES: LandingRow[] = [
+  {
+    title: "Verified with the store",
+    body: "IAPKit asks the App Store, Google Play, Amazon Appstore or Meta Horizon about each purchase and returns isValid, state and the store-verified productId before you deliver anything.",
+  },
+  {
+    title: "One request for every store",
+    body: "Send each store's purchase evidence to one endpoint and read one result shape back. The OpenIAP framework SDKs make the call for you in their purchase flow.",
+  },
+  {
+    title: "Receipts you can inspect",
+    body: "Search receipts, inspect payloads, review analytics and re-run a verification from the dashboard instead of digging through logs.",
+  },
+];
+
+const STEPS: LandingRow[] = [
+  {
+    title: "Buy with your billing library",
+    body: "Collect the purchase evidence the App Store, Google Play, Horizon or Amazon library already returns.",
+  },
+  {
+    title: "Send the evidence to IAPKit",
+    body: "Call /v1/purchase/verify from your app with a publishable key, or from your own backend.",
+  },
+  {
+    title: "Unlock on a valid verdict",
+    body: "Deliver the item only when isValid is true, then finish the transaction.",
+  },
+];
+
+const CAPACITY_NOTES: LandingRow[] = [
+  {
+    title: "Everyday use",
+    body: "No billing meter. Capacity is shared, so heavy traffic from other projects can slow your requests or return 429. Cache stable reads and honor the Retry-After header on 429 and 503.",
+  },
+  {
+    title: "Heavy traffic",
+    body: "Contact us before launch. An organization that uses a large share of the shared capacity is asked to help fund servers, monitoring and security.",
+  },
+  {
+    title: "Dedicated capacity",
+    body: "Self-host the MIT-licensed server. Sponsorship supports the shared service; it does not reserve resources or add an SLA.",
+  },
+];
+
+/** A landing section: heading column on the left, ruled content on the right. */
+function LedgerSection({
+  id,
+  title,
+  lead,
+  children,
+}: {
+  id?: string;
+  title: string;
+  lead: string;
+  children: ReactNode;
+}) {
+  return (
+    <section id={id} className="border-b border-border py-16 lg:py-24">
+      <div className="container max-w-7xl mx-auto grid gap-10 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:gap-16">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+            {title}
+          </h2>
+          <p className="mt-3 text-muted-foreground">{lead}</p>
+        </div>
+        <div className="min-w-0">{children}</div>
+      </div>
+    </section>
+  );
+}
+
+function VerificationReceipt() {
+  return (
+    <figure className="w-full max-w-md rounded-md border border-border bg-card shadow-sm">
+      <figcaption className="flex flex-col gap-0.5 border-b border-border px-5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <span className="font-medium text-foreground">
+          {"Verification result"}
+        </span>
+        <code className="font-mono text-xs text-muted-foreground">
+          {"POST /v1/purchase/verify"}
+        </code>
+      </figcaption>
+      <dl className="divide-y divide-border px-5">
+        {RECEIPT_LINES.map((line, index) => (
+          <div
+            key={line.field}
+            className="receipt-line flex items-baseline justify-between gap-4 py-2.5"
+            style={{ animationDelay: `${200 + index * 140}ms` }}
+          >
+            <dt className="text-sm text-muted-foreground">{line.field}</dt>
+            <dd className="truncate font-mono text-sm text-foreground">
+              {line.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <div
+        className="receipt-line flex items-center justify-between gap-4 rounded-b-md border-t border-border bg-success/10 px-5 py-3"
+        style={{ animationDelay: `${200 + RECEIPT_LINES.length * 140}ms` }}
+      >
+        <span className="flex items-center gap-2 text-sm font-medium text-success">
+          <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+          {"Confirmed by the App Store"}
+        </span>
+        <code className="font-mono text-sm font-medium text-success">
+          {"isValid: true"}
+        </code>
+      </div>
+    </figure>
+  );
+}
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isExiting, setIsExiting] = useState(false);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setIsExiting(true);
-      // Wait for exit animation to complete before changing text
-      setTimeout(() => {
-        setCurrentIndex((prev) => (prev + 1) % ROTATING_TEXTS.length);
-        setIsExiting(false);
-      }, 500); // Match animation duration
-    }, 3000); // Change every 3 seconds
-
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <>
-      {/* Hero Section */}
-      <section className="hero-background pt-20 pb-20 lg:pt-32 lg:pb-32 performance-optimized">
+      <section className="hero-background border-b border-border py-16 lg:py-24">
         <div className="container max-w-7xl mx-auto">
-          <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#24292e]/10 dark:bg-[#24292e]/20 text-[#24292e] dark:text-gray-300 rounded-full text-sm font-medium mb-6 opacity-0 animate-fade-in-up">
-              <Shield className="w-4 h-4" />
-              <span>{"Protect your in-app purchases"}</span>
+          <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)] lg:gap-16">
+            <div className="max-w-2xl">
+              <h1 className="text-4xl font-semibold leading-[1.08] tracking-tight text-foreground md:text-5xl lg:text-6xl">
+                {"Check every purchase with the store before you unlock it."}
+              </h1>
+              <p className="mt-6 text-lg leading-relaxed text-muted-foreground md:text-xl">
+                {"IAPKit, managed by "}
+                <a
+                  href="https://openiap.dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="link"
+                >
+                  {"OpenIAP"}
+                </a>
+                {
+                  ", sends your app's purchase evidence to the App Store, Google Play, Amazon Appstore or Meta Horizon and returns one verdict your app or backend can act on."
+                }
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => {
+                    openAuthModal();
+                  }}
+                  className="btn-gradient px-6 py-3 text-base"
+                >
+                  {"Get started"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigate("/docs");
+                  }}
+                  className="btn-secondary px-6 py-3 text-base"
+                >
+                  {"Read the docs"}
+                </button>
+              </div>
+              <p className="mt-6 max-w-xl text-sm leading-relaxed text-muted-foreground">
+                {
+                  "Hosted IAPKit is free under fair-use limits on shared capacity. The server is MIT-licensed, so you can run your own."
+                }
+              </p>
             </div>
-            <h1
-              className="text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold mb-8 text-foreground"
-              style={{ lineHeight: "1.2" }}
+            <div className="flex justify-center lg:justify-end">
+              <VerificationReceipt />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <LedgerSection
+        id="features"
+        title="One verdict for four stores"
+        lead="IAPKit holds your store credentials, asks the store about each purchase, and normalizes the answer."
+      >
+        <dl className="divide-y divide-border border-y border-border">
+          {FEATURES.map((feature) => (
+            <div
+              key={feature.title}
+              className="grid gap-1 py-5 sm:grid-cols-[14rem_minmax(0,1fr)] sm:gap-6"
             >
-              <span className="block opacity-0 animate-fade-in-up animation-delay-100">
-                <span className="block">{"OpenIAP foundation for your"}</span>
-                <span className="block relative overflow-hidden h-[1.3em] min-w-[200px] md:min-w-[300px] lg:min-w-[400px]">
-                  <span
-                    key={currentIndex}
-                    className={`inline-block ${
-                      isExiting
-                        ? "animate-slide-out-up"
-                        : "animate-slide-in-from-bottom-opacity"
-                    }`}
-                  >
-                    {ROTATING_TEXTS[currentIndex]}
-                  </span>
+              <dt className="font-medium text-foreground">{feature.title}</dt>
+              <dd className="text-muted-foreground">{feature.body}</dd>
+            </div>
+          ))}
+        </dl>
+      </LedgerSection>
+
+      <LedgerSection
+        title="How it fits in your app"
+        lead="Your billing library still runs the purchase. IAPKit answers whether the store agrees."
+      >
+        <div className="space-y-8">
+          <ol className="divide-y divide-border border-y border-border">
+            {STEPS.map((step, index) => (
+              <li key={step.title} className="flex gap-4 py-5">
+                <span className="font-mono text-sm text-muted-foreground">
+                  {index + 1}
                 </span>
-              </span>
-            </h1>
-            <p className="text-xl md:text-2xl text-muted-foreground mb-6 opacity-0 animate-fade-in-up animation-delay-300">
-              IAPKit, managed by{" "}
-              <a
-                href="https://openiap.dev"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-foreground transition-colors"
-              >
-                OpenIAP
-              </a>
-              , provides open purchase validation and entitlement infrastructure
-              across the App Store, Google Play, Amazon Appstore, and Meta
-              Horizon.
-            </p>
-            <p className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full bg-amber-100 dark:bg-amber-500/15 text-amber-900 dark:text-amber-100 text-sm md:text-base font-medium opacity-0 animate-fade-in-up animation-delay-300">
-              <span aria-hidden="true">✨</span>
-              {
-                "Hosted validation and analytics are free under fair-use limits."
-              }
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center opacity-0 animate-fade-in-up animation-delay-400">
-              <button
-                onClick={() => {
-                  openAuthModal();
-                }}
-                className="btn-gradient text-lg px-8 py-4"
-              >
-                {"Get started"}
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </button>
-              <button
-                onClick={() => {
-                  void navigate("/docs");
-                }}
-                className="btn-secondary text-lg px-8 py-4"
-              >
-                {"Read the docs"}
-              </button>
-            </div>
-            <p className="mt-6 text-sm text-muted-foreground animate-fade-up animation-delay-400">
-              {
-                "No credit card. Shared, community-funded infrastructure with best-effort availability."
-              }
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-20 lg:py-32">
-        <div className="container max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-foreground">
-              {"Purpose-built for reliable purchase infrastructure"}
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              {"One API to confirm every supported store purchase."}
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-            <div className="card-hover p-8 overflow-hidden flex flex-col">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4 flex-shrink-0">
-                <Globe className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3 text-foreground break-words">
-                {"Tamper-resistant hosted validation"}
-              </h3>
-              <p className="text-muted-foreground break-words">
-                {
-                  "We contact each supported store, verify authoritative purchase state, and return one normalized verdict — isValid, state, and the store-verified productId — before you deliver the item."
-                }
-              </p>
-            </div>
-
-            <div className="card-hover p-8 overflow-hidden flex flex-col">
-              <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-4">
-                <Zap className="w-6 h-6 text-accent" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3 text-foreground break-words">
-                {"Fast integration"}
-              </h3>
-              <p className="text-muted-foreground break-words">
-                {
-                  "Add one IAPKit call and handle every supported store with the same payload. You'll be up and running in minutes."
-                }
-              </p>
-            </div>
-
-            <div className="card-hover p-8 overflow-hidden flex flex-col">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4 flex-shrink-0">
-                <CreditCard className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3 text-foreground break-words">
-                {"Operational visibility"}
-              </h3>
-              <p className="text-muted-foreground break-words">
-                {
-                  "Search receipts, inspect payloads, review analytics, and re-run validations without digging through logs."
-                }
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* API Example Section */}
-      <section className="py-20 lg:py-32 bg-muted/30">
-        <div className="container max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="min-w-0">
-              <h2 className="text-3xl md:text-4xl font-bold mb-6 text-foreground">
-                {"How IAPKit fits in"}
-              </h2>
-              <p className="text-xl text-muted-foreground mb-8">
-                {
-                  "Collect the purchase proof on-device, send it to IAPKit, and unlock the item once the source store confirms it."
-                }
-              </p>
-              <ul className="space-y-4">
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                  <span>
-                    {
-                      "Collect the App Store, Play, Horizon, or Amazon purchase proof with your existing billing library."
-                    }
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                  <span>
-                    {
-                      "Send the purchase proof and metadata to IAPKit for managed validation."
-                    }
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                  <span>
-                    {
-                      "Unlock app content only when IAPKit returns a valid, store-verified response."
-                    }
-                  </span>
-                </li>
-              </ul>
-            </div>
-            <div className="relative min-w-0">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/20 blur-3xl" />
-              <div className="relative space-y-4">
-                <div className="bg-primary-950 dark:bg-[#1e1e26] rounded-xl p-6 text-primary-100 dark:text-primary-200 overflow-x-auto shadow-2xl w-full max-w-full">
-                  <p className="text-xs uppercase tracking-wide text-primary-300 mb-3">
-                    API request
-                  </p>
-                  <pre className="text-sm md:text-base w-full min-w-0">
-                    <code className="block w-full min-w-0">{`curl -X POST https://kit.openiap.dev/v1/purchase/verify \\
--H "Authorization: Bearer openiap-kit_pk_<your-publishable-key>" \\
--H "Content-Type: application/json" \\
--d '{
-  "store": "google",
-  "purchaseToken": "<purchaseToken>"
-}'`}</code>
-                  </pre>
+                <div>
+                  <p className="font-medium text-foreground">{step.title}</p>
+                  <p className="mt-1 text-muted-foreground">{step.body}</p>
                 </div>
-                <div className="bg-primary-950 dark:bg-[#1e1e26] rounded-xl p-6 text-primary-100 dark:text-primary-200 overflow-x-auto shadow-2xl w-full max-w-full">
-                  <p className="text-xs uppercase tracking-wide text-primary-300 mb-3">
-                    API response
-                  </p>
-                  <pre className="text-sm md:text-base w-full min-w-0">
-                    <code className="block w-full min-w-0">{`{
+              </li>
+            ))}
+          </ol>
+          <figure className="min-w-0 rounded-md border border-border bg-card text-sm">
+            <figcaption className="border-b border-border px-5 py-3 font-medium text-foreground">
+              {"Request and response"}
+            </figcaption>
+            <pre className="overflow-x-auto px-5 py-4 font-mono text-foreground">
+              <code>{`curl -X POST https://kit.openiap.dev/v1/purchase/verify \\
+  -H "Authorization: Bearer openiap-kit_pk_<your-publishable-key>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "store": "google", "purchaseToken": "<purchaseToken>" }'`}</code>
+            </pre>
+            <pre className="overflow-x-auto border-t border-border px-5 py-4 font-mono text-foreground">
+              <code>{`{
+  "store": "google",
   "isValid": true,
   "state": "ENTITLED",
   "productId": "premium_monthly"
 }`}</code>
-                  </pre>
-                </div>
-              </div>
-            </div>
-          </div>
+            </pre>
+          </figure>
         </div>
-      </section>
+      </LedgerSection>
 
-      {/* Shared capacity and sponsorship section */}
-      <section id="pricing" className="py-20 lg:py-32">
+      <LedgerSection
+        id="pricing"
+        title="Free on shared capacity"
+        lead="Hosted IAPKit is an open-source service that every developer shares. It has fair-use rate limits and no SLA."
+      >
+        <dl className="divide-y divide-border border-y border-border">
+          {CAPACITY_NOTES.map((note) => (
+            <div
+              key={note.title}
+              className="grid gap-1 py-5 sm:grid-cols-[14rem_minmax(0,1fr)] sm:gap-6"
+            >
+              <dt className="font-medium text-foreground">{note.title}</dt>
+              <dd className="text-muted-foreground">{note.body}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <a
+            href="https://github.com/sponsors/hyodotdev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-gradient px-6 py-3"
+          >
+            {"Sponsor on GitHub"}
+          </a>
+          <a
+            href="https://opencollective.com/openiap"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-secondary px-6 py-3"
+          >
+            {"Support on OpenCollective"}
+          </a>
+          <a
+            href="https://github.com/hyodotdev/openiap/tree/main/packages/kit#deployment-convex--flyio"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="link px-1 py-2 text-sm"
+          >
+            {"Self-host IAPKit"}
+          </a>
+        </div>
+        <p className="mt-6 text-sm text-muted-foreground">
+          {"For capacity planning or a written service agreement, email "}
+          <a href="mailto:hyo@hyo.dev" className="link">
+            {"hyo@hyo.dev"}
+          </a>
+          {" before your production launch."}
+        </p>
+      </LedgerSection>
+
+      <section className="hero-background py-16 lg:py-24">
         <div className="container max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-foreground">
-              {"Free, shared, and sustained by the ecosystem"}
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-10">
-              {
-                "Hosted IAPKit is an open-source community service that every developer can share. It has fair-use rate limits, does not include an SLA, and is not unlimited infrastructure."
-              }
-            </p>
-
-            <div className="grid gap-6 md:grid-cols-3 text-left mb-10">
-              <div className="rounded-xl border border-border bg-card p-6">
-                <h3 className="text-lg font-semibold mb-2">
-                  {"Shared for the community"}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  {
-                    "Use the hosted service without a billing meter, cache reads responsibly, and honor 429 or 503 retry guidance so capacity remains available to everyone."
-                  }
-                </p>
-              </div>
-              <div className="rounded-xl border border-amber-300/70 dark:border-amber-500/40 bg-amber-50/60 dark:bg-amber-500/10 p-6">
-                <h3 className="text-lg font-semibold mb-2">
-                  {"Planning significant traffic?"}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  {
-                    "Contact us before launch. If your organization expects to consume a meaningful share of the hosted capacity, we ask it to help fund server expansion, monitoring, and security for the ecosystem."
-                  }
-                </p>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-6">
-                <h3 className="text-lg font-semibold mb-2">
-                  {"Need dedicated capacity?"}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  {
-                    "Self-host the MIT-licensed server for predictable capacity and operational control. Sponsorship supports the shared service; it does not automatically include dedicated resources or an SLA."
-                  }
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row flex-wrap gap-4 items-center justify-center">
-              <a
-                href="https://github.com/sponsors/hyodotdev"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center btn-gradient text-lg px-8 py-4"
-              >
-                {"Sponsor on GitHub"}
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </a>
-              <a
-                href="https://opencollective.com/openiap"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center btn-secondary text-lg px-8 py-4"
-              >
-                {"Support on OpenCollective"}
-              </a>
-              <a
-                href="https://github.com/hyodotdev/openiap/tree/main/packages/kit#deployment-convex--flyio"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2"
-              >
-                {"Self-host IAPKit"}
-                <ArrowRight className="w-4 h-4 ml-1" />
-              </a>
-            </div>
-            <p className="text-sm text-muted-foreground max-w-3xl mx-auto mt-6">
-              {
-                "For capacity planning or a separate written service agreement, contact "
-              }
-              <a
-                href="mailto:hyo@hyo.dev"
-                className="underline hover:text-foreground transition-colors"
-              >
-                hyo@hyo.dev
-              </a>
-              {" before your production launch."}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 lg:py-32 hero-background">
-        <div className="container max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 leading-tight">
-            {"Ship trustworthy in-app purchases."}
+          <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+            {"Start verifying purchases"}
           </h2>
-          <p className="text-xl text-muted-foreground mb-8">
+          <p className="mt-3 max-w-xl text-lg text-muted-foreground">
             {
-              "Drop in one API call and let IAPKit keep fraudsters out of your app."
+              "Create a project, add your store credentials, and send your first verification."
             }
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <button
+              type="button"
               onClick={() => {
                 openAuthModal();
               }}
-              className="btn-gradient text-lg px-8 py-4"
+              className="btn-gradient px-6 py-3 text-base"
             >
-              {"Create free account"}
-              <ArrowRight className="w-5 h-5 ml-2" />
+              {"Get started"}
             </button>
             <button
+              type="button"
               onClick={() => {
                 void navigate("/docs");
               }}
-              className="btn-ghost text-lg px-8 py-4"
-              style={{ cursor: "pointer", pointerEvents: "auto" }}
+              className="btn-secondary px-6 py-3 text-base"
             >
               {"Read the docs"}
             </button>

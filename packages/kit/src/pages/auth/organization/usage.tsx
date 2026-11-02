@@ -77,21 +77,21 @@ export default function OrganizationUsagePage() {
           </div>
         </section>
 
-        <section className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-500/10 dark:to-orange-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg p-6">
+        <section className="bg-card border border-border rounded-md p-6">
           <div className="flex items-start gap-4">
-            <div className="shrink-0 rounded-full bg-amber-100 dark:bg-amber-500/20 p-3">
-              <Heart className="h-6 w-6 text-amber-700 dark:text-amber-400" />
+            <div className="shrink-0 rounded-full bg-secondary p-3">
+              <Heart className="h-6 w-6 text-primary" />
             </div>
             <div className="flex-1">
-              <h2 className="text-lg font-semibold text-amber-900 dark:text-amber-100">
+              <h2 className="text-lg font-semibold text-foreground">
                 {"Planning significant traffic?"}
               </h2>
-              <p className="text-sm text-amber-900/80 dark:text-amber-100/80 mt-2 mb-4">
+              <p className="text-sm text-muted-foreground mt-2 mb-4">
                 {
                   "Hosted IAPKit is a shared, best-effort service rather than unlimited or SLA-backed infrastructure. If your organization expects to consume a meaningful share of capacity, contact us before launch and help fund the servers, monitoring, and security the ecosystem depends on."
                 }
               </p>
-              <p className="text-xs text-amber-900/70 dark:text-amber-100/70 mb-4">
+              <p className="text-xs text-muted-foreground mb-4">
                 {
                   "Sponsorship supports shared capacity; it does not automatically reserve dedicated resources or an SLA. Self-host the MIT-licensed server when you need predictable capacity and full operational control."
                 }
@@ -101,7 +101,7 @@ export default function OrganizationUsagePage() {
                   href="https://github.com/sponsors/hyodotdev"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-medium transition-colors"
+                  className="btn-gradient"
                 >
                   {"Sponsor on GitHub"}
                 </a>
@@ -109,7 +109,7 @@ export default function OrganizationUsagePage() {
                   href="https://opencollective.com/openiap"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-500/50 text-amber-900 dark:text-amber-100 font-medium hover:bg-amber-100/60 dark:hover:bg-amber-500/20 transition-colors"
+                  className="btn-secondary"
                 >
                   {"OpenCollective"}
                 </a>
@@ -117,14 +117,14 @@ export default function OrganizationUsagePage() {
                   href="https://github.com/hyodotdev/openiap/tree/main/packages/kit#deployment-convex--flyio"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-500/50 text-amber-900 dark:text-amber-100 font-medium hover:bg-amber-100/60 dark:hover:bg-amber-500/20 transition-colors"
+                  className="btn-secondary"
                 >
                   {"Self-host IAPKit"}
                 </a>
               </div>
-              <p className="text-xs text-amber-900/70 dark:text-amber-100/70 mt-4">
+              <p className="text-xs text-muted-foreground mt-4">
                 {"Capacity planning: "}
-                <a href="mailto:hyo@hyo.dev" className="underline">
+                <a href="mailto:hyo@hyo.dev" className="link">
                   hyo@hyo.dev
                 </a>
               </p>

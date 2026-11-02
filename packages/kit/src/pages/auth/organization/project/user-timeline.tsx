@@ -1,15 +1,9 @@
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
-import {
-  AlertTriangle,
-  ArrowLeft,
-  History,
-  Receipt,
-  Repeat,
-  Send,
-} from "lucide-react";
+import { AlertTriangle, History, Receipt, Repeat, Send } from "lucide-react";
 
 import { api, type Id } from "@/convex";
+import { BackLink } from "@/components/BackLink";
 import { Badge } from "@/components/Badge";
 import { PageLoading } from "@/components/LoadingSpinner";
 import { PURCHASE_ISSUE_CAUSES } from "@/lib/purchaseIssues";
@@ -49,13 +43,10 @@ export default function UserTimeline() {
 
   return (
     <div className="space-y-6">
-      <Link
+      <BackLink
         to={`${base}/purchases?user=${encodeURIComponent(appUserId)}`}
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        {"Back to purchases"}
-      </Link>
+        label="Purchases"
+      />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-2xl font-semibold mb-1 flex items-center gap-2">

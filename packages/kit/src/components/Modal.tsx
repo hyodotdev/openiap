@@ -136,12 +136,12 @@ export function Modal({
         aria-modal="true"
         aria-label={ariaLabel}
         tabIndex={-1}
-        className={`relative w-full max-w-md bg-white dark:bg-[#18181f] rounded-2xl shadow-2xl animate-scale-in focus:outline-none ${className}`}
+        className={`relative w-full max-w-md bg-popover rounded-2xl shadow-2xl animate-scale-in focus:outline-none ${className}`}
       >
         {showCloseButton ? (
           <button
             onClick={onClose}
-            className="absolute right-4 top-4 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors z-10"
+            className="absolute right-4 top-4 p-2 rounded-lg hover:bg-muted transition-colors z-10"
             aria-label="Close modal"
           >
             <X className="h-4 w-4" />

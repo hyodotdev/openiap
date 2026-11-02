@@ -111,7 +111,7 @@ export function MobileSidebar({
             void onSelectOrganization(org);
           }}
         >
-          <span className="block text-sm font-medium text-gray-900 dark:text-gray-100 break-words">
+          <span className="block text-sm font-medium text-foreground break-words">
             {org.name}
           </span>
           <span className="block text-xs text-muted-foreground break-words">
@@ -153,22 +153,22 @@ export function MobileSidebar({
 
       {/* Mobile Sidebar */}
       <aside
-        className={`md:hidden fixed left-0 top-0 h-full w-64 bg-white dark:bg-gray-800 z-50 transform transition-transform shadow-lg overflow-y-auto overscroll-contain no-scrollbar ${
+        className={`md:hidden fixed left-0 top-0 h-full w-64 bg-card z-50 transform transition-transform shadow-lg overflow-y-auto overscroll-contain no-scrollbar ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between h-14 px-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between h-14 px-4 border-b border-border">
           <Dropdown menu={{ items: organizationMenu }} trigger={["click"]}>
             <button
               type="button"
               onClick={(event) => event.preventDefault()}
               className="flex items-center gap-3 pr-2 min-w-0 w-full overflow-hidden"
             >
-              <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center">
-                <Building2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+              <div className="w-8 h-8 bg-muted rounded flex items-center justify-center">
+                <Building2 className="w-4 h-4 text-muted-foreground" />
               </div>
               <div className="flex flex-col items-start min-w-0 flex-1">
-                <span className="font-medium text-gray-900 dark:text-gray-100 truncate whitespace-nowrap">
+                <span className="font-medium text-foreground truncate whitespace-nowrap">
                   {organization.name}
                 </span>
                 <span className="text-xs text-muted-foreground truncate whitespace-nowrap">
@@ -193,8 +193,8 @@ export function MobileSidebar({
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
                   isActive
-                    ? "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium"
-                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    ? "bg-muted text-foreground font-medium"
+                    : "text-muted-foreground hover:bg-muted"
                 }`}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
@@ -210,18 +210,18 @@ export function MobileSidebar({
         </nav>
 
         {/* Docs link */}
-        <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+        <div className="p-3 border-t border-border">
           <div className="flex flex-col gap-2">
             <button
               onClick={handleDocsClick}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-muted transition-colors"
             >
               <FileText className="w-4 h-4 flex-shrink-0" />
               <span className="font-medium">{docsLabel}</span>
             </button>
             <button
               onClick={handleSupportClick}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-muted transition-colors"
             >
               <LifeBuoy className="w-4 h-4 flex-shrink-0" />
               <span className="font-medium">{supportLabel}</span>
@@ -230,22 +230,22 @@ export function MobileSidebar({
         </div>
 
         {/* User Profile Section */}
-        <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+        <div className="p-3 border-t border-border">
           <button
             onClick={() => {
               void navigate("/profile");
               onClose();
             }}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-muted transition-colors"
           >
-            <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
-              <User className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+            <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
+              <User className="w-4 h-4 text-muted-foreground" />
             </div>
             <div className="flex-1 min-w-0 text-left">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+              <p className="text-sm font-medium text-foreground truncate">
                 {profile?.displayName || loggedInUser?.name || "User"}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+              <p className="text-xs text-muted-foreground truncate">
                 {loggedInUser?.email}
               </p>
             </div>

@@ -120,25 +120,21 @@ type PlatformCardKey = "all" | "ios" | "android";
 const PLATFORM_CARDS: Array<{
   key: PlatformCardKey;
   label: string;
-  accent: string;
   filter: PlatformFilter;
 }> = [
   {
     key: "all",
     label: "All platforms",
-    accent: "from-violet-500/10 to-transparent",
     filter: "all",
   },
   {
     key: "ios",
     label: "App Store",
-    accent: "from-blue-500/10 to-transparent",
     filter: "IOS",
   },
   {
     key: "android",
     label: "Google Play",
-    accent: "from-green-500/10 to-transparent",
     filter: "Android",
   },
 ];
@@ -602,13 +598,7 @@ export default function ProjectAnalytics() {
               )}
               aria-pressed={active}
             >
-              <div
-                className={cn(
-                  "absolute inset-0 bg-gradient-to-br opacity-80 pointer-events-none",
-                  card.accent,
-                )}
-              />
-              <div className="relative">
+              <div>
                 <p className="text-sm text-muted-foreground">{card.label}</p>
                 <p className="text-3xl font-semibold mt-2 tabular-nums">
                   {money(cardTotals.revenueMicros)}

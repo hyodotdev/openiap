@@ -5,7 +5,6 @@ import { Badge, PlatformBadge } from "../../../../components/Badge";
 import type { LucideIcon } from "lucide-react";
 import {
   Settings,
-  ChevronLeft,
   Package,
   Key,
   ShoppingBag,
@@ -15,6 +14,7 @@ import {
   BarChart3,
   ReceiptText,
 } from "lucide-react";
+import { BackLink } from "@/components/BackLink";
 import { PageLoading } from "@/components/LoadingSpinner";
 
 import { api } from "@/convex";
@@ -208,17 +208,12 @@ export default function ProjectIndex() {
       {/* Header */}
       <div className="border-b border-border bg-card">
         <div className="container max-w-7xl mx-auto px-4 py-4">
+          <BackLink
+            to={`/${orgSlug}/projects`}
+            label="Projects"
+            className="mb-3"
+          />
           <div className="flex min-w-0 items-center gap-4">
-            <button
-              type="button"
-              aria-label="Back to projects"
-              onClick={() => {
-                void navigate(`/${orgSlug}/projects`);
-              }}
-              className="shrink-0 p-2 hover:bg-muted rounded transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-primary/10">
                 <Package className="w-5 h-5 text-primary" />

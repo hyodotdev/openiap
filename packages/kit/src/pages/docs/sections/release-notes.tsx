@@ -23,6 +23,24 @@ const CHANGE_GROUPS = [
 
 const RELEASES: ReleaseEntry[] = [
   {
+    id: "week-2026-11-02",
+    weekStart: "2026-11-02",
+    date: "2026-11-03",
+    tagline: "One header and one back link across the site, and a calmer look.",
+    items: [
+      {
+        kind: "feature",
+        topic: "Navigation",
+        text: "The landing page, docs, blog and legal pages share one header, signed in or not; the blog no longer shows two. Every back link names the screen it returns to and goes there directly instead of following browser history.",
+      },
+      {
+        kind: "feature",
+        topic: "Design",
+        text: "IAPKit uses a new ink-blue palette with IBM Plex type, and the landing page shows what a verification result looks like. Dark mode now follows the same color tokens on every screen.",
+      },
+    ],
+  },
+  {
     id: "week-2026-10-26",
     weekStart: "2026-10-26",
     date: "2026-10-30",

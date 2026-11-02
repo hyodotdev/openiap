@@ -1,15 +1,11 @@
-import {
-  Link,
-  useOutletContext,
-  useParams,
-  useSearchParams,
-} from "react-router-dom";
+import { useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { ArrowLeft, RotateCw, Send } from "lucide-react";
+import { RotateCw, Send } from "lucide-react";
 import { toast } from "sonner";
 
 import { api, type Id } from "@/convex";
+import { BackLink } from "@/components/BackLink";
 import { Badge, type BadgeVariant } from "@/components/Badge";
 import { PageLoading } from "@/components/LoadingSpinner";
 import { convexErrorMessage } from "@/lib/appError";
@@ -71,13 +67,10 @@ export default function WebhookDeliveries() {
 
   return (
     <div className="space-y-6">
-      <Link
+      <BackLink
         to={`/${orgSlug}/project/${projectSlug}/webhooks`}
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        {"Back to webhooks"}
-      </Link>
+        label="Webhooks"
+      />
       <div>
         <h2 className="text-2xl font-semibold mb-1 flex items-center gap-2">
           <Send className="w-5 h-5" />
