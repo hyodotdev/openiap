@@ -81,15 +81,14 @@ export default function VerificationHorizonPage() {
         </p>
       </Callout>
 
-      <Callout kind="note" title="Synchronous raw REST verification only">
+      <Callout kind="note" title="Synchronous verification only">
         <p>
-          Horizon verification is currently available through the raw{" "}
-          <code>POST /v1/purchase/verify</code> route shown below. It is not a
-          member of the first-party SDK verification request type, does not
-          create a subscription record, and does not run a background
-          reconciliation job. Reverify the exact <code>userId</code> +{" "}
-          <code>sku</code> pair whenever your backend needs a current
-          entitlement decision.
+          Horizon verification runs synchronously, through the SDK&apos;s IAPKit
+          verification and <code>confirmWithIapkit</code> or the raw{" "}
+          <code>POST /v1/purchase/verify</code> route shown below. It does not
+          create a subscription record or run a background reconciliation job.
+          Reverify the exact <code>userId</code> + <code>sku</code> pair
+          whenever your backend needs a current entitlement decision.
         </p>
         <p>
           Meta&apos;s binary response does not identify whether the SKU is a

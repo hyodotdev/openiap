@@ -22,4 +22,4 @@ Lucky Patcher-style tools only work when the purchase flow is trusted on-device.
 
 ## Do you track consumption state of consumable IAPs?
 
-Partly, and it depends on the store. Google Play reports consumption state, so a consumed Google consumable comes back with state `CONSUMED` and `isValid: false`. Apple and Amazon do not report consumption after purchase, so their consumables stay `READY_TO_CONSUME` with `isValid: true`. Meta Horizon reports only what the user holds now, so a consumed Horizon consumable comes back `INAUTHENTIC` with `isValid: false`. For all three, your app has to record fulfillment itself.
+Partly, and it depends on the store. Google Play reports consumption state, so a consumed Google consumable comes back with state `CONSUMED` and `isValid: false`. Apple and Amazon do not report consumption after purchase, so their consumables stay `READY_TO_CONSUME` with `isValid: true`. Meta Horizon reports only what the user holds now, so a consumed Horizon consumable comes back `INAUTHENTIC` with `isValid: false`. For Apple, Amazon and Horizon, your app has to record fulfillment itself.

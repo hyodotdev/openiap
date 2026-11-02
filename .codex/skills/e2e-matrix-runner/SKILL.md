@@ -84,7 +84,9 @@ text and bounds — dump, tap the dumped coordinates, dump again. `tap`, `swipe`
 and `keyevent` (BACK dismisses the Horizon checkout dialog) are all verified
 working on display 0 (Quest 3, Horizon OS, 2026-09-25: RN RedBox dismissed,
 Kepler home → Purchase Flow navigated, MAUI scrolled to products, Purchase
-tapped into `com.oculus.store` checkout and BACKed out cleanly).
+tapped into `com.oculus.store` checkout and BACKed out cleanly). Before a
+Horizon checkout, clear the VR keyguard picker and any stale checkout dialog
+as the Horizon checkout notes in `.claude/commands/e2e-tests.md` describe.
 
 ```bash
 adb -s "$QUEST" shell am start -n <launcher-activity>  # resolve per framework
@@ -92,16 +94,6 @@ adb -s "$QUEST" shell uiautomator dump /sdcard/ui.xml
 adb -s "$QUEST" pull /sdcard/ui.xml .
 adb -s "$QUEST" shell input tap X Y  # coordinates from the dump
 ```
-
-An idle, unworn Quest can raise the VR keyguard profile picker over display 0,
-and it hides the Horizon checkout dialog. The checkout then times out after
-30 s (`launchCheckoutFlow` statusCode 1, client code 6), and the stuck
-checkout makes later product queries in that process time out too. This looks
-like a store outage but is not one. Before each checkout, dump display 0: if the
-picker is showing, tap the already-active user's tile to dismiss it (no
-profile switch, no authentication). BACK does not dismiss the picker. If a
-checkout already timed out in that app process, force-stop and relaunch the
-app before trying again.
 
 Resolve the launcher activity per framework (`cmd package resolve-activity
 --brief ...`, or `monkey -p <pkg> -c android.intent.category.LAUNCHER 1`):

@@ -519,7 +519,8 @@ export default function ApiReferencePage() {
             <tr>
               <td className="px-3 py-2 font-mono text-xs">INAUTHENTIC</td>
               <td className="px-3 py-2">
-                Receipt not recognized by the store.
+                Receipt not recognized by the store. For Meta Horizon, the user
+                no longer holds the entitlement, for example after consuming it.
               </td>
               <td className="px-3 py-2 text-center">false</td>
             </tr>
