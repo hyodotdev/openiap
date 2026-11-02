@@ -515,22 +515,20 @@ instruction; the submission needs no separate approval or hand-off.
 After verifying the public release ZIP, open
 `https://godotengine.org/asset-library/asset/4627/edit` through the maintainer's
 logged-in browser session. Set the version string to `{version}`, keep the
-repository provider as Custom, and update both URLs. Keep every other field
-(title, description, category, license, issues URL, Godot version, icon and
-previews):
+repository provider as Custom, and update both URLs:
 
 - Download: `https://github.com/hyodotdev/openiap/releases/download/godot-iap-{version}/godot-iap-{version}.zip`
 - Repository browse: `https://github.com/hyodotdev/openiap/tree/godot-iap-{version}/libraries/godot-iap`
 
+Keep every other field: title, description, category, license, issues URL,
+Godot version, icon and previews.
+
 Check for a duplicate first, because moderators reject a second edit for the
 same version. If the public listing already shows `{version}` (the command at
-the end of this section), stop: the update is done. Otherwise open the
-logged-in Feed (`https://godotengine.org/asset-library/user/feed`), which lists
-every 4627 edit because only the asset's owner can submit one, and check each
-with
-`curl -s https://godotengine.org/asset-library/api/asset/edit/{id} | jq -r '.status + " " + .version_string'`.
-If one for that version is `new` or `in_review`, report that edit's ID and URL
-instead of submitting. Otherwise submit the prepared edit, then verify the
+the end of this section), stop: the update is done. Otherwise list the pending
+edits with
+`curl -sg 'https://godotengine.org/asset-library/api/asset/edit?asset=4627&status[new]=1&status[in_review]=1' | jq -r '.result[] | .edit_id + " " + .version_string'`.
+If one is for that version, report its ID and URL instead of submitting. Otherwise submit the prepared edit, then verify the
 resulting edit page shows the expected version and URLs as pending moderator
 approval. Save and report its edit ID and URL. If submission fails a CSRF
 check, repeat the duplicate check, reopen the edit form, restore the same
@@ -545,8 +543,10 @@ The accepted public version is
 Moderator approval is separate from submission: the public listing may keep
 the previous version while the submitted edit is pending. The submission does
 not hold the next package in the train. List a pending edit's ID as remaining
-work in the Final Report; the next Godot release checks that it reached
-`accepted`, and handles a `rejected` reason before submitting again.
+work in the Final Report. The next Godot release checks it with
+`curl -s https://godotengine.org/asset-library/api/asset/edit/{id} | jq -r '.status + " " + (.reason // "")'`:
+it carries a still-pending edit forward again, and fixes a rejection's reason
+before submitting again.
 
 ### Deploying Documentation
 
