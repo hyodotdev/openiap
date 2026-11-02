@@ -505,6 +505,46 @@ registries to serve the natives that tree pins
   source or the SwiftPM tag.
 - MAUI: no wait, since its NuGet package bundles natives built from source.
 
+### Godot Asset Library
+
+The GitHub Release does not update Asset Library entry 4627, so after every
+stable Godot release the agent submits that update itself and verifies its
+receipt before reporting the release complete. Hyo set this as a standing
+instruction; the submission needs no separate approval or hand-off.
+
+After verifying the public release ZIP, open
+`https://godotengine.org/asset-library/asset/4627/edit` through the maintainer's
+logged-in browser session. Set the version string to `{version}`, keep the
+repository provider as Custom, and update both URLs. Keep every other field
+(title, description, category, license, Godot version, icon and previews):
+
+- Download: `https://github.com/hyodotdev/openiap/releases/download/godot-iap-{version}/godot-iap-{version}.zip`
+- Repository browse: `https://github.com/hyodotdev/openiap/tree/godot-iap-{version}/libraries/godot-iap`
+
+Check for a duplicate first, because moderators reject a second edit for the
+same version. The public edit list does not show pending edits, so open the
+logged-in Feed (`https://godotengine.org/asset-library/user/feed`) and check
+each 4627 edit with
+`curl -s https://godotengine.org/asset-library/api/asset/edit/{id} | jq -r '.status + " " + .version_string'`.
+If one for that version is `new` or `in_review`, report that edit's ID and URL
+instead of submitting. Otherwise submit the prepared edit, then verify the
+resulting edit page shows the expected version and URLs as pending moderator
+approval. Save and report its edit ID and URL. If submission fails a CSRF
+check, repeat the duplicate check, reopen the edit form, restore the same
+values, and retry once with the fresh form.
+
+Never enter credentials; if no logged-in session is available or submission
+remains blocked, report the blocker, exact version and release ZIP URL as
+unfinished submission work. Preparing the form alone is not submission.
+
+The accepted public version is
+`curl -s https://godotengine.org/asset-library/api/asset/4627 | jq -r .version_string`.
+Moderator approval is separate from submission: the public listing may keep
+the previous version while the submitted edit is pending. The submission does
+not hold the next package in the train. List a pending edit's ID as remaining
+work in the Final Report; the next Godot release checks that it reached
+`accepted`, and handles a `rejected` reason before submitting again.
+
 ### Deploying Documentation
 
 Vercel automatically deploys production documentation when a commit reaches

@@ -72,7 +72,7 @@ package publication, use a preview under
 will not resume, follow that section's incomplete-train rule through §4.
 
 For Godot releases, complete the Asset Library submission and receipt check in
-`.claude/commands/release.md#godot-asset-library`.
+`knowledge/internal/06-git-deployment.md#godot-asset-library`.
 
 ## 3. Verify the release note
 
