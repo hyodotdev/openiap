@@ -18,7 +18,7 @@ Store providers guarantee receipts or entitlement responses according to their o
 
 ## Will this prevent tools like Lucky Patcher?
 
-Lucky Patcher-style tools only work when the purchase flow is trusted on-device. Because IAPKit never trusts local client state, every transaction is verified directly with the source store before your app unlocks access or your backend grants an entitlement. A patched app can fake UI states, but it cannot forge store-issued receipts or entitlement responses, so the validation step fails and the fraudulent purchase is rejected. Combine this with periodic revalidation to catch any attempts that slip through while the client is offline.
+Lucky Patcher-style tools fake the store's purchase response inside the app. IAPKit checks each purchase with the store itself, so a faked purchase does not verify. The check only protects what it gates: when the app unlocks content on its own, a patched app can skip the check. For content that matters, have your backend confirm the purchase (or read IAPKit's verdict) before it serves anything the user paid for.
 
 ## Do you track consumption state of consumable IAPs?
 

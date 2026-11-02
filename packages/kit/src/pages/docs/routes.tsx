@@ -14,6 +14,7 @@ import PurchaseFlowPage from "./sections/purchase-flow";
 import CompatibilityPage from "./sections/compatibility";
 import AnalyticsPage from "./sections/analytics";
 import WebhooksPage from "./sections/webhooks";
+import CommerceProtocolPage from "./sections/commerce-protocol";
 import OperationsPage from "./sections/operations";
 import AiAssistantsPage from "./sections/ai-assistants";
 import CodexPluginPage from "./sections/codex-plugin";
@@ -57,6 +58,7 @@ export const docsChildRoutes = (
     <Route path="compatibility" element={<CompatibilityPage />} />
     <Route path="analytics" element={<AnalyticsPage />} />
     <Route path="webhooks" element={<WebhooksPage />} />
+    <Route path="commerce-protocol" element={<CommerceProtocolPage />} />
     <Route path="operations" element={<OperationsPage />} />
     <Route path="ai-assistants" element={<AiAssistantsPage />} />
     <Route path="ai-assistants/codex-plugin" element={<CodexPluginPage />} />

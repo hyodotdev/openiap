@@ -448,15 +448,14 @@ const flow = createPurchaseFlow({
       </ul>
       <p>
         Key each one-time grant by its store, Apple{" "}
-        <code>originalTransactionId</code>
-        or Google purchase token, and store-verified product id, as the
-        reference handler does.
+        <code>originalTransactionId</code> or Google purchase token, and
+        store-verified product id, as the reference handler does.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Subscription access</h2>
       <p>
         Binding records ownership, not current access: require the verified
-        product in <code>activeSubscriptionProductIds</code> before reporting
+        product in <code>activeSubscriptionProductIds</code> before reporting{" "}
         <code>entitled</code>, since a newer refund can overtake verification.
       </p>
       <p>
@@ -476,7 +475,7 @@ const flow = createPurchaseFlow({
       <h2 className="mt-10 text-2xl font-semibold">Test purchases</h2>
       <p>
         App Review and TestFlight buy in the Apple sandbox against your
-        production backend. Configure a server-owned <code>acceptSandbox</code>
+        production backend. Configure a server-owned <code>acceptSandbox</code>{" "}
         allow-list that includes your App Review demo account and approved
         testers. The reference defaults to production-only access, applying the
         same policy during confirmation and later entitlement refresh. Missing

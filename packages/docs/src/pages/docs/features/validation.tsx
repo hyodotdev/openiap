@@ -1,13 +1,70 @@
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
+import DataTable from '../../../components/DataTable';
 import IapKitBanner from '../../../components/IapKitBanner';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
 import TLDRBox from '../../../components/TLDRBox';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 import { IAPKIT_URL, trackIapKitClick } from '../../../lib/config';
+
+interface VerifierChoice {
+  app: string;
+  verifier: ReactNode;
+  call: ReactNode;
+}
+
+const VERIFIER_CHOICES: VerifierChoice[] = [
+  {
+    app: 'Has its own backend that owns user accounts',
+    verifier: (
+      <>
+        Your backend. It checks with the store itself or calls any{' '}
+        <Link to="/commerce-protocol">Commerce Protocol</Link> provider.
+      </>
+    ),
+    call: (
+      <>
+        <code>createPurchaseFlow</code> with a <code>confirmWithBackend</code>{' '}
+        function that calls your server
+      </>
+    ),
+  },
+  {
+    app: 'Has no backend',
+    verifier: 'A verification service, called from the app. IAPKit is one.',
+    call: (
+      <>
+        <code>createPurchaseFlow</code> with <code>confirmWithIapkit</code>, or{' '}
+        <a href="#verify-purchase-with-provider">
+          <code>verifyPurchaseWithProvider</code>
+        </a>{' '}
+        for one call
+      </>
+    ),
+  },
+  {
+    app: 'Sells on the App Store only, with no backend or service',
+    verifier: 'StoreKit on the device. Weaker: a patched app can skip it.',
+    call: (
+      <>
+        <code>createPurchaseFlow</code> with <code>confirmOnDeviceIOS</code>
+      </>
+    ),
+  },
+  {
+    app: 'Is a paid download',
+    verifier: 'The app purchase itself',
+    call: (
+      <Link to="/docs/apis/verify-app-ownership">
+        <code>verifyAppOwnership</code>
+      </Link>
+    ),
+  },
+];
 
 function Validation() {
   useScrollToHash();
@@ -22,22 +79,22 @@ function Validation() {
       />
       <h1>Validation</h1>
       <p>
-        Verify purchases with your own backend or a managed provider like IAPKit
-        before granting entitlements. Always validate through a trusted
-        server-side verifier; local StoreKit or Play Billing state alone can be
-        bypassed. The{' '}
-        <Link to="/commerce-protocol">OpenIAP Commerce Protocol</Link> specifies
-        what a conforming verifier accepts and returns, so the answer does not
-        depend on whose backend you use.
+        Check each purchase with a trusted verifier before you grant access;
+        local StoreKit or Play Billing state alone can be faked. Pick the
+        verifier that fits your app. Each SDK's purchase flow (
+        <code>createPurchaseFlow</code>; <code>create_purchase_flow</code> in
+        Godot, <code>CreatePurchaseFlow</code> in MAUI) then confirms, finishes,
+        and recovers purchases for you.
       </p>
-
-      <p>
-        For a paid app download, use{' '}
-        <Link to="/docs/apis/verify-app-ownership">verifyAppOwnership</Link>. It
-        provides one app-level result across Apple and Google Play, with a
-        shared backend verification flow. The purchase APIs below verify
-        products bought inside the app.
-      </p>
+      <DataTable
+        rows={VERIFIER_CHOICES}
+        rowKey={(row) => row.app}
+        columns={[
+          { header: 'Your app', cell: (row) => row.app },
+          { header: 'Verify with', cell: (row) => row.verifier },
+          { header: 'Call', cell: (row) => row.call },
+        ]}
+      />
       <TLDRBox>
         <ul>
           <li>
@@ -68,9 +125,11 @@ function Validation() {
       </TLDRBox>
 
       <Callout kind="warning" title="Security">
-        Never rely only on local client purchase state. Use your backend or
-        IAPKit as the verifier. An automated attack cracked 60% of 85 popular
-        apps that trusted client-side billing state (
+        Never grant access from unverified local purchase state. Use your
+        backend or a verification service as the verifier; StoreKit-verified
+        confirmation on the device is the weaker option, because a patched app
+        can skip it. An automated attack cracked 60% of 85 popular apps that
+        trusted client-side billing state (
         <a
           href="https://www.mulliner.org/collin/publications/virtualswindle_asiaccs2014_mulliner.pdf"
           target="_blank"
@@ -293,12 +352,14 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
             <code>entitled</code>, <code>pending</code>, <code>canceled</code>{' '}
             (including refunds and revocations), <code>expired</code>,{' '}
             <code>inauthentic</code>, etc.) so your client and server can act on
-            a single value.
+            a single value. The SDKs spell states in lowercase (
+            <code>pending-acknowledgment</code>); IAPKit&apos;s REST API spells
+            the same states in uppercase (<code>PENDING_ACKNOWLEDGMENT</code>).
           </li>
           <li>
-            <strong>No backend boilerplate</strong> — no service account JSON,
-            no App Store private key rotation, no webhook plumbing required to
-            get started.
+            <strong>Store credentials stay in IAPKit</strong> — you upload the
+            App Store key and Google service account once to your IAPKit
+            project; the app ships only a publishable key.
           </li>
           <li>
             <strong>Public per-product rules</strong> — attach a small TOML,
@@ -337,13 +398,15 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
         </p>
         <p>
           To let the SDK do the bookkeeping, use the purchase flow every
-          framework exports as <code>createPurchaseFlow</code>. It listens for
-          purchases, confirms each one, finishes it once access is granted,
-          recovers unfinished purchases, and reports each outcome. Without a
-          backend of your own, pass <code>confirmWithIapkit</code> with your
-          publishable key, or <code>confirmOnDeviceIOS</code> for App Store
-          purchases StoreKit verified on the device, and credit consumables in
-          its <code>grant</code> callback, which runs before the purchase is
+          framework exports (<code>createPurchaseFlow</code>, or{' '}
+          <code>create_purchase_flow</code> and <code>CreatePurchaseFlow</code>{' '}
+          in Godot and MAUI). It listens for purchases, confirms each one,
+          finishes it once access is granted, recovers unfinished purchases, and
+          reports each outcome. Without a backend of your own, pass{' '}
+          <code>confirmWithIapkit</code> with your publishable key, or{' '}
+          <code>confirmOnDeviceIOS</code> for App Store purchases StoreKit
+          verified on the device, and credit consumables in its{' '}
+          <code>grant</code> callback, which runs before the purchase is
           consumed. When your own backend owns user accounts, confirm through it
           instead. See the{' '}
           <a
@@ -442,7 +505,25 @@ const flow = createPurchaseFlow({
           >
             IAPKit
           </a>
-          .
+          . Pass the evidence for the store that sold the purchase, and require
+          the returned store-verified <code>productId</code> to match the
+          product you expected; <code>isValid</code> alone is not enough.
+        </p>
+        <Callout kind="warning" title="Backend resources need your backend">
+          A direct app-to-IAPKit call can unlock features inside the app, but it
+          cannot authorize resources your backend serves. For those, have your
+          backend authenticate the user and check the purchase before serving
+          them.
+        </Callout>
+        <h4>Configure the key</h4>
+        <p>
+          Use an <code>openiap-kit_pk_</code> publishable key, never an{' '}
+          <code>openiap-kit_sk_</code> secret key. Pass it as{' '}
+          <code>apiKey</code>, or let Expo and React Native read it from config:
+          Expo from the config plugin option <code>iapkitApiKey</code>, React
+          Native from <code>IAPKitAPIKey</code> in Info.plist and{' '}
+          <code>&lt;meta-data android:name="dev.iapkit.API_KEY" /&gt;</code> in
+          AndroidManifest.xml.
         </p>
 
         <h4>Example</h4>
@@ -477,30 +558,111 @@ const flow = createPurchaseFlow({
         <LanguageTabs>
           {{
             typescript: (
-              <CodeBlock language="typescript">{`import { verifyPurchaseWithProvider } from 'expo-iap';
+              <CodeBlock language="typescript">{`// expo-iap
+import { verifyPurchaseWithProvider, type Purchase, type VerifyPurchaseWithProviderResult } from 'expo-iap';
+// Same API in react-native-iap:
+// import { verifyPurchaseWithProvider, type Purchase, type VerifyPurchaseWithProviderResult } from 'react-native-iap';
 
-const result = await verifyPurchaseWithProvider({
-  provider: 'iapkit',
-  iapkit: {
-    apiKey: 'openiap-kit_pk_<your-publishable-key>',
-    includeClientPayload: true,
-    google: { purchaseToken: purchase.purchaseToken ?? '' },
-  },
-});
+const amazonSandbox =
+  process.env.EXPO_PUBLIC_AMAZON_RVS_SANDBOX === 'true';
+const amazonExpectedEnvironment =
+  process.env.EXPO_PUBLIC_AMAZON_EXPECTED_ENVIRONMENT ??
+  (amazonSandbox ? 'Sandbox' : 'Production');
 
-const verified = result.iapkit;
-const verifiedProductId = verified?.productId;
-if (
+// Amazon RVS reports a subscription term under its parent SKU; map each term
+// your app sells to that parent. Other stores verify the purchased id.
+const AMAZON_PARENT_SKUS: Record<string, string> = {
+  premium_monthly_term: 'premium',
+};
+const verifiedProductIdFor = (purchase: Purchase) =>
+  purchase.store === 'amazon'
+    ? (AMAZON_PARENT_SKUS[purchase.productId] ?? purchase.productId)
+    : purchase.productId;
+
+// purchase.store names the store that sold it, so a build that follows the
+// connected device needs no store flag here.
+const iapkitPayloadFor = (purchase: Purchase) => {
+  const token = purchase.purchaseToken ?? '';
+
+  switch (purchase.store) {
+    case 'apple':
+      return { apple: { jws: token } };
+    case 'amazon': // Fire OS and Vega OS
+      if (
+        !['Sandbox', 'Production'].includes(amazonExpectedEnvironment) ||
+        (amazonSandbox && amazonExpectedEnvironment === 'Production')
+      ) throw new Error('Invalid Amazon verification environment');
+      return {
+        amazon: {
+          expectedProductId: verifiedProductIdFor(purchase),
+          receiptId: token,
+          sandbox: amazonSandbox,
+        },
+      };
+    case 'horizon':
+      return { horizon: { sku: purchase.productId } };
+    default:
+      return { google: { purchaseToken: token } };
+  }
+};
+
+const hasExpectedEvidence = (
+  verified: VerifyPurchaseWithProviderResult['iapkit'],
+  purchase: Purchase,
+) =>
   verified?.isValid === true &&
-  (verified.state === 'entitled' ||
-    verified.state === 'pending-acknowledgment') &&
-  verifiedProductId != null &&
-  verifiedProductId === purchase.productId
-) {
-  await grantEntitlement(verifiedProductId);
-  const publicRules = verified.clientPayload?.body;
-  if (publicRules) applyPublicRules(publicRules);
-  await finishTransaction({ purchase, isConsumable: false });
+  verified.store === purchase.store &&
+  (!purchase.storeId || verified.storeId === purchase.storeId) &&
+  verified.productId != null &&
+  verified.productId === verifiedProductIdFor(purchase) &&
+  (purchase.store !== 'amazon' ||
+    verified.environment === amazonExpectedEnvironment);
+
+const verifyWithIapkit = async (purchase: Purchase) => {
+  const result = await verifyPurchaseWithProvider({
+    provider: 'iapkit',
+    iapkit: {
+      // Use an openiap-kit_pk_ key. Optional when Expo or React Native
+      // reads it from config (see "Configure the key" above).
+      apiKey: process.env.EXPO_PUBLIC_IAPKIT_PUBLISHABLE_KEY,
+      includeClientPayload: true,
+      ...iapkitPayloadFor(purchase),
+    },
+  });
+
+  const verified = result.iapkit;
+  if (hasExpectedEvidence(verified, purchase)) {
+    console.log('IAPKit verified:', verified?.state);
+    return true;
+  }
+
+  console.error('IAPKit verification failed');
+  return false;
+};
+
+// --- Or via the useIAP() hook (also exported from react-native-iap) ---
+import { useIAP } from 'expo-iap';
+
+function PurchaseScreen() {
+  const { verifyPurchaseWithProvider } = useIAP({
+    onPurchaseSuccess: (purchase) => {
+      void (async () => {
+        const result = await verifyPurchaseWithProvider({
+          provider: 'iapkit',
+          iapkit: {
+            apiKey: process.env.EXPO_PUBLIC_IAPKIT_PUBLISHABLE_KEY,
+            ...iapkitPayloadFor(purchase),
+          },
+        });
+        const verified = result.iapkit;
+        if (!hasExpectedEvidence(verified, purchase)) {
+          console.error('IAPKit verification failed');
+        }
+      })().catch((error) => console.warn('IAPKit verification failed:', error));
+    },
+  });
+
+  return null;
 }`}</CodeBlock>
             ),
             swift: (

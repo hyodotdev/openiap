@@ -308,11 +308,8 @@ function Subscription() {
             scratch.
           </p>
           <p>
-            Learn more about IAPKit integration in our{' '}
-            <Link to="/docs/updates/announcements#2025-12-09">
-              announcement
-            </Link>
-            .
+            To compare IAPKit with your own backend and on-device checks, see{' '}
+            <Link to="/docs/features/validation">Validation</Link>.
           </p>
         </Accordion>
 

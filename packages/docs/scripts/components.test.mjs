@@ -380,7 +380,7 @@ test('custom verifier example rejects evidence for another purchase or environme
 
 test('raw IAPKit sample binds its verdict to the requested store and environment', async () => {
   const source = await readFile(
-    new URL('../src/pages/docs/features/purchase.tsx', import.meta.url),
+    new URL('../src/pages/docs/features/validation.tsx', import.meta.url),
     'utf8'
   );
   const snippet = [

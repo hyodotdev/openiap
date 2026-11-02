@@ -19,10 +19,10 @@ import {
 
 const PARTS = {
   app: {
-    label: 'Your app',
+    label: 'Your app + OpenIAP client library',
     title: 'The app starts the purchase',
     description:
-      'Use a store SDK to buy a product and receive purchase evidence. Send that evidence to your authenticated backend; keep server credentials there.',
+      'The OpenIAP client library buys the product through the store and receives purchase evidence. Send that evidence to your authenticated backend; keep server credentials there.',
     reference: '/docs/getting-started',
     referenceLabel: 'Client SDK guide',
   },
@@ -185,9 +185,9 @@ function CommerceProtocolDiagram({
         </div>
         <div className="commerce-provider">
           <strong>
-            <Server size={17} aria-hidden="true" /> Commerce backend
+            <Server size={17} aria-hidden="true" /> Commerce provider
           </strong>
-          <small>IAPKit or your implementation</small>
+          <small>Any conforming provider: IAPKit or your own</small>
           <div>
             {(['verify', 'bind', 'access', 'events'] as const).map((id) => (
               <div key={id}>{node(id)}</div>

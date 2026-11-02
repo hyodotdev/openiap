@@ -1,6 +1,7 @@
 import CommerceImplementationComparison from '../../components/CommerceImplementationComparison';
 import AnchorLink from '../../components/AnchorLink';
 import Callout from '../../components/Callout';
+import CodeBlock from '../../components/CodeBlock';
 import DataTable from '../../components/DataTable';
 import type { DataTableColumn } from '../../components/DataTable';
 import ExternalRedirect from '../../components/ExternalRedirect';
@@ -186,8 +187,8 @@ function Webhooks() {
           </li>
           <li>
             Use the shared secret&apos;s exact UTF-8 bytes as the HMAC key,
-            including any prefix such as <code>whsec_</code>. Never strip the
-            prefix or hex-decode the rest.
+            including any prefix your provider puts on it. Never strip a prefix
+            or hex-decode the rest.
           </li>
           <li>
             Accept only when <code>|now - timestamp| &lt;= 300</code> seconds;
@@ -209,6 +210,46 @@ function Webhooks() {
           Never log the signing secret, raw receipts, credentials, or personal
           data. Treat every optional provider extension as untrusted input.
         </Callout>
+        <AnchorLink id="receiver" level="h3">
+          Check the signature in TypeScript
+        </AnchorLink>
+        <p>
+          This helper runs the signature checks above for any web-standard{' '}
+          <code>Request</code> (Bun, Deno, Hono, Next.js route handlers).
+        </p>
+        <CodeBlock language="typescript">{`import { createHmac, timingSafeEqual } from 'node:crypto';
+
+/** The raw body when the signature is valid, otherwise null (answer 401). */
+export async function verifySignature(request: Request, secret: string) {
+  const rawBody = await request.text(); // the exact bytes; never re-serialize
+  const timestamp = request.headers.get('openiap-timestamp') ?? '';
+  const seconds = Number(timestamp);
+  if (!Number.isFinite(seconds) || Math.abs(Date.now() / 1000 - seconds) > 300) {
+    return null;
+  }
+  const expected = Buffer.from(
+    'v1=' + createHmac('sha256', secret).update(\`\${timestamp}.\${rawBody}\`).digest('hex'),
+  );
+  const signatures = (request.headers.get('openiap-signature') ?? '')
+    .split(',')
+    .map((value) => Buffer.from(value.trim()));
+  const valid = signatures.some(
+    (value) => value.length === expected.length && timingSafeEqual(value, expected),
+  );
+  return valid ? rawBody : null;
+}`}</CodeBlock>
+        <p>
+          A signed body is not yet a valid event. Then parse it (answer{' '}
+          <code>400</code> if that fails), require <code>openiap-event-id</code>{' '}
+          to equal its <code>eventId</code>, answer <code>200</code> without
+          storing an <code>eventVersion</code> whose major you do not support,
+          validate it against the published event schema, ignore event types you
+          do not know, and store it once by <code>eventId</code> before
+          answering <code>2xx</code>. Every event carries{' '}
+          <code>{commerceEventSchema.required.join(', ')}</code>. The{' '}
+          <a href={COMMERCE_PROTOCOL_LINKS.spec}>specification</a>&apos;s
+          consumer walkthrough (§9.5) shows each step.
+        </p>
       </section>
 
       <section>

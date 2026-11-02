@@ -35,7 +35,7 @@ More details and the Podfile snippet are in the docs: https://openiap.dev/docs/s
 - 🛡️ **Centralized Error Handling**: Unified error management with platform-specific error code mapping
 - 🎣 **React Hooks**: Modern React hooks API with `useIAP`
 - 📱 **React Native Focused**: Use `expo-iap` for Expo projects
-- 🔍 **Receipt Validation**: Built-in receipt validation for both platforms
+- 🔍 **Purchase Verification**: Verify purchases with your backend or a verification service such as IAPKit before granting access
 - 💎 **Products & Subscriptions**: Support for both one-time purchases and subscriptions
 - 🚀 **Performance Optimized**: Efficient caching and minimal re-renders
 

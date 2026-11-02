@@ -10,7 +10,7 @@ export default function QuickstartPage() {
     <DocsPage
       slug="quickstart"
       title="Quickstart"
-      description="From signup to your first verified purchase in five minutes."
+      description="From signup to your first purchase verified in your app."
     >
       <h2 className="mt-8 text-2xl font-semibold">1. Create your account</h2>
       <p>
@@ -23,14 +23,12 @@ export default function QuickstartPage() {
         >
           kit.openiap.dev
         </a>
-        . New accounts are created through GitHub. Accounts created before April
-        2026 can still sign in with an email one-time code until{" "}
-        <strong>2026-09-30 (UTC)</strong>; after that IAPKit supports GitHub
-        sign-in only. Signing in with GitHub using the same email address
-        carries an existing account over. The onboarding flow asks you to name
-        your first organization before opening its dashboard. The hosted service
-        is free under fair-use safeguards on shared community infrastructure; no
-        plan or credit card is required.
+        . Email sign-in closed on 2026-09-30 (UTC); an account created with
+        email carries over when you sign in with GitHub using the same email
+        address. The onboarding flow asks you to name your first organization
+        before opening its dashboard. The hosted service is free under fair-use
+        safeguards on shared community infrastructure; no plan or credit card is
+        required.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">2. Create a project</h2>
@@ -90,44 +88,19 @@ export default function QuickstartPage() {
         </li>
       </ul>
 
-      <h2 className="mt-10 text-2xl font-semibold">4. Issue an API key</h2>
+      <h2 className="mt-10 text-2xl font-semibold">
+        4. Copy your publishable key
+      </h2>
       <p>
         The <strong>API Keys</strong> tab lists the project&apos;s keys. A
-        default <code>openiap-kit_pk_</code> publishable key is auto-created and
-        shown once when the project is created. Use it in the mobile app for
-        purchase verification and public catalog or client-payload reads.
-      </p>
-      <p>
-        Create a separate <code>openiap-kit_sk_</code> secret key for your
-        backend, MCP, CI, account-level status or entitlement reads, catalog or
-        payload writes, analytics, and store sync. Keep secret keys in a secret
-        manager and never include one in an app build.
-      </p>
-      <p>
-        Keys are credentials for the same project, not separate entitlement
-        environments. For isolated staging and production state, create separate
-        projects and keep each app on a key from the matching project.
-      </p>
-      <p>
-        Use keys from the same project when verifying a purchase, binding it,
-        and checking subscription state. The authenticated backend selects the
-        opaque app-scoped <code>userId</code> from its session and calls the
-        secret-only <code>/v2/subscriptions/status</code> or{" "}
-        <code>/v2/subscriptions/entitlements</code> endpoint. State from another
-        project will not be found.
-      </p>
-      <p>
-        Do not accept an arbitrary <code>userId</code> from an unauthenticated
-        app request and forward it to IAPKit. Resolve it from your authenticated
-        backend session, and do not use public identifiers such as email
-        addresses.
-      </p>
-      <p>
-        IAPKit does not stream store events back to apps. Let your app request
-        access from your authenticated backend at bounded lifecycle points such
-        as cold start, foreground refresh, or an explicit user action. The
-        backend can coalesce concurrent IAPKit reads and apply its own bounded
-        cache policy.
+        publishable <code>openiap-kit_pk_</code> key is created with the project
+        and shown once; your app uses it to verify purchases. Secret{" "}
+        <code>openiap-kit_sk_</code> keys are for your backend, MCP, and CI
+        only. See{" "}
+        <Link to="/docs/projects" className="text-primary underline">
+          Projects & API keys
+        </Link>
+        .
       </p>
       <Callout kind="warning" title="Publishable does not mean private">
         <p>
@@ -141,99 +114,59 @@ export default function QuickstartPage() {
       </Callout>
 
       <h2 className="mt-10 text-2xl font-semibold">
-        5. Verify your first receipt
+        5. Verify purchases in your app
       </h2>
       <p>
-        From your app, send the receipt to IAPKit. Here's the raw HTTP shape for
-        each supported store:
+        Create the app&apos;s purchase flow with <code>confirmWithIapkit</code>.
+        The flow listens for purchases, has IAPKit check each one with the
+        store, runs your <code>grant</code> (credit consumables there), and
+        finishes the purchase once access is granted.
       </p>
+      <CodeBlock title="Expo IAP (React Native IAP is identical)" language="ts">
+        {`import {confirmWithIapkit, createPurchaseFlow, useIAP} from 'expo-iap';
 
-      <CodeBlock title="Apple App Store" language="bash">
-        {`curl -X POST https://kit.openiap.dev/v1/purchase/verify \\
-  -H "Authorization: Bearer openiap-kit_pk_<your-publishable-key>" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "store": "apple",
-    "jws": "eyJhbGciOi...",
-    "expectedProductId": "premium_monthly"
-  }'`}
+// Once, outside any screen.
+const flow = createPurchaseFlow({
+  confirmWithBackend: confirmWithIapkit({
+    apiKey: 'openiap-kit_pk_<your-publishable-key>',
+    grant: async (purchase, {isConsumable}) => {
+      if (isConsumable) await wallet.creditOnce(purchase.id, purchase.productId);
+    },
+  }),
+  isConsumable: (productId) => CONSUMABLE_IDS.includes(productId),
+});
+
+// In a screen: purchases you request are confirmed through the flow.
+useIAP({purchaseFlow: flow});`}
       </CodeBlock>
-
-      <CodeBlock title="Google Play" language="bash">
-        {`curl -X POST https://kit.openiap.dev/v1/purchase/verify \\
-  -H "Authorization: Bearer openiap-kit_pk_<your-publishable-key>" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "store": "google",
-    "purchaseToken": "ljhjpg...",
-    "expectedProductId": "premium_monthly"
-  }'`}
-      </CodeBlock>
-
-      <CodeBlock title="Meta Horizon (Quest)" language="bash">
-        {`curl -X POST https://kit.openiap.dev/v1/purchase/verify \\
-  -H "Authorization: Bearer openiap-kit_pk_<your-publishable-key>" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "store": "horizon",
-    "userId": "1234567890",
-    "sku": "coin_pack_100"
-  }'`}
-      </CodeBlock>
-
-      <CodeBlock title="Amazon Appstore" language="bash">
-        {`curl -X POST https://kit.openiap.dev/v1/purchase/verify \\
-  -H "Authorization: Bearer openiap-kit_pk_<your-publishable-key>" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "store": "amazon",
-    "userId": "amzn1.account.ABC123",
-    "receiptId": "amzn1.receipt.ABC123456789",
-    "sandbox": true,
-    "expectedProductId": "premium_monthly"
-  }'`}
-      </CodeBlock>
-
       <p>
-        Sandbox requests are rejected until you explicitly enable Amazon App
-        Tester / RVS Cloud Sandbox in project settings. Leave{" "}
-        <code>sandbox</code> unset for production, which requires the stored
-        Amazon RVS shared secret.
-      </p>
-
-      <p>
-        React Native IAP and Expo IAP ship a <code>kitApi</code> helper so you
-        do not have to build these requests by hand — see the sample on{" "}
-        <Link to="/docs/products" className="text-primary underline">
-          Products
+        flutter_inapp_purchase, kmp-iap, OpenIap.Maui, and godot-iap offer the
+        same confirmer in their own idiom; see{" "}
+        <Link to="/docs/purchase-flow" className="text-primary underline">
+          Purchase flow
         </Link>{" "}
-        and the SDK matrix on{" "}
-        <Link to="/docs/compatibility" className="text-primary underline">
-          Compatibility
+        for each SDK, for apps that confirm through their own backend, and for
+        how to handle each outcome. To call the REST API without an SDK, each
+        store page shows its request:{" "}
+        <Link to="/docs/verification/apple" className="text-primary underline">
+          Apple
+        </Link>
+        ,{" "}
+        <Link to="/docs/verification/google" className="text-primary underline">
+          Google
+        </Link>
+        ,{" "}
+        <Link
+          to="/docs/verification/horizon"
+          className="text-primary underline"
+        >
+          Meta Horizon
+        </Link>
+        ,{" "}
+        <Link to="/docs/verification/amazon" className="text-primary underline">
+          Amazon
         </Link>
         .
-      </p>
-
-      <p>Expected response:</p>
-      <CodeBlock title="200 OK" language="json">
-        {`{
-  "store": "amazon",
-  "isValid": true,
-  "state": "ENTITLED",
-  "productId": "premium_monthly",
-  "environment": "Sandbox"
-}`}
-      </CodeBlock>
-
-      <p>
-        Never unlock or deliver from <code>isValid</code> alone. Also require an
-        exact match with the store-verified <code>productId</code>, then use the
-        platform and your app-owned product type to select the allowed{" "}
-        <code>state</code> and finish path. See the{" "}
-        <Link to="/docs/api" className="text-primary underline">
-          API reference
-        </Link>{" "}
-        for every state and error code.
       </p>
 
       <Callout kind="tip" title="Seeing the call in the dashboard">
@@ -242,6 +175,23 @@ export default function QuickstartPage() {
           verification shows up with the store, state, and verification latency.
         </p>
       </Callout>
+
+      <h2 className="mt-10 text-2xl font-semibold">
+        6. Turn on store notifications
+      </h2>
+      <p>
+        Renewals, refunds, and expirations reach IAPKit through each
+        store&apos;s server notifications, not through the app; for Apple and
+        Google they are the only source, and Amazon receipts are also re-checked
+        on a schedule. Point App Store Server Notifications V2, Google Play
+        real-time developer notifications, and Amazon RTN at your project&apos;s
+        lifecycle URL; subscription status, analytics, and webhooks to your
+        backend depend on it. See{" "}
+        <Link to="/docs/webhooks" className="text-primary underline">
+          Webhooks
+        </Link>{" "}
+        for each store&apos;s steps.
+      </p>
 
       <h2 className="mt-10 text-2xl font-semibold">
         Optional: return app-readable product rules

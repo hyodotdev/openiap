@@ -29,8 +29,8 @@ export function VerificationJobsReference() {
           request and key to recover it.
         </li>
         <li>
-          Read <code>GET /v1/purchase/verification-jobs/{"{jobId}"}</code>
-          with the same API credential and idempotency header. Follow
+          Read <code>GET /v1/purchase/verification-jobs/{"{jobId}"}</code> with
+          the same API credential and idempotency header. Follow
           <code> Retry-After</code>, starting at two seconds for pending work,
           and increase the delay on repeated errors.
         </li>

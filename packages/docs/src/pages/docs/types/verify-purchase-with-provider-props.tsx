@@ -188,6 +188,15 @@ function VerifyPurchaseWithProviderProps() {
                 purchase receipts.
               </td>
             </tr>
+            <tr>
+              <td>
+                <code>horizon</code>
+              </td>
+              <td>
+                <code>RequestVerifyPurchaseWithIapkitHorizonProps?</code>
+              </td>
+              <td>Meta Horizon (Quest) verification parameters.</td>
+            </tr>
           </tbody>
         </table>
 
@@ -342,6 +351,45 @@ function VerifyPurchaseWithProviderProps() {
               <td>
                 Use Amazon RVS Cloud Sandbox for Amazon App Tester receipts. The
                 IAPKit project opt-in is disabled by default.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink
+          id="request-verify-purchase-with-iapkit-horizon-props"
+          level="h4"
+        >
+          RequestVerifyPurchaseWithIapkitHorizonProps
+        </AnchorLink>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>sku</code>
+              </td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>Meta Horizon product or subscription SKU.</td>
+            </tr>
+            <tr>
+              <td>
+                <code>userId</code>
+              </td>
+              <td>
+                <code>string?</code>
+              </td>
+              <td>
+                Meta app-scoped user ID. The openiap-google Horizon module
+                resolves the signed-in user when you leave it out.
               </td>
             </tr>
           </tbody>

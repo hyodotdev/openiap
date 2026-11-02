@@ -315,10 +315,14 @@ export default function ApiReferencePage() {
       </h2>
       <p>
         Apple and Google lifecycle webhooks update IAPKit&apos;s canonical
-        subscription snapshot. IAPKit does not relay project events or keep a
-        mobile SSE, WebSocket, or long-poll connection open. Your authenticated
-        backend reads the tokenless v2 snapshot when the app needs an access
-        decision.
+        subscription snapshot. IAPKit signs lifecycle events and sends them only
+        to backends you register (see{" "}
+        <Link to="/docs/webhooks" className="text-primary underline">
+          Webhooks
+        </Link>
+        ); it keeps no SSE, WebSocket, or long-poll connection to apps. Your
+        authenticated backend reads the tokenless v2 snapshot when the app needs
+        an access decision.
       </p>
       <ol className="list-decimal space-y-1 pl-6">
         <li>Authenticate the app user on your backend.</li>

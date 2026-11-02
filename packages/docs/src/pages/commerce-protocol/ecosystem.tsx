@@ -13,11 +13,11 @@ function CommerceEcosystemGuide(): React.JSX.Element {
   return (
     <div className="doc-page commerce-ecosystem-guide">
       <SEO
-        title="Commerce Protocol: Build Your Part"
+        title="Commerce Protocol: Join the Ecosystem"
         path="/commerce-protocol/ecosystem"
         description="Build a paywall, commerce service, event consumer, or integrated platform around OpenIAP. Connect through defined boundaries and prove the role you supply."
       />
-      <h1>Build your part</h1>
+      <h1>Join the ecosystem</h1>
       <p>
         Build the part your business does well, and connect it to compatible
         services. The shared contract covers purchase verification, ownership,
@@ -115,31 +115,10 @@ function CommerceEcosystemGuide(): React.JSX.Element {
           The client-to-provider connection
         </AnchorLink>
         <p>
-          The current client helper <code>verifyPurchaseWithProvider</code>{' '}
-          supports IAPKit’s own API. Changing its provider name or base URL is
-          not a generic Commerce Protocol integration. For another provider, the
-          app’s authenticated backend calls the protocol’s REST or GraphQL
-          operations.
-        </p>
-        <p>
-          The example’s <code>client-bridge.mjs</code> runs on the app backend,
-          maps Apple, Google, Amazon, and Horizon purchase fields into the
-          installed protocol’s verification inputs and validates them. It also
-          rejects missing evidence and unsupported stores. Run{' '}
-          <code>npm run demo:bridge</code> in the example repository; it checks
-          the request boundary, not a live store purchase.
-        </p>
-        <p>
-          Apple sends its JWS; Google sends its purchase token. Amazon and
-          Horizon require additional store user identifiers and need an explicit
-          store adapter. Keep the application’s authenticated user identity
-          separate from those store identities.
-        </p>
-        <p>
-          Only the app backend selects <code>userId</code> and holds server-role
-          credentials. Verification is not an access grant: bind under the
-          ownership policy, read current entitlements, and fulfill durably
-          before finishing the store transaction.
+          The app sends store evidence to its backend, and the backend calls the
+          protocol. <Link to="/commerce-protocol/client">From your app</Link>{' '}
+          maps each store's purchase fields to evidence and explains what{' '}
+          <code>verifyPurchaseWithProvider</code> is.
         </p>
       </section>
       <section>

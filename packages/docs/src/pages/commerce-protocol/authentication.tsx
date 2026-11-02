@@ -1,5 +1,6 @@
 import CommerceImplementationComparison from '../../components/CommerceImplementationComparison';
 import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../components/AnchorLink';
 import DataTable from '../../components/DataTable';
 import SEO from '../../components/SEO';
@@ -93,9 +94,9 @@ function CommerceAuthentication() {
         </details>
         <p>
           One operation needs no credential at all:{' '}
-          <a href="/commerce-protocol/operations">
+          <Link to="/commerce-protocol/operations#providerCapabilities">
             <code>providerCapabilities</code>
-          </a>{' '}
+          </Link>{' '}
           is a public read with no customer purchase data (auth role{' '}
           <code>none</code>). Every other operation requires one of the two
           roles above.

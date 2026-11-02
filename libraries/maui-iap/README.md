@@ -144,9 +144,10 @@ bounded cursor pages (`HasMore` / `NextCursor`). `Limit` and `Cursor` are
 ignored by the legacy non-payload catalog path. If catalog churn returns
 `INVALID_CURSOR`, restart without `Cursor`.
 
-IAPKit accepts store-to-server lifecycle webhooks but does not expose an
-outbound event stream to MAUI or other mobile SDKs. Apps should use purchase
-verification, scoped entitlement reads, and bounded lifecycle refreshes.
+IAPKit sends signed lifecycle events only to backends you register, never to
+apps, so MAUI and the other mobile SDKs have no event stream. Apps use purchase
+verification, scoped entitlement reads, and bounded lifecycle refreshes; your
+backend can push to the app when it receives an event.
 
 ## Example app
 
