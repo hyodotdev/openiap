@@ -635,95 +635,97 @@ If user selects:
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Info Card
-            _buildInfoCard(isIOS),
-            const SizedBox(height: 16),
-
-            // Mode Selector (Android only)
-            if (isAndroid) ...[
-              _buildAndroidModeSelector(),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Info Card
+              _buildInfoCard(isIOS),
               const SizedBox(height: 16),
-            ],
 
-            // URL Input (iOS or Android non-user-choice)
-            if (isIOS ||
-                (isAndroid &&
-                    ((_androidBillingMode == 'billing-programs' &&
-                            _billingProgram !=
-                                BillingProgramAndroid.UserChoiceBilling) ||
-                        _androidBillingMode == 'external-payments')))
-              _buildUrlInput(),
+              // Mode Selector (Android only)
+              if (isAndroid) ...[
+                _buildAndroidModeSelector(),
+                const SizedBox(height: 16),
+              ],
 
-            // Connection Status
-            _buildStatusCard(),
-            const SizedBox(height: 16),
+              // URL Input (iOS or Android non-user-choice)
+              if (isIOS ||
+                  (isAndroid &&
+                      ((_androidBillingMode == 'billing-programs' &&
+                              _billingProgram !=
+                                  BillingProgramAndroid.UserChoiceBilling) ||
+                          _androidBillingMode == 'external-payments')))
+                _buildUrlInput(),
 
-            // Reconnecting Status
-            if (_isReconnecting)
-              Container(
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Colors.amber[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.amber),
-                ),
-                child: const Text(
-                  'Reconnecting with new billing mode...',
-                  style: TextStyle(color: Colors.amber),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-
-            // Products Section
-            _buildProductsSection(),
-
-            // Purchase Button
-            if (_selectedProduct != null) ...[
+              // Connection Status
+              _buildStatusCard(),
               const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed:
-                    _isProcessing || !_connected || _selectedProduct == null
-                        ? null
-                        : () => _handlePurchase(_selectedProduct!),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  disabledBackgroundColor: Colors.grey[300],
-                ),
-                child: Text(
-                  _isProcessing
-                      ? 'Processing...'
-                      : isIOS
-                          ? 'Buy (External URL)'
-                          : _billingProgram ==
-                                  BillingProgramAndroid.UserChoiceBilling
-                              ? 'Buy (User Choice)'
-                              : 'Buy (${_billingProgram.name})',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+
+              // Reconnecting Status
+              if (_isReconnecting)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.amber[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amber),
+                  ),
+                  child: const Text(
+                    'Reconnecting with new billing mode...',
+                    style: TextStyle(color: Colors.amber),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-              ),
-            ],
 
-            // Result Card
-            if (_purchaseResult.isNotEmpty) ...[
+              // Products Section
+              _buildProductsSection(),
+
+              // Purchase Button
+              if (_selectedProduct != null) ...[
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed:
+                      _isProcessing || !_connected || _selectedProduct == null
+                          ? null
+                          : () => _handlePurchase(_selectedProduct!),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    disabledBackgroundColor: Colors.grey[300],
+                  ),
+                  child: Text(
+                    _isProcessing
+                        ? 'Processing...'
+                        : isIOS
+                            ? 'Buy (External URL)'
+                            : _billingProgram ==
+                                    BillingProgramAndroid.UserChoiceBilling
+                                ? 'Buy (User Choice)'
+                                : 'Buy (${_billingProgram.name})',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+
+              // Result Card
+              if (_purchaseResult.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _buildResultCard(),
+              ],
+
+              // Instructions
               const SizedBox(height: 16),
-              _buildResultCard(),
+              _buildInstructions(),
             ],
-
-            // Instructions
-            const SizedBox(height: 16),
-            _buildInstructions(),
-          ],
+          ),
         ),
       ),
     );

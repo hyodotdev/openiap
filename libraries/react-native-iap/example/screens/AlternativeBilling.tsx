@@ -1131,7 +1131,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#E3F2FD',
     borderRadius: 8,
     padding: 15,
-    marginTop: 10,
   },
   instructionsTitle: {
     fontSize: 14,
@@ -1181,15 +1180,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666',
   },
-  modalSectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#999',
-    marginTop: 10,
-    marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
   modalCloseButton: {
     backgroundColor: '#f5f5f5',
     paddingVertical: 12,
@@ -1212,28 +1202,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#666',
     marginBottom: 8,
-  },
-  programOptions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  programOption: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: 'white',
-    alignItems: 'center',
-  },
-  programOptionSelected: {
-    borderColor: '#FF9800',
-    backgroundColor: '#FFF3E0',
-  },
-  programOptionText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#333',
   },
 });

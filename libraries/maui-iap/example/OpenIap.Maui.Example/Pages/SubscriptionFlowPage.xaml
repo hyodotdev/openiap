@@ -84,7 +84,7 @@
                         BackgroundColor="#1A1A1A"
                         TextColor="White"
                         CornerRadius="8"
-                        Padding="14,10"
+                        Padding="14,8"
                         HorizontalOptions="Start"
                         Clicked="OnManageClicked" />
 

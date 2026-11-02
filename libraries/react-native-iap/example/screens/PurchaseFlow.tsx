@@ -17,7 +17,6 @@ import {
   ErrorCode,
 } from 'react-native-iap';
 import Loading from '../src/components/Loading';
-import AppOwnershipCard from '../src/components/AppOwnershipCard';
 import {
   CONSUMABLE_PRODUCT_IDS,
   NON_CONSUMABLE_PRODUCT_IDS,
@@ -260,8 +259,6 @@ function PurchaseFlow({
             ) : null}
           </View>
         ) : null}
-
-        <AppOwnershipCard />
 
         <View style={styles.instructions}>
           <Text style={styles.instructionsTitle}>How to test:</Text>
@@ -807,20 +804,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  refreshButton: {
-    marginTop: 8,
-    paddingVertical: 10,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    alignItems: 'center',
-    backgroundColor: 'white',
-  },
-  refreshButtonText: {
-    color: '#007AFF',
-    fontWeight: '600',
-    fontSize: 14,
-  },
   instructions: {
     backgroundColor: '#fff3e0',
     borderRadius: 8,
@@ -855,19 +838,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 15,
   },
-  modalHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  modalCloseIconButton: {
-    padding: 4,
-  },
-  modalCloseIconText: {
-    fontSize: 22,
-    color: '#666',
-  },
   modalLabel: {
     fontSize: 12,
     color: '#666',
@@ -878,15 +848,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     marginBottom: 5,
-  },
-  purchaseDetailsContainer: {
-    gap: 10,
-  },
-  purchaseDetailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 12,
   },
   closeButton: {
     backgroundColor: '#007AFF',
@@ -945,10 +906,5 @@ const styles = StyleSheet.create({
     color: '#E53935',
     marginTop: 2,
     fontWeight: '600',
-  },
-  offerToken: {
-    fontSize: 10,
-    color: '#999',
-    fontFamily: 'monospace',
   },
 });

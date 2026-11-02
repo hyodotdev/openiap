@@ -6,7 +6,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 import '../app_purchase_flow.dart';
 import '../widgets/product_detail_modal.dart';
-import '../widgets/app_ownership_card.dart';
 import '../widgets/purchase_detail_view.dart';
 import '../constants.dart';
 
@@ -295,335 +294,336 @@ Message: ${error.message}
           style: TextStyle(color: Colors.black),
         ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Connection Status
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: _connected ? Colors.green[50] : Colors.red[50],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _connected ? Icons.check_circle : Icons.error,
-                        color: _connected ? Colors.green : Colors.red,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _connected ? 'Connected to Store' : 'Not Connected',
-                        style: TextStyle(
-                          color: _connected ? Colors.green : Colors.red,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Verification Method Selector
-                if (_connected) ...[
+      body: SafeArea(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  // Connection Status
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
+                      color: _connected ? Colors.green[50] : Colors.red[50],
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.shade200),
                     ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Purchase Verification:',
+                        Icon(
+                          _connected ? Icons.check_circle : Icons.error,
+                          color: _connected ? Colors.green : Colors.red,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _connected ? 'Connected to Store' : 'Not Connected',
                           style: TextStyle(
-                            fontSize: 14,
+                            color: _connected ? Colors.green : Colors.red,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        OutlinedButton(
-                          onPressed: _pickVerificationMethod,
-                          child:
-                              Text(_purchases.verificationMethod.value.label),
-                        ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 16),
-                ],
 
-                // Debug/Test Section
-                if (_connected) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Debug Tools',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed: _isProcessing
-                                  ? null
-                                  : () async {
-                                      if (!mounted) return;
-                                      setState(() {
-                                        _isProcessing = true;
-                                        _purchaseResult = null;
-                                      });
-                                      try {
-                                        debugPrint(
-                                          'Checking available purchases...',
-                                        );
-                                        final purchases =
-                                            await _iap.getAvailablePurchases();
-                                        if (!mounted) return;
-                                        setState(() {
-                                          _purchaseResult = '''
-📊 Available Purchases: ${purchases.length}
-${purchases.map((p) => '- ${p.productId}: credential ${p.purchaseToken?.isNotEmpty == true ? 'present' : 'missing'}').join('\n')}
-                                          '''
-                                              .trim();
-                                          _isProcessing = false;
-                                        });
-                                      } catch (e) {
-                                        if (!mounted) return;
-                                        setState(() {
-                                          _purchaseResult =
-                                              '❌ Error checking purchases: $e';
-                                          _isProcessing = false;
-                                        });
-                                      }
-                                    },
-                              icon: const Icon(Icons.history, size: 16),
-                              label: const Text('Check Purchases'),
-                            ),
-                            OutlinedButton.icon(
-                              onPressed: _isProcessing
-                                  ? null
-                                  : () async {
-                                      if (!mounted) return;
-                                      setState(() {
-                                        _isProcessing = true;
-                                      });
-                                      await _loadProducts();
-                                      if (!mounted) return;
-                                      setState(() {
-                                        _isProcessing = false;
-                                      });
-                                    },
-                              icon: const Icon(Icons.refresh, size: 16),
-                              label: const Text('Reload Products'),
-                            ),
-                            OutlinedButton.icon(
-                              onPressed: _isProcessing
-                                  ? null
-                                  : () async {
-                                      if (!mounted) return;
-                                      setState(() {
-                                        _isProcessing = true;
-                                        _purchaseResult = null;
-                                      });
-                                      try {
-                                        await _iap.endConnection();
-                                        await _awaitConnection(
-                                          _purchases.start(),
-                                        );
-                                        if (!mounted) return;
-                                        setState(() {
-                                          _purchaseResult =
-                                              '✅ Connection reinitialized';
-                                          _isProcessing = false;
-                                        });
-                                      } catch (e) {
-                                        if (!mounted) return;
-                                        setState(() {
-                                          _purchaseResult = '❌ Error: $e';
-                                          _isProcessing = false;
-                                        });
-                                      }
-                                    },
-                              icon: const Icon(
-                                Icons.power_settings_new,
-                                size: 16,
-                              ),
-                              label: const Text('Re-init Connection'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                // Purchase Result Card (like KMP-IAP)
-                if (_purchaseResult != null) ...[
-                  Card(
-                    color: _purchaseResult!.contains('✅')
-                        ? Colors.green.shade50
-                        : _purchaseResult!.contains('❌')
-                            ? Colors.red.shade50
-                            : _purchaseResult!.contains('⚠️')
-                                ? Colors.orange.shade50
-                                : Colors.white,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  // Verification Method Selector
+                  if (_connected) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Purchase Result',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.close, size: 20),
-                                onPressed: () {
-                                  setState(() {
-                                    _purchaseResult = null;
-                                    _currentPurchase = null;
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: SelectableText(
-                              _purchaseResult!,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontFamily: 'monospace',
-                              ),
+                          const Text(
+                            'Purchase Verification:',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                          if (_currentPurchase != null) ...[
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                onPressed: () =>
-                                    _showPurchaseDetails(_currentPurchase!),
-                                icon: const Icon(Icons.receipt_long, size: 18),
-                                label: const Text('View Purchase Data'),
-                              ),
-                            ),
-                          ],
+                          OutlinedButton(
+                            onPressed: _pickVerificationMethod,
+                            child:
+                                Text(_purchases.verificationMethod.value.label),
+                          ),
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
+                    const SizedBox(height: 16),
+                  ],
 
-                // Products
-                if (_products.isEmpty)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Text('No products available'),
-                    ),
-                  )
-                else
-                  ..._products.map(
-                    (product) => GestureDetector(
-                      onTap: () => ProductDetailModal.show(
-                        context: context,
-                        item: product,
-                        product: _originalProducts[product.id],
+                  // Debug/Test Section
+                  if (_connected) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
                       ),
-                      child: Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.grey.shade200),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Debug Tools',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
                             children: [
-                              Text(
-                                product.title,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                              OutlinedButton.icon(
+                                onPressed: _isProcessing
+                                    ? null
+                                    : () async {
+                                        if (!mounted) return;
+                                        setState(() {
+                                          _isProcessing = true;
+                                          _purchaseResult = null;
+                                        });
+                                        try {
+                                          debugPrint(
+                                            'Checking available purchases...',
+                                          );
+                                          final purchases = await _iap
+                                              .getAvailablePurchases();
+                                          if (!mounted) return;
+                                          setState(() {
+                                            _purchaseResult = '''
+📊 Available Purchases: ${purchases.length}
+${purchases.map((p) => '- ${p.productId}: credential ${p.purchaseToken?.isNotEmpty == true ? 'present' : 'missing'}').join('\n')}
+                                          '''
+                                                .trim();
+                                            _isProcessing = false;
+                                          });
+                                        } catch (e) {
+                                          if (!mounted) return;
+                                          setState(() {
+                                            _purchaseResult =
+                                                '❌ Error checking purchases: $e';
+                                            _isProcessing = false;
+                                          });
+                                        }
+                                      },
+                                icon: const Icon(Icons.history, size: 16),
+                                label: const Text('Check Purchases'),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: _isProcessing
+                                    ? null
+                                    : () async {
+                                        if (!mounted) return;
+                                        setState(() {
+                                          _isProcessing = true;
+                                        });
+                                        await _loadProducts();
+                                        if (!mounted) return;
+                                        setState(() {
+                                          _isProcessing = false;
+                                        });
+                                      },
+                                icon: const Icon(Icons.refresh, size: 16),
+                                label: const Text('Reload Products'),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: _isProcessing
+                                    ? null
+                                    : () async {
+                                        if (!mounted) return;
+                                        setState(() {
+                                          _isProcessing = true;
+                                          _purchaseResult = null;
+                                        });
+                                        try {
+                                          await _iap.endConnection();
+                                          await _awaitConnection(
+                                            _purchases.start(),
+                                          );
+                                          if (!mounted) return;
+                                          setState(() {
+                                            _purchaseResult =
+                                                '✅ Connection reinitialized';
+                                            _isProcessing = false;
+                                          });
+                                        } catch (e) {
+                                          if (!mounted) return;
+                                          setState(() {
+                                            _purchaseResult = '❌ Error: $e';
+                                            _isProcessing = false;
+                                          });
+                                        }
+                                      },
+                                icon: const Icon(
+                                  Icons.power_settings_new,
+                                  size: 16,
                                 ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                product.description,
-                                style: TextStyle(color: Colors.grey[600]),
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    product.displayPrice,
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF007AFF),
-                                    ),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: _isProcessing || !_connected
-                                        ? null
-                                        : () => _handlePurchase(product.id),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blue,
-                                      foregroundColor: Colors.white,
-                                    ),
-                                    child: Text(
-                                      _isProcessing ? 'Processing...' : 'Buy',
-                                    ),
-                                  ),
-                                ],
+                                label: const Text('Re-init Connection'),
                               ),
                             ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Purchase Result Card (like KMP-IAP)
+                  if (_purchaseResult != null) ...[
+                    Card(
+                      color: _purchaseResult!.contains('✅')
+                          ? Colors.green.shade50
+                          : _purchaseResult!.contains('❌')
+                              ? Colors.red.shade50
+                              : _purchaseResult!.contains('⚠️')
+                                  ? Colors.orange.shade50
+                                  : Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Purchase Result',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close, size: 20),
+                                  onPressed: () {
+                                    setState(() {
+                                      _purchaseResult = null;
+                                      _currentPurchase = null;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: SelectableText(
+                                _purchaseResult!,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontFamily: 'monospace',
+                                ),
+                              ),
+                            ),
+                            if (_currentPurchase != null) ...[
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: () =>
+                                      _showPurchaseDetails(_currentPurchase!),
+                                  icon:
+                                      const Icon(Icons.receipt_long, size: 18),
+                                  label: const Text('View Purchase Data'),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Products
+                  if (_products.isEmpty)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Text('No products available'),
+                      ),
+                    )
+                  else
+                    ..._products.map(
+                      (product) => GestureDetector(
+                        onTap: () => ProductDetailModal.show(
+                          context: context,
+                          item: product,
+                          product: _originalProducts[product.id],
+                        ),
+                        child: Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.grey.shade200),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  product.title,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  product.description,
+                                  style: TextStyle(color: Colors.grey[600]),
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      product.displayPrice,
+                                      style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF007AFF),
+                                      ),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: _isProcessing || !_connected
+                                          ? null
+                                          : () => _handlePurchase(product.id),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.blue,
+                                        foregroundColor: Colors.white,
+                                      ),
+                                      child: Text(
+                                        _isProcessing ? 'Processing...' : 'Buy',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                const SizedBox(height: 16),
-                AppOwnershipCard(iap: _iap, connected: _connected),
-              ],
-            ),
+                ],
+              ),
+      ),
     );
   }
 }

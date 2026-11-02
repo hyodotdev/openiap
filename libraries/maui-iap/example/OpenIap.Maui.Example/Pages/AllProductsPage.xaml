@@ -41,7 +41,7 @@
                 <VerticalStackLayout x:Name="ProductsContainer" Spacing="12" />
 
                 <!-- Subscriptions -->
-                <VerticalStackLayout Spacing="6" Margin="0,12,0,0">
+                <VerticalStackLayout Spacing="6" Margin="0,8,0,0">
                     <Label Text="Subscriptions" FontSize="18" FontAttributes="Bold" TextColor="#1A1A1A" />
                     <Label x:Name="SubsCountLabel" FontSize="13" TextColor="#5F6470" />
                 </VerticalStackLayout>

@@ -300,106 +300,109 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Builder Pattern Demo'),
-        backgroundColor: Colors.deepPurple,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Card(
-              color:
-                  _isProcessing ? Colors.orange.shade50 : Colors.blue.shade50,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Text(
-                      'Status',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _status,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    if (_isProcessing) ...[
-                      const SizedBox(height: 8),
-                      const LinearProgressIndicator(),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Card(
+                color:
+                    _isProcessing ? Colors.orange.shade50 : Colors.blue.shade50,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Status',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _status,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      if (_isProcessing) ...[
+                        const SizedBox(height: 8),
+                        const LinearProgressIndicator(),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _isProcessing || !_connected ? null : _simplePurchase,
-              icon: const Icon(Icons.shopping_bag),
-              label: const Text('Simple Purchase (In‑app)'),
-            ),
-            const SizedBox(height: 8),
-            ElevatedButton.icon(
-              onPressed:
-                  _isProcessing || !_connected ? null : _subscriptionPurchase,
-              icon: const Icon(Icons.subscriptions),
-              label: const Text('Subscription (Monthly)'),
-            ),
-            const SizedBox(height: 8),
-            ElevatedButton.icon(
-              onPressed: _isProcessing ||
-                      !_connected ||
-                      kIsWeb ||
-                      defaultTargetPlatform != TargetPlatform.android
-                  ? null
-                  : _subscriptionUpgrade,
-              icon: const Icon(Icons.upgrade),
-              label: const Text('Upgrade Subscription (Android)'),
-            ),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 8),
-            Text(
-              'Alternative Billing (Builder Pattern)',
-              style: Theme.of(context).textTheme.titleMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            ElevatedButton.icon(
-              onPressed: _isProcessing || !_connected
-                  ? null
-                  : _alternativeBillingPurchase,
-              icon: const Icon(Icons.payment),
-              label: const Text('Purchase with Alternative Billing'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                foregroundColor: Colors.white,
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed:
+                    _isProcessing || !_connected ? null : _simplePurchase,
+                icon: const Icon(Icons.shopping_bag),
+                label: const Text('Simple Purchase (In‑app)'),
               ),
-            ),
-            const SizedBox(height: 8),
-            ElevatedButton.icon(
-              onPressed: _isProcessing || !_connected
-                  ? null
-                  : _alternativeBillingSubscription,
-              icon: const Icon(Icons.card_membership),
-              label: const Text('Subscription with Alternative Billing'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                foregroundColor: Colors.white,
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed:
+                    _isProcessing || !_connected ? null : _subscriptionPurchase,
+                icon: const Icon(Icons.subscriptions),
+                label: const Text('Subscription (Monthly)'),
               ),
-            ),
-            const SizedBox(height: 24),
-            Card(
-              color: Colors.grey.shade100,
-              child: const Padding(
-                padding: EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Code Example'),
-                    SizedBox(height: 8),
-                    SelectableText(
-                      """// Regular purchase:
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed: _isProcessing ||
+                        !_connected ||
+                        kIsWeb ||
+                        defaultTargetPlatform != TargetPlatform.android
+                    ? null
+                    : _subscriptionUpgrade,
+                icon: const Icon(Icons.upgrade),
+                label: const Text('Upgrade Subscription (Android)'),
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+              Text(
+                'Alternative Billing (Builder Pattern)',
+                style: Theme.of(context).textTheme.titleMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed: _isProcessing || !_connected
+                    ? null
+                    : _alternativeBillingPurchase,
+                icon: const Icon(Icons.payment),
+                label: const Text('Purchase with Alternative Billing'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed: _isProcessing || !_connected
+                    ? null
+                    : _alternativeBillingSubscription,
+                icon: const Icon(Icons.card_membership),
+                label: const Text('Subscription with Alternative Billing'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Card(
+                color: Colors.grey.shade100,
+                child: const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Code Example'),
+                      SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SelectableText(
+                          """// Regular purchase:
 await iap.requestPurchaseWithBuilder(
   build: (RequestPurchaseBuilder r) => r
     ..type = ProductType.InApp
@@ -441,13 +444,16 @@ final b = RequestSubscriptionBuilder()
     )
     ..purchaseToken = '<existing_token>');
 await iap.requestPurchase(b.build());""",
-                      style: TextStyle(fontFamily: 'monospace', fontSize: 12),
-                    ),
-                  ],
+                          style:
+                              TextStyle(fontFamily: 'monospace', fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

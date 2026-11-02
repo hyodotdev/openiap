@@ -1929,11 +1929,6 @@ const styles = StyleSheet.create({
     color: '#5f6470',
     marginTop: 6,
   },
-  sectionDivider: {
-    height: 1,
-    backgroundColor: '#e1e7ef',
-    marginVertical: 20,
-  },
   subscriptionCard: {
     backgroundColor: 'white',
     borderRadius: 16,
@@ -2159,14 +2154,6 @@ const styles = StyleSheet.create({
   modalContent: {
     padding: 18,
   },
-  modalLabel: {
-    fontSize: 12,
-    color: '#5f6470',
-  },
-  modalValue: {
-    fontSize: 14,
-    color: '#1a1f36',
-  },
   jsonContainer: {
     maxHeight: 320,
     borderRadius: 12,
@@ -2199,16 +2186,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '700',
     fontSize: 14,
-  },
-  purchaseDetailsContainer: {
-    gap: 12,
-  },
-  purchaseDetailRow: {
-    flexDirection: 'column',
-    gap: 6,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e1e7ef',
   },
   infoSection: {
     margin: 24,
@@ -2252,10 +2229,6 @@ const styles = StyleSheet.create({
     color: '#3b82f6',
     fontWeight: '600',
   },
-  cancelledText: {
-    color: '#f59e0b',
-    fontWeight: '600',
-  },
   billingRetryText: {
     color: '#8b5cf6',
     fontWeight: '600',
@@ -2263,9 +2236,6 @@ const styles = StyleSheet.create({
   planChangeSection: {
     marginTop: 16,
     marginBottom: 8,
-  },
-  planChangeOptions: {
-    gap: 8,
   },
   changePlanButton: {
     paddingVertical: 14,
@@ -2290,26 +2260,6 @@ const styles = StyleSheet.create({
   },
   downgradeButton: {
     backgroundColor: '#FF9800',
-  },
-  switchButton: {
-    backgroundColor: '#2196F3',
-  },
-  selectButton: {
-    backgroundColor: '#9C27B0',
-  },
-  warningText: {
-    fontSize: 13,
-    color: '#FF9800',
-    textAlign: 'center',
-    marginBottom: 12,
-    lineHeight: 18,
-  },
-  questionText: {
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 12,
-    color: '#1a1f36',
   },
   // Upgrade Detection Styles
   upgradeDetectionSection: {
@@ -2497,12 +2447,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#1a1f36',
     marginTop: 2,
-  },
-  offerValueDiscount: {
-    fontSize: 13,
-    color: '#E53935',
-    marginTop: 2,
-    fontWeight: '700',
   },
   offerTokenText: {
     fontSize: 10,

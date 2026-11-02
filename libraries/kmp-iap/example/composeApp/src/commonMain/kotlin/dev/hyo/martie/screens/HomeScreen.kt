@@ -14,7 +14,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -25,11 +24,9 @@ import androidx.navigation.NavController
 import io.github.hyochan.kmpiap.kmpIapInstance
 import dev.hyo.martie.navigation.Screen
 import dev.hyo.martie.theme.AppColors
-import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(navController: NavController) {
-    val scope = rememberCoroutineScope()
     var storefrontInfo by remember { mutableStateOf<String?>(null) }
     
     LaunchedEffect(Unit) {
@@ -45,6 +42,7 @@ fun HomeScreen(navController: NavController) {
         modifier = Modifier
             .fillMaxSize()
             .background(AppColors.Background)
+            .safeDrawingPadding()
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -142,6 +140,13 @@ fun HomeScreen(navController: NavController) {
             title = "Alternative Billing",
             subtitle = "Test alternative billing methods (iOS & Android)",
             onClick = { navController.navigate(Screen.AlternativeBilling.route) }
+        )
+
+        NavigationCard(
+            icon = Icons.Default.Verified,
+            title = "App Ownership",
+            subtitle = "Check the app came from its store",
+            onClick = { navController.navigate(Screen.AppOwnership.route) }
         )
 
         Spacer(modifier = Modifier.height(32.dp))

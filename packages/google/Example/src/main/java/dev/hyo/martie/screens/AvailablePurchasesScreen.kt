@@ -50,6 +50,24 @@ fun AvailablePurchasesScreen(
     var selectedPurchase by remember { mutableStateOf<PurchaseAndroid?>(null) }
     var isInitializing by remember { mutableStateOf(true) }
     var initError by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    fun restorePurchases() {
+        scope.launch {
+            try {
+                val restored = iapStore.getAvailablePurchases(null)
+                iapStore.postStatusMessage(
+                    message = "Restored ${restored.size} purchases",
+                    status = PurchaseResultStatus.Success
+                )
+            } catch (e: Exception) {
+                iapStore.postStatusMessage(
+                    message = e.message ?: "Restore failed",
+                    status = PurchaseResultStatus.Error
+                )
+            }
+        }
+    }
 
     // Initialize and connect on first composition (spec-aligned names)
     LaunchedEffect(Unit) {
@@ -77,24 +95,8 @@ fun AvailablePurchasesScreen(
                     }
                 },
                 actions = {
-                    val scope = rememberCoroutineScope()
                     IconButton(
-                        onClick = {
-                            scope.launch {
-                                try {
-                                    val restored = iapStore.getAvailablePurchases(null)
-                                    iapStore.postStatusMessage(
-                                        message = "Restored ${restored.size} purchases",
-                                        status = PurchaseResultStatus.Success
-                                    )
-                                } catch (e: Exception) {
-                                    iapStore.postStatusMessage(
-                                        message = e.message ?: "Restore failed",
-                                        status = PurchaseResultStatus.Error
-                                    )
-                                }
-                            }
-                        },
+                        onClick = { restorePurchases() },
                         enabled = !isInitializing && !status.isLoading
                     ) {
                         Icon(Icons.Default.Restore, contentDescription = "Restore")
@@ -106,7 +108,6 @@ fun AvailablePurchasesScreen(
             )
         }
     ) { paddingValues ->
-        val scope = rememberCoroutineScope()
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -238,7 +239,8 @@ fun AvailablePurchasesScreen(
                 items(subscriptions) { purchase ->
                     ActiveSubscriptionListItem(
                         purchase = purchase,
-                        onClick = { selectedPurchase = purchase }
+                        onClick = { selectedPurchase = purchase },
+                        modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
             }
@@ -344,7 +346,18 @@ fun AvailablePurchasesScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(
-                        onClick = { scope.launch { iapStore.getAvailablePurchases(null) } },
+                        onClick = {
+                            scope.launch {
+                                try {
+                                    iapStore.getAvailablePurchases(null)
+                                } catch (e: Exception) {
+                                    iapStore.postStatusMessage(
+                                        message = e.message ?: "Refresh failed",
+                                        status = PurchaseResultStatus.Error
+                                    )
+                                }
+                            }
+                        },
                         modifier = Modifier.weight(1f),
                         enabled = !isInitializing && !status.isLoading
                     ) {
@@ -354,22 +367,7 @@ fun AvailablePurchasesScreen(
                     }
                     
                     Button(
-                        onClick = {
-                            scope.launch {
-                                try {
-                                    val restored = iapStore.getAvailablePurchases(null)
-                                    iapStore.postStatusMessage(
-                                        message = "Restored ${restored.size} purchases",
-                                        status = PurchaseResultStatus.Success
-                                    )
-                                } catch (e: Exception) {
-                                    iapStore.postStatusMessage(
-                                        message = e.message ?: "Restore failed",
-                                        status = PurchaseResultStatus.Error
-                                    )
-                                }
-                            }
-                        },
+                        onClick = { restorePurchases() },
                         modifier = Modifier.weight(1f),
                         enabled = !isInitializing && !status.isLoading
                     ) {

@@ -146,5 +146,3 @@ struct OfferCodeScreen: View {
         }
     }
 }
-
-// InstructionCard, TestingNotesCard, InstructionRow, and TestingNote moved to Screens/uis/

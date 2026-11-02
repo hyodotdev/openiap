@@ -3,8 +3,6 @@ package dev.hyo.martie.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -14,7 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -119,79 +116,69 @@ fun HomeScreen(navController: NavController) {
                 }
             }
             
-            // Feature Grid
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(720.dp)
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                userScrollEnabled = false
+            // Two cards per row; a lazy grid inside this scrolling column needs a fixed height.
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                item {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     FeatureCard(
                         title = "Purchase\nFlow",
                         subtitle = "Buy consumables & non-consumables",
                         icon = Icons.Default.ShoppingCart,
                         color = AppColors.primary,
-                        onClick = {
-                            navController.navigate("purchase_flow")
-                        }
+                        onClick = { navController.navigate("purchase_flow") },
+                        modifier = Modifier.weight(1f)
                     )
-                }
-
-                item {
                     FeatureCard(
                         title = "Subscription\nFlow",
                         subtitle = "Manage subscriptions",
                         icon = Icons.Default.Autorenew,
                         color = AppColors.secondary,
-                        onClick = {
-                            navController.navigate("subscription_flow")
-                        }
+                        onClick = { navController.navigate("subscription_flow") },
+                        modifier = Modifier.weight(1f)
                     )
                 }
 
-                item {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     FeatureCard(
                         title = "Available\nPurchases",
                         subtitle = "View active & restore",
                         icon = Icons.Default.Restore,
                         color = AppColors.success,
-                        onClick = {
-                            navController.navigate("available_purchases")
-                        }
+                        onClick = { navController.navigate("available_purchases") },
+                        modifier = Modifier.weight(1f)
                     )
-                }
-
-                item {
                     FeatureCard(
                         title = "Offer\nCode",
                         subtitle = "Redeem promo codes",
                         icon = Icons.Default.LocalOffer,
                         color = AppColors.warning,
-                        onClick = {
-                            navController.navigate("offer_code")
-                        }
+                        onClick = { navController.navigate("offer_code") },
+                        modifier = Modifier.weight(1f)
                     )
                 }
 
-                item {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     FeatureCard(
                         title = "Alternative\nBilling",
                         subtitle = "Test alternative payment",
                         icon = Icons.Default.Payment,
                         color = AppColors.info,
-                        onClick = {
-                            navController.navigate("alternative_billing")
-                        }
+                        onClick = { navController.navigate("alternative_billing") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FeatureCard(
+                        title = "App\nOwnership",
+                        subtitle = "Check the app came from its store",
+                        icon = Icons.Default.Verified,
+                        color = AppColors.secondary,
+                        onClick = { navController.navigate("app_ownership") },
+                        modifier = Modifier.weight(1f)
                     )
                 }
-
             }
-            
+
             // Testing Notes Card
             Card(
                 modifier = Modifier

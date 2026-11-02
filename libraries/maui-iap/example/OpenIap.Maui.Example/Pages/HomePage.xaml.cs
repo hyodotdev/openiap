@@ -26,4 +26,6 @@ public partial class HomePage : ContentPage
     private async void OnAlternativeBillingClicked(object sender, EventArgs e)
         => await Shell.Current.GoToAsync("alternative-billing");
 
+    private async void OnAppOwnershipClicked(object sender, EventArgs e)
+        => await Shell.Current.GoToAsync("app-ownership");
 }

@@ -37,8 +37,8 @@ struct ActivePurchaseCard: View {
                         .foregroundColor(AppColors.primary)
                 }
                 
-                if let expiryTime = purchase.expirationDateIOS != nil ? Date(timeIntervalSince1970: purchase.expirationDateIOS! / 1000) : nil {
-                    Text("Expires: \(expiryTime, style: .relative)")
+                if let expiration = purchase.expirationDateIOS {
+                    Text("Expires: \(Date(timeIntervalSince1970: expiration / 1000), style: .relative)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -52,13 +52,10 @@ struct ActivePurchaseCard: View {
                     .foregroundColor(AppColors.primary)
             }
             .buttonStyle(.plain)
-            
-
         }
         .padding()
         .background(AppColors.cardBackground)
         .cornerRadius(12)
         .shadow(radius: 2)
-        .padding(.horizontal)
     }
 }

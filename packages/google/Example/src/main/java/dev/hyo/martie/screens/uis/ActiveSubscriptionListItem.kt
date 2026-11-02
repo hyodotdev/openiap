@@ -29,7 +29,8 @@ import dev.hyo.openiap.PurchaseAndroid
 fun ActiveSubscriptionListItem(
     purchase: PurchaseAndroid,
     statusText: String? = null,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val prefs = remember(context) {
@@ -40,9 +41,8 @@ fun ActiveSubscriptionListItem(
     }
 
     OutlinedCard(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.outlinedCardColors(

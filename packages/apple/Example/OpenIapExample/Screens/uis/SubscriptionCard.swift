@@ -64,7 +64,6 @@ struct SubscriptionCard: View {
                     
                     Text(productId)
                         .font(.caption)
-                        .font(.system(.body, design: .monospaced))
                         .foregroundColor(.secondary)
                 }
                 
@@ -117,30 +116,26 @@ struct SubscriptionCard: View {
                                 }
                             }
                             
-                            if let purchaseDate = Date(timeIntervalSince1970: purchase.transactionDate / 1000) as Date? {
-                                HStack {
-                                    Label("Started", systemImage: "clock")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    Text(DateFormatter.localizedString(from: purchaseDate, dateStyle: .medium, timeStyle: .short))
-                                        .font(.caption)
-                                        .fontWeight(.medium)
-                                        .foregroundColor(.secondary)
-                                }
+                            HStack {
+                                Label("Started", systemImage: "clock")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Text(DateFormatter.localizedString(from: Date(timeIntervalSince1970: purchase.transactionDate / 1000), dateStyle: .medium, timeStyle: .short))
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.secondary)
                             }
-                            
-                            if let isPaused = purchase.isAutoRenewing as Bool? {
-                                HStack {
-                                    Label("Auto-Renew", systemImage: isPaused ? "arrow.triangle.2.circlepath" : "pause")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    Text(isPaused ? "Enabled" : "Disabled")
-                                        .font(.caption)
-                                        .fontWeight(.medium)
-                                        .foregroundColor(isPaused ? AppColors.success : AppColors.warning)
-                                }
+
+                            HStack {
+                                Label("Auto-Renew", systemImage: purchase.isAutoRenewing ? "arrow.triangle.2.circlepath" : "pause")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Text(purchase.isAutoRenewing ? "Enabled" : "Disabled")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(purchase.isAutoRenewing ? AppColors.success : AppColors.warning)
                             }
                         }
                         .padding(12)

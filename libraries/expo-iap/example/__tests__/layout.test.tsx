@@ -44,6 +44,7 @@ describe('RootLayout', () => {
       'available-purchases',
       'offer-code',
       'alternative-billing',
+      'app-ownership',
     ].forEach((route) => {
       expect(getByTestId(route)).toBeDefined();
     });

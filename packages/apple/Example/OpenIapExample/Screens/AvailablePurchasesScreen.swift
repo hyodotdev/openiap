@@ -8,7 +8,8 @@ struct AvailablePurchasesScreen: View {
     @State private var errorMessage = ""
     @State private var selectedPurchase: OpenIapPurchase?
     @State private var isInitialLoading = true
-    
+    @State private var restoreStatus: String?
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -16,13 +17,16 @@ struct AvailablePurchasesScreen: View {
                     LoadingCard(text: "Loading purchases...")
                 } else {
                     availablePurchasesSection
+                    actionsSection
                     purchaseHistorySection
-                    
+
                     // Debug section for Sandbox testing
                     #if DEBUG
                     sandboxToolsSection
                     #endif
                 }
+
+                Spacer(minLength: 20)
             }
             .padding(.vertical)
         }
@@ -126,9 +130,27 @@ struct AvailablePurchasesScreen: View {
         }
     }
     
-    // MARK: - Purchase History Section (All Past Purchases)
-    private var purchaseHistorySection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+    // MARK: - Actions
+    private var actionsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button {
+                Task { await restorePurchases() }
+            } label: {
+                HStack {
+                    Image(systemName: "arrow.clockwise.circle")
+                    Text("Restore Purchases")
+                        .fontWeight(.semibold)
+                    Spacer()
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(AppColors.primary)
+                .foregroundColor(.white)
+                .cornerRadius(10)
+            }
+            .buttonStyle(.plain)
+            .disabled(iapStore.status.loadings.restorePurchases)
+
             Button {
                 Task { await showManageSubscriptions() }
             } label: {
@@ -147,8 +169,19 @@ struct AvailablePurchasesScreen: View {
                 .cornerRadius(10)
             }
             .buttonStyle(.plain)
-            .padding(.horizontal)
 
+            if let restoreStatus {
+                Text(restoreStatus)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    // MARK: - Purchase History Section (All Past Purchases)
+    private var purchaseHistorySection: some View {
+        VStack(alignment: .leading, spacing: 16) {
             SectionHeaderView(
                 title: "Purchase History",
                 subtitle: "All your past purchases",
@@ -247,10 +280,8 @@ struct AvailablePurchasesScreen: View {
                     .cornerRadius(8)
                 }
                 .padding(.horizontal)
-                
-
             }
-            
+
             // Testing Tips
             VStack(alignment: .leading, spacing: 8) {
                 Label("Testing Tips", systemImage: "lightbulb.fill")
@@ -280,11 +311,10 @@ struct AvailablePurchasesScreen: View {
                 .foregroundColor(.secondary)
             }
             .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(AppColors.warning.opacity(0.05))
             .cornerRadius(8)
             .padding(.horizontal)
-            
-            Spacer(minLength: 20)
         }
     }
     #endif
@@ -356,6 +386,19 @@ struct AvailablePurchasesScreen: View {
         }
     }
 
+    @MainActor
+    private func restorePurchases() async {
+        restoreStatus = "Restoring purchases..."
+        do {
+            try await iapStore.restorePurchases()
+            // restorePurchases keeps only active items; reload the full history.
+            try await iapStore.getAvailablePurchases()
+            restoreStatus = "Purchases restored."
+        } catch {
+            restoreStatus = "Restore failed: \(error.localizedDescription)"
+        }
+    }
+
     private func showManageSubscriptions() async {
         do {
             _ = try await iapStore.showManageSubscriptionsIOS()
@@ -381,20 +424,4 @@ struct AvailablePurchasesScreen: View {
         await loadPurchases()
         print("🧪 [AvailablePurchases] Subscription sync requested (reloaded purchases)")
     }
-    
-
 }
-
-// ActivePurchaseCard moved to Screens/uis/ActivePurchaseCard.swift
-
-// PurchaseHistoryCard moved to Screens/uis/PurchaseHistoryCard.swift
-
-// PurchaseCard moved to Screens/uis/PurchaseCard.swift
-
-// SectionHeaderView moved to Screens/uis/SectionHeaderView.swift
-
-// ProductListCard moved to Screens/uis/ProductListCard.swift
-
-// ProductGridCard moved to Screens/uis/ProductGridCard.swift
-
-// EmptyStateCard and LoadingCard moved to Screens/uis/

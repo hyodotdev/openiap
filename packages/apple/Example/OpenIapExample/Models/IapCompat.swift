@@ -8,20 +8,6 @@ typealias OpenIapProduct = ProductIOS
 typealias OpenIapPurchase = PurchaseIOS
 @available(iOS 15.0, *)
 typealias OpenIapError = PurchaseError
-@available(iOS 15.0, *)
-typealias OpenIapActiveSubscription = ActiveSubscription
-
-@available(iOS 15.0, *)
-extension PurchaseState {
-    var isAcknowledged: Bool {
-        switch self {
-        case .purchased:
-            return true
-        default:
-            return false
-        }
-    }
-}
 
 @available(iOS 15.0, *)
 extension PurchaseIOS {
@@ -50,21 +36,6 @@ extension PurchaseIOS {
         // but StoreKit always adds the subscription group identifier for them.
         if let groupId = subscriptionGroupIdIOS, groupId.isEmpty == false { return true }
         return false
-    }
-}
-
-@available(iOS 15.0, *)
-extension ProductIOS {
-    var productIdentifier: String { id }
-}
-
-@available(iOS 15.0, *)
-extension OpenIAP.Product {
-    func asIOS() -> OpenIapProduct? {
-        if case let .productIos(value) = self {
-            return value
-        }
-        return nil
     }
 }
 

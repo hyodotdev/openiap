@@ -50,6 +50,9 @@ describe('Home Screen', () => {
     expect(
       getByText('External purchase links & alternative billing'),
     ).toBeTruthy();
+
+    expect(getByText('App Ownership')).toBeTruthy();
+    expect(getByText('Check the app came from its store')).toBeTruthy();
   });
 
   it('navigates to AllProducts when All Products menu item is pressed', async () => {
@@ -131,6 +134,21 @@ describe('Home Screen', () => {
     }
 
     expect(mockNavigate).toHaveBeenCalledWith('AlternativeBilling');
+  });
+
+  it('lists App Ownership right after Alternative Billing and opens it', async () => {
+    const {getAllByText, getByText} = await render(
+      <Home navigation={{navigate: mockNavigate}} />,
+    );
+
+    const titles = getAllByText(/^(Alternative Billing|App Ownership)$/).map(
+      (title) => title.props.children,
+    );
+    expect(titles).toEqual(['Alternative Billing', 'App Ownership']);
+
+    await fireEvent.press(getByText('App Ownership'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('AppOwnership');
   });
 
   it('renders footer text', async () => {

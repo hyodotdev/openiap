@@ -1,7 +1,6 @@
 package dev.hyo.martie.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -30,7 +29,6 @@ import dev.hyo.openiap.ProductSubscriptionAndroid
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.store.PurchaseResultStatus
-import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.ProductRequest
 import dev.hyo.openiap.RequestPurchaseProps
 import dev.hyo.openiap.RequestPurchaseAndroidProps
@@ -704,7 +702,7 @@ fun SubscriptionFlowScreen(
                                         // Upgrade/Downgrade button
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Column(modifier = Modifier.weight(1f)) {
@@ -816,242 +814,6 @@ fun SubscriptionFlowScreen(
                                                 } else {
                                                     Text(if (isMonthlyPlan) "Upgrade" else "Switch")
                                                 }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Play Store: Show upgrade/downgrade option for dev.hyo.martie.premium subscription offers
-                            if (!isHorizon && subscriptionProductId == PREMIUM_SUBSCRIPTION_PRODUCT_ID) {
-                                // Find the subscription product with offers
-                                val premiumSub = androidSubscriptions.find { it.id == PREMIUM_SUBSCRIPTION_PRODUCT_ID }
-
-                                if (premiumSub != null) {
-                                    // Get available offers
-                                    val monthlyOffer = premiumSub.subscriptionOffers.find {
-                                        it.basePlanIdAndroid == IapConstants.PREMIUM_MONTHLY_BASE_PLAN
-                                    }
-                                    val yearlyOffer = premiumSub.subscriptionOffers.find {
-                                        it.basePlanIdAndroid == IapConstants.PREMIUM_YEARLY_BASE_PLAN
-                                    }
-
-                                    // Log purchase details for debugging
-                                    println("SubscriptionFlow: Current purchase details - productId: ${subscription.productId}, token: present")
-                                    println("SubscriptionFlow: Purchase state: ${subscription.purchaseState}")
-
-                                    // Resolve the active offer for this subscription
-                                    val premiumOfferInfo = resolvePremiumOfferInfo(prefs, subscription)
-                                    val currentOfferBasePlanId = premiumOfferInfo?.basePlanId
-                                        ?: IapConstants.PREMIUM_MONTHLY_BASE_PLAN
-
-                                    val currentOfferDisplay = premiumOfferInfo?.displayName ?: when (currentOfferBasePlanId) {
-                                        IapConstants.PREMIUM_MONTHLY_BASE_PLAN -> "Monthly Plan (premium)"
-                                        IapConstants.PREMIUM_YEARLY_BASE_PLAN -> "Yearly Plan (premium-year)"
-                                        else -> "Base Plan: $currentOfferBasePlanId"
-                                    }
-
-                                    println(
-                                        "SubscriptionFlow: Current offer for ${subscription.productId}: $currentOfferBasePlanId ($currentOfferDisplay)"
-                                    )
-
-                                    val currentOffer = when (currentOfferBasePlanId) {
-                                        IapConstants.PREMIUM_MONTHLY_BASE_PLAN -> monthlyOffer
-                                        IapConstants.PREMIUM_YEARLY_BASE_PLAN -> yearlyOffer
-                                        else -> listOfNotNull(monthlyOffer, yearlyOffer)
-                                            .firstOrNull { it.basePlanIdAndroid == currentOfferBasePlanId }
-                                    }
-
-                                    val targetOffer = when (currentOfferBasePlanId) {
-                                        IapConstants.PREMIUM_MONTHLY_BASE_PLAN -> yearlyOffer
-                                        IapConstants.PREMIUM_YEARLY_BASE_PLAN -> monthlyOffer
-                                        else -> when (currentOffer) {
-                                            monthlyOffer -> yearlyOffer
-                                            yearlyOffer -> monthlyOffer
-                                            else -> null
-                                        }
-                                    }
-
-                                    val isMonthly = currentOfferBasePlanId == IapConstants.PREMIUM_MONTHLY_BASE_PLAN
-
-                                    // Display current offer information
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    HorizontalDivider(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        thickness = 1.dp,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
-
-                                    // Show current active offer
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(20.dp),
-                                            tint = AppColors.success
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Column {
-                                            Text(
-                                                text = "Current Plan: $currentOfferDisplay",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                            currentOffer?.let { offer ->
-                                                val price = offer.pricingPhasesAndroid?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: ""
-                                                Text(
-                                                    text = "Base Plan ID: ${offer.basePlanIdAndroid} • $price",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = AppColors.textSecondary
-                                                )
-                                            }
-                                        }
-
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = AppColors.primary.copy(alpha = 0.12f),
-                                            modifier = Modifier.padding(start = 12.dp)
-                                        ) {
-                                            Text(
-                                                text = currentOfferBasePlanId,
-                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = AppColors.primary
-                                            )
-                                        }
-                                    }
-
-                                    // Only show upgrade button if both offers exist
-                                    if (monthlyOffer != null && yearlyOffer != null && currentOffer != null && targetOffer != null) {
-                                        Spacer(modifier = Modifier.height(12.dp))
-
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = if (isMonthly) "Upgrade to Yearly Plan" else "Switch to Monthly Plan",
-                                                    style = MaterialTheme.typography.titleSmall,
-                                                    fontWeight = FontWeight.SemiBold
-                                                )
-                                                val targetPrice = targetOffer.pricingPhasesAndroid?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: ""
-                                                Text(
-                                                    text = "${targetOffer.basePlanIdAndroid} - $targetPrice",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = AppColors.textSecondary
-                                                )
-                                                if (isMonthly) {
-                                                    Text(
-                                                        text = "Save with annual billing",
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = AppColors.success
-                                                    )
-                                                }
-                                            }
-
-                                            Button(
-                                                onClick = {
-                                                    scope.launch {
-                                                        try {
-                                                            val purchaseToken = subscription.purchaseToken
-                                                            if (purchaseToken == null) {
-                                                                iapStore.postStatusMessage(
-                                                                    message = "Cannot change plan: missing purchase token",
-                                                                    status = PurchaseResultStatus.Error,
-                                                                    productId = PREMIUM_SUBSCRIPTION_PRODUCT_ID
-                                                                )
-                                                                return@launch
-                                                            }
-
-                                                            println("SubscriptionFlow: Changing from ${currentOffer.basePlanIdAndroid} to ${targetOffer.basePlanIdAndroid} with token: present")
-
-                                                            // Request subscription offer change (same product, different offer)
-                                                            val offerInputs = listOf(
-                                                                AndroidSubscriptionOfferInput(
-                                                                    sku = PREMIUM_SUBSCRIPTION_PRODUCT_ID,
-                                                                    offerToken = targetOffer.offerTokenAndroid
-                                                                        ?: return@launch
-                                                                )
-                                                            )
-                                                            val props = RequestPurchaseProps(
-                                                                request = RequestPurchaseProps.Request.Subscription(
-                                                                    RequestSubscriptionPropsByPlatforms(
-                                                                        google = RequestSubscriptionAndroidProps(
-                                                                            isOfferPersonalized = null,
-                                                                            obfuscatedAccountId = null,
-                                                                            obfuscatedProfileId = null,
-                                                                            purchaseToken = purchaseToken,
-                                                                            subscriptionProductReplacementParams =
-                                                                                SubscriptionProductReplacementParamsAndroid(
-                                                                                    oldProductId = PREMIUM_SUBSCRIPTION_PRODUCT_ID,
-                                                                                    replacementMode = SubscriptionReplacementModeAndroid.ChargeFullPrice
-                                                                                ),
-                                                                            skus = listOf(PREMIUM_SUBSCRIPTION_PRODUCT_ID),
-                                                                            subscriptionOffers = offerInputs
-                                                                        )
-                                                                    )
-                                                                ),
-                                                                type = ProductQueryType.Subs
-                                                            )
-
-                                                            val result = iapStore.requestPurchase(props)
-                                                            val purchases = when (result) {
-                                                                is dev.hyo.openiap.RequestPurchaseResultPurchases -> result.value.orEmpty()
-                                                                is dev.hyo.openiap.RequestPurchaseResultPurchase -> result.value?.let { listOf(it) }.orEmpty()
-                                                                else -> emptyList()
-                                                            }
-
-                                                            if (purchases.isNotEmpty()) {
-                                                                // Save the new offer to SharedPreferences
-                                                                val newOfferBasePlanId = targetOffer.basePlanIdAndroid
-                                                                    ?: IapConstants.PREMIUM_MONTHLY_BASE_PLAN
-                                                                prefs.savePremiumOffer(PREMIUM_SUBSCRIPTION_PRODUCT_ID, newOfferBasePlanId)
-                                                                println("SubscriptionFlow: Subscription change successful, saved offer: $newOfferBasePlanId")
-
-                                                                // Don't post success message here - let LaunchedEffect handle verification
-                                                                // The store's currentPurchase update triggers verification
-                                                            }
-                                                        } catch (e: Exception) {
-                                                            println("SubscriptionFlow: Error changing subscription: ${e.message}")
-
-                                                            // If upgrade fails, show more helpful message
-                                                            val errorMessage = when {
-                                                                e.message?.contains("replacement mode") == true ->
-                                                                    "Subscriptions may not be in the same group. Contact support."
-                                                                e.message?.contains("DEVELOPER_ERROR") == true ->
-                                                                    "Invalid subscription configuration. Check Play Console settings."
-                                                                else ->
-                                                                    "Subscription change failed: ${e.message}"
-                                                            }
-
-                                                            iapStore.postStatusMessage(
-                                                                message = errorMessage,
-                                                                status = PurchaseResultStatus.Error,
-                                                                productId = PREMIUM_SUBSCRIPTION_PRODUCT_ID
-                                                            )
-                                                        }
-                                                    }
-                                                },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (isMonthly) AppColors.success else AppColors.secondary
-                                        ),
-                                        enabled = !status.isPurchasing(PREMIUM_SUBSCRIPTION_PRODUCT_ID)
-                                    ) {
-                                        if (status.isPurchasing(PREMIUM_SUBSCRIPTION_PRODUCT_ID)) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(16.dp),
-                                                color = MaterialTheme.colorScheme.onPrimary,
-                                                strokeWidth = 2.dp
-                                            )
-                                        } else {
-                                            Text(if (isMonthly) "Upgrade" else "Switch")
-                                        }
                                             }
                                         }
                                     }

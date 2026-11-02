@@ -57,6 +57,12 @@ const Home: React.FC<Props> = ({navigation}) => {
       route: 'AlternativeBilling' as keyof RootStackParamList,
       enabled: true,
     },
+    {
+      title: 'App Ownership',
+      subtitle: 'Check the app came from its store',
+      route: 'AppOwnership' as keyof RootStackParamList,
+      enabled: true,
+    },
   ];
 
   return (

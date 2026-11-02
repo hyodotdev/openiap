@@ -18,7 +18,6 @@ signal purchase_failed(product_id: String, error: String)
 signal verification_changed(label: String)
 signal verification_result(message: String, ok: bool)
 signal subscription_entitlements_changed
-signal purchases_restored
 signal products_loaded
 signal connection_changed(connected: bool)
 signal loading_changed(loading: bool)
@@ -392,15 +391,15 @@ func purchase_with_discount(product_id: String) -> void:
 		_purchase(product_id)
 
 
-func restore_purchases() -> void:
-	## Restore previous purchases
+## Returns false when the store or the flow's recovery pass failed.
+func restore_purchases() -> bool:
 	print("[IAPManager] Restoring purchases...")
 	var result: Types.VoidResult = await GodotIapPlugin.restore_purchases()
-
-	if result.success:
-		await flow.recover_purchases(true)
-		await refresh_subscriptions()
-		purchases_restored.emit()
+	if not result.success:
+		return false
+	var recovered = await flow.recover_purchases(true)
+	await refresh_subscriptions()
+	return not recovered is PurchaseFlow.Failure
 
 
 ## Premium follows the store's active subscriptions.

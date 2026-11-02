@@ -1003,12 +1003,6 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 5,
   },
-  purchaseWarning: {
-    fontSize: 12,
-    color: '#FF9800',
-    marginTop: 10,
-    lineHeight: 18,
-  },
   emptyState: {
     backgroundColor: 'white',
     borderRadius: 8,
@@ -1023,7 +1017,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#E3F2FD',
     borderRadius: 8,
     padding: 15,
-    marginTop: 10,
   },
   instructionsTitle: {
     fontSize: 14,

@@ -18,13 +18,7 @@ import androidx.navigation.NavController
 import dev.hyo.martie.IapConstants
 import dev.hyo.martie.models.AppColors
 import dev.hyo.martie.screens.uis.*
-import dev.hyo.openiap.AppOwnershipVerificationResult
-import dev.hyo.openiap.ErrorCode
-import dev.hyo.openiap.OpenIapError
-import dev.hyo.openiap.PlayIntegrityParamsAndroid
-import dev.hyo.openiap.VerifyAppOwnershipProps
 import dev.hyo.openiap.store.PurchaseResultStatus
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
@@ -35,7 +29,6 @@ import dev.hyo.openiap.ProductRequest
 import dev.hyo.openiap.ProductType
 import dev.hyo.openiap.Purchase
 import dev.hyo.openiap.PurchaseAndroid
-import dev.hyo.openiap.PurchaseInput
 import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.RequestPurchaseProps
 import dev.hyo.openiap.RequestPurchaseAndroidProps
@@ -98,11 +91,6 @@ fun PurchaseFlowScreen(
     var isVerifying by remember { mutableStateOf(false) }
     var verificationResultMessage by remember { mutableStateOf<String?>(null) }
     var verificationDropdownExpanded by remember { mutableStateOf(false) }
-    var ownershipProjectNumber by remember { mutableStateOf("") }
-    var ownershipRequestHash by remember { mutableStateOf("") }
-    var ownershipResult by remember { mutableStateOf<AppOwnershipVerificationResult?>(null) }
-    var ownershipError by remember { mutableStateOf<String?>(null) }
-    var isCheckingOwnership by remember { mutableStateOf(false) }
     // Track which purchase IDs have been processed (to allow re-purchase after failure)
     val handledPurchaseIds = remember { mutableSetOf<String>() }
 
@@ -144,38 +132,6 @@ fun PurchaseFlowScreen(
             }
         }
     }
-
-    fun checkAppOwnership() {
-        val projectNumber = ownershipProjectNumber.trim()
-        val requestHash = ownershipRequestHash.trim()
-        ownershipResult = null
-        ownershipError = null
-        if (projectNumber.isEmpty() != requestHash.isEmpty()) {
-            ownershipError = "${ErrorCode.DeveloperError.rawValue}: Provide both Google inputs or leave both empty."
-            return
-        }
-        val options = VerifyAppOwnershipProps(
-            google = if (projectNumber.isNotEmpty()) {
-                PlayIntegrityParamsAndroid(cloudProjectNumber = projectNumber, requestHash = requestHash)
-            } else null
-        )
-        isCheckingOwnership = true
-        uiScope.launch {
-            try {
-                ownershipResult = iapStore.verifyAppOwnership(options)
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                val code = (error as? OpenIapError)?.code ?: ErrorCode.ServiceError.rawValue
-                ownershipError = "$code: ${error.message ?: "App ownership verification failed"}"
-            } finally {
-                isCheckingOwnership = false
-            }
-        }
-    }
-
-    // Initialize and connect on first composition (spec-aligned names)
-
 
     Scaffold(
         topBar = {
@@ -415,53 +371,6 @@ fun PurchaseFlowScreen(
                                     modifier = Modifier.padding(8.dp)
                                 )
                             }
-                        }
-                    }
-                }
-            }
-
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = AppColors.cardBackground)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text("App ownership", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "Google Play requires a linked Cloud project number and a request hash from your backend. Unknown is inconclusive; send evidence to your backend for verification.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = AppColors.textSecondary
-                        )
-                        OutlinedTextField(
-                            value = ownershipProjectNumber,
-                            onValueChange = { ownershipProjectNumber = it },
-                            label = { Text("Google Cloud project number") },
-                            singleLine = true,
-                            enabled = !isCheckingOwnership,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = ownershipRequestHash,
-                            onValueChange = { ownershipRequestHash = it },
-                            label = { Text("Request hash") },
-                            singleLine = true,
-                            enabled = !isCheckingOwnership,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Button(onClick = { checkAppOwnership() }, enabled = !isCheckingOwnership) {
-                            Text(if (isCheckingOwnership) "Checking…" else "Check app ownership")
-                        }
-                        ownershipError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                        ownershipResult?.let { result ->
-                            Text("Status: ${result.status.rawValue}")
-                            Text("Store ID: ${result.storeId}")
-                            Text("Reason: ${result.reason?.rawValue ?: "none"}")
-                            Text("Signed AppTransaction length: ${result.signedAppTransactionIOS?.length ?: 0}")
-                            Text("Integrity token length: ${result.integrityTokenAndroid?.length ?: 0}")
                         }
                     }
                 }

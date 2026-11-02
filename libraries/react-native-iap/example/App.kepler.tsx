@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import AllProducts from './screens/AllProducts';
 import AlternativeBilling from './screens/AlternativeBilling';
+import AppOwnership from './screens/AppOwnership';
 import AvailablePurchases from './screens/AvailablePurchases';
 import Home from './screens/Home';
 import OfferCode from './screens/OfferCode';
@@ -39,7 +40,8 @@ type RouteName =
   | 'SubscriptionFlow'
   | 'AvailablePurchases'
   | 'OfferCode'
-  | 'AlternativeBilling';
+  | 'AlternativeBilling'
+  | 'AppOwnership';
 
 const ROUTE_TITLES: Record<RouteName, string> = {
   Home: 'React Native IAP',
@@ -49,6 +51,7 @@ const ROUTE_TITLES: Record<RouteName, string> = {
   AvailablePurchases: 'Available Purchases',
   OfferCode: 'Offer Code',
   AlternativeBilling: 'Alternative Billing',
+  AppOwnership: 'App Ownership',
 };
 
 const SCREENS: Record<Exclude<RouteName, 'Home'>, React.ComponentType> = {
@@ -58,6 +61,7 @@ const SCREENS: Record<Exclude<RouteName, 'Home'>, React.ComponentType> = {
   AvailablePurchases,
   OfferCode,
   AlternativeBilling,
+  AppOwnership,
 };
 
 export default function App(): React.JSX.Element {

@@ -38,6 +38,8 @@ fun AvailablePurchasesScreen(navController: NavController) {
     var isLoading by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isRestoring by remember { mutableStateOf(false) }
+    var restoreStatus by remember { mutableStateOf<String?>(null) }
 
     suspend fun loadPurchases() {
         availablePurchases = kmpIapInstance.getAvailablePurchases()
@@ -48,6 +50,25 @@ fun AvailablePurchasesScreen(navController: NavController) {
             availablePurchases
         }
         errorMessage = if (activePurchases.isEmpty()) "No active purchases found" else null
+    }
+
+    // Restore re-confirms every owned purchase through the app's purchase flow.
+    fun restorePurchases() {
+        scope.launch {
+            isRestoring = true
+            restoreStatus = "Restoring purchases..."
+            try {
+                ExamplePurchaseFlow.flow.recoverPurchases(includeFinished = true)
+                loadPurchases()
+                restoreStatus = "Purchases restored."
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                restoreStatus = "Restore failed: ${e.message}"
+            } finally {
+                isRestoring = false
+            }
+        }
     }
 
     // Initialize connection and load available purchases
@@ -339,6 +360,30 @@ fun AvailablePurchasesScreen(navController: NavController) {
                         Spacer(modifier = Modifier.height(12.dp))
                     }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Button(
+                onClick = { restorePurchases() },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = connected && !isRestoring,
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
+            ) {
+                if (isRestoring) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = Color.White
+                    )
+                } else {
+                    Text("Restore Purchases")
+                }
+            }
+
+            restoreStatus?.let {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = it, fontSize = 14.sp, color = AppColors.Secondary)
             }
 
             Text(

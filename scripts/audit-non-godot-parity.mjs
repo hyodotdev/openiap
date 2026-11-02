@@ -132,6 +132,7 @@ const featureSpecs = {
   "available-purchases": {},
   "offer-code": {},
   "alternative-billing": {},
+  "app-ownership": {},
 };
 
 const operationParityRegistry = {
@@ -550,6 +551,33 @@ function expectNotIncludes(relativePath, needles, label = relativePath) {
     if (text.includes(needle)) {
       fail(`${label} must not include ${JSON.stringify(needle)}`);
     }
+  }
+}
+
+// App Ownership is its own screen, listed right after Alternative Billing,
+// and Purchase Flow no longer carries it.
+function expectAppOwnershipScreen({
+  home,
+  previous,
+  item,
+  screen,
+  purchaseFlow,
+  api,
+}) {
+  expectIncludes(screen, [api], `${screen} app ownership`);
+  expectNotIncludes(purchaseFlow, [api], `${purchaseFlow} app ownership`);
+  expectFile(home);
+  if (!exists(home)) return;
+  const text = read(home);
+  const at = text.indexOf(item);
+  if (
+    at === -1 ||
+    at < text.indexOf(previous) ||
+    text.indexOf(previous) === -1
+  ) {
+    fail(
+      `${home} must list ${JSON.stringify(item)} after ${JSON.stringify(previous)}`,
+    );
   }
 }
 
@@ -1991,6 +2019,14 @@ function checkExpoRouterExample(base, importSource) {
     requiredIds,
     `${base} product constants`,
   );
+  expectAppOwnershipScreen({
+    home: rel(base, "app/index.tsx"),
+    previous: "/alternative-billing",
+    item: "/app-ownership",
+    screen: rel(base, "app/app-ownership.tsx"),
+    purchaseFlow: rel(base, "app/purchase-flow.tsx"),
+    api: "verifyAppOwnership",
+  });
 }
 
 function checkReactNativeClassic() {
@@ -2002,6 +2038,7 @@ function checkReactNativeClassic() {
     AvailablePurchases: "AvailablePurchases",
     OfferCode: "OfferCode",
     AlternativeBilling: "AlternativeBilling",
+    AppOwnership: "AppOwnership",
   };
   for (const [route, file] of Object.entries(screens)) {
     expectFile(rel(base, "screens", `${file}.tsx`));
@@ -2020,9 +2057,18 @@ function checkReactNativeClassic() {
       "Available Purchases",
       "Offer Code",
       "Alternative Billing",
+      "App Ownership",
     ],
     `${base} home`,
   );
+  expectAppOwnershipScreen({
+    home: rel(base, "screens/Home.tsx"),
+    previous: "Alternative Billing",
+    item: "App Ownership",
+    screen: rel(base, "screens/AppOwnership.tsx"),
+    purchaseFlow: rel(base, "screens/PurchaseFlow.tsx"),
+    api: "verifyAppOwnership",
+  });
   expectIncludes(
     rel(base, "screens/AlternativeBilling.tsx"),
     [
@@ -2064,6 +2110,7 @@ function checkFlutter() {
     "available_purchases_screen.dart",
     "offer_code_screen.dart",
     "alternative_billing_screen.dart",
+    "app_ownership_screen.dart",
   ];
   for (const file of screenFiles) {
     expectFile(rel(base, "lib/src/screens", file));
@@ -2082,9 +2129,18 @@ function checkFlutter() {
       "Available Purchases",
       "Redeem Offer Code",
       "Alternative Billing",
+      "App Ownership",
     ],
     `${base} home`,
   );
+  expectAppOwnershipScreen({
+    home: rel(base, "lib/src/screens/home_screen.dart"),
+    previous: "Alternative Billing",
+    item: "App Ownership",
+    screen: rel(base, "lib/src/screens/app_ownership_screen.dart"),
+    purchaseFlow: rel(base, "lib/src/screens/purchase_flow_screen.dart"),
+    api: "verifyAppOwnership",
+  });
   expectIncludes(
     rel(base, "lib/src/screens/alternative_billing_screen.dart"),
     [
@@ -2511,6 +2567,7 @@ function checkKmp() {
     "AvailablePurchasesScreen.kt",
     "OfferCodeScreen.kt",
     "AlternativeBillingScreen.kt",
+    "AppOwnershipScreen.kt",
     "ExampleProductIds.kt",
   ]) {
     expectFile(rel(base, "commonMain/kotlin/dev/hyo/martie/screens", file));
@@ -2529,10 +2586,25 @@ function checkKmp() {
       "Available Purchases",
       "Offer Code",
       "Alternative Billing",
+      "App Ownership",
       "getStorefront()",
     ],
     "KMP home",
   );
+  expectAppOwnershipScreen({
+    home: rel(base, "commonMain/kotlin/dev/hyo/martie/screens/HomeScreen.kt"),
+    previous: "Alternative Billing",
+    item: "App Ownership",
+    screen: rel(
+      base,
+      "commonMain/kotlin/dev/hyo/martie/screens/AppOwnershipScreen.kt",
+    ),
+    purchaseFlow: rel(
+      base,
+      "commonMain/kotlin/dev/hyo/martie/screens/PurchaseFlowScreen.kt",
+    ),
+    api: "verifyAppOwnership",
+  });
   expectIncludes(
     rel(
       base,
@@ -2726,6 +2798,7 @@ function checkApple() {
     "AvailablePurchasesScreen.swift",
     "OfferCodeScreen.swift",
     "AlternativeBillingScreen.swift",
+    "AppOwnershipScreen.swift",
   ]) {
     expectFile(rel(base, "Example/OpenIapExample/Screens", file));
   }
@@ -2738,9 +2811,24 @@ function checkApple() {
       "AvailablePurchasesScreen",
       "OfferCodeScreen",
       "AlternativeBillingScreen",
+      "AppOwnershipScreen",
     ],
     "Apple home",
   );
+  expectAppOwnershipScreen({
+    home: rel(base, "Example/OpenIapExample/Screens/HomeScreen.swift"),
+    previous: "AlternativeBillingScreen",
+    item: "AppOwnershipScreen",
+    screen: rel(
+      base,
+      "Example/OpenIapExample/Screens/AppOwnershipScreen.swift",
+    ),
+    purchaseFlow: rel(
+      base,
+      "Example/OpenIapExample/Screens/PurchaseFlowScreen.swift",
+    ),
+    api: "verifyAppOwnership",
+  });
   expectIncludes(
     rel(base, "Sources/OpenIapProtocol.swift"),
     [
@@ -2802,6 +2890,7 @@ function checkGoogle() {
     "AvailablePurchasesScreen.kt",
     "OfferCodeScreen.kt",
     "AlternativeBillingScreen.kt",
+    "AppOwnershipScreen.kt",
   ]) {
     expectFile(rel(base, "Example/src/main/java/dev/hyo/martie/screens", file));
   }
@@ -2814,9 +2903,27 @@ function checkGoogle() {
       "available_purchases",
       "offer_code",
       "alternative_billing",
+      "app_ownership",
     ],
     "Google home",
   );
+  expectAppOwnershipScreen({
+    home: rel(
+      base,
+      "Example/src/main/java/dev/hyo/martie/screens/HomeScreen.kt",
+    ),
+    previous: "alternative_billing",
+    item: "app_ownership",
+    screen: rel(
+      base,
+      "Example/src/main/java/dev/hyo/martie/screens/AppOwnershipScreen.kt",
+    ),
+    purchaseFlow: rel(
+      base,
+      "Example/src/main/java/dev/hyo/martie/screens/PurchaseFlowScreen.kt",
+    ),
+    api: "verifyAppOwnership",
+  });
   for (const flavor of ["play", "horizon", "amazon"]) {
     expectIncludes(
       rel(base, `openiap/src/${flavor}/java/dev/hyo/openiap/OpenIapModule.kt`),
@@ -2856,6 +2963,7 @@ function checkMaui() {
     "AvailablePurchasesPage",
     "OfferCodePage",
     "AlternativeBillingPage",
+    "AppOwnershipPage",
   ]) {
     expectFile(rel(base, "Pages", `${page}.xaml`));
     expectFile(rel(base, "Pages", `${page}.xaml.cs`));
@@ -2869,9 +2977,18 @@ function checkMaui() {
       "Available Purchases",
       "Offer Code",
       "Alternative Billing",
+      "App Ownership",
     ],
     "MAUI home",
   );
+  expectAppOwnershipScreen({
+    home: rel(base, "Pages/HomePage.xaml"),
+    previous: "Alternative Billing",
+    item: "App Ownership",
+    screen: rel(base, "Pages/AppOwnershipPage.xaml.cs"),
+    purchaseFlow: rel(base, "Pages/PurchaseFlowPage.xaml.cs"),
+    api: "VerifyAppOwnershipAsync",
+  });
   expectIncludes(rel(base, "AppShell.xaml.cs"), routes, "MAUI routes");
   expectIncludes(
     rel(base, "Pages/AlternativeBillingPage.xaml.cs"),
