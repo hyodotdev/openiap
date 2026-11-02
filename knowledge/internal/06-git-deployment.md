@@ -545,8 +545,8 @@ the previous version while the submitted edit is pending. The submission does
 not hold the next package in the train. List a pending edit's ID as remaining
 work in the Final Report. The next Godot release checks it with
 `curl -s https://godotengine.org/asset-library/api/asset/edit/{id} | jq -r '.status + " " + (.reason // "")'`:
-it carries a still-pending edit forward again, and fixes a rejection's reason
-before submitting again.
+it carries a still-pending edit forward, and fixes a rejection's reason before
+resubmitting.
 
 ### Deploying Documentation
 

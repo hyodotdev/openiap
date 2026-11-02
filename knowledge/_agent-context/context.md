@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-11-02T02:27:46.574Z
+> Last updated: 2026-11-02T02:45:02.710Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -3068,8 +3068,8 @@ the previous version while the submitted edit is pending. The submission does
 not hold the next package in the train. List a pending edit's ID as remaining
 work in the Final Report. The next Godot release checks it with
 `curl -s https://godotengine.org/asset-library/api/asset/edit/{id} | jq -r '.status + " " + (.reason // "")'`:
-it carries a still-pending edit forward again, and fixes a rejection's reason
-before submitting again.
+it carries a still-pending edit forward, and fixes a rejection's reason before
+resubmitting.
 
 ### Deploying Documentation
 
