@@ -11,6 +11,9 @@
 	</dict>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<!-- The example theme is light only, so the status bar keeps dark text. -->
+	<key>UIUserInterfaceStyle</key>
+	<string>Light</string>
 	<key>CFBundleDisplayName</key>
 	<string>kmp-iap-example</string>
 	<key>IAPKIT_API_KEY</key>
