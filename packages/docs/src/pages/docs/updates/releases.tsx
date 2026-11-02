@@ -59,6 +59,23 @@ const PURCHASE_ENVIRONMENT_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'godot-iap', version: '4.3.0', tag: 'godot-iap-4.3.0' },
 ];
 
+const RESTORE_NEWEST_TRANSACTION_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: 'react-native-iap',
+    version: '17.3.2',
+    tag: 'react-native-iap-17.3.2',
+  },
+  { name: 'expo-iap', version: '6.4.2', tag: 'expo-iap-6.4.2' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '11.3.2',
+    tag: 'flutter-iap-11.3.2',
+  },
+  { name: 'godot-iap', version: '4.3.2', tag: 'godot-iap-4.3.2' },
+  { name: 'kmp-iap', version: '4.2.2', tag: 'kmp-iap-4.2.2' },
+  { name: 'OpenIap.Maui', version: '3.2.2', tag: 'maui-iap-3.2.2' },
+];
+
 const PURCHASE_RECOVERY_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'openiap-apple', version: '4.0.7', tag: '4.0.7' },
   { name: 'openiap-google', version: '4.0.8', tag: 'google-4.0.8' },
@@ -720,6 +737,67 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'ios-restore-newest-transaction-2026-11-02',
+      date: new Date('2026-11-02'),
+      element: (
+        <div
+          key="ios-restore-newest-transaction-2026-11-02"
+          style={noteCardStyle}
+        >
+          {RESTORE_NEWEST_TRANSACTION_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="ios-restore-newest-transaction-2026-11-02" level="h4">
+            November 2, 2026 - One check per purchase on an iOS restore
+          </AnchorLink>
+          <p>
+            A restore on iOS now confirms each purchase once, through its newest
+            transaction, so a long-running subscription costs one verification
+            instead of one per renewal.
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul>
+            <li>
+              <strong>
+                react-native-iap 17.3.2, expo-iap 6.4.2, flutter_inapp_purchase
+                11.3.2, godot-iap 4.3.2, kmp-iap 4.2.2 and OpenIap.Maui 3.2.2
+              </strong>
+              : a purchase flow restore (<code>recoverPurchases</code> with{' '}
+              <code>includeFinished</code>) skips older transactions of the same
+              Apple purchase, such as past subscription renewals. A subscription
+              in billing grace is still confirmed. Unfinished transactions still
+              come from{' '}
+              <Link to="/docs/apis/ios/get-pending-transactions-ios">
+                <code>getPendingTransactionsIOS</code>
+              </Link>
+              , and when that read fails, recovery still confirms every
+              transaction listed.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <div
+            style={{
+              border: '1px solid var(--border-color)',
+              borderRadius: '0.5rem',
+              padding: '1rem',
+            }}
+          >
+            <ul style={{ marginBottom: 0, paddingLeft: '1.25rem' }}>
+              {RESTORE_NEWEST_TRANSACTION_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  >
+                    {getReleaseLabel(release)}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
     {
       id: 'ios-receipt-recovery-2026-10-31',
       date: new Date('2026-10-31'),

@@ -310,7 +310,11 @@ func _recover(include_finished: bool) -> Variant:
 		available = owned
 	if get_pending_ios == null and available.any(func(purchase): return purchase.get("store") == "apple"):
 		return Failure.new("recover_purchases needs get_pending_transactions_ios on iOS to find unfinished transactions")
-	var unfinished := available.filter(func(purchase: Dictionary) -> bool:
+	# A restore confirms each Apple purchase once, through its newest
+	# transaction: older renewals add nothing, and the unfinished ones come
+	# from the pending list. Without that list, every transaction stands in.
+	var owned := _newest_apple_transactions(available) if include_finished and pending_ios != null else available
+	var unfinished := owned.filter(func(purchase: Dictionary) -> bool:
 		return include_finished or (
 			pending_ios_failed if purchase.get("store") == "apple" else _is_unfinished(purchase)
 		))
@@ -327,6 +331,21 @@ func _recover(include_finished: bool) -> Variant:
 			continue
 		outcomes.append({"purchase": purchase, "status": await _deliver(purchase, false, include_finished)})
 	return outcomes
+
+
+# Keeps each Apple purchase's newest transaction, in list order.
+static func _newest_apple_transactions(purchases: Array) -> Array:
+	var newest := {}
+	for purchase in purchases:
+		var key = purchase.get("originalTransactionIdentifierIOS")
+		if purchase.get("store") != "apple" or not key:
+			continue
+		var kept = newest.get(key)
+		if kept == null or float(purchase.get("transactionDate", 0)) > float(kept.get("transactionDate", 0)):
+			newest[key] = purchase
+	return purchases.filter(func(purchase) -> bool:
+		var key = purchase.get("originalTransactionIdentifierIOS")
+		return purchase.get("store") != "apple" or not key or newest.get(key) == purchase)
 
 
 func _is_unfinished(purchase: Dictionary) -> bool:

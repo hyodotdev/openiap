@@ -29,6 +29,9 @@ export interface PurchaseFlowPurchase {
   revocationDateIOS?: number | null;
   isUpgradedIOS?: boolean | null;
   expirationDateIOS?: number | null;
+  /** Shared by an Apple subscription's renewals, so a restore reads only the newest. */
+  originalTransactionIdentifierIOS?: string | null;
+  transactionDate?: number;
 }
 
 /** Body the app sends its backend, which takes the user from its own session. */
@@ -416,7 +419,14 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
         "recoverPurchases needs getPendingTransactionsIOS on iOS to find unfinished transactions",
       );
     }
-    const unfinished = available.filter(
+    // A restore confirms each Apple purchase once, through its newest
+    // transaction: older renewals add nothing, and the unfinished ones come
+    // from the pending list. Without that list, every transaction stands in.
+    const owned =
+      includeFinished && pendingIOS
+        ? newestAppleTransactions(available)
+        : available;
+    const unfinished = owned.filter(
       (purchase) =>
         includeFinished ||
         (purchase.store === "apple"
@@ -463,6 +473,28 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
       subscription?.remove();
     },
   };
+}
+
+// Keeps each Apple purchase's newest transaction, in list order.
+function newestAppleTransactions<P extends PurchaseFlowPurchase>(
+  purchases: P[],
+): P[] {
+  const newest = new Map<string, P>();
+  for (const purchase of purchases) {
+    const key = purchase.originalTransactionIdentifierIOS;
+    if (purchase.store !== "apple" || !key) continue;
+    const kept = newest.get(key);
+    if (
+      !kept ||
+      (purchase.transactionDate ?? 0) > (kept.transactionDate ?? 0)
+    ) {
+      newest.set(key, purchase);
+    }
+  }
+  return purchases.filter((purchase) => {
+    const key = purchase.originalTransactionIdentifierIOS;
+    return purchase.store !== "apple" || !key || newest.get(key) === purchase;
+  });
 }
 
 // A settled purchase is finished, or rejected for good where the store

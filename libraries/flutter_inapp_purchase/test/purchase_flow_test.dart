@@ -46,6 +46,7 @@ Purchase purchaseFromVector(Map<String, dynamic> json) {
     expirationDateIOS: ios.expirationDateIOS,
     revocationDateIOS: ios.revocationDateIOS,
     isUpgradedIOS: ios.isUpgradedIOS,
+    originalTransactionIdentifierIOS: ios.originalTransactionIdentifierIOS,
     store: ios.store,
     storeId: full['storeId'] as String? ?? ios.storeId,
   );

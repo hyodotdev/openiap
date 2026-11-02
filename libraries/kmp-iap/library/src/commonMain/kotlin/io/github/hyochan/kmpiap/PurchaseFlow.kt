@@ -8,6 +8,7 @@ import io.github.hyochan.kmpiap.openiap.IapPlatform
 import io.github.hyochan.kmpiap.openiap.IapStore
 import io.github.hyochan.kmpiap.openiap.Purchase
 import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
+import io.github.hyochan.kmpiap.openiap.PurchaseIOS
 import io.github.hyochan.kmpiap.openiap.PurchaseState
 import io.github.hyochan.kmpiap.openiap.PurchaseUpdatedListenerOptions
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseProps
@@ -366,7 +367,11 @@ class PurchaseFlow internal constructor(
         check(getPendingTransactionsIOS != null || available.none { it.store == IapStore.Apple }) {
             "recoverPurchases needs getPendingTransactionsIOS on iOS to find unfinished transactions"
         }
-        val unfinished = available.filter {
+        // A restore confirms each Apple purchase once, through its newest
+        // transaction: older renewals add nothing, and the unfinished ones come
+        // from the pending list. Without that list, every transaction stands in.
+        val owned = if (includeFinished && pendingIOS != null) newestAppleTransactions(available) else available
+        val unfinished = owned.filter {
             includeFinished || if (it.store == IapStore.Apple) pendingIOSFailed else isUnfinished(it)
         }
         val outcomes = mutableListOf<PurchaseFlowOutcome>()
@@ -381,6 +386,21 @@ class PurchaseFlow internal constructor(
             outcomes += PurchaseFlowOutcome(purchase, forDelivery(purchase, answer.await(), requested = false))
         }
         return outcomes
+    }
+
+    // Keeps each Apple purchase's newest transaction, in list order.
+    private fun newestAppleTransactions(purchases: List<Purchase>): List<Purchase> {
+        fun originalOf(purchase: Purchase): String? = (purchase as? PurchaseIOS)
+            ?.takeIf { it.store == IapStore.Apple }
+            ?.originalTransactionIdentifierIOS
+            ?.takeIf { it.isNotEmpty() }
+        val newest = mutableMapOf<String, Purchase>()
+        for (purchase in purchases) {
+            val key = originalOf(purchase) ?: continue
+            val kept = newest[key]
+            if (kept == null || purchase.transactionDate > kept.transactionDate) newest[key] = purchase
+        }
+        return purchases.filter { purchase -> originalOf(purchase)?.let { newest[it] === purchase } ?: true }
     }
 
     // Amazon and most community stores report no acknowledgment, and Amazon

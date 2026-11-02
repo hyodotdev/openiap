@@ -232,7 +232,9 @@ class PurchaseFlowVectorsTest {
             PurchaseIOS(
                 id = id, transactionId = id, productId = productId, purchaseState = state, purchaseToken = json.string("purchaseToken"),
                 quantity = quantity, ids = ids, store = store, storeId = storeId,
-                environmentIOS = json.string("environmentIOS"), isAutoRenewing = false, transactionDate = 0.0,
+                environmentIOS = json.string("environmentIOS"), isAutoRenewing = false,
+                transactionDate = json["transactionDate"]?.jsonPrimitive?.doubleOrNull ?: 0.0,
+                originalTransactionIdentifierIOS = json.string("originalTransactionIdentifierIOS"),
                 revocationDateIOS = json["revocationDateIOS"]?.jsonPrimitive?.doubleOrNull,
                 isUpgradedIOS = json["isUpgradedIOS"]?.jsonPrimitive?.booleanOrNull,
                 expirationDateIOS = json["expirationDateIOS"]?.jsonPrimitive?.doubleOrNull,

@@ -590,7 +590,11 @@ public sealed class PurchaseFlow : IDisposable
             throw new InvalidOperationException(
                 "RecoverPurchasesAsync needs GetPendingTransactionsIOS on iOS to find unfinished transactions");
         }
-        var unfinished = available.Where(purchase =>
+        // A restore confirms each Apple purchase once, through its newest
+        // transaction: older renewals add nothing, and the unfinished ones come
+        // from the pending list. Without that list, every transaction stands in.
+        var owned = includeFinished && pendingIOS is not null ? NewestAppleTransactions(available) : available;
+        var unfinished = owned.Where(purchase =>
             includeFinished || (purchase.Store == IapStore.Apple ? pendingIOSFailed : IsUnfinished(purchase)));
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var outcomes = new List<PurchaseFlowOutcome>();
@@ -608,6 +612,22 @@ public sealed class PurchaseFlow : IDisposable
     }
 
     // Amazon and community stores report no acknowledgment, and a listed consumable is unconsumed.
+    // Keeps each Apple purchase's newest transaction, in list order.
+    private static IReadOnlyList<Purchase> NewestAppleTransactions(IReadOnlyList<Purchase> purchases)
+    {
+        static string? OriginalOf(Purchase purchase) =>
+            purchase is PurchaseIOS { Store: IapStore.Apple } ios && !string.IsNullOrEmpty(ios.OriginalTransactionIdentifierIOS)
+                ? ios.OriginalTransactionIdentifierIOS
+                : null;
+        var newest = new Dictionary<string, Purchase>(StringComparer.Ordinal);
+        foreach (var purchase in purchases)
+        {
+            if (OriginalOf(purchase) is not { } key) continue;
+            if (!newest.TryGetValue(key, out var kept) || purchase.TransactionDate > kept.TransactionDate) newest[key] = purchase;
+        }
+        return purchases.Where(purchase => OriginalOf(purchase) is not { } key || ReferenceEquals(newest[key], purchase)).ToList();
+    }
+
     private bool IsUnfinished(Purchase purchase) =>
         purchase is not PurchaseAndroid { IsAcknowledgedAndroid: true } || _options.IsConsumable(purchase.ProductId);
 
