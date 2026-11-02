@@ -485,7 +485,7 @@ public partial class AlternativeBillingPage : ContentPage
             : "• External Offer / Billing Programs Mode\n• Uses Billing Programs API (8.2.0+)\n• External link flow for purchases\n• No PurchaseUpdated callback\n• Must report to Google within 24h";
         WarningLabel.Text = "⚠️ Requires approval from Google\n⚠️ Must report tokens within 24 hours\n⚠️ Backend integration required";
 #else
-        CurrentProgramLabel.Text = string.Empty;
+        CurrentProgramLabel.IsVisible = false;
 #endif
         UpdatePurchaseButton();
     }

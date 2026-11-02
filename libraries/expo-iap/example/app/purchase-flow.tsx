@@ -21,7 +21,6 @@ import {
   type ExpoPurchaseError as PurchaseError,
 } from 'expo-iap';
 import Loading from '../src/components/Loading';
-import AppOwnershipCard from '../src/components/AppOwnershipCard';
 import PurchaseConfirmationScreen from '../src/components/PurchaseConfirmationScreen';
 import usePurchaseFlowScroll from '../src/components/usePurchaseFlowScroll';
 import ExampleButton from '../src/components/ExampleButton';
@@ -250,32 +249,30 @@ function PurchaseFlow({
         </View>
 
         {/* Verification Method Selector */}
-        <View style={styles.verificationContainer}>
-          <TouchableOpacity
-            accessibilityRole="button"
-            style={styles.verificationButton}
-            onPress={onChangeVerificationMethod}
-          >
-            <View>
-              <Text style={styles.verificationButtonHint}>
-                Receipt verification
-              </Text>
-              <Text style={styles.verificationButtonText}>
-                {verificationMethod === 'ignore'
-                  ? 'None (Skip)'
-                  : verificationMethod === 'local'
-                  ? 'Local (Device)'
-                  : verificationMethod === 'iapkit-localhost'
-                  ? 'Local (IAPKit)'
-                  : 'IAPKit'}
-              </Text>
-            </View>
-            <Text style={styles.changeLabel}>Change ›</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          accessibilityRole="button"
+          style={styles.verificationButton}
+          onPress={onChangeVerificationMethod}
+        >
+          <View>
+            <Text style={styles.verificationButtonHint}>
+              Receipt verification
+            </Text>
+            <Text style={styles.verificationButtonText}>
+              {verificationMethod === 'ignore'
+                ? 'None (Skip)'
+                : verificationMethod === 'local'
+                ? 'Local (Device)'
+                : verificationMethod === 'iapkit-localhost'
+                ? 'Local (IAPKit)'
+                : 'IAPKit'}
+            </Text>
+          </View>
+          <Text style={styles.changeLabel}>Change ›</Text>
+        </TouchableOpacity>
 
         {/* Products List */}
-        <View style={styles.section}>
+        <View>
           <Text style={styles.sectionTitle}>Available Products</Text>
           <Text style={styles.sectionSubtitle}>
             {visibleProducts.length > 0
@@ -381,7 +378,7 @@ function PurchaseFlow({
         </View>
 
         {/* Available Purchases */}
-        <View style={styles.section}>
+        <View>
           <Text style={styles.sectionTitle}>Available Purchases</Text>
           <Text style={styles.sectionSubtitle}>
             {availablePurchaseRows.length > 0
@@ -457,8 +454,6 @@ function PurchaseFlow({
             ) : null}
           </View>
         ) : null}
-
-        <AppOwnershipCard />
 
         {/* Instructions */}
         <View style={styles.instructions}>
@@ -915,7 +910,6 @@ const styles = StyleSheet.create({
   },
   statusContainer: {
     flexDirection: 'row',
-    marginBottom: 8,
     alignItems: 'center',
   },
   statusLabel: {
@@ -931,7 +925,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
     paddingBottom: 12,
-    marginBottom: 15,
     gap: 8,
   },
   storefrontRow: {
@@ -967,9 +960,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 13,
   },
-  verificationContainer: {
-    marginBottom: 15,
-  },
   verificationButton: {
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
@@ -991,9 +981,6 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   changeLabel: {fontSize: 14, fontWeight: '600', color: '#1E40AF'},
-  section: {
-    marginBottom: 20,
-  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
@@ -1023,7 +1010,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#e8f5e9',
     borderRadius: 8,
     padding: 15,
-    marginBottom: 15,
   },
   resultTitle: {
     fontSize: 14,
@@ -1049,6 +1035,7 @@ const styles = StyleSheet.create({
     borderColor: '#4CAF50',
     minHeight: 44,
     justifyContent: 'center',
+    marginTop: 12,
   },
   copyButtonText: {
     color: 'white',

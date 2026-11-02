@@ -106,6 +106,19 @@
                    HorizontalTextAlignment="Center"
                    Margin="0,-6,0,6" />
 
+            <Button Text="🔐 App Ownership"
+                    BackgroundColor="#1A1A1A"
+                    TextColor="White"
+                    FontAttributes="Bold"
+                    HeightRequest="68"
+                    CornerRadius="12"
+                    Clicked="OnAppOwnershipClicked" />
+            <Label Text="Check the app came from its store"
+                   FontSize="13"
+                   TextColor="#666"
+                   HorizontalTextAlignment="Center"
+                   Margin="0,-6,0,6" />
+
         </VerticalStackLayout>
     </ScrollView>
 

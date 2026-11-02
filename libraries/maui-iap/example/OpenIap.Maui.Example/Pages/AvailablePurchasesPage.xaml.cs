@@ -7,7 +7,7 @@ namespace OpenIap.Maui.Example.Pages;
 
 // Mirrors libraries/expo-iap/example/app/available-purchases.tsx —
 // initConnection, getAvailablePurchases (deduplicated), getActiveSubscriptions,
-// and a manage-subscriptions deep link.
+// a restore through the app's purchase flow, and a manage-subscriptions deep link.
 public partial class AvailablePurchasesPage : ContentPage
 {
     private readonly List<Purchase> _purchases = new();
@@ -153,8 +153,33 @@ public partial class AvailablePurchasesPage : ContentPage
         }
     }
 
+    private async Task RestoreAsync()
+    {
+        RestoreButton.IsEnabled = false;
+        RestoreStatusLabel.Text = "Restoring purchases...";
+        RestoreStatusLabel.IsVisible = true;
+        try
+        {
+            // includeFinished re-confirms every owned purchase, not only unfinished ones.
+            await IapLifecycle.Flow.RecoverPurchasesAsync(includeFinished: true);
+            RestoreStatusLabel.Text = "Purchases restored.";
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            RestoreStatusLabel.Text = $"Restore failed: {ErrorUtils.ExtractErrorMessage(ex)}";
+        }
+        finally
+        {
+            RestoreButton.IsEnabled = true;
+        }
+    }
+
     private async void OnRefreshClicked(object sender, EventArgs e)
         => await RefreshAsync();
+
+    private async void OnRestoreClicked(object sender, EventArgs e)
+        => await RestoreAsync();
 
     private async void OnGetStorefrontClicked(object sender, EventArgs e)
         => await RefreshStorefrontAsync(showAlert: true);

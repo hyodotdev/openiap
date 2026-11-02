@@ -8,6 +8,7 @@ import io.github.hyochan.kmpiap.openiap.IapPlatform
 import io.github.hyochan.kmpiap.openiap.IapStore
 import io.github.hyochan.kmpiap.openiap.Purchase
 import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
+import io.github.hyochan.kmpiap.openiap.PurchaseIOS
 import io.github.hyochan.kmpiap.openiap.PurchaseState
 import io.github.hyochan.kmpiap.openiap.PurchaseUpdatedListenerOptions
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseProps
@@ -350,6 +351,7 @@ class PurchaseFlow internal constructor(
         }
 
     private suspend fun recover(includeFinished: Boolean): List<PurchaseFlowOutcome> {
+        val settledBefore = mutex.withLock { settled.keys.toSet() }
         // iOS lists unfinished transactions directly; other stores list owned
         // purchases, and isUnfinished picks the ones still to settle.
         var pendingIOS: List<Purchase>? = null
@@ -366,7 +368,11 @@ class PurchaseFlow internal constructor(
         check(getPendingTransactionsIOS != null || available.none { it.store == IapStore.Apple }) {
             "recoverPurchases needs getPendingTransactionsIOS on iOS to find unfinished transactions"
         }
-        val unfinished = available.filter {
+        // A restore confirms each Apple purchase once, through its newest
+        // transaction: older renewals add nothing, and the unfinished ones come
+        // from the pending list. Without that list, every transaction stands in.
+        val owned = if (includeFinished && pendingIOS != null) newestAppleTransactions(available) else available
+        val unfinished = owned.filter {
             includeFinished || if (it.store == IapStore.Apple) pendingIOSFailed else isUnfinished(it)
         }
         val outcomes = mutableListOf<PurchaseFlowOutcome>()
@@ -376,11 +382,29 @@ class PurchaseFlow internal constructor(
             // One lock, so a purchase the listener settles meanwhile is not published twice.
             val answer = mutex.withLock {
                 if (!includeFinished && purchase.id in settled) null
-                else admit(purchase, requested = false, reconfirm = includeFinished)
+                // A restore re-confirms what settled before it, not what the
+                // listener settled while it ran.
+                else admit(purchase, requested = false, reconfirm = includeFinished && purchase.id in settledBefore)
             } ?: continue
             outcomes += PurchaseFlowOutcome(purchase, forDelivery(purchase, answer.await(), requested = false))
         }
         return outcomes
+    }
+
+    // Keeps each Apple purchase's newest transaction, in list order. One without
+    // an original id or a date cannot be ranked, so it stays.
+    private fun newestAppleTransactions(purchases: List<Purchase>): List<Purchase> {
+        fun originalOf(purchase: Purchase): String? = (purchase as? PurchaseIOS)
+            ?.takeIf { it.store == IapStore.Apple && it.transactionDate > 0 }
+            ?.originalTransactionIdentifierIOS
+            ?.takeIf { it.isNotEmpty() }
+        val newest = mutableMapOf<String, Purchase>()
+        for (purchase in purchases) {
+            val key = originalOf(purchase) ?: continue
+            val kept = newest[key]
+            if (kept == null || purchase.transactionDate > kept.transactionDate) newest[key] = purchase
+        }
+        return purchases.filter { purchase -> originalOf(purchase)?.let { newest[it] === purchase } ?: true }
     }
 
     // Amazon and most community stores report no acknowledgment, and Amazon

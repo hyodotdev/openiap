@@ -565,6 +565,8 @@ public sealed class PurchaseFlow : IDisposable
     private async Task<IReadOnlyList<PurchaseFlowOutcome>> RecoverAsync(bool includeFinished)
     {
         var getPendingTransactionsIOS = _options.GetPendingTransactionsIOS;
+        HashSet<string> settledBefore;
+        lock (_gate) settledBefore = new HashSet<string>(_settled.Keys, StringComparer.Ordinal);
         // iOS lists unfinished transactions directly; other stores list owned
         // purchases, and IsUnfinished picks the ones still to settle.
         IReadOnlyList<Purchase>? pendingIOS = null;
@@ -590,7 +592,11 @@ public sealed class PurchaseFlow : IDisposable
             throw new InvalidOperationException(
                 "RecoverPurchasesAsync needs GetPendingTransactionsIOS on iOS to find unfinished transactions");
         }
-        var unfinished = available.Where(purchase =>
+        // A restore confirms each Apple purchase once, through its newest
+        // transaction: older renewals add nothing, and the unfinished ones come
+        // from the pending list. Without that list, every transaction stands in.
+        var owned = includeFinished && pendingIOS is not null ? NewestAppleTransactions(available) : available;
+        var unfinished = owned.Where(purchase =>
             includeFinished || (purchase.Store == IapStore.Apple ? pendingIOSFailed : IsUnfinished(purchase)));
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var outcomes = new List<PurchaseFlowOutcome>();
@@ -601,10 +607,28 @@ public sealed class PurchaseFlow : IDisposable
             bool skip;
             lock (_gate) skip = !includeFinished && _settled.ContainsKey(purchase.Id);
             if (skip) continue;
-            var status = await Deliver(purchase, requested: false, reconfirm: includeFinished).ConfigureAwait(false);
+            // A restore re-confirms what settled before it, not what the
+            // listener settled while it ran.
+            var status = await Deliver(purchase, requested: false, reconfirm: includeFinished && settledBefore.Contains(purchase.Id)).ConfigureAwait(false);
             outcomes.Add(new PurchaseFlowOutcome(purchase, status));
         }
         return outcomes;
+    }
+
+    // Keeps each Apple purchase's newest transaction, in list order. One without an original id or a date cannot be ranked, so it stays.
+    private static IReadOnlyList<Purchase> NewestAppleTransactions(IReadOnlyList<Purchase> purchases)
+    {
+        static string? OriginalOf(Purchase purchase) =>
+            purchase is PurchaseIOS { Store: IapStore.Apple, TransactionDate: > 0 } ios && !string.IsNullOrEmpty(ios.OriginalTransactionIdentifierIOS)
+                ? ios.OriginalTransactionIdentifierIOS
+                : null;
+        var newest = new Dictionary<string, Purchase>(StringComparer.Ordinal);
+        foreach (var purchase in purchases)
+        {
+            if (OriginalOf(purchase) is not { } key) continue;
+            if (!newest.TryGetValue(key, out var kept) || purchase.TransactionDate > kept.TransactionDate) newest[key] = purchase;
+        }
+        return purchases.Where(purchase => OriginalOf(purchase) is not { } key || ReferenceEquals(newest[key], purchase)).ToList();
     }
 
     // Amazon and community stores report no acknowledgment, and a listed consumable is unconsumed.

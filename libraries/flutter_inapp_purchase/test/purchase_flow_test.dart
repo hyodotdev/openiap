@@ -46,6 +46,7 @@ Purchase purchaseFromVector(Map<String, dynamic> json) {
     expirationDateIOS: ios.expirationDateIOS,
     revocationDateIOS: ios.revocationDateIOS,
     isUpgradedIOS: ios.isUpgradedIOS,
+    originalTransactionIdentifierIOS: ios.originalTransactionIdentifierIOS,
     store: ios.store,
     storeId: full['storeId'] as String? ?? ios.storeId,
   );
@@ -616,6 +617,38 @@ void main() {
       expect(reads, 2);
     });
 
+    test('restores what the listener settled meanwhile without confirming it',
+        () async {
+      var confirms = 0;
+      final opened = Completer<void>();
+      final store = StreamController<Purchase>.broadcast(sync: true);
+      final published = <PurchaseFlowOutcome>[];
+      final flow = _flow(
+        (purchase, {required isConsumable}) async {
+          confirms++;
+          await opened.future;
+          return const PurchaseEntitled(alreadyGranted: true);
+        },
+        listen: store.stream.listen,
+        // The listener's confirmation settles after the restore began.
+        getAvailablePurchases: () async {
+          opened.complete();
+          while (published.isEmpty) {
+            await Future<void>.delayed(Duration.zero);
+          }
+          return [_play('p1'), _play('p2')];
+        },
+      );
+      flow.outcomes.listen(published.add);
+
+      store.add(_play('p2'));
+      final outcomes = await flow.recoverPurchases(includeFinished: true);
+
+      expect(outcomes.map((o) => o.purchase.id), ['p1', 'p2']);
+      expect(confirms, 2);
+      await store.close();
+    });
+
     test('refuses Apple purchases without getPendingTransactionsIOS', () {
       final flow = _flow(
         (purchase, {required isConsumable}) async =>
@@ -749,6 +782,21 @@ void main() {
             google: RequestSubscriptionAndroidProps(skus: [sku]),
           )),
         );
+
+    test('restores from the full iOS history', () async {
+      final iap = await connected('ios');
+      final flow = iap.createPurchaseFlow(
+        confirmWithBackend: (purchase, {required isConsumable}) async =>
+            const PurchaseInvalid(reason: 'expired'),
+        isConsumable: (_) => false,
+      );
+
+      await flow.recoverPurchases(includeFinished: true);
+
+      final read = calls.singleWhere((c) => c.method == 'getAvailableItems');
+      expect((read.arguments as Map)['onlyIncludeActiveItemsIOS'], isFalse);
+      flow.dispose();
+    });
 
     test('counts deliveries of requested products as requested', () async {
       final iap = await connected('android');

@@ -158,6 +158,7 @@ struct SubscriptionFlowScreen: View {
                     .font(.caption)
                 }
                 .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(AppColors.secondary.opacity(0.05))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
@@ -328,7 +329,7 @@ struct SubscriptionFlowScreen: View {
                     if let offers = subscription.subscriptionOffers, !offers.isEmpty {
                         print("      • subscriptionOffers: \(offers.count) offer(s)")
                         for (idx, offer) in offers.enumerated() {
-                            print("         [\(idx)] id: \(offer.id), type: \(offer.type), paymentMode: \(offer.paymentMode), price: \(offer.price)")
+                            print("         [\(idx)] id: \(offer.id), type: \(offer.type), paymentMode: \(String(describing: offer.paymentMode)), price: \(offer.price)")
                         }
                     } else {
                         print("      • subscriptionOffers: nil or empty ⚠️")
@@ -551,7 +552,6 @@ struct SubscriptionFlowScreen: View {
                 .background(Color.gray.opacity(0.1))
                 .cornerRadius(8)
             }
-
             .disabled(isVerifying)
 
             if !pendingPurchases.isEmpty {

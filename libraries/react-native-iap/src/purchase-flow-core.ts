@@ -29,6 +29,10 @@ export interface PurchaseFlowPurchase {
   revocationDateIOS?: number | null;
   isUpgradedIOS?: boolean | null;
   expirationDateIOS?: number | null;
+  /** Shared by an Apple subscription's renewals, so a restore reads only the newest. */
+  originalTransactionIdentifierIOS?: string | null;
+  /** Milliseconds since the epoch. */
+  transactionDate?: number;
 }
 
 /** Body the app sends its backend, which takes the user from its own session. */
@@ -393,6 +397,7 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
     includeFinished: boolean,
   ): Promise<PurchaseFlowOutcome<P>[]> {
     const { getPendingTransactionsIOS } = options;
+    const settledBefore = new Set(settled.keys());
     // iOS lists unfinished transactions directly; other stores list owned
     // purchases, and isUnfinished picks the ones still to settle.
     let pendingIOS: P[] | undefined;
@@ -416,7 +421,14 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
         "recoverPurchases needs getPendingTransactionsIOS on iOS to find unfinished transactions",
       );
     }
-    const unfinished = available.filter(
+    // A restore confirms each Apple purchase once, through its newest
+    // transaction: older renewals add nothing, and the unfinished ones come
+    // from the pending list. Without that list, every transaction stands in.
+    const owned =
+      includeFinished && pendingIOS
+        ? newestAppleTransactions(available)
+        : available;
+    const unfinished = owned.filter(
       (purchase) =>
         includeFinished ||
         (purchase.store === "apple"
@@ -432,7 +444,13 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
       // The next account's flow confirms the rest with its own session.
       if (disposed) break;
       if (!includeFinished && settled.has(purchase.id)) continue;
-      const status = await deliver(purchase, false, includeFinished);
+      // A restore re-confirms what settled before it, not what the listener
+      // settled while it ran.
+      const status = await deliver(
+        purchase,
+        false,
+        includeFinished && settledBefore.has(purchase.id),
+      );
       outcomes.push({ purchase, status });
     }
     return outcomes;
@@ -463,6 +481,33 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
       subscription?.remove();
     },
   };
+}
+
+// Keeps each Apple purchase's newest transaction, in list order. One without
+// an original id or a date cannot be ranked, so it stays.
+function newestAppleTransactions<P extends PurchaseFlowPurchase>(
+  purchases: P[],
+): P[] {
+  const chainOf = (purchase: P) =>
+    purchase.store === "apple" && (purchase.transactionDate ?? 0) > 0
+      ? purchase.originalTransactionIdentifierIOS || undefined
+      : undefined;
+  const newest = new Map<string, P>();
+  for (const purchase of purchases) {
+    const key = chainOf(purchase);
+    if (!key) continue;
+    const kept = newest.get(key);
+    if (
+      !kept ||
+      (purchase.transactionDate ?? 0) > (kept.transactionDate ?? 0)
+    ) {
+      newest.set(key, purchase);
+    }
+  }
+  return purchases.filter((purchase) => {
+    const key = chainOf(purchase);
+    return !key || newest.get(key) === purchase;
+  });
 }
 
 // A settled purchase is finished, or rejected for good where the store

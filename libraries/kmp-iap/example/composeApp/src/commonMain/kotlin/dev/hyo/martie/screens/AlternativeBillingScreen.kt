@@ -999,6 +999,7 @@ private fun ProductCard(product: ProductCommon, isSelected: Boolean, onClick: ()
                 color = if (isSelected) Color(0xFFFF9800) else Color.Transparent,
                 shape = RoundedCornerShape(8.dp)
             ),
+        shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) Color(0xFFFFF3E0) else Color.White
         )
@@ -1179,6 +1180,7 @@ private fun ModeSelectorOption(
                 color = if (isSelected) Color(0xFFFF9800) else Color.Gray.copy(alpha = 0.3f),
                 shape = RoundedCornerShape(8.dp)
             ),
+        shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) Color(0xFFFFF3E0) else Color.White
         )

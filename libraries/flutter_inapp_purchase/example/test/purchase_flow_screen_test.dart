@@ -270,6 +270,8 @@ void main() {
       expect(log.where((call) => call.method == 'getPendingTransactionsIOS'),
           isNotEmpty);
       expect(find.textContaining('Purchase recovery failed'), findsNothing);
+      // App ownership has its own screen.
+      expect(find.text('Check app ownership'), findsNothing);
     } finally {
       debugDefaultTargetPlatformOverride = null;
       await closeScreen(tester);

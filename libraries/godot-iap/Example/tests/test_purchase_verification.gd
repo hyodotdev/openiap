@@ -256,10 +256,10 @@ func _test_verification_picker(plugin: Node) -> void:
 	var connecting_scene = load("res://main.tscn").instantiate()
 	root.add_child(connecting_scene)
 	await process_frame
-	_check(connecting_scene.status_label.text == "Connecting..." and not connecting_scene.store_button.disabled and connecting_scene.loading_label.visible, "An unfinished connection keeps ownership diagnostics accessible")
+	_check(connecting_scene.status_label.text == "Connecting..." and not connecting_scene.ownership_button.disabled and connecting_scene.loading_label.visible, "An unfinished connection keeps ownership diagnostics accessible")
 	_check(connecting_scene.store_contents.get_node("Buy10BulbsButton").disabled and connecting_scene.store_contents.get_node("RestoreButton").disabled and connecting_scene.verification_picker.disabled, "An unfinished connection keeps purchase and receipt operations disabled")
-	connecting_scene._on_store_button_pressed()
-	_check(connecting_scene.store_panel.visible and not connecting_scene.ownership_check_button.disabled, "The normal Store exposes ownership independently of billing connection")
+	connecting_scene.ownership_button.pressed.emit()
+	_check(connecting_scene.ownership_panel.visible and not connecting_scene.store_panel.visible and connecting_scene.ownership_panel.is_ancestor_of(connecting_scene.ownership_check_button) and not connecting_scene.ownership_check_button.disabled, "App Ownership opens its own panel, independent of billing connection")
 	var calls_before: Array[String] = fake.calls.duplicate()
 	connecting_scene.ownership_project_number.text = "123"
 	await connecting_scene._on_check_ownership_pressed()
@@ -295,6 +295,19 @@ func _test_verification_picker(plugin: Node) -> void:
 	plugin._on_products_fetched({"method": "fetchProducts", "products": []})
 	_check(not manager.is_loading and catalog_events.size() == 1, "Only a catalog completion ends product loading")
 	manager.products_loaded.disconnect(capture_catalog)
+	plugin._platform = "macOS"
+	fake.responses["restorePurchases"] = JSON.stringify({"success": false, "code": "network-error", "error": "Restore offline"})
+	await connecting_scene._on_restore_pressed()
+	_check(connecting_scene.status_label.text == "Restore failed: Restore offline", "A failed store restore reads as failed")
+	_check(connecting_scene.restore_status_label.text == connecting_scene.status_label.text, "The store panel shows the restore status")
+	fake.responses["restorePurchases"] = JSON.stringify({"success": true})
+	fake.responses["getPendingTransactionsIOS"] = JSON.stringify({"success": true, "transactionsJson": "[]"})
+	fake.responses["getAvailablePurchases"] = JSON.stringify({"success": false, "code": "network-error", "error": "Offline"})
+	await connecting_scene._on_restore_pressed()
+	_check(connecting_scene.status_label.text.begins_with("Restore failed: "), "A failed recovery pass reads as failed")
+	fake.responses["getAvailablePurchases"] = JSON.stringify({"success": true, "purchasesJson": "[]"})
+	await connecting_scene._on_restore_pressed()
+	_check(connecting_scene.status_label.text == "Purchases restored.", "A completed restore reads as restored")
 	connecting_scene.queue_free()
 	await process_frame
 	manager.store_connected = previous_connection

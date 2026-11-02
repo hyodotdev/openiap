@@ -607,10 +607,10 @@ fun AlternativeBillingScreen(navController: NavController) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     product.title,
                                     style = MaterialTheme.typography.titleMedium,
@@ -935,10 +935,6 @@ fun AlternativeBillingScreen(navController: NavController) {
                         }
                     }
                 }
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(20.dp))
             }
         }
     }

@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
+import '../app_purchase_flow.dart';
 import '../widgets/purchase_detail_view.dart';
 
 class AvailablePurchasesScreen extends StatefulWidget {
-  const AvailablePurchasesScreen({this.iap, super.key});
+  const AvailablePurchasesScreen({this.purchases, super.key});
 
-  final FlutterInappPurchase? iap;
+  final AppPurchaseFlow? purchases;
 
   @override
   State<AvailablePurchasesScreen> createState() =>
@@ -16,15 +17,19 @@ class AvailablePurchasesScreen extends StatefulWidget {
 }
 
 class _AvailablePurchasesScreenState extends State<AvailablePurchasesScreen> {
-  late final FlutterInappPurchase _iap;
+  late final AppPurchaseFlow _purchases =
+      widget.purchases ?? AppPurchaseFlow.instance;
+  FlutterInappPurchase get _iap => _purchases.iap;
 
   List<Purchase> _availablePurchases = [];
   List<Purchase> _purchaseHistory = [];
   bool _loading = false;
   bool _historyLoading = false;
   bool _connected = false;
+  bool _restoring = false;
   String? _error;
   String? _historyError;
+  String? _restoreStatus;
 
   /// Convert various date formats to milliseconds timestamp
   int _parseTimestamp(dynamic date) {
@@ -81,36 +86,22 @@ class _AvailablePurchasesScreenState extends State<AvailablePurchasesScreen> {
   @override
   void initState() {
     super.initState();
-    _iap = widget.iap ?? FlutterInappPurchase.instance;
-    _initConnection();
+    _awaitConnection();
   }
 
-  Future<void> _initConnection() async {
+  // The app owns the connection; this screen only loads its purchases.
+  Future<void> _awaitConnection() async {
     setState(() {
       _loading = true;
-      _error = null;
     });
-
-    try {
-      final connected = await _iap.initConnection();
-      if (!mounted) return;
-      setState(() {
-        _connected = connected;
-        _loading = connected;
-      });
-      if (!connected) return;
-      await _loadPurchases();
-    } catch (e) {
-      if (!mounted) {
-        debugPrint('Failed to initialize IAP connection: $e');
-        return;
-      }
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
-      debugPrint('Failed to initialize IAP connection: $e');
-    }
+    final connected = await _purchases.connected;
+    if (!mounted) return;
+    setState(() {
+      _connected = connected;
+      _loading = connected;
+      _error = connected ? null : 'Not connected to the store.';
+    });
+    if (connected) await _loadPurchases();
   }
 
   Future<void> _loadPurchases() async {
@@ -217,47 +208,32 @@ class _AvailablePurchasesScreenState extends State<AvailablePurchasesScreen> {
     }
   }
 
+  // The shared flow confirms every owned purchase again, like a new purchase.
   Future<void> _restorePurchases() async {
     setState(() {
-      _loading = true;
-      _error = null;
+      _restoring = true;
+      _restoreStatus = 'Restoring purchases...';
     });
-
     try {
-      final restored = await _iap.getAvailablePurchases();
-
-      // Remove duplicates by productId, keeping the most recent one
-      final deduplicatedPurchases = _deduplicatePurchases(restored);
-
+      await _purchases.flow.recoverPurchases(includeFinished: true);
+      if (!mounted) return;
       setState(() {
-        _availablePurchases = deduplicatedPurchases;
+        _restoreStatus = 'Purchases restored.';
       });
-
-      if (mounted) {
-        showDialog<void>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Restore Complete'),
-            content: Text(
-                'Restored ${_availablePurchases.length} unique purchase(s)'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      }
-    } catch (e) {
+      await _loadPurchases();
+    } catch (error) {
+      debugPrint('Error restoring purchases: $error');
+      if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _restoreStatus = 'Restore failed: '
+            '${error is PurchaseError ? error.message : error}';
       });
-      debugPrint('Error restoring purchases: $e');
     } finally {
-      setState(() {
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _restoring = false;
+        });
+      }
     }
   }
 
@@ -436,191 +412,201 @@ class _AvailablePurchasesScreenState extends State<AvailablePurchasesScreen> {
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadPurchases,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  // Connection Status
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: _connected ? Colors.green[50] : Colors.red[50],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _connected ? Icons.check_circle : Icons.error,
-                          color: _connected ? Colors.green : Colors.red,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _connected ? 'Connected to Store' : 'Not Connected',
-                          style: TextStyle(
-                            color: _connected ? Colors.green : Colors.red,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Restore Button
-                  ElevatedButton.icon(
-                    onPressed:
-                        _loading || !_connected ? null : _restorePurchases,
-                    icon: const Icon(Icons.restore),
-                    label: const Text('Restore Purchases'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF5856D6),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 48),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Error Message
-                  if (_error != null) ...[
+      body: SafeArea(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
+                onRefresh: _loadPurchases,
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    // Connection Status
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.red[50],
+                        color: _connected ? Colors.green[50] : Colors.red[50],
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red[200]!),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.error_outline, color: Colors.red[700]),
+                          Icon(
+                            _connected ? Icons.check_circle : Icons.error,
+                            color: _connected ? Colors.green : Colors.red,
+                          ),
                           const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _error!,
-                              style: TextStyle(color: Colors.red[700]),
+                          Text(
+                            _connected ? 'Connected to Store' : 'Not Connected',
+                            style: TextStyle(
+                              color: _connected ? Colors.green : Colors.red,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 16),
-                  ],
 
-                  // Available Purchases Section
-                  if (_availablePurchases.isNotEmpty) ...[
-                    const Text(
-                      'Active Purchases',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                    // Restore Button
+                    ElevatedButton.icon(
+                      onPressed: _loading || _restoring || !_connected
+                          ? null
+                          : _restorePurchases,
+                      icon: const Icon(Icons.restore),
+                      label: const Text('Restore Purchases'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF5856D6),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 48),
                       ),
                     ),
-                    const Text(
-                      'Non-consumed purchases and active subscriptions',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
+                    if (_restoreStatus != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        _restoreStatus!,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    ..._availablePurchases
-                        .map((purchase) => _buildAvailablePurchase(purchase)),
+                    ],
                     const SizedBox(height: 24),
-                  ],
 
-                  // Purchase History Section (iOS only)
-                  if (_platformOrDefault() == IapPlatform.IOS) ...[
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Purchase History',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                    // Error Message
+                    if (_error != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red[50],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.error_outline, color: Colors.red[700]),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _error!,
+                                style: TextStyle(color: Colors.red[700]),
+                              ),
                             ),
-                          ),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed:
-                              _historyLoading ? null : _loadPurchaseHistory,
-                          icon: const Icon(Icons.history),
-                          label: Text(
-                            _purchaseHistory.isEmpty
-                                ? 'Load History'
-                                : 'Reload History',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Text(
-                      'All purchases including consumed items',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    if (_historyLoading)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 24),
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    else if (_historyError != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Text(
-                          _historyError!,
-                          style:
-                              const TextStyle(color: Colors.red, fontSize: 12),
+                          ],
                         ),
                       ),
-                    if (_purchaseHistory.isNotEmpty)
-                      ..._purchaseHistory
-                          .map((item) => _buildPurchaseHistoryItem(item)),
-                    const SizedBox(height: 24),
-                  ],
+                      const SizedBox(height: 16),
+                    ],
 
-                  // Empty State
-                  if (_availablePurchases.isEmpty &&
-                      _purchaseHistory.isEmpty &&
-                      !_historyLoading &&
-                      _error == null) ...[
-                    Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                    // Available Purchases Section
+                    if (_availablePurchases.isNotEmpty) ...[
+                      const Text(
+                        'Active Purchases',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Text(
+                        'Non-consumed purchases and active subscriptions',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ..._availablePurchases
+                          .map((purchase) => _buildAvailablePurchase(purchase)),
+                      const SizedBox(height: 24),
+                    ],
+
+                    // Purchase History Section (iOS only)
+                    if (_platformOrDefault() == IapPlatform.IOS) ...[
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.shopping_bag_outlined,
-                            size: 64,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No purchases found',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.grey[600],
+                          const Expanded(
+                            child: Text(
+                              'Purchase History',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Your purchased items will appear here',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[500],
+                          OutlinedButton.icon(
+                            onPressed:
+                                _historyLoading ? null : _loadPurchaseHistory,
+                            icon: const Icon(Icons.history),
+                            label: Text(
+                              _purchaseHistory.isEmpty
+                                  ? 'Load History'
+                                  : 'Reload History',
                             ),
                           ),
                         ],
                       ),
-                    ),
+                      const Text(
+                        'All purchases including consumed items',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      if (_historyLoading)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (_historyError != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            _historyError!,
+                            style: const TextStyle(
+                                color: Colors.red, fontSize: 12),
+                          ),
+                        ),
+                      if (_purchaseHistory.isNotEmpty)
+                        ..._purchaseHistory
+                            .map((item) => _buildPurchaseHistoryItem(item)),
+                      const SizedBox(height: 24),
+                    ],
+
+                    // Empty State
+                    if (_availablePurchases.isEmpty &&
+                        _purchaseHistory.isEmpty &&
+                        !_historyLoading &&
+                        _error == null) ...[
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.shopping_bag_outlined,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No purchases found',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Your purchased items will appear here',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
+      ),
     );
   }
 }

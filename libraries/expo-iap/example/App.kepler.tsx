@@ -10,6 +10,7 @@ import {
 import {ActionSheetProvider} from '@expo/react-native-action-sheet';
 import AllProducts from './app/all-products';
 import AlternativeBilling from './app/alternative-billing';
+import AppOwnership from './app/app-ownership';
 import AvailablePurchases from './app/available-purchases';
 import Home from './app/index';
 import OfferCode from './app/offer-code';
@@ -49,7 +50,8 @@ type RoutePath =
   | '/subscription-flow'
   | '/available-purchases'
   | '/offer-code'
-  | '/alternative-billing';
+  | '/alternative-billing'
+  | '/app-ownership';
 
 const ROUTE_TITLES: Record<RoutePath, string> = {
   '/': 'expo-iap Examples',
@@ -59,6 +61,7 @@ const ROUTE_TITLES: Record<RoutePath, string> = {
   '/available-purchases': 'Available Purchases',
   '/offer-code': 'Offer Code Redemption',
   '/alternative-billing': 'Alternative Billing',
+  '/app-ownership': 'App Ownership',
 };
 
 const SCREENS: Record<Exclude<RoutePath, '/'>, React.ComponentType> = {
@@ -68,6 +71,7 @@ const SCREENS: Record<Exclude<RoutePath, '/'>, React.ComponentType> = {
   '/available-purchases': AvailablePurchases,
   '/offer-code': OfferCode,
   '/alternative-billing': AlternativeBilling,
+  '/app-ownership': AppOwnership,
 };
 
 const normalizeRoute = (href: unknown): RoutePath => {

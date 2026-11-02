@@ -35,8 +35,7 @@ fun OfferCodeScreen(navController: NavController) {
 
     LaunchedEffect(Unit) {
         try {
-            kmpIapInstance.initConnection()
-            isConnected = true
+            isConnected = kmpIapInstance.initConnection()
         } catch (e: Exception) {
             result = "Connection failed: ${e.message}"
         }

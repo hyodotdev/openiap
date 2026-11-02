@@ -22,6 +22,8 @@ import Loading from '../src/components/Loading';
 import {SUBSCRIPTION_PRODUCT_IDS} from '../src/utils/constants';
 import PurchaseDetails from '../src/components/PurchaseDetails';
 import PurchaseSummaryRow from '../src/components/PurchaseSummaryRow';
+import {extractErrorMessage} from '../src/utils/errorUtils';
+import {getReceiptPurchaseFlow} from '../src/utils/purchaseFlow';
 
 const isVegaOS = (): boolean => String(Platform.OS) === 'kepler';
 
@@ -33,6 +35,8 @@ const isExpiringSoon = (subscription: ActiveSubscription): boolean => {
 export default function AvailablePurchases() {
   const [loading, setLoading] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [restoreStatus, setRestoreStatus] = useState<string | null>(null);
   const [selectedSubscription, setSelectedSubscription] =
     useState<ActiveSubscription | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -77,7 +81,10 @@ export default function AvailablePurchases() {
     getAvailablePurchases,
     getActiveSubscriptions,
     fetchProducts,
+    restorePurchases,
   } = useIAP({
+    // Restore re-confirms owned purchases through the app's purchase flow.
+    purchaseFlow: getReceiptPurchaseFlow(),
     onPurchaseSuccess: (purchase) => {
       console.log('[AVAILABLE-PURCHASES] Purchase received:', {
         productId: purchase.productId,
@@ -148,6 +155,19 @@ export default function AvailablePurchases() {
       Alert.alert('Error', 'Failed to load purchase data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRestorePurchases = async () => {
+    setRestoring(true);
+    setRestoreStatus('Restoring purchases...');
+    try {
+      await restorePurchases();
+      setRestoreStatus('Purchases restored.');
+    } catch (error) {
+      setRestoreStatus(`Restore failed: ${extractErrorMessage(error)}`);
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -392,17 +412,33 @@ export default function AvailablePurchases() {
           </View>
         )}
 
-      <TouchableOpacity
-        style={[styles.button, !connected && styles.buttonDisabled]}
-        onPress={handleGetAvailablePurchases}
-        disabled={!connected || loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>🔄 Refresh Purchases</Text>
-        )}
-      </TouchableOpacity>
+      <View style={styles.actions}>
+        <TouchableOpacity
+          style={[styles.button, !connected && styles.buttonDisabled]}
+          onPress={handleGetAvailablePurchases}
+          disabled={!connected || loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>🔄 Refresh Purchases</Text>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, !connected && styles.buttonDisabled]}
+          onPress={handleRestorePurchases}
+          disabled={!connected || restoring}
+        >
+          {restoring ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Restore Purchases</Text>
+          )}
+        </TouchableOpacity>
+        {restoreStatus ? (
+          <Text style={styles.helperText}>{restoreStatus}</Text>
+        ) : null}
+      </View>
 
       {/* Tools */}
       <View style={[styles.section, {gap: 12}]}>
@@ -631,25 +667,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fff9',
     borderLeftWidth: 4,
   },
-  availablePurchaseItem: {
-    borderLeftColor: '#007AFF',
-    backgroundColor: '#f0f8ff',
-    borderLeftWidth: 4,
-  },
   availableSummaryRow: {
     backgroundColor: '#eef5ff',
     borderColor: '#c8ddff',
-  },
-  availableBadge: {
-    backgroundColor: '#e7f3ff',
-  },
-  historyPurchaseItem: {
-    borderLeftColor: '#6c757d',
-    backgroundColor: '#f8f9fa',
-    borderLeftWidth: 4,
-  },
-  historyBadge: {
-    backgroundColor: '#f0f0f0',
   },
   emptyText: {
     color: '#666',
@@ -683,10 +703,6 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#666',
   },
-  activeText: {
-    color: '#28a745',
-    fontWeight: '600',
-  },
   expiredText: {
     color: '#dc3545',
     fontWeight: '600',
@@ -705,6 +721,10 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     backgroundColor: '#ccc',
+  },
+  actions: {
+    gap: 12,
+    marginBottom: 20,
   },
   buttonText: {
     color: '#fff',

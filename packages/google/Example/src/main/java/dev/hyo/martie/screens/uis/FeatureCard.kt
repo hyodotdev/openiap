@@ -20,10 +20,11 @@ fun FeatureCard(
     subtitle: String,
     icon: ImageVector,
     color: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .aspectRatio(1f)
             .clickable { onClick() },

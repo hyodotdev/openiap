@@ -433,6 +433,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     flexGrow: 1,
+    paddingBottom: 20,
   },
   header: {
     backgroundColor: '#FF6B6B',
@@ -455,7 +456,6 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
     margin: 15,
-    marginTop: 0,
     alignItems: 'center',
   },
   statusLabel: {
@@ -563,6 +563,7 @@ const styles = StyleSheet.create({
   emptyState: {
     backgroundColor: 'white',
     borderRadius: 8,
+    marginHorizontal: 15,
     padding: 20,
     alignItems: 'center',
   },
@@ -672,12 +673,6 @@ const styles = StyleSheet.create({
     color: '#333',
     marginTop: 2,
   },
-  offerValueDiscount: {
-    fontSize: 13,
-    color: '#E53935',
-    marginTop: 2,
-    fontWeight: '600',
-  },
   offerToken: {
     fontSize: 10,
     color: '#999',
@@ -707,22 +702,5 @@ const styles = StyleSheet.create({
     color: '#888',
     marginBottom: 8,
     fontStyle: 'italic',
-  },
-  pricingPhase: {
-    backgroundColor: '#e3f2fd',
-    borderRadius: 4,
-    padding: 6,
-    marginTop: 4,
-    marginBottom: 2,
-  },
-  phaseText: {
-    fontSize: 12,
-    color: '#1565C0',
-    fontWeight: '600',
-  },
-  phaseDetail: {
-    fontSize: 10,
-    color: '#666',
-    marginTop: 2,
   },
 });

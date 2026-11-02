@@ -291,6 +291,7 @@ func _recover_into(pass_: _Pending, include_finished: bool) -> void:
 
 func _recover(include_finished: bool) -> Variant:
 	var get_pending_ios = _options.get("get_pending_transactions_ios")
+	var settled_before := _settled.duplicate()
 	# iOS lists unfinished transactions directly; other stores list owned
 	# purchases, and _is_unfinished picks the ones still to settle.
 	var pending_ios = null
@@ -310,7 +311,11 @@ func _recover(include_finished: bool) -> Variant:
 		available = owned
 	if get_pending_ios == null and available.any(func(purchase): return purchase.get("store") == "apple"):
 		return Failure.new("recover_purchases needs get_pending_transactions_ios on iOS to find unfinished transactions")
-	var unfinished := available.filter(func(purchase: Dictionary) -> bool:
+	# A restore confirms each Apple purchase once, through its newest
+	# transaction: older renewals add nothing, and the unfinished ones come
+	# from the pending list. Without that list, every transaction stands in.
+	var owned := _newest_apple_transactions(available) if include_finished and pending_ios != null else available
+	var unfinished := owned.filter(func(purchase: Dictionary) -> bool:
 		return include_finished or (
 			pending_ios_failed if purchase.get("store") == "apple" else _is_unfinished(purchase)
 		))
@@ -325,8 +330,34 @@ func _recover(include_finished: bool) -> Variant:
 			break
 		if not include_finished and _settled.has(purchase.id):
 			continue
-		outcomes.append({"purchase": purchase, "status": await _deliver(purchase, false, include_finished)})
+		# A restore re-confirms what settled before it, not what the listener
+		# settled while it ran.
+		outcomes.append({"purchase": purchase, "status": await _deliver(purchase, false, include_finished and settled_before.has(purchase.id))})
 	return outcomes
+
+
+# Keeps each Apple purchase's newest transaction, in list order. One without
+# an original id or a date cannot be ranked, so it stays.
+static func _newest_apple_transactions(purchases: Array) -> Array:
+	var newest := {}
+	for purchase in purchases:
+		var key := _apple_chain(purchase)
+		if key.is_empty():
+			continue
+		var kept = newest.get(key)
+		if kept == null or float(purchase.transactionDate) > float(kept.transactionDate):
+			newest[key] = purchase
+	return purchases.filter(func(purchase) -> bool:
+		var key := _apple_chain(purchase)
+		return key.is_empty() or is_same(newest.get(key), purchase))
+
+
+static func _apple_chain(purchase: Dictionary) -> String:
+	var key = purchase.get("originalTransactionIdentifierIOS")
+	var date = purchase.get("transactionDate")
+	if purchase.get("store") != "apple" or not key or not (date is int or date is float) or date <= 0:
+		return ""
+	return str(key)
 
 
 func _is_unfinished(purchase: Dictionary) -> bool:

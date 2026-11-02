@@ -47,6 +47,7 @@ func _run() -> void:
 		await _run_sequence_vector(vector)
 	for vector in vectors.device:
 		await _run_device_vector(vector)
+	_test_undated_renewals_stay()
 	await _test_amazon_environment_types()
 	await _test_confirm_timeout()
 	await _test_confirm_timeout_ignores_time_scale()
@@ -59,6 +60,7 @@ func _run() -> void:
 	await _test_joined_run_publishes_latest_delivery()
 	await _test_dispose_silences_late_subscribers()
 	await _test_dispose_stops_recovery()
+	await _test_restore_takes_what_the_listener_settled_meanwhile()
 	await _test_recover_reports_failed_reads()
 	_test_confirmation_request()
 	await _test_wrapper_tracks_requests()
@@ -265,6 +267,16 @@ func _run_sequence_vector(vector: Dictionary) -> void:
 	_check(_equal(finishes, vector.finishes), name + " finishes")
 	if vector.has("published"):
 		_check(_equal(published, vector.published), name + " publishes")
+
+
+func _test_undated_renewals_stay() -> void:
+	var renewals := [
+		_purchase("r1", {"originalTransactionIdentifierIOS": "o1"}),
+		_purchase("r2", {"originalTransactionIdentifierIOS": "o1", "transactionDate": null}),
+		_purchase("r3", {"originalTransactionIdentifierIOS": "o1", "transactionDate": 1000.0}),
+	]
+	var kept: Array = PurchaseFlow._newest_apple_transactions(renewals).map(func(p): return p.id)
+	_check(_equal(kept, ["r1", "r2", "r3"]), "A renewal without a date stays in a restore")
 
 
 func _test_confirm_timeout() -> void:
@@ -480,6 +492,33 @@ func _test_dispose_stops_recovery() -> void:
 	gate.settle({"status": "entitled", "alreadyGranted": false})
 	var outcomes = await recovery.wait()
 	_check(confirmed == ["GPA.r1"] and outcomes.size() == 1, "Dispose stops a running recovery pass after the confirmation in progress")
+
+
+func _test_restore_takes_what_the_listener_settled_meanwhile() -> void:
+	var opened := PurchaseFlow._Pending.new()
+	var listener_settled := PurchaseFlow._Pending.new()
+	var confirmed := []
+	var deliver := [null]
+	var flow := PurchaseFlow.new(_options({
+		"confirm_with_backend": func(purchase: Dictionary, _is_consumable: bool) -> Variant:
+			confirmed.append(purchase.id)
+			await opened.wait()
+			return {"status": "entitled", "alreadyGranted": true},
+		"listen_for_purchases": func(on_purchase: Callable) -> Callable:
+			deliver[0] = on_purchase
+			return Callable(),
+		# The listener's confirmation settles after the restore began.
+		"get_available_purchases": func() -> Array:
+			opened.settle(null)
+			await listener_settled.wait()
+			return [_purchase("GPA.a", {"store": "google"}), _purchase("GPA.b", {"store": "google"})],
+	}))
+	flow.purchase_processed.connect(func(purchase: Dictionary, _status: PurchaseFlow.Status) -> void:
+		if purchase.id == "GPA.b":
+			listener_settled.settle(null))
+	deliver[0].call(_purchase("GPA.b", {"store": "google"}))
+	var outcomes = await flow.recover_purchases(true)
+	_check(outcomes.map(func(outcome): return outcome.purchase.id) == ["GPA.a", "GPA.b"] and confirmed == ["GPA.b", "GPA.a"], "A restore takes what the listener settled meanwhile without confirming it again")
 
 
 func _test_recover_reports_failed_reads() -> void:

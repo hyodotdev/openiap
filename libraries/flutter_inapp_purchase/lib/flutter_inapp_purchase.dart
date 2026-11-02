@@ -2158,8 +2158,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
       confirmWithBackend: confirmWithBackend,
       finishTransaction: finishTransaction ?? this.finishTransaction,
       isConsumable: isConsumable,
-      getAvailablePurchases:
-          getAvailablePurchases ?? this.getAvailablePurchases,
+      // The active-only iOS list drops subscriptions in billing grace.
+      getAvailablePurchases: getAvailablePurchases ??
+          () => this.getAvailablePurchases(onlyIncludeActiveItemsIOS: false),
       getPendingTransactionsIOS: getPendingTransactionsIOS ??
           (isIOS ? this.getPendingTransactionsIOS : null),
       confirmTimeout: confirmTimeout,

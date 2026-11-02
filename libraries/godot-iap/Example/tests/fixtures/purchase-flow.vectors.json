@@ -2470,14 +2470,18 @@
           "id": "a1",
           "productId": "premium",
           "purchaseToken": "j1",
-          "store": "apple"
+          "store": "apple",
+          "originalTransactionIdentifierIOS": "o1",
+          "transactionDate": 1000
         },
         "a2": {
           "purchaseState": "purchased",
           "id": "a2",
           "productId": "premium",
           "purchaseToken": "j2",
-          "store": "apple"
+          "store": "apple",
+          "originalTransactionIdentifierIOS": "o1",
+          "transactionDate": 2000
         }
       },
       "answers": {
@@ -2518,6 +2522,223 @@
       "finishes": {
         "a1": 1,
         "a2": 1
+      }
+    },
+    {
+      "name": "restores every Apple transaction when the pending list fails",
+      "purchases": {
+        "a1": {
+          "purchaseState": "purchased",
+          "id": "a1",
+          "productId": "premium",
+          "purchaseToken": "j1",
+          "store": "apple",
+          "originalTransactionIdentifierIOS": "o1",
+          "transactionDate": 1000
+        },
+        "a2": {
+          "purchaseState": "purchased",
+          "id": "a2",
+          "productId": "premium",
+          "purchaseToken": "j2",
+          "store": "apple",
+          "originalTransactionIdentifierIOS": "o1",
+          "transactionDate": 2000
+        }
+      },
+      "answers": {
+        "*": [
+          {
+            "status": "entitled",
+            "alreadyGranted": true
+          }
+        ]
+      },
+      "pendingIOS": "throw",
+      "available": ["a1", "a2"],
+      "steps": [
+        {
+          "recover": {
+            "includeFinished": true
+          },
+          "outcomes": [
+            {
+              "id": "a1",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": true
+              }
+            },
+            {
+              "id": "a2",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": true
+              }
+            }
+          ]
+        }
+      ],
+      "confirms": {
+        "a1": 1,
+        "a2": 1
+      },
+      "finishes": {
+        "a1": 1,
+        "a2": 1
+      }
+    },
+    {
+      "name": "restores every renewal that has no date",
+      "purchases": {
+        "u1": {
+          "purchaseState": "purchased",
+          "id": "u1",
+          "productId": "premium",
+          "purchaseToken": "j1",
+          "store": "apple",
+          "originalTransactionIdentifierIOS": "o1"
+        },
+        "u2": {
+          "purchaseState": "purchased",
+          "id": "u2",
+          "productId": "premium",
+          "purchaseToken": "j2",
+          "store": "apple",
+          "originalTransactionIdentifierIOS": "o1"
+        }
+      },
+      "answers": {
+        "*": [
+          {
+            "status": "entitled",
+            "alreadyGranted": true
+          }
+        ]
+      },
+      "pendingIOS": [],
+      "available": ["u1", "u2"],
+      "steps": [
+        {
+          "recover": {
+            "includeFinished": true
+          },
+          "outcomes": [
+            {
+              "id": "u1",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": true
+              }
+            },
+            {
+              "id": "u2",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": true
+              }
+            }
+          ]
+        }
+      ],
+      "confirms": {
+        "u1": 1,
+        "u2": 1
+      },
+      "finishes": {
+        "u1": 1,
+        "u2": 1
+      }
+    },
+    {
+      "name": "restores only the newest transaction of each Apple purchase",
+      "purchases": {
+        "r0": {
+          "purchaseState": "purchased",
+          "id": "r0",
+          "productId": "premium",
+          "purchaseToken": "j0",
+          "store": "apple",
+          "originalTransactionIdentifierIOS": "o1",
+          "transactionDate": 100
+        },
+        "r1": {
+          "purchaseState": "purchased",
+          "id": "r1",
+          "productId": "premium",
+          "purchaseToken": "j1",
+          "store": "apple",
+          "originalTransactionIdentifierIOS": "o1",
+          "transactionDate": 1000
+        },
+        "r2": {
+          "purchaseState": "purchased",
+          "id": "r2",
+          "productId": "premium",
+          "purchaseToken": "j2",
+          "store": "apple",
+          "originalTransactionIdentifierIOS": "o1",
+          "transactionDate": 2000
+        },
+        "c1": {
+          "purchaseState": "purchased",
+          "id": "c1",
+          "productId": "certified",
+          "purchaseToken": "jc",
+          "store": "apple",
+          "originalTransactionIdentifierIOS": "c1",
+          "transactionDate": 500
+        }
+      },
+      "answers": {
+        "*": [
+          {
+            "status": "entitled",
+            "alreadyGranted": true
+          }
+        ]
+      },
+      "pendingIOS": ["r0"],
+      "available": ["r0", "r1", "r2", "c1"],
+      "steps": [
+        {
+          "recover": {
+            "includeFinished": true
+          },
+          "outcomes": [
+            {
+              "id": "r0",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": true
+              }
+            },
+            {
+              "id": "r2",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": true
+              }
+            },
+            {
+              "id": "c1",
+              "status": {
+                "status": "entitled",
+                "alreadyGranted": true
+              }
+            }
+          ]
+        }
+      ],
+      "confirms": {
+        "r0": 1,
+        "r2": 1,
+        "c1": 1
+      },
+      "finishes": {
+        "r0": 1,
+        "r2": 1,
+        "c1": 1
       }
     },
     {
@@ -2874,7 +3095,10 @@
     },
     {
       "name": "refuses a transaction that expires while StoreKit answers",
-      "clock": { "beforeRead": 1000, "afterRead": 3000 },
+      "clock": {
+        "beforeRead": 1000,
+        "afterRead": 3000
+      },
       "purchase": {
         "purchaseState": "purchased",
         "store": "apple",

@@ -68,6 +68,14 @@ const MENU_ITEMS: MenuItem[] = [
     subtitle: 'External payment links',
     accentColor: '#EA580C',
   },
+  {
+    id: 'app-ownership',
+    href: '/app-ownership',
+    icon: '🔐',
+    title: 'App Ownership',
+    subtitle: 'Check the app came from its store',
+    accentColor: '#0891B2',
+  },
 ];
 
 /** Example app landing page: navigation to each purchase flow example. */

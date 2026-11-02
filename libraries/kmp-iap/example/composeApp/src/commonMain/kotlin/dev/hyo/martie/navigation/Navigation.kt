@@ -16,6 +16,7 @@ sealed class Screen(val route: String) {
     object AvailablePurchases : Screen("available-purchases")
     object OfferCode : Screen("offer-code")
     object AlternativeBilling : Screen("alternative-billing")
+    object AppOwnership : Screen("app-ownership")
 }
 
 @Composable
@@ -46,6 +47,9 @@ fun AppNavigation(
         }
         composable(Screen.AlternativeBilling.route) {
             AlternativeBillingScreen(navController)
+        }
+        composable(Screen.AppOwnership.route) {
+            AppOwnershipScreen(navController)
         }
     }
 }

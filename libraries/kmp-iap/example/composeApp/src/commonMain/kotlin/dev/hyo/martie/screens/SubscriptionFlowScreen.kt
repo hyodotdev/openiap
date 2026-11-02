@@ -603,7 +603,10 @@ fun SubscriptionFlowScreen(navController: NavController) {
             
             Spacer(modifier = Modifier.height(12.dp))
             
-            catalogResult?.let { Text(it, color = AppColors.Secondary) }
+            catalogResult?.let {
+                Text(it, color = AppColors.Secondary)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             if (isLoadingProducts) {
                 Card(

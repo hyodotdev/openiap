@@ -1467,7 +1467,9 @@ export type {SdkPurchaseFlowOptions} from './utils/purchaseFlowBinding';
 
 const purchaseFlowSdk: PurchaseFlowSdk = {
   finishTransaction: (args) => finishTransaction(args),
-  getAvailablePurchases: () => getAvailablePurchases(),
+  // The active-only iOS list drops subscriptions in billing grace.
+  getAvailablePurchases: () =>
+    getAvailablePurchases({onlyIncludeActiveItemsIOS: false}),
   getPendingTransactionsIOS:
     Platform.OS === 'ios' ? () => getPendingTransactionsIOS() : undefined,
   purchaseUpdatedListener: (listener) =>

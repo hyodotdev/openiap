@@ -355,7 +355,10 @@ const flow = createPurchaseFlow({
         <code>recoverPurchases({"{ includeFinished: true }"})</code>, which{" "}
         <code>restorePurchases()</code> on the hook does: the same account gets{" "}
         <code>entitled</code> with <code>alreadyGranted</code>, and another
-        account gets <code>ownership_conflict</code>. Nothing is transferred. If{" "}
+        account gets <code>ownership_conflict</code>. Nothing is transferred. On
+        iOS a restore reads the full transaction history and confirms each
+        purchase once, through its newest transaction, so a subscription in
+        billing grace comes back and past renewals cost nothing extra. If{" "}
         <code>getPendingTransactionsIOS</code> throws, as one unverified
         transaction makes it do, recovery confirms every Apple purchase{" "}
         <code>getAvailablePurchases</code> lists instead.
@@ -363,8 +366,9 @@ const flow = createPurchaseFlow({
       <p>
         Repeating is safe: your backend grants a one-time purchase once, a
         subscription links once, finishing twice is harmless, concurrent
-        deliveries of one transaction share a backend call, and a later delivery
-        of a settled purchase is answered without one. IAPKit replay-limits each
+        deliveries of one transaction share a backend call, a restore reuses
+        what the listener settled while it ran, and a later delivery of a
+        settled purchase is answered without one. IAPKit replay-limits each
         receipt to about one verification a minute after a burst, so respect{" "}
         <code>retryAfterMs</code> instead of looping. The reference backend
         reports <code>429 REPEATED_FAILURE</code>, a receipt IAPKit rejected in

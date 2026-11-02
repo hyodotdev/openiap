@@ -114,6 +114,7 @@ jest.mock('../src/index', () => {
     verifyPurchase: mockVerifyPurchase,
     verifyPurchaseWithProvider: mockVerifyPurchaseWithProvider,
     openRedeemOfferCode: jest.fn(() => Promise.resolve(null)),
+    verifyAppOwnership: jest.fn(),
 
     // Android specific
     acknowledgePurchaseAndroid: jest.fn(() => Promise.resolve(true)),

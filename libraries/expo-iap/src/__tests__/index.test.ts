@@ -320,6 +320,25 @@ describe('Public API (index.ts)', () => {
       expect(ExpoIapModule.finishTransaction).not.toHaveBeenCalled();
     });
 
+    it('restores from the full iOS history', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      (ExpoIapModule.getAvailableItems as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue([]);
+      const flow = createPurchaseFlow({
+        confirmWithBackend: jest.fn(),
+        isConsumable: () => false,
+      });
+
+      await flow.recoverPurchases({includeFinished: true});
+
+      expect(ExpoIapModule.getAvailableItems).toHaveBeenCalledWith(
+        false,
+        false,
+      );
+      flow.dispose();
+    });
+
     it('grants an IAPKit-confirmed consumable before consuming it', async () => {
       const order: string[] = [];
       (

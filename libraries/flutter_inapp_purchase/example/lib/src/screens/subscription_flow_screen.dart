@@ -853,6 +853,7 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
                             ? Colors.orange.shade600
                             : const Color(0xFF007AFF),
                         foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -961,445 +962,450 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
             ),
         ],
       ),
-      body: _isConnecting
-          ? const Center(child: CircularProgressIndicator())
-          : !_connected
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      const Text('Failed to connect to store'),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () => _awaitConnection(_purchases.start()),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF007AFF),
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: () async {
-                    await _loadSubscriptions();
-                    await _checkActiveSubscriptions();
-                  },
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        child: _isConnecting
+            ? const Center(child: CircularProgressIndicator())
+            : !_connected
+                ? Center(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Verification Method Selector
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.blue.shade200),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Subscription Verification:',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              OutlinedButton(
-                                onPressed: _pickVerificationMethod,
-                                child: Text(
-                                  _purchases.verificationMethod.value.label,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        const Icon(Icons.error, size: 64, color: Colors.red),
                         const SizedBox(height: 16),
-
-                        // Active Subscription Status Card
-                        Card(
-                          color: _hasActiveSubscription
-                              ? Colors.green.shade50
-                              : Colors.orange.shade50,
-                          child: ListTile(
-                            leading: Icon(
-                              _hasActiveSubscription
-                                  ? Icons.check_circle
-                                  : Icons.info,
-                              color: _hasActiveSubscription
-                                  ? Colors.green
-                                  : Colors.orange,
-                            ),
-                            title: Text(
-                              _hasActiveSubscription
-                                  ? 'Store ownership: $_currentProductId'
-                                  : 'No store-reported subscription',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            subtitle: Text(
-                              _hasActiveSubscription
-                                  ? 'You can upgrade/downgrade with proration mode'
-                                  : 'Subscribe to any tier to get started',
-                            ),
+                        const Text('Failed to connect to store'),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => _awaitConnection(_purchases.start()),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF007AFF),
+                            foregroundColor: Colors.white,
                           ),
+                          child: const Text('Retry'),
                         ),
-
-                        const SizedBox(height: 24),
-
-                        // Upgrade Detection Section
-                        if (_activeSubscriptionInfo.values.any(
-                          (sub) =>
-                              sub.renewalInfoIOS?.pendingUpgradeProductId !=
-                              null,
-                        )) ...[
-                          Card(
-                            color: Colors.blue.shade50,
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.upgrade,
-                                        color: Colors.blue.shade700,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      const Text(
-                                        'Pending Upgrade Detected',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: () async {
+                      await _loadSubscriptions();
+                      await _checkActiveSubscriptions();
+                    },
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Verification Method Selector
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.blue.shade200),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Subscription Verification:',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
                                   ),
-                                  const SizedBox(height: 8),
-                                  ..._activeSubscriptionInfo.values
-                                      .where(
-                                    (sub) =>
-                                        sub.renewalInfoIOS
-                                            ?.pendingUpgradeProductId !=
-                                        null,
-                                  )
-                                      .map((sub) {
-                                    final renewal = sub.renewalInfoIOS!;
-                                    return Padding(
-                                      padding: const EdgeInsets.only(top: 8),
-                                      child: RichText(
-                                        text: TextSpan(
-                                          style: TextStyle(
-                                            color: Colors.grey.shade800,
-                                            fontSize: 14,
-                                          ),
-                                          children: [
-                                            TextSpan(
-                                              text: sub.productId,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            const TextSpan(text: ' → '),
-                                            TextSpan(
-                                              text: renewal
-                                                  .pendingUpgradeProductId!,
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.blue.shade700,
-                                              ),
-                                            ),
-                                            if (renewal.renewalDate != null)
-                                              TextSpan(
-                                                text:
-                                                    '\nUpgrade takes effect: ${_formatReadableDate(renewal.renewalDate!)}',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.grey.shade600,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  }),
-                                ],
-                              ),
+                                ),
+                                OutlinedButton(
+                                  onPressed: _pickVerificationMethod,
+                                  child: Text(
+                                    _purchases.verificationMethod.value.label,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: 16),
-                        ],
 
-                        // Cancellation Detection Section
-                        if (_activeSubscriptionInfo.values.any(
-                          (sub) =>
-                              sub.renewalInfoIOS?.willAutoRenew == false &&
-                              sub.renewalInfoIOS?.pendingUpgradeProductId ==
-                                  null,
-                        )) ...[
+                          // Active Subscription Status Card
                           Card(
-                            color: Colors.orange.shade50,
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.warning,
-                                        color: Colors.orange.shade700,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      const Text(
-                                        'Subscription Cancelled',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  ..._activeSubscriptionInfo.values
-                                      .where(
-                                    (sub) =>
-                                        sub.renewalInfoIOS?.willAutoRenew ==
-                                            false &&
-                                        sub.renewalInfoIOS
-                                                ?.pendingUpgradeProductId ==
-                                            null,
-                                  )
-                                      .map((sub) {
-                                    return Padding(
-                                      padding: const EdgeInsets.only(top: 8),
-                                      child: RichText(
-                                        text: TextSpan(
-                                          style: TextStyle(
-                                            color: Colors.grey.shade800,
-                                            fontSize: 14,
-                                          ),
-                                          children: [
-                                            TextSpan(
-                                              text: sub.productId,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            const TextSpan(
-                                              text:
-                                                  ' is active but will not renew',
-                                            ),
-                                            if (sub.expirationDateIOS != null)
-                                              TextSpan(
-                                                text:
-                                                    '\nExpires: ${_formatReadableDate(sub.expirationDateIOS!)}',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.grey.shade600,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  }),
-                                ],
+                            color: _hasActiveSubscription
+                                ? Colors.green.shade50
+                                : Colors.orange.shade50,
+                            child: ListTile(
+                              leading: Icon(
+                                _hasActiveSubscription
+                                    ? Icons.check_circle
+                                    : Icons.info,
+                                color: _hasActiveSubscription
+                                    ? Colors.green
+                                    : Colors.orange,
+                              ),
+                              title: Text(
+                                _hasActiveSubscription
+                                    ? 'Store ownership: $_currentProductId'
+                                    : 'No store-reported subscription',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              subtitle: Text(
+                                _hasActiveSubscription
+                                    ? 'You can upgrade/downgrade with proration mode'
+                                    : 'Subscribe to any tier to get started',
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
-                        ],
 
-                        if (_activeSubscriptionInfo.isNotEmpty) ...[
-                          const Text(
-                            'Store-reported Subscriptions',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          for (final MapEntry(:key, :value)
-                              in _activeSubscriptionInfo.entries)
-                            _buildActiveSubscriptionCard(key, value),
                           const SizedBox(height: 24),
-                        ],
 
-                        // Available Subscriptions
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
+                          // Upgrade Detection Section
+                          if (_activeSubscriptionInfo.values.any(
+                            (sub) =>
+                                sub.renewalInfoIOS?.pendingUpgradeProductId !=
+                                null,
+                          )) ...[
+                            Card(
+                              color: Colors.blue.shade50,
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.upgrade,
+                                          color: Colors.blue.shade700,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        const Text(
+                                          'Pending Upgrade Detected',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ..._activeSubscriptionInfo.values
+                                        .where(
+                                      (sub) =>
+                                          sub.renewalInfoIOS
+                                              ?.pendingUpgradeProductId !=
+                                          null,
+                                    )
+                                        .map((sub) {
+                                      final renewal = sub.renewalInfoIOS!;
+                                      return Padding(
+                                        padding: const EdgeInsets.only(top: 8),
+                                        child: RichText(
+                                          text: TextSpan(
+                                            style: TextStyle(
+                                              color: Colors.grey.shade800,
+                                              fontSize: 14,
+                                            ),
+                                            children: [
+                                              TextSpan(
+                                                text: sub.productId,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              const TextSpan(text: ' → '),
+                                              TextSpan(
+                                                text: renewal
+                                                    .pendingUpgradeProductId!,
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.blue.shade700,
+                                                ),
+                                              ),
+                                              if (renewal.renewalDate != null)
+                                                TextSpan(
+                                                  text:
+                                                      '\nUpgrade takes effect: ${_formatReadableDate(renewal.renewalDate!)}',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey.shade600,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+
+                          // Cancellation Detection Section
+                          if (_activeSubscriptionInfo.values.any(
+                            (sub) =>
+                                sub.renewalInfoIOS?.willAutoRenew == false &&
+                                sub.renewalInfoIOS?.pendingUpgradeProductId ==
+                                    null,
+                          )) ...[
+                            Card(
+                              color: Colors.orange.shade50,
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.warning,
+                                          color: Colors.orange.shade700,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        const Text(
+                                          'Subscription Cancelled',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ..._activeSubscriptionInfo.values
+                                        .where(
+                                      (sub) =>
+                                          sub.renewalInfoIOS?.willAutoRenew ==
+                                              false &&
+                                          sub.renewalInfoIOS
+                                                  ?.pendingUpgradeProductId ==
+                                              null,
+                                    )
+                                        .map((sub) {
+                                      return Padding(
+                                        padding: const EdgeInsets.only(top: 8),
+                                        child: RichText(
+                                          text: TextSpan(
+                                            style: TextStyle(
+                                              color: Colors.grey.shade800,
+                                              fontSize: 14,
+                                            ),
+                                            children: [
+                                              TextSpan(
+                                                text: sub.productId,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              const TextSpan(
+                                                text:
+                                                    ' is active but will not renew',
+                                              ),
+                                              if (sub.expirationDateIOS != null)
+                                                TextSpan(
+                                                  text:
+                                                      '\nExpires: ${_formatReadableDate(sub.expirationDateIOS!)}',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey.shade600,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+
+                          if (_activeSubscriptionInfo.isNotEmpty) ...[
                             const Text(
-                              'Available Subscription Tiers',
+                              'Store-reported Subscriptions',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            if (_isLoadingProducts)
-                              const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              ),
+                            const SizedBox(height: 8),
+                            for (final MapEntry(:key, :value)
+                                in _activeSubscriptionInfo.entries)
+                              _buildActiveSubscriptionCard(key, value),
+                            const SizedBox(height: 24),
                           ],
-                        ),
-                        const SizedBox(height: 12),
 
-                        if (_subscriptions.isEmpty && !_isLoadingProducts)
-                          const Card(
-                            child: Padding(
-                              padding: EdgeInsets.all(32),
-                              child: Center(
-                                child: Text(
-                                  'No subscriptions available',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                              ),
-                            ),
-                          )
-                        else
-                          ..._subscriptions.map(_buildSubscriptionTier),
-
-                        const SizedBox(height: 24),
-
-                        // Test Instructions
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.blue.shade200),
-                          ),
-                          child: const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          // Available Subscriptions
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'How to Test Proration Mode:',
+                              const Text(
+                                'Available Subscription Tiers',
                                 style: TextStyle(
+                                  fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 14,
                                 ),
                               ),
-                              SizedBox(height: 8),
-                              Text(
-                                '1. Subscribe to Basic tier first',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                              Text(
-                                '2. Wait for purchase to complete',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                              Text(
-                                '3. Tap "Restore Purchases" to load your subscription',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                              Text(
-                                '4. Select a proration mode (e.g., "Immediate with Time Proration")',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                              Text(
-                                '5. Upgrade to Premium or Pro tier',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                              SizedBox(height: 8),
-                              Text(
-                                'Test Buttons: "No Token" = without token, "Empty Token" = with empty string',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontStyle: FontStyle.italic,
-                                  color: Colors.grey,
+                              if (_isLoadingProducts)
+                                const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
                                 ),
-                              ),
                             ],
                           ),
-                        ),
+                          const SizedBox(height: 12),
 
-                        const SizedBox(height: 16),
-
-                        // Restore Purchases Button
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: _isProcessing ? null : _restorePurchases,
-                            icon: const Icon(Icons.restore),
-                            label: const Text('Restore Purchases'),
-                          ),
-                        ),
-
-                        // Purchase Result
-                        if (_purchaseResult != null) ...[
-                          const SizedBox(height: 16),
-                          Card(
-                            color: _purchaseResult!.contains('✅')
-                                ? Colors.green.shade50
-                                : _purchaseResult!.contains('❌')
-                                    ? Colors.red.shade50
-                                    : Colors.orange.shade50,
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          _purchaseResult!,
-                                          style: TextStyle(
-                                            color: _purchaseResult!
-                                                    .contains('✅')
-                                                ? Colors.green
-                                                : _purchaseResult!.contains('❌')
-                                                    ? Colors.red
-                                                    : Colors.orange,
-                                          ),
-                                        ),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.close, size: 18),
-                                        onPressed: () {
-                                          setState(() {
-                                            _purchaseResult = null;
-                                          });
-                                        },
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                      ),
-                                    ],
+                          if (_subscriptions.isEmpty && !_isLoadingProducts)
+                            const Card(
+                              child: Padding(
+                                padding: EdgeInsets.all(32),
+                                child: Center(
+                                  child: Text(
+                                    'No subscriptions available',
+                                    style: TextStyle(color: Colors.grey),
                                   ),
-                                  if (_currentActiveSubscription != null) ...[
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      'View subscription details above in the Active Subscriptions section',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontStyle: FontStyle.italic,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ],
-                                ],
+                                ),
                               ),
+                            )
+                          else
+                            ..._subscriptions.map(_buildSubscriptionTier),
+
+                          const SizedBox(height: 24),
+
+                          // Test Instructions
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.blue.shade200),
+                            ),
+                            child: const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'How to Test Proration Mode:',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  '1. Subscribe to Basic tier first',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                Text(
+                                  '2. Wait for purchase to complete',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                Text(
+                                  '3. Tap "Restore Purchases" to load your subscription',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                Text(
+                                  '4. Select a proration mode (e.g., "Immediate with Time Proration")',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                Text(
+                                  '5. Upgrade to Premium or Pro tier',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Test Buttons: "No Token" = without token, "Empty Token" = with empty string',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontStyle: FontStyle.italic,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
+
+                          const SizedBox(height: 16),
+
+                          // Restore Purchases Button
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed:
+                                  _isProcessing ? null : _restorePurchases,
+                              icon: const Icon(Icons.restore),
+                              label: const Text('Restore Purchases'),
+                            ),
+                          ),
+
+                          // Purchase Result
+                          if (_purchaseResult != null) ...[
+                            const SizedBox(height: 16),
+                            Card(
+                              color: _purchaseResult!.contains('✅')
+                                  ? Colors.green.shade50
+                                  : _purchaseResult!.contains('❌')
+                                      ? Colors.red.shade50
+                                      : Colors.orange.shade50,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            _purchaseResult!,
+                                            style: TextStyle(
+                                              color:
+                                                  _purchaseResult!.contains('✅')
+                                                      ? Colors.green
+                                                      : _purchaseResult!
+                                                              .contains('❌')
+                                                          ? Colors.red
+                                                          : Colors.orange,
+                                            ),
+                                          ),
+                                        ),
+                                        IconButton(
+                                          icon:
+                                              const Icon(Icons.close, size: 18),
+                                          onPressed: () {
+                                            setState(() {
+                                              _purchaseResult = null;
+                                            });
+                                          },
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                        ),
+                                      ],
+                                    ),
+                                    if (_currentActiveSubscription != null) ...[
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'View subscription details above in the Active Subscriptions section',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontStyle: FontStyle.italic,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
-                ),
+      ),
     );
   }
 }

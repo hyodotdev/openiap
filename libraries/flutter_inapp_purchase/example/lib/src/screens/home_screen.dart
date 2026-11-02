@@ -121,6 +121,16 @@ class HomeScreen extends StatelessWidget {
                           '/alternative-billing',
                         ),
                       ),
+                      const Divider(height: 1),
+                      _buildMenuItem(
+                        context,
+                        icon: CupertinoIcons.checkmark_shield,
+                        title: 'App Ownership',
+                        subtitle: 'Check the app came from its store',
+                        color: Colors.teal,
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/app-ownership'),
+                      ),
                     ],
                   ),
                 ),

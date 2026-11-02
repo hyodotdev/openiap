@@ -96,6 +96,13 @@ struct HomeScreen: View {
                             )
                         }
 
+                        FeatureCard(
+                            title: "App\nOwnership",
+                            subtitle: "Check the app came from its store",
+                            icon: "checkmark.seal.fill",
+                            color: Color.indigo,
+                            destination: AnyView(AppOwnershipScreen())
+                        )
                     }
                     .padding(.horizontal)
                     

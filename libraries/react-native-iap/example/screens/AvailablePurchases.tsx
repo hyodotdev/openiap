@@ -12,6 +12,8 @@ import {
 import type {PurchaseError} from 'react-native-iap';
 import {useIAP, deepLinkToSubscriptions} from 'react-native-iap';
 import {useDataModal} from '../src/contexts/DataModalContext';
+import {getErrorMessage} from '../src/utils/errorUtils';
+import {purchaseFlow} from '../src/utils/purchaseFlow';
 
 const subscriptionIds = [
   'dev.hyo.martie.premium', // Same as subscription-flow
@@ -22,6 +24,8 @@ const isVegaOS = (): boolean => String(Platform.OS) === 'kepler';
 export default function AvailablePurchases() {
   const [loading, setLoading] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [restoreStatus, setRestoreStatus] = useState<string | null>(null);
   const [subscriptionLinkMessage, setSubscriptionLinkMessage] = useState<
     string | null
   >(null);
@@ -38,7 +42,10 @@ export default function AvailablePurchases() {
     getAvailablePurchases,
     getActiveSubscriptions,
     fetchProducts,
+    restorePurchases,
   } = useIAP({
+    // Restore re-confirms owned purchases through the app's purchase flow.
+    purchaseFlow,
     onPurchaseSuccess: (purchase) => {
       console.log('[AVAILABLE-PURCHASES] Purchase received:', {
         productId: purchase.productId,
@@ -95,6 +102,19 @@ export default function AvailablePurchases() {
       Alert.alert('Error', 'Failed to get available purchases');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRestorePurchases = async () => {
+    setRestoring(true);
+    setRestoreStatus('Restoring purchases...');
+    try {
+      await restorePurchases();
+      setRestoreStatus('Purchases restored.');
+    } catch (error) {
+      setRestoreStatus(`Restore failed: ${getErrorMessage(error)}`);
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -296,7 +316,13 @@ export default function AvailablePurchases() {
             >
               <View style={styles.purchaseRow}>
                 <Text style={styles.label}>Product ID:</Text>
-                <Text style={styles.value}>{purchase.productId}</Text>
+                <Text
+                  style={styles.value}
+                  numberOfLines={1}
+                  ellipsizeMode="middle"
+                >
+                  {purchase.productId}
+                </Text>
               </View>
               <View style={styles.purchaseRow}>
                 <Text style={styles.label}>Store:</Text>
@@ -313,7 +339,13 @@ export default function AvailablePurchases() {
               {purchase.id && (
                 <View style={styles.purchaseRow}>
                   <Text style={styles.label}>Transaction ID:</Text>
-                  <Text style={styles.value}>{purchase.id}</Text>
+                  <Text
+                    style={styles.value}
+                    numberOfLines={1}
+                    ellipsizeMode="middle"
+                  >
+                    {purchase.id}
+                  </Text>
                 </View>
               )}
 
@@ -390,17 +422,33 @@ export default function AvailablePurchases() {
         )}
       </View>
 
-      <TouchableOpacity
-        style={[styles.button, !connected && styles.buttonDisabled]}
-        onPress={handleGetAvailablePurchases}
-        disabled={!connected || loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>🔄 Refresh Purchases</Text>
-        )}
-      </TouchableOpacity>
+      <View style={styles.actions}>
+        <TouchableOpacity
+          style={[styles.button, !connected && styles.buttonDisabled]}
+          onPress={handleGetAvailablePurchases}
+          disabled={!connected || loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>🔄 Refresh Purchases</Text>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, !connected && styles.buttonDisabled]}
+          onPress={handleRestorePurchases}
+          disabled={!connected || restoring}
+        >
+          {restoring ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Restore Purchases</Text>
+          )}
+        </TouchableOpacity>
+        {restoreStatus ? (
+          <Text style={styles.helperText}>{restoreStatus}</Text>
+        ) : null}
+      </View>
     </ScrollView>
   );
 }
@@ -536,6 +584,10 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     backgroundColor: '#ccc',
+  },
+  actions: {
+    gap: 12,
+    marginBottom: 20,
   },
   buttonText: {
     color: '#fff',

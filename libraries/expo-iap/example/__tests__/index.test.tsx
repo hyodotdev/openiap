@@ -1,13 +1,15 @@
 import React from 'react';
-import {render, waitFor} from '@testing-library/react-native';
+import {fireEvent, render, waitFor} from '@testing-library/react-native';
 import {Platform} from 'react-native';
 import Home from '../app/index';
 import * as ExpoIap from 'expo-iap';
 
+const mockPush = jest.fn();
+
 // Mock expo-router
 jest.mock('expo-router', () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: mockPush,
   }),
 }));
 
@@ -48,10 +50,25 @@ describe('Home Component', () => {
     expect(getByText('Available Purchases')).toBeDefined();
     expect(getByText('Offer Code Redemption')).toBeDefined();
     expect(getByText('Alternative Billing')).toBeDefined();
+    expect(getByText('App Ownership')).toBeDefined();
+    expect(getByText('Check the app came from its store')).toBeDefined();
 
     await waitFor(() => {
       expect(ExpoIap.getStorefront).toHaveBeenCalled();
     });
+  });
+
+  it('lists App Ownership right after Alternative Billing and opens it', async () => {
+    const {getAllByText, getByText} = await render(<Home />);
+
+    const titles = getAllByText(/^(Alternative Billing|App Ownership)$/).map(
+      (title) => title.props.children,
+    );
+    expect(titles).toEqual(['Alternative Billing', 'App Ownership']);
+
+    await fireEvent.press(getByText('App Ownership'));
+
+    expect(mockPush).toHaveBeenCalledWith('/app-ownership');
   });
 
   it('should render on iOS platform', async () => {

@@ -2,17 +2,18 @@
 
 A .NET MAUI sample app that mirrors
 [`libraries/expo-iap/example`](../../expo-iap/example) — same SKUs, same
-seven flows, same UX patterns.
+flows, same UX patterns.
 
 ## Pages
 
-- **`HomePage`** ← `app/index.tsx` — menu + storefront probe in the header.
+- **`HomePage`** ← `app/index.tsx` — the menu of example screens.
 - **`AllProductsPage`** ← `app/all-products.tsx` — `fetchProducts(type: All)`, sealed-union match, type/platform-narrowed details modal.
 - **`PurchaseFlowPage`** ← `app/purchase-flow.tsx` — `requestPurchase`, `PurchaseUpdated` listener, verification picker (none / local / IAPKit), available-purchases panel, copy-result button, iOS App Transaction probe, two modal sheets (product / purchase details).
 - **`SubscriptionFlowPage`** ← `app/subscription-flow.tsx` — subscriptions list, `getActiveSubscriptions`, `deepLinkToSubscriptions`, details modal.
-- **`AvailablePurchasesPage`** ← `app/available-purchases.tsx` — `getAvailablePurchases` (deduplicated), `getActiveSubscriptions`, manage deep link.
+- **`AvailablePurchasesPage`** ← `app/available-purchases.tsx` — `getAvailablePurchases` (deduplicated), `getActiveSubscriptions`, Restore Purchases through the app's purchase flow (`RecoverPurchasesAsync(includeFinished: true)`), manage deep link.
 - **`OfferCodePage`** ← `app/offer-code.tsx` — unified `openRedeemOfferCode` (StoreKit sheet on iOS, Play redeem page on Android) with platform hint copy.
 - **`AlternativeBillingPage`** ← `app/alternative-billing.tsx` — Android `isBillingProgramAvailableAndroid`, iOS external purchase link + custom-link eligibility.
+- **`AppOwnershipPage`** ← `app/app-ownership.tsx` — `verifyAppOwnership`, with the Google Cloud project number and request hash that Google Play needs.
 
 Shared layer:
 

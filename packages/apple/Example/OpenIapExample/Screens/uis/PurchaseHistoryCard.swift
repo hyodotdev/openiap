@@ -34,6 +34,8 @@ struct PurchaseHistoryCard: View {
                     Text(purchase.productId)
                         .font(.headline)
                         .fontWeight(.semibold)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                     
                     Text("Transaction: \(String(purchase.id.prefix(8)))...")
                         .font(.caption)

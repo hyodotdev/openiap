@@ -21,13 +21,17 @@ var difficulty_timer: float = 0.0
 @onready var game_over_label: Label = $UI/GameOverLabel
 @onready var restart_button: Button = $UI/RestartButton
 @onready var store_button: Button = $UI/StoreButton
-@onready var store_overlay: ColorRect = $UI/StoreOverlay
+@onready var ownership_button: Button = $UI/OwnershipButton
+@onready var overlay: ColorRect = $UI/Overlay
 @onready var store_panel: Panel = $UI/StorePanel
 @onready var store_contents: VBoxContainer = $UI/StorePanel/ScrollContainer/VBoxContainer
+@onready var ownership_panel: Panel = $UI/OwnershipPanel
+@onready var ownership_contents: VBoxContainer = $UI/OwnershipPanel/ScrollContainer/VBoxContainer
 @onready var loading_label: Label = $UI/LoadingLabel
 @onready var status_label: Label = $UI/StatusLabel
 
 var verification_picker: OptionButton
+var restore_status_label: Label
 var ownership_project_number: LineEdit
 var ownership_request_hash: LineEdit
 var ownership_result_label: Label
@@ -47,9 +51,10 @@ func _ready() -> void:
 	player.hit.connect(_on_player_hit)
 	restart_button.pressed.connect(_on_restart_pressed)
 	store_button.pressed.connect(_on_store_button_pressed)
+	ownership_button.pressed.connect(_set_panel_visible.bind(ownership_panel, true))
 
-	# Store panel buttons
 	_setup_store_panel()
+	_setup_ownership_check()
 
 	# Connect IAP signals (IapManager is autoload singleton)
 	IapManager.purchase_completed.connect(_on_purchase_completed)
@@ -61,11 +66,11 @@ func _ready() -> void:
 	IapManager.subscription_entitlements_changed.connect(_on_subscription_entitlements_changed)
 	game_over_label.visible = false
 	restart_button.visible = false
-	store_overlay.visible = false
+	overlay.visible = false
 	store_panel.visible = false
+	ownership_panel.visible = false
 	loading_label.visible = IapManager.is_loading
 	status_label.text = "Connecting..." if IapManager.is_loading else "Not connected"
-	store_button.disabled = false
 	if IapManager.store_connected:
 		_on_connection_changed(true)
 
@@ -76,7 +81,7 @@ func _setup_store_panel() -> void:
 	# Connect store panel buttons
 	var close_btn = store_panel.get_node_or_null("CloseButton")
 	if close_btn:
-		close_btn.pressed.connect(_on_store_close_pressed)
+		close_btn.pressed.connect(_set_panel_visible.bind(store_panel, false))
 
 	var buy_10_btn = store_contents.get_node_or_null("Buy10BulbsButton")
 	if buy_10_btn:
@@ -101,9 +106,13 @@ func _setup_store_panel() -> void:
 	var restore_btn = store_contents.get_node_or_null("RestoreButton")
 	if restore_btn:
 		restore_btn.pressed.connect(_on_restore_pressed)
+		# The store panel covers the HUD status, so restore reports here too.
+		restore_status_label = Label.new()
+		restore_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		restore_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		store_contents.add_child(restore_status_label)
 
 	_setup_verification_picker()
-	_setup_ownership_check()
 	_update_store_panel_buttons()
 
 
@@ -127,35 +136,31 @@ func _setup_verification_picker() -> void:
 
 
 func _setup_ownership_check() -> void:
-	store_contents.add_child(HSeparator.new())
-	var title := Label.new()
-	title.text = "App ownership"
-	title.add_theme_font_size_override("font_size", 24)
-	store_contents.add_child(title)
+	ownership_panel.get_node("CloseButton").pressed.connect(_set_panel_visible.bind(ownership_panel, false))
 	var description := Label.new()
 	description.text = "Google Play requires a linked Cloud project number and a request hash from your backend. Unknown is inconclusive; send evidence to your backend for verification."
 	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	store_contents.add_child(description)
+	ownership_contents.add_child(description)
 	var project_label := Label.new()
 	project_label.text = "Google Cloud project number"
-	store_contents.add_child(project_label)
+	ownership_contents.add_child(project_label)
 	ownership_project_number = LineEdit.new()
 	ownership_project_number.custom_minimum_size.y = 40
-	store_contents.add_child(ownership_project_number)
+	ownership_contents.add_child(ownership_project_number)
 	var hash_label := Label.new()
 	hash_label.text = "Request hash"
-	store_contents.add_child(hash_label)
+	ownership_contents.add_child(hash_label)
 	ownership_request_hash = LineEdit.new()
 	ownership_request_hash.custom_minimum_size.y = 40
-	store_contents.add_child(ownership_request_hash)
+	ownership_contents.add_child(ownership_request_hash)
 	ownership_check_button = Button.new()
 	ownership_check_button.text = "Check app ownership"
-	ownership_check_button.custom_minimum_size.y = 50
+	ownership_check_button.custom_minimum_size.y = 70
 	ownership_check_button.pressed.connect(_on_check_ownership_pressed)
-	store_contents.add_child(ownership_check_button)
+	ownership_contents.add_child(ownership_check_button)
 	ownership_result_label = Label.new()
 	ownership_result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	store_contents.add_child(ownership_result_label)
+	ownership_contents.add_child(ownership_result_label)
 	GodotIapPlugin.purchase_error.connect(_on_ownership_error)
 
 
@@ -284,17 +289,15 @@ func _on_restart_pressed() -> void:
 
 
 func _on_store_button_pressed() -> void:
-	store_overlay.visible = true
-	store_panel.visible = true
-	player.ui_blocking = true
-	player.touch_target_x = -1.0  # Reset touch target
+	_set_panel_visible(store_panel, true)
 	_update_store_panel_buttons()
 
 
-func _on_store_close_pressed() -> void:
-	store_overlay.visible = false
-	store_panel.visible = false
-	player.ui_blocking = false
+func _set_panel_visible(panel: Panel, shown: bool) -> void:
+	panel.visible = shown
+	var any_open := store_panel.visible or ownership_panel.visible
+	overlay.visible = any_open
+	player.ui_blocking = any_open
 	player.touch_target_x = -1.0  # Reset touch target
 
 
@@ -321,7 +324,15 @@ func _on_buy_premium_year_pressed() -> void:
 
 
 func _on_restore_pressed() -> void:
-	await IapManager.restore_purchases()
+	_show_restore_status("Restoring purchases...")
+	var failure: String = await IapManager.restore_purchases()
+	_show_restore_status("Purchases restored." if failure.is_empty() else "Restore failed: " + failure)
+
+
+func _show_restore_status(text: String) -> void:
+	status_label.text = text
+	if restore_status_label:
+		restore_status_label.text = text
 
 
 func _on_purchase_completed(product_id: String) -> void:

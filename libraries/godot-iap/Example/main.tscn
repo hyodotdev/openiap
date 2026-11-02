@@ -1,7 +1,10 @@
-[gd_scene load_steps=3 format=3 uid="uid://d1a2b3c4d5e6f"]
+[gd_scene load_steps=4 format=3 uid="uid://d1a2b3c4d5e6f"]
 
 [ext_resource type="Script" uid="uid://b61xmuqhhbuvl" path="res://main.gd" id="1_main_script"]
 [ext_resource type="PackedScene" uid="uid://b8qk2x3p6e1wy" path="res://player.tscn" id="2_player"]
+
+[sub_resource type="Theme" id="Theme_panel"]
+default_font_size = 22
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main_script")
@@ -37,7 +40,7 @@ text = "Bulbs: 0"
 [node name="PremiumLabel" type="Label" parent="UI"]
 offset_left = 30.0
 offset_top = 160.0
-offset_right = 600.0
+offset_right = 400.0
 offset_bottom = 210.0
 theme_override_font_sizes/font_size = 32
 text = "Premium: OFF"
@@ -63,12 +66,21 @@ text = "Loading..."
 horizontal_alignment = 1
 
 [node name="StoreButton" type="Button" parent="UI"]
-offset_left = 580.0
+offset_left = 420.0
 offset_top = 50.0
 offset_right = 690.0
 offset_bottom = 110.0
 theme_override_font_sizes/font_size = 32
 text = "Store"
+
+[node name="OwnershipButton" type="Button" parent="UI"]
+offset_left = 420.0
+offset_top = 125.0
+offset_right = 690.0
+offset_bottom = 185.0
+tooltip_text = "Check the app came from its store"
+theme_override_font_sizes/font_size = 32
+text = "App Ownership"
 
 [node name="GameOverLabel" type="Label" parent="UI"]
 offset_left = 160.0
@@ -87,7 +99,7 @@ offset_bottom = 680.0
 theme_override_font_sizes/font_size = 32
 text = "Restart"
 
-[node name="StoreOverlay" type="ColorRect" parent="UI"]
+[node name="Overlay" type="ColorRect" parent="UI"]
 offset_right = 720.0
 offset_bottom = 1280.0
 color = Color(0, 0, 0, 0.85)
@@ -97,6 +109,7 @@ offset_left = 30.0
 offset_top = 200.0
 offset_right = 690.0
 offset_bottom = 1080.0
+theme = SubResource("Theme_panel")
 
 [node name="PanelBg" type="ColorRect" parent="UI/StorePanel"]
 layout_mode = 0
@@ -140,7 +153,6 @@ theme_override_constants/separation = 15
 [node name="Buy10BulbsButton" type="Button" parent="UI/StorePanel/ScrollContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
 text = "10 Bulbs"
 text_overrun_behavior = 3
 clip_text = true
@@ -148,7 +160,6 @@ clip_text = true
 [node name="Buy30BulbsButton" type="Button" parent="UI/StorePanel/ScrollContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
 text = "30 Bulbs"
 text_overrun_behavior = 3
 clip_text = true
@@ -156,7 +167,6 @@ clip_text = true
 [node name="BuyCertifiedButton" type="Button" parent="UI/StorePanel/ScrollContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
 text = "Certified"
 text_overrun_behavior = 3
 clip_text = true
@@ -164,7 +174,6 @@ clip_text = true
 [node name="BuyPremiumButton" type="Button" parent="UI/StorePanel/ScrollContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
 text = "Premium"
 text_overrun_behavior = 3
 clip_text = true
@@ -172,7 +181,6 @@ clip_text = true
 [node name="BuyPremiumYearButton" type="Button" parent="UI/StorePanel/ScrollContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
 text = "Premium Year"
 text_overrun_behavior = 3
 clip_text = true
@@ -184,7 +192,52 @@ layout_mode = 2
 [node name="RestoreButton" type="Button" parent="UI/StorePanel/ScrollContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
 text = "Restore Purchases"
 text_overrun_behavior = 3
 clip_text = true
+
+[node name="OwnershipPanel" type="Panel" parent="UI"]
+offset_left = 30.0
+offset_top = 200.0
+offset_right = 690.0
+offset_bottom = 1080.0
+theme = SubResource("Theme_panel")
+
+[node name="PanelBg" type="ColorRect" parent="UI/OwnershipPanel"]
+layout_mode = 0
+offset_right = 660.0
+offset_bottom = 880.0
+color = Color(0.15, 0.15, 0.2, 1)
+
+[node name="TitleLabel" type="Label" parent="UI/OwnershipPanel"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 640.0
+offset_bottom = 70.0
+theme_override_font_sizes/font_size = 36
+text = "App Ownership"
+horizontal_alignment = 1
+
+[node name="CloseButton" type="Button" parent="UI/OwnershipPanel"]
+layout_mode = 0
+offset_left = 590.0
+offset_top = 15.0
+offset_right = 650.0
+offset_bottom = 55.0
+theme_override_font_sizes/font_size = 24
+text = "X"
+
+[node name="ScrollContainer" type="ScrollContainer" parent="UI/OwnershipPanel"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 80.0
+offset_right = 640.0
+offset_bottom = 860.0
+horizontal_scroll_mode = 0
+follow_focus = true
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/OwnershipPanel/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 15

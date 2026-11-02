@@ -50,6 +50,20 @@ fun AvailablePurchasesScreen(
     var selectedPurchase by remember { mutableStateOf<PurchaseAndroid?>(null) }
     var isInitializing by remember { mutableStateOf(true) }
     var initError by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    fun restorePurchases() {
+        scope.launch {
+            iapStore.postStatusMessage("Restoring purchases...", PurchaseResultStatus.Info)
+            try {
+                iapStore.restorePurchases()
+                iapStore.getAvailablePurchases(null)
+                iapStore.postStatusMessage("Purchases restored.", PurchaseResultStatus.Success)
+            } catch (e: Exception) {
+                iapStore.postStatusMessage("Restore failed: ${e.message}", PurchaseResultStatus.Error)
+            }
+        }
+    }
 
     // Initialize and connect on first composition (spec-aligned names)
     LaunchedEffect(Unit) {
@@ -77,24 +91,8 @@ fun AvailablePurchasesScreen(
                     }
                 },
                 actions = {
-                    val scope = rememberCoroutineScope()
                     IconButton(
-                        onClick = {
-                            scope.launch {
-                                try {
-                                    val restored = iapStore.getAvailablePurchases(null)
-                                    iapStore.postStatusMessage(
-                                        message = "Restored ${restored.size} purchases",
-                                        status = PurchaseResultStatus.Success
-                                    )
-                                } catch (e: Exception) {
-                                    iapStore.postStatusMessage(
-                                        message = e.message ?: "Restore failed",
-                                        status = PurchaseResultStatus.Error
-                                    )
-                                }
-                            }
-                        },
+                        onClick = { restorePurchases() },
                         enabled = !isInitializing && !status.isLoading
                     ) {
                         Icon(Icons.Default.Restore, contentDescription = "Restore")
@@ -106,7 +104,6 @@ fun AvailablePurchasesScreen(
             )
         }
     ) { paddingValues ->
-        val scope = rememberCoroutineScope()
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -156,7 +153,7 @@ fun AvailablePurchasesScreen(
                         }
                         
                         Text(
-                            "View all your active purchases including consumables not yet consumed, non-consumables, and active subscriptions. Tap 'Restore' to recover purchases from your $accountStoreName account.",
+                            "View all your active purchases including consumables not yet consumed, non-consumables, and active subscriptions. Tap 'Restore Purchases' to recover purchases from your $accountStoreName account.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = AppColors.textSecondary
                         )
@@ -238,7 +235,8 @@ fun AvailablePurchasesScreen(
                 items(subscriptions) { purchase ->
                     ActiveSubscriptionListItem(
                         purchase = purchase,
-                        onClick = { selectedPurchase = purchase }
+                        onClick = { selectedPurchase = purchase },
+                        modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
             }
@@ -337,45 +335,41 @@ fun AvailablePurchasesScreen(
             
             // Action Buttons
             item {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
-                        onClick = { scope.launch { iapStore.getAvailablePurchases(null) } },
-                        modifier = Modifier.weight(1f),
-                        enabled = !isInitializing && !status.isLoading
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Refresh")
-                    }
-                    
-                    Button(
                         onClick = {
                             scope.launch {
                                 try {
-                                    val restored = iapStore.getAvailablePurchases(null)
-                                    iapStore.postStatusMessage(
-                                        message = "Restored ${restored.size} purchases",
-                                        status = PurchaseResultStatus.Success
-                                    )
+                                    iapStore.getAvailablePurchases(null)
                                 } catch (e: Exception) {
                                     iapStore.postStatusMessage(
-                                        message = e.message ?: "Restore failed",
+                                        message = e.message ?: "Refresh failed",
                                         status = PurchaseResultStatus.Error
                                     )
                                 }
                             }
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isInitializing && !status.isLoading
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Refresh Purchases")
+                    }
+                    
+                    Button(
+                        onClick = { restorePurchases() },
+                        modifier = Modifier.fillMaxWidth(),
                         enabled = !isInitializing && !status.isLoading
                     ) {
                         Icon(Icons.Default.Restore, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Restore")
+                        Text("Restore Purchases")
                     }
                 }
             }

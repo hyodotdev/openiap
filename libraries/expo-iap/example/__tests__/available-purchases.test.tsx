@@ -3,6 +3,9 @@ import {act, fireEvent, render, waitFor} from '@testing-library/react-native';
 import {Platform} from 'react-native';
 import AvailablePurchases from '../app/available-purchases';
 import * as ExpoIap from '../../src';
+import {getReceiptPurchaseFlow} from '../src/utils/purchaseFlow';
+
+jest.mock('expo-constants', () => ({expoConfig: {extra: {}}}));
 
 describe('AvailablePurchases Component', () => {
   const originalPlatform = Platform.OS;
@@ -10,6 +13,7 @@ describe('AvailablePurchases Component', () => {
   const mockGetAvailablePurchases = jest.fn(() => Promise.resolve([]));
   const mockGetActiveSubscriptions = jest.fn(() => Promise.resolve([]));
   const mockFinishTransaction = jest.fn(() => Promise.resolve());
+  const mockRestorePurchases = jest.fn(() => Promise.resolve());
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -45,6 +49,7 @@ describe('AvailablePurchases Component', () => {
       getAvailablePurchases: mockGetAvailablePurchases,
       getActiveSubscriptions: mockGetActiveSubscriptions,
       finishTransaction: mockFinishTransaction,
+      restorePurchases: mockRestorePurchases,
     });
   });
 
@@ -65,6 +70,40 @@ describe('AvailablePurchases Component', () => {
       expect(mockFetchProducts).toHaveBeenCalled();
       expect(mockGetAvailablePurchases).toHaveBeenCalled();
       expect(mockGetActiveSubscriptions).toHaveBeenCalled();
+    });
+  });
+
+  it('restores through the purchase flow and reports progress', async () => {
+    let finishRestore: () => void = () => {};
+    mockRestorePurchases.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishRestore = resolve;
+      }),
+    );
+    const {findByText, getByText} = await render(<AvailablePurchases />);
+
+    expect(jest.mocked(ExpoIap.useIAP).mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({purchaseFlow: getReceiptPurchaseFlow()}),
+    );
+
+    // The press settles with the restore, so await it after finishing.
+    const press = fireEvent.press(getByText('Restore Purchases'));
+    expect(await findByText('Restoring purchases...')).toBeDefined();
+
+    await act(async () => finishRestore());
+    await press;
+    expect(getByText('Purchases restored.')).toBeDefined();
+    expect(mockRestorePurchases).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a failed restore', async () => {
+    mockRestorePurchases.mockRejectedValueOnce(new Error('Store unavailable'));
+    const {getByText} = await render(<AvailablePurchases />);
+
+    await fireEvent.press(getByText('Restore Purchases'));
+
+    await waitFor(() => {
+      expect(getByText('Restore failed: Store unavailable')).toBeDefined();
     });
   });
 

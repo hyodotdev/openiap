@@ -4,12 +4,14 @@ import {Alert, Platform} from 'react-native';
 import AvailablePurchases from '../../screens/AvailablePurchases';
 import * as RNIap from 'react-native-iap';
 import {DataModalProvider} from '../../src/contexts/DataModalContext';
+import {purchaseFlow} from '../../src/utils/purchaseFlow';
 
 // Mock functions for testing
 const mockGetAvailablePurchases = jest.fn();
 const mockGetActiveSubscriptions = jest.fn();
 const mockRequestProducts = jest.fn();
 const mockFinishTransaction = jest.fn();
+const mockRestorePurchases = jest.fn();
 
 // Override the useIAP hook for this test file
 (RNIap.useIAP as jest.Mock).mockReturnValue({
@@ -39,6 +41,7 @@ const mockFinishTransaction = jest.fn();
   getActiveSubscriptions: mockGetActiveSubscriptions,
   fetchProducts: mockRequestProducts,
   finishTransaction: mockFinishTransaction,
+  restorePurchases: mockRestorePurchases,
 });
 
 jest.spyOn(Alert, 'alert');
@@ -98,6 +101,42 @@ describe('AvailablePurchases Screen', () => {
     await waitFor(() => {
       expect(mockGetAvailablePurchases).toHaveBeenCalled();
       expect(mockGetActiveSubscriptions).toHaveBeenCalled();
+    });
+  });
+
+  it('restores through the purchase flow and reports progress', async () => {
+    let finishRestore: () => void = () => {};
+    mockRestorePurchases.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishRestore = resolve;
+      }),
+    );
+    const {findByText, getByText} = await renderWithProviders(
+      <AvailablePurchases />,
+    );
+
+    expect(jest.mocked(RNIap.useIAP).mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({purchaseFlow}),
+    );
+
+    // The press settles with the restore, so await it after finishing.
+    const press = fireEvent.press(getByText('Restore Purchases'));
+    expect(await findByText('Restoring purchases...')).toBeTruthy();
+
+    await act(async () => finishRestore());
+    await press;
+    expect(getByText('Purchases restored.')).toBeTruthy();
+    expect(mockRestorePurchases).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a failed restore', async () => {
+    mockRestorePurchases.mockRejectedValueOnce(new Error('Store unavailable'));
+    const {getByText} = await renderWithProviders(<AvailablePurchases />);
+
+    await fireEvent.press(getByText('Restore Purchases'));
+
+    await waitFor(() => {
+      expect(getByText('Restore failed: Store unavailable')).toBeTruthy();
     });
   });
 

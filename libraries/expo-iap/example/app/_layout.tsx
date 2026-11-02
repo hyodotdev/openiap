@@ -24,6 +24,7 @@ export default function RootLayout() {
           name="alternative-billing"
           options={{title: 'Alternative Billing'}}
         />
+        <Stack.Screen name="app-ownership" options={{title: 'App Ownership'}} />
       </Stack>
     </ActionSheetProvider>
   );

@@ -1912,12 +1912,6 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     color: '#333',
   },
-  loadingText: {
-    textAlign: 'center',
-    color: '#666',
-    fontSize: 16,
-    padding: 20,
-  },
   subscriptionCard: {
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
@@ -2022,12 +2016,6 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#28a745',
   },
-  resultActionsRow: {
-    marginTop: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   resultCopyButton: {
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -2036,15 +2024,12 @@ const styles = StyleSheet.create({
     borderColor: '#28a745',
     minHeight: 44,
     justifyContent: 'center',
+    marginTop: 12,
   },
   resultCopyButtonText: {
     color: '#28a745',
     fontWeight: '600',
     fontSize: 14,
-  },
-  resultDetailsButton: {
-    minHeight: 44,
-    justifyContent: 'center',
   },
   resultText: {
     fontSize: 14,
@@ -2088,19 +2073,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     gap: 12,
-  },
-  detailsButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    alignItems: 'center',
-  },
-  detailsButtonText: {
-    color: '#007AFF',
-    fontWeight: '600',
-    fontSize: 14,
   },
   offerBadge: {
     backgroundColor: '#e7f3ff',
@@ -2225,9 +2197,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     opacity: 0.8,
-  },
-  pendingButtonText: {
-    color: '#fff',
   },
   modalOverlay: {
     flex: 1,
@@ -2523,13 +2492,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#007AFF',
     marginBottom: 6,
-  },
-  offerSubtitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#495057',
-    marginTop: 8,
-    marginBottom: 4,
   },
   offerDetail: {
     fontSize: 12,

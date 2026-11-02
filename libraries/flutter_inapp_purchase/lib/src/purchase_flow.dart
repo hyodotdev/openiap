@@ -431,6 +431,7 @@ final class PurchaseFlow {
 
   Future<List<PurchaseFlowOutcome>> _recover(bool includeFinished) async {
     final getPendingTransactionsIOS = _getPendingTransactionsIOS;
+    final settledBefore = _settled.keys.toSet();
     // iOS lists unfinished transactions directly; other stores list owned
     // purchases, and _isUnfinished picks the ones still to settle.
     List<Purchase>? pendingIOS;
@@ -453,10 +454,16 @@ final class PurchaseFlow {
             'find unfinished transactions',
       );
     }
+    // A restore confirms each Apple purchase once, through its newest
+    // transaction: older renewals add nothing, and the unfinished ones come
+    // from the pending list. Without that list, every transaction stands in.
+    final owned = includeFinished && pendingIOS != null
+        ? _newestAppleTransactions(available)
+        : available;
     final purchases = <String, Purchase>{};
     for (final purchase in [
       ...?pendingIOS,
-      ...available.where(
+      ...owned.where(
         (purchase) =>
             includeFinished ||
             (purchase.store == IapStore.Apple
@@ -471,14 +478,39 @@ final class PurchaseFlow {
       // The next account's flow confirms the rest with its own session.
       if (_disposed) break;
       if (!includeFinished && _settled.containsKey(purchase.id)) continue;
+      // A restore re-confirms what settled before it, not what the listener
+      // settled while it ran.
       final status = await _deliver(
         purchase,
         false,
-        reconfirm: includeFinished,
+        reconfirm: includeFinished && settledBefore.contains(purchase.id),
       );
       outcomes.add(PurchaseFlowOutcome(purchase: purchase, status: status));
     }
     return outcomes;
+  }
+
+  // Keeps each Apple purchase's newest transaction, in list order. One without
+  // an original id or a date cannot be ranked, so it stays.
+  static List<Purchase> _newestAppleTransactions(List<Purchase> purchases) {
+    String? originalOf(Purchase purchase) => purchase is PurchaseIOS &&
+            purchase.store == IapStore.Apple &&
+            purchase.transactionDate > 0
+        ? purchase.originalTransactionIdentifierIOS
+        : null;
+    final newest = <String, Purchase>{};
+    for (final purchase in purchases) {
+      final key = originalOf(purchase);
+      if (key == null || key.isEmpty) continue;
+      final kept = newest[key];
+      if (kept == null || purchase.transactionDate > kept.transactionDate) {
+        newest[key] = purchase;
+      }
+    }
+    return purchases.where((purchase) {
+      final key = originalOf(purchase);
+      return key == null || key.isEmpty || identical(newest[key], purchase);
+    }).toList();
   }
 
   // Amazon and most community stores report no acknowledgment, and Amazon

@@ -1,7 +1,6 @@
 package dev.hyo.martie.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,20 +12,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import dev.hyo.martie.models.AppColors
 import dev.hyo.martie.screens.uis.*
 import dev.hyo.martie.IapConstants
-import dev.hyo.openiap.Product
 import dev.hyo.openiap.ProductAndroid
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.ProductType
 import dev.hyo.openiap.ProductRequest
-import dev.hyo.openiap.ProductSubscription
-import dev.hyo.openiap.store.PurchaseResultStatus
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,8 +68,7 @@ fun AllProductsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = AppColors.cardBackground,
-                    titleContentColor = AppColors.textPrimary
+                    containerColor = AppColors.background
                 )
             )
         }
@@ -89,7 +83,7 @@ fun AllProductsScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(start = 16.dp, top = 20.dp, end = 16.dp),
                     colors = CardDefaults.cardColors(containerColor = AppColors.warning.copy(alpha = 0.1f))
                 ) {
                     Row(
@@ -102,7 +96,7 @@ fun AllProductsScreen(
                             tint = AppColors.warning
                         )
                         Spacer(modifier = Modifier.width(12.dp))
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 "Not Connected",
                                 style = MaterialTheme.typography.bodyMedium,
@@ -115,7 +109,6 @@ fun AllProductsScreen(
                                 color = AppColors.textSecondary
                             )
                         }
-                        Spacer(modifier = Modifier.weight(1f))
                         TextButton(onClick = {
                             scope.launch {
                                 try {
@@ -139,14 +132,16 @@ fun AllProductsScreen(
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(vertical = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Display all products in one list
                 if (allProducts.isNotEmpty()) {
                     items(allProducts) { product ->
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(containerColor = AppColors.cardBackground),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -205,7 +200,7 @@ fun AllProductsScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        product.price?.toString() ?: "--",
+                                        product.displayPrice,
                                         style = MaterialTheme.typography.titleLarge,
                                         color = AppColors.primary,
                                         fontWeight = FontWeight.Bold
@@ -244,12 +239,13 @@ fun AllProductsScreen(
                 }
 
                 // Status message
-                status.lastPurchaseResult?.let { message ->
+                status.lastPurchaseResult?.let { result ->
                     item {
                         PurchaseResultCard(
-                            message = message.toString(),
-                            status = PurchaseResultStatus.Success,
-                            onDismiss = { iapStore.clearStatusMessage() }
+                            message = result.message,
+                            status = result.status,
+                            onDismiss = { iapStore.clearStatusMessage() },
+                            code = result.code
                         )
                     }
                 }
@@ -258,7 +254,9 @@ fun AllProductsScreen(
                 status.lastError?.let { err ->
                     item {
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
                             colors = CardDefaults.cardColors(containerColor = AppColors.danger.copy(alpha = 0.1f))
                         ) {
                             Row(
