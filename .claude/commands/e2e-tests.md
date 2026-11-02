@@ -93,6 +93,25 @@ Notes:
   `adb shell uiautomator dump /sdcard/ui.xml`, pull and parse the node `bounds`,
   then `adb shell input -d 0 tap` the centre of `Confirm`. Apply the
   [Horizon payment gate](#horizon-test-accounts-and-payments) before confirming.
+- An idle, unworn Quest can raise the VR keyguard profile picker
+  (`com.oculus.os.vrlockscreen`) over display 0 and hide the checkout dialog.
+  The checkout then times out after 30 s (`launchCheckoutFlow` statusCode 1,
+  client code 6), and every later IAP call in that process times out too. It
+  looks like a store outage but is not one. Before each checkout, dump display
+  0 with `adb -s "$HORIZON_SERIAL" shell uiautomator dump /sdcard/ui.xml`, run
+  `adb -s "$HORIZON_SERIAL" pull /sdcard/ui.xml .`, and parse `./ui.xml`. If
+  the picker shows, find the active user
+  with `adb -s "$HORIZON_SERIAL" shell am get-current-user` and
+  `adb -s "$HORIZON_SERIAL" shell pm list users`, and tap only that user's
+  tile, matched by its content-desc, at the centre of its `bounds` with
+  `adb -s "$HORIZON_SERIAL" shell input -d 0 tap`: another tile starts a
+  profile switch that needs device authentication. If no
+  tile clearly matches the active user, stop and report the row BLOCKED. BACK
+  does not dismiss the picker. Dump display 0 again: a checkout dialog from an
+  earlier, timed-out attempt can still be open with its Confirm button, even
+  after the app restarts, so tap its `Close` button (or BACK) without
+  confirming. After a timed-out checkout, force-stop and relaunch the app
+  before trying again.
 - Onside is Expo-only and build-only; do not require Onside purchase approval.
 - Every framework must appear in the final report for FireOS and Horizon. Do
   not count the Play build as FireOS or Horizon coverage; each row's store line

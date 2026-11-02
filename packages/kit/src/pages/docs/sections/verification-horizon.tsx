@@ -81,13 +81,14 @@ export default function VerificationHorizonPage() {
         </p>
       </Callout>
 
-      <Callout kind="note" title="Synchronous raw REST verification only">
+      <Callout kind="note" title="Current entitlement only">
         <p>
-          Horizon verification is currently available through the raw{" "}
-          <code>POST /v1/purchase/verify</code> route shown below. It is not a
-          member of the first-party SDK verification request type, does not
-          create a subscription record, and does not run a background
-          reconciliation job. Reverify the exact <code>userId</code> +{" "}
+          Horizon verification answers whether the user holds the SKU now,
+          through the SDK&apos;s IAPKit verification,{" "}
+          <code>confirmWithIapkit</code>, a queued verification job, or the raw{" "}
+          <code>POST /v1/purchase/verify</code> route shown below. IAPKit does
+          not create a subscription record or reconcile Horizon entitlements in
+          the background. Reverify the exact <code>userId</code> +{" "}
           <code>sku</code> pair whenever your backend needs a current
           entitlement decision.
         </p>
@@ -135,7 +136,9 @@ access_token=OC%7C{APP_ID}%7C{APP_SECRET}&user_id={userId}&sku={sku}
         IAPKit multiplies <code>grant_time</code> by 1000 before persisting so
         it stays in milliseconds (the same unit Apple and Google store).{" "}
         <code>success: true</code> maps to <code>ENTITLED</code>,{" "}
-        <code>false</code> to <code>INAUTHENTIC</code>.
+        <code>false</code> to <code>INAUTHENTIC</code>, including for a
+        consumable your app already consumed, since Meta no longer reports that
+        entitlement.
       </p>
       <p>
         A receipt-history row is written only when Meta returns a successful

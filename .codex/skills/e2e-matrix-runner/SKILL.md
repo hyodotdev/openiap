@@ -84,7 +84,10 @@ text and bounds — dump, tap the dumped coordinates, dump again. `tap`, `swipe`
 and `keyevent` (BACK dismisses the Horizon checkout dialog) are all verified
 working on display 0 (Quest 3, Horizon OS, 2026-09-25: RN RedBox dismissed,
 Kepler home → Purchase Flow navigated, MAUI scrolled to products, Purchase
-tapped into `com.oculus.store` checkout and BACKed out cleanly).
+tapped into `com.oculus.store` checkout and BACKed out cleanly). Before a
+Horizon checkout, clear the VR keyguard picker and any stale checkout dialog
+as the Horizon checkout notes under `## Full Regression Matrix` in
+`.claude/commands/e2e-tests.md` describe.
 
 ```bash
 adb -s "$QUEST" shell am start -n <launcher-activity>  # resolve per framework

@@ -319,7 +319,7 @@ Verify the registry, not only the GitHub Actions conclusion:
 | React Native | `npm view react-native-iap@{version} version dist-tags --json`                                                                                                   |
 | Expo         | `npm view expo-iap@{version} version dist-tags --json`                                                                                                           |
 | Flutter      | `https://pub.dev/api/packages/flutter_inapp_purchase/versions/{version}`                                                                                         |
-| Godot        | GitHub Release, `godot-iap-{version}.zip`, and Asset Library 4627 (below)                                                                                        |
+| Godot        | GitHub Release, `godot-iap-{version}.zip`, and the Asset Library 4627 submission receipt                                                                         |
 | KMP          | Maven Central `kmp-iap-{version}.pom` and GitHub Release                                                                                                         |
 | MAUI         | NuGet flat-container package and GitHub Release                                                                                                                  |
 | Docs         | Production `openiap.dev` responds with the new content (no tag)                                                                                                  |
@@ -344,17 +344,8 @@ validated, release a new reviewed version instead of recreating the tag.
 
 ## Godot Asset Library
 
-The GitHub Release does not update Asset Library entry 4627. After a stable
-Godot release, the agent edits
-`https://godotengine.org/asset-library/asset/4627` directly through the
-maintainer's logged-in browser session: update the version string and the
-download commit/URL to the new `godot-iap-{version}` release, then submit the
-edit for review. Never enter credentials; if no logged-in session is
-available, report the exact version and release ZIP URL so the maintainer can
-perform the edit, and record it as pending work. The accepted version is
-`curl -s https://godotengine.org/asset-library/api/asset/4627 | jq -r .version_string`;
-until moderation accepts the edit, report its edit id as pending. 3.6.1 was
-missed because this step was left for later.
+After every stable Godot release, submit the Asset Library update as
+`knowledge/internal/06-git-deployment.md#godot-asset-library` describes.
 
 ## Final Report
 

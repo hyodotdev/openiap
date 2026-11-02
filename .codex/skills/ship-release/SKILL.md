@@ -71,11 +71,8 @@ package publication, use a preview under
 `knowledge/internal/06-git-deployment.md#deploying-documentation`. If the train
 will not resume, follow that section's incomplete-train rule through §4.
 
-Godot releases also require the authenticated Godot Asset Library listing to be
-updated. Prepare the edit when possible, request action-time confirmation before
-the public form submission, and report it as an explicit remaining manual step
-when authentication is unavailable. Never reuse credentials supplied for a
-different service.
+For Godot releases, complete the Asset Library submission and receipt check in
+`knowledge/internal/06-git-deployment.md#godot-asset-library`.
 
 ## 3. Verify the release note
 
