@@ -70,7 +70,10 @@ fun PurchaseFlowScreen(
     val uiScope = rememberCoroutineScope()
     val iapStore = currentOpenIapStore()
     val products by iapStore.products.collectAsState()
-    val androidProducts = remember(products) { products.filterIsInstance<ProductAndroid>() }
+    // The store is shared, so its products also hold what Subscription Flow fetched.
+    val androidProducts = remember(products) {
+        products.filterIsInstance<ProductAndroid>().filter { it.type == ProductType.InApp }
+    }
     val status by iapStore.status.collectAsState()
     // Kept for Details: the store clears currentPurchase once it is finished.
     var latestPurchase by remember { mutableStateOf<PurchaseAndroid?>(null) }

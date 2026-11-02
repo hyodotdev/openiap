@@ -85,7 +85,11 @@ fun SubscriptionFlowScreen(
     val products by iapStore.products.collectAsState()
     val subscriptions by iapStore.subscriptions.collectAsState()
     val purchases by iapStore.availablePurchases.collectAsState()
-    val androidProducts = remember(products) { products.filterIsInstance<ProductAndroid>() }
+    // The store is shared, so its products also hold what Purchase Flow fetched.
+    val androidProducts = remember(products, subscriptions) {
+        val subscriptionIds = subscriptions.map { it.id }.toSet()
+        products.filterIsInstance<ProductAndroid>().filter { it.id in subscriptionIds }
+    }
     val androidSubscriptions = remember(subscriptions) { subscriptions.filterIsInstance<ProductSubscriptionAndroid>() }
     val androidPurchases = remember(purchases) { purchases.filterIsInstance<PurchaseAndroid>() }
     val status by iapStore.status.collectAsState()

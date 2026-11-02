@@ -26,6 +26,7 @@ import dev.hyo.openiap.store.PurchaseResultStatus
 import kotlinx.coroutines.launch
 import dev.hyo.openiap.ProductAndroid
 import dev.hyo.openiap.ProductQueryType
+import dev.hyo.openiap.ProductType
 import dev.hyo.openiap.ProductRequest
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.RequestPurchaseProps
@@ -141,7 +142,10 @@ fun AlternativeBillingScreen(navController: NavController) {
     }
 
     val products by iapStore.products.collectAsState()
-    val androidProducts = remember(products) { products.filterIsInstance<ProductAndroid>() }
+    // The store is shared, so its products also hold what Subscription Flow fetched.
+    val androidProducts = remember(products) {
+        products.filterIsInstance<ProductAndroid>().filter { it.type == ProductType.InApp }
+    }
     val status by iapStore.status.collectAsState()
     val lastPurchase by iapStore.currentPurchase.collectAsState(initial = null)
     val connectionStatus by iapStore.isConnected.collectAsState()

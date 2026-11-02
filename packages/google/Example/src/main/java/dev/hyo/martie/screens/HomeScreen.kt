@@ -58,7 +58,14 @@ fun HomeScreen(navController: NavController) {
             }
         }
 
-    Scaffold { paddingValues ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("OpenIAP Example") },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.background)
+            )
+        }
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()

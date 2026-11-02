@@ -22,6 +22,8 @@ struct ActivePurchaseCard: View {
                 Text(purchase.productId)
                     .font(.headline)
                     .fontWeight(.semibold)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
 
                 Text("Transaction: \(purchase.id)")
                     .font(.caption)
