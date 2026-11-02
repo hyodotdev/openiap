@@ -81,10 +81,11 @@ export default function VerificationHorizonPage() {
         </p>
       </Callout>
 
-      <Callout kind="note" title="Synchronous verification only">
+      <Callout kind="note" title="Current entitlement only">
         <p>
-          Horizon verification runs synchronously, through the SDK&apos;s IAPKit
-          verification and <code>confirmWithIapkit</code> or the raw{" "}
+          Horizon verification answers whether the user holds the SKU now,
+          through the SDK&apos;s IAPKit verification,{" "}
+          <code>confirmWithIapkit</code>, a queued verification job, or the raw{" "}
           <code>POST /v1/purchase/verify</code> route shown below. It does not
           create a subscription record or run a background reconciliation job.
           Reverify the exact <code>userId</code> + <code>sku</code> pair

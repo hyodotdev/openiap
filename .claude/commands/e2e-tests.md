@@ -100,7 +100,8 @@ Notes:
   looks like a store outage but is not one. Before each checkout, dump display 0.
   If the picker shows, find the active user with `adb shell am get-current-user`
   and `adb shell pm list users`, and tap only that user's tile, matched by its
-  content-desc: another tile starts a profile switch that needs sign-in. BACK
+  content-desc: another tile starts a profile switch that needs sign-in. If no
+  tile clearly matches the active user, stop and report the row BLOCKED. BACK
   does not dismiss the picker. Dump display 0 again: a checkout dialog from an
   earlier, timed-out attempt can still be open with its Confirm button, even
   after the app restarts, so close it without confirming. After a timed-out

@@ -373,7 +373,7 @@ Setup guides:
 | `CONSUMED`               |   false   | Google Play: consumable already fulfilled              |
 | `CANCELED`               |   false   | Refunded, revoked, or canceled                         |
 | `EXPIRED`                |   false   | Subscription past its expiry date                      |
-| `INAUTHENTIC`            |   false   | Receipt not recognized by the store; on Meta Horizon, also an entitlement the user no longer holds (for example a consumed consumable) |
+| `INAUTHENTIC`            |   false   | Receipt not recognized by the store; on Meta Horizon, the user does not own the SKU now, including after consuming it |
 | `UNKNOWN`                |   false   | State could not be determined                          |
 
 ## Status codes

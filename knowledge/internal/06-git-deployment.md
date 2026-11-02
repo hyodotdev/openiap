@@ -516,15 +516,18 @@ After verifying the public release ZIP, open
 `https://godotengine.org/asset-library/asset/4627/edit` through the maintainer's
 logged-in browser session. Set the version string to `{version}`, keep the
 repository provider as Custom, and update both URLs. Keep every other field
-(title, description, category, license, Godot version, icon and previews):
+(title, description, category, license, issues URL, Godot version, icon and
+previews):
 
 - Download: `https://github.com/hyodotdev/openiap/releases/download/godot-iap-{version}/godot-iap-{version}.zip`
 - Repository browse: `https://github.com/hyodotdev/openiap/tree/godot-iap-{version}/libraries/godot-iap`
 
 Check for a duplicate first, because moderators reject a second edit for the
-same version. The public edit list does not show pending edits, so open the
-logged-in Feed (`https://godotengine.org/asset-library/user/feed`) and check
-each 4627 edit with
+same version. If the public listing already shows `{version}` (the command at
+the end of this section), stop: the update is done. Otherwise open the
+logged-in Feed (`https://godotengine.org/asset-library/user/feed`), which lists
+every 4627 edit because only the asset's owner can submit one, and check each
+with
 `curl -s https://godotengine.org/asset-library/api/asset/edit/{id} | jq -r '.status + " " + .version_string'`.
 If one for that version is `new` or `in_review`, report that edit's ID and URL
 instead of submitting. Otherwise submit the prepared edit, then verify the
