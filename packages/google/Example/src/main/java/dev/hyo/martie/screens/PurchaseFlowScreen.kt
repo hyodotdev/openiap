@@ -33,8 +33,6 @@ import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.RequestPurchaseProps
 import dev.hyo.openiap.RequestPurchaseAndroidProps
 import dev.hyo.openiap.RequestPurchasePropsByPlatforms
-import dev.hyo.openiap.RequestSubscriptionAndroidProps
-import dev.hyo.openiap.RequestSubscriptionPropsByPlatforms
 import dev.hyo.openiap.utils.toPurchaseInput
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitAmazonProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
@@ -98,29 +96,16 @@ fun PurchaseFlowScreen(
     val handledPurchaseIds = remember { mutableSetOf<String>() }
 
     fun purchasePropsFor(product: ProductAndroid): RequestPurchaseProps =
-        if (product.type == ProductType.Subs) {
-            RequestPurchaseProps(
-                request = RequestPurchaseProps.Request.Subscription(
-                    RequestSubscriptionPropsByPlatforms(
-                        google = RequestSubscriptionAndroidProps(
-                            skus = listOf(product.id)
-                        )
+        RequestPurchaseProps(
+            request = RequestPurchaseProps.Request.Purchase(
+                RequestPurchasePropsByPlatforms(
+                    google = RequestPurchaseAndroidProps(
+                        skus = listOf(product.id)
                     )
-                ),
-                type = ProductQueryType.Subs
-            )
-        } else {
-            RequestPurchaseProps(
-                request = RequestPurchaseProps.Request.Purchase(
-                    RequestPurchasePropsByPlatforms(
-                        google = RequestPurchaseAndroidProps(
-                            skus = listOf(product.id)
-                        )
-                    )
-                ),
-                type = ProductQueryType.InApp
-            )
-        }
+                )
+            ),
+            type = ProductQueryType.InApp
+        )
 
     fun launchPurchase(product: ProductAndroid) {
         uiScope.launch {

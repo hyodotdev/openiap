@@ -787,9 +787,9 @@ function Releases() {
               also confirms a subscription in billing grace.
             </li>
             <li>
-              <strong>All six</strong>: a purchase the listener finishes
-              confirming during a restore&apos;s recovery pass is not confirmed
-              a second time.
+              <strong>All six</strong>: a purchase the listener finishes or
+              finally rejects during a restore&apos;s recovery pass is not
+              confirmed a second time.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
