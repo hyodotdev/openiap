@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Roboto:wght@400;500;600;700&display=swap");
 
 /* Tailwind v4 entry: pulls in `base`, `components`, `utilities`. The
  * `@config` directive keeps the existing JS config working without
@@ -42,38 +42,38 @@
 
 @layer base {
   :root {
-    /* Ink blue: links, primary actions, focus. Verification ledger palette. */
-    --primary-50: #f3f6fc;
-    --primary-100: #e4eaf8;
-    --primary-200: #c9d4f0;
-    --primary-300: #a2b4e4;
-    --primary-400: #7189d2;
-    --primary-500: #4b66be;
-    --primary-600: #3150a8;
-    --primary-700: #1f3a8a;
-    --primary-800: #1a3070;
-    --primary-900: #17295b;
-    --primary-950: #0e1838;
+    /* IAPKit brand: mocha primary and coral accent, from hyo.dev. */
+    --primary-50: #faf8f6;
+    --primary-100: #f5f1ed;
+    --primary-200: #ebe3db;
+    --primary-300: #dccfc2;
+    --primary-400: #c5b19f;
+    --primary-500: #b68b7c;
+    --primary-600: #a47465;
+    --primary-700: #8a5d52;
+    --primary-800: #724d45;
+    --primary-900: #5f403a;
+    --primary-950: #3a251f;
 
     /* Semantic colors */
-    --background: #fbfbf9;
-    --foreground: #16181d;
+    --background: #fefefe;
+    --foreground: #1a1a1a;
     --card: #ffffff;
-    --card-foreground: #16181d;
+    --card-foreground: #1a1a1a;
     --popover: #ffffff;
-    --popover-foreground: #16181d;
-    --primary: var(--primary-700);
+    --popover-foreground: #1a1a1a;
+    --primary: var(--primary-600);
     --primary-foreground: #ffffff;
-    --secondary: #eef2fa;
+    --secondary: #f5f1ed;
     --secondary-foreground: var(--primary-900);
-    --muted: #f3f4f6;
-    --muted-foreground: #5b616e;
-    --accent: var(--primary-600);
+    --muted: #f9f8f7;
+    --muted-foreground: #6b5d54;
+    --accent: #dc6843;
     --accent-foreground: #ffffff;
-    --border: #e3e4e8;
-    --input: #d7d9df;
+    --border: rgba(0, 0, 0, 0.12);
+    --input: rgba(0, 0, 0, 0.12);
     --ring: var(--primary-500);
-    --radius: 0.375rem;
+    --radius: 0.5rem;
 
     /* Status colors: verification results; danger also marks destructive actions. */
     --success: #13795b;
@@ -121,22 +121,22 @@
 
   :root.dark,
   .dark {
-    --background: #101216;
-    --foreground: #e6e8ec;
-    --card: #16191e;
-    --card-foreground: #e6e8ec;
-    --popover: #1a1d23;
-    --popover-foreground: #e6e8ec;
-    --primary: var(--primary-300);
-    --primary-foreground: var(--primary-950);
-    --secondary: #1b2233;
-    --secondary-foreground: #e6e8ec;
-    --muted: #1b1e24;
-    --muted-foreground: #9aa1ae;
-    --accent: var(--primary-300);
-    --accent-foreground: var(--primary-950);
-    --border: rgba(255, 255, 255, 0.09);
-    --input: rgba(255, 255, 255, 0.14);
+    --background: #18181b;
+    --foreground: #e1e1e6;
+    --card: #18181f;
+    --card-foreground: #e1e1e6;
+    --popover: #1e1e26;
+    --popover-foreground: #e1e1e6;
+    --primary: var(--primary-400);
+    --primary-foreground: #0f0f14;
+    --secondary: #252530;
+    --secondary-foreground: #e1e1e6;
+    --muted: #252530;
+    --muted-foreground: #9ca3af;
+    --accent: #ff8066;
+    --accent-foreground: #0f0f14;
+    --border: rgba(255, 255, 255, 0.12);
+    --input: rgba(255, 255, 255, 0.12);
     --ring: var(--primary-400);
     --success: #47c08a;
     --warning: #f0a44b;
@@ -248,8 +248,9 @@
      etc). Standalone "button-y" anchors (CTAs, nav items, cards) keep
      their bespoke styling; this is only for text that should look like
      a link inside surrounding copy. */
+  /* 700 in light mode: the brand 600 is under 4.5:1 for body text. */
   .link {
-    color: var(--primary);
+    color: var(--primary-700);
     font-weight: 500;
     text-decoration: none;
     text-underline-offset: 3px;
@@ -262,6 +263,10 @@
      second cue — color-blind / low-vision users can't reliably
      distinguish the link color from surrounding text, so we need
      the underline at the interaction boundary. */
+  .dark .link {
+    color: var(--primary);
+  }
+
   .link:hover,
   .link:focus-visible {
     text-decoration: underline;
@@ -443,56 +448,54 @@
   }
 
   /* Tailwind v4 dropped support for `@apply` referencing component
-   * classes defined in the same `@layer components` block. The
-   * `.btn` base styles are inlined into each variant below instead
-   * of composed via `@apply btn ...`. */
-  .btn-primary {
-    @apply inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2.5;
+   * classes defined in the same `@layer components` block, so each
+   * variant carries the shared base itself. Default size is 40px tall;
+   * add `.btn-lg` for hero and page-level calls to action. */
+  .btn-primary,
+  .btn-gradient {
+    @apply inline-flex h-10 shrink-0 whitespace-nowrap items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-[background,box-shadow,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-px disabled:pointer-events-none disabled:opacity-50;
+    /* The brand mocha in both themes; white text stays readable on it. */
+    background: linear-gradient(180deg, var(--primary-600), var(--primary-700));
+    color: #ffffff !important;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.18),
+      0 1px 2px rgb(58 37 31 / 0.3);
     -webkit-user-select: none;
-    -moz-user-select: none;
     user-select: none;
+
+    &:hover {
+      background: linear-gradient(
+        180deg,
+        var(--primary-700),
+        var(--primary-800)
+      );
+    }
+
+    & * {
+      color: #ffffff !important;
+    }
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 px-4 py-2.5;
+    @apply inline-flex h-10 shrink-0 whitespace-nowrap items-center justify-center gap-2 rounded-lg border border-foreground/15 bg-card px-4 text-sm font-semibold text-foreground shadow-xs transition-[background,border-color,transform] hover:border-foreground/25 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-px disabled:pointer-events-none disabled:opacity-50;
     -webkit-user-select: none;
-    -moz-user-select: none;
     user-select: none;
   }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent/10 hover:text-accent px-6 py-3;
-    cursor: pointer;
-    pointer-events: auto;
-    position: relative;
-    z-index: 10;
+    @apply relative inline-flex h-10 shrink-0 whitespace-nowrap cursor-pointer items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50;
     -webkit-user-select: none;
     user-select: none;
   }
 
   .btn-destructive {
-    @apply inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-destructive text-destructive-foreground hover:bg-destructive/90 px-4 py-2.5;
+    @apply inline-flex h-10 shrink-0 whitespace-nowrap items-center justify-center gap-2 rounded-lg bg-destructive px-4 text-sm font-semibold text-destructive-foreground transition-colors hover:bg-destructive/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50;
     -webkit-user-select: none;
-    -moz-user-select: none;
     user-select: none;
   }
 
-  .btn-gradient {
-    @apply inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 relative overflow-hidden px-4 py-2.5;
-    background: var(--primary);
-    color: var(--primary-foreground) !important;
-    transition: all 0.2s ease;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    user-select: none;
-
-    &:hover {
-      background: color-mix(in srgb, var(--primary) 88%, var(--foreground));
-    }
-
-    & * {
-      color: var(--primary-foreground) !important;
-    }
+  .btn-lg {
+    @apply h-11 px-5 text-[15px];
   }
 
   /* Icon actions need a row-specific aria-label. */
@@ -698,22 +701,6 @@
   /* Animation classes */
   .animate-fade-in {
     animation: fade-in 0.5s ease-out;
-  }
-
-  /* Landing receipt: its rows fill in once, in order, on first paint. */
-  .receipt-line {
-    animation: receipt-line-in 0.35s ease-out both;
-  }
-
-  @keyframes receipt-line-in {
-    from {
-      opacity: 0;
-      transform: translateY(3px);
-    }
-    to {
-      opacity: 1;
-      transform: none;
-    }
   }
 
   .animate-scale-in {

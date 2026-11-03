@@ -6,6 +6,7 @@ import { Menu, X } from "lucide-react";
 import { ThemeDropdown } from "./ThemeDropdown";
 import { useShowsLandingFeatures } from "../hooks/useShowsLandingFeatures";
 import { openAuthModal } from "../lib/signals";
+import GetStartedButton from "./GetStartedButton";
 
 interface NavItem {
   label: string;
@@ -18,6 +19,7 @@ const FEATURES_ITEM: NavItem = { label: "Features", to: "/#features" };
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Docs", to: "/docs", matches: "/docs" },
+  { label: "Pricing", to: "/pricing", matches: "/pricing" },
   { label: "Blog", to: "/blog", matches: "/blog" },
   { label: "Sponsors", to: "https://openiap.dev/sponsors", external: true },
 ];
@@ -100,35 +102,23 @@ export function SiteHeader({ fullWidth = false }: { fullWidth?: boolean }) {
       </Link>
     );
 
-  const renderAccountActions = (onSelect?: () => void) =>
-    isAuthenticated ? (
-      <Link to="/" onClick={onSelect} className="btn-gradient text-sm">
-        {"Open dashboard"}
-      </Link>
-    ) : (
-      <>
+  const renderAccountActions = (onSelect?: () => void) => (
+    <>
+      {!isAuthenticated && (
         <button
           type="button"
           onClick={() => {
             onSelect?.();
             openAuthModal();
           }}
-          className="btn-ghost text-sm"
+          className="btn-ghost h-9"
         >
           {"Sign In"}
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            onSelect?.();
-            openAuthModal();
-          }}
-          className="btn-gradient text-sm"
-        >
-          {"Get started"}
-        </button>
-      </>
-    );
+      )}
+      <GetStartedButton className="btn-gradient h-9" onClick={onSelect} />
+    </>
+  );
 
   return (
     <header className="relative z-40 w-full shrink-0 border-b border-border bg-background">
@@ -142,19 +132,19 @@ export function SiteHeader({ fullWidth = false }: { fullWidth?: boolean }) {
             <img src="/logo.webp" alt="" className="h-7 w-7 logo-image" />
             <span className="text-lg font-semibold">{"IAPKit"}</span>
           </Link>
-          <nav aria-label="Main" className="hidden items-center gap-6 md:flex">
+          <nav aria-label="Main" className="hidden items-center gap-6 lg:flex">
             {navItems.map((item) => renderNavItem(item))}
           </nav>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <ThemeDropdown />
-          <div className="hidden items-center gap-2 md:flex">
+          <div className="hidden items-center gap-2 lg:flex">
             {renderAccountActions()}
           </div>
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen((prev) => !prev)}
-            className="icon-button md:hidden"
+            className="icon-button lg:hidden"
             aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
             aria-expanded={isMobileMenuOpen}
             aria-controls="site-mobile-menu"
@@ -172,7 +162,7 @@ export function SiteHeader({ fullWidth = false }: { fullWidth?: boolean }) {
         <nav
           id="site-mobile-menu"
           aria-label="Main"
-          className="absolute inset-x-0 top-14 border-b border-border bg-background px-4 py-4 shadow-sm md:hidden"
+          className="absolute inset-x-0 top-14 border-b border-border bg-background px-4 py-4 shadow-sm lg:hidden"
         >
           <div className="flex flex-col gap-3">
             {navItems.map((item) =>

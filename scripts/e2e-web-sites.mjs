@@ -60,6 +60,7 @@ const SITES = [
       "/docs/webhooks",
       "/docs/api",
       "/docs/verification/apple",
+      "/pricing",
       "/about",
       "/contact",
       "/privacy-policy",

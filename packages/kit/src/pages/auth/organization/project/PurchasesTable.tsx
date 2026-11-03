@@ -65,6 +65,8 @@ type Props = {
     field: "_creationTime" | "updatedAt" | "verificationDurationMs",
     direction: "asc" | "desc",
   ) => void;
+  /** "preview" clips wide tables and drops paging, for the static landing visual. */
+  variant?: "page" | "preview";
 };
 
 const formatVerificationDuration = (durationMs?: number | null) => {
@@ -106,6 +108,7 @@ export function PurchasesTable({
   sortField,
   sortDirection,
   onSortChange,
+  variant = "page",
 }: Props) {
   const rows = useMemo(() => purchases, [purchases]);
 
@@ -124,8 +127,17 @@ export function PurchasesTable({
 
   return (
     <>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+      <div
+        className={
+          variant === "preview" ? "overflow-hidden" : "overflow-x-auto"
+        }
+      >
+        <table
+          className={cn(
+            "w-full text-sm",
+            variant === "preview" && "min-w-[68rem]",
+          )}
+        >
           <thead className="text-xs uppercase text-muted-foreground border-b border-border">
             <tr className="text-left">
               <th className="py-3 px-6 font-medium">{"Validity"}</th>
@@ -281,7 +293,10 @@ export function PurchasesTable({
           </tbody>
         </table>
       </div>
-      <div className="p-4 border-t border-border flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div
+        hidden={variant === "preview"}
+        className="p-4 border-t border-border flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+      >
         <p className="text-sm text-muted-foreground">
           {"Items per page"}: {pageSize}
         </p>

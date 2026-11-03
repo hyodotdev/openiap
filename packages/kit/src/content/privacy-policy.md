@@ -2,7 +2,7 @@
 
 **Service:** Purchase validation and entitlement infrastructure for the Apple App Store, Google Play, Amazon Appstore, and Meta Horizon
 
-**Last updated:** 2026-10-16
+**Last updated:** 2026-11-04
 
 Hyo Dev (“we”, “our”, “us”) provides purchase validation and entitlement infrastructure for app-store purchases. We are committed to protecting your privacy and handling your information responsibly. This Privacy Policy explains what information we collect, how we use it, and your rights.
 
@@ -47,6 +47,7 @@ We use the information we collect to:
 
 - Provide, maintain, and improve our service
 - Authenticate and manage user accounts
+- Email organization owners and admins about service matters, including the sponsorship notices on the [Pricing](https://kit.openiap.dev/pricing) page, which use the organization's production subscription revenue tracked by the service
 - Offer customer support
 - Ensure platform security
 - Comply with legal obligations
@@ -83,9 +84,9 @@ Data is processed only as needed to provide our service.
 
 Fly.io hosts the IAPKit web application and API. Requests may pass through its infrastructure and produce limited operational or security logs.
 
-### GitHub and Resend (Authentication)
+### GitHub and Resend (Authentication and Email)
 
-If you choose GitHub sign-in, GitHub provides the account details needed to authenticate you. Resend delivers email one-time passwords and processes the destination email address for that purpose.
+If you choose GitHub sign-in, GitHub provides the account details needed to authenticate you. Resend delivers email one-time passwords and service emails, such as sponsorship notices, and processes the destination email address for that purpose.
 
 ### Sentry (Error and Performance Monitoring)
 

@@ -37,7 +37,12 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "feature",
         topic: "Design",
-        text: "IAPKit uses a new ink-blue palette with IBM Plex type, and the landing page shows what a verification result looks like.",
+        text: "Cleaner, consistent spacing, type and buttons across every screen, and a shorter landing page shows where IAPKit sits in the OpenIAP Commerce Protocol.",
+      },
+      {
+        kind: "feature",
+        topic: "Pricing",
+        text: "A new Pricing page explains how the hosted service stays free: sponsors keep it running, and organizations whose monthly subscription revenue reaches $8,000 and then $9,000 are asked to sponsor in stages. Purchase verification, store notifications and webhooks never stop at any stage.",
       },
       {
         kind: "docs",

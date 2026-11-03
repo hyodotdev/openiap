@@ -4,7 +4,6 @@ import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import DataTable from '../../../components/DataTable';
-import IapKitBanner from '../../../components/IapKitBanner';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
 import TLDRBox from '../../../components/TLDRBox';
@@ -124,7 +123,7 @@ function Validation() {
             <a href="#verify-purchase-with-provider">
               <code>verifyPurchaseWithProvider</code>
             </a>
-            : Use IAPKit for managed validation
+            : Verify through IAPKit&apos;s API from the app
           </li>
           <li>
             <strong>Error ≠ Invalid</strong>: Network errors don't mean the
@@ -725,9 +724,20 @@ if (
 
       <section>
         <AnchorLink id="iapkit" level="h2">
-          What is IAPKit?
+          Verification providers
         </AnchorLink>
-        <IapKitBanner />
+        <p>
+          The <Link to="/commerce-protocol">Commerce Protocol</Link> is an open
+          server API built so verification providers, paywall and data services,
+          and your own backend can work together through one contract. Any
+          provider that implements it can verify purchases for your backend, and
+          so can your own server. Choose by what a provider supports, not by
+          name: compare{' '}
+          <Link to="/commerce-protocol/operations#providerCapabilities">
+            capability descriptors
+          </Link>{' '}
+          for the stores and profiles you need.
+        </p>
         <p>
           <a
             href={IAPKIT_URL}
@@ -737,105 +747,41 @@ if (
           >
             IAPKit
           </a>{' '}
-          is <strong>open-source</strong> (MIT) purchase validation and
-          entitlement infrastructure for the OpenIAP ecosystem. Its managed
-          validation endpoint supports App Store, Google Play, Amazon Appstore,
-          and Meta Horizon purchases. Instead of running your own backend that
-          talks to each store's verification API, you forward the JWS, purchase
-          token, Amazon receipt id, or Horizon entitlement payload to IAPKit and
-          get a normalized verification response — so one-time in-app purchases
-          are checked against the store's authoritative state. Amazon Fire OS
-          and Vega OS both use the <code>iapkit.amazon</code> payload. Use the
-          hosted version at{' '}
-          <a
-            href={IAPKIT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={trackIapKitClick}
-          >
-            kit.openiap.dev
-          </a>{' '}
-          or self-host the source from{' '}
+          is one of these providers: open source (MIT), managed by OpenIAP, and
+          hosted at kit.openiap.dev or self-hosted from{' '}
           <a
             href="https://github.com/hyodotdev/openiap/tree/main/packages/kit"
             target="_blank"
             rel="noopener noreferrer"
           >
             <code>packages/kit</code>
-          </a>{' '}
-          in this monorepo. It also implements the{' '}
-          <Link to="/commerce-protocol">Commerce Protocol</Link>, so a server
-          integration written against that contract, rather than against
-          IAPKit's own API, moves to any backend serving the same profiles and
-          binding.
-        </p>
-
-        <h4>Why use it</h4>
-        <ul>
-          <li>
-            <strong>Cross-store, one schema</strong> — same{' '}
-            <Link to="/docs/types/verify-purchase-with-provider-result">
-              <code>VerifyPurchaseWithProviderResult</code>
-            </Link>{' '}
-            shape for Apple, Google, Amazon, and Horizon. No per-platform JSON
-            parsing.
-          </li>
-          <li>
-            <strong>Fraud-resistant</strong> — verifies receipts and purchase
-            state against the store's authoritative server API, blocking common
-            forged receipt and replay flows.
-          </li>
-          <li>
-            <strong>Entitlement state, not raw receipts</strong> — IAPKit
-            collapses raw store data into a single <code>state</code> field (
-            <code>entitled</code>, <code>pending</code>, <code>canceled</code>{' '}
-            (including refunds and revocations), <code>expired</code>,{' '}
-            <code>inauthentic</code>, etc.) so your client and server can act on
-            a single value. SDK string values are kebab-case (
-            <code>pending-acknowledgment</code>); IAPKit&apos;s REST API spells
-            the same states in upper snake case (
-            <code>PENDING_ACKNOWLEDGMENT</code>).
-          </li>
-          <li>
-            <strong>Store credentials stay in IAPKit</strong> — you upload the
-            App Store key and Google service account once to your IAPKit
-            project; the app ships only a publishable key.
-          </li>
-          <li>
-            <strong>Public per-product rules</strong> — attach a small TOML,
-            JSON, or text payload to each iOS or Android product and retrieve it
-            during valid Apple or Google verification, or when the app opens.
-          </li>
-        </ul>
-
-        <h4>When IAPKit is not the right fit</h4>
-        <ul>
-          <li>
-            You have strict data-residency requirements that disallow sending
-            purchase tokens to a third-party.
-          </li>
-          <li>
-            You already operate a hardened receipt-validation service and don't
-            want another vendor in the path.
-          </li>
-        </ul>
-
-        <p>
-          Get an IAPKit publishable key at{' '}
-          <a
-            href={IAPKIT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={trackIapKitClick}
-          >
-            kit.openiap.dev
           </a>
-          , then call{' '}
+          . It is also the service the SDKs&apos;{' '}
           <a href="#verify-purchase-with-provider">
             <code>verifyPurchaseWithProvider</code>
-          </a>
-          .
+          </a>{' '}
+          and <code>confirmWithIapkit</code> call directly. What that call
+          needs:
         </p>
+        <ul>
+          <li>
+            Store credentials (the App Store key, the Google service account)
+            stay in the IAPKit project; the app ships only a publishable key.
+          </li>
+          <li>
+            It covers the App Store, Google Play, Amazon Appstore (Fire OS and
+            Vega OS, through the <code>iapkit.amazon</code> payload), and Meta
+            Horizon.
+          </li>
+          <li>
+            The result reports one <code>state</code> (<code>entitled</code>,{' '}
+            <code>pending</code>, <code>canceled</code>, <code>expired</code>,{' '}
+            <code>inauthentic</code>, and others). SDK string values are
+            kebab-case (<code>pending-acknowledgment</code>); IAPKit&apos;s REST
+            API spells the same states in upper snake case (
+            <code>PENDING_ACKNOWLEDGMENT</code>).
+          </li>
+        </ul>
       </section>
 
       <section>

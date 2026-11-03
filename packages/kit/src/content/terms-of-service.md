@@ -2,7 +2,7 @@
 
 **Service:** Purchase validation and entitlement infrastructure for the Apple App Store, Google Play, Amazon Appstore, and Meta Horizon
 
-**Last updated:** 2026-10-16
+**Last updated:** 2026-11-03
 
 These Terms of Service (“Terms”) govern your access to and use of the services provided by Hyo Dev (“we”, “our”, “us”). By creating an account or using our services, you agree to be bound by these Terms.
 
@@ -122,6 +122,8 @@ If your application is expected to generate sustained high volume or consume a s
 If an application's load strains the shared servers, we may remove it from the shared pool by throttling or suspending its traffic under Section 8. To keep using the hosted service at that volume, the organization may be required to sponsor the capacity it uses through [GitHub Sponsors](https://github.com/sponsors/hyodotdev), [OpenCollective](https://opencollective.com/openiap), or a separate written arrangement. Otherwise, it can [self-host](https://github.com/hyodotdev/openiap/tree/main/packages/kit#deployment-convex--flyio) the MIT-licensed server, which is also the way to get dedicated capacity, predictable scaling, or full operational control.
 
 Sponsorship does not by itself reserve capacity or create an SLA.
+
+Separately from load, organizations whose monthly subscription revenue tracked by the hosted service reaches the thresholds on the [Pricing](https://kit.openiap.dev/pricing) page are asked to sponsor, in the stages described there. If a request goes unanswered after its 30-day grace period, we may pause management features only. Purchase verification, store notifications, and webhooks keep working.
 
 ---
 

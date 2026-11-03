@@ -13,31 +13,27 @@ const STYLES: Record<
   }
 > = {
   note: {
-    border: "border-blue-300 dark:border-blue-700",
-    bg: "bg-blue-50 dark:bg-blue-950/30",
-    icon: <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />,
+    border: "border-primary/25",
+    bg: "bg-primary/5",
+    icon: <Info className="h-4 w-4 text-primary" />,
     label: "Note",
   },
   tip: {
-    border: "border-emerald-300 dark:border-emerald-700",
-    bg: "bg-emerald-50 dark:bg-emerald-950/30",
-    icon: (
-      <Lightbulb className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-    ),
+    border: "border-success/25",
+    bg: "bg-success/5",
+    icon: <Lightbulb className="h-4 w-4 text-success" />,
     label: "Tip",
   },
   warning: {
-    border: "border-amber-300 dark:border-amber-700",
-    bg: "bg-amber-50 dark:bg-amber-950/30",
-    icon: (
-      <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-    ),
+    border: "border-warning/30",
+    bg: "bg-warning/5",
+    icon: <AlertTriangle className="h-4 w-4 text-warning" />,
     label: "Warning",
   },
   danger: {
-    border: "border-red-300 dark:border-red-700",
-    bg: "bg-red-50 dark:bg-red-950/30",
-    icon: <ShieldAlert className="h-4 w-4 text-red-600 dark:text-red-400" />,
+    border: "border-danger/30",
+    bg: "bg-danger/5",
+    icon: <ShieldAlert className="h-4 w-4 text-danger" />,
     label: "Critical",
   },
 };

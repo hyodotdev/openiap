@@ -70,7 +70,7 @@ export default {
       },
       fontFamily: {
         sans: [
-          "IBM Plex Sans",
+          "Roboto",
           "ui-sans-serif",
           "system-ui",
           "-apple-system",

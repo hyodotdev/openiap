@@ -9,6 +9,7 @@ import Privacy from "./privacy-policy";
 import About from "./about";
 import Contact from "./contact";
 import Faq from "./faq";
+import Pricing from "./pricing";
 import NotFound from "./404";
 
 /**
@@ -31,6 +32,17 @@ export const siteChildRoutes = (
           ]}
         >
           <Faq />
+        </PageWithTitle>
+      }
+    />
+    <Route
+      path="pricing"
+      element={
+        <PageWithTitle
+          title="Pricing"
+          description="IAPKit is free and sustained by sponsors. See when larger organizations are asked to sponsor, and what never stops."
+        >
+          <Pricing />
         </PageWithTitle>
       }
     />

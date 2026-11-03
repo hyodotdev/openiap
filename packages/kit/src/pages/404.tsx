@@ -18,11 +18,11 @@ export default function NotFound() {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <Link to="/" className="btn-gradient gap-2 px-6 py-3">
+          <Link to="/" className="btn-gradient btn-lg">
             <Home className="w-4 h-4" aria-hidden="true" />
             {"Go to IAPKit home"}
           </Link>
-          <Link to="/docs" className="btn-secondary px-6 py-3">
+          <Link to="/docs" className="btn-secondary btn-lg">
             {"Read the docs"}
           </Link>
         </div>
