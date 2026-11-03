@@ -21,14 +21,16 @@ with the `expo` scope, e.g. `fix(expo): resolve purchase crash`.
 - Changing iOS to `15.0` can cause expo prebuild to exclude the module in certain Expo SDKs (known bug)
 - See issue: [#168](https://github.com/hyochan/expo-iap/issues/168)
 - This is kept at `13.4` for compatibility with affected Expo SDKs
-- The actual iOS 15.0+ requirement is enforced at build time via @available annotations
+- The OpenIAP Swift package's iOS 15.0 minimum enforces the real requirement at build time
 - Users must follow the deployment target required by their Expo SDK. The validated Expo SDK 57 example uses iOS 16.4; older supported SDKs must never go below the module's iOS 15.0 runtime requirement.
 
 **tvOS Exception**: tvOS platform version MUST be `16.0` (not `13.4`) because:
 
-- The `openiap` CocoaPods dependency requires tvOS 16.0 minimum
+- The OpenIAP Swift package requires tvOS 16.0 minimum
 - Setting tvOS to `13.4` causes build failure due to dependency mismatch
 - This is a hard requirement from the dependency, not subject to the iOS workaround
+
+**OpenIAP source**: the example's prebuild points ExpoIap at this checkout's `packages/apple`. `OPENIAP_APPLE_PATH='' bunx expo prebuild --platform ios --clean` builds the published Swift package an installed app gets instead; `scripts/verify-ios-swiftpm-consumer.sh` checks that build end to end, as the release does.
 
 ### Pre-Commit Checks
 

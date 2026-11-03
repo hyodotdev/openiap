@@ -401,7 +401,7 @@ describe('android configuration', () => {
     expect(result.mods?.ios?.podfile).toBeDefined();
   });
 
-  it('moves the local pod when localPath moves', async () => {
+  it('points the Swift package at localPath and drops the old local pod', async () => {
     const fs = jest.requireActual('fs') as typeof import('fs');
     const os = jest.requireActual('os') as typeof import('os');
     const path = jest.requireActual('path') as typeof import('path');
@@ -421,11 +421,73 @@ describe('android configuration', () => {
         }) as ExpoConfig,
         {projectRoot, platforms: ['ios']},
       );
-      expect(fs.readFileSync(podfile, 'utf8')).toContain(
-        `pod 'openiap', :path => '${path.relative(
+      const written = fs.readFileSync(podfile, 'utf8');
+      expect(written).toContain(
+        `ENV['OPENIAP_APPLE_PATH'] = File.expand_path('${path.relative(
           path.dirname(podfile),
           apple,
-        )}'`,
+        )}', __dir__)`,
+      );
+      expect(written).not.toContain("pod 'openiap'");
+    } finally {
+      fs.rmSync(projectRoot, {recursive: true, force: true});
+    }
+  });
+
+  it.each([
+    {name: 'the published package', options: {}},
+    {
+      name: 'a missing localPath',
+      options: {enableLocalDev: true, localPath: {ios: '/missing/apple'}},
+    },
+  ])('drops a stale local OpenIAP path for $name', async ({options}) => {
+    const fs = jest.requireActual('fs') as typeof import('fs');
+    const os = jest.requireActual('os') as typeof import('os');
+    const path = jest.requireActual('path') as typeof import('path');
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'expo-iap-pod-'));
+    const podfile = path.join(projectRoot, 'ios', 'Podfile');
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      fs.mkdirSync(path.dirname(podfile), {recursive: true});
+      fs.writeFileSync(
+        podfile,
+        "ENV['OPENIAP_APPLE_PATH'] = File.expand_path('../old/apple', __dir__)\ntarget 'app' do\n  use_expo_modules!\n  pod \"openiap\", :path => '../old/apple'\nend\n",
+      );
+      await compileModsAsync(
+        plugin({name: 'app', slug: 'app'} as ExpoConfig, options) as ExpoConfig,
+        {projectRoot, platforms: ['ios']},
+      );
+      const written = fs.readFileSync(podfile, 'utf8');
+      expect(written).not.toContain('OPENIAP_APPLE_PATH');
+      expect(written).not.toContain('openiap');
+      expect(written).toContain("target 'app' do\n  use_expo_modules!\nend\n");
+    } finally {
+      warn.mockRestore();
+      fs.rmSync(projectRoot, {recursive: true, force: true});
+    }
+  });
+
+  it('warns when the Podfile still declares the openiap pod', async () => {
+    const fs = jest.requireActual('fs') as typeof import('fs');
+    const os = jest.requireActual('os') as typeof import('os');
+    const path = jest.requireActual('path') as typeof import('path');
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'expo-iap-pod-'));
+    const podfile = path.join(projectRoot, 'ios', 'Podfile');
+    const ios = WarningAggregator.addWarningIOS as jest.Mock;
+    ios.mockClear();
+    try {
+      fs.mkdirSync(path.dirname(podfile), {recursive: true});
+      fs.writeFileSync(
+        podfile,
+        "target 'app' do\n  use_expo_modules!\n  pod 'openiap', '4.0.7'\nend\n",
+      );
+      await compileModsAsync(
+        plugin({name: 'app', slug: 'app'} as ExpoConfig) as ExpoConfig,
+        {projectRoot, platforms: ['ios']},
+      );
+      expect(ios).toHaveBeenCalledWith(
+        'expo-iap',
+        expect.stringContaining("Remove pod 'openiap'"),
       );
     } finally {
       fs.rmSync(projectRoot, {recursive: true, force: true});

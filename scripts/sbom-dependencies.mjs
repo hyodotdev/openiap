@@ -1012,9 +1012,12 @@ function extractOpenIapNative(
   const versions = readJson(root, "openiap-versions.json");
   const entries = [];
   if (apple) {
+    // KMP's Gradle swiftPMDependencies block or a podspec's spm_dependency.
     const usesSwiftPM =
       appleSwiftPMManifest &&
-      readText(root, appleSwiftPMManifest).includes("swiftPMDependencies {");
+      /swiftPMDependencies \{|spm_dependency\(/u.test(
+        readText(root, appleSwiftPMManifest),
+      );
     entries.push(
       dependencyEntry({
         name: "openiap",
@@ -1075,10 +1078,14 @@ function verifyDeclaredInventory(root, inventories = []) {
     const usesStoreResolver = /^\s*openIapAddStoreDependencies\s*\(/mu.test(
       source,
     );
+    // Podspecs before spm_dependency declared the openiap pod instead.
+    const usesSwiftPackage = /^\s*spm_dependency\s*\(/mu.test(source);
     const expected = [
       ...(usesStoreResolver && inventory.resolverExpected
         ? inventory.resolverExpected
-        : inventory.expected),
+        : usesSwiftPackage && inventory.swiftPackageExpected
+          ? inventory.swiftPackageExpected
+          : inventory.expected),
     ].sort();
     if (JSON.stringify(actual) !== JSON.stringify(expected)) {
       throw new Error(

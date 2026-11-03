@@ -12,16 +12,28 @@ Pod::Spec.new do |s|
   s.author         = package['author']
   s.homepage       = package['homepage']
   # Do not change iOS from 13.4: 15.0 can make expo prebuild exclude the module in
-  # some Expo SDKs (https://github.com/hyochan/expo-iap/issues/168). The source
-  # enforces StoreKit 2's iOS 15.0+ requirement with @available annotations.
-  # tvOS is 16.0, the openiap dependency's minimum tvOS deployment target.
+  # some Expo SDKs (https://github.com/hyochan/expo-iap/issues/168). Apps still
+  # need iOS 15.0 and tvOS 16.0, the OpenIAP Swift package's minimums.
   s.platforms      = { :ios => '13.4', :tvos => '16.0' }
   s.swift_version  = '5.9'
   s.source         = { :path => '.' }
   s.static_framework = true
 
   s.dependency 'ExpoModulesCore'
-  s.dependency 'openiap', "#{versions['apple']}"
+  # OpenIAP comes from its Swift package at the exact pinned version.
+  # OPENIAP_APPLE_PATH (absolute) builds a local packages/apple checkout instead.
+  local_openiap = ENV['OPENIAP_APPLE_PATH'].to_s.strip
+  unless local_openiap.empty? || File.exist?(File.join(local_openiap, 'Package.swift'))
+    raise "OPENIAP_APPLE_PATH #{local_openiap} has no Package.swift"
+  end
+  unless defined?(spm_dependency)
+    raise 'ExpoIap needs a React Native 0.75+ Podfile, which adds the OpenIAP Swift package'
+  end
+  spm_dependency(s,
+    url: local_openiap.empty? ? 'https://github.com/hyodotdev/openiap.git' : File.expand_path(local_openiap),
+    requirement: { kind: 'exactVersion', version: versions['apple'] },
+    products: ['OpenIAP']
+  )
 
   # OnsideKit dependency is conditionally included via ENV var set by the Expo plugin.
   # When modules.onside is enabled, the plugin prepends ENV['EXPO_IAP_ONSIDE']='1' to the

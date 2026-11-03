@@ -42,9 +42,20 @@ Pod::Spec.new do |s|
   s.dependency 'React-Core'
   s.dependency 'React-jsi'
   s.dependency 'React-callinvoker'
-  # OpenIAP Apple for StoreKit 2 integration
-  # Exact version match for consistent builds
-  s.dependency 'openiap', "#{apple_version}"
+  # OpenIAP comes from its Swift package at the exact pinned version.
+  # OPENIAP_APPLE_PATH (absolute) builds a local packages/apple checkout instead.
+  local_openiap = ENV['OPENIAP_APPLE_PATH'].to_s.strip
+  unless local_openiap.empty? || File.exist?(File.join(local_openiap, 'Package.swift'))
+    raise "OPENIAP_APPLE_PATH #{local_openiap} has no Package.swift"
+  end
+  unless defined?(spm_dependency)
+    raise 'NitroIap needs a React Native 0.75+ Podfile, which adds the OpenIAP Swift package'
+  end
+  spm_dependency(s,
+    url: local_openiap.empty? ? 'https://github.com/hyodotdev/openiap.git' : File.expand_path(local_openiap),
+    requirement: { kind: 'exactVersion', version: apple_version },
+    products: ['OpenIAP']
+  )
 
   install_modules_dependencies(s)
 end

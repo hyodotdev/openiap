@@ -225,6 +225,16 @@ export default {
           <strong>+ Capability</strong> &gt; <strong>In-App Purchase</strong>{' '}
           (after running <code>npx expo prebuild</code>).
         </p>
+        <p>
+          Prebuild adds OpenIAP to the project as a Swift package at the exact
+          version this release pins, so the first Xcode build fetches it from
+          GitHub; CI machines and EAS builds need GitHub access or a Swift
+          package cache. Keep <code>pod &apos;openiap&apos;</code> out of the
+          Podfile, which would add OpenIAP twice; the plugin warns when it finds
+          one. Prebuild may print React Native&apos;s static-linking warning for
+          Swift packages. It is safe to ignore: OpenIAP links fine with static
+          linking.
+        </p>
         <Callout kind="important" title="Building with Xcode 27?">
           The generated iOS project must use the UIScene lifecycle. Follow the{' '}
           <Link to="/docs/ios-setup#xcode-27-scene-lifecycle">

@@ -3312,6 +3312,54 @@ test("SDK resolver inventories retain legacy declarations and reject missing or 
   assert.deepEqual(await extractDirectDependencies(scratch, source), []);
 });
 
+test("RN and Expo record OpenIAP as the Swift package their podspecs add", async () => {
+  for (const id of ["react-native", "expo"]) {
+    const native = COMPONENTS[id].source.sources.find(
+      (entry) => entry.kind === "openiap-native",
+    );
+    const apple = (await extractDirectDependencies(repoRoot, native)).find(
+      (dependency) => dependency.name === "openiap",
+    );
+    assert.match(
+      apple.purl,
+      /^pkg:swift\/github\.com\/hyodotdev\/openiap@/u,
+      id,
+    );
+  }
+});
+
+test("podspec inventories accept the openiap pod before spm_dependency and reject it after", async (t) => {
+  const scratch = mkdtempSync(resolve(tmpdir(), "openiap-podspec-sbom-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const manifest = "libraries/react-native-iap/NitroIap.podspec";
+  mkdirSync(dirname(resolve(scratch, manifest)), { recursive: true });
+  const source = COMPONENTS["react-native"].source.sources.find(
+    (entry) => entry.kind === "declared" && entry.manifest === manifest,
+  );
+  const react = ["React-Core", "React-jsi", "React-callinvoker"]
+    .map((name) => `  s.dependency '${name}'`)
+    .join("\n");
+  const pod = "  s.dependency 'openiap', '4.0.7'";
+  const swiftPackage =
+    "  spm_dependency(s,\n    url: 'https://github.com/hyodotdev/openiap.git',\n    products: ['OpenIAP']\n  )";
+  const write = (...lines) =>
+    writeFileSync(
+      resolve(scratch, manifest),
+      `${[react, ...lines].join("\n")}\n`,
+    );
+  for (const lines of [[pod], [swiftPackage]]) {
+    write(...lines);
+    assert.equal((await extractDirectDependencies(scratch, source)).length, 3);
+  }
+  for (const lines of [[], [swiftPackage, pod]]) {
+    write(...lines);
+    await assert.rejects(
+      () => extractDirectDependencies(scratch, source),
+      /Unmodelled dependency declaration/u,
+    );
+  }
+});
+
 test("a local core dependency requires its published neutral fallback", (t) => {
   const scratch = mkdtempSync(resolve(tmpdir(), "openiap-core-sbom-"));
   t.after(() => rmSync(scratch, { recursive: true, force: true }));
@@ -3356,6 +3404,31 @@ test("KMP SBOMs identify SwiftPM dependencies while preserving historical CocoaP
   assert.equal(
     (await extractDirectDependencies(scratch, source))[0].purl,
     "pkg:swift/github.com/hyodotdev/openiap@4.0.2",
+  );
+});
+
+test("RN and Expo SBOMs identify the podspec's Swift package while preserving historical CocoaPods identity", async (t) => {
+  const scratch = mkdtempSync(resolve(tmpdir(), "openiap-podspec-spm-sbom-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const manifest = "NitroIap.podspec";
+  const source = {
+    kind: "openiap-native",
+    apple: true,
+    appleSwiftPMManifest: manifest,
+  };
+  writeFileSync(
+    resolve(scratch, "openiap-versions.json"),
+    JSON.stringify({ apple: "4.0.8" }),
+  );
+  writeFileSync(resolve(scratch, manifest), "s.dependency 'openiap', '4.0.7'");
+  assert.equal(
+    (await extractDirectDependencies(scratch, source))[0].purl,
+    "pkg:cocoapods/openiap@4.0.8",
+  );
+  writeFileSync(resolve(scratch, manifest), "spm_dependency(s, url: 'x')");
+  assert.equal(
+    (await extractDirectDependencies(scratch, source))[0].purl,
+    "pkg:swift/github.com/hyodotdev/openiap@4.0.8",
   );
 });
 

@@ -75,7 +75,10 @@ Add to your `Podfile`:
 pod 'openiap', '~> <version>'
 ```
 
-Use the latest version from the Swift Package / CocoaPods badges above.
+CocoaPods Trunk stops accepting new versions on December 2, 2026; OpenIAP
+versions after that ship through Swift Package Manager only.
+
+Use the latest version from the Swift Package badge above.
 
 ## Quick Start
 
