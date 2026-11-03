@@ -13,6 +13,15 @@ crons.interval(
   {},
 );
 
+// Second of each month: staged sponsorship emails (convex/sponsorship). Does
+// nothing unless SPONSORSHIP_NOTICES_MODE is set.
+crons.cron(
+  "sponsorship notices",
+  "0 1 2 * *",
+  internal.sponsorship.action.runSponsorshipNotices,
+  {},
+);
+
 crons.monthly(
   "reset monthly request counts",
   {

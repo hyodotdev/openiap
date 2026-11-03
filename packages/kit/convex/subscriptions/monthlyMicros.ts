@@ -9,7 +9,18 @@ export function monthlyMicrosForSub(
   productPeriod: string | undefined,
 ): number {
   if (typeof sub.priceAmountMicros !== "number") return 0;
-  const amount = sub.priceAmountMicros;
+  return monthlyMicros(sub.priceAmountMicros, productPeriod);
+}
+
+/** Whether MRR can count a product with this billing period. */
+export function countsTowardMrr(productPeriod: string | undefined): boolean {
+  return monthlyMicros(1_000_000, productPeriod) > 0;
+}
+
+function monthlyMicros(
+  amount: number,
+  productPeriod: string | undefined,
+): number {
   switch (productPeriod) {
     case "P1Y":
       return Math.round(amount / 12);
