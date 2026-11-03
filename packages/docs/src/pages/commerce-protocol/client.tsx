@@ -1,9 +1,11 @@
+import httpBinding from '@hyodotdev/openiap-commerce-protocol/generated/bindings/http-binding.json';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../components/AnchorLink';
 import CodeBlock from '../../components/CodeBlock';
 import DataTable from '../../components/DataTable';
 import SEO from '../../components/SEO';
+import { useScrollToHash } from '../../hooks/useScrollToHash';
 import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
 
 interface EvidenceRow {
@@ -14,6 +16,10 @@ interface EvidenceRow {
 
 // Evidence members from specs/commerce-protocol/schema/05-operations.graphql;
 // sources from the client Purchase type (specs/client/src/type*.graphql).
+const VERIFY_PATH = httpBinding.operations.find(
+  (operation) => operation.name === 'verifyPurchase'
+)!.path;
+
 const EVIDENCE_ROWS: EvidenceRow[] = [
   {
     store: 'apple',
@@ -61,6 +67,8 @@ const EVIDENCE_ROWS: EvidenceRow[] = [
 ];
 
 function CommerceClient() {
+  useScrollToHash(120);
+
   return (
     <div className="doc-page">
       <SEO
@@ -112,7 +120,7 @@ function CommerceClient() {
         backend keeps the access decision there.
       </p>
       <CodeBlock language="typescript">{`// On your backend, after the app posts a Google Play purchase token
-const response = await fetch(\`\${PROVIDER_BASE_URL}/commerce/v1/purchases/verify\`, {
+const response = await fetch(\`\${PROVIDER_BASE_URL}${VERIFY_PATH}\`, {
   method: 'POST',
   headers: {
     authorization: \`Bearer \${PROVIDER_CREDENTIAL}\`,
@@ -120,15 +128,30 @@ const response = await fetch(\`\${PROVIDER_BASE_URL}/commerce/v1/purchases/verif
   },
   body: JSON.stringify({ store: 'google', google: { purchaseToken } }),
 });
+// A failed call is not an invalid purchase: keep it unfinished and retry later.
+if (!response.ok) throw new Error(\`verifyPurchase failed: \${response.status}\`);
 const verdict = await response.json();
-// { store, isValid, state, productId?, environment? }: gate on isValid,
-// then bind the purchase and read entitlements before granting access.`}</CodeBlock>
+// { store, isValid, state, productId?, environment? }: require isValid and the
+// expected productId, then bind the purchase and read entitlements.`}</CodeBlock>
       <p>
         Verification is not an access grant: bind the purchase under your
         ownership policy, read current entitlements, and grant durably before
         the app finishes the store transaction. The{' '}
         <Link to="/commerce-protocol/getting-started">Call a provider</Link>{' '}
         guide walks through all three calls.
+      </p>
+
+      <AnchorLink id="without-a-backend" level="h3">
+        Without a backend
+      </AnchorLink>
+      <p>
+        An app with no backend may call <code>verifyPurchase</code> itself: the
+        specification lets a verification-role credential ship in an app. Accept
+        on <code>isValid</code> together with the store and the{' '}
+        <code>productId</code> you expected; <code>state</code> is advisory.
+        Binding and entitlement reads need the server role, which never ships in
+        an app, so the app cannot link the purchase to a user or read access
+        from the provider.
       </p>
 
       <AnchorLink id="verify-purchase-with-provider" level="h2">

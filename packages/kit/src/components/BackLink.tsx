@@ -24,6 +24,7 @@ export function BackLink({
   const content = (
     <>
       <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+      <span className="sr-only">{"Back to "}</span>
       {label}
     </>
   );

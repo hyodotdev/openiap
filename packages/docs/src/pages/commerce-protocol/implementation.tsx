@@ -28,11 +28,11 @@ function CommerceImplementation(): React.JSX.Element {
   return (
     <div className="doc-page commerce-implementation">
       <SEO
-        title="Commerce Protocol: Build a Provider"
+        title="Commerce Protocol: Build Your Backend"
         path="/commerce-protocol/implementation"
         description="Define your product and expected behavior. Give AI the Commerce Protocol contract and working example, then review the running result."
       />
-      <h1>Build a provider</h1>
+      <h1>Build your backend</h1>
       <p>
         Choose who runs the purchase backend, describe what your users should
         experience, and review a running app.

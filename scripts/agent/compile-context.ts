@@ -870,10 +870,11 @@ OpenIapClient.Instance.PurchaseUpdated.Subscribe(
 - APIs Reference: https://openiap.dev/docs/apis
 - Error Codes: https://openiap.dev/docs/errors
 - Commerce Protocol: https://openiap.dev/commerce-protocol
-- Commerce Protocol Use a Provider: https://openiap.dev/commerce-protocol/getting-started
-- Commerce Protocol Business Roles: https://openiap.dev/commerce-protocol/ecosystem
+- Commerce Protocol From Your App: https://openiap.dev/commerce-protocol/client
+- Commerce Protocol Call a Provider: https://openiap.dev/commerce-protocol/getting-started
+- Commerce Protocol Join the Ecosystem: https://openiap.dev/commerce-protocol/ecosystem
 - Commerce Protocol Integration Brief: https://openiap.dev/commerce-example/integration-brief.md
-- Commerce Protocol Build and review: https://openiap.dev/commerce-protocol/implementation
+- Commerce Protocol Build Your Backend: https://openiap.dev/commerce-protocol/implementation
 - Commerce Protocol AI Build Brief: https://openiap.dev/commerce-example/build-brief.md
 - Commerce Protocol Whitepaper: https://openiap.dev/commerce-protocol/whitepaper
 - Commerce Protocol Webhook Contract: https://openiap.dev/commerce-protocol/webhooks
@@ -1174,10 +1175,11 @@ identifier, or central runtime.
 - Use the bundled JSON Schemas and signature/lifecycle vectors for offline
   conformance.
 - Docs: https://openiap.dev/commerce-protocol
-- Use a provider: https://openiap.dev/commerce-protocol/getting-started
-- Build your part: https://openiap.dev/commerce-protocol/ecosystem
+- From your app: https://openiap.dev/commerce-protocol/client
+- Call a provider: https://openiap.dev/commerce-protocol/getting-started
+- Join the ecosystem: https://openiap.dev/commerce-protocol/ecosystem
 - Role-specific AI integration brief: https://openiap.dev/commerce-example/integration-brief.md
-- Build and review: https://openiap.dev/commerce-protocol/implementation
+- Build your backend: https://openiap.dev/commerce-protocol/implementation
 - Ready event receiver: https://openiap.dev/commerce-protocol/getting-started#receive-events
 - AI build brief: https://openiap.dev/commerce-example/build-brief.md
 - Recorded local implementation: https://openiap.dev/commerce-protocol#build-walkthrough

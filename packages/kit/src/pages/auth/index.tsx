@@ -25,17 +25,10 @@ import ProjectSettings from "./organization/project/settings";
 import ProjectPurchaseDetail from "./organization/project/purchase-detail";
 import ProjectOrders from "./organization/project/orders";
 import OrganizationUsagePage from "./organization/usage";
-import BlogLayout from "../blog/BlogLayout";
 import { SiteLayout } from "@/components/SiteLayout";
-import BlogIndex from "../blog";
-import IapkitJoinsOpenIap from "../blog/iapkit-joins-openiap";
 import DocsLayout from "../docs/DocsLayout";
 import { docsChildRoutes } from "../docs/routes";
-import NotFound from "../404";
-import Terms from "../terms-of-service";
-import Privacy from "../privacy-policy";
-import About from "../about";
-import Contact from "../contact";
+import { siteChildRoutes } from "../site-routes";
 import { PageWithTitle } from "@/components/PageWithTitle";
 
 // Authenticated Pages Component - handles all authenticated routes
@@ -122,52 +115,7 @@ export default function AuthenticatedPages() {
         {docsChildRoutes}
       </Route>
       {/* Public pages keep the site header when signed in. */}
-      <Route element={<SiteLayout />}>
-        <Route path="blog" element={<BlogLayout />}>
-          <Route index element={<BlogIndex />} />
-          <Route path="iapkit-joins-openiap" element={<IapkitJoinsOpenIap />} />
-        </Route>
-        <Route
-          path="about"
-          element={
-            <PageWithTitle title="About">
-              <About />
-            </PageWithTitle>
-          }
-        />
-        <Route
-          path="contact"
-          element={
-            <PageWithTitle title="Contact">
-              <Contact />
-            </PageWithTitle>
-          }
-        />
-        <Route
-          path="terms-of-service"
-          element={
-            <PageWithTitle title="Terms of Service">
-              <Terms />
-            </PageWithTitle>
-          }
-        />
-        <Route
-          path="privacy-policy"
-          element={
-            <PageWithTitle title="Privacy Policy">
-              <Privacy />
-            </PageWithTitle>
-          }
-        />
-      </Route>
-      <Route
-        path="termsofservice"
-        element={<Navigate to="/terms-of-service" replace />}
-      />
-      <Route
-        path="privacyandpolicy"
-        element={<Navigate to="/privacy-policy" replace />}
-      />
+      <Route element={<SiteLayout />}>{siteChildRoutes}</Route>
       <Route
         path="onboarding/create-organization"
         element={
@@ -342,15 +290,6 @@ export default function AuthenticatedPages() {
           />
         </Route>
       </Route>
-
-      <Route
-        path="*"
-        element={
-          <PageWithTitle title="Page not found">
-            <NotFound />
-          </PageWithTitle>
-        }
-      />
     </Routes>
   );
 }

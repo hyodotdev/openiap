@@ -91,14 +91,8 @@ export function Tooltip({
         <div
           id={tooltipId}
           role="tooltip"
-          // Explicit opaque surfaces — `bg-popover` resolved to a
-          // semi-transparent token in this theme, which let the
-          // table content bleed through and made the tooltip
-          // unreadable. Pin to solid white in light mode and a
-          // near-black gray in dark mode so contrast is guaranteed
-          // regardless of what's behind the trigger.
           className={cn(
-            "absolute z-50 rounded-md border border-border bg-white dark:bg-[#0f0f14] text-foreground p-3 text-xs shadow-xl",
+            "absolute z-50 rounded-md border border-border bg-popover text-popover-foreground p-3 text-xs shadow-xl",
             widthClass,
             sidePosition(side),
             alignPosition(side, align),

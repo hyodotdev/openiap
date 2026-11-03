@@ -39,7 +39,7 @@ const NAV_GROUPS: NavigationGroup[] = [
       { to: '/commerce-protocol', label: 'Overview' },
       { to: '/commerce-protocol/client', label: 'From your app' },
       { to: '/commerce-protocol/getting-started', label: 'Call a provider' },
-      { to: '/commerce-protocol/implementation', label: 'Build a provider' },
+      { to: '/commerce-protocol/implementation', label: 'Build your backend' },
       { to: '/commerce-protocol/ecosystem', label: 'Join the ecosystem' },
     ],
   },

@@ -37,14 +37,13 @@ export default function WebhooksPage() {
             lifecycle URL
           </a>
           . Without them IAPKit learns of no Apple or Google renewal or refund
-          and sends no event for it; Amazon receipts are also re-checked on a
-          schedule.
+          and sends no event for it.
         </li>
         <li>
           Link purchases to your users. Subscription events arrive for every
-          purchase, but only purchases your backend has bound to a user carry{" "}
-          <code>userId</code> and produce <code>entitlement.granted</code> and{" "}
-          <code>entitlement.revoked</code> (see{" "}
+          subscription, but only purchases your backend has bound to a user
+          carry <code>userId</code> and produce <code>entitlement.granted</code>{" "}
+          and <code>entitlement.revoked</code> (see{" "}
           <Link to="/docs/purchase-flow" className="text-primary underline">
             Purchase flow
           </Link>
@@ -68,9 +67,9 @@ export default function WebhooksPage() {
           Copy the signing secret immediately; IAPKit never shows it again.
         </li>
         <li>
-          Verify <code>openiap-signature</code> over the raw body, require the
-          event-id header to match the signed body&apos;s <code>eventId</code>,
-          and deduplicate on that body field before applying an effect.
+          Verify <code>openiap-signature</code> over the raw body, then
+          deduplicate on the signed body&apos;s <code>eventId</code> before
+          applying an effect.
         </li>
       </ol>
       <h3 className="mt-6 text-xl font-semibold">What your endpoint returns</h3>
@@ -86,8 +85,9 @@ export default function WebhooksPage() {
           fails permanently.
         </li>
         <li>
-          After 20 failures in a row the destination is paused for review.
-          Failed deliveries stay visible and can be re-sent; see{" "}
+          After 20 failures in a row the destination is disabled; re-enable it
+          on the Webhooks tab once your endpoint recovers. Failed deliveries
+          stay visible and can be re-sent; see{" "}
           <a href="#delivery-history" className="text-primary underline">
             Delivery history and re-send
           </a>
@@ -97,15 +97,14 @@ export default function WebhooksPage() {
       <CodeBlock language="text">{`content-type: application/json
 openiap-signature: v1=<hmac-sha256>
 openiap-timestamp: <unix-seconds>
-openiap-event-id: <must equal body.eventId>
+openiap-event-id: <body.eventId; read the body, not this header>
 openiap-delivery-id: <stable across retries of one attempt chain>`}</CodeBlock>
       <p>
         To verify a delivery, compute lowercase hex with{" "}
         <code>HMAC_SHA256(secret, timestamp + &quot;.&quot; + rawBody)</code>,
         then prefix it with <code>v1=</code>. During the 24-hour rotation
         window, the header contains the new and previous values comma-separated;
-        accept either valid value. Parse the timestamp as a finite Unix-seconds
-        number and require{" "}
+        accept either valid value. Require one timestamp of digits only and{" "}
         <code>Math.abs(Date.now() / 1000 - timestamp) &lt;= 300</code> to reject
         both stale and future values. Never reserialize JSON before
         verification. The Commerce Protocol&apos;s{" "}
@@ -120,11 +119,14 @@ openiap-delivery-id: <stable across retries of one attempt chain>`}</CodeBlock>
       <p>
         To rotate the secret, use <strong>Rotate</strong> on the destination.
         For 24 hours both secrets sign each delivery, and another rotation is
-        blocked. If a secret leaked, run the CLI&apos;s{" "}
-        <code>kit webhooks rotate-secret</code> with <code>revokePrevious</code>
-        : it issues a new secret and stops both old ones at once, so deploy the
-        new secret to your receiver immediately or deliveries fail verification.
+        blocked. If a secret leaked, revoke the old secrets with the CLI as an
+        owner or admin. It issues a new secret and stops both old ones at once,
+        so deploy the new secret to your receiver immediately or deliveries fail
+        verification. <code>kit webhooks list</code> shows the destination id.
       </p>
+      <CodeBlock language="bash">{`npx @hyodotdev/openiap kit login
+npx @hyodotdev/openiap kit webhooks rotate-secret \\
+  --destination-id <destination-id> --revoke-previous true --yes`}</CodeBlock>
       <CodeBlock language="json">{`{
   "eventId": "commerceEvents_...",
   "eventType": "subscription.renewed",
@@ -160,9 +162,9 @@ subscription.resumed, entitlement.granted, entitlement.revoked`}</CodeBlock>
           produce no events.
         </li>
         <li>
-          Amazon events are in beta. Apple and Google have no scheduled
-          re-check, so a notification the store gives up delivering is not
-          recovered.
+          Amazon events are in beta, and IAPKit also re-checks Amazon receipts
+          on a schedule. Apple and Google have no scheduled re-check, so a
+          notification the store gives up delivering is not recovered.
         </li>
       </ul>
       <p>

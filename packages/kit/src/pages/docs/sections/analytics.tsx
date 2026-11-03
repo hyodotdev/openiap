@@ -82,8 +82,11 @@ export default function AnalyticsPage() {
           <code>/v1/purchase/verify</code> alone doesn&apos;t tell IAPKit when a
           renewal, cancellation, or refund happens, and a restore never counts
           as a purchase. Follow the{" "}
-          <Link to="/docs/webhooks" className="text-primary underline">
-            Store webhooks guide
+          <Link
+            to="/docs/webhooks#lifecycle-url"
+            className="text-primary underline"
+          >
+            store notification steps
           </Link>{" "}
           to register the project&apos;s lifecycle URL with App Store Connect
           and Play Console. The next rollup, within about 10 minutes, fills the

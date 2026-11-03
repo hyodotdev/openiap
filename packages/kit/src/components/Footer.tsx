@@ -1,9 +1,11 @@
 import { SiGithub } from "@icons-pack/react-simple-icons";
 import { Link, useNavigate } from "react-router-dom";
 import { KIT_REPO_URL } from "@/lib/constants";
+import { useShowsLandingFeatures } from "@/hooks/useShowsLandingFeatures";
 
 export default function Footer() {
   const navigate = useNavigate();
+  const showsFeatures = useShowsLandingFeatures();
 
   const handleFeaturesClick = () => {
     if (typeof document !== "undefined") {
@@ -57,15 +59,17 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold mb-4">{"Product"}</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>
-                <button
-                  type="button"
-                  onClick={handleFeaturesClick}
-                  className="hover:text-foreground transition-colors"
-                >
-                  {"Features"}
-                </button>
-              </li>
+              {showsFeatures && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={handleFeaturesClick}
+                    className="hover:text-foreground transition-colors"
+                  >
+                    {"Features"}
+                  </button>
+                </li>
+              )}
               <li>
                 <Link
                   to="/docs"

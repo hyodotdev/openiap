@@ -48,13 +48,11 @@ export const ButtonPrimary = forwardRef<HTMLButtonElement, ButtonPrimaryProps>(
         "bg-primary text-primary-foreground",
         "border border-primary",
         "hover:bg-primary/90",
-        "before:hidden",
       ].join(" "),
       destructive: [
-        "bg-danger text-white dark:text-background",
-        "border border-danger",
-        "hover:bg-danger/90",
-        "before:hidden",
+        "bg-destructive text-destructive-foreground",
+        "border border-destructive",
+        "hover:bg-destructive/90",
       ].join(" "),
       outline: [
         "bg-transparent",
@@ -65,7 +63,6 @@ export const ButtonPrimary = forwardRef<HTMLButtonElement, ButtonPrimaryProps>(
         "hover:bg-primary/5",
         "shadow-[0_1px_2px_rgba(15,23,42,0.08)]",
         "hover:shadow-[0_6px_18px_rgba(15,23,42,0.08)]",
-        "before:hidden",
       ].join(" "),
     };
 
@@ -75,7 +72,6 @@ export const ButtonPrimary = forwardRef<HTMLButtonElement, ButtonPrimaryProps>(
       "disabled:transform-none",
       "disabled:shadow-none",
       "disabled:hover:shadow-none",
-      "disabled:before:opacity-0",
     ].join(" ");
 
     const loadingStyles = loading ? "cursor-wait" : "";

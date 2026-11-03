@@ -57,8 +57,10 @@ function CommerceGettingStarted(): React.JSX.Element {
       />
       <h1>Call a provider</h1>
       <p>
-        Alice buys Premium in your app. Follow her purchase from the store’s
-        payment screen to the moment she can open paid content.
+        Your backend calls a provider to verify a purchase, bind it to your
+        user, and read access. This guide follows one purchase through those
+        calls: Alice buys Premium in your app, and you follow it from the
+        store’s payment screen to the moment she can open paid content.
       </p>
       <p>
         At each step, compare two implementations:{' '}
@@ -144,12 +146,11 @@ function CommerceGettingStarted(): React.JSX.Element {
           <p>
             Obtain the base URL, supported store configuration, and the
             verification and server credentials from your provider. A provider
-            issues its own credentials; OpenIAP has no registration service. For
-            IAPKit, see its{' '}
-            <a href="https://kit.openiap.dev/docs/commerce-protocol">
-              Commerce Protocol endpoint
-            </a>
-            . Each request sends one as{' '}
+            issues its own credentials; OpenIAP has no registration service.{' '}
+            <Link to="/commerce-protocol/implementation#iapkit">
+              Choose your services
+            </Link>{' '}
+            compares the current implementations. Each request sends one as{' '}
             <code>Authorization: Bearer &lt;credential&gt;</code>. Keep the
             server credential in your backend. These shell examples assume{' '}
             <code>curl</code> and <code>jq</code>.

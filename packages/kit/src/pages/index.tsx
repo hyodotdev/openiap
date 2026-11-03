@@ -1,21 +1,13 @@
 import { useState, useEffect } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { PageWithTitle } from "@/components/PageWithTitle";
 import { authModalSignal, closeAuthModal } from "../lib/signals";
 import { AuthModal } from "../components/AuthModal";
 import { SiteLayout } from "../components/SiteLayout";
 import LandingPage from "./landing";
-import BlogLayout from "./blog/BlogLayout";
-import BlogIndex from "./blog";
-import IapkitJoinsOpenIap from "./blog/iapkit-joins-openiap";
 import DocsLayout from "./docs/DocsLayout";
 import { docsChildRoutes } from "./docs/routes";
-import Terms from "./terms-of-service";
-import Privacy from "./privacy-policy";
-import About from "./about";
-import Contact from "./contact";
-import Faq from "./faq";
-import NotFound from "./404";
+import { siteChildRoutes } from "./site-routes";
 
 // Public Pages Component - handles all unauthenticated routes
 export default function PublicPages() {
@@ -55,77 +47,7 @@ export default function PublicPages() {
               </PageWithTitle>
             }
           />
-          <Route
-            path="faq"
-            element={
-              <PageWithTitle
-                title="Receipt validation FAQ"
-                description="How receipt validation works, why it needs a trusted server, and what IAPKit verifies for each store."
-                keywords={[
-                  "receipt validation FAQ",
-                  "consumable consumption state",
-                  "in-app purchase fraud",
-                ]}
-              >
-                <Faq />
-              </PageWithTitle>
-            }
-          />
-          <Route path="blog" element={<BlogLayout />}>
-            <Route index element={<BlogIndex />} />
-            <Route
-              path="iapkit-joins-openiap"
-              element={<IapkitJoinsOpenIap />}
-            />
-          </Route>
-          <Route
-            path="about"
-            element={
-              <PageWithTitle title="About">
-                <About />
-              </PageWithTitle>
-            }
-          />
-          <Route
-            path="contact"
-            element={
-              <PageWithTitle title="Contact">
-                <Contact />
-              </PageWithTitle>
-            }
-          />
-          <Route
-            path="terms-of-service"
-            element={
-              <PageWithTitle title="Terms of Service">
-                <Terms />
-              </PageWithTitle>
-            }
-          />
-          <Route
-            path="privacy-policy"
-            element={
-              <PageWithTitle title="Privacy Policy">
-                <Privacy />
-              </PageWithTitle>
-            }
-          />
-          <Route
-            path="termsofservice"
-            element={<Navigate to="/terms-of-service" replace />}
-          />
-          <Route
-            path="privacyandpolicy"
-            element={<Navigate to="/privacy-policy" replace />}
-          />
-          <Route
-            path="*"
-            element={
-              <PageWithTitle title="Page not found">
-                <NotFound />
-              </PageWithTitle>
-            }
-          />
+          {siteChildRoutes}
         </Route>
       </Routes>
       <AuthModal isOpen={authModalState.isOpen} onClose={closeAuthModal} />

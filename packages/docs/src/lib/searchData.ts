@@ -980,7 +980,7 @@ export const apiData: ApiItem[] = [
     title: 'Commerce Protocol Join the Ecosystem',
     category: 'Documentation',
     description:
-      'Paywall, commerce, and data roles; OpenIAP client integration and composable platform boundaries',
+      'Paywall, commerce, and data roles, composable platform boundaries, and how to contribute',
     path: '/commerce-protocol/ecosystem',
   },
   {
@@ -988,12 +988,12 @@ export const apiData: ApiItem[] = [
     title: 'Commerce Protocol Call a Provider',
     category: 'Documentation',
     description:
-      'Follow Alice’s subscription step by step: buy, verify, connect the user, read access, and handle changes',
+      'Verify, bind, and read access from your backend, following Alice’s subscription step by step',
     path: '/commerce-protocol/getting-started',
   },
   {
     id: 'commerce-protocol-implementation',
-    title: 'Commerce Protocol Build a Provider',
+    title: 'Commerce Protocol Build Your Backend',
     category: 'Documentation',
     description:
       'Choose your services, give AI a product brief, and review the running purchase flow',

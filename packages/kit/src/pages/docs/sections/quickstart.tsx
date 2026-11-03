@@ -4,6 +4,7 @@ import { Callout } from "../components/Callout";
 import { CodeBlock } from "../components/CodeBlock";
 import { DocsPage } from "../components/DocsPage";
 import { DocsScreenshot } from "../components/DocsScreenshot";
+import { IAPKIT_FLOW_SAMPLE } from "./purchase-flow/iapkit-flow-sample";
 
 export default function QuickstartPage() {
   return (
@@ -42,6 +43,26 @@ export default function QuickstartPage() {
         alt="Create project dialog"
         caption="The Projects tab in each organization holds one row per app. Each row has its own API keys, store credentials, and purchase log."
       />
+      <p>
+        Creating the project shows its publishable <code>openiap-kit_pk_</code>{" "}
+        key once; copy it now. Your app uses it to verify purchases. If you
+        missed it, regenerate the key on the project&apos;s{" "}
+        <strong>API Keys</strong> tab. See{" "}
+        <Link to="/docs/projects" className="text-primary underline">
+          Projects & API keys
+        </Link>{" "}
+        for what each key may do.
+      </p>
+      <Callout kind="warning" title="Publishable does not mean private">
+        <p>
+          A publishable key lets your app call IAPKit&apos;s restricted managed
+          validation surface directly, but it can still be extracted and used
+          against shared rate and capacity limits. Avoid logging it, use
+          separate keys for independent builds or environments, and rotate an
+          abused key. Secret keys provide administrative access and must remain
+          server-side.
+        </p>
+      </Callout>
 
       <h2 className="mt-10 text-2xl font-semibold">3. Configure your stores</h2>
       <p>
@@ -89,32 +110,7 @@ export default function QuickstartPage() {
       </ul>
 
       <h2 className="mt-10 text-2xl font-semibold">
-        4. Copy your publishable key
-      </h2>
-      <p>
-        The <strong>API Keys</strong> tab lists the project&apos;s keys. A
-        publishable <code>openiap-kit_pk_</code> key is created with the project
-        and shown once; your app uses it to verify purchases. Secret{" "}
-        <code>openiap-kit_sk_</code> keys are for your backend, MCP, and CI
-        only. See{" "}
-        <Link to="/docs/projects" className="text-primary underline">
-          Projects & API keys
-        </Link>
-        .
-      </p>
-      <Callout kind="warning" title="Publishable does not mean private">
-        <p>
-          A publishable key lets your app call IAPKit&apos;s restricted managed
-          validation surface directly, but it can still be extracted and used
-          against shared rate and capacity limits. Avoid logging it, use
-          separate keys for independent builds or environments, and rotate an
-          abused key. Secret keys provide administrative access and must remain
-          server-side.
-        </p>
-      </Callout>
-
-      <h2 className="mt-10 text-2xl font-semibold">
-        5. Verify purchases in your app
+        4. Verify purchases in your app
       </h2>
       <p>
         Create the app&apos;s purchase flow with <code>confirmWithIapkit</code>.
@@ -126,28 +122,23 @@ export default function QuickstartPage() {
         {`import {confirmWithIapkit, createPurchaseFlow, useIAP} from 'expo-iap';
 
 // Once, outside any screen.
-const flow = createPurchaseFlow({
-  confirmWithBackend: confirmWithIapkit({
-    apiKey: 'openiap-kit_pk_<your-publishable-key>',
-    grant: async (purchase, {isConsumable}) => {
-      if (isConsumable) await wallet.creditOnce(purchase.id, purchase.productId);
-    },
-  }),
-  isConsumable: (productId) => CONSUMABLE_IDS.includes(productId),
-});
+${IAPKIT_FLOW_SAMPLE}
 
 // In a screen: purchases you request are confirmed through the flow.
 useIAP({purchaseFlow: flow});`}
       </CodeBlock>
       <p>
-        flutter_inapp_purchase, kmp-iap, OpenIap.Maui, and godot-iap offer the
-        same confirmer in their own idiom; see{" "}
+        The other SDKs pass the same confirmer to their purchase flow:{" "}
+        <code>FlutterInappPurchase.instance.confirmWithIapkit</code>,{" "}
+        <code>kmpIapInstance.confirmWithIapkit</code>,{" "}
+        <code>OpenIapClient.ConfirmWithIapkit</code> in OpenIap.Maui, and{" "}
+        <code>confirm_with_iapkit</code> on the godot-iap plugin. See{" "}
         <Link to="/docs/purchase-flow" className="text-primary underline">
           Purchase flow
         </Link>{" "}
-        for each SDK, for apps that confirm through their own backend, and for
-        how to handle each outcome. To call the REST API without an SDK, each
-        store page shows its request:{" "}
+        for apps that confirm through their own backend and for how to handle
+        each outcome. To call the REST API without an SDK, each store page shows
+        its request:{" "}
         <Link to="/docs/verification/apple" className="text-primary underline">
           Apple
         </Link>
@@ -177,16 +168,14 @@ useIAP({purchaseFlow: flow});`}
       </Callout>
 
       <h2 className="mt-10 text-2xl font-semibold">
-        6. Turn on store notifications
+        5. Turn on store notifications
       </h2>
       <p>
         Renewals, refunds, and expirations reach IAPKit through each
-        store&apos;s server notifications, not through the app; for Apple and
-        Google they are the only source, and Amazon receipts are also re-checked
-        on a schedule. Point App Store Server Notifications V2, Google Play
-        real-time developer notifications, and Amazon RTN at your project&apos;s
-        lifecycle URL; subscription status, analytics, and webhooks to your
-        backend depend on it. See{" "}
+        store&apos;s server notifications, not through the app. Point App Store
+        Server Notifications V2, Google Play real-time developer notifications,
+        and Amazon RTN at your project&apos;s lifecycle URL; subscription
+        status, analytics, and webhooks to your backend depend on it. See{" "}
         <Link to="/docs/webhooks" className="text-primary underline">
           Webhooks
         </Link>{" "}
@@ -199,11 +188,13 @@ useIAP({purchaseFlow: flow});`}
       <p>
         In the project&apos;s <strong>Products</strong> tab, attach a public
         TOML, JSON, or text <code>clientPayload</code> to a synced Apple or
-        Google product. Then add <code>includeClientPayload: true</code> to that
-        store&apos;s verification request. A valid response may include the
-        payload as a top-level sibling of <code>productId</code> when the
-        matching visible product has one. Payload omission does not invalidate
-        verification, and existing requests stay unchanged.
+        Google product. The purchase flow does not request it; call{" "}
+        <code>verifyPurchaseWithProvider</code> with{" "}
+        <code>includeClientPayload: true</code> in its <code>iapkit</code>{" "}
+        options, or add the field to a store page&apos;s REST request. A valid
+        response may include the payload as a top-level sibling of{" "}
+        <code>productId</code> when the matching visible product has one.
+        Payload omission does not invalidate verification.
       </p>
       <p>
         Payloads are retrieved when your app calls IAPKit—they are not APNs or

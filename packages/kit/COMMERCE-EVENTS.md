@@ -272,11 +272,11 @@ openiap-delivery-id: <outboundDeliveries id>
 ```
 
 The timestamp is inside the signed material, so a captured body cannot be
-replayed with a fresh header. Parse it as a finite Unix-seconds number and
-require `Math.abs(nowSeconds - timestamp) <= 300` to reject stale and future
-signatures. Require the event-id header to equal the signed body's `eventId`,
-then atomically record the body's `eventId` before side effects. The header
-alone is not signed and is never the idempotency authority. During rotation the
+replayed with a fresh header. Require one timestamp of digits only and
+`Math.abs(nowSeconds - timestamp) <= 300` to reject stale and future
+signatures. Then atomically record the signed body's `eventId` before side
+effects; the event-id header is not signed and is never the idempotency
+authority. During rotation the
 signature header carries both values comma-separated; accept if either matches.
 
 ### Retries

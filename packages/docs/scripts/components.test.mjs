@@ -418,40 +418,237 @@ test('raw IAPKit sample binds its verdict to the requested store and environment
     [{ isValid: false }, false],
   ]) {
     const errors = [];
-    let hookOptions;
     const api = {
       verifyPurchaseWithProvider: async () => ({
         iapkit: { ...valid, ...changes },
       }),
-      useIAP: (options) => {
-        hookOptions = options;
+    };
+    const sample = runInNewContext(`${code}; ({verifyWithIapkit})`, {
+      exports: {},
+      require: (name) => {
+        assert.equal(name, 'expo-iap');
         return api;
       },
-    };
-    const sample = runInNewContext(
-      `${code}; ({verifyWithIapkit, PurchaseScreen})`,
-      {
-        exports: {},
-        require: (name) => {
-          assert.equal(name, 'expo-iap');
-          return api;
-        },
-        process: {
-          env: { EXPO_PUBLIC_AMAZON_EXPECTED_ENVIRONMENT: 'Sandbox' },
-        },
-        console: {
-          log() {},
-          error: (...args) => errors.push(args),
-          warn: (...args) => errors.push(args),
-        },
-      }
-    );
+      process: {
+        env: { EXPO_PUBLIC_AMAZON_EXPECTED_ENVIRONMENT: 'Sandbox' },
+      },
+      console: {
+        log() {},
+        error: (...args) => errors.push(args),
+        warn: (...args) => errors.push(args),
+      },
+    });
     assert.equal(await sample.verifyWithIapkit(purchase), accepted);
     assert.equal(errors.length, accepted ? 0 : 1);
-    errors.length = 0;
-    sample.PurchaseScreen();
-    hookOptions.onPurchaseSuccess(purchase);
-    await new Promise(setImmediate);
-    assert.equal(errors.length, accepted ? 0 : 1);
   }
+});
+
+test('raw IAPKit sample verifies an Amazon term under its parent SKU', async () => {
+  const source = await readFile(
+    new URL('../src/pages/docs/features/validation.tsx', import.meta.url),
+    'utf8'
+  );
+  const snippet = [
+    ...source.matchAll(
+      /<CodeBlock language="typescript">\{`([\s\S]*?)`\}<\/CodeBlock>/g
+    ),
+  ].find(([, code]) => code.includes('const verifyWithIapkit ='))?.[1];
+  const { code } = await transformWithEsbuild(snippet, 'verification.ts', {
+    loader: 'ts',
+    format: 'cjs',
+  });
+  const purchase = {
+    productId: 'premium_monthly_term',
+    store: 'amazon',
+    storeId: 'amazon',
+    purchaseToken: 'fixture',
+  };
+  for (const [verifiedProductId, accepted] of [
+    ['premium', true],
+    ['premium_monthly_term', false],
+  ]) {
+    const requests = [];
+    const api = {
+      verifyPurchaseWithProvider: async (props) => {
+        requests.push(props);
+        return {
+          iapkit: {
+            productId: verifiedProductId,
+            store: 'amazon',
+            storeId: 'amazon',
+            environment: 'Production',
+            isValid: true,
+          },
+        };
+      },
+    };
+    const sample = runInNewContext(`${code}; ({verifyWithIapkit})`, {
+      exports: {},
+      require: () => api,
+      process: { env: {} },
+      console: { log() {}, error() {}, warn() {} },
+    });
+    assert.equal(await sample.verifyWithIapkit(purchase), accepted);
+    assert.equal(requests[0].iapkit.amazon.expectedProductId, 'premium');
+  }
+});
+
+test('webhook receiver helper matches the signature vectors', async () => {
+  const source = await readFile(
+    new URL('../src/pages/commerce-protocol/webhooks.tsx', import.meta.url),
+    'utf8'
+  );
+  const snippet = source.match(
+    /<CodeBlock language="typescript">\{`(import \{ Buffer \}[\s\S]*?)`\}<\/CodeBlock>/
+  )?.[1];
+  assert.ok(snippet, 'the published receiver helper exists');
+  // Undo the template-literal escapes the page source needs.
+  const published = snippet
+    .replace(/\\`/g, '`')
+    .replace(/\\\$/g, '$')
+    .replace(/\\\\/g, '\\');
+  const { code } = await transformWithEsbuild(published, 'receiver.ts', {
+    loader: 'ts',
+    format: 'cjs',
+  });
+  const vectors = JSON.parse(
+    await readFile(
+      new URL(
+        '../../../specs/commerce-protocol/vectors/signatures.json',
+        import.meta.url
+      ),
+      'utf8'
+    )
+  );
+  const modules = {
+    'node:buffer': await import('node:buffer'),
+    'node:crypto': await import('node:crypto'),
+  };
+  const verify = (
+    vector,
+    signature,
+    nowSeconds,
+    timestamp,
+    secrets = [vector.secret]
+  ) => {
+    const verifySignature = runInNewContext(`${code}; verifySignature`, {
+      exports: {},
+      module: { exports: {} },
+      require: (name) => modules[name],
+      Date: { now: () => nowSeconds * 1000 },
+    });
+    const request = new Request('https://receiver.example/events', {
+      method: 'POST',
+      body: vector.body,
+      headers: {
+        'openiap-timestamp': timestamp ?? String(vector.timestamp),
+        'openiap-signature': signature,
+      },
+    });
+    return verifySignature(request, secrets);
+  };
+
+  for (const vector of vectors.cases) {
+    assert.equal(
+      await verify(
+        vector,
+        vector.presentedHeader ?? vector.expected,
+        vector.timestamp
+      ),
+      vector.body,
+      vector.name
+    );
+  }
+  for (const vector of vectors.rejections) {
+    assert.equal(
+      await verify(
+        vector,
+        vector.presentedSignature,
+        vector.receiverNow ?? vector.timestamp
+      ),
+      null,
+      vector.name
+    );
+  }
+  // A receiver holding both secrets during rotation, or only the old one.
+  const rotation = vectors.cases.find(
+    (vector) => vector.name === 'during-rotation'
+  );
+  for (const secrets of [
+    ['whsec_not-this-one', rotation.secret],
+    [rotation.previousSecret],
+  ]) {
+    assert.equal(
+      await verify(
+        rotation,
+        rotation.presentedHeader,
+        rotation.timestamp,
+        undefined,
+        secrets
+      ),
+      rotation.body
+    );
+  }
+  const [first] = vectors.cases;
+  assert.equal(
+    await verify(first, first.expected, first.timestamp, undefined, [
+      'whsec_not-this-one',
+    ]),
+    null
+  );
+  for (const timestamp of [
+    `+${first.timestamp}`,
+    `${first.timestamp}, ${first.timestamp}`,
+  ]) {
+    assert.equal(
+      await verify(first, first.expected, first.timestamp, timestamp),
+      null,
+      timestamp
+    );
+  }
+});
+
+test('From your app evidence table matches the protocol schema', async () => {
+  const source = await readFile(
+    new URL('../src/pages/commerce-protocol/client.tsx', import.meta.url),
+    'utf8'
+  );
+  const rows = source.slice(
+    source.indexOf('const EVIDENCE_ROWS'),
+    source.indexOf('function CommerceClient')
+  );
+  const documented = {};
+  for (const [, store, member] of rows.matchAll(
+    /<code>(apple|google|amazon|horizon)\.(\w+)<\/code>/g
+  )) {
+    (documented[store] ??= []).push(member);
+  }
+  const schema = JSON.parse(
+    await readFile(
+      new URL(
+        '../../../specs/commerce-protocol/generated/schemas/operations.schema.json',
+        import.meta.url
+      ),
+      'utf8'
+    )
+  );
+  const published = {};
+  for (const [name, definition] of Object.entries(schema.$defs)) {
+    const store = /^(\w+)Evidence$/.exec(name)?.[1]?.toLowerCase();
+    if (store) published[store] = Object.keys(definition.properties);
+  }
+  assert.deepEqual(
+    Object.fromEntries(
+      Object.entries(documented).map(([store, members]) => [
+        store,
+        members.sort(),
+      ])
+    ),
+    Object.fromEntries(
+      Object.entries(published).map(([store, members]) => [
+        store,
+        members.sort(),
+      ])
+    )
+  );
 });

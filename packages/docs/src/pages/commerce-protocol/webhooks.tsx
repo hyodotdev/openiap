@@ -200,10 +200,16 @@ function Webhooks() {
           </li>
           <li>Compare signatures in constant time.</li>
           <li>
-            Parse and validate the verified body, then persist and deduplicate
-            its <code>eventId</code> within the configured emitter/project scope
-            before acknowledging delivery. An ID from one emitter must not
-            suppress another emitter's event.
+            Parse the verified body (<code>400</code> if that fails) and take{' '}
+            <code>eventId</code> from it, not from the header. Answer{' '}
+            <code>200</code> without storing an <code>eventVersion</code> whose
+            major you do not support, <code>400</code> when the event fails the
+            published schema (every event carries{' '}
+            <code>{commerceEventSchema.required.join(', ')}</code>), and{' '}
+            <code>200</code> for event types you do not know. Then persist and
+            deduplicate its <code>eventId</code> within the configured
+            emitter/project scope before answering <code>2xx</code>. An ID from
+            one emitter must not suppress another emitter&apos;s event.
           </li>
         </ol>
         <Callout kind="warning">
@@ -217,38 +223,38 @@ function Webhooks() {
           This helper runs the signature checks above for any web-standard{' '}
           <code>Request</code> (Bun, Deno, Hono, Next.js route handlers).
         </p>
-        <CodeBlock language="typescript">{`import { createHmac, timingSafeEqual } from 'node:crypto';
+        <CodeBlock language="typescript">{`import { Buffer } from 'node:buffer';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
-/** The raw body when the signature is valid, otherwise null (answer 401). */
-export async function verifySignature(request: Request, secret: string) {
-  const rawBody = await request.text(); // the exact bytes; never re-serialize
+/**
+ * The raw body when a signature matches any currently valid secret (two during
+ * rotation), otherwise null (answer 401).
+ */
+export async function verifySignature(request: Request, secrets: string[]) {
+  const rawBody = Buffer.from(await request.arrayBuffer()); // never re-serialize
+  // One header of digits only; a repeated header arrives comma-joined and fails.
   const timestamp = request.headers.get('openiap-timestamp') ?? '';
-  const seconds = Number(timestamp);
-  if (!Number.isFinite(seconds) || Math.abs(Date.now() / 1000 - seconds) > 300) {
+  if (!/^\\d+$/.test(timestamp) || Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) {
     return null;
   }
-  const expected = Buffer.from(
-    'v1=' + createHmac('sha256', secret).update(\`\${timestamp}.\${rawBody}\`).digest('hex'),
+  const expected = secrets.map((secret) =>
+    Buffer.from(
+      'v1=' + createHmac('sha256', secret).update(\`\${timestamp}.\`).update(rawBody).digest('hex'),
+    ),
   );
   const signatures = (request.headers.get('openiap-signature') ?? '')
     .split(',')
     .map((value) => Buffer.from(value.trim()));
-  const valid = signatures.some(
-    (value) => value.length === expected.length && timingSafeEqual(value, expected),
+  const valid = signatures.some((value) =>
+    expected.some((key) => value.length === key.length && timingSafeEqual(value, key)),
   );
-  return valid ? rawBody : null;
+  return valid ? rawBody.toString('utf8') : null;
 }`}</CodeBlock>
         <p>
-          A signed body is not yet a valid event. Then parse it (answer{' '}
-          <code>400</code> if that fails), require <code>openiap-event-id</code>{' '}
-          to equal its <code>eventId</code>, answer <code>200</code> without
-          storing an <code>eventVersion</code> whose major you do not support,
-          validate it against the published event schema, ignore event types you
-          do not know, and store it once by <code>eventId</code> before
-          answering <code>2xx</code>. Every event carries{' '}
-          <code>{commerceEventSchema.required.join(', ')}</code>. The{' '}
+          The helper covers steps 1 to 5. A signed body is not yet a valid
+          event, so your handler then runs step 6, as in the{' '}
           <a href={COMMERCE_PROTOCOL_LINKS.spec}>specification</a>&apos;s
-          consumer walkthrough (§9.5) shows each step.
+          consumer walkthrough (§9.5).
         </p>
       </section>
 

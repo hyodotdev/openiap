@@ -1,9 +1,10 @@
 import { useEffect, useState, type MouseEvent } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useConvexAuth } from "convex/react";
 import { Menu, X } from "lucide-react";
 
 import { ThemeDropdown } from "./ThemeDropdown";
+import { useShowsLandingFeatures } from "../hooks/useShowsLandingFeatures";
 import { openAuthModal } from "../lib/signals";
 
 interface NavItem {
@@ -13,8 +14,9 @@ interface NavItem {
   external?: boolean;
 }
 
+const FEATURES_ITEM: NavItem = { label: "Features", to: "/#features" };
+
 const NAV_ITEMS: NavItem[] = [
-  { label: "Features", to: "/#features" },
   { label: "Docs", to: "/docs", matches: "/docs" },
   { label: "Blog", to: "/blog", matches: "/blog" },
   { label: "Sponsors", to: "https://openiap.dev/sponsors", external: true },
@@ -25,23 +27,34 @@ const NAV_ITEMS: NavItem[] = [
  * `fullWidth` lines it up with the docs sidebar instead of the page column.
  */
 export function SiteHeader({ fullWidth = false }: { fullWidth?: boolean }) {
-  const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useConvexAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
+  const navItems = useShowsLandingFeatures()
+    ? [FEATURES_ITEM, ...NAV_ITEMS]
+    : NAV_ITEMS;
+
   const isActive = (item: NavItem) =>
     item.matches !== undefined &&
     (location.pathname === item.matches ||
       location.pathname.startsWith(`${item.matches}/`));
+  // "page" only on the section's own page; "true" inside the section.
+  const ariaCurrent = (item: NavItem) =>
+    isActive(item)
+      ? location.pathname === item.matches
+        ? "page"
+        : "true"
+      : undefined;
 
   // Features is a section of the landing page; scroll when already there.
   const handleNavClick = (item: NavItem, event: MouseEvent) => {
-    if (item.to === "/#features" && location.pathname === "/") {
+    if (item === FEATURES_ITEM && location.pathname === "/") {
       event.preventDefault();
       document
         .getElementById("features")
@@ -56,13 +69,18 @@ export function SiteHeader({ fullWidth = false }: { fullWidth?: boolean }) {
         : "text-muted-foreground hover:text-foreground"
     }`;
 
-  const renderNavItem = (item: NavItem, extraClass = "") =>
+  const renderNavItem = (
+    item: NavItem,
+    onSelect?: () => void,
+    extraClass = "",
+  ) =>
     item.external ? (
       <a
         key={item.label}
         href={item.to}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={onSelect}
         className={`${navLinkClass(item)} ${extraClass}`}
       >
         {item.label}
@@ -71,36 +89,46 @@ export function SiteHeader({ fullWidth = false }: { fullWidth?: boolean }) {
       <Link
         key={item.label}
         to={item.to}
-        onClick={(event) => handleNavClick(item, event)}
-        aria-current={isActive(item) ? "page" : undefined}
+        onClick={(event) => {
+          handleNavClick(item, event);
+          onSelect?.();
+        }}
+        aria-current={ariaCurrent(item)}
         className={`${navLinkClass(item)} ${extraClass}`}
       >
         {item.label}
       </Link>
     );
 
-  const accountActions = isAuthenticated ? (
-    <Link to="/" className="btn-gradient text-sm">
-      {"Open dashboard"}
-    </Link>
-  ) : (
-    <>
-      <button
-        type="button"
-        onClick={() => openAuthModal()}
-        className="btn-ghost text-sm"
-      >
-        {"Sign In"}
-      </button>
-      <button
-        type="button"
-        onClick={() => openAuthModal()}
-        className="btn-gradient text-sm"
-      >
-        {"Get started"}
-      </button>
-    </>
-  );
+  const renderAccountActions = (onSelect?: () => void) =>
+    isAuthenticated ? (
+      <Link to="/" onClick={onSelect} className="btn-gradient text-sm">
+        {"Open dashboard"}
+      </Link>
+    ) : (
+      <>
+        <button
+          type="button"
+          onClick={() => {
+            onSelect?.();
+            openAuthModal();
+          }}
+          className="btn-ghost text-sm"
+        >
+          {"Sign In"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onSelect?.();
+            openAuthModal();
+          }}
+          className="btn-gradient text-sm"
+        >
+          {"Get started"}
+        </button>
+      </>
+    );
 
   return (
     <header className="relative z-40 w-full shrink-0 border-b border-border bg-background">
@@ -110,22 +138,18 @@ export function SiteHeader({ fullWidth = false }: { fullWidth?: boolean }) {
         }`}
       >
         <div className="flex min-w-0 items-center gap-8">
-          <button
-            type="button"
-            onClick={() => void navigate("/")}
-            className="flex shrink-0 items-center gap-2"
-          >
+          <Link to="/" className="flex shrink-0 items-center gap-2">
             <img src="/logo.webp" alt="" className="h-7 w-7 logo-image" />
             <span className="text-lg font-semibold">{"IAPKit"}</span>
-          </button>
+          </Link>
           <nav aria-label="Main" className="hidden items-center gap-6 md:flex">
-            {NAV_ITEMS.map((item) => renderNavItem(item))}
+            {navItems.map((item) => renderNavItem(item))}
           </nav>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <ThemeDropdown />
           <div className="hidden items-center gap-2 md:flex">
-            {accountActions}
+            {renderAccountActions()}
           </div>
           <button
             type="button"
@@ -151,10 +175,12 @@ export function SiteHeader({ fullWidth = false }: { fullWidth?: boolean }) {
           className="absolute inset-x-0 top-14 border-b border-border bg-background px-4 py-4 shadow-sm md:hidden"
         >
           <div className="flex flex-col gap-3">
-            {NAV_ITEMS.map((item) => renderNavItem(item, "py-1"))}
+            {navItems.map((item) =>
+              renderNavItem(item, closeMobileMenu, "py-1"),
+            )}
           </div>
           <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4 [&>*]:w-full [&>*]:justify-center">
-            {accountActions}
+            {renderAccountActions(closeMobileMenu)}
           </div>
         </nav>
       )}

@@ -49,7 +49,7 @@ const STEPS: LandingRow[] = [
   },
   {
     title: "Unlock on a valid verdict",
-    body: "Deliver the item only when isValid is true, then finish the transaction.",
+    body: "Deliver the item only when isValid is true, the store-verified productId matches and the state fits the product type, then finish the transaction.",
   },
 ];
 
@@ -141,7 +141,7 @@ export default function LandingPage() {
 
   return (
     <>
-      <section className="hero-background border-b border-border py-16 lg:py-24">
+      <section className="border-b border-border py-16 lg:py-24">
         <div className="container max-w-7xl mx-auto">
           <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)] lg:gap-16">
             <div className="max-w-2xl">
@@ -304,7 +304,7 @@ export default function LandingPage() {
         </p>
       </LedgerSection>
 
-      <section className="hero-background py-16 lg:py-24">
+      <section className="py-16 lg:py-24">
         <div className="container max-w-7xl mx-auto">
           <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
             {"Start verifying purchases"}

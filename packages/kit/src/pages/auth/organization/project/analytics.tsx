@@ -590,7 +590,7 @@ export default function ProjectAnalytics() {
                 }
               }}
               className={cn(
-                "bg-card border rounded-xl p-4 shadow-sm relative overflow-hidden cursor-pointer transition",
+                "bg-card border rounded-xl p-4 shadow-sm cursor-pointer transition",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                 active
                   ? "border-primary ring-2 ring-primary/20"
@@ -598,19 +598,17 @@ export default function ProjectAnalytics() {
               )}
               aria-pressed={active}
             >
-              <div>
-                <p className="text-sm text-muted-foreground">{card.label}</p>
-                <p className="text-3xl font-semibold mt-2 tabular-nums">
-                  {money(cardTotals.revenueMicros)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  gross ·{" "}
-                  {cardTotals.activeHistoryComplete
-                    ? count(cardTotals.activeSubs)
-                    : "—"}{" "}
-                  active · {count(cardTotals.newSubs)} new
-                </p>
-              </div>
+              <p className="text-sm text-muted-foreground">{card.label}</p>
+              <p className="text-3xl font-semibold mt-2 tabular-nums">
+                {money(cardTotals.revenueMicros)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                gross ·{" "}
+                {cardTotals.activeHistoryComplete
+                  ? count(cardTotals.activeSubs)
+                  : "—"}{" "}
+                active · {count(cardTotals.newSubs)} new
+              </p>
             </div>
           );
         })}

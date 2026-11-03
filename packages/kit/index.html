@@ -25,7 +25,7 @@
     />
     <link rel="manifest" href="/manifest.json" />
     <!-- Theme color for mobile browsers (not supported in Firefox) -->
-    <meta name="theme-color" content="#a47465" />
+    <meta name="theme-color" content="#1f3a8a" />
 
     <title>IAPKit – Open Purchase &amp; Entitlement Infrastructure</title>
 
@@ -76,8 +76,6 @@
       // Apply theme immediately to prevent flash and sync with useThemeMode hook.
       (function () {
         const THEME_STORAGE_KEY = "theme";
-        const DARK_BACKGROUND = "#18181B";
-        const LIGHT_BACKGROUND = "#fefefe";
         const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
         const getStoredTheme = () => {
@@ -100,19 +98,7 @@
         };
 
         const applyDocumentTheme = (isDark) => {
-          const root = document.documentElement;
-          const backgroundColor = isDark ? DARK_BACKGROUND : LIGHT_BACKGROUND;
-
-          if (isDark) {
-            root.classList.add("dark");
-          } else {
-            root.classList.remove("dark");
-          }
-
-          root.style.backgroundColor = backgroundColor;
-          if (document.body) {
-            document.body.style.backgroundColor = backgroundColor;
-          }
+          document.documentElement.classList.toggle("dark", isDark);
         };
 
         const applyCurrentTheme = () => {
@@ -158,12 +144,13 @@
         transition: background-color 0.2s ease;
       }
 
+      /* Pre-paint copies of --background in src/index.css. */
       html.dark {
-        background-color: #18181b;
+        background-color: #101216;
       }
 
       html:not(.dark) {
-        background-color: #fefefe;
+        background-color: #fbfbf9;
       }
 
       body {
@@ -200,8 +187,8 @@
       .spinner {
         width: 40px;
         height: 40px;
-        border: 4px solid rgba(164, 116, 101, 0.2);
-        border-top-color: #a47465;
+        border: 4px solid rgba(31, 58, 138, 0.2);
+        border-top-color: #1f3a8a;
         border-radius: 50%;
         animation: spin 1s linear infinite;
       }

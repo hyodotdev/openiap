@@ -54,7 +54,7 @@ export function FAQSection({
 
   return (
     <section className={cn("space-y-8", className)}>
-      <div className="hero-background rounded-[32px] border border-border/40 shadow-2xl overflow-hidden relative px-6 sm:px-10 py-10 isolate">
+      <div className="rounded-[32px] bg-background border border-border/40 shadow-2xl overflow-hidden relative px-6 sm:px-10 py-10 isolate">
         <div className="space-y-3 relative z-10 max-w-3xl">
           <h2 className="text-3xl font-bold text-foreground">{title}</h2>
           {description ? (

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { BackLink } from "@/components/BackLink";
 import { useSeoMeta, SITE_ORIGIN, DEFAULT_OG_IMAGE } from "@/hooks/useSeoMeta";
 import { getPostBySlug } from "./posts";
 
@@ -317,12 +317,7 @@ export default function IapkitJoinsOpenIap() {
       </div>
 
       <footer className="mt-16 pt-8 border-t border-border">
-        <Link
-          to="/blog"
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          ← All posts
-        </Link>
+        <BackLink to="/blog" label="All posts" />
       </footer>
     </article>
   );

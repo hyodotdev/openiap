@@ -24,7 +24,7 @@ interface RolePath {
 const ROLE_PATHS: RolePath[] = [
   {
     title: 'From your app',
-    body: 'what the app sends and why your backend, not the app, calls the protocol',
+    body: 'what the app sends and why your backend should call the protocol',
     to: '/commerce-protocol/client',
   },
   {
@@ -38,13 +38,13 @@ const ROLE_PATHS: RolePath[] = [
     to: '/commerce-protocol/webhooks',
   },
   {
-    title: 'Build a provider',
-    body: 'what to implement and how to check it',
+    title: 'Build your backend',
+    body: 'use a managed service or run your own, then check the result',
     to: '/commerce-protocol/implementation',
   },
   {
     title: 'Join the ecosystem',
-    body: 'roles, composition, and how to get listed',
+    body: 'roles, composition, and how to contribute',
     to: '/commerce-protocol/ecosystem',
   },
 ];
@@ -109,8 +109,9 @@ function CommerceProtocol(): React.JSX.Element {
             OpenIAP client libraries run the purchase in your app. The Commerce
             Protocol is the open server API a backend uses to verify that
             purchase, read access, and receive lifecycle events. IAPKit is one
-            service that implements it; another conforming provider or your own
-            backend works the same way.
+            service that implements it; other providers and your own backend
+            implement the same operations, so compare capability descriptors for
+            the stores and profiles you need.
           </p>
         </div>
         <div className="commerce-hero-footer">

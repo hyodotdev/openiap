@@ -4,6 +4,7 @@ import { Callout } from "../../components/Callout";
 import { CodeBlock } from "../../components/CodeBlock";
 import { DocsPage } from "../../components/DocsPage";
 import confirmPurchaseSource from "./confirm-purchase.ts?raw";
+import { IAPKIT_FLOW_SAMPLE } from "./iapkit-flow-sample";
 
 const STATES: {
   status: string;
@@ -226,15 +227,7 @@ flow.dispose();`}
       <CodeBlock language="ts">
         {`import {confirmWithIapkit, createPurchaseFlow} from 'expo-iap';
 
-const flow = createPurchaseFlow({
-  confirmWithBackend: confirmWithIapkit({
-    apiKey: 'openiap-kit_pk_<your-publishable-key>',
-    grant: async (purchase, {isConsumable}) => {
-      if (isConsumable) await wallet.creditOnce(purchase.id, purchase.productId);
-    },
-  }),
-  isConsumable: (productId) => CONSUMABLE_IDS.includes(productId),
-});`}
+${IAPKIT_FLOW_SAMPLE}`}
       </CodeBlock>
       <p>
         An App Store app with neither a backend nor IAPKit can pass{" "}

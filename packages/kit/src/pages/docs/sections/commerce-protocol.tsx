@@ -6,6 +6,9 @@ import { CodeBlock } from "../components/CodeBlock";
 import { DocsPage } from "../components/DocsPage";
 
 const BASE_URL = "https://kit.openiap.dev";
+const VERIFY_PATH = HTTP_BINDING.operations.find(
+  (operation) => operation.name === "verifyPurchase",
+)?.path;
 
 // Which IAPKit key carries each protocol role (server/api/commerce/routes.ts).
 const KEY_FOR_ROLE: Record<string, string> = {
@@ -19,7 +22,7 @@ export default function CommerceProtocolPage() {
     <DocsPage
       slug="commerce-protocol"
       title="Commerce Protocol endpoint"
-      description="IAPKit serves the OpenIAP Commerce Protocol, so a backend written against the protocol works with IAPKit and with any other conforming provider."
+      description="IAPKit serves the OpenIAP Commerce Protocol, so a backend written against the protocol can call IAPKit or another conforming provider."
     >
       <p>
         IAPKit implements the{" "}
@@ -29,11 +32,9 @@ export default function CommerceProtocolPage() {
         >
           OpenIAP Commerce Protocol
         </a>
-        . A backend that calls the protocol works with IAPKit and with other
-        conforming providers. A provider that serves the same profiles,
-        bindings, and stores (compare capability descriptors) takes only a new
-        base URL and credential; moving existing purchase history is separate
-        work.
+        . A provider that serves the same profiles, bindings, and stores
+        (compare capability descriptors) takes only a new base URL and
+        credential; moving existing purchase history is separate work.
       </p>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
@@ -99,7 +100,7 @@ export default function CommerceProtocolPage() {
       </p>
 
       <CodeBlock title="Verify a Google Play purchase" language="bash">
-        {`curl -X POST ${BASE_URL}/commerce/v1/purchases/verify \\
+        {`curl -X POST ${BASE_URL}${VERIFY_PATH} \\
   -H "Authorization: Bearer openiap-kit_pk_<your-publishable-key>" \\
   -H "Content-Type: application/json" \\
   -d '{ "store": "google", "google": { "purchaseToken": "<purchaseToken>" } }'`}
@@ -116,8 +117,10 @@ export default function CommerceProtocolPage() {
         <li>
           <strong>Protocol endpoint</strong> for a backend you may move to
           another provider, and to link Amazon and Meta Horizon purchases to
-          your users: <code>bindPurchase</code> accepts their receipts, which{" "}
-          <code>/v1/subscriptions/bind-user</code> cannot resolve.
+          your users: <code>bindPurchase</code> accepts their store evidence,
+          which <code>/v1/subscriptions/bind-user</code> cannot resolve. For
+          Apple and Google it links subscriptions only; link their one-time
+          purchases with <code>/v1/subscriptions/bind-user</code>.
         </li>
         <li>
           <strong>

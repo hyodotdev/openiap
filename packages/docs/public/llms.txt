@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-11-03T08:33:48.167Z
+> Generated: 2026-11-03T16:59:00.459Z
 
 ## Reading instructions for coding assistants
 
@@ -494,10 +494,11 @@ identifier, or central runtime.
 - Use the bundled JSON Schemas and signature/lifecycle vectors for offline
   conformance.
 - Docs: https://openiap.dev/commerce-protocol
-- Use a provider: https://openiap.dev/commerce-protocol/getting-started
-- Build your part: https://openiap.dev/commerce-protocol/ecosystem
+- From your app: https://openiap.dev/commerce-protocol/client
+- Call a provider: https://openiap.dev/commerce-protocol/getting-started
+- Join the ecosystem: https://openiap.dev/commerce-protocol/ecosystem
 - Role-specific AI integration brief: https://openiap.dev/commerce-example/integration-brief.md
-- Build and review: https://openiap.dev/commerce-protocol/implementation
+- Build your backend: https://openiap.dev/commerce-protocol/implementation
 - Ready event receiver: https://openiap.dev/commerce-protocol/getting-started#receive-events
 - AI build brief: https://openiap.dev/commerce-example/build-brief.md
 - Recorded local implementation: https://openiap.dev/commerce-protocol#build-walkthrough

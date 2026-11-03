@@ -70,17 +70,16 @@
     --muted-foreground: #5b616e;
     --accent: var(--primary-600);
     --accent-foreground: #ffffff;
-    --destructive: 2 77% 42%;
-    --destructive-foreground: 0 0% 100%;
     --border: #e3e4e8;
     --input: #d7d9df;
     --ring: var(--primary-500);
     --radius: 0.375rem;
 
-    /* Purchase states: used only where a color means a verification result. */
+    /* Status colors: verification results; danger also marks destructive actions. */
     --success: #13795b;
-    --warning: #b45309;
+    --warning: #a14a07;
     --danger: #b42318;
+    --danger-foreground: #ffffff;
 
     /* Typography scale */
     --font-size-xs: 0.75rem;
@@ -136,14 +135,13 @@
     --muted-foreground: #9aa1ae;
     --accent: var(--primary-300);
     --accent-foreground: var(--primary-950);
-    --destructive: 4 82% 68%;
-    --destructive-foreground: 0 0% 8%;
     --border: rgba(255, 255, 255, 0.09);
     --input: rgba(255, 255, 255, 0.14);
     --ring: var(--primary-400);
     --success: #47c08a;
     --warning: #f0a44b;
     --danger: #f07167;
+    --danger-foreground: #141414;
   }
 
   * {
@@ -189,18 +187,7 @@
   }
 
   body {
-    @apply bg-background text-foreground;
-    font-family:
-      "IBM Plex Sans",
-      ui-sans-serif,
-      system-ui,
-      -apple-system,
-      BlinkMacSystemFont,
-      "Segoe UI",
-      "Helvetica Neue",
-      Arial,
-      "Noto Sans",
-      sans-serif;
+    @apply bg-background font-sans text-foreground;
     font-feature-settings:
       "rlig" 1,
       "calt" 1;
@@ -247,10 +234,10 @@
   }
 }
 
-/* Destructive actions; plain --destructive text fails 4.5:1 in light mode. A
-   utility so its hover beats ButtonSecondary's bg-transparent. */
+/* Destructive text actions; a utility so its hover beats ButtonSecondary's
+   bg-transparent. */
 @utility destructive-action {
-  @apply text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30;
+  @apply text-danger hover:bg-danger/10;
 }
 
 @layer components {
@@ -273,7 +260,7 @@
      a non-color affordance. WCAG 1.4.1 (Use of Color) requires that
      information conveyed by color alone is also available via a
      second cue — color-blind / low-vision users can't reliably
-     distinguish the yellow tint from surrounding text, so we need
+     distinguish the link color from surrounding text, so we need
      the underline at the interaction boundary. */
   .link:hover,
   .link:focus-visible {
@@ -356,7 +343,7 @@
      so extra care to keep the default state underline-free per
      hyo's request — the hover/focus state does the heavy lifting. */
   .blog-content a {
-    color: #d4a24c;
+    color: var(--primary);
     font-weight: 500;
     text-decoration: none;
     text-underline-offset: 3px;
@@ -365,7 +352,6 @@
 
   .blog-content a:hover,
   .blog-content a:focus-visible {
-    color: #eab858;
     text-decoration: underline;
   }
 
@@ -375,19 +361,8 @@
     border-radius: 2px;
   }
 
-  .dark .blog-content a {
-    color: #e6b66a;
-  }
-
-  .dark .blog-content a:hover,
-  .dark .blog-content a:focus-visible {
-    color: #f5c97d;
-  }
-
   .blog-content code {
-    font-family:
-      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-      "Courier New", monospace;
+    @apply font-mono;
     font-size: 0.88em;
     padding: 0.15em 0.4em;
     border-radius: 0.3rem;
@@ -431,9 +406,7 @@
     border-radius: 0.3rem;
     padding: 0.12em 0.4em;
     font-size: 0.85em;
-    font-family:
-      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-      "Courier New", monospace;
+    @apply font-mono;
     background-color: var(--muted);
     color: var(--foreground);
     border: 1px solid var(--border);
@@ -459,36 +432,6 @@
     @apply px-4 sm:px-6 lg:px-8;
     width: 100%;
     max-width: 100%;
-  }
-
-  /* Paper texture background - optimized */
-  .paper-texture {
-    position: relative;
-    &::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background-image: repeating-linear-gradient(
-        45deg,
-        transparent,
-        transparent 35px,
-        rgba(255, 255, 255, 0.03) 35px,
-        rgba(255, 255, 255, 0.03) 70px
-      );
-      pointer-events: none;
-      will-change: transform;
-      transform: translateZ(0);
-    }
-  }
-
-  /* Glass morphism */
-  .glass {
-    @apply backdrop-blur-md bg-white/80 dark:bg-[#18181f]/90;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .dark .glass {
-    border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
   /* Button variants */
@@ -590,11 +533,6 @@
     border: 1px solid var(--border);
   }
 
-  .card-hover {
-    @apply rounded-lg bg-card text-card-foreground transition-all duration-200 hover:shadow-sm;
-    border: 1px solid var(--border);
-  }
-
   /* Keep dynamic text and trailing actions inside horizontal cards. */
   .contained-action-card {
     @apply flex w-full min-w-0 flex-wrap items-center gap-2;
@@ -636,11 +574,6 @@
     @apply animate-spin h-5 w-5 border-2 border-current border-t-transparent rounded-full;
   }
 
-  /* Hero section background */
-  .hero-background {
-    @apply relative overflow-hidden bg-background;
-  }
-
   /* Divider */
   .divider {
     @apply relative flex py-5 items-center;
@@ -666,10 +599,6 @@
 
   .badge-primary {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-primary/10 text-primary hover:bg-primary/20;
-  }
-
-  .badge-secondary {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-secondary text-secondary-foreground hover:bg-secondary/80;
   }
 
   /* Logo styling */
@@ -755,17 +684,6 @@
     }
   }
 
-  @keyframes fade-up {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
   @keyframes scale-in {
     from {
       opacity: 0;
@@ -774,77 +692,6 @@
     to {
       opacity: 1;
       transform: scale(1);
-    }
-  }
-
-  @keyframes slide-in-from-right {
-    from {
-      transform: translateX(100%);
-    }
-    to {
-      transform: translateX(0);
-    }
-  }
-
-  @keyframes slide-in-from-left {
-    from {
-      transform: translateX(-100%);
-    }
-    to {
-      transform: translateX(0);
-    }
-  }
-
-  @keyframes slide-in-from-top {
-    from {
-      transform: translateY(-100%);
-    }
-    to {
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes slide-in-from-bottom {
-    from {
-      transform: translateY(100%);
-    }
-    to {
-      transform: translateY(0);
-    }
-  }
-
-  /* Rotating text animations */
-  @keyframes slide-out-up {
-    0% {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    100% {
-      opacity: 0;
-      transform: translateY(-100%);
-    }
-  }
-
-  @keyframes slide-in-from-bottom-opacity {
-    0% {
-      opacity: 0;
-      transform: translateY(100%);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  /* Apple-style fade in up animation */
-  @keyframes fade-in-up {
-    0% {
-      opacity: 0;
-      transform: translateY(40px);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0);
     }
   }
 
@@ -869,48 +716,8 @@
     }
   }
 
-  .animate-fade-up {
-    animation: fade-up 0.5s ease-out;
-  }
-
-  .animate-fade-in-up {
-    animation: fade-in-up 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-
   .animate-scale-in {
     animation: scale-in 0.3s ease-out;
-  }
-
-  .animate-slide-in-from-right {
-    animation: slide-in-from-right 0.3s ease-out;
-  }
-
-  .animate-slide-in-from-left {
-    animation: slide-in-from-left 0.3s ease-out;
-  }
-
-  .animate-slide-in-from-top {
-    animation: slide-in-from-top 0.3s ease-out;
-  }
-
-  .animate-slide-in-from-bottom {
-    animation: slide-in-from-bottom 0.3s ease-out;
-  }
-
-  .animate-slide-out-up {
-    animation: slide-out-up 0.5s ease-in forwards;
-  }
-
-  .animate-slide-in-from-bottom-opacity {
-    animation: slide-in-from-bottom-opacity 0.5s ease-out forwards;
-  }
-
-  /* Utility classes */
-  .text-balance {
-    text-wrap: balance;
-    /* Fallback for Safari < 17.5 */
-    word-wrap: break-word;
-    overflow-wrap: break-word;
   }
 
   .no-scrollbar {
@@ -919,23 +726,6 @@
     &::-webkit-scrollbar {
       display: none; /* Safari and Chrome */
     }
-  }
-
-  /* Animation delays */
-  .animation-delay-100 {
-    animation-delay: 100ms;
-  }
-
-  .animation-delay-200 {
-    animation-delay: 200ms;
-  }
-
-  .animation-delay-300 {
-    animation-delay: 300ms;
-  }
-
-  .animation-delay-400 {
-    animation-delay: 400ms;
   }
 
   /* Performance optimizations */
@@ -958,6 +748,7 @@
     ::before,
     ::after {
       animation-duration: 0.01ms !important;
+      animation-delay: 0s !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;

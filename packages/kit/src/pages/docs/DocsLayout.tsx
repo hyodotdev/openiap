@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Menu, X } from "lucide-react";
 
-import { DOCS_NAV, type DocsNavEntry } from "./nav";
+import { DOCS_NAV, flattenDocsNav, type DocsNavEntry } from "./nav";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MixpanelEvent, trackEvent } from "@/lib/mixpanel";
 
@@ -48,7 +48,9 @@ export default function DocsLayout() {
   }, []);
 
   const { pathname } = useLocation();
-  const currentTitle = findCurrentTitle(DOCS_NAV, pathname);
+  const currentTitle = flattenDocsNav().find((entry) =>
+    isEntryActive(entry, pathname),
+  )?.title;
 
   return (
     <div className="flex h-screen flex-col bg-background">
@@ -60,18 +62,19 @@ export default function DocsLayout() {
         type="button"
         onClick={() => setMobileOpen((open) => !open)}
         className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-4 text-sm font-medium text-foreground md:hidden"
-        aria-label="Toggle docs navigation"
         aria-expanded={mobileOpen}
+        aria-controls="docs-mobile-nav"
       >
         {mobileOpen ? (
           <X className="h-4 w-4" aria-hidden="true" />
         ) : (
           <Menu className="h-4 w-4" aria-hidden="true" />
         )}
+        <span className="sr-only">{"Docs navigation: "}</span>
         <span className="truncate">{currentTitle ?? "Docs"}</span>
       </button>
 
-      <div className="flex min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1">
         {/* Desktop sidebar — own scroll column, collapsible to a 0-width
           rail with a re-open tab. */}
         <aside
@@ -97,15 +100,18 @@ export default function DocsLayout() {
           )}
         </button>
 
-        {/* Mobile drawer + scrim */}
+        {/* Mobile drawer + scrim, below the bar so its close toggle stays visible */}
         {mobileOpen && (
           <>
             <div
-              className="fixed inset-0 z-40 bg-black/40 md:hidden"
+              className="absolute inset-0 z-20 bg-black/40 md:hidden"
               onClick={() => setMobileOpen(false)}
               aria-hidden="true"
             />
-            <aside className="fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto border-r border-border bg-card py-6 md:hidden">
+            <aside
+              id="docs-mobile-nav"
+              className="absolute inset-y-0 left-0 z-30 w-72 overflow-y-auto border-r border-border bg-card py-6 md:hidden"
+            >
               <DocsNavTree onNavigate={() => setMobileOpen(false)} />
             </aside>
           </>
@@ -196,18 +202,6 @@ function DocsNavRow({
       )}
     </div>
   );
-}
-
-function findCurrentTitle(
-  entries: DocsNavEntry[],
-  pathname: string,
-): string | undefined {
-  for (const entry of entries) {
-    if (isEntryActive(entry, pathname)) return entry.title;
-    const child = entry.children && findCurrentTitle(entry.children, pathname);
-    if (child) return child;
-  }
-  return undefined;
 }
 
 /**

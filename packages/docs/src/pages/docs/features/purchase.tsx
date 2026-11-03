@@ -661,192 +661,24 @@ await purchase_product("com.app.coins_100")`}</CodeBlock>
 
       <section>
         <AnchorLink id="verify-purchase" level="h2">
-          Verify Purchase with Your Backend
+          Verify the purchase
         </AnchorLink>
         <p>
           <strong>Always verify purchases with a trusted verifier.</strong>{' '}
-          Client-side store state alone can be bypassed. Use your networking
-          layer to send purchase data to your own backend, or use the IAPKit
-          section below when you want OpenIAP&apos;s managed validation backend
-          to do that work. The generated <code>verifyPurchase</code> API accepts
-          platform verification options, not a Purchase object plus a server
-          URL.
-        </p>
-
-        <LanguageTabs>
-          {{
-            typescript: (
-              <CodeBlock language="typescript">{`// expo-iap
-import type { Purchase } from 'expo-iap';
-import { Platform } from 'react-native';
-// Same Purchase type is exported from react-native-iap.
-
-const verifyOnServer = async (purchase: Purchase) => {
-  // yourBackend is your authenticated networking client.
-  const result = await yourBackend.verifyPurchase({
-    platform: Platform.OS,
-    productId: purchase.productId,
-    purchaseToken: purchase.purchaseToken,
-  });
-
-  if (result.isValid) {
-    console.log('Purchase verified!');
-    return true;
-  }
-
-  console.error('Verification failed');
-  return false;
-};
-
-// --- Or via the useIAP() hook (also exported from react-native-iap) ---
-import { useIAP } from 'expo-iap';
-
-function PurchaseScreen() {
-  useIAP({
-    onPurchaseSuccess: (purchase) => {
-      void verifyOnServer(purchase)
-        .then((verified) => {
-          if (!verified) console.error('Verification failed');
-        })
-        .catch((error) => console.warn('Verification failed:', error));
-    },
-  });
-
-  return null;
-}`}</CodeBlock>
-            ),
-            swift: (
-              <CodeBlock language="swift">{`import OpenIAP
-
-func verifyOnServer(_ purchase: PurchaseIOS) async -> Bool {
-    do {
-        // yourBackend is your authenticated networking client.
-        return try await yourBackend.verifyApplePurchase(
-            productId: purchase.productId,
-            jws: purchase.purchaseToken ?? ""
-        )
-    } catch {
-        print("Verification error: \\(error.localizedDescription)")
-        return false
-    }
-}`}</CodeBlock>
-            ),
-            kotlin: (
-              <CodeBlock language="kotlin">{`import dev.hyo.openiap.*
-
-suspend fun verifyOnServer(purchase: PurchaseAndroid): Boolean {
-    return try {
-        // yourBackend is your authenticated networking client.
-        yourBackend.verifyGooglePurchase(
-            productId = purchase.productId,
-            purchaseToken = requireNotNull(purchase.purchaseToken)
-        )
-    } catch (e: Exception) {
-        println("Verification error: \${e.message}")
-        false
-    }
-}`}</CodeBlock>
-            ),
-            kmp: (
-              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.*
-
-suspend fun verifyOnServer(purchase: PurchaseAndroid): Boolean {
-    return try {
-        // yourBackend is your authenticated shared networking client.
-        yourBackend.verifyGooglePurchase(
-            productId = purchase.productId,
-            purchaseToken = requireNotNull(purchase.purchaseToken)
-        )
-    } catch (e: Exception) {
-        println("Verification error: \${e.message}")
-        false
-    }
-}`}</CodeBlock>
-            ),
-            dart: (
-              <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
-
-Future<bool> verifyOnServer(Purchase purchase) async {
-  try {
-    // yourBackend is your authenticated networking client.
-    return await yourBackend.verifyPurchase(
-      productId: purchase.productId,
-      purchaseToken: purchase.purchaseToken,
-    );
-  } catch (e) {
-    print('Verification error: $e');
-    return false;
-  }
-}`}</CodeBlock>
-            ),
-            csharp: (
-              <CodeBlock language="csharp">{`using System.Net.Http.Json;
-using OpenIap;
-
-async Task<bool> VerifyOnServerAsync(Purchase purchase)
-{
-    using var http = new HttpClient();
-    var response = await http.PostAsJsonAsync(
-        "https://your-server.com/api/verify",
-        new { purchase.ProductId, purchase.PurchaseToken });
-    if (!response.IsSuccessStatusCode) return false;
-
-    var result = await response.Content.ReadFromJsonAsync<VerificationResponse>();
-    return result?.IsValid == true;
-}`}</CodeBlock>
-            ),
-            gdscript: (
-              <CodeBlock language="gdscript">{`func verify_on_server(purchase: Dictionary) -> bool:
-    # your_backend is your authenticated HTTP client/autoload.
-    var result = await your_backend.verify_purchase({
-        "productId": purchase.get("productId", ""),
-        "purchaseToken": purchase.get("purchaseToken", ""),
-        "platform": OS.get_name()
-    })
-    return result.get("isValid", false)`}</CodeBlock>
-            ),
-          }}
-        </LanguageTabs>
-
-        <Callout kind="note" title="Server-Side Implementation">
-          For detailed server-side verification implementation (JWS verification
-          for iOS, Google Play API for Android), see the{' '}
+          Client-side store state alone can be bypassed.{' '}
+          <Link to="/docs/features/validation">Validation</Link> compares the
+          verifiers (your backend, a verification service, or StoreKit on the
+          device), shows how the purchase flow confirms each purchase through
+          your backend, and covers{' '}
+          <Link to="/docs/features/validation#verify-purchase-with-provider">
+            <code>verifyPurchaseWithProvider</code>
+          </Link>{' '}
+          for every SDK. For verification on your own server (JWS for iOS, the
+          Google Play Developer API for Android), see the{' '}
           <Link to="/tutorials#verification-guides">
             server verification references
           </Link>
           .
-        </Callout>
-
-        <Callout kind="warning" title="Security Best Practices">
-          <ul>
-            <li>
-              Never rely only on local StoreKit or Play Billing client state
-            </li>
-            <li>Store purchase records in your database</li>
-            <li>
-              Implement idempotency to handle duplicate verification requests
-            </li>
-            <li>Use HTTPS for all server communication</li>
-            <li>
-              Keep service account credentials secure (never in client code)
-            </li>
-          </ul>
-        </Callout>
-      </section>
-
-      <section>
-        <AnchorLink id="verify-purchase-iapkit" level="h2">
-          Verify Purchase with IAPKit
-        </AnchorLink>
-        <p>
-          Check each purchase with a trusted verifier before granting access.{' '}
-          <Link to="/docs/features/validation">Validation</Link> compares the
-          verifiers (your backend, a verification service such as IAPKit, or
-          StoreKit on the device) and shows{' '}
-          <Link to="/docs/features/validation#verify-purchase-with-provider">
-            <code>verifyPurchaseWithProvider</code>
-          </Link>{' '}
-          for every SDK, with the evidence each store needs.
         </p>
       </section>
 

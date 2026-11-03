@@ -55,8 +55,9 @@ export default function IntroductionPage() {
         </a>{" "}
         is the open server API a backend uses to verify that purchase, read
         access, and receive lifecycle events. IAPKit is one service that
-        implements it; another conforming provider or your own backend works the
-        same way.
+        implements it; other providers and your own backend implement the same
+        operations, so compare capability descriptors for the stores and
+        profiles you need.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Choose your path</h2>
@@ -79,11 +80,14 @@ export default function IntroductionPage() {
       >
         <p>
           Your app can call IAPKit directly with an <code>openiap-kit_pk_</code>{" "}
-          publishable key, so you do not need a proxy just to verify a purchase.
-          Secret <code>openiap-kit_sk_</code> keys are only for administrative
-          work such as MCP, catalog or payload writes, analytics, and store
-          sync. You still need your own authenticated backend when resources on
-          that backend are protected or when rules must remain private.
+          publishable key, so you do not need a proxy just to verify a purchase;
+          secret <code>openiap-kit_sk_</code> keys stay on your servers. You
+          still need your own authenticated backend when resources on that
+          backend are protected or when rules must remain private.{" "}
+          <Link to="/docs/projects" className="text-primary underline">
+            Projects & API keys
+          </Link>{" "}
+          lists what each key may do.
         </p>
       </Callout>
 
@@ -91,9 +95,8 @@ export default function IntroductionPage() {
       <p>
         The hosted service is free under fair-use limits, with no SLA. Capacity
         is shared, so heavy traffic from other projects can slow your requests
-        or return <code>429</code>; each key has a default steady rate of 10
-        requests per second. Contact the maintainers before a launch that will
-        use a large share, or self-host the MIT-licensed server. See{" "}
+        or return <code>429</code>. Contact the maintainers before a launch that
+        will use a large share, or self-host the MIT-licensed server. See{" "}
         <Link to="/docs/operations" className="text-primary underline">
           Operations
         </Link>{" "}

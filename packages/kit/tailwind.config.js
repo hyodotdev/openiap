@@ -40,8 +40,8 @@ export default {
           foreground: "var(--secondary-foreground)",
         },
         destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
+          DEFAULT: "var(--danger)",
+          foreground: "var(--danger-foreground)",
         },
         muted: {
           DEFAULT: "var(--muted)",

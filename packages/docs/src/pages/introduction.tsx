@@ -454,8 +454,9 @@ function Introduction() {
               IAPKit validates purchases from Apple StoreKit 2, Google Play,
               Meta Horizon, Amazon Fire OS, and Vega OS, then returns one
               normalized result. It is one open-source implementation of the{' '}
-              <Link to="/commerce-protocol">Commerce Protocol</Link>; any
-              conforming provider or your own backend works the same way.
+              <Link to="/commerce-protocol">Commerce Protocol</Link>, so your
+              backend can call it, another provider, or your own server through
+              the same protocol.
             </p>
             <div
               className="in-kit-platforms"
