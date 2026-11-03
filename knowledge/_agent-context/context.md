@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-11-03T15:08:00.785Z
+> Last updated: 2026-11-03T15:50:08.553Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -3031,7 +3031,9 @@ registries to serve the natives that tree pins
   against that published Swift package (`scripts/verify-ios-swiftpm-consumer.sh`),
   since the example itself builds the local `packages/apple`.
 - Flutter: the same Maven Central artifacts and the CocoaPods CDN version
-  index, which its CocoaPods fallback still installs from.
+  index, which its CocoaPods fallback still installs from. After Trunk turns
+  read-only on December 2, 2026, the first apple release moves Flutter to Swift
+  Package Manager only and drops the apple CocoaPods push.
 - Godot and KMP: Maven Central only, since their iOS builds take OpenIAP from
   source or the SwiftPM tag.
 - MAUI: no wait, since its NuGet package bundles natives built from source.

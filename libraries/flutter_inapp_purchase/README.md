@@ -31,8 +31,9 @@ newer, Swift Package Manager is enabled by default and the Flutter CLI resolves
 the native OpenIAP dependency automatically when you run or build the app.
 
 Projects that disable Swift Package Manager, or projects using an older Flutter
-toolchain, continue to use CocoaPods. Run `pod install` after `flutter pub get`
-for each Apple target you use:
+toolchain, continue to use CocoaPods. CocoaPods Trunk turns read-only on
+December 2, 2026, so releases after that need Swift Package Manager. Until then,
+run `pod install` after `flutter pub get` for each Apple target you use:
 
 ```bash
 (cd ios && pod install)

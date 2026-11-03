@@ -95,8 +95,10 @@ function FlutterSetup() {
         </p>
         <p>
           Projects that disable Swift Package Manager, or projects using an
-          older Flutter toolchain, continue to use CocoaPods. In that case, run
-          CocoaPods after <code>flutter pub get</code>:
+          older Flutter toolchain, continue to use CocoaPods. CocoaPods Trunk
+          turns read-only on December 2, 2026, so releases after that need Swift
+          Package Manager. Until then, run CocoaPods after{' '}
+          <code>flutter pub get</code>:
         </p>
         <CodeBlock language="bash">
           {`(cd ios && pod install)
