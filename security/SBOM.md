@@ -137,10 +137,11 @@ entry there is a deliberate, reviewed act, not routine maintenance.
 | Vulnerability data | [CycloneDX VEX](https://cyclonedx.org/capabilities/vex/)                                                                                                   |
 | Attestation        | [in-toto](https://in-toto.io/) statements carrying [SLSA provenance](https://slsa.dev/provenance/v1), signed through [Sigstore](https://www.sigstore.dev/) |
 
-CycloneDX is the primary format. The generator emits six purl types — npm,
-Maven, NuGet, pub, CocoaPods, and generic — which vulnerability tooling can
-consume directly. The Apple artifact distributed through CocoaPods and SwiftPM
-uses its canonical CocoaPods purl identity. There is no second document format:
+CycloneDX is the primary format. The generator emits seven purl types — npm,
+Maven, NuGet, pub, CocoaPods, Swift, and generic — which vulnerability tooling
+can consume directly. The Apple artifact's own SBOM uses its CocoaPods purl; a
+framework that adds it as a Swift package (React Native, Expo, KMP) records it
+as `pkg:swift/github.com/hyodotdev/openiap`. There is no second document format:
 publishing two inventories that can disagree is a liability, not a feature.
 
 ## What this system depends on

@@ -66,6 +66,13 @@ const RESTORE_NEWEST_TRANSACTION_RELEASES: readonly ReleaseMetadata[] = [
     tag: 'openiap-client-protocol-1.3.2',
   },
   {
+    name: '@hyodotdev/openiap-commerce-protocol',
+    version: '0.3.3',
+    tag: 'hyodotdev-openiap-commerce-protocol-0.3.3',
+  },
+  { name: 'openiap-apple', version: '4.0.8', tag: '4.0.8' },
+  { name: 'openiap-google', version: '4.0.9', tag: 'google-4.0.9' },
+  {
     name: 'react-native-iap',
     version: '17.3.2',
     tag: 'react-native-iap-17.3.2',
@@ -769,6 +776,14 @@ function Releases() {
               <strong>Client Protocol 1.3.2</strong>: on a restore, the purchase
               flow core skips older transactions of the same Apple purchase and
               reuses what the listener settled during the recovery pass.
+            </li>
+            <li>
+              <strong>openiap-apple 4.0.8 and openiap-google 4.0.9</strong>:
+              report Client Protocol 1.3.2, with no other change.
+            </li>
+            <li>
+              <strong>Commerce Protocol 0.3.3</strong>: updated contribution
+              rules in <code>CONVENTION.md</code>; the contract is unchanged.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
