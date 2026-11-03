@@ -19,8 +19,11 @@ const versionsPath = path.resolve(
 const librariesVersions: Record<string, string> = fs.existsSync(versionsPath)
   ? parseJsonc(fs.readFileSync(versionsPath, 'utf8'))
   : {'expo-iap': 'local'};
+// An empty OPENIAP_APPLE_PATH builds the published OpenIAP Swift package, as
+// scripts/verify-ios-swiftpm-consumer.sh does.
 const useLocalDev =
-  !librariesVersions['expo-iap'] || librariesVersions['expo-iap'] === 'local';
+  process.env.OPENIAP_APPLE_PATH !== '' &&
+  (!librariesVersions['expo-iap'] || librariesVersions['expo-iap'] === 'local');
 
 export default ({config}: ConfigContext): ExpoConfig => {
   // Check if building for TV (set EXPO_TV=1 before prebuild)

@@ -6,16 +6,21 @@ require Pod::Executable.execute_command('node', ['-p',
   )', __dir__]).strip
 require 'json'
 
-versions_path = File.expand_path('../../openiap-versions.json', __dir__)
-unless File.exist?(versions_path)
-  raise 'react-native-iap example: Missing openiap-versions.json at repo root.'
+# In local mode (libraries-versions.jsonc) NitroIap builds OpenIAP from this
+# checkout's packages/apple instead of the published Swift package.
+libraries_versions_path = File.expand_path('../../../../libraries-versions.jsonc', __dir__)
+rn_iap_mode = 'local'
+if File.exist?(libraries_versions_path)
+  begin
+    libraries_versions = JSON.parse(File.read(libraries_versions_path).gsub(%r{^\s*//.*$}, ''))
+    rn_iap_mode = libraries_versions['react-native-iap'] || 'local'
+  rescue => e
+    puts "[Podfile] Warning: Failed to parse libraries-versions.jsonc: #{e.message}. Defaulting to local."
+  end
 end
-
-openiap_versions = JSON.parse(File.read(versions_path))
-openiap_apple_version = openiap_versions['apple']
-unless openiap_apple_version.is_a?(String) && !openiap_apple_version.strip.empty?
-  raise 'react-native-iap example: "apple" version missing or invalid in openiap-versions.json.'
-end
+# An OPENIAP_APPLE_PATH already in the environment wins; an empty one builds the
+# published package, as scripts/verify-ios-swiftpm-consumer.sh does.
+ENV['OPENIAP_APPLE_PATH'] ||= File.expand_path('../../../../packages/apple', __dir__) if rn_iap_mode == 'local'
 
 # Use CDN with fallback
 source 'https://cdn.cocoapods.org/'
@@ -39,24 +44,6 @@ target 'example' do
     :app_path => app_path
   )
 
-  # Resolve openiap dependency based on libraries-versions.jsonc
-  libraries_versions_path = File.expand_path('../../../../libraries-versions.jsonc', __dir__)
-  rn_iap_mode = 'local'
-  if File.exist?(libraries_versions_path)
-    begin
-      libraries_versions = JSON.parse(File.read(libraries_versions_path).gsub(%r{^\s*//.*$}, ''))
-      rn_iap_mode = libraries_versions['react-native-iap'] || 'local'
-    rescue => e
-      puts "[Podfile] Warning: Failed to parse libraries-versions.jsonc: #{e.message}. Defaulting to local."
-    end
-  end
-
-  if rn_iap_mode == 'local'
-    openiap_local_path = File.expand_path('../../../../packages/apple', __dir__)
-    pod 'openiap', :path => openiap_local_path
-  else
-    pod 'openiap', openiap_apple_version
-  end
 
   # Host-app XCTest bundle: `inherit! :search_paths` lets the tests
   # `@testable import NitroIap` (and reach OpenIAP + Nitro) without duplicate pod

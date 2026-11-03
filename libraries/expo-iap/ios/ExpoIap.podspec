@@ -21,7 +21,14 @@ Pod::Spec.new do |s|
   s.static_framework = true
 
   s.dependency 'ExpoModulesCore'
-  s.dependency 'openiap', "#{versions['apple']}"
+  # OpenIAP comes from its Swift package at the exact pinned version; the
+  # plugin's localPath sets OPENIAP_APPLE_PATH to build a local checkout instead.
+  local_openiap = ENV['OPENIAP_APPLE_PATH']
+  spm_dependency(s,
+    url: local_openiap && !local_openiap.empty? ? File.expand_path(local_openiap) : 'https://github.com/hyodotdev/openiap.git',
+    requirement: { kind: 'exactVersion', version: versions['apple'] },
+    products: ['OpenIAP']
+  )
 
   # OnsideKit dependency is conditionally included via ENV var set by the Expo plugin.
   # When modules.onside is enabled, the plugin prepends ENV['EXPO_IAP_ONSIDE']='1' to the

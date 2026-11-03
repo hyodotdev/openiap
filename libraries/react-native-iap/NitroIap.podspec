@@ -42,9 +42,14 @@ Pod::Spec.new do |s|
   s.dependency 'React-Core'
   s.dependency 'React-jsi'
   s.dependency 'React-callinvoker'
-  # OpenIAP Apple for StoreKit 2 integration
-  # Exact version match for consistent builds
-  s.dependency 'openiap', "#{apple_version}"
+  # OpenIAP comes from its Swift package at the exact pinned version; set
+  # OPENIAP_APPLE_PATH to build against a local packages/apple checkout instead.
+  local_openiap = ENV['OPENIAP_APPLE_PATH']
+  spm_dependency(s,
+    url: local_openiap && !local_openiap.empty? ? File.expand_path(local_openiap) : 'https://github.com/hyodotdev/openiap.git',
+    requirement: { kind: 'exactVersion', version: apple_version },
+    products: ['OpenIAP']
+  )
 
   install_modules_dependencies(s)
 end

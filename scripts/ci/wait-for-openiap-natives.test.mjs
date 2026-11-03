@@ -213,3 +213,30 @@ test("main reads each native's pin from --root", async (t) => {
   for (const args of [[], ["--root", root], ["--root", root, "kmp"]])
     await assert.rejects(main(args, registry.options), /^Error: Usage:/u);
 });
+
+test("the Swift package channel waits for the tag's manifest, not CocoaPods", async (t) => {
+  const manifest = (version) =>
+    `https://raw.githubusercontent.com/hyodotdev/openiap/${version}/Package.swift`;
+  const registry = fakeRegistry({ [manifest("4.0.8")]: { from: 2 } });
+  await waitForOpenIapNatives({ "apple-swiftpm": "4.0.8" }, registry.options);
+  assert.deepEqual(
+    [...new Set(registry.requests.map(({ url }) => url))],
+    [manifest("4.0.8")],
+  );
+  assert.equal(registry.requests.length, 3);
+
+  const root = mkdtempSync(join(tmpdir(), "openiap-natives-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(
+    join(root, "openiap-versions.json"),
+    JSON.stringify({ google: "4.0.9", apple: "4.0.8" }),
+  );
+  const served = fakeRegistry({
+    ...googlePoms("4.0.9"),
+    [manifest("4.0.8")]: {},
+  });
+  assert.equal(
+    await main(["--root", root, "google", "apple-swiftpm"], served.options),
+    "Published: openiap-google 4.0.9, openiap-apple 4.0.8 (Swift package).",
+  );
+});

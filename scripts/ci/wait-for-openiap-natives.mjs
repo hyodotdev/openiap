@@ -13,7 +13,7 @@ import {
 } from "../release-branch-policy.mjs";
 
 const USAGE =
-  "Usage: wait-for-openiap-natives.mjs [--root <checkout>] <google|apple>...";
+  "Usage: wait-for-openiap-natives.mjs [--root <checkout>] <google|apple|apple-swiftpm>...";
 const MAVEN = "https://repo1.maven.org/maven2/io/github/hyochan/openiap";
 const pom = (artifact) => ({
   name: `Maven Central ${artifact}`,
@@ -46,7 +46,17 @@ const REGISTRIES = {
         }),
     },
   ],
+  // React Native and Expo resolve OpenIAP as a Swift package at the version tag.
+  "apple-swiftpm": [
+    {
+      name: "Swift package OpenIAP",
+      url: (version) =>
+        `https://raw.githubusercontent.com/hyodotdev/openiap/${version}/Package.swift`,
+    },
+  ],
 };
+// The pin each channel reads from openiap-versions.json.
+const PINS = { google: "google", apple: "apple", "apple-swiftpm": "apple" };
 
 export async function waitForOpenIapNatives(
   pins,
@@ -61,8 +71,10 @@ export async function waitForOpenIapNatives(
 ) {
   const checks = Object.entries(pins).flatMap(([native, pinned]) => {
     if (!Object.hasOwn(REGISTRIES, native))
-      throw new Error(`Unknown native '${native}'; expected google or apple`);
-    const version = validateVersion(pinned, `openiap-${native} version`);
+      throw new Error(
+        `Unknown native '${native}'; expected google, apple or apple-swiftpm`,
+      );
+    const version = validateVersion(pinned, `openiap-${PINS[native]} version`);
     return REGISTRIES[native].map(({ name, url, lists }) => ({
       label: `${name} ${version}`,
       url: url(version),
@@ -104,10 +116,13 @@ export async function main(args, options) {
   )
     throw new Error(USAGE);
   const pins = Object.fromEntries(
-    natives.map((native) => [native, readPackageVersion(native, values.root)]),
+    natives.map((native) => [
+      native,
+      readPackageVersion(PINS[native], values.root),
+    ]),
   );
   await waitForOpenIapNatives(pins, options);
-  return `Published: ${natives.map((native) => `openiap-${native} ${pins[native]}`).join(", ")}.`;
+  return `Published: ${natives.map((native) => `openiap-${PINS[native]} ${pins[native]}${native === "apple-swiftpm" ? " (Swift package)" : ""}`).join(", ")}.`;
 }
 
 if (

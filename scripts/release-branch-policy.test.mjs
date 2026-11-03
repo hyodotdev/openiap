@@ -2440,8 +2440,8 @@ test("Apple release keeps its Bundler files across a current tag checkout", () =
 
 test("library releases wait for the natives of the tree they publish", () => {
   for (const [library, natives] of [
-    ["react-native", "google apple"],
-    ["expo", "google apple"],
+    ["react-native", "google apple-swiftpm"],
+    ["expo", "google apple-swiftpm"],
     ["flutter", "google apple"],
     ["godot", "google"],
     ["kmp", "google"],

@@ -192,6 +192,13 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO
 
+      # The example builds the local packages/apple; installed apps resolve the
+      # published Swift package, so build that path before publishing.
+      - name: Build against the published OpenIAP Swift package
+        env:
+          POD: bundle exec pod
+        run: bash scripts/verify-ios-swiftpm-consumer.sh
+
   deploy:
     environment: release
     needs: [validate-android, validate-ios]
@@ -253,7 +260,7 @@ jobs:
       - name: Require published native packages
         run: >-
           node "$RUNNER_TEMP/openiap-scripts/ci/wait-for-openiap-natives.mjs"
-          --root "$GITHUB_WORKSPACE" google apple
+          --root "$GITHUB_WORKSPACE" google apple-swiftpm
 
       - name: Disable Corepack
         run: corepack disable

@@ -791,6 +791,14 @@ function Releases() {
               finally rejects during a restore&apos;s recovery pass is not
               confirmed a second time.
             </li>
+            <li>
+              <strong>react-native-iap 17.3.2 and expo-iap 6.4.2</strong>: iOS
+              adds OpenIAP as a Swift package at the pinned version instead of
+              the CocoaPods <code>openiap</code> pod, because CocoaPods Trunk
+              stops taking new versions on December 2, 2026.{' '}
+              <code>pod install</code> works as before; the first Xcode build
+              fetches the package from GitHub.
+            </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
           <div

@@ -71,6 +71,10 @@ const ALL_OPENIAP_NATIVE_VARIANTS = {
 };
 
 const PODSPEC_DEPENDENCY_PATTERN = /^\s*s\.dependency\s+['"]([^'"]+)['"]/gmu;
+// The Swift package products a podspec's spm_dependency links; the OpenIAP one
+// is the apple native modelled by ALL_OPENIAP_NATIVE_VARIANTS.
+const PODSPEC_SWIFT_PACKAGE_PATTERN =
+  /^\s*products:\s*\[\s*['"]([^'"]+)['"]\s*\]/gmu;
 const GRADLE_COORDINATE_PATTERN =
   /^\s*(?:implementation|api|runtimeOnly|compile)(?:\s+\(?\s*|\(\s*)(?:"([^"]+)"|'([^']+)')/gmu;
 const GRADLE_PROJECT_PATTERN =
@@ -280,7 +284,12 @@ const COMPONENTS = {
             {
               file: "libraries/expo-iap/ios/ExpoIap.podspec",
               pattern: PODSPEC_DEPENDENCY_PATTERN,
-              expected: ["ExpoModulesCore", "OnsideKit", "openiap"],
+              expected: ["ExpoModulesCore", "OnsideKit"],
+            },
+            {
+              file: "libraries/expo-iap/ios/ExpoIap.podspec",
+              pattern: PODSPEC_SWIFT_PACKAGE_PATTERN,
+              expected: ["OpenIAP"],
             },
           ],
           dependencies: [
@@ -701,12 +710,12 @@ const COMPONENTS = {
             {
               file: "libraries/react-native-iap/NitroIap.podspec",
               pattern: PODSPEC_DEPENDENCY_PATTERN,
-              expected: [
-                "React-Core",
-                "React-callinvoker",
-                "React-jsi",
-                "openiap",
-              ],
+              expected: ["React-Core", "React-callinvoker", "React-jsi"],
+            },
+            {
+              file: "libraries/react-native-iap/NitroIap.podspec",
+              pattern: PODSPEC_SWIFT_PACKAGE_PATTERN,
+              expected: ["OpenIAP"],
             },
           ],
           dependencies: [

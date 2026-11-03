@@ -401,7 +401,7 @@ describe('android configuration', () => {
     expect(result.mods?.ios?.podfile).toBeDefined();
   });
 
-  it('moves the local pod when localPath moves', async () => {
+  it('points the Swift package at localPath and drops the old local pod', async () => {
     const fs = jest.requireActual('fs') as typeof import('fs');
     const os = jest.requireActual('os') as typeof import('os');
     const path = jest.requireActual('path') as typeof import('path');
@@ -421,12 +421,14 @@ describe('android configuration', () => {
         }) as ExpoConfig,
         {projectRoot, platforms: ['ios']},
       );
-      expect(fs.readFileSync(podfile, 'utf8')).toContain(
-        `pod 'openiap', :path => '${path.relative(
+      const written = fs.readFileSync(podfile, 'utf8');
+      expect(written).toContain(
+        `ENV['OPENIAP_APPLE_PATH'] = File.expand_path('${path.relative(
           path.dirname(podfile),
           apple,
-        )}'`,
+        )}', __dir__)`,
       );
+      expect(written).not.toContain("pod 'openiap'");
     } finally {
       fs.rmSync(projectRoot, {recursive: true, force: true});
     }

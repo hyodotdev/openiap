@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-11-02T02:45:02.710Z
+> Last updated: 2026-11-03T14:39:03.296Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2984,8 +2984,11 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 
 **Result:**
 
-- CocoaPods: `pod 'openiap', '~> <apple-version>'`
-- Swift Package Manager: `.package(url: "https://github.com/hyodotdev/openiap.git", from: "<apple-version>")`
+- CocoaPods: `pod 'openiap', '~> <apple-version>'`, until CocoaPods Trunk turns
+  read-only on December 2, 2026
+- Swift Package Manager: `.package(url: "https://github.com/hyodotdev/openiap.git", from: "<apple-version>")`.
+  React Native and Expo add this package to the app at the exact pinned
+  version through `spm_dependency`, and KMP resolves it the same way.
 
 ### Deploying Google Package (Android)
 
@@ -3022,8 +3025,13 @@ a `current` retry), waits up to 45 minutes before it pushes anything for the
 registries to serve the natives that tree pins
 (`scripts/ci/wait-for-openiap-natives.mjs`):
 
-- React Native, Expo, and Flutter: Maven Central (core, the Play, Horizon, and
-  Fire OS flavors, and the Gradle plugin) and the CocoaPods CDN version index.
+- React Native and Expo: Maven Central (core, the Play, Horizon, and Fire OS
+  flavors, and the Gradle plugin) and the `Package.swift` of the apple version
+  tag. Before publishing, their `validate-ios` job also builds the example
+  against that published Swift package (`scripts/verify-ios-swiftpm-consumer.sh`),
+  since the example itself builds the local `packages/apple`.
+- Flutter: the same Maven Central artifacts and the CocoaPods CDN version
+  index, which its CocoaPods fallback still installs from.
 - Godot and KMP: Maven Central only, since their iOS builds take OpenIAP from
   source or the SwiftPM tag.
 - MAUI: no wait, since its NuGet package bundles natives built from source.

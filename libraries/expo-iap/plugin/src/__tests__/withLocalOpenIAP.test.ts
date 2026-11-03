@@ -6,7 +6,7 @@ import {
   removeLocalOpenIapAppWiring,
   removeLocalOpenIapFlavorStrategy,
   removeLocalOpenIapSettings,
-  setLocalOpenIapPodPath,
+  setLocalOpenIapPathIOS,
   storeScriptPathFrom,
 } from '../withLocalOpenIAP';
 
@@ -175,15 +175,31 @@ describe('ensureLocalOpenIapFlavorStrategy', () => {
     expect(removeLocalOpenIapSettings(settings)).toBe(settings);
   });
 
-  it('moves the local pod when localPath moves', () => {
-    const podfile =
-      "target 'App' do\n  use_expo_modules!\n\n  pod 'openiap', :path => '../../old/apple'\nend\n";
-    expect(setLocalOpenIapPodPath(podfile, '../../new/apple')).toBe(
-      podfile.replace('../../old/apple', '../../new/apple'),
+  it('points the Swift package at localPath once, after the Onside flag', () => {
+    const line = (p: string) =>
+      `ENV['OPENIAP_APPLE_PATH'] = File.expand_path('${p}', __dir__)\n`;
+    const target = "target 'App' do\n  use_expo_modules!\nend\n";
+    const onside = "ENV['EXPO_IAP_ONSIDE'] = '1'\n";
+
+    const added = setLocalOpenIapPathIOS(onside + target, '../../apple');
+    expect(added).toBe(onside + line('../../apple') + target);
+    expect(setLocalOpenIapPathIOS(added, '../../apple')).toBe(added);
+    // A moved localPath replaces the line instead of adding another.
+    expect(setLocalOpenIapPathIOS(added, '../../new/apple')).toBe(
+      onside + line('../../new/apple') + target,
     );
+  });
+
+  it('removes the local pod earlier versions wrote', () => {
+    const legacy =
+      "target 'App' do\n  use_expo_modules!\n\n  # Local OpenIAP pod for development (added by expo-iap plugin)\n  pod 'openiap', :path => '../../old/apple'\nend\n";
+    const updated = setLocalOpenIapPathIOS(legacy, '../../apple');
+    expect(updated).not.toContain("pod 'openiap'");
+    expect(updated).not.toContain('Local OpenIAP pod');
+    expect(updated.startsWith("ENV['OPENIAP_APPLE_PATH']")).toBe(true);
     // A versioned pod is the app's own choice.
     const versioned = "  pod 'openiap', '~> 1.3'\n";
-    expect(setLocalOpenIapPodPath(versioned, '../x')).toBe(versioned);
+    expect(setLocalOpenIapPathIOS(versioned, '../x')).toContain(versioned);
   });
 
   it('points at the resolver that ships beside this plugin', () => {

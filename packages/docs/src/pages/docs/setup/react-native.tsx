@@ -116,6 +116,10 @@ npm install react-native-iap react-native-nitro-modules`}
             <CodeBlock language="bash">
               {`cd ios && bundle exec pod install`}
             </CodeBlock>
+            <code>pod install</code> adds OpenIAP to the project as a Swift
+            package at the exact version this release pins, so the first Xcode
+            build fetches it from GitHub; CI machines need GitHub access or a
+            Swift package cache.
           </li>
           <li>
             Enable In-App Purchase capability in Xcode: Target &gt;{' '}
