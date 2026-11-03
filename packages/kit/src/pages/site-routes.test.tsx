@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
+import { Children, isValidElement } from "react";
 import { MemoryRouter, Outlet, Route, Routes } from "react-router-dom";
 
 vi.mock("./faq", () => ({ default: () => <p>{"FAQ page"}</p> }));
@@ -15,6 +16,7 @@ vi.mock("./blog/iapkit-joins-openiap", () => ({
   default: () => <p>{"Blog post"}</p>,
 }));
 
+import { RESERVED_ORG_SLUGS } from "../../convex/organizations/reservedSlugs";
 import { siteChildRoutes } from "./site-routes";
 
 // Mirrors the signed-in tree: site pages beside the organization routes.
@@ -48,5 +50,14 @@ describe("siteChildRoutes", () => {
   it("shows the site 404 for an unknown deep path", () => {
     renderSignedIn("/acme/unknown/page");
     expect(screen.getByText("Not found page")).toBeTruthy();
+  });
+
+  it("reserves every site path as an organization slug", () => {
+    const paths = Children.toArray(siteChildRoutes.props.children)
+      .filter(isValidElement)
+      .map((route) => (route.props as { path?: string }).path)
+      .filter((path): path is string => !!path && path !== "*");
+    expect(paths.length).toBeGreaterThan(0);
+    for (const path of paths) expect(RESERVED_ORG_SLUGS.has(path)).toBe(true);
   });
 });

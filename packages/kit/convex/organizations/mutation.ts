@@ -6,6 +6,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { SPONSOR_CTA_THRESHOLD } from "../plans";
 import { createError, ErrorCode } from "../utils/errors";
 import { organizationInviteRoleValidator } from "../utils/validation";
+import { RESERVED_ORG_SLUGS } from "./reservedSlugs";
 
 // Helper to generate URL-friendly slug
 function generateSlug(name: string): string {
@@ -46,18 +47,20 @@ export const createOrganization = mutation({
       }
     }
 
-    // A random suffix on collision, not a slug-1, slug-2 scan. The retry covers
-    // two concurrent creates drawing the same suffix, since Convex has no
-    // unique indexes.
+    // A random suffix on collision or a reserved route path, not a slug-1,
+    // slug-2 scan. The retry covers two concurrent creates drawing the same
+    // suffix, since Convex has no unique indexes.
     const SLUG_RETRY_LIMIT = 5;
     let finalSlug = slug;
     let attempt = 0;
     while (attempt < SLUG_RETRY_LIMIT) {
-      const existing = await ctx.db
-        .query("organizations")
-        .withIndex("by_slug", (q) => q.eq("slug", finalSlug))
-        .first();
-      if (!existing) {
+      const taken =
+        RESERVED_ORG_SLUGS.has(finalSlug) ||
+        (await ctx.db
+          .query("organizations")
+          .withIndex("by_slug", (q) => q.eq("slug", finalSlug))
+          .first()) !== null;
+      if (!taken) {
         break;
       }
       const randomSuffix = Math.random().toString(36).slice(2, 8);
