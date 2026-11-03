@@ -44,7 +44,6 @@ target 'example' do
     :app_path => app_path
   )
 
-
   # Host-app XCTest bundle: `inherit! :search_paths` lets the tests
   # `@testable import NitroIap` (and reach OpenIAP + Nitro) without duplicate pod
   # installs; the TEST_HOST example app already loads those frameworks.
