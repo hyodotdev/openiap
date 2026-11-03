@@ -1078,10 +1078,14 @@ function verifyDeclaredInventory(root, inventories = []) {
     const usesStoreResolver = /^\s*openIapAddStoreDependencies\s*\(/mu.test(
       source,
     );
+    // Podspecs before spm_dependency declared the openiap pod instead.
+    const usesSwiftPackage = /^\s*spm_dependency\s*\(/mu.test(source);
     const expected = [
       ...(usesStoreResolver && inventory.resolverExpected
         ? inventory.resolverExpected
-        : inventory.expected),
+        : usesSwiftPackage && inventory.swiftPackageExpected
+          ? inventory.swiftPackageExpected
+          : inventory.expected),
     ].sort();
     if (JSON.stringify(actual) !== JSON.stringify(expected)) {
       throw new Error(

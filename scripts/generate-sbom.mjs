@@ -287,12 +287,14 @@ const COMPONENTS = {
             {
               file: "libraries/expo-iap/ios/ExpoIap.podspec",
               pattern: PODSPEC_DEPENDENCY_PATTERN,
-              expected: ["ExpoModulesCore", "OnsideKit"],
+              expected: ["ExpoModulesCore", "OnsideKit", "openiap"],
+              swiftPackageExpected: ["ExpoModulesCore", "OnsideKit"],
             },
             {
               file: "libraries/expo-iap/ios/ExpoIap.podspec",
               pattern: PODSPEC_SWIFT_PACKAGE_PATTERN,
-              expected: ["OpenIAP"],
+              expected: [],
+              swiftPackageExpected: ["OpenIAP"],
             },
           ],
           dependencies: [
@@ -716,12 +718,23 @@ const COMPONENTS = {
             {
               file: "libraries/react-native-iap/NitroIap.podspec",
               pattern: PODSPEC_DEPENDENCY_PATTERN,
-              expected: ["React-Core", "React-callinvoker", "React-jsi"],
+              expected: [
+                "React-Core",
+                "React-callinvoker",
+                "React-jsi",
+                "openiap",
+              ],
+              swiftPackageExpected: [
+                "React-Core",
+                "React-callinvoker",
+                "React-jsi",
+              ],
             },
             {
               file: "libraries/react-native-iap/NitroIap.podspec",
               pattern: PODSPEC_SWIFT_PACKAGE_PATTERN,
-              expected: ["OpenIAP"],
+              expected: [],
+              swiftPackageExpected: ["OpenIAP"],
             },
           ],
           dependencies: [
