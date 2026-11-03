@@ -779,7 +779,7 @@ function Releases() {
             </li>
             <li>
               <strong>openiap-apple 4.0.8 and openiap-google 4.0.9</strong>:
-              report Client Protocol 1.3.2, with no other change.
+              report Client Protocol 1.3.2.
             </li>
             <li>
               <strong>Commerce Protocol 0.3.3</strong>: updated contribution
