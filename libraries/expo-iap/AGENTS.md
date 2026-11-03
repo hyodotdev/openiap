@@ -30,6 +30,8 @@ with the `expo` scope, e.g. `fix(expo): resolve purchase crash`.
 - Setting tvOS to `13.4` causes build failure due to dependency mismatch
 - This is a hard requirement from the dependency, not subject to the iOS workaround
 
+**OpenIAP source**: the example's prebuild points ExpoIap at this checkout's `packages/apple`. `OPENIAP_APPLE_PATH='' npx expo prebuild --platform ios --clean` builds the published Swift package an installed app gets instead; `scripts/verify-ios-swiftpm-consumer.sh` checks that build end to end, as the release does.
+
 ### Pre-Commit Checks
 
 Before committing any changes:

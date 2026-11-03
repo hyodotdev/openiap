@@ -107,6 +107,8 @@ bundle install  # Install Ruby dependencies
 bundle exec pod install  # Install iOS dependencies
 ```
 
+`pod install` builds OpenIAP from this checkout's `packages/apple`. To build the published Swift package an installed app gets, run `OPENIAP_APPLE_PATH='' bundle exec pod install`; `scripts/verify-ios-swiftpm-consumer.sh` checks that build end to end, as the release does.
+
 ## VSCode Integration
 
 The project includes VSCode launch configurations for easy development:
