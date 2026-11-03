@@ -15,7 +15,7 @@ import {
 import {ensureOnsidePodIOS} from './onsidePodfile';
 import {logOnce} from './logOnce';
 
-/** Adds the local OpenIAP pod dependency; for local openiap-apple development only. */
+/** Local openiap-apple and openiap-google checkouts, for OpenIAP development only. */
 export type LocalPathOption = string | {ios?: string; android?: string};
 // Expo's names for a .gradle and a .gradle.kts file.
 type GradleLanguage = 'groovy' | 'kt';
@@ -175,25 +175,35 @@ export const removeLocalOpenIapAppWiring = (contents: string): string =>
       '',
     );
 
-const LOCAL_OPENIAP_ENV =
-  /^[ \t]*ENV\[\s*['"]OPENIAP_APPLE_PATH['"]\s*\][^\n]*\n?/gm;
-// What earlier versions of this plugin wrote; a pod beside the Swift package
-// would define OpenIAP twice.
-const LEGACY_LOCAL_OPENIAP_POD =
-  /^[ \t]*# Local OpenIAP pod for development \(added by expo-iap plugin\)\n|^[ \t]*pod\s+'openiap'\s*,\s*:path\s*=>[^\n]*\n?/gm;
+// A :path pod beside the Swift package would define OpenIAP twice.
+const LOCAL_OPENIAP_IOS =
+  /^[ \t]*ENV\[\s*['"]OPENIAP_APPLE_PATH['"]\s*\][^\n]*\n?|^[ \t]*# Local OpenIAP pod for development \(added by expo-iap plugin\)\n|^[ \t]*pod\s+['"]openiap['"]\s*,\s*:path\s*=>[^\n]*\n?/gm;
+
+// ExpoIap builds OpenIAP from the published Swift package.
+export const removeLocalOpenIapPathIOS = (podfile: string): string =>
+  podfile.replace(LOCAL_OPENIAP_IOS, '');
 
 // ExpoIap builds OpenIAP from localPath instead of the published Swift package.
 export const setLocalOpenIapPathIOS = (
   podfile: string,
   relativePath: string,
 ): string => {
-  const line = `ENV['OPENIAP_APPLE_PATH'] = File.expand_path('${relativePath}', __dir__)`;
-  const rest = podfile
-    .replace(LOCAL_OPENIAP_ENV, '')
-    .replace(LEGACY_LOCAL_OPENIAP_POD, '');
+  const quoted = relativePath.replace(/[\\']/g, '\\$&');
+  const line = `ENV['OPENIAP_APPLE_PATH'] = File.expand_path('${quoted}', __dir__)`;
+  const rest = removeLocalOpenIapPathIOS(podfile);
   // After any leading ENV lines, so the Onside flag keeps the first line.
   const lead = rest.match(/^(?:ENV\[[^\n]*\n)*/)?.[0] ?? '';
   return `${lead}${line}\n${rest.slice(lead.length)}`;
+};
+
+// ExpoIap already adds OpenIAP as a Swift package.
+export const warnOnOpenIapPodIOS = (podfile: string): void => {
+  if (/^[ \t]*pod\s+['"]openiap['"]/m.test(podfile)) {
+    WarningAggregator.addWarningIOS(
+      'expo-iap',
+      "Remove pod 'openiap' from the Podfile: ExpoIap adds OpenIAP as a Swift package, and both together define OpenIAP twice.",
+    );
+  }
 };
 
 // Every Android module in a local build links the flavor the resolver picks.
@@ -299,14 +309,6 @@ const withLocalOpenIAP: ConfigPlugin<
         path.resolve(projectRoot, 'openiap-apple');
       const podfilePath = path.join(platformProjectRoot, 'Podfile');
 
-      if (!fs.existsSync(iosPath)) {
-        console.warn(`⚠️  Local openiap-apple path not found: ${iosPath}`);
-        console.warn(
-          '   Building OpenIAP from the published Swift package instead.',
-        );
-        return config;
-      }
-
       let podfileContent: string;
       try {
         podfileContent = fs.readFileSync(podfilePath, 'utf8');
@@ -318,33 +320,31 @@ const withLocalOpenIAP: ConfigPlugin<
         return config;
       }
 
-      logOnce(`✅ Using local OpenIAP from: ${iosPath}`);
-
-      let podfileChanged = false;
-
+      let content = podfileContent;
       if (props?.enableOnside) {
-        const updatedContent = ensureOnsidePodIOS(podfileContent);
-        if (updatedContent !== podfileContent) {
-          podfileContent = updatedContent;
-          podfileChanged = true;
+        content = ensureOnsidePodIOS(content);
+        if (content !== podfileContent) {
           logOnce('📦 expo-iap: Enabled OnsideKit');
         }
       }
 
-      const relativePath = path
-        .relative(platformProjectRoot, iosPath)
-        .replace(/\\/g, '/');
-      const updatedContent = setLocalOpenIapPathIOS(
-        podfileContent,
-        relativePath,
-      );
-      if (updatedContent !== podfileContent) {
-        podfileContent = updatedContent;
-        podfileChanged = true;
+      if (fs.existsSync(iosPath)) {
+        logOnce(`✅ Using local OpenIAP from: ${iosPath}`);
+        const relativePath = path
+          .relative(platformProjectRoot, iosPath)
+          .replace(/\\/g, '/');
+        content = setLocalOpenIapPathIOS(content, relativePath);
+      } else {
+        console.warn(`⚠️  Local openiap-apple path not found: ${iosPath}`);
+        console.warn(
+          '   Building OpenIAP from the published Swift package instead.',
+        );
+        content = removeLocalOpenIapPathIOS(content);
       }
+      warnOnOpenIapPodIOS(content);
 
-      if (podfileChanged) {
-        fs.writeFileSync(podfilePath, podfileContent);
+      if (content !== podfileContent) {
+        fs.writeFileSync(podfilePath, content);
       }
 
       return config;

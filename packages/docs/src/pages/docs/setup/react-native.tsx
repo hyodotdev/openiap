@@ -119,7 +119,10 @@ npm install react-native-iap react-native-nitro-modules`}
             <code>pod install</code> adds OpenIAP to the project as a Swift
             package at the exact version this release pins, so the first Xcode
             build fetches it from GitHub; CI machines need GitHub access or a
-            Swift package cache.
+            Swift package cache. Remove any <code>pod &apos;openiap&apos;</code>{' '}
+            line from the Podfile, which would add OpenIAP twice. React
+            Native&apos;s static-linking warning for Swift packages does not
+            apply: OpenIAP builds with static libraries.
           </li>
           <li>
             Enable In-App Purchase capability in Xcode: Target &gt;{' '}

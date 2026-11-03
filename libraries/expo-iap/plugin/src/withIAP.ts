@@ -13,7 +13,11 @@ import {
 import type {ExpoConfig} from '@expo/config-types';
 import * as fs from 'fs';
 import * as path from 'path';
-import withLocalOpenIAP, {withoutLocalOpenIAPAndroid} from './withLocalOpenIAP';
+import withLocalOpenIAP, {
+  removeLocalOpenIapPathIOS,
+  warnOnOpenIapPodIOS,
+  withoutLocalOpenIAPAndroid,
+} from './withLocalOpenIAP';
 import withVega, {type VegaProjectOptions} from './withVega';
 import {
   withIosAlternativeBilling,
@@ -646,12 +650,11 @@ const withIapIOS: ConfigPlugin<WithIapIosOptions | undefined> = (
       logOnce('📦 expo-iap: Added CocoaPods CDN source to Podfile');
     }
 
-    // 2) Remove any lingering local OpenIAP pod injection
-    const localPodRegex =
-      /^\s*pod\s+'openiap'\s*,\s*:path\s*=>\s*['"][^'"]+['"][^\n]*$/gm;
-    if (localPodRegex.test(content)) {
-      content = content.replace(localPodRegex, '').replace(/\n{3,}/g, '\n\n');
-      logOnce('🧹 expo-iap: Removed local OpenIAP pod from Podfile');
+    // 2) Build OpenIAP from the published Swift package
+    const published = removeLocalOpenIapPathIOS(content);
+    if (published !== content) {
+      content = published;
+      logOnce('🧹 expo-iap: Removed the local OpenIAP path from Podfile');
     }
 
     // 3) Optionally install OnsideKit when enabled in config
@@ -662,6 +665,7 @@ const withIapIOS: ConfigPlugin<WithIapIosOptions | undefined> = (
       }
       content = updatedContent;
     }
+    warnOnOpenIapPodIOS(content);
 
     config.modResults.contents = content;
     return config;
@@ -1015,14 +1019,14 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
         enableOnside: includeOnside,
       });
     } else {
-      // Ensure iOS Podfile is set up to resolve public CocoaPods specs
+      // Published OpenIAP: the Swift package on iOS, Maven on Android
       result = withIapIOS(result, {
         enableOnside: includeOnside,
         iosAlternativeBilling,
       });
       result = withoutLocalOpenIAPAndroid(result);
       if (includeExpoIap) {
-        logOnce('📦 [expo-iap] Using OpenIAP from CocoaPods');
+        logOnce('📦 [expo-iap] Using the published OpenIAP packages');
       }
     }
 

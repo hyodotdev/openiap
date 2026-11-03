@@ -5,6 +5,7 @@ import {
   LOCAL_STRATEGY_LINE_KOTLIN,
   removeLocalOpenIapAppWiring,
   removeLocalOpenIapFlavorStrategy,
+  removeLocalOpenIapPathIOS,
   removeLocalOpenIapSettings,
   setLocalOpenIapPathIOS,
   storeScriptPathFrom,
@@ -200,6 +201,17 @@ describe('ensureLocalOpenIapFlavorStrategy', () => {
     // A versioned pod is the app's own choice.
     const versioned = "  pod 'openiap', '~> 1.3'\n";
     expect(setLocalOpenIapPathIOS(versioned, '../x')).toContain(versioned);
+  });
+
+  it('quotes the local path and removes double-quoted local pods', () => {
+    const updated = setLocalOpenIapPathIOS(
+      'pod "openiap", :path => "../old"\n',
+      "../O'Brien/apple",
+    );
+    expect(updated).toBe(
+      "ENV['OPENIAP_APPLE_PATH'] = File.expand_path('../O\\'Brien/apple', __dir__)\n",
+    );
+    expect(removeLocalOpenIapPathIOS(updated)).toBe('');
   });
 
   it('points at the resolver that ships beside this plugin', () => {

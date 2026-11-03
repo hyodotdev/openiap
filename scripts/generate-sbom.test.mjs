@@ -3359,6 +3359,31 @@ test("KMP SBOMs identify SwiftPM dependencies while preserving historical CocoaP
   );
 });
 
+test("RN and Expo SBOMs identify the podspec's Swift package while preserving historical CocoaPods identity", async (t) => {
+  const scratch = mkdtempSync(resolve(tmpdir(), "openiap-podspec-spm-sbom-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const manifest = "NitroIap.podspec";
+  const source = {
+    kind: "openiap-native",
+    apple: true,
+    appleSwiftPMManifest: manifest,
+  };
+  writeFileSync(
+    resolve(scratch, "openiap-versions.json"),
+    JSON.stringify({ apple: "4.0.8" }),
+  );
+  writeFileSync(resolve(scratch, manifest), "s.dependency 'openiap', '4.0.7'");
+  assert.equal(
+    (await extractDirectDependencies(scratch, source))[0].purl,
+    "pkg:cocoapods/openiap@4.0.8",
+  );
+  writeFileSync(resolve(scratch, manifest), "spm_dependency(s, url: 'x')");
+  assert.equal(
+    (await extractDirectDependencies(scratch, source))[0].purl,
+    "pkg:swift/github.com/hyodotdev/openiap@4.0.8",
+  );
+});
+
 test("legacy native SBOMs exclude core while provider releases require its manifest", async (t) => {
   const scratch = mkdtempSync(resolve(tmpdir(), "openiap-legacy-core-sbom-"));
   t.after(() => rmSync(scratch, { recursive: true, force: true }));

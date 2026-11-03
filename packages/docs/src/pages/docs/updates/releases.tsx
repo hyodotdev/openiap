@@ -793,11 +793,9 @@ function Releases() {
             </li>
             <li>
               <strong>react-native-iap 17.3.2 and expo-iap 6.4.2</strong>: iOS
-              adds OpenIAP as a Swift package at the pinned version instead of
-              the CocoaPods <code>openiap</code> pod, because CocoaPods Trunk
-              stops taking new versions on December 2, 2026.{' '}
-              <code>pod install</code> works as before; the first Xcode build
-              fetches the package from GitHub.
+              adds OpenIAP as a Swift package at the pinned version, since
+              CocoaPods Trunk turns read-only on December 2, 2026; remove any{' '}
+              <code>pod &apos;openiap&apos;</code> line from your Podfile.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>

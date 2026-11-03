@@ -276,7 +276,10 @@ const COMPONENTS = {
       kind: "aggregate",
       sources: [
         { kind: "npm", manifest: "libraries/expo-iap/package.json" },
-        ALL_OPENIAP_NATIVE_VARIANTS,
+        {
+          ...ALL_OPENIAP_NATIVE_VARIANTS,
+          appleSwiftPMManifest: "libraries/expo-iap/ios/ExpoIap.podspec",
+        },
         {
           kind: "declared",
           manifest: "libraries/expo-iap/ios/ExpoIap.podspec",
@@ -702,7 +705,10 @@ const COMPONENTS = {
             },
           ],
         },
-        ALL_OPENIAP_NATIVE_VARIANTS,
+        {
+          ...ALL_OPENIAP_NATIVE_VARIANTS,
+          appleSwiftPMManifest: "libraries/react-native-iap/NitroIap.podspec",
+        },
         {
           kind: "declared",
           manifest: "libraries/react-native-iap/NitroIap.podspec",

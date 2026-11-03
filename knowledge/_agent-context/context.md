@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-11-03T14:39:03.296Z
+> Last updated: 2026-11-03T15:08:00.785Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2987,8 +2987,8 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 - CocoaPods: `pod 'openiap', '~> <apple-version>'`, until CocoaPods Trunk turns
   read-only on December 2, 2026
 - Swift Package Manager: `.package(url: "https://github.com/hyodotdev/openiap.git", from: "<apple-version>")`.
-  React Native and Expo add this package to the app at the exact pinned
-  version through `spm_dependency`, and KMP resolves it the same way.
+  React Native and Expo add it at the exact pinned version through React
+  Native's `spm_dependency`; KMP pins it with Gradle `swiftPMDependencies`.
 
 ### Deploying Google Package (Android)
 
