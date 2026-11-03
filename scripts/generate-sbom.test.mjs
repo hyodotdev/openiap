@@ -3312,6 +3312,22 @@ test("SDK resolver inventories retain legacy declarations and reject missing or 
   assert.deepEqual(await extractDirectDependencies(scratch, source), []);
 });
 
+test("RN and Expo record OpenIAP as the Swift package their podspecs add", async () => {
+  for (const id of ["react-native", "expo"]) {
+    const native = COMPONENTS[id].source.sources.find(
+      (entry) => entry.kind === "openiap-native",
+    );
+    const apple = (await extractDirectDependencies(repoRoot, native)).find(
+      (dependency) => dependency.name === "openiap",
+    );
+    assert.match(
+      apple.purl,
+      /^pkg:swift\/github\.com\/hyodotdev\/openiap@/u,
+      id,
+    );
+  }
+});
+
 test("podspec inventories accept the openiap pod before spm_dependency and reject it after", async (t) => {
   const scratch = mkdtempSync(resolve(tmpdir(), "openiap-podspec-sbom-"));
   t.after(() => rmSync(scratch, { recursive: true, force: true }));
