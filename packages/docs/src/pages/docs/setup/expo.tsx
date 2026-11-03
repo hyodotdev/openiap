@@ -231,8 +231,9 @@ export default {
           GitHub; CI machines and EAS builds need GitHub access or a Swift
           package cache. Keep <code>pod &apos;openiap&apos;</code> out of the
           Podfile, which would add OpenIAP twice; the plugin warns when it finds
-          one. React Native&apos;s static-linking warning for Swift packages
-          does not apply: OpenIAP builds with static linking.
+          one. Prebuild may print React Native&apos;s static-linking warning for
+          Swift packages. It is safe to ignore: OpenIAP links fine with static
+          linking.
         </p>
         <Callout kind="important" title="Building with Xcode 27?">
           The generated iOS project must use the UIScene lifecycle. Follow the{' '}
