@@ -728,7 +728,9 @@ describe('useIAP lifecycle', () => {
       const listeners = new Set<(outcome: unknown) => void>();
       return {
         processPurchase: jest.fn(),
-        recoverPurchases: jest.fn(async () => []),
+        recoverPurchases: jest.fn(
+          async (): Promise<IAP.PurchaseFlowOutcome<Purchase>[]> => [],
+        ),
         subscribe: jest.fn((listener: (outcome: unknown) => void) => {
           listeners.add(listener);
           return () => {
@@ -824,6 +826,36 @@ describe('useIAP lifecycle', () => {
         await expect(hook!.restorePurchases()).rejects.toThrow('store down');
       });
       expect(onError).toHaveBeenCalledWith(expect.any(Error));
+    });
+
+    it('fails the restore when a confirmation fails', async () => {
+      const flow = fakeFlow();
+      const failure = new Error('backend down');
+      flow.recoverPurchases.mockResolvedValue([
+        {
+          purchase: purchase(),
+          status: {status: 'entitled', alreadyGranted: true},
+        },
+        {purchase: purchase(), status: {status: 'failed', error: failure}},
+      ]);
+      const onError = jest.fn();
+      let hook: Hook | undefined;
+      await mount(
+        <Harness
+          options={{purchaseFlow: flow, onError}}
+          onHook={(value) => (hook = value)}
+        />,
+      );
+      onError.mockClear();
+      jest.mocked(ExpoIapModule.getAvailableItems).mockClear();
+
+      await React.act(async () => {
+        await expect(hook!.restorePurchases()).rejects.toBe(failure);
+      });
+
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenCalledWith(failure);
+      expect(ExpoIapModule.getAvailableItems).not.toHaveBeenCalled();
     });
 
     it('restores through the flow alone, without the provider restore', async () => {

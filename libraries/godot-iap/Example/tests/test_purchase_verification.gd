@@ -306,6 +306,11 @@ func _test_verification_picker(plugin: Node) -> void:
 	await connecting_scene._on_restore_pressed()
 	_check(connecting_scene.status_label.text == "Purchases restored.", "A completed restore reads as restored")
 	_check(not fake.calls.has("restorePurchases"), "A restore runs through the flow, without the store's restore")
+	manager.verification_method = Config.Method.NONE
+	var owned := _apple_purchase("example-restore", manager.PRODUCT_10_BULBS)
+	fake.responses["getAvailablePurchases"] = JSON.stringify({"success": true, "purchasesJson": JSON.stringify([owned])})
+	await connecting_scene._on_restore_pressed()
+	_check(connecting_scene.status_label.text.begins_with("Restore failed: "), "A failed confirmation fails the restore")
 	connecting_scene.queue_free()
 	await process_frame
 	manager.store_connected = previous_connection

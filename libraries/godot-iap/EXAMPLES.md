@@ -555,6 +555,11 @@ func restore_purchases() -> bool:
     if outcomes is PurchaseFlow.Failure:
         push_error("Restore failed: %s" % outcomes.message)
         return false
+    # A failed confirmation fails the restore; the next restore retries it.
+    for outcome in outcomes:
+        if outcome.status.status == "failed":
+            push_error("Restore failed: %s" % outcome.status.error)
+            return false
     print("Restored %d purchases" % outcomes.size())
     return true
 ```
@@ -677,7 +682,9 @@ func get_price(product_id: String) -> String:
 
 func restore() -> bool:
     var outcomes = await flow.recover_purchases(true)
-    return not (outcomes is PurchaseFlow.Failure)
+    if outcomes is PurchaseFlow.Failure:
+        return false
+    return outcomes.all(func(outcome): return outcome.status.status != "failed")
 ```
 
 ### 6.2 Store UI

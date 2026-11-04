@@ -358,12 +358,13 @@ const flow = createPurchaseFlow({
         account gets <code>ownership_conflict</code>. Nothing is transferred.
         The hook skips the provider&apos;s restore, so iOS asks for no App Store
         sign-in; call <code>syncIOS()</code> first only if a purchase is still
-        missing. On iOS a restore reads the full transaction history and
-        confirms each purchase once, through its newest transaction, so a
-        subscription in billing grace comes back and past renewals cost nothing
-        extra. If <code>getPendingTransactionsIOS</code> throws, as one
-        unverified transaction makes it do, recovery confirms every Apple
-        purchase <code>getAvailablePurchases</code> lists instead.
+        missing. It rejects when a confirmation fails, and that purchase stays
+        unfinished for the next restore. On iOS a restore reads the full
+        transaction history and confirms each purchase once, through its newest
+        transaction, so a subscription in billing grace comes back and past
+        renewals cost nothing extra. If <code>getPendingTransactionsIOS</code>{" "}
+        throws, as one unverified transaction makes it do, recovery confirms
+        every Apple purchase <code>getAvailablePurchases</code> lists instead.
       </p>
       <p>
         Repeating is safe: your backend grants a one-time purchase once, a

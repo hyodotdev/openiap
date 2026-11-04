@@ -775,8 +775,10 @@ function Releases() {
             <code>restorePurchases</code> confirms every owned purchase through
             the flow and skips the provider&apos;s restore. iOS asks for no App
             Store sign-in, and nothing that restore would redeliver to the
-            listener is confirmed a second time. Without a flow, it still calls
-            the provider&apos;s restore.
+            listener is confirmed a second time. It also rejects when a
+            confirmation fails instead of reporting success; that purchase stays
+            unfinished for the next restore. Without a flow, it still calls the
+            provider&apos;s restore.
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
           <div

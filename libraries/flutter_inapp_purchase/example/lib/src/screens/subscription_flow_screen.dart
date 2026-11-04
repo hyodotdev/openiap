@@ -357,9 +357,7 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
     });
 
     try {
-      // The flow reads the store's history itself, so iOS asks for no App
-      // Store sign-in; a failure lands in the catch below.
-      await _purchases.flow.recoverPurchases(includeFinished: true);
+      await _purchases.restore();
       await _checkActiveSubscriptions();
 
       if (!mounted) return;

@@ -61,8 +61,8 @@ function RestorePurchases() {
         <code>includeFinished</code> confirms every owned purchase from the
         store&apos;s history without this call, so iOS asks for no sign-in. The
         React Native and Expo hooks&apos; <code>restorePurchases</code> does
-        this when <code>purchaseFlow</code> is set. If a purchase is still
-        missing, call{' '}
+        this when <code>purchaseFlow</code> is set, and rejects when a
+        confirmation fails. If a purchase is still missing, call{' '}
         <Link to="/docs/apis/ios/sync-ios">
           <code>syncIOS</code>
         </Link>{' '}
