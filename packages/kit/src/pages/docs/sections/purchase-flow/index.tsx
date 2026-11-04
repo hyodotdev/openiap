@@ -380,8 +380,10 @@ const flow = createPurchaseFlow({
         receipt to about one verification a minute after a burst, so respect{" "}
         <code>retryAfterMs</code> instead of looping. A receipt IAPKit rejected
         in the last five minutes gets that rejection again, so a restore right
-        after launch reads an expired one as <code>invalid</code> and still
-        fails on an inauthentic one.
+        after launch reads an expired one as <code>invalid</code>. An
+        inauthentic one still fails a restore through{" "}
+        <code>confirmWithIapkit</code>; the reference backend answers it as{" "}
+        <code>invalid</code>.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Ownership</h2>
