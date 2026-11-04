@@ -26,7 +26,8 @@ openiap/
 │   ├── flutter_inapp_purchase/  # Flutter (pub.dev, Dart)
 │   ├── godot-iap/         # Godot 4.x (GitHub Release, GDScript)
 │   ├── kmp-iap/           # Kotlin Multiplatform (Maven Central)
-│   └── maui-iap/          # .NET MAUI / C# (NuGet)
+│   ├── maui-iap/          # .NET MAUI / C# (NuGet)
+│   └── capacitor-iap/     # Capacitor (npm, Bun, Capacitor 8 plugin)
 ├── knowledge/         # Shared knowledge base (SSOT)
 │   ├── internal/      # Project philosophy (HIGHEST PRIORITY)
 │   ├── external/      # External API reference

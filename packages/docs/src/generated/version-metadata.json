@@ -3,6 +3,7 @@
   "cliPackageVersion": "0.3.0",
   "clientProtocolPackageVersion": "1.3.3",
   "commerceProtocolPackageVersion": "0.3.3",
+  "capacitorPackageVersion": "1.0.0",
   "expoPackageVersion": "6.4.3",
   "reactNativePackageVersion": "17.3.3",
   "flutterPackageVersion": "11.3.1",

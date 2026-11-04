@@ -548,7 +548,7 @@ test("the restore-purchases page documents the provider-first Android restore", 
   assert.ok(page.includes("with no system-level UI prompt"));
   assert.ok(
     page.includes(
-      "React Native, Expo, Flutter, MAUI, Godot, and KMP call the provider's restore",
+      "React Native, Expo, Capacitor, Flutter, MAUI, Godot, and KMP call the provider's restore",
     ),
   );
   assert.ok(
@@ -561,7 +561,7 @@ test("the restore-purchases page documents the provider-first Android restore", 
   );
   assert.ok(
     page.includes(
-      "Horizon's restore delivers each owned purchase to the purchase listeners (React Native, Expo, Flutter, MAUI, and KMP)",
+      "Horizon's restore delivers each owned purchase to the purchase listeners (React Native, Expo, Capacitor, Flutter, MAUI, and KMP)",
     ),
   );
   assert.ok(

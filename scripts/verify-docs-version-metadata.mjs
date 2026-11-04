@@ -22,6 +22,7 @@ export function docsVersionMetadata(root = repoRoot) {
     cliPackageVersion: version("cli"),
     clientProtocolPackageVersion: version("client-protocol"),
     commerceProtocolPackageVersion: version("commerce-protocol"),
+    capacitorPackageVersion: version("capacitor"),
     expoPackageVersion: version("expo"),
     reactNativePackageVersion: version("react-native"),
     flutterPackageVersion: version("flutter"),

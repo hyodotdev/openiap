@@ -64,7 +64,7 @@ export default function StoreProviderDiagram() {
     },
     {
       title: 'OpenIAP SDK',
-      detail: 'The same purchase APIs in all six frameworks',
+      detail: 'The same purchase APIs in all seven frameworks',
       icon: Code,
     },
     { title: binding.core, detail: binding.discovery, icon: Boxes },

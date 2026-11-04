@@ -89,6 +89,10 @@ function GettingStarted() {
               <Link to="/docs/setup/maui">maui-iap</Link> — .NET MAUI / C#
             </li>
             <li>
+              <Link to="/docs/setup/capacitor">capacitor-iap</Link> — Capacitor
+              (iOS and Android)
+            </li>
+            <li>
               <Link to="/docs/setup/godot">godot-iap</Link> — Godot 4.x
             </li>
           </ul>
@@ -471,6 +475,7 @@ await iap.request_purchase(props)`}</CodeBlock>
               <Link to="/docs/setup/flutter">Flutter</Link>,{' '}
               <Link to="/docs/setup/kmp">Kotlin Multiplatform</Link>,{' '}
               <Link to="/docs/setup/maui">.NET MAUI</Link>,{' '}
+              <Link to="/docs/setup/capacitor">Capacitor</Link>,{' '}
               <Link to="/docs/setup/godot">Godot</Link>) plus the store-side
               configuration (<Link to="/docs/ios-setup">iOS</Link>,{' '}
               <Link to="/docs/android-setup">Android</Link>,{' '}

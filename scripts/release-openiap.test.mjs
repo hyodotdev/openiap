@@ -221,6 +221,8 @@ test("version sync preserves the npm versions that are independent", (t) => {
     "packages/apple/package.json",
     "packages/google/package.json",
     "packages/google/openiap/build.gradle.kts",
+    "libraries/capacitor-iap/package.json",
+    "libraries/capacitor-iap/Package.swift",
     "libraries/expo-iap/package.json",
     "libraries/react-native-iap/package.json",
     "libraries/flutter_inapp_purchase/pubspec.yaml",
@@ -464,6 +466,7 @@ test("metadata audit accepts RC and stable docs while rejecting drift", (t) => {
   copyFileSync(join(root, "scripts/release-branch-policy.mjs"), script);
   for (const path of [
     "packages/conformance/package.json",
+    "libraries/capacitor-iap/package.json",
     "libraries/expo-iap/package.json",
     "libraries/react-native-iap/package.json",
   ])

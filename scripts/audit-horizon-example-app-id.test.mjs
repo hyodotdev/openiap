@@ -26,6 +26,7 @@ test("the audit covers every target that builds the Horizon flavor", () => {
   assert.deepEqual(
     HORIZON_APP_ID_SOURCES.map((source) => source.library).sort(),
     [
+      "capacitor-iap",
       "expo-iap",
       "flutter_inapp_purchase",
       "kmp-iap",

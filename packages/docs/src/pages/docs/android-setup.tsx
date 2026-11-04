@@ -338,6 +338,10 @@ dependencies {
             <a href="/docs/setup/maui">maui-iap</a> - For .NET MAUI projects
           </li>
           <li>
+            <a href="/docs/setup/capacitor">capacitor-iap</a> - For Capacitor
+            projects
+          </li>
+          <li>
             <a href="/docs/setup/godot">godot-iap</a> - For Godot 4.x projects
           </li>
         </ul>

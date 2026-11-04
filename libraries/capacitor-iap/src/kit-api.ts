@@ -1,0 +1,695 @@
+// Fetch wrapper for kit's `/v1` API, used by react-native-iap and expo-iap.
+// It mirrors `packages/mcp-server/src/kit-client.ts`, so both share one URL
+// layout.
+
+export type KitApiOptions = {
+  apiKey: string;
+  baseUrl?: string;
+  // For runtimes without a global fetch, or for tests.
+  fetchImpl?: (input: string, init?: RequestInit) => Promise<Response>;
+  /** Optional AsyncStorage-compatible persistent cache for direct client
+   * payload reads. Cache failures never change a successful API result. */
+  clientPayloadCache?: KitClientPayloadCache;
+};
+
+export type KitClientPayloadCache = {
+  getItem: (key: string) => Promise<string | null> | string | null;
+  setItem: (key: string, value: string) => Promise<void> | void;
+  removeItem?: (key: string) => Promise<void> | void;
+};
+
+export type KitClientPayloadOptions = {
+  /** Revalidate a cached payload with its scoped ETag. Without this flag,
+   * a valid persistent entry is returned without a network request. A
+   * network error, 429, or 5xx returns the cached copy marked `stale`. */
+  refresh?: boolean;
+};
+
+export type KitLocalizedPayloadOptions = {
+  /** BCP 47 tag such as `ko-KR`. */
+  locale: string;
+  fallbackLocales?: string[];
+  /** Defaults to `[1]`. Any other `schemaVersion` resolves to null. */
+  supportedSchemaVersions?: number[];
+};
+
+export type KitLocalizedClientPayloadOptions = KitLocalizedPayloadOptions &
+  KitClientPayloadOptions;
+
+export type KitLocalizedClientPayload = {
+  values: Record<string, unknown>;
+  version: number;
+  stale: boolean;
+};
+
+export type KitSubscription = {
+  id: string;
+  productId: string;
+  platform: "IOS" | "Android";
+  state:
+    | "Active"
+    | "InGracePeriod"
+    | "InBillingRetry"
+    | "Expired"
+    | "Revoked"
+    | "Refunded"
+    | "Paused"
+    | "Unknown";
+  expiresAt?: number;
+  renewsAt?: number;
+  willRenew?: boolean;
+  cancellationReason?: string;
+  currency?: string;
+  priceAmountMicros?: number;
+  startedAt: number;
+  updatedAt: number;
+  purchaseToken: string;
+  originalTransactionId?: string;
+  userId?: string;
+};
+
+export type EntitlementsResponse = {
+  userId: string;
+  productIds: string[];
+  subscriptions: KitSubscription[];
+};
+
+export type StatusResponse = {
+  active: boolean;
+  subscription: KitSubscription | null;
+};
+
+export type KitProductPlatform = "IOS" | "Android";
+
+export type KitProductClientPayload = {
+  /** Current values are toml, json, and text; preserve unknown values. */
+  format: string;
+  body: string;
+  version: number;
+  updatedAt: number;
+};
+
+export type KitProductOffer = {
+  id: string;
+  kind:
+    | "FreeTrial"
+    | "IntroPayUpFront"
+    | "IntroPayAsYouGo"
+    | "PromotionalOffer"
+    | "BasePlan";
+  duration?: string;
+  numberOfPeriods?: number;
+  priceAmountMicros?: number;
+  currency?: string;
+};
+
+export type KitProduct = {
+  productId: string;
+  platform: KitProductPlatform;
+  type: "Subscription" | "NonConsumable" | "Consumable";
+  title: string;
+  description?: string;
+  baseLocale?: string;
+  localizations?: {
+    locale: string;
+    title: string;
+    description?: string;
+  }[];
+  regions?: "all" | string[];
+  priceAmountMicros?: number;
+  currency?: string;
+  state: "Draft" | "Ready" | "Active" | "Removed";
+  storeRef?: string;
+  subscriptionGroupId?: string;
+  subscriptionGroupName?: string;
+  billingPeriod?: "P1W" | "P1M" | "P2M" | "P3M" | "P6M" | "P1Y";
+  offers?: KitProductOffer[];
+  updatedAt: number;
+  clientPayload?: KitProductClientPayload;
+};
+
+export type KitProductsOptions = {
+  platform?: KitProductPlatform;
+  /** Include public client payload bodies in a bounded platform page. */
+  includeClientPayload?: boolean;
+  /** Page size for every catalog read (default 25, maximum 50). */
+  limit?: number;
+  /** Opaque cursor returned as `nextCursor` by the previous page. */
+  cursor?: string;
+};
+
+export type KitProductsResponse = {
+  products: KitProduct[];
+  hasMore: boolean;
+  /** Present when a catalog page has another page. */
+  nextCursor?: string;
+};
+
+export type KitSubscriptionsResponse = {
+  items: KitSubscription[];
+  total: number;
+};
+
+export type KitMrrCurrencyEntry = {
+  currency: string;
+  mrrMicros: number;
+};
+
+export type KitMetricsResponse = {
+  /** Headline counts and MRR are usable only when current; absent on older servers. */
+  stats?: {
+    state: "current" | "rebuilding" | "incomplete";
+    /** Last evaluation time in Unix milliseconds. */
+    asOf: number;
+    /** Earliest counted expiry in Unix milliseconds; null means no known expiry. */
+    validUntil: number | null;
+  };
+  /** The bounded 30-day scan omitted older matching rows. */
+  recentCountsTruncated?: boolean;
+  activeSubs: number;
+  inGracePeriod: number;
+  inBillingRetry: number;
+  refunded30d: number;
+  canceled30d: number;
+  mrrMicros: number;
+  currency: string;
+  reportingCurrency: string;
+  mrrByCurrency: KitMrrCurrencyEntry[];
+  excludedMrrByCurrency: KitMrrCurrencyEntry[];
+};
+
+export type KitRevenueMetricsResponse = {
+  days: {
+    day: string;
+    currency: string;
+    productId: string;
+    platform: KitProductPlatform;
+    activeSubs: number;
+    newSubs: number;
+    renewals: number;
+    cancellations: number;
+    refunds: number;
+    revenueMicros: number;
+  }[];
+  currencies: string[];
+  productIds: string[];
+  platforms: KitProductPlatform[];
+  truncated: boolean;
+};
+
+export type KitProductUpsertResponse = { id: string; created: boolean };
+export type KitProductStateResponse = {
+  id: string;
+  state: KitProduct["state"];
+};
+export type KitClientPayloadStateResponse = {
+  expectedVersion: number;
+  clientPayload?: KitProductClientPayload;
+};
+export type KitSetClientPayloadResponse = {
+  id: string;
+  created: boolean;
+  changed: boolean;
+  version: number;
+  updatedAt: number;
+};
+export type KitRemoveClientPayloadResponse = { ok: boolean };
+export type KitClientPayloadDraftStateResponse = {
+  expectedDraftRevision: number;
+  draft?: {
+    format: string;
+    body: string;
+    baseVersion: number;
+    updatedAt: number;
+  };
+};
+export type KitSaveClientPayloadDraftResponse = {
+  changed: boolean;
+  revision: number;
+  baseVersion: number;
+  updatedAt: number;
+};
+export type KitClientPayloadVersion = {
+  version: number;
+  action: "publish" | "rollback" | "remove";
+  format?: string;
+  byteLength?: number;
+  rolledBackFrom?: number;
+  note?: string;
+  /** `name` is a display or API key name, never an email. */
+  author?: { type: "user" | "apiKey"; name?: string };
+  createdAt: number;
+  /** Absent for a `remove` entry and in history listings. */
+  body?: string;
+};
+export type KitClientPayloadVersionSummary = Omit<
+  KitClientPayloadVersion,
+  "body"
+>;
+export type KitClientPayloadHistoryResponse = {
+  versions: KitClientPayloadVersionSummary[];
+};
+export type KitClientPayloadVersionResponse = {
+  version: KitClientPayloadVersion;
+};
+export type KitProductSyncResponse = { jobId: string; deduped: boolean };
+export type KitProductSyncJobResponse = {
+  _id: string;
+  _creationTime: number;
+  projectId: string;
+  platform: KitProductPlatform;
+  direction: "pull" | "push" | "both" | "purge-local";
+  dryRun: boolean;
+  status: "queued" | "running" | "succeeded" | "failed";
+  progress: {
+    phase: string;
+    current?: number;
+    total?: number;
+    failuresCount?: number;
+  };
+  result?: {
+    pulled: number;
+    pushed: number;
+    deleted?: number;
+    failures: { productId: string; reason: string }[];
+    failuresTruncated?: boolean;
+    plannedWrites?: {
+      productId: string;
+      step: string;
+      detail?: string;
+    }[];
+    plannedWritesTruncated?: boolean;
+    manualActions?: {
+      productId: string;
+      code: string;
+      message: string;
+    }[];
+    manualActionsTruncated?: boolean;
+  };
+  error?: string;
+  cancelRequested?: boolean;
+  expectedDeadline?: number;
+  createdBy?: string;
+  startedAt?: number;
+  completedAt?: number;
+  createdAt: number;
+};
+
+export type KitClientPayloadResponse = {
+  clientPayload: KitProductClientPayload;
+  /** Set when a refresh failed and the cached copy was returned. */
+  stale?: true;
+};
+
+type CachedClientPayload = KitClientPayloadResponse & {
+  etag?: string;
+};
+
+type InternalRequestInit = Omit<RequestInit, "headers"> & {
+  headers?: Record<string, string>;
+};
+
+const DEFAULT_BASE_URL = "https://kit.openiap.dev";
+
+// Adds kit's defaults (`accept`, and `content-type` for a body) unless the
+// request set them. Some React Native runtimes have fetch but no global
+// `Headers`, so it falls back to a case-insensitive merge into a plain record.
+function mergeHeaders(
+  callerHeaders: Record<string, string> | undefined,
+  hasBody: boolean,
+): NonNullable<RequestInit["headers"]> {
+  if (typeof Headers === "function") {
+    const merged = new Headers(callerHeaders);
+    if (!merged.has("accept")) merged.set("accept", "application/json");
+    if (hasBody && !merged.has("content-type")) {
+      merged.set("content-type", "application/json");
+    }
+    return merged;
+  }
+  const lower = new Map<string, { name: string; value: string }>();
+  const setIfAbsent = (name: string, value: string) => {
+    const key = name.toLowerCase();
+    if (!lower.has(key)) lower.set(key, { name, value });
+  };
+  if (callerHeaders) {
+    for (const [name, value] of Object.entries(callerHeaders)) {
+      lower.set(name.toLowerCase(), { name, value });
+    }
+  }
+  setIfAbsent("accept", "application/json");
+  if (hasBody) setIfAbsent("content-type", "application/json");
+  const out: Record<string, string> = {};
+  for (const { name, value } of lower.values()) out[name] = value;
+  return out;
+}
+
+export class KitApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly body: unknown,
+    message: string,
+  ) {
+    super(message);
+    this.name = "KitApiError";
+  }
+}
+
+export function kitApi(options: KitApiOptions) {
+  const baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, "");
+  const fetchImpl: (input: string, init?: RequestInit) => Promise<Response> =
+    (() => {
+      if (options.fetchImpl) return options.fetchImpl;
+      if (typeof fetch === "function") {
+        return (input: string, init?: RequestInit) => fetch(input, init);
+      }
+      throw new Error(
+        "kitApi requires a fetch implementation. Pass `fetchImpl` for runtimes without a global fetch.",
+      );
+    })();
+
+  async function request(
+    path: string,
+    init?: InternalRequestInit,
+  ): Promise<Response> {
+    const headers = mergeHeaders(init?.headers, init?.body != null);
+    // baseUrl has its trailing slash stripped, so the path needs a leading one.
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    return fetchImpl(`${baseUrl}${normalizedPath}`, {
+      ...init,
+      headers,
+    });
+  }
+
+  async function parseResponse<T>(
+    response: Response,
+    path: string,
+  ): Promise<T> {
+    const text = await response.text();
+    // An empty body parses as null, not "".
+    let parsed: unknown = null;
+    let parseError: unknown = null;
+    if (text) {
+      try {
+        parsed = JSON.parse(text);
+      } catch (error) {
+        // A 2xx with a non-JSON body (a proxy's HTML error page, say) must
+        // fail as a KitApiError, not reach the caller as text typed as T.
+        parseError = error;
+      }
+    }
+    if (!response.ok) {
+      // Keep the raw body so the upstream error message stays readable.
+      throw new KitApiError(
+        response.status,
+        parsed ?? text,
+        `kit ${path} returned ${response.status}`,
+      );
+    }
+    if (parseError) {
+      throw new KitApiError(
+        response.status,
+        text,
+        `kit ${path} returned a non-JSON ${response.status} body (${
+          parseError instanceof Error ? parseError.message : String(parseError)
+        })`,
+      );
+    }
+    return parsed as T;
+  }
+
+  async function call<T>(path: string, init?: InternalRequestInit): Promise<T> {
+    return parseResponse<T>(await request(path, init), path);
+  }
+
+  function clientPayloadCacheKey(
+    productId: string,
+    platform: KitProductPlatform,
+  ): string {
+    return [
+      "iapkit-client-payload-v1",
+      baseUrl,
+      options.apiKey,
+      platform,
+      productId,
+    ]
+      .map(encodeURIComponent)
+      .join(":");
+  }
+
+  async function readCachedClientPayload(
+    cacheKey: string,
+  ): Promise<CachedClientPayload | null> {
+    if (!options.clientPayloadCache) return null;
+    try {
+      const raw = await options.clientPayloadCache.getItem(cacheKey);
+      if (!raw) return null;
+      const candidate = JSON.parse(raw) as Partial<CachedClientPayload>;
+      if (
+        !isClientPayload(candidate.clientPayload) ||
+        (candidate.etag !== undefined && typeof candidate.etag !== "string")
+      ) {
+        await options.clientPayloadCache.removeItem?.(cacheKey);
+        return null;
+      }
+      return candidate as CachedClientPayload;
+    } catch {
+      return null;
+    }
+  }
+
+  async function writeCachedClientPayload(
+    cacheKey: string,
+    value: CachedClientPayload,
+  ): Promise<void> {
+    try {
+      await options.clientPayloadCache?.setItem(
+        cacheKey,
+        JSON.stringify(value),
+      );
+    } catch {
+      // Persistence is an optimization. A device storage failure must not
+      // turn a successful IAPKit read into an application error.
+    }
+  }
+
+  async function removeCachedClientPayload(cacheKey: string): Promise<void> {
+    try {
+      await options.clientPayloadCache?.removeItem?.(cacheKey);
+    } catch {
+      // See writeCachedClientPayload: cache maintenance is best effort.
+    }
+  }
+
+  const api = {
+    apiKey: options.apiKey,
+    baseUrl,
+
+    /** @deprecated Mobile account paths return 410. Use your authenticated
+     * backend and secret-only v2 reads: https://kit.openiap.dev/docs/api. */
+    status: (userId: string) =>
+      call<StatusResponse>(
+        `/v1/subscriptions/status/${encodeURIComponent(options.apiKey)}?userId=${encodeURIComponent(userId)}`,
+      ),
+
+    /** @deprecated Mobile account paths return 410. Use your authenticated
+     * backend and secret-only v2 reads: https://kit.openiap.dev/docs/api. */
+    entitlements: (userId: string) =>
+      call<EntitlementsResponse>(
+        `/v1/subscriptions/entitlements/${encodeURIComponent(options.apiKey)}?userId=${encodeURIComponent(userId)}`,
+      ),
+
+    /** GET /v1/products — read the store-synced catalog. Client payloads
+     * are excluded unless explicitly requested because they may add up to
+     * 16 KiB per product. */
+    products: (productOptions: KitProductsOptions = {}) => {
+      if (
+        productOptions.includeClientPayload === true &&
+        !productOptions.platform
+      ) {
+        throw new Error(
+          "kitApi.products requires platform when includeClientPayload is true",
+        );
+      }
+      const query = new URLSearchParams();
+      if (productOptions.platform) {
+        query.set("platform", productOptions.platform);
+      }
+      if (productOptions.includeClientPayload !== undefined) {
+        query.set(
+          "includeClientPayload",
+          String(productOptions.includeClientPayload),
+        );
+      }
+      if (productOptions.limit !== undefined) {
+        query.set("limit", String(productOptions.limit));
+      }
+      if (productOptions.cursor !== undefined) {
+        query.set("cursor", productOptions.cursor);
+      }
+      const encodedQuery = query.toString();
+      const suffix = encodedQuery ? `?${encodedQuery}` : "";
+      return call<KitProductsResponse>(
+        `/v1/products/${encodeURIComponent(options.apiKey)}${suffix}`,
+      );
+    },
+
+    /** GET one public client payload by its store-specific natural key.
+     * Payloads are app-facing data; never store secrets in them. */
+    clientPayload: async (
+      productId: string,
+      platform: KitProductPlatform,
+      payloadOptions: KitClientPayloadOptions = {},
+    ): Promise<KitClientPayloadResponse> => {
+      const path = `/v1/products/${encodeURIComponent(options.apiKey)}/${encodeURIComponent(productId)}/client-payload?platform=${encodeURIComponent(platform)}`;
+      const cacheKey = clientPayloadCacheKey(productId, platform);
+      const cached = await readCachedClientPayload(cacheKey);
+      if (cached && payloadOptions.refresh !== true) {
+        return { clientPayload: cached.clientPayload };
+      }
+      let response: Response;
+      try {
+        response = await request(path, {
+          ...(cached?.etag
+            ? { headers: { "If-None-Match": cached.etag } }
+            : {}),
+        });
+      } catch (error) {
+        if (cached) return { clientPayload: cached.clientPayload, stale: true };
+        throw error;
+      }
+      if (response.status === 304 && cached) {
+        return { clientPayload: cached.clientPayload };
+      }
+      if (cached && (response.status === 429 || response.status >= 500)) {
+        return { clientPayload: cached.clientPayload, stale: true };
+      }
+      let body: unknown = null;
+      try {
+        body = await parseResponse<unknown>(response, path);
+      } catch (error) {
+        if (error instanceof KitApiError && error.status === 404) {
+          await removeCachedClientPayload(cacheKey);
+        }
+        if (!response.ok || !cached) throw error;
+      }
+      const clientPayload = isPlainObject(body) ? body.clientPayload : null;
+      if (!isClientPayload(clientPayload)) {
+        // A 2xx that is not a payload, such as a captive portal's HTML page.
+        if (cached) return { clientPayload: cached.clientPayload, stale: true };
+        throw new KitApiError(
+          response.status,
+          body,
+          `kit ${path} returned no client payload`,
+        );
+      }
+      const etag = response.headers.get("etag");
+      await writeCachedClientPayload(cacheKey, {
+        clientPayload,
+        ...(etag ? { etag } : {}),
+      });
+      return { clientPayload };
+    },
+
+    /** Read a JSON payload that follows the localization convention and
+     * resolve it for `locale`. Never throws: any failure, a non-JSON format,
+     * or an unsupported `schemaVersion` returns null so the app can use its
+     * built-in copy. */
+    localizedClientPayload: async (
+      productId: string,
+      platform: KitProductPlatform,
+      localizedOptions: KitLocalizedClientPayloadOptions,
+    ): Promise<KitLocalizedClientPayload | null> => {
+      try {
+        const { clientPayload, stale } = await api.clientPayload(
+          productId,
+          platform,
+          { refresh: localizedOptions.refresh },
+        );
+        if (clientPayload.format !== "json") return null;
+        const values = resolveLocalizedPayload(
+          JSON.parse(clientPayload.body),
+          localizedOptions,
+        );
+        return values
+          ? { values, version: clientPayload.version, stale: stale === true }
+          : null;
+      } catch {
+        return null;
+      }
+    },
+
+    /** @deprecated Mobile binding paths return 410. Bind on your authenticated
+     * backend with a secret key: https://kit.openiap.dev/docs/api. */
+    bindUser: (purchaseToken: string, userId: string) =>
+      call<{ ok: boolean; bound: boolean }>(
+        `/v1/subscriptions/bind-user/${encodeURIComponent(options.apiKey)}`,
+        {
+          method: "POST",
+          body: JSON.stringify({ purchaseToken, userId }),
+        },
+      ),
+  };
+  return api;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// Only the invariants the cache depends on. `format` is opaque: rejecting an
+// unknown one would kill ETag revalidation and offline reads.
+function isClientPayload(value: unknown): value is KitProductClientPayload {
+  if (!isPlainObject(value)) return false;
+  const { format, body, version, updatedAt } = value;
+  return (
+    typeof format === "string" &&
+    typeof body === "string" &&
+    typeof version === "number" &&
+    Number.isSafeInteger(version) &&
+    version >= 1 &&
+    typeof updatedAt === "number"
+  );
+}
+
+const normalizeLocaleTag = (tag: string): string =>
+  tag.trim().replace(/_/g, "-").toLowerCase();
+
+/**
+ * Resolve the OpenIAP payload localization convention:
+ * `{ schemaVersion: 1, default: {...}, locales: { "ko": {...}, "en-US": {...} } }`.
+ * Tries each requested tag and its shorter prefixes (`zh-Hant-TW`, `zh-Hant`,
+ * `zh`), then `fallbackLocales` the same way, and shallow-merges the first
+ * match over `default`. Returns null for an unsupported or missing
+ * `schemaVersion`, or when nothing matches and there is no `default`.
+ */
+export function resolveLocalizedPayload(
+  payload: unknown,
+  options: KitLocalizedPayloadOptions,
+): Record<string, unknown> | null {
+  if (!isPlainObject(payload)) return null;
+  const supported = options.supportedSchemaVersions ?? [1];
+  if (
+    typeof payload.schemaVersion !== "number" ||
+    !supported.includes(payload.schemaVersion)
+  ) {
+    return null;
+  }
+  const base = isPlainObject(payload.default) ? payload.default : null;
+  const locales = new Map<string, Record<string, unknown>>();
+  if (isPlainObject(payload.locales)) {
+    for (const [tag, values] of Object.entries(payload.locales)) {
+      if (isPlainObject(values)) locales.set(normalizeLocaleTag(tag), values);
+    }
+  }
+  for (const requested of [
+    options.locale,
+    ...(options.fallbackLocales ?? []),
+  ]) {
+    const subtags = normalizeLocaleTag(requested).split("-").filter(Boolean);
+    for (let length = subtags.length; length > 0; length -= 1) {
+      const match = locales.get(subtags.slice(0, length).join("-"));
+      if (match) return { ...base, ...match };
+    }
+  }
+  return base ? { ...base } : null;
+}

@@ -18,6 +18,7 @@ export const communityBlockEnd = "<!-- community:end -->";
 
 // The package each README's community section names.
 export const communityReadmes = {
+  "libraries/capacitor-iap/README.md": "capacitor-iap",
   "libraries/expo-iap/README.md": "expo-iap",
   "libraries/flutter_inapp_purchase/README.md": "flutter_inapp_purchase",
   "libraries/godot-iap/README.md": "godot-iap",

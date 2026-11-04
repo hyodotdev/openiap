@@ -47,6 +47,10 @@ const COMMERCE_PROTOCOL_VERSION = readRequiredMetadataString(
   'commerceProtocolPackageVersion',
   'commerceProtocolPackageVersion'
 );
+const CAPACITOR_PACKAGE_VERSION = readRequiredMetadataString(
+  'capacitorPackageVersion',
+  'capacitorPackageVersion'
+);
 const EXPO_PACKAGE_VERSION = readRequiredMetadataString(
   'expoPackageVersion',
   'expoPackageVersion'
@@ -151,6 +155,13 @@ export const FLUTTER_PACKAGE = Object.freeze({
   installCommand: 'flutter pub add flutter_inapp_purchase',
   dependencyLine: `flutter_inapp_purchase: ^${FLUTTER_PACKAGE_VERSION}`,
   pubUrl: 'https://pub.dev/packages/flutter_inapp_purchase',
+});
+
+export const CAPACITOR_PACKAGE = Object.freeze({
+  name: 'capacitor-iap',
+  version: CAPACITOR_PACKAGE_VERSION,
+  installCommand: 'npm install capacitor-iap && npx cap sync',
+  npmUrl: 'https://www.npmjs.com/package/capacitor-iap',
 });
 
 export const EXPO_PACKAGE = Object.freeze({

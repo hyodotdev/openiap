@@ -1,6 +1,6 @@
 ---
 name: e2e-matrix-runner-google
-description: Run the Android half of the OpenIAP device matrix — six frameworks across Google Play, Amazon Appstore, and Meta Horizon, plus VegaOS — on real hardware and report one row per cell with evidence. Use when asked for Android e2e or delegated hardware testing.
+description: Run the Android half of the OpenIAP device matrix — seven frameworks across Google Play, Amazon Appstore, and Meta Horizon, plus VegaOS — on real hardware and report one row per cell with evidence. Use when asked for Android e2e or delegated hardware testing.
 ---
 
 # E2E Matrix Runner Google (Claude Code)

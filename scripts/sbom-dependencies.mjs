@@ -1012,10 +1012,11 @@ function extractOpenIapNative(
   const versions = readJson(root, "openiap-versions.json");
   const entries = [];
   if (apple) {
-    // KMP's Gradle swiftPMDependencies block or a podspec's spm_dependency.
+    // KMP's Gradle swiftPMDependencies block, a podspec's spm_dependency, or
+    // a Package.swift dependency.
     const usesSwiftPM =
       appleSwiftPMManifest &&
-      /swiftPMDependencies \{|spm_dependency\(/u.test(
+      /swiftPMDependencies \{|spm_dependency\(|\.package\(url: "https:\/\/github\.com\/hyodotdev\/openiap\.git"/u.test(
         readText(root, appleSwiftPMManifest),
       );
     entries.push(

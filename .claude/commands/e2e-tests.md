@@ -48,6 +48,7 @@ exact missing command, tool, device, or store prerequisite.
 | `packages/apple` native     | n/a                 | n/a                 | n/a        | build + tests       | n/a       | n/a        |
 | `react-native-iap`          | build + device flow | build + device flow | build-only | build + device flow | RN only   | n/a        |
 | `expo-iap`                  | build + device flow | build + device flow | build-only | build + device flow | Expo only | build-only |
+| `capacitor-iap`             | build + device flow | build + device flow | build-only | build + device flow | n/a       | n/a        |
 | `flutter_inapp_purchase`    | build + device flow | build + device flow | build-only | build + device flow | n/a       | n/a        |
 | `kmp-iap`                   | build + device flow | build + device flow | build-only | build + device flow | n/a       | n/a        |
 | `maui-iap`                  | build + device flow | build + device flow | build-only | build + device flow | n/a       | n/a        |
@@ -721,6 +722,65 @@ VEGA_DEVICE_ID="$VEGA_DEVICE_ID" yarn run:vega:firetv
 kepler device is-app-running \
   -d "$VEGA_DEVICE_ID" \
   -a dev.hyo.openiap.rniap.example.main
+```
+
+## Capacitor Checks
+
+Library:
+
+```bash
+cd libraries/capacitor-iap
+bun install --frozen-lockfile
+bun run lint:ci
+bun run test
+```
+
+The example links the library with npm, then syncs the web build into both
+native projects:
+
+```bash
+cd libraries/capacitor-iap/example
+npm ci
+npm run build
+npx cap sync
+```
+
+Normal Android build and launch smoke (repeat with `FIREOS_SERIAL` and
+`store=amazon`, or `HORIZON_SERIAL` and `store=horizon`, as the React Native
+checks do):
+
+```bash
+cd libraries/capacitor-iap/example/android
+: "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the target Android device serial}"
+build_log="$(./gradlew :app:assembleDebug)"
+printf '%s\n' "$build_log" | grep -F 'openiap: store=play (source=device;'
+# Build-only regression can stop here.
+adb -s "$ANDROID_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk
+adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.martie 1
+```
+
+Normal iOS physical-device build and launch smoke:
+
+```bash
+cd libraries/capacitor-iap/example/ios/App
+: "${IOS_UDID:?Set IOS_UDID to the target iOS device UDID}"
+: "${TEAM_ID:?Set TEAM_ID to the Apple development team ID}"
+xcodebuild \
+  -project App.xcodeproj \
+  -configuration Debug \
+  -scheme App \
+  -destination "id=$IOS_UDID" \
+  DEVELOPMENT_TEAM="$TEAM_ID" \
+  -derivedDataPath build/DerivedData \
+  -allowProvisioningUpdates \
+  -allowProvisioningDeviceRegistration
+# Build-only regression can stop here.
+xcrun devicectl device install app \
+  --device "$IOS_UDID" \
+  build/DerivedData/Build/Products/Debug-iphoneos/App.app
+xcrun devicectl device process launch \
+  --device "$IOS_UDID" \
+  dev.hyo.martie
 ```
 
 ## Flutter Checks

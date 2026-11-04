@@ -25,9 +25,9 @@ function SetupIndex() {
     <div className="doc-page">
       <SEO
         title="Framework Setup"
-        description="Choose an OpenIAP-powered framework — Expo, React Native, Flutter, Kotlin Multiplatform, .NET MAUI, or Godot — and follow the install guide."
+        description="Choose an OpenIAP-powered framework — Expo, React Native, Capacitor, Flutter, Kotlin Multiplatform, .NET MAUI, or Godot — and follow the install guide."
         path="/docs/setup"
-        keywords="OpenIAP, Framework Setup, expo-iap, react-native-iap, flutter_inapp_purchase, kmp-iap, maui-iap, godot-iap"
+        keywords="OpenIAP, Framework Setup, expo-iap, react-native-iap, capacitor-iap, flutter_inapp_purchase, kmp-iap, maui-iap, godot-iap"
       />
       <h1>Framework Setup</h1>
       <p>

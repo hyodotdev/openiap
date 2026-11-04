@@ -117,6 +117,7 @@ import ExpoSetup from './setup/expo';
 import FlutterSetup from './setup/flutter';
 import GodotSetup from './setup/godot';
 import KmpSetup from './setup/kmp';
+import CapacitorSetup from './setup/capacitor';
 import MauiSetup from './setup/maui';
 import Example from './example';
 import Announcements from './updates/announcements';
@@ -1339,6 +1340,7 @@ function Docs() {
         <Route path="setup/flutter" element={<FlutterSetup />} />
         <Route path="setup/godot" element={<GodotSetup />} />
         <Route path="setup/kmp" element={<KmpSetup />} />
+        <Route path="setup/capacitor" element={<CapacitorSetup />} />
         <Route path="setup/maui" element={<MauiSetup />} />
         <Route path="example" element={<Example />} />
         <Route

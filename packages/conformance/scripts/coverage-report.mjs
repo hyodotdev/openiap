@@ -147,6 +147,7 @@ const ANDROID_SUITES = 'packages/conformance/android/src/main/kotlin/dev/hyo/ope
 for (const [name, path] of [
   ['react-native-iap', 'libraries/react-native-iap/src/__tests__/conformance.test.ts'],
   ['expo-iap', 'libraries/expo-iap/src/__tests__/conformance.test.ts'],
+  ['capacitor-iap', 'libraries/capacitor-iap/src/__tests__/conformance.test.ts'],
 ]) {
   const suite = read(path);
   const block = suite.slice(suite.indexOf('const COVERED_BEHAVIORS'));

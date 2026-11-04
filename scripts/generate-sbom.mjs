@@ -265,6 +265,83 @@ const COMPONENTS = {
       historicalManifests: commerceProtocolManifest.historicalPaths,
     },
   },
+  capacitor: {
+    sbomName: "capacitor-iap",
+    type: "library",
+    purl: (version) => `pkg:npm/capacitor-iap@${version}`,
+    distribution: (version) =>
+      `https://www.npmjs.com/package/capacitor-iap/v/${version}`,
+    directory: "libraries/capacitor-iap",
+    source: {
+      kind: "aggregate",
+      sources: [
+        { kind: "npm", manifest: "libraries/capacitor-iap/package.json" },
+        // The host app supplies Capacitor, as it does on Android.
+        {
+          kind: "openiap-native",
+          apple: true,
+          appleSwiftPMManifest: "libraries/capacitor-iap/Package.swift",
+          google: ALL_OPENIAP_NATIVE_VARIANTS.google,
+        },
+        {
+          kind: "declared",
+          manifest: "libraries/capacitor-iap/android/build.gradle",
+          inventories: [
+            {
+              file: "libraries/capacitor-iap/android/build.gradle",
+              pattern: GRADLE_COORDINATE_PATTERN,
+              expected: [
+                "androidx.appcompat:appcompat:$androidxAppCompatVersion",
+                "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0",
+                "io.github.hyochan.openiap:openiap-google-amazon:${googleVersion}",
+                "io.github.hyochan.openiap:openiap-google-horizon:${googleVersion}",
+                "io.github.hyochan.openiap:openiap-google:${googleVersion}",
+              ],
+              resolverExpected: [
+                "androidx.appcompat:appcompat:$androidxAppCompatVersion",
+                "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0",
+              ],
+            },
+            {
+              file: "libraries/capacitor-iap/android/build.gradle",
+              pattern: GRADLE_PROJECT_PATTERN,
+              expected: [":capacitor-android", ":openiap-google"],
+              resolverExpected: [":capacitor-android"],
+            },
+            storeResolverInventory(
+              "libraries/capacitor-iap/android/build.gradle",
+              "implementation",
+              "googleVersion",
+              ":openiap-google",
+            ),
+          ],
+          dependencies: [
+            {
+              ecosystem: "maven",
+              group: "androidx.appcompat",
+              artifact: "appcompat",
+              version: "1.7.1",
+              marker: "androidx.appcompat:appcompat:",
+              platform: "android",
+              hostProvided: true,
+              spdxLicense: "Apache-2.0",
+              supplier: "The Android Open Source Project",
+            },
+            {
+              ecosystem: "maven",
+              group: "org.jetbrains.kotlinx",
+              artifact: "kotlinx-coroutines-android",
+              version: "1.11.0",
+              marker: "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0",
+              platform: "android",
+              spdxLicense: "Apache-2.0",
+              supplier: "JetBrains",
+            },
+          ],
+        },
+      ],
+    },
+  },
   expo: {
     sbomName: "expo-iap",
     type: "library",
@@ -923,7 +1000,7 @@ export function parseTrivyExceptions(contents) {
 // pass between merging it and publishing. Listing it here is the explicit,
 // reviewable way to say "not shipped yet"; the entry comes out when it ships
 // and the floor goes in.
-export const UNRELEASED_COMPONENTS = new Set(["cli"]);
+export const UNRELEASED_COMPONENTS = new Set(["cli", "capacitor"]);
 
 export const SBOM_COVERAGE_FLOOR = {
   // Every released component is anchored to the first release required to

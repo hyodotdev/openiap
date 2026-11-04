@@ -21,6 +21,7 @@ export const touchpointsPath = "packages/docs/community-touchpoints.json";
 export const noticeRoots = {
   "react-native-iap": ["libraries/react-native-iap/src"],
   "expo-iap": ["libraries/expo-iap/src"],
+  "capacitor-iap": ["libraries/capacitor-iap/src"],
   flutter_inapp_purchase: ["libraries/flutter_inapp_purchase/lib"],
   "godot-iap": ["libraries/godot-iap/addons/godot-iap"],
   "kmp-iap": ["libraries/kmp-iap/library/src"],

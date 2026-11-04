@@ -1,6 +1,6 @@
 ---
 name: e2e-matrix-runner-apple
-description: Run the Apple half of the OpenIAP device matrix — six frameworks plus the native package on iOS — on a physical iPhone and report one row per cell with evidence. Use when asked for iOS e2e or the Apple half of a parallel device run.
+description: Run the Apple half of the OpenIAP device matrix — seven frameworks plus the native package on iOS — on a physical iPhone and report one row per cell with evidence. Use when asked for iOS e2e or the Apple half of a parallel device run.
 ---
 
 # E2E Matrix Runner Apple
@@ -21,11 +21,11 @@ adds only the narrowed matrix.
 
 | Store | Frameworks                         | Device            | Depth                     |
 | ----- | ---------------------------------- | ----------------- | ------------------------- |
-| iOS   | all six + `packages/apple`         | iPhone (physical) | device purchase flow each |
+| iOS   | all seven + `packages/apple`       | iPhone (physical) | device purchase flow each |
 | iOS   | Expo Onside (`EXPO_IAP_ONSIDE=1`)  | generic iOS build | build-only                |
 
-That is the 7 iOS cells plus the Expo Onside build-only cell of the full
-matrix. All six example apps share the bundle id `dev.hyo.martie`, so
+That is the 8 iOS cells plus the Expo Onside build-only cell of the full
+matrix. All seven example apps share the bundle id `dev.hyo.martie`, so
 install, purchase, and move to the next framework strictly one at a time.
 
 ## Parallel-run rules

@@ -102,7 +102,7 @@ test("Gradle wrappers pin distributions and validate tracked jars", () => {
     .split("\n")
     .filter(Boolean);
 
-  assert.equal(wrappers.length, 7);
+  assert.equal(wrappers.length, 8);
   for (const wrapper of wrappers) {
     const properties = readFileSync(resolve(repoRoot, wrapper), "utf8");
     const asset = properties.match(/gradle-[\d.]+-(?:all|bin)\.zip/u)?.[0];
@@ -116,7 +116,7 @@ test("Gradle wrappers pin distributions and validate tracked jars", () => {
 
   const ci = readWorkflow("ci.yml");
   assert.match(ci, /gradle\/actions\/wrapper-validation@[a-f0-9]{40} # v6/u);
-  assert.match(ci, /min-wrapper-count: 7/u);
+  assert.match(ci, /min-wrapper-count: 8/u);
 
   const makefile = readFileSync(
     resolve(repoRoot, "libraries/godot-iap/Makefile"),

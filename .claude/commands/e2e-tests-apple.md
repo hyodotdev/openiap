@@ -19,14 +19,15 @@ scope.
 - `packages/apple` native: `swift build` and `swift test`, plus the
   xcframework build when iOS native packaging or bindings changed
   (`## Package-Level Checks`, Apple package).
-- iOS rows: all six frameworks (`react-native-iap`, `expo-iap`,
-  `flutter_inapp_purchase`, `kmp-iap`, `maui-iap`, `godot-iap`).
+- iOS rows: all seven frameworks (`react-native-iap`, `expo-iap`,
+  `capacitor-iap`, `flutter_inapp_purchase`, `kmp-iap`, `maui-iap`,
+  `godot-iap`).
 - Expo Onside: iOS build-only (`EXPO_IAP_ONSIDE=1` path under
   `## Expo Checks`).
 - Local (IAPKit) receipt vertical on iOS
   (`## Local (IAPKit) Receipt Vertical`).
 
-That is the 7 iOS cells plus the Expo Onside build-only cell of the full
+That is the 8 iOS cells plus the Expo Onside build-only cell of the full
 matrix. Report every unavailable row as `BLOCKED` with its exact missing
 prerequisite.
 

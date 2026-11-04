@@ -26,6 +26,7 @@ const KIT_CLIENT_CONTRACT_PATHS = Object.freeze([
 const KIT_RUNTIME_CONTRACT_PATH = "specs/commerce-protocol/**";
 
 export const nativeWorkflows = Object.freeze([
+  "ci-capacitor-iap.yml",
   "ci-expo-iap.yml",
   "ci-flutter-inapp-purchase.yml",
   "ci-godot-iap.yml",
@@ -153,6 +154,7 @@ export function selectJobs(files, root = repositoryRoot) {
 }
 
 const ALL_SWIFT_WRAPPERS = [
+  "codeql:analyze-swift-wrappers/capacitor",
   "codeql:analyze-swift-wrappers/expo",
   "codeql:analyze-swift-wrappers/expo-onside",
   "codeql:analyze-swift-wrappers/flutter",
@@ -444,6 +446,7 @@ export const cases = Object.freeze([
     name: "google-store-resolver",
     files: ["packages/google/gradle/openiap-store.gradle"],
     jobs: [
+      "ci-capacitor-iap.yml",
       "ci:audit-parity",
       "ci-expo-iap.yml",
       "ci-flutter-inapp-purchase.yml",
@@ -583,6 +586,7 @@ export const cases = Object.freeze([
     name: "generated-typescript-types",
     files: ["specs/client/src/generated/types.ts"],
     jobs: [
+      "ci-capacitor-iap.yml",
       "ci:audit-parity",
       "ci-expo-iap.yml",
       "ci-maui-iap.yml",
@@ -723,6 +727,7 @@ export const cases = Object.freeze([
     name: "xcode-pin",
     files: [".github/actions/setup-xcode/action.yml"],
     jobs: [
+      "ci-capacitor-iap.yml",
       "ci-flutter-inapp-purchase.yml",
       "ci-godot-iap.yml",
       "ci-kmp-iap.yml",

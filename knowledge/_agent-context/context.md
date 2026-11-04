@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-11-04T06:54:15.750Z
+> Last updated: 2026-11-04T20:05:50.861Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -305,7 +305,8 @@ openiap/
 │   ├── flutter_inapp_purchase/  # Flutter (pub.dev, Dart)
 │   ├── godot-iap/         # Godot 4.x (GitHub Release, GDScript)
 │   ├── kmp-iap/           # Kotlin Multiplatform (Maven Central)
-│   └── maui-iap/          # .NET MAUI / C# (NuGet)
+│   ├── maui-iap/          # .NET MAUI / C# (NuGet)
+│   └── capacitor-iap/     # Capacitor (npm, Bun, Capacitor 8 plugin)
 ├── knowledge/         # Shared knowledge base (SSOT)
 │   ├── internal/      # Project philosophy (HIGHEST PRIORITY)
 │   ├── external/      # External API reference
@@ -1363,7 +1364,7 @@ the full purchase; the Apple ID-only selector resolves the owned purchase
 first and otherwise points to the full-purchase selector.
 
 External selection pairs a community id with fixed coordinates in every SDK:
-`openiapStore` + `openiapProvider` (Gradle, React Native, Flutter, KMP),
+`openiapStore` + `openiapProvider` (Gradle, React Native, Capacitor, Flutter, KMP),
 `android.store` + `android.provider` (Expo), `OpenIapStore` +
 `OpenIapProvider` (MAUI), `openiap/android_store` +
 `openiap/android_provider` (Godot), and the Info.plist provider key (Apple).
@@ -1397,6 +1398,7 @@ For every new/changed handler in the generated types, verify **all five** of the
 | -------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **react-native-iap**       | `src/types.ts` (generated)                                          | `src/index.ts` export (Nitro or composed TS)                                                                                                                                                                                                       | `ios/HybridRnIap.swift` (iOS), `android/.../HybridRnIap.kt` (Android)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Not required (flat exports)                                                                                            | Mock stub in every `mockIap` object under `src/__tests__/` (`grep -rl mockIap src/__tests__`)                                                                                                                                                                                                                                                                                                      |
 | **expo-iap**               | `src/types.ts` (generated)                                          | `src/modules/ios.ts` / `android.ts` export, re-exported from `src/index.ts`                                                                                                                                                                        | `ios/ExpoIapModule.swift` `AsyncFunction`, `android/.../ExpoIapModule.kt`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Not required (flat exports)                                                                                            | `src/modules/__tests__/*.test.ts`                                                                                                                                                                                                                                                                                                                                                                  |
+| **capacitor-iap**          | `src/types.ts` (generated)                                          | `src/modules/ios.ts` / `android.ts` export, re-exported from `src/index.ts`; native method declared in `src/definitions.ts`                                                                                                                       | `ios/Sources/CapacitorIapPlugin/CapacitorIapPlugin.swift` (`@objc func` + `pluginMethods`), `android/src/main/java/dev/hyo/capacitoriap/CapacitorIapPlugin.kt` (`@PluginMethod`)                                                                                                                                                                                                                                                                                                                                                      | Not required (flat exports)                                                                                            | `src/__tests__/*.test.ts` over the fake plugin in `src/__mocks__/capacitor-core.ts`                                                                                                                                                                                                                                                                                                              |
 | **flutter_inapp_purchase** | `lib/types.dart` (generated)                                        | getter on `FlutterInappPurchase` in `lib/flutter_inapp_purchase.dart`                                                                                                                                                                              | `case "<name>":` in `ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift` and `macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift`, Android plugin `onMethodCall`                                                                                                                                                                                                                                                                                                                                                   | `queryHandlers` / `mutationHandlers` / `subscriptionHandlers` bundles near the bottom of `flutter_inapp_purchase.dart` | Mock + test in `test/ios_methods_test.dart` (and the `errors_unit_test.dart` error-mapping test)                                                                                                                                                                                                                                                                                                   |
 | **kmp-iap**                | `library/src/commonMain/.../openiap/Types.kt` (generated interface) | exposed via `KmpInAppPurchase` / `kmpIapInstance`                                                                                                                                                                                                  | `library/src/iosMain/.../InAppPurchaseIOS.kt` — must call `openIapModule.<name>WithCompletion { ... }`, **never** `throw UnsupportedOperationException`                                                                                                                                                                                                                                                                                                                                                                                                                                              | Not required (interface dispatch)                                                                                      | `library/src/commonTest/` if testable cross-platform                                                                                                                                                                                                                                                                                                                                               |
 | **godot-iap**              | `addons/godot-iap/types.gd` (generated)                             | public `snake_case` function in `addons/godot-iap/godot_iap.gd`                                                                                                                                                                                    | `ios-gdextension/Sources/GodotIap/GodotIap.swift` (iOS), `android/src/main/java/.../GodotIap.java` (Android)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Not required                                                                                                           | `make test` covers generated types, API surface, native-extension loading, envelope parsing, and public GDScript behavior; physical devices remain required for store purchases                                                                                                                                                                                                                    |
@@ -1529,8 +1531,8 @@ purchase and keeps its own names.
 
 **SSOT.** `packages/google/gradle/openiap-store.gradle` implements the rule;
 edit only that file. A Gradle script cannot ship in the AAR, so
-`libraries/react-native-iap/android`, `libraries/expo-iap/android`, and
-`libraries/flutter_inapp_purchase/android` symlink it, as the libraries do with
+`libraries/react-native-iap/android`, `libraries/expo-iap/android`,
+`libraries/capacitor-iap/android`, and `libraries/flutter_inapp_purchase/android` symlink it, as the libraries do with
 `openiap-versions.json`, and `bun audit:parity` checks the link targets. Each
 wrapper publishes it as a real file: the npm release steps copy it over the
 link, and `dart pub publish` follows the link. The OpenIAP Gradle plugin
@@ -1540,6 +1542,7 @@ file into its jar at build time. Every other build system reads the same names:
 | Consumer                            | Input                                                                                               |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------- |
 | react-native-iap, expo-iap, Flutter | wrapper `build.gradle` applies the script; example apps do the same                                 |
+| capacitor-iap                       | plugin `android/build.gradle` applies the script; the example app does the same                     |
 | expo-iap config plugin              | `modules.amazon.fireOS` pins amazon; deprecated `modules.horizon` still pins                        |
 | kmp-iap                             | library flavors match an app `platform` dimension, or the Gradle plugin picks one                   |
 | OpenIAP Gradle plugin (native, KMP) | applied in settings; selects kmp-iap's store variant and swaps `openiap-google` for the store       |
@@ -1763,10 +1766,10 @@ navigation, and purchase screens. Add a feature to that example before testing
 it on a device so users can run the same check. Native package rows use their
 checked-in sample apps.
 
-The two native package examples and six framework examples must expose the same
+The two native package examples and seven framework examples must expose the same
 catalog, purchase, subscription, restore, verification, and ownership flows with
 the same meaning and visible results. Add new diagnostic features to those
-existing screens and keep the eight-example acceptance matrix current. A
+existing screens and keep the nine-example acceptance matrix current. A
 platform-only feature must show its supported-platform limit explicitly; it
 must not silently disappear or turn into a separate test app. A Kit-only change
 may reuse existing example flows, but does not count as completing missing
@@ -2264,7 +2267,7 @@ Framework implementation listings must be derived from
 `packages/docs/src/lib/images.ts`:
 
 - `LIBRARIES` is the canonical order and membership for framework libraries
-  (Expo, React Native, Flutter, KMP, MAUI, Godot).
+  (Expo, React Native, Capacitor, Flutter, KMP, MAUI, Godot).
 - Pages that show framework lists, setup links, sponsor links, or home-page
   icons must map over `LIBRARIES` instead of hand-writing their own arrays.
 - When adding, removing, renaming, or reordering a framework, update
@@ -2766,6 +2769,7 @@ Fix purchase validation error
 | `kmp`               | `libraries/kmp-iap`                  |
 | `godot`             | `libraries/godot-iap`                |
 | `maui`              | `libraries/maui-iap`                 |
+| `capacitor`         | `libraries/capacitor-iap`            |
 | `kit`               | `packages/kit`                       |
 | `cli`               | `packages/cli`                       |
 | `commerce-protocol` | `specs/commerce-protocol`            |
@@ -3679,6 +3683,7 @@ asking.
 | ---------------------- | -------------------------------------------------------- | ---------------------------------------------- | -------------------------------- | ----------------------------------------- | ---------------------------------------- |
 | react-native-iap       | `finishTransaction` in `src/index.ts`                    | `__DEV__`                                      | `JEST_WORKER_ID`                 | Nitro `claimFirstPurchaseNotice`          | `console.log` (DevTools, Logcat, Xcode)  |
 | expo-iap               | `finishTransaction` in `src/index.ts`                    | `__DEV__`                                      | `JEST_WORKER_ID`                 | Expo module `claimFirstPurchaseNotice`    | `console.log` (Expo CLI terminal)        |
+| capacitor-iap          | `finishTransaction` in `src/index.ts`                    | host `FLAG_DEBUGGABLE`; iOS `#if DEBUG`        | `JEST_WORKER_ID`                 | plugin method `claimFirstPurchaseNotice`  | `console.log` (Logcat, Xcode)            |
 | flutter_inapp_purchase | `finishTransaction` in `lib/flutter_inapp_purchase.dart` | `kDebugMode`                                   | `FLUTTER_TEST` environment       | method channel `claimFirstPurchaseNotice` | `debugPrint` (`flutter run`)             |
 | godot-iap              | `finish_transaction` in `godot_iap.gd`                   | `OS.is_debug_build()`                          | headless display server          | plugin method `claimFirstPurchaseNotice`  | `print` (Godot output)                   |
 | kmp-iap                | Android `finishTransaction`                              | host `FLAG_DEBUGGABLE`; iOS none, so no notice | JUnit on the classpath           | openiap-google helper                     | `Log.i` (Logcat)                         |
@@ -3686,6 +3691,9 @@ asking.
 
 Vega OS runs the JavaScript adapters with no native flag store, so it prints
 nothing.
+
+capacitor-iap's Swift sources build inside the host app through Swift
+Package Manager, so its `#if DEBUG` follows the host's configuration.
 
 React Native's CLI no longer forwards `console.log` to the Metro terminal
 (`--client-logs` is deprecated and off), so the line shows in React Native
@@ -3699,13 +3707,13 @@ assembly's `DebuggableAttribute`, is unverified on iOS.
 
 ## Where each text appears
 
-- **Console notice:** the six libraries above, from their own constant.
+- **Console notice:** the seven libraries above, from their own constant.
 - **Note for coding assistants:** `llms.txt` and `llms-full.txt` (generated by
   `scripts/agent/compile-context.ts`), the AI assistants guide, the end of every
   `openiap init` brief, and the wrap-up of `plugins/openiap/skills/openiap`.
   Never in this repository's `AGENTS.md` files, `.claude/`, or `.codex/`, which
   serve contributors, and never in IAPKit MCP responses.
-- **README section:** the six library READMEs and the CLI README, with the
+- **README section:** the seven library READMEs and the CLI README, with the
   package name substituted.
 - **Funding:** `bun run sponsors:sync` writes npm `funding` and pubspec
   `funding:` from `packages/docs/sponsor-registry.json`, as it does for

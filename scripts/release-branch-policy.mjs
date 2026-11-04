@@ -97,6 +97,11 @@ export const versionSources = {
     jsonField("version"),
     commerceProtocolManifest.historicalPaths,
   ),
+  capacitor: versionSource(
+    "capacitor-iap",
+    "libraries/capacitor-iap/package.json",
+    jsonField("version"),
+  ),
   expo: versionSource(
     "expo-iap",
     "libraries/expo-iap/package.json",
@@ -383,6 +388,10 @@ export const publishedSources = {
     /^libraries\/react-native-iap\/(src|ios|android\/src\/main)\//,
     /^libraries\/react-native-iap\/(android\/([^/]+\.gradle|consumer-rules[\w-]*\.pro|CMakeLists\.txt)|NitroIap\.podspec|nitro\.json)$/,
   ],
+  capacitor: [
+    /^libraries\/capacitor-iap\/(src|ios\/Sources|android\/src\/main)\//,
+    /^libraries\/capacitor-iap\/(android\/[^/]+\.gradle|Package\.swift)$/,
+  ],
   expo: [
     /^libraries\/expo-iap\/(src|ios|onside|plugin\/src|android\/src\/main)\//,
     /^libraries\/expo-iap\/(android\/[^/]+\.gradle|app\.plugin\.js|expo-module\.config\.json)$/,
@@ -447,6 +456,7 @@ export const nativeReleaseGates = {
 // The tags the framework library release workflows cut.
 export const libraryReleaseTags = {
   "react-native": (version) => `react-native-iap-${version}`,
+  capacitor: (version) => `capacitor-iap-${version}`,
   expo: (version) => `expo-iap-${version}`,
   flutter: (version) => `flutter-iap-${version}`,
   godot: (version) => `godot-iap-${version}`,

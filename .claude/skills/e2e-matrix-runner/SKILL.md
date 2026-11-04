@@ -1,6 +1,6 @@
 ---
 name: e2e-matrix-runner
-description: Run the full OpenIAP device matrix — six frameworks across iOS, Google Play, Amazon Appstore, Meta Horizon, and VegaOS — on real hardware and report one row per cell with evidence. Use when asked for a full e2e matrix or delegated hardware testing.
+description: Run the full OpenIAP device matrix — seven frameworks across iOS, Google Play, Amazon Appstore, Meta Horizon, and VegaOS — on real hardware and report one row per cell with evidence. Use when asked for a full e2e matrix or delegated hardware testing.
 ---
 
 # E2E Matrix Runner (Claude Code)

@@ -4,6 +4,7 @@ export type Ecosystem =
   | 'android'
   | 'react-native'
   | 'expo'
+  | 'capacitor'
   | 'flutter'
   | 'kmp'
   | 'maui'

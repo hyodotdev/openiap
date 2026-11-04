@@ -41,6 +41,11 @@ export const HORIZON_APP_ID_SOURCES = [
     kind: "android-manifest",
   },
   {
+    library: "capacitor-iap",
+    file: "libraries/capacitor-iap/example/android/app/src/main/AndroidManifest.xml",
+    kind: "android-manifest",
+  },
+  {
     library: "expo-iap",
     file: "libraries/expo-iap/example/app.config.ts",
     kind: "expo-plugin-config",

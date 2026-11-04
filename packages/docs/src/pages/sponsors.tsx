@@ -36,7 +36,7 @@ const FUNDING_LINES = [
     icon: Gauge,
     title: 'SDK parity',
     description:
-      'One reviewed contract across native modules and six frameworks.',
+      'One reviewed contract across native modules and seven frameworks.',
   },
 ] as const;
 

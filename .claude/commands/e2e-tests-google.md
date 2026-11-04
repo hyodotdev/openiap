@@ -19,16 +19,16 @@ scope.
 - `packages/google` native: compile plus tests for every store, then the
   Example app on each store device (`## Package-Level Checks`, Google Android
   package).
-- Play, FireOS/Amazon, and Horizon rows: all six frameworks
-  (`react-native-iap`, `expo-iap`, `flutter_inapp_purchase`, `kmp-iap`,
-  `maui-iap`, `godot-iap`). With a Quest attached, navigate to checkout and
+- Play, FireOS/Amazon, and Horizon rows: all seven frameworks
+  (`react-native-iap`, `expo-iap`, `capacitor-iap`, `flutter_inapp_purchase`,
+  `kmp-iap`, `maui-iap`, `godot-iap`). With a Quest attached, navigate to checkout and
   follow the canonical **Horizon Test Accounts and Payments** gate before
   confirming; without one, report build-only coverage.
 - VegaOS rows: `react-native-iap` and `expo-iap` only.
 - Local (IAPKit) receipt vertical on Android
   (`## Local (IAPKit) Receipt Vertical`).
 
-That is the 21 Android/Horizon cells plus the 2 VegaOS cells of the full
+That is the 24 Android/Horizon cells plus the 2 VegaOS cells of the full
 matrix. Report every unavailable row as `BLOCKED` with its exact missing
 prerequisite.
 

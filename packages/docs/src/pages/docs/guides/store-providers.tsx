@@ -42,6 +42,7 @@ function providerStatus(
 
 const SELECTION: Record<string, string> = {
   'react-native-iap': 'Set both properties in android/gradle.properties.',
+  'capacitor-iap': 'Set both properties in android/gradle.properties.',
   'expo-iap':
     'Set android.store and android.provider in the expo-iap config plugin, then prebuild.',
   flutter_inapp_purchase:
@@ -108,7 +109,7 @@ export default function StoreProviders() {
     <div className="doc-page">
       <SEO
         title="Community store providers"
-        description="Build, verify, register, and select an independent Apple or Android store provider across all six OpenIAP SDKs."
+        description="Build, verify, register, and select an independent Apple or Android store provider across all seven OpenIAP SDKs."
         path="/docs/guides/store-providers"
       />
       <h1>Community store providers</h1>
@@ -289,8 +290,8 @@ export default function StoreProviders() {
         <p>
           Link the provider’s Swift package, CocoaPod, or framework in your app
           and set this Info.plist key to its Objective-C factory class name.
-          This applies to native apps and all six framework SDKs; their purchase
-          APIs stay the same.
+          This applies to native apps and all seven framework SDKs; their
+          purchase APIs stay the same.
         </p>
         <p>
           Reuse one Swift provider across compatible Apple framework SDKs.

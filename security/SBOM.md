@@ -38,6 +38,7 @@ The distribution and release-tag columns are prose and are not machine-checked:
 | `apple`             | `openiap`                   | CocoaPods, Swift Package Manager             | `<version>`                                     |
 | `google`            | `openiap-google`            | Maven Central                                | `google-<version>`                              |
 | `react-native`      | `react-native-iap`          | npm                                          | `react-native-iap-<version>`                    |
+| `capacitor`         | `capacitor-iap`             | npm                                          | `capacitor-iap-<version>`                       |
 | `expo`              | `expo-iap`                  | npm                                          | `expo-iap-<version>`                            |
 | `conformance`       | `openiap-conformance`       | npm (retired)                                | `openiap-conformance-<version>`                 |
 | `flutter`           | `flutter_inapp_purchase`    | pub.dev                                      | `flutter-iap-<version>`                         |

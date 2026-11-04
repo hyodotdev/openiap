@@ -25,9 +25,9 @@ function Languages() {
     <div className="xp-page xp-languages">
       <SEO
         title="In-App Purchase SDKs for Your Framework"
-        description="Production-ready IAP libraries implementing OpenIAP: expo-iap, react-native-iap, flutter_inapp_purchase, kmp-iap, maui-iap, and godot-iap. Type-safe in-app purchases for every framework."
+        description="Production-ready IAP libraries implementing OpenIAP: expo-iap, react-native-iap, capacitor-iap, flutter_inapp_purchase, kmp-iap, maui-iap, and godot-iap. Type-safe in-app purchases for every framework."
         path="/languages"
-        keywords="expo-iap, react-native-iap, flutter_inapp_purchase, kmp-iap, maui-iap, godot-iap, IAP SDK, in-app purchase library, mobile payments SDK, cross-platform IAP"
+        keywords="expo-iap, react-native-iap, capacitor-iap, flutter_inapp_purchase, kmp-iap, maui-iap, godot-iap, IAP SDK, in-app purchase library, mobile payments SDK, cross-platform IAP"
       />
 
       <header className="xp-page-header xp-languages-header">

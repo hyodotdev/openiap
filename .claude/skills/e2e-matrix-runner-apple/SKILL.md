@@ -1,6 +1,6 @@
 ---
 name: e2e-matrix-runner-apple
-description: Run the Apple half of the OpenIAP device matrix — six frameworks plus the native package on iOS — on a physical iPhone and report one row per cell with evidence. Use when asked for iOS e2e or delegated hardware testing.
+description: Run the Apple half of the OpenIAP device matrix — seven frameworks plus the native package on iOS — on a physical iPhone and report one row per cell with evidence. Use when asked for iOS e2e or delegated hardware testing.
 ---
 
 # E2E Matrix Runner Apple (Claude Code)

@@ -618,10 +618,11 @@ test("places a missing community block before the sponsor block and replaces a s
   );
 });
 
-test("the community section covers the six libraries and the CLI", () => {
+test("the community section covers the seven libraries and the CLI", () => {
   assert.deepEqual(Object.values(communityReadmes).sort(), [
     "@hyodotdev/openiap",
     "OpenIap.Maui",
+    "capacitor-iap",
     "expo-iap",
     "flutter_inapp_purchase",
     "godot-iap",
@@ -666,6 +667,7 @@ test("puts pubspec funding after the repository line and replaces a stale list",
 
 test("funds published packages and specifications that opted in, nothing private", () => {
   assert.deepEqual(discoverFundingManifests(), [
+    "libraries/capacitor-iap/package.json",
     "libraries/expo-iap/package.json",
     "libraries/react-native-iap/package.json",
     "packages/cli/package.json",

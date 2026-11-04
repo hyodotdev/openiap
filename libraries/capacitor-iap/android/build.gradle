@@ -1,0 +1,85 @@
+import groovy.json.JsonSlurper
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+ext {
+    junitVersion = project.hasProperty('junitVersion') ? rootProject.ext.junitVersion : '4.13.2'
+    androidxAppCompatVersion = project.hasProperty('androidxAppCompatVersion') ? rootProject.ext.androidxAppCompatVersion : '1.7.1'
+}
+
+buildscript {
+    ext.capacitorIapKotlinVersion = project.hasProperty('kotlin_version') ? rootProject.ext.kotlin_version : '2.2.0'
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.13.0'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$capacitorIapKotlinVersion"
+    }
+}
+
+apply plugin: 'com.android.library'
+// AGP 9 registers Kotlin itself unless the consumer opts out.
+if (project.extensions.findByName('kotlin') == null) {
+    apply plugin: 'kotlin-android'
+}
+
+def openIapVersionsFile = [
+    new File(projectDir.parentFile, 'openiap-versions.json'),
+    new File(rootDir.parentFile ?: rootDir, 'openiap-versions.json'),
+].find { it.exists() }
+if (openIapVersionsFile == null) {
+    throw new GradleException('capacitor-iap: Unable to locate openiap-versions.json')
+}
+def googleVersion = new JsonSlurper().parse(openIapVersionsFile).google?.toString()?.trim()
+if (!googleVersion) {
+    throw new GradleException("capacitor-iap: 'google' version missing in openiap-versions.json")
+}
+
+// Store selection: explicit property > task flavor > connected debug device > play.
+apply from: project.file('openiap-store.gradle')
+def openiapSelection = openIapResolveStore('capacitor-iap')
+
+android {
+    namespace = 'dev.hyo.capacitoriap'
+    compileSdk = project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 36
+    defaultConfig {
+        minSdkVersion project.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 24
+        targetSdkVersion project.hasProperty('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 36
+        // Matches a source-included openiap-google's platform flavor to the resolved store.
+        missingDimensionStrategy 'platform', openiapSelection.platform
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+    lint {
+        abortOnError = false
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_21)
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(':capacitor-android')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0'
+    openIapAddStoreDependencies('implementation', googleVersion, ':openiap-google')
+
+    testImplementation "junit:junit:$junitVersion"
+    testImplementation 'org.json:json:20260719'
+}

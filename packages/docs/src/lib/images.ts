@@ -6,6 +6,7 @@
 // =============================================================================
 
 import {
+  CAPACITOR_PACKAGE,
   EXPO_PACKAGE,
   FLUTTER_PACKAGE,
   GODOT_PACKAGE,
@@ -19,6 +20,7 @@ export const LIBRARY_IMAGES = {
   'openiap-google': '/frameworks/google.svg',
   'expo-iap': '/frameworks/expo.svg',
   'react-native-iap': '/frameworks/react-native.webp',
+  'capacitor-iap': '/frameworks/capacitor.svg',
   flutter_inapp_purchase: '/frameworks/flutter.svg',
   'kmp-iap': '/frameworks/kmp.svg',
   'maui-iap': '/frameworks/maui.webp',
@@ -34,6 +36,7 @@ export type LibraryName = keyof typeof LIBRARY_IMAGES;
 export type FrameworkLibraryName =
   | 'expo-iap'
   | 'react-native-iap'
+  | 'capacitor-iap'
   | 'flutter_inapp_purchase'
   | 'kmp-iap'
   | 'maui-iap'
@@ -125,6 +128,26 @@ export const LIBRARIES: LibraryInfo[] = [
     url: 'https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap',
     image: LIBRARY_IMAGES['react-native-iap'],
     imageAlt: 'React Native IAP',
+  },
+  {
+    name: 'capacitor-iap',
+    displayName: 'capacitor-iap',
+    frameworkName: 'Capacitor',
+    homeLabel: 'Capacitor',
+    version: CAPACITOR_PACKAGE.version,
+    deprecatedApiRemovalVersion: '2.0.0',
+    setupPath: '/docs/setup/capacitor',
+    language: 'TypeScript',
+    description: 'Capacitor (iOS and Android plugin)',
+    languagesDescription:
+      'Capacitor implementation of the OpenIAP Client Protocol',
+    setupDescription:
+      'Capacitor 8 apps with any web framework. Same API as expo-iap and react-native-iap without the React hooks; Swift Package Manager on iOS, Play, Horizon, or Amazon on Android.',
+    installCommand: CAPACITOR_PACKAGE.installCommand,
+    documentationUrl: 'https://openiap.dev/docs/setup/capacitor',
+    url: 'https://github.com/hyodotdev/openiap/tree/main/libraries/capacitor-iap',
+    image: LIBRARY_IMAGES['capacitor-iap'],
+    imageAlt: 'Capacitor IAP',
   },
   {
     name: 'flutter_inapp_purchase',

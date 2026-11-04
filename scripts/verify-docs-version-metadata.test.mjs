@@ -28,6 +28,7 @@ function fixture(t) {
     "packages/cli/package.json",
     "specs/client/package.json",
     "specs/commerce-protocol/package.json",
+    "libraries/capacitor-iap/package.json",
     "libraries/expo-iap/package.json",
     "libraries/react-native-iap/package.json",
     "libraries/flutter_inapp_purchase/pubspec.yaml",

@@ -1043,7 +1043,7 @@ test("compiled CodeQL Gradle builds reuse the transient-network retry guard", ()
   );
   assert.equal(
     (workflow.match(/scripts\/ci\/retry-gradle\.sh/gu) ?? []).length,
-    7,
+    9,
   );
   assert.match(workflow, /:openiap:compilePlayDebugKotlin/u);
   assert.match(workflow, /:library:compilePlayDebugKotlinAndroid/u);
@@ -1088,9 +1088,10 @@ test("CodeQL scopes Swift pull requests to public macOS runners", () => {
   assert.match(scope, /expo-onside:/u);
   assert.match(scope, /flutter:/u);
   assert.match(scope, /godot:/u);
+  assert.match(scope, /capacitor:/u);
   assert.match(
     scope,
-    /\["react-native","expo","expo-onside","flutter","godot"\]/u,
+    /\["react-native","expo","expo-onside","flutter","godot","capacitor"\]/u,
   );
   assert.match(
     wrappers,

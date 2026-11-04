@@ -21,6 +21,7 @@ from that directory. CI runs the same commands.
 | Commerce Protocol (`specs/commerce-protocol`) | Bun, Node.js 20               | See [Changing the Commerce Protocol](#changing-the-commerce-protocol)                                                         |
 | `libraries/react-native-iap`                  | Node.js 20, Yarn 3 (Corepack) | `yarn install && yarn lint:tsc && yarn test:ci`                                                                               |
 | `libraries/expo-iap`                          | Bun                           | `bun install && bun run lint:tsc && bun run test`                                                                             |
+| `libraries/capacitor-iap`                     | Bun                           | `bun install && bun run lint:ci && bun run test`                                                                              |
 | `libraries/flutter_inapp_purchase`            | Flutter 3.44                  | `flutter pub get && flutter analyze && flutter test`                                                                          |
 | `libraries/godot-iap`                         | Godot 4.5+                    | `bash scripts/run-godot-suite.sh test_types_only test_api_surface test_godot_iap`                                             |
 | `libraries/kmp-iap`                           | JDK 17, Android SDK           | `./gradlew :library:testPlayDebugUnitTest`                                                                                    |

@@ -1,0 +1,184 @@
+name: CI - capacitor-iap
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "libraries/capacitor-iap/**"
+      - "specs/client/src/generated/types.ts"
+      - "openiap-versions.json"
+      - "packages/google/gradle/openiap-store.gradle"
+      - "packages/google/build.gradle.kts"
+      - "packages/google/openiap/**"
+      - "packages/google/core/**"
+      - "scripts/verify-npm-consumer-install.mjs"
+      - "scripts/ci/retry-gradle.sh"
+      - ".github/actions/setup-xcode/**"
+      - ".github/workflows/ci-capacitor-iap.yml"
+      - ".java-version"
+      - "package.json"
+      - "!**/*.md"
+  push:
+    branches: [main]
+    paths:
+      - "libraries/capacitor-iap/**"
+      - "specs/client/src/generated/types.ts"
+      - "openiap-versions.json"
+      - "packages/google/gradle/openiap-store.gradle"
+      - "packages/google/build.gradle.kts"
+      - "packages/google/openiap/**"
+      - "packages/google/core/**"
+      - "scripts/verify-npm-consumer-install.mjs"
+      - "scripts/ci/retry-gradle.sh"
+      - ".github/actions/setup-xcode/**"
+      - ".github/workflows/ci-capacitor-iap.yml"
+      - ".java-version"
+      - "package.json"
+      - "!**/*.md"
+
+permissions:
+  contents: read
+
+# A PR push cancels its superseded run; a started main run always finishes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    working-directory: libraries/capacitor-iap
+
+jobs:
+  test:
+    name: Lint and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('libraries/capacitor-iap/bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint:ci
+
+      - name: Test
+        run: bun run test:coverage
+
+      - name: Consumer install smoke test
+        run: bun run verify:consumer-install
+
+  example:
+    name: Example web build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+
+      - name: Install example dependencies
+        working-directory: libraries/capacitor-iap/example
+        run: npm ci
+
+      - name: Type check and build
+        working-directory: libraries/capacitor-iap/example
+        run: npm run build
+
+  android:
+    name: Android build and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+
+      - name: Install JDK
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: "temurin"
+          # Capacitor 8 builds with Java 21, above the repo's .java-version.
+          java-version: "21"
+
+      - name: Install example dependencies
+        working-directory: libraries/capacitor-iap/example
+        run: npm ci
+
+      - name: Sync native project
+        working-directory: libraries/capacitor-iap/example
+        run: npm run build && npx cap sync android
+
+      # Builds the plugin against packages/google from this checkout.
+      - name: Assemble and test
+        working-directory: libraries/capacitor-iap/example/android
+        run: |
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew \
+            :app:assembleDebug :capacitor-iap:testDebugUnitTest -PopeniapStore=play --stacktrace
+
+  ios:
+    name: iOS example
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+
+      - name: Set up Xcode
+        uses: ./.github/actions/setup-xcode
+
+      - name: Test iOS plugin
+        run: |
+          set -o pipefail
+          UDID=$(xcrun simctl list devices available --json \
+            | jq -r '[.devices[][] | select(.name | startswith("iPhone"))][0].udid')
+          xcodebuild test -scheme CapacitorIap -destination "id=$UDID" CODE_SIGNING_ALLOWED=NO
+
+      - name: Install example dependencies
+        working-directory: libraries/capacitor-iap/example
+        run: npm ci
+
+      - name: Sync native project
+        working-directory: libraries/capacitor-iap/example
+        run: npm run build && npx cap sync ios
+
+      - name: Build iOS example
+        working-directory: libraries/capacitor-iap/example/ios/App
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project App.xcodeproj \
+            -scheme App \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO

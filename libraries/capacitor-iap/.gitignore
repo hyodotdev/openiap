@@ -1,0 +1,34 @@
+# OSX
+.DS_Store
+
+# node.js
+node_modules/
+npm-debug.log
+package-lock.json
+yarn.lock
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Coverage
+coverage/
+
+# Xcode / SwiftPM
+build/
+DerivedData
+xcuserdata
+.build/
+.swiftpm/
+Package.resolved
+
+# Android
+.gradle
+.idea
+local.properties
+android/build/
+*.iml
+
+# Claude settings
+.claude/settings.local.json
+!example/package-lock.json

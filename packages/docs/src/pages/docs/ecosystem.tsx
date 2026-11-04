@@ -10,7 +10,7 @@ function Ecosystem() {
     <div className="doc-page">
       <SEO
         title="Ecosystem"
-        description="OpenIAP ecosystem overview. Native modules power six framework SDKs, while the Commerce Protocol defines a portable server-side lifecycle and webhook contract."
+        description="OpenIAP ecosystem overview. Native modules power seven framework SDKs, while the Commerce Protocol defines a portable server-side lifecycle and webhook contract."
         path="/docs/ecosystem"
         keywords="OpenIAP ecosystem, OpenIAP Commerce Protocol, openiap-apple, openiap-google, IAP architecture, cross-platform IAP"
       />
@@ -145,6 +145,17 @@ function Ecosystem() {
             </a>
             : .NET MAUI / C# library for in-app purchases.{' '}
             <a href="/docs/setup/maui">Setup Guide</a>
+          </li>
+          <li style={{ marginBottom: '1rem' }}>
+            <a
+              href="https://github.com/hyodotdev/openiap/tree/main/libraries/capacitor-iap"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <strong>capacitor-iap</strong>
+            </a>
+            : Capacitor plugin for in-app purchases.{' '}
+            <a href="/docs/setup/capacitor">Setup Guide</a>
           </li>
           <li style={{ marginBottom: '1rem' }}>
             <a

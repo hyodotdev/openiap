@@ -42,6 +42,7 @@ Framework SDK implementations built on top of OpenIAP. These libraries are manag
 | ---------------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | [expo-iap](libraries/expo-iap)                             | Expo                 | [![expo stable][expo-stable-badge]][expo-npm]                                                                  | [![npm downloads][expo-downloads-badge]][expo-npm]           |
 | [react-native-iap](libraries/react-native-iap)             | React Native         | [![rn stable][rn-stable-badge]][rn-npm]                                                                        | [![npm downloads][rn-downloads-badge]][rn-npm]               |
+| [capacitor-iap](libraries/capacitor-iap)                   | Capacitor            | [![capacitor stable][capacitor-stable-badge]][capacitor-npm]                                                   | [![npm downloads][capacitor-downloads-badge]][capacitor-npm] |
 | [flutter_inapp_purchase](libraries/flutter_inapp_purchase) | Flutter              | [![flutter stable][flutter-stable-badge]][flutter-pub]                                                         | [![pub.dev downloads][flutter-downloads-badge]][flutter-pub] |
 | [kmp-iap](libraries/kmp-iap)                               | Kotlin Multiplatform | [![kmp stable][kmp-stable-badge]][kmp-maven]                                                                   | —                                                            |
 | [maui-iap](libraries/maui-iap)                             | .NET MAUI            | [![maui stable][maui-stable-badge]][maui-nuget]                                                                | [![NuGet downloads][maui-downloads-badge]][maui-nuget]       |
@@ -53,6 +54,9 @@ Framework SDK implementations built on top of OpenIAP. These libraries are manag
 [rn-stable-badge]: https://img.shields.io/npm/v/react-native-iap/latest?label=stable&logo=npm&color=CB3837
 [rn-downloads-badge]: https://img.shields.io/npm/dm/react-native-iap?label=npm&color=CB3837
 [rn-npm]: https://www.npmjs.com/package/react-native-iap
+[capacitor-stable-badge]: https://img.shields.io/npm/v/capacitor-iap/latest?label=stable&logo=npm&color=CB3837
+[capacitor-downloads-badge]: https://img.shields.io/npm/dm/capacitor-iap?label=npm&color=CB3837
+[capacitor-npm]: https://www.npmjs.com/package/capacitor-iap
 [flutter-stable-badge]: https://img.shields.io/pub/v/flutter_inapp_purchase?label=stable&logo=dart&color=0175C2
 [flutter-downloads-badge]: https://img.shields.io/pub/dm/flutter_inapp_purchase?label=downloads&logo=dart&color=0175C2
 [flutter-pub]: https://pub.dev/packages/flutter_inapp_purchase

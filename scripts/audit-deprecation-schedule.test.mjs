@@ -592,6 +592,7 @@ test("a dropped rule still lets version=current retry a version that has its tag
 const releaseGates = {
   "release-google.yml": "openiap-google",
   "release-react-native.yml": "react-native-iap",
+  "release-capacitor.yml": "capacitor-iap",
   "release-expo.yml": "expo-iap",
   "release-flutter.yml": "flutter_inapp_purchase",
   "release-godot.yml": "godot-iap",

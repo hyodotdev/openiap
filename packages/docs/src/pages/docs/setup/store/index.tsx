@@ -38,9 +38,9 @@ function StoreSetup() {
           Keep every store credential in the project — the Horizon app id and
           the Amazon <code>AppstoreAuthenticationKey.pem</code> are inert on the
           other stores — and let the build pick the store. The Gradle wrappers
-          (React Native, Expo, and Flutter) apply the whole rule, first match
-          wins, and so does the OpenIAP Gradle plugin in native Android and KMP
-          apps. A Godot export applies it with the{' '}
+          (React Native, Expo, Capacitor, and Flutter) apply the whole rule,
+          first match wins, and so does the OpenIAP Gradle plugin in native
+          Android and KMP apps. A Godot export applies it with the{' '}
           <code>openiap/android_store</code> export option as the explicit step
           and no Variant step, and a MAUI build the same way with the{' '}
           <code>OpenIapStore</code> MSBuild property:
@@ -212,9 +212,9 @@ plugins {
           Every store guide shows two setup paths, so know which one your
           project uses. Expo projects declare store values in the Expo config,
           and a config plugin writes the native files during{' '}
-          <code>expo prebuild</code>. Bare React Native, Flutter, KMP, MAUI,
-          Godot, and native Android projects edit their native build files
-          directly.
+          <code>expo prebuild</code>. Bare React Native, Capacitor, Flutter,
+          KMP, MAUI, Godot, and native Android projects edit their native build
+          files directly.
         </p>
         <ul>
           <li>

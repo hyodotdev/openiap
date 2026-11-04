@@ -69,6 +69,7 @@ const RESOURCE_DATE_FORMATTER = new Intl.DateTimeFormat('en', {
 const ECOSYSTEM_BY_LIBRARY = {
   'expo-iap': 'expo',
   'react-native-iap': 'react-native',
+  'capacitor-iap': 'capacitor',
   flutter_inapp_purchase: 'flutter',
   'kmp-iap': 'kmp',
   'maui-iap': 'maui',

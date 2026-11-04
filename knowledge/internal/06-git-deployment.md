@@ -243,6 +243,7 @@ Fix purchase validation error
 | `kmp`               | `libraries/kmp-iap`                  |
 | `godot`             | `libraries/godot-iap`                |
 | `maui`              | `libraries/maui-iap`                 |
+| `capacitor`         | `libraries/capacitor-iap`            |
 | `kit`               | `packages/kit`                       |
 | `cli`               | `packages/cli`                       |
 | `commerce-protocol` | `specs/commerce-protocol`            |

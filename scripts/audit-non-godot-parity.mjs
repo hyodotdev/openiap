@@ -112,6 +112,7 @@ function checkDeprecationSchedule() {
 const TODO_MARKER = "TO" + "DO";
 
 const parityCoveredLibraries = new Set([
+  "capacitor-iap",
   "expo-iap",
   "flutter_inapp_purchase",
   "kmp-iap",
@@ -319,6 +320,7 @@ function checkNoReflectionIntoOpenIap() {
     "packages/google/openiap/src/main",
     "libraries/react-native-iap/android/src/main",
     "libraries/expo-iap/android/src/main",
+    "libraries/capacitor-iap/android/src/main",
     "libraries/flutter_inapp_purchase/android/src",
     "libraries/maui-iap/android",
     "libraries/godot-iap/android",
@@ -467,6 +469,7 @@ function checkNoOutboundWebhookStream() {
     "libraries/godot-iap",
     "libraries/kmp-iap",
     "libraries/maui-iap",
+    "libraries/capacitor-iap",
   ];
   for (const relativePath of activeRoots.flatMap(listTrackedFiles)) {
     if (relativePath === removalRegressionTest) continue;
@@ -1341,6 +1344,15 @@ function checkFrameworkOperationBindings() {
       ],
       kind,
     );
+    expectTypeScriptFieldBindings(
+      `Capacitor ${kind}`,
+      [
+        "libraries/capacitor-iap/src/index.ts",
+        "libraries/capacitor-iap/src/modules/android.ts",
+        "libraries/capacitor-iap/src/modules/ios.ts",
+      ],
+      kind,
+    );
   }
 
   const flutter = read(
@@ -1617,6 +1629,7 @@ function checkConformanceSuite() {
     "packages/apple/Tests/OpenIapTests/StoreConformanceTests.swift",
     "libraries/react-native-iap/src/__tests__/conformance.test.ts",
     "libraries/expo-iap/src/__tests__/conformance.test.ts",
+    "libraries/capacitor-iap/src/__tests__/conformance.test.ts",
   ]) {
     expectFile(relativePath);
   }
@@ -1935,6 +1948,7 @@ function expectNoExampleStorefrontIOS() {
     "libraries/flutter_inapp_purchase/example",
     "libraries/kmp-iap/example",
     "libraries/maui-iap/example",
+    "libraries/capacitor-iap/example/src",
     "packages/apple/Example",
     "packages/google/Example",
   ];
@@ -1965,6 +1979,7 @@ function expectNoApi24ConcurrentKeySets() {
     "libraries/flutter_inapp_purchase/example/android/app/src",
     "libraries/godot-iap/android/src",
     "libraries/react-native-iap/android/src",
+    "libraries/capacitor-iap/android/src",
   ];
   for (const searchRoot of androidSourceRoots) {
     for (const file of walk(abs(searchRoot))) {
@@ -2114,6 +2129,128 @@ function checkReactNativeClassic() {
       "createBillingProgramReportingDetailsAndroid",
     ],
     `${base} API tests`,
+  );
+}
+
+function checkCapacitor() {
+  const base = "libraries/capacitor-iap/example";
+  const screens = {
+    "all-products": ["allProducts", "All Products"],
+    "purchase-flow": ["purchaseFlow", "Purchase Flow"],
+    "subscription-flow": ["subscriptionFlow", "Subscription Flow"],
+    "available-purchases": ["availablePurchases", "Available Purchases"],
+    "offer-code": ["offerCode", "Offer Code"],
+    "alternative-billing": ["alternativeBilling", "Alternative Billing"],
+    "app-ownership": ["appOwnership", "App Ownership"],
+  };
+  expectSameSet(`${base} route`, routes, Object.keys(screens));
+  for (const [route, [file, title]] of Object.entries(screens)) {
+    expectFile(rel(base, "src/screens", `${file}.ts`));
+    expectIncludes(
+      rel(base, "src/main.ts"),
+      [`'${route}'`, title],
+      `${base} router`,
+    );
+  }
+  expectAppOwnershipScreen({
+    home: rel(base, "src/screens/home.ts"),
+    previous: "Alternative Billing",
+    item: "App Ownership",
+    screen: rel(base, "src/screens/appOwnership.ts"),
+    purchaseFlow: rel(base, "src/screens/purchaseFlow.ts"),
+    api: "verifyAppOwnership",
+  });
+  expectIncludes(
+    rel(base, "src/screens/alternativeBilling.ts"),
+    [
+      "isBillingProgramAvailableAndroid",
+      "launchExternalLinkAndroid",
+      "createBillingProgramReportingDetailsAndroid",
+      "enableBillingProgramAndroid",
+    ],
+    `${base} alternative billing`,
+  );
+  expectIncludes(
+    rel(base, "src/utils/constants.ts"),
+    requiredIds,
+    `${base} product constants`,
+  );
+  expectIncludes(
+    rel(base, "capacitor.config.ts"),
+    ["appId: 'dev.hyo.martie'"],
+    `${base} app identity`,
+  );
+
+  // SwiftPM cannot read openiap-versions.json, so sync-versions.sh writes the
+  // openiap-apple version into Package.swift.
+  const swiftPackage = "libraries/capacitor-iap/Package.swift";
+  const appleVersion = readJson("openiap-versions.json").apple;
+  const openIapPin = read(swiftPackage).match(
+    /\.package\(url: "https:\/\/github\.com\/hyodotdev\/openiap\.git", exact: "([^"]+)"\),/,
+  )?.[1];
+  if (openIapPin !== appleVersion) {
+    fail(
+      `${swiftPackage} OpenIAP dependency must be exact: "${appleVersion}" (openiap-versions.json), got ${openIapPin ?? "none"}; run scripts/sync-versions.sh`,
+    );
+  }
+  expectIncludes(
+    swiftPackage,
+    ['.product(name: "OpenIAP", package: "OpenIAP")'],
+    `${swiftPackage} OpenIAP product`,
+  );
+  if (exists("libraries/capacitor-iap/CapacitorIap.podspec")) {
+    fail("capacitor-iap is SwiftPM-only; its release validates no podspec");
+  }
+  expectSymlinkTarget(
+    "libraries/capacitor-iap/openiap-versions.json",
+    "../../openiap-versions.json",
+    "libraries/capacitor-iap/openiap-versions.json",
+  );
+
+  // The TypeScript bridge and both native plugins declare the same methods,
+  // each platform skipping the other's suffix.
+  const definitions = read("libraries/capacitor-iap/src/definitions.ts");
+  const declared = [
+    ...extractBetween(
+      definitions,
+      "export interface CapacitorIapNativePlugin",
+      "// Events",
+    ).matchAll(/^ {2}([A-Za-z]+)\(/gm),
+  ].map((match) => match[1]);
+  const iosPlugin = read(
+    "libraries/capacitor-iap/ios/Sources/CapacitorIapPlugin/CapacitorIapPlugin.swift",
+  );
+  const iosRegistered = [
+    ...extractBetween(
+      iosPlugin,
+      "pluginMethods: [CAPPluginMethod] = [",
+      "].map",
+    ).matchAll(/"([A-Za-z]+)",/g),
+  ].map((match) => match[1]);
+  const iosImplemented = [
+    ...iosPlugin.matchAll(/@objc func ([A-Za-z]+)\(_ call: CAPPluginCall\)/g),
+  ].map((match) => match[1]);
+  const androidImplemented = [
+    ...read(
+      "libraries/capacitor-iap/android/src/main/java/dev/hyo/capacitoriap/CapacitorIapPlugin.kt",
+    ).matchAll(/@PluginMethod\s+fun ([A-Za-z]+)\(call: PluginCall\)/g),
+  ].map((match) => match[1]);
+  const forPlatform = (skipSuffix) =>
+    declared.filter((method) => !method.endsWith(skipSuffix));
+  expectSameSet(
+    "Capacitor iOS pluginMethods",
+    forPlatform("Android"),
+    iosRegistered,
+  );
+  expectSameSet(
+    "Capacitor iOS @objc methods",
+    forPlatform("Android"),
+    iosImplemented,
+  );
+  expectSameSet(
+    "Capacitor Android @PluginMethod methods",
+    forPlatform("IOS"),
+    androidImplemented,
   );
 }
 
@@ -4525,6 +4662,8 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/ci.yml",
     ".github/workflows/ci-expo-iap.yml",
     ".github/workflows/release-expo.yml",
+    ".github/workflows/release-capacitor.yml",
+    ".github/workflows/ci-capacitor-iap.yml",
   ]) {
     expectIncludes(
       bunWorkflow,
@@ -4541,6 +4680,8 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/ci.yml",
     ".github/workflows/ci-expo-iap.yml",
     ".github/workflows/release-expo.yml",
+    ".github/workflows/release-capacitor.yml",
+    ".github/workflows/ci-capacitor-iap.yml",
   ]) {
     expectIncludes(
       bunInstallWorkflow,
@@ -4832,6 +4973,7 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/release-apple.yml",
     ".github/workflows/release-google.yml",
     ".github/workflows/release-expo.yml",
+    ".github/workflows/release-capacitor.yml",
     ".github/workflows/release-react-native.yml",
     ".github/workflows/release-flutter.yml",
     ".github/workflows/release-godot.yml",
@@ -4909,6 +5051,11 @@ function checkFrameworkDependencyHygiene() {
     [
       ".github/workflows/release-expo.yml",
       "expo",
+      'git tag -a "$RELEASE_TAG" "$GITHUB_SHA"',
+    ],
+    [
+      ".github/workflows/release-capacitor.yml",
+      "capacitor",
       'git tag -a "$RELEASE_TAG" "$GITHUB_SHA"',
     ],
     [
@@ -5041,6 +5188,7 @@ function checkFrameworkDependencyHygiene() {
     [".github/workflows/release-apple.yml", "apple"],
     [".github/workflows/release-google.yml", "google"],
     [".github/workflows/release-expo.yml", "expo"],
+    [".github/workflows/release-capacitor.yml", "capacitor"],
     [".github/workflows/release-react-native.yml", "react-native"],
     [".github/workflows/release-flutter.yml", "flutter"],
     [".github/workflows/release-godot.yml", "godot"],
@@ -5066,6 +5214,7 @@ function checkFrameworkDependencyHygiene() {
     [".github/workflows/release-apple.yml", "apple"],
     [".github/workflows/release-google.yml", "google"],
     [".github/workflows/release-expo.yml", "expo"],
+    [".github/workflows/release-capacitor.yml", "capacitor"],
     [".github/workflows/release-react-native.yml", "react-native"],
     [".github/workflows/release-flutter.yml", "flutter"],
   ]) {
@@ -5110,6 +5259,10 @@ function checkFrameworkDependencyHygiene() {
     ],
     [
       ".github/workflows/release-expo.yml",
+      "if: ${{ inputs.version == 'current' }}",
+    ],
+    [
+      ".github/workflows/release-capacitor.yml",
       "if: ${{ inputs.version == 'current' }}",
     ],
     [
@@ -5204,6 +5357,7 @@ function checkFrameworkDependencyHygiene() {
   for (const frameworkReleaseWorkflow of [
     ".github/workflows/release-react-native.yml",
     ".github/workflows/release-expo.yml",
+    ".github/workflows/release-capacitor.yml",
     ".github/workflows/release-flutter.yml",
   ]) {
     expectIncludes(
@@ -5388,6 +5542,7 @@ function checkFrameworkDependencyHygiene() {
   );
   for (const [npmReleaseWorkflow, npmPackage] of [
     [".github/workflows/release-expo.yml", "expo-iap"],
+    [".github/workflows/release-capacitor.yml", "capacitor-iap"],
     [".github/workflows/release-react-native.yml", "react-native-iap"],
   ]) {
     expectIncludes(
@@ -5612,6 +5767,7 @@ function checkFrameworkDependencyHygiene() {
   for (const [packageJsonPath, packageName] of [
     ["libraries/expo-iap/package.json", "expo-iap"],
     ["libraries/react-native-iap/package.json", "react-native-iap"],
+    ["libraries/capacitor-iap/package.json", "capacitor-iap"],
   ]) {
     expectIncludes(
       packageJsonPath,
@@ -5625,9 +5781,10 @@ function checkFrameworkDependencyHygiene() {
       `${packageJsonPath} must expose npm consumer smoke test`,
     );
   }
-  // npm drops symlinks, and both wrappers link these two files.
+  // npm drops symlinks, and the npm wrappers link these two files.
   for (const workflowPath of [
     ".github/workflows/release-expo.yml",
+    ".github/workflows/release-capacitor.yml",
     ".github/workflows/release-react-native.yml",
   ]) {
     expectIncludes(
@@ -5654,6 +5811,10 @@ function checkFrameworkDependencyHygiene() {
     ],
     [
       ".github/workflows/release-expo.yml",
+      "bun run verify:consumer-install --pack-ignore-scripts",
+    ],
+    [
+      ".github/workflows/release-capacitor.yml",
       "bun run verify:consumer-install --pack-ignore-scripts",
     ],
     [
@@ -5762,6 +5923,7 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/release-kmp.yml",
     ".github/workflows/release-maui.yml",
     ".github/workflows/release-expo.yml",
+    ".github/workflows/release-capacitor.yml",
     ".github/workflows/release-react-native.yml",
     ".github/workflows/release-flutter.yml",
     ".github/workflows/release-godot.yml",
@@ -5791,6 +5953,7 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/release-apple.yml",
     ".github/workflows/release-kmp.yml",
     ".github/workflows/release-expo.yml",
+    ".github/workflows/release-capacitor.yml",
   ]) {
     expectIncludes(
       xcodeWorkflow,
@@ -6638,6 +6801,7 @@ function checkFrameworkDependencyHygiene() {
     for (const wrapper of [
       "libraries/react-native-iap/android",
       "libraries/expo-iap/android",
+      "libraries/capacitor-iap/android",
       "libraries/flutter_inapp_purchase/android",
     ]) {
       expectSymlinkTarget(
@@ -8796,6 +8960,7 @@ checkGoogleStoreConformanceSuite();
 checkFrameworkOperationBindings();
 checkExpoRouterExample("libraries/expo-iap/example", "src/utils/constants.ts");
 checkReactNativeClassic();
+checkCapacitor();
 checkFlutter();
 checkKmp();
 checkIapkitAmazonContractWiring();

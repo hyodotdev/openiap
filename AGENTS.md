@@ -42,7 +42,8 @@ openiap/
 │   ├── flutter_inapp_purchase/  # Flutter (pub.dev)
 │   ├── godot-iap/         # Godot 4.x (GitHub Release)
 │   ├── kmp-iap/           # Kotlin Multiplatform (Maven Central)
-│   └── maui-iap/          # .NET MAUI / C# (NuGet)
+│   ├── maui-iap/          # .NET MAUI / C# (NuGet)
+│   └── capacitor-iap/     # Capacitor (npm)
 ├── knowledge/         # Shared knowledge base (SSOT)
 │   ├── internal/      # Project philosophy (HIGHEST PRIORITY)
 │   ├── external/      # External API reference
@@ -78,6 +79,7 @@ providers through the same public interface.
    - [`libraries/godot-iap/AGENTS.md`](libraries/godot-iap/AGENTS.md) — GDScript conventions, GDExtension (iOS), AAR plugin (Android)
    - [`libraries/kmp-iap/AGENTS.md`](libraries/kmp-iap/AGENTS.md) — Kotlin Multiplatform, Flow-based API, SwiftPM iOS integration
    - [`libraries/maui-iap/AGENTS.md`](libraries/maui-iap/AGENTS.md) — .NET MAUI / C# 12, generated Types.cs, Android/iOS bindings
+   - [`libraries/capacitor-iap/AGENTS.md`](libraries/capacitor-iap/AGENTS.md) — Bun, Capacitor 8 plugin, `{ value }` bridge contract, npm-linked example
 
 ## Key Rules Summary
 
@@ -189,17 +191,18 @@ them and syncs every target in `specs/client/generated-sync-manifest.mjs`:
 - `packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt`
 - `libraries/react-native-iap/src/types.ts`
 - `libraries/expo-iap/src/types.ts`
+- `libraries/capacitor-iap/src/types.ts`
 - `libraries/flutter_inapp_purchase/lib/types.dart`
 - `libraries/godot-iap/addons/godot-iap/types.gd`
 - `libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt`
 - `libraries/maui-iap/src/OpenIap.Maui/Types.cs`
-- `libraries/{react-native-iap,expo-iap}/src/{kit-api,purchase-flow-core,purchase-flow-confirmers}.ts`
+- `libraries/{react-native-iap,expo-iap,capacitor-iap}/src/{kit-api,purchase-flow-core,purchase-flow-confirmers}.ts`
 - `libraries/react-native-iap/src/purchase-flow.ts` (Expo owns its compatibility facade independently)
-- `libraries/expo-iap/src/utils/errorMapping.ts` and its
+- `libraries/{expo-iap,capacitor-iap}/src/utils/errorMapping.ts` and its
   `__tests__/errorMapping.shared.test.ts`, and
-  `libraries/expo-iap/src/utils/purchaseFlowBinding.ts` (mirrored from
-  react-native-iap)
-- `libraries/expo-iap/src/__tests__/purchaseFlow.shared.test.ts` (mirrored from react-native-iap)
+  `libraries/{expo-iap,capacitor-iap}/src/utils/purchaseFlowBinding.ts`
+  (mirrored from react-native-iap)
+- `libraries/{expo-iap,capacitor-iap}/src/__tests__/purchaseFlow.shared.test.ts` (mirrored from react-native-iap)
 - each library's `purchase-flow.vectors.json` test fixture (copied from
   `specs/client/src/purchase-flow.vectors.json`)
 

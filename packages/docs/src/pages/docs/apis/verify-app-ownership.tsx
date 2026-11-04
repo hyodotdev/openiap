@@ -187,7 +187,7 @@ var result = await GodotIapPlugin.verify_app_ownership({"apple": {"refresh": tru
         Try the example apps
       </AnchorLink>
       <p>
-        The two native examples and all six framework examples have an{' '}
+        The two native examples and all seven framework examples have an{' '}
         <strong>App Ownership</strong> screen below Alternative Billing; Godot
         opens it from an App Ownership button beside Store. Select{' '}
         <strong>Check app ownership</strong> to see the status, store, reason,

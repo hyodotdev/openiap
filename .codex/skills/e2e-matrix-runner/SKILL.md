@@ -1,6 +1,6 @@
 ---
 name: e2e-matrix-runner
-description: Run the full OpenIAP device matrix — six frameworks across iOS, Google Play, Amazon Appstore, Meta Horizon, and VegaOS — driving real hardware over adb and xcrun, and report one row per cell with evidence. Use when asked for a full e2e matrix, a device regression across every framework and store, or delegated hardware testing.
+description: Run the full OpenIAP device matrix — seven frameworks across iOS, Google Play, Amazon Appstore, Meta Horizon, and VegaOS — driving real hardware over adb and xcrun, and report one row per cell with evidence. Use when asked for a full e2e matrix, a device regression across every framework and store, or delegated hardware testing.
 ---
 
 # E2E Matrix Runner
@@ -16,19 +16,19 @@ this file's techniques and reporting contract on their narrowed scope.
 
 ## The matrix (pinned scope — do not renegotiate per run)
 
-Six frameworks: `react-native-iap`, `expo-iap`, `flutter_inapp_purchase`,
-`kmp-iap`, `maui-iap`, `godot-iap`, plus the native `packages/google`
+Seven frameworks: `react-native-iap`, `expo-iap`, `capacitor-iap`,
+`flutter_inapp_purchase`, `kmp-iap`, `maui-iap`, `godot-iap`, plus the native `packages/google`
 (Android) and `packages/apple` (iOS) rows.
 
 | Store        | Frameworks                         | Device            | Depth                                                                                                             |
 | ------------ | ---------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------- |
-| iOS          | all six + `packages/apple`         | iPhone (physical) | device purchase flow each                                                                                         |
-| Google Play  | all six + `packages/google`        | Pixel             | device purchase flow each                                                                                         |
-| Amazon       | all six + `packages/google`        | Fire tablet       | device purchase flow each                                                                                         |
-| Meta Horizon | all six + `packages/google`        | Quest 3           | build + install + launch + normal checkout navigation; apply the canonical Horizon payment gate before confirming |
+| iOS          | all seven + `packages/apple`       | iPhone (physical) | device purchase flow each                                                                                         |
+| Google Play  | all seven + `packages/google`      | Pixel             | device purchase flow each                                                                                         |
+| Amazon       | all seven + `packages/google`      | Fire tablet       | device purchase flow each                                                                                         |
+| Meta Horizon | all seven + `packages/google`      | Quest 3           | build + install + launch + normal checkout navigation; apply the canonical Horizon payment gate before confirming |
 | VegaOS       | react-native-iap and expo-iap only | Vega device       | build + install + launch; purchase attempt when device input allows                                               |
 
-That is 7 iOS + 21 Android/Horizon + 2 VegaOS cells. Do not silently drop a
+That is 8 iOS + 24 Android/Horizon + 2 VegaOS cells. Do not silently drop a
 cell.
 
 ## Standing approvals for E2E runs
@@ -63,7 +63,7 @@ networks — confirm with `ipconfig getifaddr en1` (fallback `en0`) each run.
 Every example shares the application id `dev.hyo.martie`, so only one framework
 can be installed at a time per device. Uninstall before installing the next, and
 expect `INSTALL_FAILED_UPDATE_INCOMPATIBLE` when signing keys differ. This
-applies to iOS too: all six example apps share the bundle id, so install,
+applies to iOS too: all seven example apps share the bundle id, so install,
 purchase, and move to the next framework strictly one at a time.
 
 ## Driving the hardware

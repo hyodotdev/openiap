@@ -1,0 +1,9 @@
+[[IgnoredVulns]]
+id = "GHSA-gcqx-w48m-w2h4"
+ignoreUntil = 2026-12-04
+reason = "No patched deepmerge release exists. This lock reaches it only through Jest configuration used for trusted local tests; the published capacitor-iap runtime does not import it. Do not load untrusted project configuration. Revisit the upstream fix before expiry: https://github.com/advisories/GHSA-gcqx-w48m-w2h4. Rechecked 2026-11-04: still no patched release."
+
+[[IgnoredVulns]]
+id = "GHSA-g3hv-75wg-m249"
+ignoreUntil = 2026-12-04
+reason = "The fix is minimatch 11.0.1, outside the Jest and ts-jest dependency ranges. This copy serves local test file discovery and coverage; the published capacitor-iap runtime does not import it. Patterns come from the trusted checkout; do not load untrusted project patterns. Recheck compatible upstream upgrades before expiry: https://github.com/advisories/GHSA-g3hv-75wg-m249. Rechecked 2026-11-04: still no fix inside these dependency ranges."

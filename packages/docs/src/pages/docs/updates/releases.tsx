@@ -83,6 +83,10 @@ const RESTORE_NEWEST_TRANSACTION_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'OpenIap.Maui', version: '3.2.2', tag: 'maui-iap-3.2.2' },
 ];
 
+const CAPACITOR_IAP_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'capacitor-iap', version: '1.0.0', tag: 'capacitor-iap-1.0.0' },
+];
+
 const RESTORE_WITHOUT_STORE_SYNC_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: '@hyodotdev/openiap-client-protocol',
@@ -768,6 +772,64 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'capacitor-iap-2026-11-04',
+      date: new Date('2026-11-04'),
+      element: (
+        <div key="capacitor-iap-2026-11-04" style={noteCardStyle}>
+          {CAPACITOR_IAP_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="capacitor-iap-2026-11-04" level="h4">
+            November 4, 2026 - capacitor-iap for Capacitor apps
+          </AnchorLink>
+          <p>
+            capacitor-iap brings OpenIAP to Capacitor 8 apps on iOS and Android,
+            with the same API as expo-iap and react-native-iap minus the React
+            hooks.
+          </p>
+          <ul>
+            <li>
+              <strong>capacitor-iap 1.0.0</strong>: covers every Client Protocol
+              1.3.3 operation and event, the purchase flow with{' '}
+              <code>confirmWithIapkit</code> and <code>confirmOnDeviceIOS</code>
+              , and <code>kitApi</code>.
+            </li>
+            <li>
+              Installs with <code>npm install capacitor-iap</code> and{' '}
+              <code>npx cap sync</code>; iOS uses Swift Package Manager, and
+              Android selects Play, Horizon, or Amazon with{' '}
+              <code>openiapStore</code>.
+            </li>
+            <li>
+              A purchase delivered before the app listens waits for the first{' '}
+              <code>purchaseUpdatedListener</code>; on the web every store call
+              rejects with <code>feature-not-supported</code>.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <div
+            style={{
+              border: '1px solid var(--border-color)',
+              borderRadius: '0.5rem',
+              padding: '1rem',
+            }}
+          >
+            <ul style={{ marginBottom: 0, paddingLeft: '1.25rem' }}>
+              {CAPACITOR_IAP_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  >
+                    {getReleaseLabel(release)}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
     {
       id: 'restore-without-store-sync-2026-11-04',
       date: new Date('2026-11-04'),

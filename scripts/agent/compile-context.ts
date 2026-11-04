@@ -431,7 +431,7 @@ remove it early. Complete mapping: https://openiap.dev/docs/updates/migration
   // Combine all external docs for llms-full.txt
   let fullContent = `# OpenIAP Complete Reference
 
-> OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
+> OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the seven framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
 > Generated: ${generatedAt}
@@ -467,6 +467,12 @@ npx expo install expo-iap
 # react-native-iap (React Native CLI)
 npm install react-native-iap
 cd ios && pod install
+\`\`\`
+
+### Capacitor
+\`\`\`bash
+npm install capacitor-iap
+npx cap sync
 \`\`\`
 
 ### Swift (iOS/macOS)
@@ -552,6 +558,18 @@ Requires .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   \`modules.amazon.vegaOS\` forces it on or off. \`modules.horizon\` is a
   deprecated pin, removed in the next major release.
 - Example app: \`libraries/expo-iap/example\`.
+
+### capacitor-iap
+- Package: \`capacitor-iap\` on npm, for Capacitor 8.
+- Implementation: Capacitor plugin over the same native OpenIAP packages; iOS
+  via Swift Package Manager only.
+- Public surface: same listener, query, mutation, and platform API shape as
+  \`react-native-iap\`, without the React hooks. Listeners return
+  \`{ remove }\`; on the web every store call rejects with
+  \`feature-not-supported\`.
+- Android builds resolve the store at build time with the same
+  \`openiapStore\` rule as \`react-native-iap\`.
+- Example app: \`libraries/capacitor-iap/example\`.
 
 ### flutter_inapp_purchase
 - Package: \`flutter_inapp_purchase\` on pub.dev.
@@ -885,6 +903,7 @@ OpenIapClient.Instance.PurchaseUpdated.Subscribe(
 ### Ecosystem Libraries
 - expo-iap: https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap
 - react-native-iap: https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap
+- capacitor-iap: https://github.com/hyodotdev/openiap/tree/main/libraries/capacitor-iap
 - flutter_inapp_purchase: https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase
 - godot-iap: https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap
 - kmp-iap: https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap
@@ -894,7 +913,7 @@ OpenIapClient.Instance.PurchaseUpdated.Subscribe(
   // Generate llms.txt (quick reference - condensed version)
   let quickContent = `# OpenIAP Quick Reference
 
-> OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
+> OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the seven framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
 > Generated: ${generatedAt}
@@ -910,6 +929,11 @@ npx expo install expo-iap
 
 # react-native-iap (React Native CLI)
 npm install react-native-iap
+\`\`\`
+
+### Capacitor
+\`\`\`bash
+npm install capacitor-iap && npx cap sync
 \`\`\`
 
 ### Native
@@ -952,6 +976,7 @@ Current NuGet package version: ${versions.maui}
 
 - \`expo-iap\`: Expo Modules wrapper, same OpenIAP API as React Native.
 - \`react-native-iap\`: Nitro Modules wrapper for React Native CLI apps.
+- \`capacitor-iap\`: Capacitor 8 plugin, same OpenIAP API without the hooks.
 - \`flutter_inapp_purchase\`: Dart API with generated OpenIAP types and streams.
 - \`godot-iap\`: Godot 4.x plugin with GDScript functions and signals.
 - \`kmp-iap\`: Kotlin Multiplatform API with Flow-based purchase events.

@@ -1,6 +1,10 @@
 export const BUN_PROJECTS = [
   { directory: ".", lockfile: "bun.lock" },
   {
+    directory: "libraries/capacitor-iap",
+    lockfile: "libraries/capacitor-iap/bun.lock",
+  },
+  {
     directory: "libraries/expo-iap",
     lockfile: "libraries/expo-iap/bun.lock",
   },
@@ -27,4 +31,5 @@ export const OSV_LOCKFILES = [
   "libraries/react-native-iap/example/Gemfile.lock",
   "packages/apple/Gemfile.lock",
   "libraries/react-native-iap/yarn.lock",
+  "libraries/capacitor-iap/example/package-lock.json",
 ];

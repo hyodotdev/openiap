@@ -1,0 +1,100 @@
+{
+  "name": "capacitor-iap",
+  "version": "1.0.0",
+  "description": "In-app purchases for Capacitor on iOS and Android, built on OpenIAP",
+  "main": "dist/plugin.cjs.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "unpkg": "dist/plugin.js",
+  "files": [
+    "android/src/main/",
+    "android/build.gradle",
+    "android/openiap-store.gradle",
+    "dist/",
+    "ios/Sources/",
+    "ios/Tests/",
+    "Package.swift",
+    "openiap-versions.json",
+    "!**/__tests__",
+    "!**/__mocks__"
+  ],
+  "scripts": {
+    "build": "bun run clean && tsc -p tsconfig.build.json && rollup -c rollup.config.mjs",
+    "clean": "rm -rf dist",
+    "lint": "eslint src",
+    "lint:eslint": "eslint --fix src",
+    "lint:prettier": "prettier --write \"**/*.{md,js,mjs,ts}\"",
+    "lint:tsc": "tsc -p tsconfig.json --noEmit",
+    "lint:ci": "bun run lint:tsc && bun run lint && prettier --check \"src/**/*.ts\"",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "verify:consumer-install": "bun run build && node ../../scripts/verify-npm-consumer-install.mjs --package . --package-name capacitor-iap --required openiap-versions.json --required dist/esm/index.js --required dist/esm/index.d.ts --required dist/plugin.cjs.js --required android/build.gradle --required android/openiap-store.gradle --required Package.swift",
+    "prepublishOnly": "bun run build"
+  },
+  "keywords": [
+    "capacitor",
+    "plugin",
+    "native",
+    "in-app-purchase",
+    "iap",
+    "storekit",
+    "google-play-billing",
+    "openiap"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hyodotdev/openiap.git",
+    "directory": "libraries/capacitor-iap"
+  },
+  "bugs": {
+    "url": "https://github.com/hyodotdev/openiap/issues"
+  },
+  "author": "hyochan <hyo@hyo.dev> (https://github.com/hyochan)",
+  "license": "MIT",
+  "homepage": "https://github.com/hyodotdev/openiap/tree/main/libraries/capacitor-iap#readme",
+  "funding": [
+    {
+      "type": "github",
+      "url": "https://github.com/sponsors/hyodotdev"
+    },
+    {
+      "type": "opencollective",
+      "url": "https://opencollective.com/openiap"
+    },
+    {
+      "type": "paypal",
+      "url": "https://www.paypal.me/dooboolab"
+    }
+  ],
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    },
+    "android": {
+      "src": "android"
+    }
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/ios": "^8.6.0",
+    "@eslint/js": "^9.39.5",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^26.2.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.9.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.9.6",
+    "rollup": "^4.67.5",
+    "ts-jest": "^29.4.12",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.1"
+  },
+  "peerDependencies": {
+    "@capacitor/core": "^8.0.0"
+  }
+}

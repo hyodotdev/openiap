@@ -1,0 +1,10 @@
+dist/
+coverage/
+example/android/
+example/ios/
+example/dist/
+src/types.ts
+src/kit-api.ts
+src/purchase-flow-core.ts
+src/purchase-flow-confirmers.ts
+src/__tests__/purchaseFlow.shared.test.ts

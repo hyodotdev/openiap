@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "es2022",
+    "moduleResolution": "bundler",
+    "lib": [
+      "dom",
+      "es2022"
+    ],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true,
+    "types": [
+      "vite/client",
+      "node"
+    ],
+    "paths": {
+      "capacitor-iap": [
+        "../src/index.ts"
+      ],
+      "@capacitor/core": [
+        "./node_modules/@capacitor/core"
+      ]
+    }
+  },
+  "include": [
+    "src",
+    "capacitor.config.ts",
+    "vite.config.ts"
+  ]
+}

@@ -30,7 +30,7 @@ jobs:
       swift_wrappers: ${{ github.event_name != 'pull_request' || steps.wrappers.outputs.changes != '[]' }}
       swift_components: >-
         ${{ github.event_name != 'pull_request' &&
-        '["react-native","expo","expo-onside","flutter","godot"]' ||
+        '["react-native","expo","expo-onside","flutter","godot","capacitor"]' ||
         steps.wrappers.outputs.changes }}
     steps:
       - name: Checkout
@@ -99,6 +99,13 @@ jobs:
               - '!**/*.md'
             godot:
               - 'libraries/godot-iap/**'
+              - 'openiap-versions.json'
+              - '.github/workflows/codeql.yml'
+              - '.github/codeql/**'
+              - '.github/actions/setup-xcode/**'
+              - '!**/*.md'
+            capacitor:
+              - 'libraries/capacitor-iap/**'
               - 'openiap-versions.json'
               - '.github/workflows/codeql.yml'
               - '.github/codeql/**'
@@ -208,7 +215,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        component: [react-native, expo, flutter, godot, maui]
+        component: [react-native, expo, flutter, godot, maui, capacitor]
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -221,16 +228,25 @@ jobs:
           distribution: temurin
           java-version-file: .java-version
 
+      # Capacitor 8 builds with Java 21, above the repo's .java-version.
+      - name: Setup Java 21
+        if: matrix.component == 'capacitor'
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6
         with:
           cache-read-only: true
 
       - name: Setup Node.js
-        if: matrix.component == 'react-native' || matrix.component == 'expo'
+        if: matrix.component == 'react-native' || matrix.component == 'expo' || matrix.component == 'capacitor'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 20
+          # The Capacitor 8 CLI requires Node 22.
+          node-version: ${{ matrix.component == 'capacitor' && 22 || 20 }}
 
       - name: Setup Bun
         if: matrix.component == 'expo'
@@ -246,6 +262,20 @@ jobs:
           version: "3.44.9"
           cache: true
           cache-sdk: true
+
+      # Compiled before tracing starts, so CodeQL skips Capacitor's own
+      # Android sources under node_modules.
+      - name: Prebuild Capacitor Android runtime
+        if: matrix.component == 'capacitor'
+        working-directory: libraries/capacitor-iap/example
+        run: |
+          npm ci
+          npm run build
+          npx cap sync android
+          chmod +x android/gradlew
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" android/gradlew \
+            -p android --no-daemon --no-build-cache \
+            :capacitor-iap:compileDebugKotlin -PopeniapStore=play
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
@@ -302,6 +332,14 @@ jobs:
           chmod +x gradlew
           "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew \
             --no-daemon --no-build-cache --rerun-tasks clean assembleDebug
+
+      - name: Build Capacitor Android wrapper
+        if: matrix.component == 'capacitor'
+        working-directory: libraries/capacitor-iap/example
+        run: |
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" android/gradlew \
+            -p android --no-daemon --no-build-cache \
+            :capacitor-iap:compileDebugKotlin --rerun -PopeniapStore=play
 
       - name: Build MAUI Android wrapper
         if: matrix.component == 'maui'
@@ -516,6 +554,19 @@ jobs:
           cd ios-gdextension
           swift package clean
           swift build --build-tests
+
+      - name: Build Capacitor Swift wrapper
+        if: matrix.component == 'capacitor'
+        working-directory: libraries/capacitor-iap
+        run: |
+          # One simulator architecture is enough for the analysis.
+          xcodebuild build \
+            -scheme CapacitorIap \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            ARCHS=arm64
 
       - name: Analyze
         uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1

@@ -146,6 +146,27 @@ create_symlink "libraries/flutter_inapp_purchase/openiap-versions.json" "../../o
 create_symlink "libraries/godot-iap/openiap-versions.json" "../../openiap-versions.json"
 create_symlink "libraries/kmp-iap/openiap-versions.json" "../../openiap-versions.json"
 create_symlink "libraries/maui-iap/openiap-versions.json" "../../openiap-versions.json"
+create_symlink "libraries/capacitor-iap/openiap-versions.json" "../../openiap-versions.json"
+
+# SwiftPM cannot read openiap-versions.json, so Package.swift pins the
+# openiap-apple version.
+python3 - <<'PY'
+import json
+import re
+from pathlib import Path
+
+apple = json.loads(Path("openiap-versions.json").read_text(encoding="utf-8"))["apple"]
+manifest = Path("libraries/capacitor-iap/Package.swift")
+text = manifest.read_text(encoding="utf-8")
+updated = re.sub(
+    r'(\.package\(url: "https://github\.com/hyodotdev/openiap\.git", exact: ")[^"]+(")',
+    rf"\g<1>{apple}\g<2>",
+    text,
+)
+if updated != text:
+    manifest.write_text(updated, encoding="utf-8")
+    print(f"  ✓ libraries/capacitor-iap/Package.swift -> openiap-apple {apple}")
+PY
 
 sync_maui_android_versions() {
     local google_build="packages/google/openiap/build.gradle.kts"

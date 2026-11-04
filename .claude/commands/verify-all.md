@@ -276,7 +276,7 @@ diff llms-full.txt packages/docs/public/llms-full.txt
 
 ### 6. Documentation
 
-- All 6 framework setup pages exist: `packages/docs/src/pages/docs/setup/{react-native,expo,flutter,godot,kmp,maui}.tsx`
+- All 7 framework setup pages exist: `packages/docs/src/pages/docs/setup/{react-native,expo,capacitor,flutter,godot,kmp,maui}.tsx`
 - Testing & Sandbox guide exists: `packages/docs/src/pages/docs/guides/testing.tsx`
 - All LanguageTabs have KMP tab where kotlin tab exists
 - GDScript examples use `await` for async calls

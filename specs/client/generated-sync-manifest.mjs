@@ -62,6 +62,7 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
     targets: {
       reactNative: target('libraries/react-native-iap/src/types.ts', 'TypeScript → react-native-iap'),
       expo: target('libraries/expo-iap/src/types.ts', 'TypeScript → expo-iap'),
+      capacitor: target('libraries/capacitor-iap/src/types.ts', 'TypeScript → capacitor-iap'),
     },
   }),
   csharp: group({
@@ -79,6 +80,7 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
     targets: {
       reactNative: target('libraries/react-native-iap/src/kit-api.ts', 'kit-api → react-native-iap'),
       expo: target('libraries/expo-iap/src/kit-api.ts', 'kit-api → expo-iap'),
+      capacitor: target('libraries/capacitor-iap/src/kit-api.ts', 'kit-api → capacitor-iap'),
     },
   }),
   purchaseFlow: group({
@@ -103,6 +105,11 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
         "purchase-flow-core → expo-iap",
         "typescript-bundler",
       ),
+      capacitor: target(
+        "libraries/capacitor-iap/src/purchase-flow-core.ts",
+        "purchase-flow-core → capacitor-iap",
+        "typescript-bundler",
+      ),
     },
   }),
   purchaseFlowConfirmers: group({
@@ -115,6 +122,11 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
         'typescript-bundler',
       ),
       expo: target('libraries/expo-iap/src/purchase-flow-confirmers.ts', 'purchase-flow-confirmers → expo-iap', 'typescript-bundler'),
+      capacitor: target(
+        'libraries/capacitor-iap/src/purchase-flow-confirmers.ts',
+        'purchase-flow-confirmers → capacitor-iap',
+        'typescript-bundler',
+      ),
     },
   }),
   purchaseFlowVectors: group({
@@ -124,6 +136,10 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
     targets: {
       reactNative: target('libraries/react-native-iap/src/__tests__/fixtures/purchase-flow.vectors.json', 'purchase-flow vectors → react-native-iap'),
       expo: target('libraries/expo-iap/src/__tests__/fixtures/purchase-flow.vectors.json', 'purchase-flow vectors → expo-iap'),
+      capacitor: target(
+        'libraries/capacitor-iap/src/__tests__/fixtures/purchase-flow.vectors.json',
+        'purchase-flow vectors → capacitor-iap',
+      ),
       flutter: target('libraries/flutter_inapp_purchase/test/fixtures/purchase-flow.vectors.json', 'purchase-flow vectors → flutter_inapp_purchase'),
       godot: target('libraries/godot-iap/Example/tests/fixtures/purchase-flow.vectors.json', 'purchase-flow vectors → godot-iap'),
       kmp: target(
@@ -141,6 +157,7 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
     generated: false,
     targets: {
       expo: target('libraries/expo-iap/src/utils/purchaseFlowBinding.ts', 'purchaseFlowBinding → expo-iap'),
+      capacitor: target('libraries/capacitor-iap/src/utils/purchaseFlowBinding.ts', 'purchaseFlowBinding → capacitor-iap'),
     },
   }),
   purchaseFlowTests: group({
@@ -148,6 +165,17 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
     generated: false,
     targets: {
       expo: target('libraries/expo-iap/src/__tests__/purchaseFlow.shared.test.ts', 'purchase-flow mirror tests → expo-iap'),
+      capacitor: target(
+        'libraries/capacitor-iap/src/__tests__/purchaseFlow.shared.test.ts',
+        'purchase-flow mirror tests → capacitor-iap',
+      ),
+    },
+  }),
+  availablePurchases: group({
+    source: 'libraries/expo-iap/src/utils/availablePurchases.ts',
+    generated: false,
+    targets: {
+      capacitor: target('libraries/capacitor-iap/src/utils/availablePurchases.ts', 'availablePurchases → capacitor-iap'),
     },
   }),
   errorMapping: group({
@@ -155,6 +183,7 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
     generated: false,
     targets: {
       expo: target('libraries/expo-iap/src/utils/errorMapping.ts', 'errorMapping → expo-iap'),
+      capacitor: target('libraries/capacitor-iap/src/utils/errorMapping.ts', 'errorMapping → capacitor-iap'),
     },
   }),
   errorMappingTests: group({
@@ -164,6 +193,10 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
       expo: target(
         'libraries/expo-iap/src/utils/__tests__/errorMapping.shared.test.ts',
         'errorMapping tests → expo-iap',
+      ),
+      capacitor: target(
+        'libraries/capacitor-iap/src/utils/__tests__/errorMapping.shared.test.ts',
+        'errorMapping tests → capacitor-iap',
       ),
     },
   }),

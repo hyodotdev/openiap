@@ -1,6 +1,6 @@
 ---
 name: e2e-matrix-runner-google
-description: Run the Android half of the OpenIAP device matrix — six frameworks across Google Play, Amazon Appstore, and Meta Horizon, plus VegaOS — on real hardware and report one row per cell with evidence. Use when asked for Android e2e or the Android half of a parallel device run.
+description: Run the Android half of the OpenIAP device matrix — seven frameworks across Google Play, Amazon Appstore, and Meta Horizon, plus VegaOS — on real hardware and report one row per cell with evidence. Use when asked for Android e2e or the Android half of a parallel device run.
 ---
 
 # E2E Matrix Runner Google
@@ -21,12 +21,12 @@ apply unchanged. This file adds only the narrowed matrix.
 
 | Store        | Frameworks                         | Device      | Depth                                                                                                             |
 | ------------ | ---------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------- |
-| Google Play  | all six + `packages/google`        | Pixel       | device purchase flow each                                                                                         |
-| Amazon       | all six + `packages/google`        | Fire tablet | device purchase flow each                                                                                         |
-| Meta Horizon | all six + `packages/google`        | Quest 3     | build + install + launch + normal checkout navigation; apply the canonical Horizon payment gate before confirming |
+| Google Play  | all seven + `packages/google`      | Pixel       | device purchase flow each                                                                                         |
+| Amazon       | all seven + `packages/google`      | Fire tablet | device purchase flow each                                                                                         |
+| Meta Horizon | all seven + `packages/google`      | Quest 3     | build + install + launch + normal checkout navigation; apply the canonical Horizon payment gate before confirming |
 | VegaOS       | react-native-iap and expo-iap only | Vega device | build + install + launch; purchase attempt when device input allows                                               |
 
-That is the 21 Android/Horizon cells plus the 2 VegaOS cells of the full
+That is the 24 Android/Horizon cells plus the 2 VegaOS cells of the full
 matrix. Do not silently drop a cell.
 
 ## Parallel-run rules
