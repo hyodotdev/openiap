@@ -39,9 +39,10 @@ on:
 permissions:
   contents: read
 
+# Cancel the superseded run on a PR push; a main run always finishes.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   APP_STORE_SDK_VERSION: "26.5"

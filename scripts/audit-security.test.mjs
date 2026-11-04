@@ -1069,7 +1069,11 @@ test("CodeQL scopes Swift pull requests to public macOS runners", () => {
     workflow,
     /group: codeql-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref_name \}\}/u,
   );
-  assert.match(workflow, /cancel-in-progress: true/u);
+  // A PR push cancels its superseded run; a main run always finishes.
+  assert.match(
+    workflow,
+    /cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/u,
+  );
   // Hosted runners only: a fork PR can add a workflow that targets any
   // self-hosted label, so no YAML gate can keep one safe.
   assert.doesNotMatch(workflow, /self-hosted|self-mac|vars\.MAC_CI/u);

@@ -12,11 +12,11 @@ on:
 permissions:
   contents: read
 
-# One group per PR or branch: a new push cancels the queued macOS legs of
-# the run it supersedes instead of stacking behind them.
+# One group per PR or branch. A PR push cancels the superseded run's macOS
+# legs; a main run always finishes, so every release commit gets analyzed.
 concurrency:
   group: codeql-${{ github.event.pull_request.number || github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   codeql-scope:
@@ -371,7 +371,8 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository)
     # Not xcode-27: that image cannot load the Swift macro plugin server.
     runs-on: macos-26
-    timeout-minutes: 90
+    # Expo's traced build has taken up to 85 minutes on a hosted runner.
+    timeout-minutes: 120
     permissions:
       contents: read
       security-events: write
@@ -465,13 +466,15 @@ jobs:
           CP_CACHE_DIR="$RUNNER_TOOL_CACHE/cocoapods/$(bundle exec pod --version)"
           export CP_CACHE_DIR
           bundle exec pod install --repo-update
+          # One simulator architecture is enough for the analysis.
           xcodebuild build \
             -workspace example.xcworkspace \
             -scheme example \
             -destination 'generic/platform=iOS Simulator' \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
-            COMPILER_INDEX_STORE_ENABLE=NO
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            ARCHS=arm64
 
       - name: Build Expo Swift wrapper
         if: startsWith(matrix.component, 'expo')
@@ -488,13 +491,15 @@ jobs:
           npx expo prebuild --platform ios --clean
           cd ios
           pod install --repo-update
+          # One simulator architecture is enough for the analysis.
           xcodebuild build \
             -workspace expoiapexample.xcworkspace \
             -scheme ExpoIAPExample \
             -destination 'generic/platform=iOS Simulator' \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
-            COMPILER_INDEX_STORE_ENABLE=NO
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            ARCHS=arm64
 
       - name: Build Flutter Swift wrappers
         if: matrix.component == 'flutter'
