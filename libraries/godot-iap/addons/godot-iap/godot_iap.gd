@@ -1603,7 +1603,7 @@ func _pending_transaction_dicts_ios() -> Variant:
 
 
 func _transaction_history_dicts_ios() -> Variant:
-	return _purchase_dicts(await get_available_purchases_result())
+	return _purchase_dicts(await get_available_purchases_result({"onlyIncludeActiveItemsIOS": false}))
 
 
 # Keeps the store's reason, which a VoidResult drops.

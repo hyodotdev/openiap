@@ -3110,6 +3110,62 @@
       "granted": false
     },
     {
+      "name": "rejects a revoked transaction from StoreKit history",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-h7",
+        "productId": "premium"
+      },
+      "pending": [],
+      "history": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-h7",
+          "productId": "premium",
+          "revocationDateIOS": 946684800000
+        }
+      ],
+      "isConsumable": false,
+      "historyReads": true,
+      "confirmation": {
+        "status": "invalid",
+        "reason": "revoked"
+      },
+      "granted": false
+    },
+    {
+      "name": "rejects an upgraded transaction from StoreKit history",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-h8",
+        "productId": "premium"
+      },
+      "pending": [],
+      "history": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-h8",
+          "productId": "premium",
+          "isUpgradedIOS": true
+        }
+      ],
+      "isConsumable": false,
+      "historyReads": true,
+      "confirmation": {
+        "status": "invalid",
+        "reason": "upgraded"
+      },
+      "granted": false
+    },
+    {
       "name": "refuses a transaction neither list has",
       "purchase": {
         "purchaseState": "purchased",

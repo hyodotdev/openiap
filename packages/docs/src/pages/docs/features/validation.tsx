@@ -360,9 +360,9 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
           With <code>confirmOnDeviceIOS</code>, the purchase flow reports{' '}
           <code>verification_delayed</code> for an expired receipt and leaves it
           unfinished: a past expiration date can still fall within billing
-          grace. A revoked or upgraded receipt ends as <code>invalid</code>.
-          Check the subscription group&apos;s current StoreKit status and
-          verified renewal information as described in{' '}
+          grace. A revoked or upgraded receipt ends as <code>invalid</code>,
+          which the flow finishes. Check the subscription group&apos;s current
+          StoreKit status and verified renewal information as described in{' '}
           <Link to="/docs/apis/ios/get-pending-transactions-ios">
             pending receipt recovery
           </Link>

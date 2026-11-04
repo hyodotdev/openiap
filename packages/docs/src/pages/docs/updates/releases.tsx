@@ -806,6 +806,11 @@ function Releases() {
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
           <ul>
             <li>
+              <strong>All six</strong>: <code>confirmOnDeviceIOS</code> reads
+              StoreKit&apos;s history as Client Protocol 1.3.3 describes, so an
+              on-device restore confirms purchases it finished before.
+            </li>
+            <li>
               <strong>react-native-iap 17.3.3 and expo-iap 6.4.3</strong>: with{' '}
               <code>purchaseFlow</code> set, the hook&apos;s{' '}
               <code>restorePurchases</code> confirms every owned purchase
@@ -871,8 +876,8 @@ function Releases() {
             November 3, 2026 - One check per purchase on an iOS restore
           </AnchorLink>
           <p>
-            A purchase flow restore on iOS now works the same in every
-            framework: it reads the full transaction history and confirms each
+            A purchase flow restore on iOS now works the same in each framework
+            below: it reads the full transaction history and confirms each
             purchase once, through its newest transaction.
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
