@@ -13,6 +13,15 @@ export const SUGGESTED_RATE = 0.005;
 /** Days of uncataloged-product charges counted as one month of revenue. */
 export const REVENUE_WINDOW_DAYS = 30;
 
+/** The UTC days of the revenue window ending `now`, today included. */
+export function revenueWindowDays(now: number): string[] {
+  return Array.from({ length: REVENUE_WINDOW_DAYS }, (_, index) =>
+    new Date(now - (REVENUE_WINDOW_DAYS - 1 - index) * 86_400_000)
+      .toISOString()
+      .slice(0, 10),
+  );
+}
+
 export type SponsorshipStage = "advisory" | "request";
 
 export interface SponsorshipState {
@@ -50,25 +59,25 @@ export function toUsd(
   return { usd, unconverted: [...unconverted].sort() };
 }
 
-export interface AmountPage {
-  amounts: CurrencyAmount[];
+export interface Page<T> {
+  items: T[];
   isDone: boolean;
   continueCursor: string;
 }
 
 /**
- * Reads every page of a per-project sum, halving the page when one fails on a
- * read limit (large catalog documents), as `runRecomputePage` does. A
+ * Reads every page of a per-project query, halving the page when one fails on
+ * a read limit (large catalog documents), as `runRecomputePage` does. A
  * one-item page that still fails throws.
  */
-export async function collectPages(
-  fetchPage: (cursor: string | null, numItems: number) => Promise<AmountPage>,
+export async function collectPages<T>(
+  fetchPage: (cursor: string | null, numItems: number) => Promise<Page<T>>,
   numItems: number,
-): Promise<CurrencyAmount[]> {
-  const amounts: CurrencyAmount[] = [];
+): Promise<T[]> {
+  const items: T[] = [];
   let cursor: string | null = null;
   for (;;) {
-    let page: AmountPage;
+    let page: Page<T>;
     try {
       page = await fetchPage(cursor, numItems);
     } catch (error) {
@@ -76,28 +85,10 @@ export async function collectPages(
       numItems = Math.ceil(numItems / 2);
       continue;
     }
-    amounts.push(...page.amounts);
-    if (page.isDone) return amounts;
+    items.push(...page.items);
+    if (page.isDone) return items;
     cursor = page.continueCursor;
   }
-}
-
-/**
- * Reads a revenue total until two reads in a row agree. Paginated reads can
- * meet a rollup refresh or catalog sync halfway and count a charge twice or
- * not at all; a run that never settles throws, and next month retries.
- */
-export async function readStable<T extends { usd: number }>(
-  read: () => Promise<T>,
-  attempts = 4,
-): Promise<T> {
-  let previous = await read();
-  for (let attempt = 1; attempt < attempts; attempt++) {
-    const next = await read();
-    if (Math.abs(next.usd - previous.usd) < 0.01) return next;
-    previous = next;
-  }
-  throw new Error("Revenue changed on every read");
 }
 
 /** The email an organization should get now, if any. Each stage is sent once. */

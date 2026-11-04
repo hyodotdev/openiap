@@ -3,13 +3,13 @@ import { v } from "convex/values";
 
 import { internalMutation, internalQuery } from "../_generated/server";
 import { countsTowardMrr } from "../subscriptions/monthlyMicros";
-import { loadStatsPeriods, statsContributionFor } from "../subscriptions/stats";
+import { statsContributionFor } from "../subscriptions/stats";
 import { GRACE_PERIOD_MS } from "./logic";
 
 const stageValidator = v.union(v.literal("advisory"), v.literal("request"));
 
-/** One page of organizations with their project ids and sponsorship state. */
-export const listOrganizationRevenue = internalQuery({
+/** One page of organizations with their sponsorship state. */
+export const listOrganizations = internalQuery({
   args: { paginationOpts: paginationOptsValidator },
   handler: async (ctx, args) => {
     const page = await ctx.db
@@ -18,13 +18,6 @@ export const listOrganizationRevenue = internalQuery({
     const organizations = [];
     for (const organization of page.page) {
       if (organization.pendingDeletion) continue;
-      const projects = await ctx.db
-        .query("projects")
-        .withIndex("by_organization", (q) =>
-          q.eq("organizationId", organization._id),
-        )
-        .collect();
-      if (projects.length === 0) continue;
       const state = await ctx.db
         .query("sponsorshipStates")
         .withIndex("by_organization", (q) =>
@@ -34,7 +27,6 @@ export const listOrganizationRevenue = internalQuery({
       organizations.push({
         organizationId: organization._id,
         name: organization.name,
-        projectIds: projects.map((project) => project._id),
         state: state
           ? { stage: state.stage, sponsoredAt: state.sponsoredAt }
           : null,
@@ -48,6 +40,72 @@ export const listOrganizationRevenue = internalQuery({
   },
 });
 
+export const listProjectIds = internalQuery({
+  args: { organizationId: v.id("organizations") },
+  handler: async (ctx, args) => {
+    const projects = await ctx.db
+      .query("projects")
+      .withIndex("by_organization", (q) =>
+        q.eq("organizationId", args.organizationId),
+      )
+      .collect();
+    return projects.map((project) => project._id);
+  },
+});
+
+const billingPeriodValidator = v.object({
+  platform: v.union(v.literal("IOS"), v.literal("Android")),
+  productId: v.string(),
+  billingPeriod: v.string(),
+});
+
+/**
+ * One page of a project's catalog billing periods. Read once per project and
+ * passed to both sums, so MRR and uncataloged charges classify each product
+ * the same way even if a catalog sync runs mid-scan.
+ */
+export const listBillingPeriods = internalQuery({
+  args: {
+    projectId: v.id("projects"),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const page = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q.eq("projectId", args.projectId),
+      )
+      .paginate(args.paginationOpts);
+    return {
+      items: page.page.flatMap((product) =>
+        product.billingPeriod
+          ? [
+              {
+                platform: product.platform,
+                productId: product.productId,
+                billingPeriod: product.billingPeriod,
+              },
+            ]
+          : [],
+      ),
+      isDone: page.isDone,
+      continueCursor: page.continueCursor,
+    };
+  },
+});
+
+const productKey = (platform: string, productId: string) =>
+  `${platform}:${productId}`;
+
+function sumByCurrency(rows: Array<{ currency: string; micros: number }>) {
+  const byCurrency = new Map<string, number>();
+  for (const row of rows) {
+    const currency = row.currency.toUpperCase();
+    byCurrency.set(currency, (byCurrency.get(currency) ?? 0) + row.micros);
+  }
+  return [...byCurrency].map(([currency, micros]) => ({ currency, micros }));
+}
+
 /**
  * One page of a project's production subscription MRR per currency, counted
  * from the subscriptions themselves with the rule `subscriptionStats` uses, so
@@ -57,36 +115,38 @@ export const sumProjectMrr = internalQuery({
   args: {
     projectId: v.id("projects"),
     now: v.number(),
+    billingPeriods: v.array(billingPeriodValidator),
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
+    const periods = new Map(
+      args.billingPeriods.map((product) => [
+        productKey(product.platform, product.productId),
+        product.billingPeriod,
+      ]),
+    );
     const page = await ctx.db
       .query("subscriptions")
       .withIndex("by_project_and_state", (q) =>
         q.eq("projectId", args.projectId).eq("state", "Active"),
       )
       .paginate(args.paginationOpts);
-    const periods = await loadStatsPeriods(ctx, args.projectId, page.page);
-    if (!periods) throw new Error("Product catalog page too large");
-    const byCurrency = new Map<string, number>();
+    const rows = [];
     for (const sub of page.page) {
       const contribution = statsContributionFor(
         sub,
-        periods.get(`${sub.platform}:${sub.productId}`),
+        periods.get(productKey(sub.platform, sub.productId)),
         args.now,
       );
-      if (!contribution || contribution.mrrMicros <= 0) continue;
-      const currency = contribution.currency.toUpperCase();
-      byCurrency.set(
-        currency,
-        (byCurrency.get(currency) ?? 0) + contribution.mrrMicros,
-      );
+      if (contribution && contribution.mrrMicros > 0) {
+        rows.push({
+          currency: contribution.currency,
+          micros: contribution.mrrMicros,
+        });
+      }
     }
     return {
-      amounts: [...byCurrency].map(([currency, micros]) => ({
-        currency,
-        micros,
-      })),
+      items: sumByCurrency(rows),
       isDone: page.isDone,
       continueCursor: page.continueCursor,
     };
@@ -94,60 +154,43 @@ export const sumProjectMrr = internalQuery({
 });
 
 /**
- * One page of a project's production subscription charges since `fromDay` for
- * products MRR cannot count (no known billing period), summed per currency,
- * from the analytics rollup (subscriptions/revenueMetrics.ts). `legacy` reads
- * rows from before the environment split, which count as production as on the
- * dashboard.
+ * One day of a project's production subscription charges for products MRR
+ * cannot count (no known billing period), summed per currency, from the
+ * analytics rollup (subscriptions/revenueMetrics.ts). The rollup replaces a
+ * day's rows in one mutation, so a one-day read is never half refreshed. Rows
+ * from before the environment split count as production, as on the dashboard.
  */
-export const sumRecentCharges = internalQuery({
+export const sumDayCharges = internalQuery({
   args: {
     projectId: v.id("projects"),
-    fromDay: v.string(),
-    legacy: v.boolean(),
-    paginationOpts: paginationOptsValidator,
+    day: v.string(),
+    billingPeriods: v.array(billingPeriodValidator),
   },
   handler: async (ctx, args) => {
-    const page = await ctx.db
-      .query("revenueMetricsDaily")
-      .withIndex("by_project_and_environment_and_day", (q) =>
-        q
-          .eq("projectId", args.projectId)
-          .eq("environment", args.legacy ? undefined : "Production")
-          .gte("day", args.fromDay),
-      )
-      .paginate(args.paginationOpts);
-    const inMrr = new Map<string, boolean>();
-    const byCurrency = new Map<string, number>();
-    for (const row of page.page) {
-      const key = `${row.platform}:${row.productId}`;
-      if (!inMrr.has(key)) {
-        const product = await ctx.db
-          .query("products")
-          .withIndex("by_project_and_platform_and_product", (q) =>
+    const inMrr = new Set(
+      args.billingPeriods
+        .filter((product) => countsTowardMrr(product.billingPeriod))
+        .map((product) => productKey(product.platform, product.productId)),
+    );
+    const rows = [];
+    for (const environment of ["Production", undefined] as const) {
+      rows.push(
+        ...(await ctx.db
+          .query("revenueMetricsDaily")
+          .withIndex("by_project_and_environment_and_day", (q) =>
             q
               .eq("projectId", args.projectId)
-              .eq("platform", row.platform)
-              .eq("productId", row.productId),
+              .eq("environment", environment)
+              .eq("day", args.day),
           )
-          .unique();
-        inMrr.set(key, countsTowardMrr(product?.billingPeriod));
-      }
-      if (inMrr.get(key)) continue;
-      const currency = row.currency.toUpperCase();
-      byCurrency.set(
-        currency,
-        (byCurrency.get(currency) ?? 0) + row.revenueMicros,
+          .collect()),
       );
     }
-    return {
-      amounts: [...byCurrency].map(([currency, micros]) => ({
-        currency,
-        micros,
-      })),
-      isDone: page.isDone,
-      continueCursor: page.continueCursor,
-    };
+    return sumByCurrency(
+      rows
+        .filter((row) => !inMrr.has(productKey(row.platform, row.productId)))
+        .map((row) => ({ currency: row.currency, micros: row.revenueMicros })),
+    );
   },
 });
 

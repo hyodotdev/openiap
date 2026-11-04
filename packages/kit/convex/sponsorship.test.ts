@@ -4,6 +4,7 @@ import { convexTest } from "convex-test";
 import { describe, expect, it } from "vitest";
 
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -45,25 +46,36 @@ async function seedOrganization(t: ReturnType<typeof convexTest>) {
   });
 }
 
+async function catalog(
+  t: ReturnType<typeof convexTest>,
+  projectId: Id<"projects">,
+) {
+  const page = await t.query(internal.sponsorship.internal.listBillingPeriods, {
+    projectId,
+    paginationOpts: { numItems: 100, cursor: null },
+  });
+  return page.items;
+}
+
 describe("sponsorship internal functions", () => {
   it("lists an organization's projects and its sponsorship state", async () => {
     const t = convexTest(schema, modules);
     const organizationId = await seedOrganization(t);
     const page = await t.query(
-      internal.sponsorship.internal.listOrganizationRevenue,
+      internal.sponsorship.internal.listOrganizations,
       { paginationOpts: { numItems: 10, cursor: null } },
     );
+    expect(page.organizations).toEqual([
+      { organizationId, name: "Acme", state: null },
+    ]);
     const projectIds = await t.run(async (ctx) =>
       (await ctx.db.query("projects").collect()).map((project) => project._id),
     );
-    expect(page.organizations).toEqual([
-      {
+    expect(
+      await t.query(internal.sponsorship.internal.listProjectIds, {
         organizationId,
-        name: "Acme",
-        projectIds,
-        state: null,
-      },
-    ]);
+      }),
+    ).toEqual(projectIds);
   });
 
   it("counts MRR from active production subscriptions", async () => {
@@ -111,15 +123,17 @@ describe("sponsorship internal functions", () => {
       });
       return project._id;
     });
+    const billingPeriods = await catalog(t, projectId);
     const page = await t.query(internal.sponsorship.internal.sumProjectMrr, {
       projectId,
       now: 1_000,
+      billingPeriods,
       paginationOpts: { numItems: 100, cursor: null },
     });
-    expect(page.amounts).toEqual([{ currency: "USD", micros: 10_000_000 }]);
+    expect(page.items).toEqual([{ currency: "USD", micros: 10_000_000 }]);
   });
 
-  it("sums recent production charges of uncataloged products, legacy rows included", async () => {
+  it("sums a day of production charges for uncataloged products, legacy rows included", async () => {
     const t = convexTest(schema, modules);
     await seedOrganization(t);
     const projectId = await t.run(async (ctx) => {
@@ -160,12 +174,6 @@ describe("sponsorship internal functions", () => {
           environment: "Sandbox" as const,
           revenueMicros: 7_000_000,
         },
-        {
-          day: "2026-09-01",
-          currency: "USD",
-          environment: "Production" as const,
-          revenueMicros: 1_000_000,
-        },
       ];
       for (const row of rows) {
         await ctx.db.insert("revenueMetricsDaily", { ...rollup, ...row });
@@ -191,17 +199,20 @@ describe("sponsorship internal functions", () => {
       });
       return project!._id;
     });
-    const sum = (legacy: boolean) =>
-      t.query(internal.sponsorship.internal.sumRecentCharges, {
+    const billingPeriods = await catalog(t, projectId);
+    const sum = (day: string) =>
+      t.query(internal.sponsorship.internal.sumDayCharges, {
         projectId,
-        fromDay: "2026-10-05",
-        legacy,
-        paginationOpts: { numItems: 100, cursor: null },
+        day,
+        billingPeriods,
       });
-    expect((await sum(false)).amounts).toEqual([
-      { currency: "USD", micros: 7_000_000 },
+    expect(await sum("2026-10-20")).toEqual([
+      { currency: "USD", micros: 5_000_000 },
     ]);
-    expect((await sum(true)).amounts).toEqual([
+    expect(await sum("2026-10-21")).toEqual([
+      { currency: "USD", micros: 2_000_000 },
+    ]);
+    expect(await sum("2026-10-22")).toEqual([
       { currency: "KRW", micros: 9_000_000_000 },
     ]);
   });

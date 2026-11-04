@@ -11,8 +11,7 @@ import {
   collectPages,
   GRACE_PERIOD_MS,
   nextNotice,
-  readStable,
-  REVENUE_WINDOW_DAYS,
+  revenueWindowDays,
   toUsd,
 } from "./logic";
 
@@ -25,8 +24,8 @@ const RATE_SOURCES = [
 // Replies reach the maintainer; RESEND_EMAIL_FROM may be a no-reply address.
 const CONTACT_EMAIL = "hyo@hyo.dev";
 const PAGE_SIZE = 10;
+const CATALOG_PAGE_SIZE = 100;
 const MRR_PAGE_SIZE = 100;
-const CHARGE_PAGE_SIZE = 2_000;
 
 type Mode = "off" | "dry-run" | "send";
 type Rates = Record<string, number>;
@@ -78,44 +77,52 @@ async function sendEmail(
 }
 
 type Organization = FunctionReturnType<
-  typeof internal.sponsorship.internal.listOrganizationRevenue
+  typeof internal.sponsorship.internal.listOrganizations
 >["organizations"][number];
 
 /**
- * An organization's production subscription MRR, plus charges since
- * `fromDay` for products MRR cannot count, across all its projects.
+ * An organization's production subscription MRR, plus charges on `days` for
+ * products MRR cannot count, across all its projects.
  */
 async function monthlyRevenue(
   ctx: ActionCtx,
   organization: Organization,
   now: number,
-  fromDay: string,
+  days: string[],
 ): Promise<CurrencyAmount[]> {
   const amounts: CurrencyAmount[] = [];
-  for (const projectId of organization.projectIds) {
+  const projectIds = await ctx.runQuery(
+    internal.sponsorship.internal.listProjectIds,
+    { organizationId: organization.organizationId },
+  );
+  for (const projectId of projectIds) {
+    const billingPeriods = await collectPages(
+      (cursor, numItems) =>
+        ctx.runQuery(internal.sponsorship.internal.listBillingPeriods, {
+          projectId,
+          paginationOpts: { numItems, cursor },
+        }),
+      CATALOG_PAGE_SIZE,
+    );
     amounts.push(
       ...(await collectPages(
         (cursor, numItems) =>
           ctx.runQuery(internal.sponsorship.internal.sumProjectMrr, {
             projectId,
             now,
+            billingPeriods,
             paginationOpts: { numItems, cursor },
           }),
         MRR_PAGE_SIZE,
       )),
     );
-    for (const legacy of [false, true]) {
+    for (const day of days) {
       amounts.push(
-        ...(await collectPages(
-          (cursor, numItems) =>
-            ctx.runQuery(internal.sponsorship.internal.sumRecentCharges, {
-              projectId,
-              fromDay,
-              legacy,
-              paginationOpts: { numItems, cursor },
-            }),
-          CHARGE_PAGE_SIZE,
-        )),
+        ...(await ctx.runQuery(internal.sponsorship.internal.sumDayCharges, {
+          projectId,
+          day,
+          billingPeriods,
+        })),
       );
     }
   }
@@ -163,9 +170,9 @@ async function notify(
 export const runSponsorshipNotices = internalAction({
   args: {
     cursor: v.optional(v.string()),
-    // Fixed for the whole run once the first page fetched them.
+    // Fixed for the whole run once the first page set them.
     rates: v.optional(v.record(v.string(), v.number())),
-    fromDay: v.optional(v.string()),
+    days: v.optional(v.array(v.string())),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -173,23 +180,17 @@ export const runSponsorshipNotices = internalAction({
     if (mode === "off") return null;
 
     const rates: Rates = args.rates ?? (await fetchUsdRates());
-    const fromDay =
-      args.fromDay ??
-      // Today counts as one of the days.
-      new Date(Date.now() - (REVENUE_WINDOW_DAYS - 1) * 86_400_000)
-        .toISOString()
-        .slice(0, 10);
+    const days = args.days ?? revenueWindowDays(Date.now());
     const page: FunctionReturnType<
-      typeof internal.sponsorship.internal.listOrganizationRevenue
-    > = await ctx.runQuery(
-      internal.sponsorship.internal.listOrganizationRevenue,
-      { paginationOpts: { numItems: PAGE_SIZE, cursor: args.cursor ?? null } },
-    );
+      typeof internal.sponsorship.internal.listOrganizations
+    > = await ctx.runQuery(internal.sponsorship.internal.listOrganizations, {
+      paginationOpts: { numItems: PAGE_SIZE, cursor: args.cursor ?? null },
+    });
     if (!page.isDone) {
       await ctx.scheduler.runAfter(
         0,
         internal.sponsorship.action.runSponsorshipNotices,
-        { cursor: page.continueCursor, rates, fromDay },
+        { cursor: page.continueCursor, rates, days },
       );
     }
 
@@ -198,11 +199,9 @@ export const runSponsorshipNotices = internalAction({
     for (const organization of page.organizations) {
       summary.checked += 1;
       try {
-        const { usd, unconverted: missing } = await readStable(async () =>
-          toUsd(
-            await monthlyRevenue(ctx, organization, Date.now(), fromDay),
-            rates,
-          ),
+        const { usd, unconverted: missing } = toUsd(
+          await monthlyRevenue(ctx, organization, Date.now(), days),
+          rates,
         );
         missing.forEach((currency) => unconverted.add(currency));
         const stage = await notify(ctx, mode, organization, usd);

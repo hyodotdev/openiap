@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   collectPages,
   nextNotice,
-  readStable,
+  revenueWindowDays,
   suggestedSponsorshipUsd,
   toUsd,
 } from "./logic";
@@ -73,8 +73,8 @@ describe("collectPages", () => {
       sizes.push(numItems);
       if (numItems > 25) throw new Error("Too many bytes read");
       return cursor === null
-        ? { amounts: usd(1), isDone: false, continueCursor: "next" }
-        : { amounts: usd(2), isDone: true, continueCursor: "" };
+        ? { items: usd(1), isDone: false, continueCursor: "next" }
+        : { items: usd(2), isDone: true, continueCursor: "" };
     }, 100);
     expect(amounts).toEqual([...usd(1), ...usd(2)]);
     expect(sizes).toEqual([100, 50, 25, 25]);
@@ -89,21 +89,11 @@ describe("collectPages", () => {
   });
 });
 
-describe("readStable", () => {
-  const reads = (...values: number[]) => {
-    let index = 0;
-    return async () => ({ usd: values[Math.min(index++, values.length - 1)] });
-  };
-
-  it("returns once two reads in a row agree", async () => {
-    expect(await readStable(reads(11_000, 6_000, 6_000))).toEqual({
-      usd: 6_000,
-    });
-  });
-
-  it("throws when the total never settles", async () => {
-    await expect(readStable(reads(1, 2, 3, 4))).rejects.toThrow(
-      "Revenue changed on every read",
-    );
+describe("revenueWindowDays", () => {
+  it("lists 30 UTC days ending today", () => {
+    const days = revenueWindowDays(Date.UTC(2026, 10, 4, 12));
+    expect(days).toHaveLength(30);
+    expect(days[0]).toBe("2026-10-06");
+    expect(days.at(-1)).toBe("2026-11-04");
   });
 });
