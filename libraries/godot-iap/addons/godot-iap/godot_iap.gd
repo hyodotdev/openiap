@@ -1591,15 +1591,19 @@ func confirm_with_iapkit(options: Dictionary) -> Callable:
 
 
 ## Confirms App Store purchases on the device, for an app with neither a backend
-## nor IAPKit: StoreKit verified a transaction it still lists as unfinished.
-## Credit consumables in [code]grant[/code], which runs before the purchase is
-## consumed.
+## nor IAPKit: StoreKit verified a transaction it lists as unfinished, or for a
+## restore in its verified history. Credit consumables in [code]grant[/code],
+## which runs before the purchase is consumed.
 func confirm_on_device_ios(options := {}) -> Callable:
-	return _PurchaseConfirmers.create_device_confirmation_ios(_pending_transaction_dicts_ios, options)
+	return _PurchaseConfirmers.create_device_confirmation_ios(_pending_transaction_dicts_ios, options, _transaction_history_dicts_ios)
 
 
 func _pending_transaction_dicts_ios() -> Variant:
 	return _purchase_dicts(await _get_pending_transactions_ios_result())
+
+
+func _transaction_history_dicts_ios() -> Variant:
+	return _purchase_dicts(await get_available_purchases_result({"onlyIncludeActiveItemsIOS": false}))
 
 
 # Keeps the store's reason, which a VoidResult drops.

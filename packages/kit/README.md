@@ -266,8 +266,10 @@ The verify endpoint also has a per-(API key, payload) replay guard for
 the exact same receipt: **30-request burst, ~1/min sustained**, plus a
 5-minute cooldown after the upstream store settles a payload as invalid (a
 response with `finalVerdict: true`; a Google subscription on hold, paused or in
-grace can come back, so it gets no cooldown). Those paths return
-`429 DUPLICATE_PAYLOAD` or `429 REPEATED_FAILURE` with `Retry-After`.
+grace can come back, so it gets no cooldown). A burst returns
+`429 DUPLICATE_PAYLOAD` with `Retry-After`. During the cooldown the same
+payload gets the same verdict again without asking the store; only a verdict
+IAPKit could not keep, such as a malformed one, returns `429 REPEATED_FAILURE`.
 
 Accepted verification work is also capped at **8 concurrent handlers per API
 key, 16 per trusted source IP, and 32 per process** by default. The key and

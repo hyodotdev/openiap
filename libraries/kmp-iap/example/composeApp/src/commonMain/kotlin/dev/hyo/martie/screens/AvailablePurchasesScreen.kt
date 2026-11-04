@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import dev.hyo.martie.utils.swipeToBack
 import dev.hyo.martie.theme.AppColors
+import io.github.hyochan.kmpiap.PurchaseFlowStatus
 import io.github.hyochan.kmpiap.getCurrentPlatform
 import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.openiap.*
@@ -71,8 +72,12 @@ fun AvailablePurchasesScreen(navController: NavController) {
             isRestoring = true
             restoreStatus = "Restoring purchases..."
             try {
-                ExamplePurchaseFlow.flow.recoverPurchases(includeFinished = true)
-                restoreStatus = "Purchases restored."
+                // A failed confirmation fails the restore; its purchase stays
+                // unfinished, so the next restore retries it.
+                val failed = ExamplePurchaseFlow.flow.recoverPurchases(includeFinished = true)
+                    .firstNotNullOfOrNull { it.status as? PurchaseFlowStatus.Failed }
+                restoreStatus = failed?.let { "Restore failed: ${it.error.message ?: it.error}" }
+                    ?: "Purchases restored."
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

@@ -232,9 +232,12 @@ ${IAPKIT_FLOW_SAMPLE}`}
       <p>
         An App Store app with neither a backend nor IAPKit can pass{" "}
         <code>confirmOnDeviceIOS</code> instead: StoreKit verified a transaction
-        it still lists as unfinished, unrevoked, not upgraded, unexpired, and
-        from the purchase&apos;s environment. The same <code>grant</code> rule
-        applies.
+        it lists as unfinished, or for a restore in its verified history, from
+        the purchase&apos;s environment. A revoked or upgraded one ends as{" "}
+        <code>invalid</code>, and an expired one as{" "}
+        <code>verification_delayed</code>, since billing grace can still cover
+        it. The same <code>grant</code> rule applies, and a restore grants a
+        finished non-consumable again.
       </p>
       <p>
         Anything that may be a configuration error rather than a rejected
@@ -348,10 +351,15 @@ ${IAPKIT_FLOW_SAMPLE}`}
         <code>recoverPurchases({"{ includeFinished: true }"})</code>, which{" "}
         <code>restorePurchases()</code> on the hook does: the same account gets{" "}
         <code>entitled</code> with <code>alreadyGranted</code>, and another
-        account gets <code>ownership_conflict</code>. Nothing is transferred. On
-        iOS a restore reads the full transaction history and confirms each
-        purchase once, through its newest transaction, so a subscription in
-        billing grace comes back and past renewals cost nothing extra. If{" "}
+        account gets <code>ownership_conflict</code>. Nothing is transferred.
+        The hook skips the provider&apos;s restore, so iOS asks for no App Store
+        sign-in; call <code>syncIOS()</code> first only if a purchase is still
+        missing. It rejects when a confirmation fails, and that purchase stays
+        unfinished for the next restore; one the flow cannot confirm, such as a
+        multi-quantity purchase, fails every restore. On iOS a restore reads the
+        full transaction history and confirms each purchase once, through its
+        newest transaction, so a subscription in billing grace comes back and
+        past renewals cost nothing extra. If{" "}
         <code>getPendingTransactionsIOS</code> throws, as one unverified
         transaction makes it do, recovery confirms every Apple purchase{" "}
         <code>getAvailablePurchases</code> lists instead.
@@ -363,9 +371,12 @@ ${IAPKIT_FLOW_SAMPLE}`}
         what the listener settled while it ran, and a later delivery of a
         settled purchase is answered without one. IAPKit replay-limits each
         receipt to about one verification a minute after a burst, so respect{" "}
-        <code>retryAfterMs</code> instead of looping. The reference backend
-        reports <code>429 REPEATED_FAILURE</code>, a receipt IAPKit rejected in
-        the last five minutes, as <code>invalid</code>.
+        <code>retryAfterMs</code> instead of looping. A receipt IAPKit finally
+        rejected in the last five minutes gets that rejection again, so a
+        restore right after launch reads an expired one as <code>invalid</code>.
+        An inauthentic one still fails a restore through{" "}
+        <code>confirmWithIapkit</code>; the reference backend answers it as{" "}
+        <code>invalid</code>.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Ownership</h2>

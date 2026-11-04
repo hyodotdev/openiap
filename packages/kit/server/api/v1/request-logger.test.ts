@@ -29,6 +29,7 @@ type TestVars = {
   apiKeyHash?: string;
   corrId: string;
   verifyOutcome?: VerifyOutcome;
+  verifyReplayed?: boolean;
 };
 
 function buildApp(params: {
@@ -37,7 +38,10 @@ function buildApp(params: {
   debug?: boolean;
   now?: () => number;
   handler?: (c: {
-    set: (k: "verifyOutcome", v: VerifyOutcome) => void;
+    set: {
+      (k: "verifyOutcome", v: VerifyOutcome): void;
+      (k: "verifyReplayed", v: boolean): void;
+    };
     json: (data: unknown, status?: number) => Response;
   }) => Response | Promise<Response>;
 }) {
@@ -179,6 +183,32 @@ describe("requestLoggerMiddleware", () => {
     expect(logs[0].store).toBe("google");
     expect(logs[0].isValid).toBe(false);
     expect(logs[0].state).toBe("INAUTHENTIC");
+  });
+
+  test("marks a verdict the replay guard answered again", async () => {
+    const logs: VerifyLogLine[] = [];
+    const app = buildApp({
+      logs,
+      handler: (c) => {
+        c.set("verifyReplayed", true);
+        c.set("verifyOutcome", { isValid: false, state: "EXPIRED" });
+        return c.json({ store: "google", isValid: false, state: "EXPIRED" });
+      },
+    });
+
+    await app.request("/verify", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer key-1",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        store: "google",
+        purchaseToken: TEST_GOOGLE_TOKEN,
+      }),
+    });
+
+    expect(logs[0]).toMatchObject({ state: "EXPIRED", replayed: true });
   });
 
   test("logs Horizon verification store values", async () => {

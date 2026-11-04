@@ -208,14 +208,13 @@ class _AvailablePurchasesScreenState extends State<AvailablePurchasesScreen> {
     }
   }
 
-  // The shared flow confirms every owned purchase again, like a new purchase.
   Future<void> _restorePurchases() async {
     setState(() {
       _restoring = true;
       _restoreStatus = 'Restoring purchases...';
     });
     try {
-      await _purchases.flow.recoverPurchases(includeFinished: true);
+      await _purchases.restore();
       if (!mounted) return;
       setState(() {
         _restoreStatus = 'Purchases restored.';

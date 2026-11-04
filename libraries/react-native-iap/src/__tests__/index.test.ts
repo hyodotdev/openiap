@@ -410,6 +410,34 @@ describe('Public API (src/index.ts)', () => {
       expect(mockIap.finishTransaction).not.toHaveBeenCalled();
     });
 
+    it('confirms a finished purchase from the full iOS history', async () => {
+      mockIap.getPendingTransactionsIOS = jest.fn(async () => []);
+      const history = jest.fn(async () => [nitroPurchase('premium')]);
+      mockIap.getAvailablePurchases = history;
+      const confirm = IAP.confirmOnDeviceIOS();
+
+      await expect(
+        confirm(
+          {
+            id: 'tx-premium',
+            transactionId: 'tx-premium',
+            productId: 'premium',
+            store: 'apple',
+            storeId: 'apple',
+            platform: 'ios',
+            purchaseState: 'purchased',
+            transactionDate: 1,
+            quantity: 1,
+            isAutoRenewing: false,
+          },
+          {isConsumable: false},
+        ),
+      ).resolves.toEqual({status: 'entitled', alreadyGranted: true});
+      expect(history).toHaveBeenCalledWith({
+        ios: expect.objectContaining({onlyIncludeActiveItemsIOS: false}),
+      });
+    });
+
     it('forgets a request the store answered with an error', async () => {
       const flow = IAP.createPurchaseFlow({
         confirmWithBackend: async () => ({status: 'invalid' as const}),
@@ -4633,7 +4661,8 @@ describe('Public API (src/index.ts)', () => {
       );
 
       await expect(testCase.invoke()).rejects.toMatchObject({
-        code: ErrorCode.Unknown, message: nativeError.message,
+        code: ErrorCode.Unknown,
+        message: nativeError.message,
       });
     });
 
@@ -4657,7 +4686,8 @@ describe('Public API (src/index.ts)', () => {
       );
 
       await expect(testCase.invoke()).rejects.toMatchObject({
-        code: ErrorCode.Unknown, message: nativeError.message,
+        code: ErrorCode.Unknown,
+        message: nativeError.message,
       });
     });
   });

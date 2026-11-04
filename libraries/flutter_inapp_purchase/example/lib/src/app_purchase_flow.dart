@@ -87,6 +87,16 @@ class AppPurchaseFlow {
     }
   }
 
+  /// Confirms every owned purchase again. A failed confirmation fails the
+  /// restore; its purchase stays unfinished, so the next restore retries it.
+  Future<void> restore() async {
+    final outcomes = await flow.recoverPurchases(includeFinished: true);
+    for (final outcome in outcomes) {
+      final status = outcome.status;
+      if (status is PurchaseFailed) throw status.error;
+    }
+  }
+
   void dispose() {
     flow.dispose();
     verificationMethod.dispose();

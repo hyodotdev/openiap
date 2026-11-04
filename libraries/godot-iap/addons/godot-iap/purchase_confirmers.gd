@@ -6,6 +6,8 @@ extends RefCounted
 
 const Failure = preload("purchase_flow_failure.gd")
 const IAPKIT_UNKNOWN_RETRY_MS := 30000
+# An expired App Store receipt may still be in billing grace; check it again.
+const DEVICE_EXPIRED_RETRY_MS := 30000
 
 # Unix time in ms that tests set; null reads the system clock.
 static var _clock_ms: Variant = null
@@ -35,10 +37,13 @@ static func create_iapkit_confirmation(verify: Callable, options: Dictionary) ->
 
 ## Confirms App Store purchases on the device, for an app with neither a backend
 ## nor IAPKit, given the SDK's get_pending_transactions_ios. StoreKit verified
-## the transaction if it still lists it unfinished, unrevoked, not upgraded,
-## unexpired, and from the purchase's environment; [code]grant[/code] then runs
-## as in [method create_iapkit_confirmation].
-static func create_device_confirmation_ios(get_pending_transactions_ios: Callable, options := {}) -> Callable:
+## the transaction if it lists it as unfinished, or, for a purchase the flow
+## already finished, in [code]get_transaction_history_ios[/code], from the
+## purchase's environment. A revoked or upgraded one is invalid, and an expired
+## one delayed, since billing grace can still cover it; [code]grant[/code] runs
+## as in [method create_iapkit_confirmation] before an unfinished one is
+## finished, and again for a finished non-consumable a restore reads.
+static func create_device_confirmation_ios(get_pending_transactions_ios: Callable, options := {}, get_transaction_history_ios := Callable()) -> Callable:
 	return func(purchase: Dictionary, is_consumable: bool) -> Variant:
 		var missing_grant := _missing_grant("confirm_on_device_ios", purchase, is_consumable, options)
 		if missing_grant != null:
@@ -47,28 +52,46 @@ static func create_device_confirmation_ios(get_pending_transactions_ios: Callabl
 		var store_id = purchase.get("storeId")
 		if purchase.get("store") != "apple" or (store_id != null and store_id != "apple"):
 			return Failure.new("Device confirmation covers App Store purchases, not %s" % (purchase.get("store") if store_id == null else store_id))
-		var pending = await get_pending_transactions_ios.call()
-		if pending is Failure:
-			return pending
-		# After the query: a transaction can expire while StoreKit answers.
-		var now := _now_ms()
-		var verified: bool = pending.any(func(candidate: Dictionary) -> bool:
-			var expiration = candidate.get("expirationDateIOS")
-			var environment = purchase.get("environmentIOS")
+		var environment = purchase.get("environmentIOS")
+		var is_same := func(candidate: Dictionary) -> bool:
 			return candidate.get("store") == "apple" \
 				and not String(purchase.id).is_empty() \
 				and candidate.get("id") == purchase.id \
 				and candidate.get("productId") == purchase.productId \
-				and candidate.get("revocationDateIOS") == null \
-				and candidate.get("isUpgradedIOS") != true \
-				and (expiration == null or expiration > now) \
-				and (environment == null or candidate.get("environmentIOS") == environment))
-		if not verified:
-			return Failure.new("StoreKit lists no valid unfinished transaction for %s" % purchase.productId)
-		var failed_grant := await _grant(purchase, is_consumable, options)
-		if failed_grant != null:
-			return failed_grant
-		return {"status": "entitled", "alreadyGranted": false}
+				and (environment == null or candidate.get("environmentIOS") == environment)
+		var pending = await get_pending_transactions_ios.call()
+		if pending is Failure:
+			return pending
+		var transaction = _first(pending, is_same)
+		var unfinished: bool = transaction != null
+		if transaction == null and get_transaction_history_ios.is_valid():
+			var history = await get_transaction_history_ios.call()
+			if history is Failure:
+				return history
+			transaction = _first(history, is_same)
+		if transaction == null:
+			return Failure.new("StoreKit lists no transaction for %s" % purchase.productId)
+		if transaction.get("revocationDateIOS") != null:
+			return {"status": "invalid", "reason": "revoked"}
+		if transaction.get("isUpgradedIOS") == true:
+			return {"status": "invalid", "reason": "upgraded"}
+		# After the reads: a transaction can expire while StoreKit answers.
+		var expiration = transaction.get("expirationDateIOS")
+		if expiration != null and expiration <= _now_ms():
+			return {"status": "verification_delayed", "retryAfterMs": DEVICE_EXPIRED_RETRY_MS}
+		# A finished consumable was credited before it was consumed.
+		if unfinished or not is_consumable:
+			var failed_grant := await _grant(purchase, is_consumable, options)
+			if failed_grant != null:
+				return failed_grant
+		return {"status": "entitled", "alreadyGranted": not unfinished}
+
+
+static func _first(items: Array, matches: Callable) -> Variant:
+	for item in items:
+		if matches.call(item):
+			return item
+	return null
 
 
 static func _now_ms() -> float:

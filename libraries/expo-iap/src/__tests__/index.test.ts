@@ -320,6 +320,32 @@ describe('Public API (index.ts)', () => {
       expect(ExpoIapModule.finishTransaction).not.toHaveBeenCalled();
     });
 
+    it('confirms a finished purchase from the full iOS history', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      const purchase: Purchase = {
+        id: 'tx-premium',
+        transactionId: 'tx-premium',
+        productId: 'premium',
+        store: 'apple',
+        storeId: 'apple',
+        purchaseState: 'purchased',
+        transactionDate: 1,
+        quantity: 1,
+        isAutoRenewing: false,
+      };
+      const pending = ExpoIapModule.getPendingTransactionsIOS;
+      if (!pending)
+        throw new Error('The native mock defines the pending query');
+      jest.mocked(pending).mockResolvedValueOnce([]);
+      const history = jest.fn().mockResolvedValue([purchase]);
+      (ExpoIapModule.getAvailableItems as jest.Mock) = history;
+
+      await expect(
+        confirmOnDeviceIOS()(purchase, {isConsumable: false}),
+      ).resolves.toEqual({status: 'entitled', alreadyGranted: true});
+      expect(history).toHaveBeenCalledWith(false, false);
+    });
+
     it('restores from the full iOS history', async () => {
       Object.assign(Platform, {OS: 'ios'});
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest

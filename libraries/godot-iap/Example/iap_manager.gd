@@ -391,15 +391,20 @@ func purchase_with_discount(product_id: String) -> void:
 		_purchase(product_id)
 
 
-## Returns why the store or the flow's recovery pass failed, or "" on success.
+## Returns why the flow's restore failed, or "" on success. The flow reads the
+## store's history itself, so iOS asks for no App Store sign-in. A failed
+## confirmation fails the restore; its purchase stays unfinished, so the next
+## restore retries it.
 func restore_purchases() -> String:
 	print("[IAPManager] Restoring purchases...")
-	var result = await GodotIapPlugin.restore_purchases()
-	if not result.success:
-		return result.error
 	var recovered = await flow.recover_purchases(true)
 	await refresh_subscriptions()
-	return str(recovered) if recovered is PurchaseFlow.Failure else ""
+	if recovered is PurchaseFlow.Failure:
+		return str(recovered)
+	for outcome in recovered:
+		if outcome.status.status == "failed":
+			return str(outcome.status.error)
+	return ""
 
 
 ## Premium follows the store's active subscriptions.

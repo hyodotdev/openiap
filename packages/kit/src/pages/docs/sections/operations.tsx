@@ -24,9 +24,11 @@ export default function OperationsPage() {
         with a <code>Retry-After</code> header (seconds). The verify endpoint
         also has a per-(API key, payload) replay guard; it returns{" "}
         <code>429 DUPLICATE_PAYLOAD</code> when the same receipt is retried too
-        aggressively, or <code>429 REPEATED_FAILURE</code> during the short
-        cooldown after the upstream store settles that exact payload as invalid
-        (<code>finalVerdict: true</code>).
+        aggressively. For a short cooldown after the upstream store settles that
+        exact payload as invalid (<code>finalVerdict: true</code>), a repeat
+        gets the same verdict again without asking the store; only a verdict
+        IAPKit could not keep, such as a malformed one, returns{" "}
+        <code>429 REPEATED_FAILURE</code>.
       </p>
       <p>
         Authenticated responses after the auth layer — successful responses,

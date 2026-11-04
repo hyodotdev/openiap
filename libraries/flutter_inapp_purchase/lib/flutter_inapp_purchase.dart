@@ -2189,11 +2189,16 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
       });
 
   /// Confirms iOS purchases on the device from StoreKit's unfinished
-  /// transactions, for apps with neither a backend nor IAPKit: pass it as
-  /// [createPurchaseFlow]'s `confirmWithBackend`. [grant] is required for
-  /// consumables.
-  PurchaseConfirmer confirmOnDeviceIOS({PurchaseGrant? grant}) => confirmers
-      .createDeviceConfirmationIOS(getPendingTransactionsIOS, grant: grant);
+  /// transactions, or for a restore its verified history, for apps with
+  /// neither a backend nor IAPKit: pass it as [createPurchaseFlow]'s
+  /// `confirmWithBackend`. [grant] is required for consumables.
+  PurchaseConfirmer confirmOnDeviceIOS({PurchaseGrant? grant}) =>
+      confirmers.createDeviceConfirmationIOS(
+        getPendingTransactionsIOS,
+        grant: grant,
+        getTransactionHistoryIOS: () =>
+            getAvailablePurchases(onlyIncludeActiveItemsIOS: false),
+      );
 
   /// Confirms purchases with IAPKit from the app, for apps without their own
   /// backend: pass it as [createPurchaseFlow]'s `confirmWithBackend`.

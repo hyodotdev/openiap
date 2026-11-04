@@ -160,8 +160,14 @@ public partial class AvailablePurchasesPage : ContentPage
         RestoreStatusLabel.IsVisible = true;
         try
         {
-            // includeFinished re-confirms every owned purchase, not only unfinished ones.
-            await IapLifecycle.Flow.RecoverPurchasesAsync(includeFinished: true);
+            // includeFinished re-confirms every owned purchase. A failed
+            // confirmation fails the restore; its purchase stays unfinished,
+            // so the next restore retries it.
+            var outcomes = await IapLifecycle.Flow.RecoverPurchasesAsync(includeFinished: true);
+            if (outcomes.Select(o => o.Status).OfType<PurchaseFlowStatus.Failed>().FirstOrDefault() is { } failed)
+            {
+                throw failed.Error;
+            }
             RestoreStatusLabel.Text = "Purchases restored.";
             await RefreshAsync();
         }

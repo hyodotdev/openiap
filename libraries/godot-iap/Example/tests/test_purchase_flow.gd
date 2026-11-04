@@ -187,7 +187,14 @@ func _run_device_vector(vector: Dictionary) -> void:
 			grants.append(purchase)
 			await process_frame
 			return true
-	var confirm := PurchaseConfirmers.create_device_confirmation_ios(read, options)
+	var history_reads := [0]
+	var read_history := Callable()
+	if vector.has("history"):
+		read_history = func() -> Array:
+			history_reads[0] += 1
+			await process_frame
+			return vector.history
+	var confirm := PurchaseConfirmers.create_device_confirmation_ios(read, options, read_history)
 
 	var answer = await confirm.call(vector.purchase, vector.isConsumable)
 	PurchaseConfirmers._clock_ms = null
@@ -197,6 +204,7 @@ func _run_device_vector(vector: Dictionary) -> void:
 	else:
 		_check(_equal(answer, vector.confirmation), name + " confirmation")
 	_check(reads[0] == (0 if vector.get("reads") == false else 1), name + " reads the pending list")
+	_check(history_reads[0] == (1 if vector.get("historyReads", false) else 0), name + " reads the history")
 	_check(grants.size() == (1 if vector.granted else 0), name + " grants")
 
 

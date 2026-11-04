@@ -153,10 +153,7 @@ describe('SubscriptionFlow Screen', () => {
 
     expect(requestPurchaseMock).toHaveBeenCalledWith({
       request: {
-        apple: {
-          sku: 'dev.hyo.martie.premium',
-          appAccountToken: 'user-123',
-        },
+        apple: {sku: 'dev.hyo.martie.premium'},
         // No offer: the store picks its default, and Amazon has none.
         google: {skus: ['dev.hyo.martie.premium']},
       },

@@ -136,7 +136,7 @@ The example runs every purchase through one purchase flow
 chosen from the store panel's picker:
 
 1. **None (Skip)** — skip verification.
-2. **Local (Device)** — `confirm_on_device_ios`: accept an App Store purchase StoreKit still lists as verified and unfinished.
+2. **Local (Device)** — `confirm_on_device_ios`: accept an App Store purchase StoreKit verified, unfinished or, for a restore, in its history.
 3. **Local (IAPKit)** — IAPKit routed to `base_url`.
 4. **IAPKit (Server)** — hosted IAPKit; the local URL is deliberately omitted.
 

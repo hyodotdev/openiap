@@ -78,14 +78,33 @@ const RESTORE_NEWEST_TRANSACTION_RELEASES: readonly ReleaseMetadata[] = [
     tag: 'react-native-iap-17.3.2',
   },
   { name: 'expo-iap', version: '6.4.2', tag: 'expo-iap-6.4.2' },
+  { name: 'godot-iap', version: '4.3.2', tag: 'godot-iap-4.3.2' },
+  { name: 'kmp-iap', version: '4.2.2', tag: 'kmp-iap-4.2.2' },
+  { name: 'OpenIap.Maui', version: '3.2.2', tag: 'maui-iap-3.2.2' },
+];
+
+const RESTORE_WITHOUT_STORE_SYNC_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '1.3.3',
+    tag: 'openiap-client-protocol-1.3.3',
+  },
+  { name: 'openiap-apple', version: '4.0.9', tag: '4.0.9' },
+  { name: 'openiap-google', version: '4.0.10', tag: 'google-4.0.10' },
+  {
+    name: 'react-native-iap',
+    version: '17.3.3',
+    tag: 'react-native-iap-17.3.3',
+  },
+  { name: 'expo-iap', version: '6.4.3', tag: 'expo-iap-6.4.3' },
   {
     name: 'flutter_inapp_purchase',
     version: '11.3.2',
     tag: 'flutter-iap-11.3.2',
   },
-  { name: 'godot-iap', version: '4.3.2', tag: 'godot-iap-4.3.2' },
-  { name: 'kmp-iap', version: '4.2.2', tag: 'kmp-iap-4.2.2' },
-  { name: 'OpenIap.Maui', version: '3.2.2', tag: 'maui-iap-3.2.2' },
+  { name: 'godot-iap', version: '4.3.3', tag: 'godot-iap-4.3.3' },
+  { name: 'kmp-iap', version: '4.2.3', tag: 'kmp-iap-4.2.3' },
+  { name: 'OpenIap.Maui', version: '3.2.3', tag: 'maui-iap-3.2.3' },
 ];
 
 const PURCHASE_RECOVERY_RELEASES: readonly ReleaseMetadata[] = [
@@ -750,6 +769,99 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
+      id: 'restore-without-store-sync-2026-11-04',
+      date: new Date('2026-11-04'),
+      element: (
+        <div key="restore-without-store-sync-2026-11-04" style={noteCardStyle}>
+          {RESTORE_WITHOUT_STORE_SYNC_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="restore-without-store-sync-2026-11-04" level="h4">
+            November 4, 2026 - Restore through the purchase flow alone
+          </AnchorLink>
+          <p>
+            A purchase flow restore reads the store&apos;s history through the
+            flow, fails when a confirmation fails, and confirms on-device
+            purchases it already finished.
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Protocols and native packages
+          </h5>
+          <ul>
+            <li>
+              <strong>Client Protocol 1.3.3</strong>:{' '}
+              <code>confirmOnDeviceIOS</code> also answers a purchase the flow
+              already finished, from StoreKit&apos;s verified history, as{' '}
+              <code>entitled</code> with <code>alreadyGranted</code>, and grants
+              a non-consumable again. A revoked or upgraded transaction ends as{' '}
+              <code>invalid</code>, and an expired one as{' '}
+              <code>verification_delayed</code>, since billing grace can still
+              cover it.
+            </li>
+            <li>
+              <strong>openiap-apple 4.0.9 and openiap-google 4.0.10</strong>:
+              report Client Protocol 1.3.3.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul>
+            <li>
+              <strong>All six</strong>: <code>confirmOnDeviceIOS</code> reads
+              StoreKit&apos;s history as Client Protocol 1.3.3 describes, so an
+              on-device restore confirms purchases it finished before.
+            </li>
+            <li>
+              <strong>react-native-iap 17.3.3 and expo-iap 6.4.3</strong>: with{' '}
+              <code>purchaseFlow</code> set, the hook&apos;s{' '}
+              <code>restorePurchases</code> confirms every owned purchase
+              through the flow and skips the provider&apos;s restore. iOS asks
+              for no App Store sign-in, and nothing that restore would redeliver
+              to the listener is confirmed a second time. It also rejects when a
+              confirmation fails instead of reporting success; that purchase
+              stays unfinished for the next restore. Without a flow, it still
+              calls the provider&apos;s restore.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 11.3.2</strong>: a restore reads
+              the full history, once per purchase, so it also confirms a
+              subscription in billing grace. A purchase the listener finishes or
+              finally rejects during a restore&apos;s recovery pass is not
+              confirmed a second time.
+            </li>
+          </ul>
+          <p>
+            IAPKit answers a receipt it finally rejected in the last five
+            minutes with that rejection again instead of <code>429</code>, so a
+            restore right after launch succeeds; see the{' '}
+            <a href="https://kit.openiap.dev/docs/release-notes#week-2026-11-02">
+              hosted release notes
+            </a>
+            .
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <div
+            style={{
+              border: '1px solid var(--border-color)',
+              borderRadius: '0.5rem',
+              padding: '1rem',
+            }}
+          >
+            <ul style={{ marginBottom: 0, paddingLeft: '1.25rem' }}>
+              {RESTORE_WITHOUT_STORE_SYNC_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  >
+                    {getReleaseLabel(release)}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+    {
       id: 'ios-restore-newest-transaction-2026-11-03',
       date: new Date('2026-11-03'),
       element: (
@@ -764,8 +876,8 @@ function Releases() {
             November 3, 2026 - One check per purchase on an iOS restore
           </AnchorLink>
           <p>
-            A purchase flow restore on iOS now works the same in every
-            framework: it reads the full transaction history and confirms each
+            A purchase flow restore on iOS now works the same in each framework
+            below: it reads the full transaction history and confirms each
             purchase once, through its newest transaction.
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
@@ -795,14 +907,13 @@ function Releases() {
             </li>
             <li>
               <strong>
-                react-native-iap 17.3.2, expo-iap 6.4.2, flutter_inapp_purchase
-                11.3.2 and OpenIap.Maui 3.2.2
+                react-native-iap 17.3.2, expo-iap 6.4.2 and OpenIap.Maui 3.2.2
               </strong>
               : a restore now reads the full history, once per purchase, so it
               also confirms a subscription in billing grace.
             </li>
             <li>
-              <strong>All six</strong>: a purchase the listener finishes or
+              <strong>All five</strong>: a purchase the listener finishes or
               finally rejects during a restore&apos;s recovery pass is not
               confirmed a second time.
             </li>

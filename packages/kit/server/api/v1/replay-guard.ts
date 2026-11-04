@@ -3,6 +3,7 @@ import type { Context } from "hono";
 import * as crypto from "node:crypto";
 
 import { parsePositiveNumber } from "../../utils/env";
+import type { VerificationReceipt } from "./verification-result";
 
 // Per-(apiKey, payload) replay guard, behind the per-key limiter in
 // `rate-limit.ts`. Clients re-verify a receipt now and then (launch, renewal
@@ -22,9 +23,12 @@ export interface ReplayBucket {
   lastRefillMs: number;
   // Set when the last verify of this (key, payload) was a stable rejection,
   // including a failed product-match guard. Until the cooldown ends the same
-  // payload gets `REPEATED_FAILURE` without asking the store again, so a
-  // replayed revoked receipt can't burn quota by pacing under the burst cap.
+  // payload is answered without asking the store again, so a replayed revoked
+  // receipt can't burn quota by pacing under the burst cap.
   lastFailureMs?: number;
+  // That rejection, answered again during the cooldown; without one the
+  // payload gets `REPEATED_FAILURE`.
+  lastRejection?: VerificationReceipt;
 }
 
 // Runs after the JSON validator; its parsed body is the default payload.
@@ -52,6 +56,11 @@ export interface ReplayGuardConfig {
     c: Context,
     info: { reason: ReplayRejectReason; retryAfterSec: number },
   ) => Response;
+  /** Answers a payload in its cooldown with the rejection it got before. */
+  replayRejection?: (
+    c: Context,
+    rejection: VerificationReceipt,
+  ) => Response | Promise<Response>;
 }
 
 export type ReplayRejectReason = "burst" | "repeated_failure";
@@ -70,6 +79,8 @@ export interface ReplayConsumeResult {
   remaining: number;
   retryAfterSec: number;
   reason?: ReplayRejectReason;
+  /** The rejection a payload in its cooldown got, when one was kept. */
+  rejection?: VerificationReceipt;
 }
 
 export type ReplayPayload =
@@ -169,8 +180,11 @@ export function tryConsumeReplay(
         remaining: 0,
         retryAfterSec: Math.max(1, Math.ceil(remainingMs / 1000)),
         reason: "repeated_failure",
+        ...(bucket.lastRejection ? { rejection: bucket.lastRejection } : {}),
       };
     }
+    delete bucket.lastFailureMs;
+    delete bucket.lastRejection;
   }
 
   const elapsedSec = Math.max(0, (nowMs - bucket.lastRefillMs) / 1000);
@@ -243,11 +257,15 @@ export function markPayloadFailure(
   capacity: number,
   nowMs: number,
   maxStoreSize: number,
+  rejection?: VerificationReceipt,
 ): void {
   const existing = store.get(bucketKey);
   if (existing) {
     store.delete(bucketKey);
     existing.lastFailureMs = nowMs;
+    // A rejection without a verdict, such as one through the commerce
+    // binding, keeps the verdict an earlier rejection left.
+    if (rejection) existing.lastRejection = rejection;
     store.set(bucketKey, existing);
     return;
   }
@@ -255,6 +273,7 @@ export function markPayloadFailure(
     tokens: capacity,
     lastRefillMs: nowMs,
     lastFailureMs: nowMs,
+    ...(rejection ? { lastRejection: rejection } : {}),
   });
   evictIfNeeded(store, maxStoreSize);
 }
@@ -269,8 +288,9 @@ const DEFAULT_REFILL_PER_SEC = parsePositiveNumber(
   1 / 60,
   1 / 3600,
 );
-// 50k (key, payload) pairs ≈ 2 MB, LRU-evicted; pushing real buckets out
-// takes churning new pairs faster than legitimate traffic arrives.
+// 50k (key, payload) pairs ≈ 2 MB, a few MB more when many hold a kept
+// rejection; LRU-evicted, so pushing real buckets out takes churning new
+// pairs faster than legitimate traffic arrives.
 const DEFAULT_MAX_STORE_SIZE = parsePositiveNumber(
   process.env.REPLAY_GUARD_MAX_STORE,
   50_000,
@@ -306,6 +326,8 @@ type ReplayGuardVars = {
     state: string;
     stableRejection?: boolean;
   };
+  /** The verdict the handler answered with, kept for a rejection's cooldown. */
+  verifyReceipt?: VerificationReceipt;
   verifyCapacityRejected?: boolean;
 };
 
@@ -358,6 +380,10 @@ export function replayGuardMiddleware(
         failureCooldownMs,
       );
 
+      // The same verdict, not an error: the store would answer the same way.
+      if (result.rejection && config.replayRejection) {
+        return config.replayRejection(c, result.rejection);
+      }
       if (!result.allowed) {
         c.header("Retry-After", String(result.retryAfterSec));
         if (config.respond && result.reason) {
@@ -400,6 +426,7 @@ export function replayGuardMiddleware(
               capacity,
               clock(),
               maxStoreSize,
+              c.get("verifyReceipt"),
             );
           }
         }

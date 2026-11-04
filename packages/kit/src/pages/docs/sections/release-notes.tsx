@@ -25,9 +25,10 @@ const RELEASES: ReleaseEntry[] = [
   {
     id: "week-2026-11-02",
     weekStart: "2026-11-02",
-    date: "2026-11-03",
+    date: "2026-11-04",
+    pullRequests: [586, 587],
     tagline:
-      "One header and one back link across the site, a calmer look, and docs that start with what IAPKit does.",
+      "A pricing page, one header across the site, docs that start with what IAPKit does, and a rejected receipt that gets the same answer when it comes back.",
     items: [
       {
         kind: "feature",
@@ -48,6 +49,16 @@ const RELEASES: ReleaseEntry[] = [
         kind: "docs",
         topic: "Docs",
         text: "The Introduction says what IAPKit does and which path fits your app, and the Quickstart ends with a purchase verified in your app. A new Commerce Protocol page lists the protocol endpoints IAPKit serves and the key each needs. Webhooks explains what your endpoint returns, how retries and secret rotation work, and which events each store sends.",
+      },
+      {
+        kind: "fix",
+        topic: "Verification",
+        text: "A receipt with a final rejection (finalVerdict: true) in the last five minutes gets that rejection again, with the same state, instead of 429 REPEATED_FAILURE, and still without asking the store. A purchase flow restore right after launch no longer fails on an expired subscription the launch already checked.",
+      },
+      {
+        kind: "docs",
+        topic: "Purchase flow",
+        text: "The purchase flow guide says a React Native or Expo restore skips the provider's restore and fails when a confirmation fails.",
       },
     ],
   },
