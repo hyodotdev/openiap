@@ -828,7 +828,6 @@ describe('useIAP lifecycle', () => {
 
     it('restores through the flow alone, without the provider restore', async () => {
       jest.mocked(ExpoIapModule.restorePurchases!).mockResolvedValue(true);
-      jest.mocked(ExpoIapModule.restorePurchases!).mockClear();
       const flow = fakeFlow();
       let hook: Hook | undefined;
       await mount(
@@ -837,6 +836,7 @@ describe('useIAP lifecycle', () => {
           onHook={(value) => (hook = value)}
         />,
       );
+      jest.mocked(ExpoIapModule.getAvailableItems).mockClear();
 
       await React.act(async () => {
         await hook!.restorePurchases();
@@ -846,6 +846,7 @@ describe('useIAP lifecycle', () => {
       expect(flow.recoverPurchases).toHaveBeenLastCalledWith({
         includeFinished: true,
       });
+      expect(ExpoIapModule.getAvailableItems).toHaveBeenCalledTimes(1);
     });
   });
 });

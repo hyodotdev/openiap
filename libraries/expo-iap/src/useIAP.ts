@@ -552,8 +552,8 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     async (options?: PurchaseOptions): Promise<void> => {
       try {
         const flow = optionsRef.current?.purchaseFlow;
-        // The flow reads the store's history itself; the provider's restore
-        // would add an App Store sign-in and redeliver what it then confirms.
+        // The provider's restore adds an iOS sign-in and Horizon redeliveries;
+        // the flow reads the store's history itself.
         if (flow) {
           await flow.recoverPurchases({includeFinished: true});
         } else {

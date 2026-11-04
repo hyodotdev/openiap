@@ -357,7 +357,8 @@ const flow = createPurchaseFlow({
         <code>entitled</code> with <code>alreadyGranted</code>, and another
         account gets <code>ownership_conflict</code>. Nothing is transferred.
         The hook skips the provider&apos;s restore, so iOS asks for no App Store
-        sign-in. On iOS a restore reads the full transaction history and
+        sign-in; call <code>syncIOS()</code> first only if a purchase is still
+        missing. On iOS a restore reads the full transaction history and
         confirms each purchase once, through its newest transaction, so a
         subscription in billing grace comes back and past renewals cost nothing
         extra. If <code>getPendingTransactionsIOS</code> throws, as one
