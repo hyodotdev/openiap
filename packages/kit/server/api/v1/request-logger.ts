@@ -28,6 +28,8 @@ export interface VerifyLogLine {
   store?: VerifyStore;
   isValid?: boolean;
   state?: string;
+  /** Answered from the replay guard's kept rejection, without the store. */
+  replayed?: true;
 }
 
 /**
@@ -231,6 +233,7 @@ type LoggerVars = {
   apiKeyHash?: string;
   corrId: string;
   verifyOutcome?: VerifyOutcome;
+  verifyReplayed?: boolean;
 };
 
 export function requestLoggerMiddleware(
@@ -301,6 +304,7 @@ export function requestLoggerMiddleware(
           store,
           isValid: outcome?.isValid,
           state: outcome?.state,
+          ...(c.var.verifyReplayed ? { replayed: true as const } : {}),
         });
       } catch (loggerError) {
         console.error(

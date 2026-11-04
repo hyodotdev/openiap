@@ -210,17 +210,15 @@ describe("markPayloadFailure + tryConsumeReplay cooldown", () => {
     expect(store.get("k:p")?.lastRejection).toBeUndefined();
   });
 
-  test("a rejection without a verdict forgets the older verdict", () => {
+  test("a rejection without a verdict keeps the earlier verdict", () => {
     const store = new Map<string, ReplayBucket>();
-    markPayloadFailure(store, "k:p", 30, 1_000, 100, {
-      isValid: false,
-      state: "EXPIRED",
-    });
+    const rejection = { isValid: false, state: "EXPIRED" };
+    markPayloadFailure(store, "k:p", 30, 1_000, 100, rejection);
     markPayloadFailure(store, "k:p", 30, 2_000, 100);
 
     const blocked = tryConsumeReplay(store, "k:p", 30, 1, 3_000, 100, 60_000);
     expect(blocked.reason).toBe("repeated_failure");
-    expect(blocked.rejection).toBeUndefined();
+    expect(blocked.rejection).toBe(rejection);
   });
 
   test("failure on key A does not affect key B (cooldown is per-bucket)", () => {

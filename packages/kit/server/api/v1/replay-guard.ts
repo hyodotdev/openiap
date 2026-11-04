@@ -263,8 +263,9 @@ export function markPayloadFailure(
   if (existing) {
     store.delete(bucketKey);
     existing.lastFailureMs = nowMs;
+    // A rejection without a verdict, such as one through the commerce
+    // binding, keeps the verdict an earlier rejection left.
     if (rejection) existing.lastRejection = rejection;
-    else delete existing.lastRejection;
     store.set(bucketKey, existing);
     return;
   }
@@ -287,8 +288,9 @@ const DEFAULT_REFILL_PER_SEC = parsePositiveNumber(
   1 / 60,
   1 / 3600,
 );
-// 50k (key, payload) pairs ≈ 2 MB, LRU-evicted; pushing real buckets out
-// takes churning new pairs faster than legitimate traffic arrives.
+// 50k (key, payload) pairs ≈ 2 MB, a few MB more when many hold a kept
+// rejection; LRU-evicted, so pushing real buckets out takes churning new
+// pairs faster than legitimate traffic arrives.
 const DEFAULT_MAX_STORE_SIZE = parsePositiveNumber(
   process.env.REPLAY_GUARD_MAX_STORE,
   50_000,

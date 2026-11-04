@@ -53,6 +53,8 @@ type V1AppVariables = {
   };
   // verify-purchase handler → replay guard
   verifyReceipt?: VerificationReceipt;
+  // replay guard → request-logger
+  verifyReplayed?: boolean;
 };
 
 const app = new Hono<{ Variables: V1AppVariables }>();
@@ -282,7 +284,10 @@ const verifyPurchaseRouteDescription = describeRoute({
   security: [{ apiKey: [] }],
   responses: {
     200: {
-      description: "Successful verification",
+      description:
+        "Successful verification. A repeat of a receipt rejected in the " +
+        "last 5 minutes gets that verdict again without the concurrency " +
+        "guard, so it carries no `X-Concurrency-*` headers.",
       headers: {
         ...commonResponseHeaders,
         ...concurrencyResponseHeaders,
@@ -607,8 +612,10 @@ const verifyPurchaseHandler = async (c: VerifyContext) => {
 const verifyRateLimit = multiAxisRateLimitMiddleware();
 const verifyRequestLogger = requestLoggerMiddleware();
 const verifyReplayGuard = replayGuardMiddleware({
-  replayRejection: (c: VerifyContext, rejection) =>
-    sendReceiptResponse(c, c.req.valid("json").store, rejection),
+  replayRejection: (c: VerifyContext, rejection) => {
+    c.set("verifyReplayed", true);
+    return sendReceiptResponse(c, c.req.valid("json").store, rejection);
+  },
 });
 const verifyInFlightLimit = inFlightLimitMiddleware();
 
