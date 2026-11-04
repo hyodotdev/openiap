@@ -1,5 +1,5 @@
 {
-  "$comment": "Shared cases for every purchase-flow port. process: one processPurchase call. iapkit: confirmWithIapkit with a fake verifyPurchaseWithProvider, apiKey \"pk\" unless the case sets apiKey (null: none passed); props null means building the request throws. sequences: deliveries through the flow's listener (listener), processPurchase (process), or recoverPurchases (recover); each step's deliveries start together and settle before the next step. answers: confirmWithBackend results per purchase id, used in order with the last repeating; the string \"throw\" throws. A port compares every listed field; error: true means a thrown error or a failed status, finishError: true a status carrying one, whatever the message. device: confirmOnDeviceIOS over a fake getPendingTransactionsIOS returning pending (reads false: never called); clock sets the time in ms before the call (beforeRead) and while the read answers (afterRead). requestedOnce: wasRequested answers true only once per listed id, like an SDK's request mark.",
+  "$comment": "Shared cases for every purchase-flow port. process: one processPurchase call. iapkit: confirmWithIapkit with a fake verifyPurchaseWithProvider, apiKey \"pk\" unless the case sets apiKey (null: none passed); props null means building the request throws. sequences: deliveries through the flow's listener (listener), processPurchase (process), or recoverPurchases (recover); each step's deliveries start together and settle before the next step. answers: confirmWithBackend results per purchase id, used in order with the last repeating; the string \"throw\" throws. A port compares every listed field; error: true means a thrown error or a failed status, finishError: true a status carrying one, whatever the message. device: confirmOnDeviceIOS over a fake getPendingTransactionsIOS returning pending (reads false: never called) and, when the case lists history, a fake getTransactionHistoryIOS returning it (historyReads: whether it is called); clock sets the time in ms before the call (beforeRead) and while the read answers (afterRead). requestedOnce: wasRequested answers true only once per listed id, like an SDK's request mark.",
   "schemaVersion": 1,
   "process": [
     {
@@ -3025,7 +3025,241 @@
       "granted": false
     },
     {
-      "name": "refuses a revoked transaction",
+      "name": "answers a finished transaction from StoreKit history",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-h1",
+        "productId": "premium",
+        "environmentIOS": "Sandbox"
+      },
+      "pending": [],
+      "history": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-h1",
+          "productId": "premium",
+          "environmentIOS": "Sandbox",
+          "expirationDateIOS": 4102444800000
+        }
+      ],
+      "isConsumable": false,
+      "historyReads": true,
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": true
+      },
+      "granted": true
+    },
+    {
+      "name": "does not credit a finished consumable again",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-h2",
+        "productId": "coins_100"
+      },
+      "pending": [],
+      "history": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-h2",
+          "productId": "coins_100"
+        }
+      ],
+      "isConsumable": true,
+      "historyReads": true,
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": true
+      },
+      "granted": false
+    },
+    {
+      "name": "checks an expired transaction from StoreKit history again later",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-h3",
+        "productId": "premium"
+      },
+      "pending": [],
+      "history": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-h3",
+          "productId": "premium",
+          "expirationDateIOS": 946684800000
+        }
+      ],
+      "isConsumable": false,
+      "historyReads": true,
+      "confirmation": {
+        "status": "verification_delayed",
+        "retryAfterMs": 30000
+      },
+      "granted": false
+    },
+    {
+      "name": "rejects a revoked transaction from StoreKit history",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-h7",
+        "productId": "premium"
+      },
+      "pending": [],
+      "history": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-h7",
+          "productId": "premium",
+          "revocationDateIOS": 946684800000
+        }
+      ],
+      "isConsumable": false,
+      "historyReads": true,
+      "confirmation": {
+        "status": "invalid",
+        "reason": "revoked"
+      },
+      "granted": false
+    },
+    {
+      "name": "rejects an upgraded transaction from StoreKit history",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-h8",
+        "productId": "premium"
+      },
+      "pending": [],
+      "history": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-h8",
+          "productId": "premium",
+          "isUpgradedIOS": true
+        }
+      ],
+      "isConsumable": false,
+      "historyReads": true,
+      "confirmation": {
+        "status": "invalid",
+        "reason": "upgraded"
+      },
+      "granted": false
+    },
+    {
+      "name": "refuses a transaction neither list has",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-h4",
+        "productId": "premium"
+      },
+      "pending": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-other",
+          "productId": "premium"
+        }
+      ],
+      "history": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-other",
+          "productId": "premium"
+        }
+      ],
+      "isConsumable": false,
+      "historyReads": true,
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "reads history only for a transaction no longer unfinished",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-h5",
+        "productId": "premium"
+      },
+      "pending": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-h5",
+          "productId": "premium"
+        }
+      ],
+      "history": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-h5",
+          "productId": "premium"
+        }
+      ],
+      "isConsumable": false,
+      "historyReads": false,
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "granted": true
+    },
+    {
+      "name": "refuses a finished transaction from another environment",
+      "purchase": {
+        "purchaseState": "purchased",
+        "store": "apple",
+        "storeId": "apple",
+        "id": "tx-h6",
+        "productId": "premium",
+        "environmentIOS": "Production"
+      },
+      "pending": [],
+      "history": [
+        {
+          "purchaseState": "purchased",
+          "store": "apple",
+          "storeId": "apple",
+          "id": "tx-h6",
+          "productId": "premium",
+          "environmentIOS": "Sandbox"
+        }
+      ],
+      "isConsumable": false,
+      "historyReads": true,
+      "error": true,
+      "granted": false
+    },
+    {
+      "name": "rejects a revoked transaction",
       "purchase": {
         "purchaseState": "purchased",
         "store": "apple",
@@ -3044,11 +3278,14 @@
         }
       ],
       "isConsumable": false,
-      "error": true,
+      "confirmation": {
+        "status": "invalid",
+        "reason": "revoked"
+      },
       "granted": false
     },
     {
-      "name": "refuses an upgraded transaction",
+      "name": "rejects an upgraded transaction",
       "purchase": {
         "purchaseState": "purchased",
         "store": "apple",
@@ -3067,11 +3304,14 @@
         }
       ],
       "isConsumable": false,
-      "error": true,
+      "confirmation": {
+        "status": "invalid",
+        "reason": "upgraded"
+      },
       "granted": false
     },
     {
-      "name": "refuses an expired transaction",
+      "name": "checks an expired transaction again later",
       "purchase": {
         "purchaseState": "purchased",
         "store": "apple",
@@ -3090,11 +3330,14 @@
         }
       ],
       "isConsumable": false,
-      "error": true,
+      "confirmation": {
+        "status": "verification_delayed",
+        "retryAfterMs": 30000
+      },
       "granted": false
     },
     {
-      "name": "refuses a transaction that expires while StoreKit answers",
+      "name": "checks a transaction that expires while StoreKit answers again later",
       "clock": {
         "beforeRead": 1000,
         "afterRead": 3000
@@ -3117,7 +3360,10 @@
         }
       ],
       "isConsumable": false,
-      "error": true,
+      "confirmation": {
+        "status": "verification_delayed",
+        "retryAfterMs": 30000
+      },
       "granted": false
     },
     {

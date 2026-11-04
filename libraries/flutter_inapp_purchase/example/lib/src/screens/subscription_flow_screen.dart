@@ -85,9 +85,9 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
   }
 
   // Outcomes arrive through _showOutcome.
-  Future<void> _recoverPurchases({bool includeFinished = false}) async {
+  Future<void> _recoverPurchases() async {
     try {
-      await _purchases.flow.recoverPurchases(includeFinished: includeFinished);
+      await _purchases.flow.recoverPurchases();
     } catch (error) {
       if (error is PurchaseError &&
           error.code == ErrorCode.FeatureNotSupported) {
@@ -357,8 +357,7 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
     });
 
     try {
-      await _iap.restorePurchases();
-      await _recoverPurchases(includeFinished: true);
+      await _purchases.restore();
       await _checkActiveSubscriptions();
 
       if (!mounted) return;
@@ -373,7 +372,8 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
       if (!mounted) return;
       setState(() {
         _isProcessing = false;
-        _purchaseResult = '❌ Failed to restore: $error';
+        _purchaseResult = '❌ Failed to restore: '
+            '${error is PurchaseError ? error.message : error}';
       });
     }
   }

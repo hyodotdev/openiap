@@ -546,17 +546,20 @@ func _find_best_offer(product) -> Variant:
 ### 5.1 Basic Restore
 
 Restoring runs every owned purchase through the purchase flow from 2.3 again,
-so `grant` and `purchase_processed` report what came back:
+so `grant` and `purchase_processed` report what came back. The flow reads the
+store's history itself, so iOS asks for no App Store sign-in:
 
 ```gdscript
 func restore_purchases() -> bool:
-    var restored = await iap.restore_purchases()
-    if not restored.success:
-        return false
     var outcomes = await flow.recover_purchases(true)
     if outcomes is PurchaseFlow.Failure:
         push_error("Restore failed: %s" % outcomes.message)
         return false
+    # A failed confirmation fails the restore; the next restore retries it.
+    for outcome in outcomes:
+        if outcome.status.status == "failed":
+            push_error("Restore failed: %s" % outcome.status.error)
+            return false
     print("Restored %d purchases" % outcomes.size())
     return true
 ```
@@ -677,11 +680,11 @@ func get_price(product_id: String) -> String:
     var product = get_product(product_id)
     return product.display_price if product != null else "$0.99"
 
-func restore():
-    var result = await iap.restore_purchases()
-    if result.success:
-        await flow.recover_purchases(true)
-    return result.success
+func restore() -> bool:
+    var outcomes = await flow.recover_purchases(true)
+    if outcomes is PurchaseFlow.Failure:
+        return false
+    return outcomes.all(func(outcome): return outcome.status.status != "failed")
 ```
 
 ### 6.2 Store UI
@@ -747,8 +750,8 @@ func _on_purchase_failed(error: Dictionary):
 
 func _on_restore_pressed():
     _set_buttons_enabled(false)
-    StoreManager.restore()
-    await get_tree().create_timer(2.0).timeout
+    if not await StoreManager.restore():
+        _show_dialog("Restore failed", "Some purchases could not be confirmed. Try again.")
     _set_buttons_enabled(true)
 
 func _set_buttons_enabled(enabled: bool):

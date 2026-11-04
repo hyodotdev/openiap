@@ -54,6 +54,8 @@ final class IapkitConfirmationOptions {
 }
 
 const _iapkitUnknownRetryMs = 30000;
+// An expired App Store receipt may still be in billing grace; check it again.
+const _deviceExpiredRetryMs = 30000;
 
 /// The SDK's `confirmWithIapkit`, given its `verifyPurchaseWithProvider`:
 /// verifies the purchase with IAPKit, then runs `grant` before the flow
@@ -83,12 +85,16 @@ PurchaseConfirmer createIapkitConfirmation(
 
 /// The SDK's `confirmOnDeviceIOS`, given its `getPendingTransactionsIOS`, for
 /// an app with neither a backend nor IAPKit. StoreKit verified the transaction
-/// if it is still unfinished, unrevoked, not upgraded, unexpired, and from the
-/// purchase's environment; [grant] then runs before the flow finishes it.
+/// if it lists it as unfinished, or, for a purchase the flow already finished,
+/// in [getTransactionHistoryIOS], from the purchase's environment. A revoked or
+/// upgraded one is invalid, and an expired one delayed, since billing grace can
+/// still cover it; [grant] runs before an unfinished one is finished, and again
+/// for a finished non-consumable a restore reads.
 /// Tests set the time in ms with [clock].
 PurchaseConfirmer createDeviceConfirmationIOS(
   Future<List<Purchase>> Function() getPendingTransactionsIOS, {
   PurchaseGrant? grant,
+  Future<List<Purchase>> Function()? getTransactionHistoryIOS,
   int Function() clock = _epochMs,
 }) =>
     (purchase, {required isConsumable}) async {
@@ -100,34 +106,44 @@ PurchaseConfirmer createDeviceConfirmationIOS(
               '${purchase.storeId}',
         );
       }
-      final pending = await getPendingTransactionsIOS();
-      // After the query: a transaction can expire while StoreKit answers.
-      final now = clock();
-      final verified = pending.any(
-        (candidate) =>
-            candidate is PurchaseIOS &&
-            candidate.store == IapStore.Apple &&
-            purchase.id.isNotEmpty &&
-            candidate.id == purchase.id &&
-            candidate.productId == purchase.productId &&
-            candidate.revocationDateIOS == null &&
-            candidate.isUpgradedIOS != true &&
-            (candidate.expirationDateIOS ?? double.infinity) > now &&
-            switch (purchase) {
-              PurchaseIOS(:final environmentIOS?) =>
-                candidate.environmentIOS == environmentIOS,
-              _ => true,
-            },
-      );
-      if (!verified) {
+      bool isSame(Purchase candidate) =>
+          candidate is PurchaseIOS &&
+          candidate.store == IapStore.Apple &&
+          purchase.id.isNotEmpty &&
+          candidate.id == purchase.id &&
+          candidate.productId == purchase.productId &&
+          switch (purchase) {
+            PurchaseIOS(:final environmentIOS?) =>
+              candidate.environmentIOS == environmentIOS,
+            _ => true,
+          };
+      final pending =
+          (await getPendingTransactionsIOS()).where(isSame).firstOrNull;
+      final transaction = pending ??
+          (await getTransactionHistoryIOS?.call())?.where(isSame).firstOrNull;
+      if (transaction is! PurchaseIOS) {
         throw PurchaseError(
           code: ErrorCode.PurchaseVerificationFailed,
-          message: 'StoreKit lists no valid unfinished transaction for '
-              '${purchase.productId}',
+          message: 'StoreKit lists no transaction for ${purchase.productId}',
         );
       }
-      await grant?.call(purchase, isConsumable: isConsumable);
-      return const PurchaseEntitled(alreadyGranted: false);
+      if (transaction.revocationDateIOS != null) {
+        return const PurchaseInvalid(reason: 'revoked');
+      }
+      if (transaction.isUpgradedIOS == true) {
+        return const PurchaseInvalid(reason: 'upgraded');
+      }
+      // After the reads: a transaction can expire while StoreKit answers.
+      if ((transaction.expirationDateIOS ?? double.infinity) <= clock()) {
+        return const PurchaseVerificationDelayed(
+          retryAfterMs: _deviceExpiredRetryMs,
+        );
+      }
+      // A finished consumable was credited before it was consumed.
+      if (pending != null || !isConsumable) {
+        await grant?.call(purchase, isConsumable: isConsumable);
+      }
+      return PurchaseEntitled(alreadyGranted: pending == null);
     };
 
 int _epochMs() => DateTime.now().millisecondsSinceEpoch;

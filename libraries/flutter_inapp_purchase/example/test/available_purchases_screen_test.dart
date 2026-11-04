@@ -14,6 +14,7 @@ void main() {
   const channel = MethodChannel('flutter_inapp');
   bool? nativeRenewal;
   PlatformException? restoreFailure;
+  bool owned = true;
   bool connects = true;
   Completer<void>? storeReply;
   late List<MethodCall> log;
@@ -26,6 +27,7 @@ void main() {
     );
     nativeRenewal = true;
     restoreFailure = null;
+    owned = true;
     connects = true;
     storeReply = null;
     log = <MethodCall>[];
@@ -38,6 +40,7 @@ void main() {
         case 'getAvailableItems':
           await storeReply?.future;
           if (restoreFailure != null) throw restoreFailure!;
+          if (!owned) return <Map<String, dynamic>>[];
           return <Map<String, dynamic>>[
             <String, dynamic>{
               'store': 'google',
@@ -91,6 +94,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     log.clear();
+    owned = false;
     storeReply = Completer<void>();
 
     await tester.tap(find.text('Restore Purchases'));
@@ -99,11 +103,26 @@ void main() {
     storeReply!.complete();
     await tester.pumpAndSettle();
 
-    // Ignore is the default method, so the flow keeps the receipt unverified.
     expect(log.map((call) => call.method), contains('getAvailableItems'));
-    expect(log.where((call) => call.method == 'finishTransaction'), isEmpty);
     expect(find.text('Purchases restored.'), findsOneWidget);
-    expect(find.text('dev.hyo.martie.premium'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('fails the restore when a confirmation fails', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(home: AvailablePurchasesScreen(purchases: purchases)),
+    );
+    await tester.pumpAndSettle();
+    log.clear();
+
+    await tester.tap(find.text('Restore Purchases'));
+    await tester.pumpAndSettle();
+
+    // Ignore is the default method, so the flow keeps the receipt unverified.
+    expect(log.where((call) => call.method == 'finishTransaction'), isEmpty);
+    expect(find.textContaining('Restore failed: '), findsOneWidget);
+    expect(find.textContaining('Receipt retained'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
   });

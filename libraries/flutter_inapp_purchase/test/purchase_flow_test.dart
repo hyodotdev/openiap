@@ -232,8 +232,10 @@ void main() {
     for (final vector in cases(vectors, 'device')) {
       test(vector['name'] as String, () async {
         var reads = 0;
+        var historyReads = 0;
         var grants = 0;
         final clock = vector['clock'] as Map<String, dynamic>?;
+        final history = vector['history'] as List<dynamic>?;
         var now = clock?['beforeRead'] as int?;
         final confirm = createDeviceConfirmationIOS(
           () async {
@@ -247,6 +249,15 @@ void main() {
           grant: vector['noGrant'] == true
               ? null
               : (purchase, {required isConsumable}) async => grants++,
+          getTransactionHistoryIOS: history == null
+              ? null
+              : () async {
+                  historyReads++;
+                  return [
+                    for (final item in history)
+                      purchaseFromVector(item as Map<String, dynamic>),
+                  ];
+                },
           clock: () => now ?? DateTime.now().millisecondsSinceEpoch,
         );
 
@@ -261,6 +272,7 @@ void main() {
           expect(comparableStatus(await answer), vector['confirmation']);
         }
         expect(reads, vector['reads'] == false ? 0 : 1);
+        expect(historyReads, vector['historyReads'] == true ? 1 : 0);
         expect(grants, vector['granted'] == true ? 1 : 0);
       });
     }

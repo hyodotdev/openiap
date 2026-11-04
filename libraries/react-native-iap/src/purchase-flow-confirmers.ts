@@ -66,6 +66,8 @@ export interface IapkitVerificationResult {
 }
 
 const IAPKIT_UNKNOWN_RETRY_MS = 30_000;
+// An expired App Store receipt may still be in billing grace; check it again.
+const DEVICE_EXPIRED_RETRY_MS = 30_000;
 
 /**
  * @internal Use the SDK's confirmWithIapkit.
@@ -100,14 +102,22 @@ export function createIapkitConfirmation<P extends PurchaseFlowPurchase>(
  * @internal Use the SDK's confirmOnDeviceIOS.
  * The SDK's `confirmOnDeviceIOS`, given its `getPendingTransactionsIOS`, for an
  * app with neither a backend nor IAPKit. StoreKit verified the transaction if
- * it is still unfinished, unrevoked, not upgraded, unexpired, and from the
- * purchase's environment; `grant` then runs before the flow finishes it.
+ * it lists it as unfinished, or, for a purchase the flow already finished, in
+ * `getTransactionHistoryIOS`, from the purchase's environment. A revoked or
+ * upgraded one is `invalid`, and an expired one `verification_delayed`, since
+ * billing grace can still cover it; `grant` runs before an unfinished one is
+ * finished, and again for a finished non-consumable a restore reads.
  */
 export function createDeviceConfirmationIOS<P extends PurchaseFlowPurchase>(
   getPendingTransactionsIOS: () => Promise<P[]>,
   options: {
     /** Required for consumables; credit each purchase.id only once. */
     grant?: (purchase: P, context: { isConsumable: boolean }) => Promise<void>;
+    /**
+     * StoreKit's verified history, such as `getAvailablePurchases` with
+     * `onlyIncludeActiveItemsIOS: false`; without it a finished purchase throws.
+     */
+    getTransactionHistoryIOS?: () => Promise<P[]>;
   } = {},
 ): PurchaseFlowOptions<P>["confirmWithBackend"] {
   return async (purchase, context) => {
@@ -121,29 +131,42 @@ export function createDeviceConfirmationIOS<P extends PurchaseFlowPurchase>(
         `Device confirmation covers App Store purchases, not ${purchase.storeId ?? purchase.store}`,
       );
     }
-    const pending = await getPendingTransactionsIOS();
-    // After the query: a transaction can expire while StoreKit answers.
-    const now = Date.now();
-    const verified = pending.some(
-      (candidate) =>
-        candidate.store === "apple" &&
-        purchase.id !== "" &&
-        candidate.id === purchase.id &&
-        candidate.productId === purchase.productId &&
-        candidate.revocationDateIOS == null &&
-        candidate.isUpgradedIOS !== true &&
-        (candidate.expirationDateIOS == null ||
-          candidate.expirationDateIOS > now) &&
-        (purchase.environmentIOS == null ||
-          candidate.environmentIOS === purchase.environmentIOS),
-    );
-    if (!verified) {
+    const isSame = (candidate: P) =>
+      candidate.store === "apple" &&
+      purchase.id !== "" &&
+      candidate.id === purchase.id &&
+      candidate.productId === purchase.productId &&
+      (purchase.environmentIOS == null ||
+        candidate.environmentIOS === purchase.environmentIOS);
+    const pending = (await getPendingTransactionsIOS()).find(isSame);
+    const transaction =
+      pending ?? (await options.getTransactionHistoryIOS?.())?.find(isSame);
+    if (!transaction) {
       throw new Error(
-        `StoreKit lists no valid unfinished transaction for ${purchase.productId}`,
+        `StoreKit lists no transaction for ${purchase.productId}`,
       );
     }
-    await options.grant?.(purchase, context);
-    return { status: "entitled", alreadyGranted: false };
+    if (transaction.revocationDateIOS != null) {
+      return { status: "invalid", reason: "revoked" };
+    }
+    if (transaction.isUpgradedIOS === true) {
+      return { status: "invalid", reason: "upgraded" };
+    }
+    // After the reads: a transaction can expire while StoreKit answers.
+    if (
+      transaction.expirationDateIOS != null &&
+      transaction.expirationDateIOS <= Date.now()
+    ) {
+      return {
+        status: "verification_delayed",
+        retryAfterMs: DEVICE_EXPIRED_RETRY_MS,
+      };
+    }
+    // A finished consumable was credited before it was consumed.
+    if (pending || !context.isConsumable) {
+      await options.grant?.(purchase, context);
+    }
+    return { status: "entitled", alreadyGranted: !pending };
   };
 }
 

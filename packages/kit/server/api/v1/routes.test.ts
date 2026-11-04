@@ -432,7 +432,7 @@ describe("apiRoutes", () => {
     expect(convexClientMock.action).toHaveBeenCalledTimes(2);
   });
 
-  it("cooldowns an explicitly revoked UNKNOWN without exposing provenance", async () => {
+  it("answers a revoked UNKNOWN again without asking the store or exposing provenance", async () => {
     convexClientMock.action.mockResolvedValueOnce({
       isValid: false,
       state: "UNKNOWN",
@@ -454,16 +454,50 @@ describe("apiRoutes", () => {
     const first = await request();
     const second = await request();
 
+    const verdict = { store: "google", isValid: false, state: "UNKNOWN" };
     expect(first.status).toBe(200);
-    expect(await first.json()).toEqual({
+    expect(await first.json()).toEqual(verdict);
+    expect(second.status).toBe(200);
+    expect(await second.json()).toEqual(verdict);
+    expect(convexClientMock.action).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders a repeated rejection for the current request", async () => {
+    convexClientMock.action.mockResolvedValueOnce({
+      isValid: false,
+      state: "UNKNOWN",
+      stableRejection: true,
+      transactionDetails: { transactionId: "GPA.replay" },
+    });
+    const request = (body: Record<string, unknown>) =>
+      apiRoutes.request("/purchase/verify", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer route-test-replay-flags",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          store: "google",
+          purchaseToken: "replay-flags-token".repeat(3),
+          ...body,
+        }),
+      });
+
+    await request({});
+    const second = await request({ includeTransactionDetails: true });
+
+    expect(second.status).toBe(200);
+    expect(await second.json()).toEqual({
       store: "google",
       isValid: false,
       state: "UNKNOWN",
+      transactionId: "GPA.replay",
+      correlationId: second.headers.get("X-Correlation-Id"),
+      finalVerdict: true,
     });
-    expect(second.status).toBe(429);
-    expect(await second.json()).toMatchObject({
-      errors: [{ code: "REPEATED_FAILURE" }],
-    });
+    expect(second.headers.get("X-RateLimit-Limit")).not.toBeNull();
+    expect(second.headers.get("Retry-After")).toBeNull();
+    expect(second.headers.get("X-Concurrency-Limit")).toBeNull();
     expect(convexClientMock.action).toHaveBeenCalledTimes(1);
   });
 

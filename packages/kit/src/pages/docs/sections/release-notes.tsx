@@ -23,6 +23,25 @@ const CHANGE_GROUPS = [
 
 const RELEASES: ReleaseEntry[] = [
   {
+    id: "week-2026-11-02",
+    weekStart: "2026-11-02",
+    date: "2026-11-04",
+    pullRequests: [587],
+    tagline: "A rejected receipt gets the same answer when it comes back.",
+    items: [
+      {
+        kind: "fix",
+        topic: "Verification",
+        text: "A receipt with a final rejection (finalVerdict: true) in the last five minutes gets that rejection again, with the same state, instead of 429 REPEATED_FAILURE, and still without asking the store. A purchase flow restore right after launch no longer fails on an expired subscription the launch already checked.",
+      },
+      {
+        kind: "docs",
+        topic: "Purchase flow",
+        text: "The purchase flow guide says a React Native or Expo restore skips the provider's restore and fails when a confirmation fails.",
+      },
+    ],
+  },
+  {
     id: "week-2026-10-26",
     weekStart: "2026-10-26",
     date: "2026-10-30",
