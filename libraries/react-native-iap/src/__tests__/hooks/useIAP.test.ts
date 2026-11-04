@@ -863,7 +863,9 @@ describe('hooks/useIAP (renderer)', () => {
 
     it('keeps the native error code on a cancelled restore', async () => {
       mockRestorePurchases.mockRejectedValueOnce(
-        Object.assign(new Error('User cancelled'), {code: IAP.ErrorCode.UserCancelled}),
+        Object.assign(new Error('User cancelled'), {
+          code: IAP.ErrorCode.UserCancelled,
+        }),
       );
 
       let api: any;
@@ -1914,7 +1916,7 @@ describe('hooks/useIAP (renderer)', () => {
       expect(onError).toHaveBeenCalledWith(expect.any(Error));
     });
 
-    it('re-confirms every owned purchase on restore', async () => {
+    it('restores through the flow alone, without the provider restore', async () => {
       const flow = fakeFlow();
       let api: any;
       const Harness = () => {
@@ -1925,15 +1927,17 @@ describe('hooks/useIAP (renderer)', () => {
         TestRenderer.create(React.createElement(Harness));
       });
       await act(async () => {});
+      mockGetAvailablePurchases.mockClear();
 
       await act(async () => {
         await api.restorePurchases();
       });
 
-      expect(mockRestorePurchases).toHaveBeenCalled();
+      expect(mockRestorePurchases).not.toHaveBeenCalled();
       expect(flow.recoverPurchases).toHaveBeenLastCalledWith({
         includeFinished: true,
       });
+      expect(mockGetAvailablePurchases).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -88,6 +88,15 @@ const RESTORE_NEWEST_TRANSACTION_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'OpenIap.Maui', version: '3.2.2', tag: 'maui-iap-3.2.2' },
 ];
 
+const RESTORE_WITHOUT_STORE_SYNC_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: 'react-native-iap',
+    version: '17.3.3',
+    tag: 'react-native-iap-17.3.3',
+  },
+  { name: 'expo-iap', version: '6.4.3', tag: 'expo-iap-6.4.3' },
+];
+
 const PURCHASE_RECOVERY_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'openiap-apple', version: '4.0.7', tag: '4.0.7' },
   { name: 'openiap-google', version: '4.0.8', tag: 'google-4.0.8' },
@@ -749,6 +758,49 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'restore-without-store-sync-2026-11-04',
+      date: new Date('2026-11-04'),
+      element: (
+        <div key="restore-without-store-sync-2026-11-04" style={noteCardStyle}>
+          {RESTORE_WITHOUT_STORE_SYNC_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="restore-without-store-sync-2026-11-04" level="h4">
+            November 4, 2026 - Restore through the purchase flow alone
+          </AnchorLink>
+          <p>
+            <strong>react-native-iap 17.3.3 and expo-iap 6.4.3</strong>: with{' '}
+            <code>purchaseFlow</code> set, the hook&apos;s{' '}
+            <code>restorePurchases</code> confirms every owned purchase through
+            the flow and skips the provider&apos;s restore. iOS asks for no App
+            Store sign-in, and nothing that restore would redeliver to the
+            listener is confirmed a second time. Without a flow, it still calls
+            the provider&apos;s restore.
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <div
+            style={{
+              border: '1px solid var(--border-color)',
+              borderRadius: '0.5rem',
+              padding: '1rem',
+            }}
+          >
+            <ul style={{ marginBottom: 0, paddingLeft: '1.25rem' }}>
+              {RESTORE_WITHOUT_STORE_SYNC_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  >
+                    {getReleaseLabel(release)}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
     {
       id: 'ios-restore-newest-transaction-2026-11-03',
       date: new Date('2026-11-03'),

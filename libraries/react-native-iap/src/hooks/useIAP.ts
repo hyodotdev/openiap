@@ -223,7 +223,9 @@ type UseIap = {
     options: VerifyPurchaseWithProviderProps,
   ) => Promise<VerifyPurchaseWithProviderResult>;
   /**
-   * Restore non-consumable and active subscription purchases.
+   * Restore non-consumable and active subscription purchases. With
+   * `purchaseFlow`, confirms every owned purchase through the flow instead of
+   * the provider's restore, so iOS asks for no App Store sign-in.
    *
    * @see {@link https://openiap.dev/docs/apis/restore-purchases}
    */
@@ -596,21 +598,25 @@ export function useIAP(options?: UseIapOptions): UseIap {
 
   const restorePurchases = useCallback(
     async (options?: PurchaseOptions): Promise<void> => {
-      try {
-        await restorePurchasesNative();
-      } catch (error) {
-        const purchaseError = toRestorePurchaseError(error);
-        RnIapConsole.warn('Failed to restore purchases:', error);
-        invokeOnError(purchaseError);
-        throw purchaseError;
-      }
-      try {
-        await optionsRef.current?.purchaseFlow?.recoverPurchases({
-          includeFinished: true,
-        });
-      } catch (error) {
-        invokeOnError(error);
-        throw error;
+      const flow = optionsRef.current?.purchaseFlow;
+      // The flow reads the store's history itself; the provider's restore
+      // would add an App Store sign-in and redeliver what it then confirms.
+      if (flow) {
+        try {
+          await flow.recoverPurchases({includeFinished: true});
+        } catch (error) {
+          invokeOnError(error);
+          throw error;
+        }
+      } else {
+        try {
+          await restorePurchasesNative();
+        } catch (error) {
+          const purchaseError = toRestorePurchaseError(error);
+          RnIapConsole.warn('Failed to restore purchases:', error);
+          invokeOnError(purchaseError);
+          throw purchaseError;
+        }
       }
       // The query helper reports and rethrows its own error, avoiding a second
       // onError call while keeping restore failure observable to the caller.

@@ -85,9 +85,9 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
   }
 
   // Outcomes arrive through _showOutcome.
-  Future<void> _recoverPurchases({bool includeFinished = false}) async {
+  Future<void> _recoverPurchases() async {
     try {
-      await _purchases.flow.recoverPurchases(includeFinished: includeFinished);
+      await _purchases.flow.recoverPurchases();
     } catch (error) {
       if (error is PurchaseError &&
           error.code == ErrorCode.FeatureNotSupported) {
@@ -357,8 +357,9 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
     });
 
     try {
-      await _iap.restorePurchases();
-      await _recoverPurchases(includeFinished: true);
+      // The flow reads the store's history itself, so iOS asks for no App
+      // Store sign-in; a failure lands in the catch below.
+      await _purchases.flow.recoverPurchases(includeFinished: true);
       await _checkActiveSubscriptions();
 
       if (!mounted) return;

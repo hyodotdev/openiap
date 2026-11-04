@@ -56,6 +56,14 @@ function RestorePurchases() {
         .
       </p>
       <p>
+        With a <Link to="/docs/features/validation#iapkit">purchase flow</Link>,
+        restore through the flow instead: <code>recoverPurchases</code> with{' '}
+        <code>includeFinished</code> confirms every owned purchase from the
+        store&apos;s history without this call, so iOS asks for no sign-in. The
+        React Native and Expo hooks&apos; <code>restorePurchases</code> does
+        this when <code>purchaseFlow</code> is set.
+      </p>
+      <p>
         When upgrading from an older major, see the{' '}
         <Link to="/docs/updates/migration#provider-contract-restore">
           restore upgrade notes

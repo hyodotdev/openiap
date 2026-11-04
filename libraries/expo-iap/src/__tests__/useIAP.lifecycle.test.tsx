@@ -826,8 +826,9 @@ describe('useIAP lifecycle', () => {
       expect(onError).toHaveBeenCalledWith(expect.any(Error));
     });
 
-    it('re-confirms every owned purchase on restore', async () => {
+    it('restores through the flow alone, without the provider restore', async () => {
       jest.mocked(ExpoIapModule.restorePurchases!).mockResolvedValue(true);
+      jest.mocked(ExpoIapModule.restorePurchases!).mockClear();
       const flow = fakeFlow();
       let hook: Hook | undefined;
       await mount(
@@ -841,6 +842,7 @@ describe('useIAP lifecycle', () => {
         await hook!.restorePurchases();
       });
 
+      expect(ExpoIapModule.restorePurchases).not.toHaveBeenCalled();
       expect(flow.recoverPurchases).toHaveBeenLastCalledWith({
         includeFinished: true,
       });

@@ -542,17 +542,23 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   );
 
   /**
-   * Restore non-consumable and active subscription purchases.
+   * Restore non-consumable and active subscription purchases. With
+   * `purchaseFlow`, confirms every owned purchase through the flow instead of
+   * the provider's restore, so iOS asks for no App Store sign-in.
    *
    * @see {@link https://openiap.dev/docs/apis/restore-purchases}
    */
   const restorePurchasesInternal = useCallback(
     async (options?: PurchaseOptions): Promise<void> => {
       try {
-        await restorePurchasesNative();
-        await optionsRef.current?.purchaseFlow?.recoverPurchases({
-          includeFinished: true,
-        });
+        const flow = optionsRef.current?.purchaseFlow;
+        // The flow reads the store's history itself; the provider's restore
+        // would add an App Store sign-in and redeliver what it then confirms.
+        if (flow) {
+          await flow.recoverPurchases({includeFinished: true});
+        } else {
+          await restorePurchasesNative();
+        }
 
         const read = startRead(availablePurchasesReads.current);
         const purchases = await getAvailablePurchases({
