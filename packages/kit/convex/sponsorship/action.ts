@@ -96,14 +96,16 @@ async function monthlyRevenue(
     { organizationId: organization.organizationId },
   );
   for (const projectId of projectIds) {
-    const billingPeriods = await collectPages(
-      (cursor, numItems) =>
-        ctx.runQuery(internal.sponsorship.internal.listBillingPeriods, {
-          projectId,
-          paginationOpts: { numItems, cursor },
-        }),
-      CATALOG_PAGE_SIZE,
-    );
+    const readCatalog = () =>
+      collectPages(
+        (cursor, numItems) =>
+          ctx.runQuery(internal.sponsorship.internal.listBillingPeriods, {
+            projectId,
+            paginationOpts: { numItems, cursor },
+          }),
+        CATALOG_PAGE_SIZE,
+      );
+    const billingPeriods = await readCatalog();
     const cachedMrr = await ctx.runQuery(
       internal.sponsorship.internal.cachedProjectMrr,
       { projectId, now },
@@ -129,6 +131,13 @@ async function monthlyRevenue(
           billingPeriods,
         })),
       );
+    }
+    // A catalog sync mid-read could let cached MRR and the charges classify a
+    // product differently; skip the organization until next month instead.
+    if (
+      JSON.stringify(await readCatalog()) !== JSON.stringify(billingPeriods)
+    ) {
+      throw new Error("Catalog changed during the revenue read");
     }
   }
   return amounts;
