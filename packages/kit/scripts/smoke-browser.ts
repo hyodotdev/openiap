@@ -22,21 +22,22 @@ const url = process.env.SMOKE_URL ?? "http://localhost:3100/";
 const IGNORED_ERROR_PATTERNS: RegExp[] = [
   /CONVEX FATAL ERROR.*Couldn't parse deployment name/i,
   /Sentry.*Invalid DSN/i,
-  // The runner's Docker network can change interfaces mid-load; a resource
-  // the app needs still fails the #root mount check below.
-  /net::ERR_NETWORK_CHANGED/,
 ];
+
+// The runner's Docker network can change interfaces mid-load. That is the
+// runner, not the bundle, so a fresh attempt decides.
+const NETWORK_CHANGED = /net::ERR_NETWORK_CHANGED/;
 
 function isIgnored(message: string): boolean {
   return IGNORED_ERROR_PATTERNS.some((re) => re.test(message));
 }
 
-async function main(): Promise<number> {
+async function attempt(
+  browser: Awaited<ReturnType<typeof chromium.launch>>,
+): Promise<string[]> {
   const errors: string[] = [];
-
-  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext();
   try {
-    const context = await browser.newContext();
     const page = await context.newPage();
 
     page.on("pageerror", (err) => {
@@ -51,10 +52,7 @@ async function main(): Promise<number> {
     });
 
     // Catch goto/locator failures (timeouts etc.) so the errors array
-    // gets reported AND the finally below still runs to close the
-    // browser. Calling process.exit() inside the try block would skip
-    // both — leaving a zombie chromium process and hiding any
-    // pageerror/console.error we already collected.
+    // gets reported AND the browser still closes in main's finally.
     try {
       // `waitUntil: "networkidle"` hangs in apps with persistent
       // sockets (Convex WebSockets, Sentry beacons). Use
@@ -77,6 +75,21 @@ async function main(): Promise<number> {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       errors.push(`navigation failed: ${message}`);
+    }
+  } finally {
+    await context.close();
+  }
+  return errors;
+}
+
+async function main(): Promise<number> {
+  const browser = await chromium.launch({ headless: true });
+  let errors: string[];
+  try {
+    errors = await attempt(browser);
+    if (errors.length > 0 && errors.every((e) => NETWORK_CHANGED.test(e))) {
+      console.warn("smoke-browser: the network changed mid-load; retrying");
+      errors = await attempt(browser);
     }
   } finally {
     await browser.close();
