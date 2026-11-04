@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import { useQuery } from "convex/react";
@@ -28,7 +28,7 @@ import OrganizationUsagePage from "./organization/usage";
 import { SiteLayout } from "@/components/SiteLayout";
 import DocsLayout from "../docs/DocsLayout";
 import { docsChildRoutes } from "../docs/routes";
-import { siteChildRoutes } from "../site-routes";
+import { siteRoutesExcept } from "../site-routes";
 import { PageWithTitle } from "@/components/PageWithTitle";
 
 // Authenticated Pages Component - handles all authenticated routes
@@ -39,6 +39,11 @@ export default function AuthenticatedPages() {
   const currentOrg = useQuery(
     api.organizations.query.getCurrentOrganization,
     {},
+  );
+  const organizations = useQuery(api.organizations.query.getUserOrganizations);
+  const orgSlugs = useMemo(
+    () => new Set((organizations ?? []).map((org) => org?.slug ?? "")),
+    [organizations],
   );
   const hasTrackedSignup = useRef(false);
 
@@ -115,7 +120,7 @@ export default function AuthenticatedPages() {
         {docsChildRoutes}
       </Route>
       {/* Public pages keep the site header when signed in. */}
-      <Route element={<SiteLayout />}>{siteChildRoutes}</Route>
+      <Route element={<SiteLayout />}>{siteRoutesExcept(orgSlugs)}</Route>
       <Route
         path="onboarding/create-organization"
         element={

@@ -11,6 +11,7 @@ import {
   collectPages,
   GRACE_PERIOD_MS,
   nextNotice,
+  readStable,
   REVENUE_WINDOW_DAYS,
   toUsd,
 } from "./logic";
@@ -197,9 +198,11 @@ export const runSponsorshipNotices = internalAction({
     for (const organization of page.organizations) {
       summary.checked += 1;
       try {
-        const { usd, unconverted: missing } = toUsd(
-          await monthlyRevenue(ctx, organization, Date.now(), fromDay),
-          rates,
+        const { usd, unconverted: missing } = await readStable(async () =>
+          toUsd(
+            await monthlyRevenue(ctx, organization, Date.now(), fromDay),
+            rates,
+          ),
         );
         missing.forEach((currency) => unconverted.add(currency));
         const stage = await notify(ctx, mode, organization, usd);

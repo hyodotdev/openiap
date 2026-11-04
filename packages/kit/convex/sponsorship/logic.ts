@@ -82,6 +82,24 @@ export async function collectPages(
   }
 }
 
+/**
+ * Reads a revenue total until two reads in a row agree. Paginated reads can
+ * meet a rollup refresh or catalog sync halfway and count a charge twice or
+ * not at all; a run that never settles throws, and next month retries.
+ */
+export async function readStable<T extends { usd: number }>(
+  read: () => Promise<T>,
+  attempts = 4,
+): Promise<T> {
+  let previous = await read();
+  for (let attempt = 1; attempt < attempts; attempt++) {
+    const next = await read();
+    if (Math.abs(next.usd - previous.usd) < 0.01) return next;
+    previous = next;
+  }
+  throw new Error("Revenue changed on every read");
+}
+
 /** The email an organization should get now, if any. Each stage is sent once. */
 export function nextNotice(
   usd: number,

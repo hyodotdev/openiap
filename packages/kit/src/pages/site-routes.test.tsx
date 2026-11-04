@@ -5,6 +5,7 @@ import { Children, isValidElement } from "react";
 import { MemoryRouter, Outlet, Route, Routes } from "react-router-dom";
 
 vi.mock("./faq", () => ({ default: () => <p>{"FAQ page"}</p> }));
+vi.mock("./pricing", () => ({ default: () => <p>{"Pricing page"}</p> }));
 vi.mock("./about", () => ({ default: () => <p>{"About page"}</p> }));
 vi.mock("./contact", () => ({ default: () => <p>{"Contact page"}</p> }));
 vi.mock("./terms-of-service", () => ({ default: () => <p>{"Terms"}</p> }));
@@ -17,14 +18,16 @@ vi.mock("./blog/iapkit-joins-openiap", () => ({
 }));
 
 import { RESERVED_ORG_SLUGS } from "../../convex/organizations/reservedSlugs";
-import { siteChildRoutes } from "./site-routes";
+import { siteChildRoutes, siteRoutesExcept } from "./site-routes";
 
 // Mirrors the signed-in tree: site pages beside the organization routes.
-function renderSignedIn(path: string) {
+function renderSignedIn(path: string, orgSlugs: string[] = []) {
   render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route element={<Outlet />}>{siteChildRoutes}</Route>
+        <Route element={<Outlet />}>
+          {siteRoutesExcept(new Set(orgSlugs))}
+        </Route>
         <Route path=":orgSlug" element={<p>{"Organization"}</p>}>
           <Route path="projects" element={<p>{"Projects"}</p>} />
         </Route>
@@ -40,6 +43,12 @@ describe("siteChildRoutes", () => {
     renderSignedIn("/faq");
     expect(screen.getByText("FAQ page")).toBeTruthy();
     expect(screen.queryByText("Organization")).toBeNull();
+  });
+
+  it("keeps an existing organization named pricing on its overview", () => {
+    renderSignedIn("/pricing", ["pricing"]);
+    expect(screen.getByText("Organization")).toBeTruthy();
+    expect(screen.queryByText("Pricing page")).toBeNull();
   });
 
   it("still routes a single segment to the organization", () => {

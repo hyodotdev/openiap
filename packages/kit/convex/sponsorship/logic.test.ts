@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   collectPages,
   nextNotice,
+  readStable,
   suggestedSponsorshipUsd,
   toUsd,
 } from "./logic";
@@ -85,5 +86,24 @@ describe("collectPages", () => {
         throw new Error("broken");
       }, 4),
     ).rejects.toThrow("broken");
+  });
+});
+
+describe("readStable", () => {
+  const reads = (...values: number[]) => {
+    let index = 0;
+    return async () => ({ usd: values[Math.min(index++, values.length - 1)] });
+  };
+
+  it("returns once two reads in a row agree", async () => {
+    expect(await readStable(reads(11_000, 6_000, 6_000))).toEqual({
+      usd: 6_000,
+    });
+  });
+
+  it("throws when the total never settles", async () => {
+    await expect(readStable(reads(1, 2, 3, 4))).rejects.toThrow(
+      "Revenue changed on every read",
+    );
   });
 });

@@ -1,3 +1,4 @@
+import { Children, isValidElement } from "react";
 import { Navigate, Route } from "react-router-dom";
 
 import { PageWithTitle } from "@/components/PageWithTitle";
@@ -100,3 +101,16 @@ export const siteChildRoutes = (
     />
   </>
 );
+
+/**
+ * The site routes without the paths a signed-in user's organizations use as
+ * slugs, so an organization created before its slug was reserved
+ * (convex/organizations/reservedSlugs.ts) keeps its overview page.
+ */
+export function siteRoutesExcept(orgSlugs: ReadonlySet<string>) {
+  return Children.toArray(siteChildRoutes.props.children).filter(
+    (route) =>
+      !isValidElement<{ path?: string }>(route) ||
+      !orgSlugs.has(route.props.path ?? ""),
+  );
+}
