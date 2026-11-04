@@ -239,9 +239,12 @@ const flow = createPurchaseFlow({
       <p>
         An App Store app with neither a backend nor IAPKit can pass{" "}
         <code>confirmOnDeviceIOS</code> instead: StoreKit verified a transaction
-        it still lists as unfinished, unrevoked, not upgraded, unexpired, and
-        from the purchase&apos;s environment. The same <code>grant</code> rule
-        applies.
+        it lists as unfinished, or for a restore in its verified history, from
+        the purchase&apos;s environment. A revoked or upgraded one ends as{" "}
+        <code>invalid</code>, and an expired one as{" "}
+        <code>verification_delayed</code>, since billing grace can still cover
+        it. The same <code>grant</code> rule applies, and a restore grants a
+        finished non-consumable again.
       </p>
       <p>
         Anything that may be a configuration error rather than a rejected
@@ -377,7 +380,8 @@ const flow = createPurchaseFlow({
         receipt to about one verification a minute after a burst, so respect{" "}
         <code>retryAfterMs</code> instead of looping. A receipt IAPKit rejected
         in the last five minutes gets that rejection again, so a restore right
-        after launch reads it as <code>invalid</code>.
+        after launch reads an expired one as <code>invalid</code> and still
+        fails on an inauthentic one.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Ownership</h2>

@@ -143,7 +143,9 @@ public class PurchaseFlowVectorTests
         var vector = Case("device", name);
         var grants = 0;
         var reads = 0;
+        var historyReads = 0;
         var pending = vector["pending"]!.AsArray().Select(entry => (PurchaseIOS)ToPurchase(entry!)).ToList();
+        var history = vector["history"]?.AsArray().Select(entry => ToPurchase(entry!)).ToList();
         var clock = vector["clock"];
         var now = (long?)clock?["beforeRead"];
         var confirm = DeviceConfirmationIOSImplementation.Create(
@@ -160,7 +162,14 @@ public class PurchaseFlowVectorTests
                     return Task.CompletedTask;
                 }
                 : null,
-            () => now ?? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+            () => now ?? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            history is null
+                ? null
+                : () =>
+                {
+                    historyReads++;
+                    return Task.FromResult<IReadOnlyList<Purchase>>(history);
+                });
 
         var answer = confirm(ToPurchase(vector["purchase"]!), (bool)vector["isConsumable"]!);
 
@@ -173,6 +182,7 @@ public class PurchaseFlowVectorTests
             AssertJson(vector["confirmation"], Comparable((await answer)!));
         }
         Assert.Equal((bool?)vector["reads"] == false ? 0 : 1, reads);
+        Assert.Equal((bool?)vector["historyReads"] == true ? 1 : 0, historyReads);
         Assert.Equal((bool)vector["granted"]! ? 1 : 0, grants);
     }
 

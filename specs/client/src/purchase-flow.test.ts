@@ -102,9 +102,11 @@ const vectors: {
     clock?: { beforeRead: number; afterRead: number };
     purchase: PurchaseFlowPurchase;
     pending: PurchaseFlowPurchase[];
+    history?: PurchaseFlowPurchase[];
     isConsumable: boolean;
     noGrant?: true;
     reads?: boolean;
+    historyReads?: boolean;
     confirmation?: PurchaseConfirmation;
     error?: true;
     granted: boolean;
@@ -1354,10 +1356,11 @@ describe("shared vectors", () => {
           if (clock) vi.setSystemTime(clock.afterRead);
           return vector.pending;
         });
-        const confirm = createDeviceConfirmationIOS(
-          read,
-          vector.noGrant ? {} : { grant },
-        );
+        const readHistory = vi.fn(async () => vector.history ?? []);
+        const confirm = createDeviceConfirmationIOS(read, {
+          ...(vector.noGrant ? {} : { grant }),
+          ...(vector.history ? { getTransactionHistoryIOS: readHistory } : {}),
+        });
 
         const answer = confirm(vector.purchase, {
           isConsumable: vector.isConsumable,
@@ -1369,6 +1372,7 @@ describe("shared vectors", () => {
           await expect(answer).resolves.toEqual(vector.confirmation);
         }
         expect(read).toHaveBeenCalledTimes(vector.reads === false ? 0 : 1);
+        expect(readHistory).toHaveBeenCalledTimes(vector.historyReads ? 1 : 0);
         expect(grant).toHaveBeenCalledTimes(vector.granted ? 1 : 0);
       } finally {
         vi.useRealTimers();

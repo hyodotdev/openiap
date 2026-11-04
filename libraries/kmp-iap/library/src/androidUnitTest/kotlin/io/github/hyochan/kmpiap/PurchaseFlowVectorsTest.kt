@@ -130,11 +130,14 @@ class PurchaseFlowVectorsTest {
         val pending = vector["pending"]!!.jsonArray.map { purchaseOf(it.jsonObject) as PurchaseIOS }
         val clock = vector["clock"]?.jsonObject
         var now = clock?.long("beforeRead") ?: System.currentTimeMillis()
+        val history = vector["history"]?.jsonArray?.map { purchaseOf(it.jsonObject) }
         var reads = 0
+        var historyReads = 0
         var grants = 0
         val confirm = deviceConfirmationIOS(
             { reads++; clock?.let { now = it.long("afterRead") }; pending },
             grant = if (vector.bool("noGrant")) null else { _, _ -> grants++ },
+            getTransactionHistoryIOS = history?.let { list -> { historyReads++; list } },
             clock = { now },
         )
 
@@ -146,6 +149,7 @@ class PurchaseFlowVectorsTest {
             assertEquals(vector.plain("confirmation"), comparable(answer.getOrThrow()), "confirmation")
         }
         assertEquals(if (vector["reads"]?.jsonPrimitive?.booleanOrNull == false) 0 else 1, reads, "reads")
+        assertEquals(if (vector.bool("historyReads")) 1 else 0, historyReads, "history reads")
         assertEquals(if (vector.bool("granted")) 1 else 0, grants, "grants")
     }
 

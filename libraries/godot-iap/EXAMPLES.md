@@ -750,7 +750,8 @@ func _on_purchase_failed(error: Dictionary):
 
 func _on_restore_pressed():
     _set_buttons_enabled(false)
-    await StoreManager.restore()
+    if not await StoreManager.restore():
+        _show_dialog("Restore failed", "Some purchases could not be confirmed. Try again.")
     _set_buttons_enabled(true)
 
 func _set_buttons_enabled(enabled: bool):

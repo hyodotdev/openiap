@@ -2286,8 +2286,8 @@ export function confirmWithIapkit(
 
 /**
  * Confirms App Store purchases on the device, for apps with neither a backend
- * nor IAPKit: StoreKit must still list the transaction as unfinished and
- * valid. Credit consumables in `grant`.
+ * nor IAPKit: StoreKit must list the transaction as unfinished, or for a
+ * restore in its verified history, and valid. Credit consumables in `grant`.
  */
 export function confirmOnDeviceIOS(
   options: {
@@ -2300,7 +2300,11 @@ export function confirmOnDeviceIOS(
 ): PurchaseFlowOptions<Purchase>['confirmWithBackend'] {
   return createDeviceConfirmationIOS<Purchase>(
     () => getPendingTransactionsIOS(),
-    options,
+    {
+      ...options,
+      getTransactionHistoryIOS: () =>
+        getAvailablePurchases({onlyIncludeActiveItemsIOS: false}),
+    },
   );
 }
 

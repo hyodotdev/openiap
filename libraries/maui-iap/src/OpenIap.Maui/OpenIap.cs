@@ -206,15 +206,18 @@ public static class OpenIapClient
 
     /// <summary>
     /// Confirms App Store purchases on the device, for apps with neither a
-    /// backend nor IAPKit: StoreKit must still list the transaction as
-    /// unfinished and valid. Credit consumables in <paramref name="grant"/>.
+    /// backend nor IAPKit: StoreKit must list the transaction as unfinished, or
+    /// for a restore in its verified history, and valid. Credit consumables in
+    /// <paramref name="grant"/>.
     /// </summary>
     public static PurchaseConfirmer ConfirmOnDeviceIOS(PurchaseGranter? grant = null)
     {
         var instance = Instance;
         return DeviceConfirmationIOSImplementation.Create(
             () => Resolver<QueryResolver>(instance).GetPendingTransactionsIOSAsync(),
-            grant);
+            grant,
+            getTransactionHistoryIOS: () => Resolver<QueryResolver>(instance).GetAvailablePurchasesAsync(
+                new PurchaseOptions { OnlyIncludeActiveItemsIOS = false }));
     }
 
     private static T Resolver<T>(IOpenIap instance) where T : class =>

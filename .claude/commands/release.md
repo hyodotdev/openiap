@@ -219,10 +219,8 @@ release starts from the preceding version commit. After an Apple or Google
 release, confirm the native workflow has synchronized its package metadata before
 dispatching the
 next package or docs release. Do not dispatch the full list in parallel.
-Before each later dispatch, wait until every check on the previous version
-commit, CodeQL included, has finished green, and fix or rerun a red one first.
-CodeQL keeps one queued run per branch, so releasing faster than it finishes
-leaves release commits unanalyzed.
+Before each later dispatch, wait for the previous version commit's checks as
+`knowledge/internal/06-git-deployment.md#main-and-release-channels` requires.
 
 ## Published but the Workflow Failed
 
