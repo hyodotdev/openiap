@@ -22,6 +22,9 @@ const url = process.env.SMOKE_URL ?? "http://localhost:3100/";
 const IGNORED_ERROR_PATTERNS: RegExp[] = [
   /CONVEX FATAL ERROR.*Couldn't parse deployment name/i,
   /Sentry.*Invalid DSN/i,
+  // The runner's Docker network can change interfaces mid-load; a resource
+  // the app needs still fails the #root mount check below.
+  /net::ERR_NETWORK_CHANGED/,
 ];
 
 function isIgnored(message: string): boolean {
