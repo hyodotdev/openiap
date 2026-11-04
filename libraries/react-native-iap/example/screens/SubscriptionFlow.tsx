@@ -1751,8 +1751,8 @@ function SubscriptionFlowContainer() {
   // ──────────────────────────────────────────────────────────────────────────
   // REQUEST SUBSCRIPTION PURCHASE
   // ──────────────────────────────────────────────────────────────────────────
-  // iOS: pass the sku, plus an optional appAccountToken to track the user;
-  // StoreKit handles offer eligibility.
+  // iOS: pass the sku, plus an optional appAccountToken (the user's UUID) to
+  // link the purchase to an account; StoreKit handles offer eligibility.
   // Android: pass subscriptionOffers, each with the offerToken of a base plan
   // (monthly/yearly) or promotional offer from the product's subscriptionOffers.
   const handleSubscription = useCallback((itemId: string) => {
@@ -1761,10 +1761,7 @@ function SubscriptionFlowContainer() {
 
     requestPurchase({
       request: {
-        apple: {
-          sku: itemId,
-          appAccountToken: 'user-123',
-        },
+        apple: {sku: itemId},
         // Without subscriptionOffers the store picks the default offer;
         // Amazon subscriptions have none.
         google: {skus: [itemId]},
