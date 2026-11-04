@@ -49,7 +49,7 @@ on:
 permissions:
   contents: read
 
-# Cancel the superseded run on a PR push; a main run always finishes.
+# A PR push cancels its superseded run; a started main run always finishes.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}

@@ -76,7 +76,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
                 // unfinished, so the next restore retries it.
                 val failed = ExamplePurchaseFlow.flow.recoverPurchases(includeFinished = true)
                     .firstNotNullOfOrNull { it.status as? PurchaseFlowStatus.Failed }
-                restoreStatus = failed?.let { "Restore failed: ${it.error.message}" }
+                restoreStatus = failed?.let { "Restore failed: ${it.error.message ?: it.error}" }
                     ?: "Purchases restored."
             } catch (e: CancellationException) {
                 throw e

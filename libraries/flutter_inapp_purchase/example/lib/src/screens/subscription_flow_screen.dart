@@ -372,7 +372,8 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
       if (!mounted) return;
       setState(() {
         _isProcessing = false;
-        _purchaseResult = '❌ Failed to restore: $error';
+        _purchaseResult = '❌ Failed to restore: '
+            '${error is PurchaseError ? error.message : error}';
       });
     }
   }

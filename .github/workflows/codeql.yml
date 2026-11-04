@@ -12,8 +12,8 @@ on:
 permissions:
   contents: read
 
-# One group per PR or branch. A PR push cancels the superseded run's macOS
-# legs; a main run always finishes, so every release commit gets analyzed.
+# One group per PR or branch. A PR push cancels its superseded run; a started
+# main run always finishes, and only the newest waiting push queues behind it.
 concurrency:
   group: codeql-${{ github.event.pull_request.number || github.ref_name }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
