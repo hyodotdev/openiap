@@ -760,8 +760,9 @@ export default function ApiReferencePage() {
               <td className="px-3 py-2">
                 RATE_LIMITED names the rejecting API-key, source-IP, or process
                 bucket in X-RateLimit-Scope. DUPLICATE_PAYLOAD and
-                REPEATED_FAILURE are per-(key, payload) replay guards. Check
-                Retry-After.
+                REPEATED_FAILURE are per-(key, payload) replay guards; a receipt
+                rejected in the last 5 minutes normally gets the same verdict
+                again instead. Check Retry-After.
               </td>
             </tr>
             <tr>

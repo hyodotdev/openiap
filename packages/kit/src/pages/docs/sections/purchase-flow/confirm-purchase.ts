@@ -81,8 +81,8 @@ export class InvalidConfirmationRequestError extends Error {}
 
 const DEFAULT_RETRY_MS = 30_000;
 
-// Verify errors no retry changes: a receipt IAPKit rejected moments ago (429)
-// and evidence this project can never verify (400). Other 400s are
+// Verify errors no retry changes: a receipt IAPKit rejected moments ago and
+// kept no verdict for (429) and evidence this project can never verify (400). Other 400s are
 // configuration, such as missing credentials or an App Store Server API key
 // Apple refuses (a forged signature shares that code), so they throw: fixing
 // them makes the same purchase valid. A bundle ID mismatch is one: a project

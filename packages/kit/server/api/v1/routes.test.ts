@@ -432,7 +432,7 @@ describe("apiRoutes", () => {
     expect(convexClientMock.action).toHaveBeenCalledTimes(2);
   });
 
-  it("cooldowns an explicitly revoked UNKNOWN without exposing provenance", async () => {
+  it("answers a revoked UNKNOWN again without asking the store or exposing provenance", async () => {
     convexClientMock.action.mockResolvedValueOnce({
       isValid: false,
       state: "UNKNOWN",
@@ -454,16 +454,11 @@ describe("apiRoutes", () => {
     const first = await request();
     const second = await request();
 
+    const verdict = { store: "google", isValid: false, state: "UNKNOWN" };
     expect(first.status).toBe(200);
-    expect(await first.json()).toEqual({
-      store: "google",
-      isValid: false,
-      state: "UNKNOWN",
-    });
-    expect(second.status).toBe(429);
-    expect(await second.json()).toMatchObject({
-      errors: [{ code: "REPEATED_FAILURE" }],
-    });
+    expect(await first.json()).toEqual(verdict);
+    expect(second.status).toBe(200);
+    expect(await second.json()).toEqual(verdict);
     expect(convexClientMock.action).toHaveBeenCalledTimes(1);
   });
 

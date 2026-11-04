@@ -15,9 +15,11 @@ import {
   FALLBACK_PURCHASE_STATE,
   verifyPurchaseSuccessResponseSchema,
 } from "./route-response-schemas";
-import { verificationResult } from "./verification-result";
+import {
+  verificationResult,
+  type VerificationReceipt,
+} from "./verification-result";
 import { verificationJobRoutes } from "./verification-jobs";
-import type { TransactionDetails } from "../../../convex/purchases/shared";
 import { apiKeyMiddleware } from "./middleware";
 import { getRequestIp, multiAxisRateLimitMiddleware } from "./rate-limit";
 import {
@@ -49,6 +51,8 @@ type V1AppVariables = {
     state: string;
     stableRejection?: boolean;
   };
+  // verify-purchase handler → replay guard
+  verifyReceipt?: VerificationReceipt;
 };
 
 const app = new Hono<{ Variables: V1AppVariables }>();
@@ -335,12 +339,11 @@ const verifyPurchaseRouteDescription = describeRoute({
         "same receipt from this API key (burst 30, sustained ~1/min). " +
         "Cache the previous result on your side or back off per " +
         "`Retry-After`.\n" +
-        "  • `REPEATED_FAILURE` — the exact same receipt was just " +
-        "rejected as invalid by the upstream store; subsequent " +
-        "requests for that payload are short-circuited for a 5-minute " +
-        "cooldown. The store provider's verdict for a given receipt rarely " +
-        "changes within seconds, so the cached negative spares both " +
-        "your quota and the upstream API. Retry after `Retry-After`.\n\n" +
+        "  • `REPEATED_FAILURE` — rare: the exact same receipt was just " +
+        "rejected and IAPKit kept no verdict to repeat. For 5 minutes " +
+        "after a rejection, a repeat of that payload normally gets the " +
+        "same verdict again (200) without asking the store. Retry after " +
+        "`Retry-After`.\n\n" +
         "Response body: `{ errors: [{ code, message, path? }] }`.",
       headers: {
         ...commonResponseHeaders,
@@ -419,83 +422,83 @@ type VerifyPurchaseInput = {
   out: { json: VerifyPurchaseJson };
 };
 
-const verifyPurchaseHandler = async (
-  c: Context<{ Variables: V1AppVariables }, string, VerifyPurchaseInput>,
+type VerifyContext = Context<
+  { Variables: V1AppVariables },
+  string,
+  VerifyPurchaseInput
+>;
+
+// Answers with a store's verdict, or with the rejection the replay guard kept.
+const sendReceiptResponse = async (
+  c: VerifyContext,
+  store: VerifyPurchaseJson["store"],
+  receipt: VerificationReceipt,
 ) => {
+  const setOutcome = (outcome: V1AppVariables["verifyOutcome"]) => {
+    c.set("verifyOutcome", outcome);
+  };
+  const { stableRejection } = receipt;
+  const outcome = {
+    isValid: receipt.isValid,
+    state: receipt.state,
+    ...(stableRejection !== undefined ? { stableRejection } : {}),
+  };
+  setOutcome(outcome);
+
+  const contract = await verificationResult({
+    apiKey: c.var.apiKey,
+    store,
+    receipt,
+    input: c.req.valid("json"),
+    correlationId: c.var.corrId,
+  });
+  if (contract.violations.length > 0) {
+    // Field names only — never values.
+    console.error(
+      "[purchase/verify] RESPONSE_CONTRACT_VIOLATION: store=%s fields=%s",
+      store,
+      contract.violations.join(","),
+    );
+  }
+  if (!contract.ok) {
+    // Reset only the reported verdict. The rejection's stability is resolved
+    // first, because `state` is about to be overwritten and the replay guard
+    // derives the cooldown from it. Defect-only path: Convex pins isValid.
+    setOutcome({
+      isValid: false,
+      state: FALLBACK_PURCHASE_STATE,
+      stableRejection: isStableRejection(
+        outcome.state,
+        outcome.stableRejection,
+      ),
+    });
+    const errorId = crypto.randomUUID();
+    console.error(
+      "Unexpected error (%s) when verifying purchase: malformed verdict",
+      errorId,
+    );
+    return c.json(
+      {
+        errors: [
+          {
+            code: "UNKNOWN_ERROR",
+            message: util.format("Unknown error: %s", errorId),
+          },
+        ],
+      },
+      500,
+    );
+  }
+
+  c.set("verifyReceipt", receipt);
+  return c.json(contract.response);
+};
+
+const verifyPurchaseHandler = async (c: VerifyContext) => {
   const json = c.req.valid("json");
   const apiKey = c.var.apiKey;
   const requestIp = getRequestIp(c);
   const correlationId = c.var.corrId;
-
-  const setOutcome = (outcome: V1AppVariables["verifyOutcome"]) => {
-    c.set("verifyOutcome", outcome);
-  };
-  const sendReceiptResponse = async (
-    store: VerifyPurchaseJson["store"],
-    receipt: {
-      isValid: boolean;
-      state: string;
-      productId?: string;
-      environment?: "Sandbox" | "Production";
-      stableRejection?: boolean;
-      transactionDetails?: TransactionDetails;
-    },
-  ) => {
-    const { stableRejection } = receipt;
-    const outcome = {
-      isValid: receipt.isValid,
-      state: receipt.state,
-      ...(stableRejection !== undefined ? { stableRejection } : {}),
-    };
-    setOutcome(outcome);
-
-    const contract = await verificationResult({
-      apiKey,
-      store,
-      receipt,
-      input: json,
-      correlationId,
-    });
-    if (contract.violations.length > 0) {
-      // Field names only — never values.
-      console.error(
-        "[purchase/verify] RESPONSE_CONTRACT_VIOLATION: store=%s fields=%s",
-        store,
-        contract.violations.join(","),
-      );
-    }
-    if (!contract.ok) {
-      // Reset only the reported verdict. The rejection's stability is resolved
-      // first, because `state` is about to be overwritten and the replay guard
-      // derives the cooldown from it. Defect-only path: Convex pins isValid.
-      setOutcome({
-        isValid: false,
-        state: FALLBACK_PURCHASE_STATE,
-        stableRejection: isStableRejection(
-          outcome.state,
-          outcome.stableRejection,
-        ),
-      });
-      const errorId = crypto.randomUUID();
-      console.error(
-        "Unexpected error (%s) when verifying purchase: malformed verdict",
-        errorId,
-      );
-      return c.json(
-        {
-          errors: [
-            {
-              code: "UNKNOWN_ERROR",
-              message: util.format("Unknown error: %s", errorId),
-            },
-          ],
-        },
-        500,
-      );
-    }
-
-    return c.json(contract.response);
-  };
 
   try {
     switch (json.store) {
@@ -511,7 +514,7 @@ const verifyPurchaseHandler = async (
           }),
         );
 
-        return await sendReceiptResponse("apple", apple);
+        return await sendReceiptResponse(c, "apple", apple);
       }
       case "google": {
         const google = await client.action(
@@ -525,7 +528,7 @@ const verifyPurchaseHandler = async (
           }),
         );
 
-        return await sendReceiptResponse("google", google);
+        return await sendReceiptResponse(c, "google", google);
       }
       case "horizon": {
         // Horizon has no receipt, so the entitlement is identified by
@@ -542,7 +545,7 @@ const verifyPurchaseHandler = async (
           }),
         );
 
-        return await sendReceiptResponse("horizon", horizon);
+        return await sendReceiptResponse(c, "horizon", horizon);
       }
       case "amazon": {
         const amazon = await client.action(
@@ -558,7 +561,7 @@ const verifyPurchaseHandler = async (
           }),
         );
 
-        return await sendReceiptResponse("amazon", amazon);
+        return await sendReceiptResponse(c, "amazon", amazon);
       }
     }
   } catch (error) {
@@ -603,7 +606,10 @@ const verifyPurchaseHandler = async (
 
 const verifyRateLimit = multiAxisRateLimitMiddleware();
 const verifyRequestLogger = requestLoggerMiddleware();
-const verifyReplayGuard = replayGuardMiddleware();
+const verifyReplayGuard = replayGuardMiddleware({
+  replayRejection: (c: VerifyContext, rejection) =>
+    sendReceiptResponse(c, c.req.valid("json").store, rejection),
+});
 const verifyInFlightLimit = inFlightLimitMiddleware();
 
 // Order matters:

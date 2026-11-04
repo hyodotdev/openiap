@@ -195,6 +195,34 @@ describe("markPayloadFailure + tryConsumeReplay cooldown", () => {
     expect(after.reason).toBeUndefined();
   });
 
+  test("hands back the kept rejection during the cooldown, then drops it", () => {
+    const store = new Map<string, ReplayBucket>();
+    const rejection = { isValid: false, state: "EXPIRED" };
+    markPayloadFailure(store, "k:p", 30, 1_000, 100, rejection);
+
+    const blocked = tryConsumeReplay(store, "k:p", 30, 1, 2_000, 100, 60_000);
+    expect(blocked.reason).toBe("repeated_failure");
+    expect(blocked.rejection).toBe(rejection);
+
+    const after = tryConsumeReplay(store, "k:p", 30, 1, 62_000, 100, 60_000);
+    expect(after.allowed).toBe(true);
+    expect(after.rejection).toBeUndefined();
+    expect(store.get("k:p")?.lastRejection).toBeUndefined();
+  });
+
+  test("a rejection without a verdict forgets the older verdict", () => {
+    const store = new Map<string, ReplayBucket>();
+    markPayloadFailure(store, "k:p", 30, 1_000, 100, {
+      isValid: false,
+      state: "EXPIRED",
+    });
+    markPayloadFailure(store, "k:p", 30, 2_000, 100);
+
+    const blocked = tryConsumeReplay(store, "k:p", 30, 1, 3_000, 100, 60_000);
+    expect(blocked.reason).toBe("repeated_failure");
+    expect(blocked.rejection).toBeUndefined();
+  });
+
   test("failure on key A does not affect key B (cooldown is per-bucket)", () => {
     const store = new Map<string, ReplayBucket>();
     const now = 1_000;
@@ -310,6 +338,11 @@ describe("replayGuardMiddleware cooldown wiring", () => {
       state: string;
       stableRejection?: boolean;
     };
+    receipt?: { isValid: boolean; state: string };
+    replayRejection?: (
+      c: unknown,
+      rejection: { isValid: boolean; state: string },
+    ) => Response;
     now: number;
   }) {
     const middleware = replayGuardMiddleware({
@@ -319,6 +352,9 @@ describe("replayGuardMiddleware cooldown wiring", () => {
       failureCooldownMs: 300_000,
       store: options.store,
       now: () => options.now,
+      ...(options.replayRejection
+        ? { replayRejection: options.replayRejection }
+        : {}),
     });
     const vars: Record<string, unknown> = { apiKeyHash: "hash" };
     const body = options.body ?? {
@@ -345,13 +381,37 @@ describe("replayGuardMiddleware cooldown wiring", () => {
     const next = async () => {
       reachedUpstream = true;
       if (options.outcome) vars.verifyOutcome = options.outcome;
+      if (options.receipt) vars.verifyReceipt = options.receipt;
     };
-    return middleware(ctx as never, next as never).then(() => ({
+    return middleware(ctx as never, next as never).then((response) => ({
       status,
       payload,
       reachedUpstream,
+      response,
     }));
   }
+
+  it("answers a repeat with the kept rejection instead of 429", async () => {
+    const store = new Map<string, ReplayBucket>();
+    const rejection = { isValid: false, state: "INAUTHENTIC" };
+    const replayed: unknown[] = [];
+    const replayRejection = (_c: unknown, kept: typeof rejection) => {
+      replayed.push(kept);
+      return new Response(null, { status: 200 });
+    };
+    await runMiddleware({
+      store,
+      outcome: rejection,
+      receipt: rejection,
+      replayRejection,
+      now: 1_000,
+    });
+
+    const second = await runMiddleware({ store, replayRejection, now: 2_000 });
+    expect(replayed).toEqual([rejection]);
+    expect(second.reachedUpstream).toBe(false);
+    expect(second.response).toMatchObject({ status: 200 });
+  });
 
   it("arms the cooldown for a settled rejection", async () => {
     const store = new Map<string, ReplayBucket>();
