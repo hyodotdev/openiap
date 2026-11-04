@@ -761,8 +761,8 @@ export default function ApiReferencePage() {
                 RATE_LIMITED names the rejecting API-key, source-IP, or process
                 bucket in X-RateLimit-Scope. DUPLICATE_PAYLOAD and
                 REPEATED_FAILURE are per-(key, payload) replay guards; check
-                Retry-After. A receipt rejected in the last 5 minutes normally
-                gets the same verdict again instead of REPEATED_FAILURE.
+                Retry-After. A receipt with a final rejection in the last 5
+                minutes gets the same verdict again instead of REPEATED_FAILURE.
               </td>
             </tr>
             <tr>

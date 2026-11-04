@@ -346,8 +346,9 @@ const verifyPurchaseRouteDescription = describeRoute({
         "`Retry-After`.\n" +
         "  • `REPEATED_FAILURE` — rare: the exact same receipt was just " +
         "rejected and IAPKit kept no verdict to repeat. For 5 minutes " +
-        "after a rejection, a repeat of that payload normally gets the " +
-        "same verdict again (200) without asking the store. Retry after " +
+        "after a final rejection (`finalVerdict: true`), a repeat of that " +
+        "payload gets the same verdict again (200) without asking the " +
+        "store. Retry after " +
         "`Retry-After`.\n\n" +
         "Response body: `{ errors: [{ code, message, path? }] }`.",
       headers: {

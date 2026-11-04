@@ -378,10 +378,10 @@ const flow = createPurchaseFlow({
         what the listener settled while it ran, and a later delivery of a
         settled purchase is answered without one. IAPKit replay-limits each
         receipt to about one verification a minute after a burst, so respect{" "}
-        <code>retryAfterMs</code> instead of looping. A receipt IAPKit rejected
-        in the last five minutes gets that rejection again, so a restore right
-        after launch reads an expired one as <code>invalid</code>. An
-        inauthentic one still fails a restore through{" "}
+        <code>retryAfterMs</code> instead of looping. A receipt IAPKit finally
+        rejected in the last five minutes gets that rejection again, so a
+        restore right after launch reads an expired one as <code>invalid</code>.
+        An inauthentic one still fails a restore through{" "}
         <code>confirmWithIapkit</code>; the reference backend answers it as{" "}
         <code>invalid</code>.
       </p>

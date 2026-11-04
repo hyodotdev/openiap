@@ -830,9 +830,9 @@ function Releases() {
             </li>
           </ul>
           <p>
-            IAPKit answers a receipt it rejected in the last five minutes with
-            that rejection again instead of <code>429</code>, so a restore right
-            after launch succeeds; see the{' '}
+            IAPKit answers a receipt it finally rejected in the last five
+            minutes with that rejection again instead of <code>429</code>, so a
+            restore right after launch succeeds; see the{' '}
             <a href="https://kit.openiap.dev/docs/release-notes#week-2026-11-02">
               hosted release notes
             </a>

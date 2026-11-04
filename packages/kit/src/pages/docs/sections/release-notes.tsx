@@ -32,7 +32,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "fix",
         topic: "Verification",
-        text: "A receipt rejected in the last five minutes gets that rejection again, with the same state, instead of 429 REPEATED_FAILURE, and still without asking the store. A purchase flow restore right after launch no longer fails on an expired subscription the launch already checked.",
+        text: "A receipt with a final rejection (finalVerdict: true) in the last five minutes gets that rejection again, with the same state, instead of 429 REPEATED_FAILURE, and still without asking the store. A purchase flow restore right after launch no longer fails on an expired subscription the launch already checked.",
       },
       {
         kind: "docs",
