@@ -216,7 +216,7 @@ describe('app purchase flow', () => {
 
     await expect(
       flowOptions.confirmWithBackend(appleCertified, {isConsumable: false}),
-    ).rejects.toThrow('StoreKit lists no valid unfinished transaction');
+    ).rejects.toThrow('StoreKit lists no transaction');
 
     Platform.OS = 'android';
     await expect(

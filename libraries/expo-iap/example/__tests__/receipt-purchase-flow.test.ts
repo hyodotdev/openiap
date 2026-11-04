@@ -232,7 +232,7 @@ describe('receipt-check purchase flow', () => {
 
     await expect(
       flowOptions().confirmWithBackend(appleCertified, {isConsumable: false}),
-    ).rejects.toThrow('StoreKit lists no valid unfinished transaction');
+    ).rejects.toThrow('StoreKit lists no transaction');
 
     setPlatform('android');
     await expect(
