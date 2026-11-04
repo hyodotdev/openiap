@@ -26,6 +26,7 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-11-02",
     weekStart: "2026-11-02",
     date: "2026-11-04",
+    pullRequests: [587],
     tagline: "A rejected receipt gets the same answer when it comes back.",
     items: [
       {
