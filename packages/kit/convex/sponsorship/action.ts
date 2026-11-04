@@ -104,17 +104,22 @@ async function monthlyRevenue(
         }),
       CATALOG_PAGE_SIZE,
     );
+    const cachedMrr = await ctx.runQuery(
+      internal.sponsorship.internal.cachedProjectMrr,
+      { projectId, now },
+    );
     amounts.push(
-      ...(await collectPages(
-        (cursor, numItems) =>
-          ctx.runQuery(internal.sponsorship.internal.sumProjectMrr, {
-            projectId,
-            now,
-            billingPeriods,
-            paginationOpts: { numItems, cursor },
-          }),
-        MRR_PAGE_SIZE,
-      )),
+      ...(cachedMrr ??
+        (await collectPages(
+          (cursor, numItems) =>
+            ctx.runQuery(internal.sponsorship.internal.sumProjectMrr, {
+              projectId,
+              now,
+              billingPeriods,
+              paginationOpts: { numItems, cursor },
+            }),
+          MRR_PAGE_SIZE,
+        ))),
     );
     for (const day of days) {
       amounts.push(

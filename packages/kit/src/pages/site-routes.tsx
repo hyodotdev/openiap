@@ -1,4 +1,5 @@
-import { Children, isValidElement } from "react";
+import type { ReactNode } from "react";
+import { Children, cloneElement, isValidElement } from "react";
 import { Navigate, Route } from "react-router-dom";
 
 import { PageWithTitle } from "@/components/PageWithTitle";
@@ -102,15 +103,27 @@ export const siteChildRoutes = (
   </>
 );
 
+type RouteProps = { path?: string; index?: boolean; children?: ReactNode };
+
 /**
- * The site routes without the paths a signed-in user's organizations use as
- * slugs, so an organization created before its slug was reserved
- * (convex/organizations/reservedSlugs.ts) keeps its overview page.
+ * The site routes with each path a signed-in user's organization uses as its
+ * slug handed to that organization, so an organization created before its
+ * slug was reserved (convex/organizations/reservedSlugs.ts) keeps its
+ * overview. Pages below such a path, like a blog post, keep working.
  */
 export function siteRoutesExcept(orgSlugs: ReadonlySet<string>) {
-  return Children.toArray(siteChildRoutes.props.children).filter(
-    (route) =>
-      !isValidElement<{ path?: string }>(route) ||
-      !orgSlugs.has(route.props.path ?? ""),
-  );
+  return Children.toArray(siteChildRoutes.props.children).flatMap((route) => {
+    if (!isValidElement<RouteProps>(route)) return [route];
+    const { path } = route.props;
+    if (!path || !orgSlugs.has(path)) return [route];
+    const nested = Children.toArray(route.props.children)
+      .filter(isValidElement<RouteProps>)
+      .filter((child) => !child.props.index && child.props.path)
+      .map((child) =>
+        cloneElement(child, { path: `${path}/${child.props.path}` }),
+      );
+    return nested.length > 0
+      ? [cloneElement(route, { path: undefined }, nested)]
+      : [];
+  });
 }

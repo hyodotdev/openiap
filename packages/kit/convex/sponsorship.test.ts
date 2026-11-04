@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
+import { STATS_DEFINITIONS_VERSION } from "./subscriptions/stats";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -131,6 +132,39 @@ describe("sponsorship internal functions", () => {
       paginationOpts: { numItems: 100, cursor: null },
     });
     expect(page.items).toEqual([{ currency: "USD", micros: 10_000_000 }]);
+  });
+
+  it("reads MRR from current stats rows and refuses stale ones", async () => {
+    const t = convexTest(schema, modules);
+    await seedOrganization(t);
+    const projectId = await t.run(async (ctx) => {
+      const project = (await ctx.db.query("projects").first())!;
+      await ctx.db.insert("subscriptionStats", {
+        projectId: project._id,
+        currency: "usd",
+        activeSubs: 2,
+        inGracePeriod: 0,
+        inBillingRetry: 0,
+        mrrMicros: 9_100_000_000,
+        updatedAt: 0,
+      });
+      await ctx.db.insert("revenueMetricsRunStatus", {
+        projectId: project._id,
+        statsDefinitionsVersion: STATS_DEFINITIONS_VERSION,
+        statsUpdatedAt: 0,
+        statsValidUntil: 2_000,
+      });
+      return project._id;
+    });
+    const cached = (now: number) =>
+      t.query(internal.sponsorship.internal.cachedProjectMrr, {
+        projectId,
+        now,
+      });
+    expect(await cached(1_000)).toEqual([
+      { currency: "USD", micros: 9_100_000_000 },
+    ]);
+    expect(await cached(3_000)).toBeNull();
   });
 
   it("sums a day of production charges for uncataloged products, legacy rows included", async () => {

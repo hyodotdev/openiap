@@ -3,7 +3,7 @@ import { v } from "convex/values";
 
 import { internalMutation, internalQuery } from "../_generated/server";
 import { countsTowardMrr } from "../subscriptions/monthlyMicros";
-import { statsContributionFor } from "../subscriptions/stats";
+import { statsAreCurrent, statsContributionFor } from "../subscriptions/stats";
 import { GRACE_PERIOD_MS } from "./logic";
 
 const stageValidator = v.union(v.literal("advisory"), v.literal("request"));
@@ -107,9 +107,35 @@ function sumByCurrency(rows: Array<{ currency: string; micros: number }>) {
 }
 
 /**
+ * A project's production MRR per currency from `subscriptionStats`, which
+ * every subscription change updates in the same transaction, so one read is a
+ * consistent total. Null when the rows are stale (an expiry passed, or a
+ * catalog billing period changed) and MRR must be counted live.
+ */
+export const cachedProjectMrr = internalQuery({
+  args: { projectId: v.id("projects"), now: v.number() },
+  handler: async (ctx, args) => {
+    const rows = await ctx.db
+      .query("subscriptionStats")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    const status = await ctx.db
+      .query("revenueMetricsRunStatus")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .unique();
+    if (rows.length === 0 || !statsAreCurrent(status, args.now)) return null;
+    return sumByCurrency(
+      rows
+        .filter((row) => row.currency && row.mrrMicros > 0)
+        .map((row) => ({ currency: row.currency, micros: row.mrrMicros })),
+    );
+  },
+});
+
+/**
  * One page of a project's production subscription MRR per currency, counted
- * from the subscriptions themselves with the rule `subscriptionStats` uses, so
- * a stale stats row cannot hide revenue.
+ * from the subscriptions themselves with the rule `subscriptionStats` uses.
+ * Pages read separate snapshots, so this is only the fallback for stale stats.
  */
 export const sumProjectMrr = internalQuery({
   args: {

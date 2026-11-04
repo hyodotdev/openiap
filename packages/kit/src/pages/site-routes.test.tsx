@@ -51,6 +51,14 @@ describe("siteChildRoutes", () => {
     expect(screen.queryByText("Pricing page")).toBeNull();
   });
 
+  it("keeps blog posts when an organization is named blog", () => {
+    renderSignedIn("/blog", ["blog"]);
+    expect(screen.getByText("Organization")).toBeTruthy();
+    cleanup();
+    renderSignedIn("/blog/iapkit-joins-openiap", ["blog"]);
+    expect(screen.getByText("Blog post")).toBeTruthy();
+  });
+
   it("still routes a single segment to the organization", () => {
     renderSignedIn("/acme");
     expect(screen.getByText("Organization")).toBeTruthy();
