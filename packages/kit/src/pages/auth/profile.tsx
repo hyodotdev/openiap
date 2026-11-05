@@ -1,17 +1,10 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex";
+import { BackLink } from "@/components/BackLink";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useUserProfile } from "../../hooks/useUserProfile";
-import {
-  User,
-  Mail,
-  Shield,
-  Save,
-  RefreshCw,
-  ArrowLeft,
-  Trash2,
-} from "lucide-react";
+import { User, Mail, Shield, Save, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
@@ -116,14 +109,7 @@ export default function Profile() {
 
   return (
     <div className="container max-w-7xl mx-auto py-8">
-      {/* Back Button */}
-      <button
-        onClick={() => void navigate(-1)}
-        className="mb-6 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        {"Back"}
-      </button>
+      <BackLink to="/" label="Dashboard" className="mb-6" />
 
       {/* Header */}
       <div className="flex justify-between items-center mb-8">

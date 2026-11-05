@@ -109,10 +109,10 @@ export default function OrganizationDashboard() {
     <div className="container max-w-7xl mx-auto py-8 px-4">
       {/* Welcome Section */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-gray-100">
+        <h1 className="text-3xl font-bold mb-2 text-foreground">
           {`Welcome to ${organization.name}`}
         </h1>
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-muted-foreground">
           {"Here's an overview of your organization"}
         </p>
       </div>
@@ -137,7 +137,7 @@ export default function OrganizationDashboard() {
             <div
               key={stat.title}
               onClick={isClickable ? handleClick : undefined}
-              className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm ${
+              className={`bg-card rounded-lg border border-border p-6 shadow-sm ${
                 isClickable
                   ? "cursor-pointer hover:shadow-md transition-shadow"
                   : ""
@@ -150,12 +150,10 @@ export default function OrganizationDashboard() {
                   <Icon className={`w-6 h-6 ${stat.color}`} />
                 </div>
               </div>
-              <p className="text-2xl font-bold mb-1 text-gray-900 dark:text-gray-100">
+              <p className="text-2xl font-bold mb-1 text-foreground">
                 {stat.value}
               </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {stat.title}
-              </p>
+              <p className="text-sm text-muted-foreground">{stat.title}</p>
             </div>
           );
         })}
@@ -163,7 +161,7 @@ export default function OrganizationDashboard() {
 
       {/* Quick Actions */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+        <h2 className="text-xl font-semibold mb-4 text-foreground">
           {"Quick Actions"}
         </h2>
         <div className="grid gap-4 md:grid-cols-3">
@@ -173,20 +171,20 @@ export default function OrganizationDashboard() {
               <button
                 key={action.title}
                 onClick={() => void action.action()}
-                className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 text-left hover:shadow-sm transition-all group shadow-sm"
+                className="bg-card rounded-lg border border-border p-6 text-left hover:shadow-sm transition-all group shadow-sm"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div
-                    className={`w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center ${action.color}`}
+                    className={`w-10 h-10 bg-muted rounded-lg flex items-center justify-center ${action.color}`}
                   >
                     <Icon className="w-5 h-5" />
                   </div>
-                  <ArrowRight className="w-4 h-4 text-gray-400 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
                 </div>
-                <h3 className="font-semibold mb-1 text-gray-900 dark:text-gray-100">
+                <h3 className="font-semibold mb-1 text-foreground">
                   {action.title}
                 </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-muted-foreground">
                   {action.description}
                 </p>
               </button>

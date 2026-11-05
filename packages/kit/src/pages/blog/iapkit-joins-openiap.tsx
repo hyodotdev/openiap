@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { BackLink } from "@/components/BackLink";
 import { useSeoMeta, SITE_ORIGIN, DEFAULT_OG_IMAGE } from "@/hooks/useSeoMeta";
 import { getPostBySlug } from "./posts";
 
@@ -116,7 +116,7 @@ export default function IapkitJoinsOpenIap() {
           IAPKit joins OpenIAP. Validation is now free.
         </h1>
         <div className="mt-8 flex items-center gap-3 pt-6 border-t border-border">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-600 to-accent flex items-center justify-center text-white font-semibold">
+          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
             H
           </div>
           <div>
@@ -317,12 +317,7 @@ export default function IapkitJoinsOpenIap() {
       </div>
 
       <footer className="mt-16 pt-8 border-t border-border">
-        <Link
-          to="/blog"
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          ← All posts
-        </Link>
+        <BackLink to="/blog" label="All posts" />
       </footer>
     </article>
   );

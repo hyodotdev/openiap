@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
-import IapKitBanner from '../../../components/IapKitBanner';
 import PlatformTabs from '../../../components/PlatformTabs';
 import SEO from '../../../components/SEO';
 import TLDRBox from '../../../components/TLDRBox';
@@ -190,26 +189,20 @@ onPurchaseSuccess: (purchase) => {
   });
 }`}</CodeBlock>
 
-        <h4>2. IAPKit Backend Validation (Recommended)</h4>
-        <IapKitBanner />
+        <h4>2. Read It on Your Backend</h4>
         <p>
-          Use <code>verifyPurchaseWithProvider</code> with IAPKit to get
-          accurate <code>basePlanId</code> from Google Play Developer API. The
-          response includes <code>offerDetails.basePlanId</code>:
+          Your backend can read the purchased base plan from the Google Play
+          Developer API: <code>purchases.subscriptionsv2.get</code> returns it
+          as <code>lineItems[].offerDetails.basePlanId</code>. Verification
+          results from <code>verifyPurchaseWithProvider</code> do not include a
+          base plan.
         </p>
-        <CodeBlock language="typescript">{`import { verifyPurchaseWithProvider } from 'expo-iap';
-
-const result = await verifyPurchaseWithProvider({
-  provider: 'iapkit',
-  iapkit: {
-    apiKey: 'openiap-kit_pk_<your-publishable-key>',
-    google: { purchaseToken: purchase.purchaseToken },
-  },
+        <CodeBlock language="typescript">{`// On your backend, with the Play Developer API client
+const { data } = await androidpublisher.purchases.subscriptionsv2.get({
+  packageName: 'com.example.app',
+  token: purchaseToken, // sent from the app
 });
-
-// Access basePlanId from the response
-const basePlanId = result.iapkit?.google?.lineItems?.[0]?.offerDetails?.basePlanId;
-console.log('Actual basePlanId:', basePlanId);`}</CodeBlock>
+const basePlanId = data.lineItems?.[0]?.offerDetails?.basePlanId;`}</CodeBlock>
 
         <h4>3. Single Base Plan Per Subscription Group</h4>
         <p>

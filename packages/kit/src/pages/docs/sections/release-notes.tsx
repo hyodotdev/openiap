@@ -26,9 +26,30 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-11-02",
     weekStart: "2026-11-02",
     date: "2026-11-04",
-    pullRequests: [587],
-    tagline: "A rejected receipt gets the same answer when it comes back.",
+    pullRequests: [586, 587],
+    tagline:
+      "A pricing page, one header across the site, docs that start with what IAPKit does, and a rejected receipt that gets the same answer when it comes back.",
     items: [
+      {
+        kind: "feature",
+        topic: "Navigation",
+        text: "The landing page, docs, blog and legal pages share one header, signed in or not; the blog no longer shows two. Every back link names the screen it returns to and goes there directly instead of following browser history. Signed in, the FAQ now opens instead of an “Organization not found” page.",
+      },
+      {
+        kind: "feature",
+        topic: "Design",
+        text: "Cleaner, consistent spacing, type and buttons across every screen, and a shorter landing page shows where IAPKit sits in the OpenIAP Commerce Protocol.",
+      },
+      {
+        kind: "feature",
+        topic: "Pricing",
+        text: "A new Pricing page explains how the hosted service stays free: sponsors keep it running, and organizations whose monthly subscription revenue reaches $8,000 and then $9,000 are asked to sponsor in stages. Purchase verification, store notifications and webhooks never stop at any stage.",
+      },
+      {
+        kind: "docs",
+        topic: "Docs",
+        text: "The Introduction says what IAPKit does and which path fits your app, and the Quickstart ends with a purchase verified in your app. A new Commerce Protocol page lists the protocol endpoints IAPKit serves and the key each needs. Webhooks explains what your endpoint returns, how retries and secret rotation work, and which events each store sends.",
+      },
       {
         kind: "fix",
         topic: "Verification",

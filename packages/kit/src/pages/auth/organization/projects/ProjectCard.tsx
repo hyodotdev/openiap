@@ -69,7 +69,7 @@ export default function ProjectCard({
             <MoreVertical className="w-4 h-4" />
           </button>
           {showProjectMenu && (
-            <div className="absolute right-0 top-8 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 z-10">
+            <div className="absolute right-0 top-8 w-48 bg-card border border-border rounded-lg shadow-lg py-1 z-10">
               <button
                 onClick={(e) => {
                   e.stopPropagation();

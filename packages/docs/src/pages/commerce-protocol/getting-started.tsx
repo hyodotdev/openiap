@@ -51,14 +51,16 @@ function CommerceGettingStarted(): React.JSX.Element {
   return (
     <div className="doc-page">
       <SEO
-        title="Commerce Protocol: Follow a Purchase"
+        title="Commerce Protocol: Call a Provider"
         path="/commerce-protocol/getting-started"
         description="Connect your backend to a provider: verify a purchase, bind it to a user, and read access."
       />
-      <h1>Follow one purchase.</h1>
+      <h1>Call a provider</h1>
       <p>
-        Alice buys Premium in your app. Follow her purchase from the store’s
-        payment screen to the moment she can open paid content.
+        Your backend calls a provider to verify a purchase, bind it to your
+        user, and read access. This guide follows one purchase through those
+        calls: Alice buys Premium in your app, and you follow it from the
+        store’s payment screen to the moment she can open paid content.
       </p>
       <p>
         At each step, compare two implementations:{' '}
@@ -144,8 +146,11 @@ function CommerceGettingStarted(): React.JSX.Element {
           <p>
             Obtain the base URL, supported store configuration, and the
             verification and server credentials from your provider. A provider
-            issues its own credentials; OpenIAP has no registration service.
-            Each request sends one as{' '}
+            issues its own credentials; OpenIAP has no registration service.{' '}
+            <Link to="/commerce-protocol/implementation#iapkit">
+              Choose your services
+            </Link>{' '}
+            compares the current implementations. Each request sends one as{' '}
             <code>Authorization: Bearer &lt;credential&gt;</code>. Keep the
             server credential in your backend. These shell examples assume{' '}
             <code>curl</code> and <code>jq</code>.
@@ -318,12 +323,14 @@ curl --fail-with-body "$COMMERCE_BASE_URL${pathOf('eraseUser')}" \\
           <details>
             <summary>Run the receiver example locally</summary>
             <p>
-              Clone the repository, install Bun for its runtime, then install
-              dependencies and run the demo. This fixture check requires no
-              credentials or external services.
+              Install <a href="https://bun.sh">Bun</a>, which runs the demo,
+              then clone the repository and run it. This fixture check requires
+              no credentials or external services.
             </p>
-            <PackageInstall />
-            <CodeBlock language="bash">{`npm run demo:consumer`}</CodeBlock>
+            <CodeBlock language="bash">{`git clone ${COMMERCE_PROTOCOL_LINKS.example}.git
+cd openiap-commerce-protocol-example
+npm install
+npm run demo:consumer`}</CodeBlock>
             <p>
               <a href="/commerce-example/consumer-run.json">
                 Recorded results and payloads

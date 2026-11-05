@@ -67,7 +67,7 @@ npx --yes @hyodotdev/openiap kit schema keys create --json`}</CodeBlock>
                 Scannable quick reference: auth, endpoints, request shapes,
                 response headers, status codes, docs link map.
               </td>
-              <td className="px-3 py-2 text-muted-foreground">~14 KB</td>
+              <td className="px-3 py-2 text-muted-foreground">~17 KB</td>
             </tr>
             <tr>
               <td className="px-3 py-2">
@@ -85,7 +85,7 @@ npx --yes @hyodotdev/openiap kit schema keys create --json`}</CodeBlock>
                 table, error body shape, structured log line, retry policy,
                 Sentry config, Convex data model, deployment.
               </td>
-              <td className="px-3 py-2 text-muted-foreground">~25 KB</td>
+              <td className="px-3 py-2 text-muted-foreground">~28 KB</td>
             </tr>
           </tbody>
         </table>

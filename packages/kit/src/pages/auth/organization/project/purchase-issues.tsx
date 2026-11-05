@@ -6,9 +6,10 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { usePaginatedQuery, useQuery } from "convex/react";
-import { AlertTriangle, ArrowLeft } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 import { api, type Id } from "@/convex";
+import { BackLink } from "@/components/BackLink";
 import { Badge } from "@/components/Badge";
 import { LoadingSpinner, PageLoading } from "@/components/LoadingSpinner";
 import { Modal } from "@/components/Modal";
@@ -68,13 +69,7 @@ export default function PurchaseIssues() {
 
   return (
     <div className="space-y-6">
-      <Link
-        to={`${base}/purchases`}
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        {"Back to purchases"}
-      </Link>
+      <BackLink to={`${base}/purchases`} label="Purchases" />
       <div>
         <h2 className="text-2xl font-semibold mb-1 flex items-center gap-2">
           <AlertTriangle className="w-5 h-5" />

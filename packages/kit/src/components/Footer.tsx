@@ -1,10 +1,11 @@
-import { CreditCard } from "lucide-react";
 import { SiGithub } from "@icons-pack/react-simple-icons";
 import { Link, useNavigate } from "react-router-dom";
 import { KIT_REPO_URL } from "@/lib/constants";
+import { useShowsLandingFeatures } from "@/hooks/useShowsLandingFeatures";
 
 export default function Footer() {
   const navigate = useNavigate();
+  const showsFeatures = useShowsLandingFeatures();
 
   const handleFeaturesClick = () => {
     if (typeof document !== "undefined") {
@@ -26,9 +27,7 @@ export default function Footer() {
               to="/"
               className="inline-flex items-center gap-2 mb-4 hover:opacity-80 transition-opacity"
             >
-              <div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-accent rounded-lg flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-white" />
-              </div>
+              <img src="/logo.webp" alt="" className="h-8 w-8 logo-image" />
               <span className="font-bold text-xl">IAPKit</span>
             </Link>
             <p className="text-sm text-muted-foreground mb-4">
@@ -60,21 +59,31 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold mb-4">{"Product"}</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>
-                <button
-                  type="button"
-                  onClick={handleFeaturesClick}
-                  className="hover:text-foreground transition-colors"
-                >
-                  {"Features"}
-                </button>
-              </li>
+              {showsFeatures && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={handleFeaturesClick}
+                    className="hover:text-foreground transition-colors"
+                  >
+                    {"Features"}
+                  </button>
+                </li>
+              )}
               <li>
                 <Link
                   to="/docs"
                   className="hover:text-foreground transition-colors"
                 >
                   {"Documentation"}
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/pricing"
+                  className="hover:text-foreground transition-colors"
+                >
+                  {"Pricing"}
                 </Link>
               </li>
               <li>

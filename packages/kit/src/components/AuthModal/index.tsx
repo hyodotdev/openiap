@@ -5,6 +5,7 @@ import { Loader2, Check, AlertCircle, AtSign, Send } from "lucide-react";
 import { SiGithub } from "@icons-pack/react-simple-icons";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/convex";
+import { BackLink } from "@/components/BackLink";
 import { Modal } from "@/components/Modal";
 import { EMAIL_SIGN_IN_CLOSES_ON, isEmailSignInOpen } from "@/utils/constants";
 
@@ -184,10 +185,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         className={`space-y-6 transition-opacity duration-200 ${isAuthenticating ? "opacity-75" : "opacity-100"}`}
       >
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <h2 className="text-2xl font-bold text-foreground">
             {"Sign in to IAPKit"}
           </h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          <p className="mt-2 text-sm text-muted-foreground">
             {"Verify purchases and manage entitlements"}
           </p>
         </div>
@@ -225,7 +226,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               )}
             </button>
 
-            <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+            <p className="text-xs text-center text-muted-foreground">
               {"You'll be redirected to GitHub to authorize IAPKit"}
             </p>
 
@@ -236,10 +237,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <>
                 <div className="relative pt-2">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-200 dark:border-gray-700" />
+                    <div className="w-full border-t border-border" />
                   </div>
                   <div className="relative flex justify-center text-xs">
-                    <span className="bg-white dark:bg-gray-900 px-3 text-gray-500 dark:text-gray-400">
+                    <span className="bg-popover px-3 text-muted-foreground">
                       {"or"}
                     </span>
                   </div>
@@ -251,13 +252,13 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     setError("");
                     setView("emailInput");
                   }}
-                  className="w-full text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
+                  className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
                   disabled={isLoading}
                 >
                   {"Have an existing email account? Sign in with email code →"}
                 </button>
 
-                <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+                <p className="text-xs text-center text-muted-foreground">
                   {`Email sign-in ends ${EMAIL_SIGN_IN_CLOSES_ON} (UTC). After that IAPKit supports GitHub sign-in only — sign in with GitHub using the same email address and your account carries over.`}
                 </p>
               </>
@@ -277,7 +278,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             }}
             className="space-y-4"
           >
-            <div className="rounded-md bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 p-3 text-xs text-amber-900 dark:text-amber-100">
+            <div className="rounded-md bg-warning/10 border border-warning/30 p-3 text-xs text-foreground">
               {
                 "New signups use GitHub. Email sign-in is kept active for existing email accounts only — link your GitHub from Profile to unify."
               }
@@ -286,13 +287,13 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                className="block text-sm font-medium text-foreground mb-2"
               >
                 {"Email address"}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <AtSign className="h-4 w-4 text-gray-400" />
+                  <AtSign className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <input
                   ref={emailInputRef}
@@ -327,17 +328,16 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               )}
             </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setError("");
-                setView("github");
-              }}
-              className="w-full text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
-              disabled={isLoading}
-            >
-              {"← Back to GitHub sign-in"}
-            </button>
+            <div className="text-center">
+              <BackLink
+                label="GitHub sign-in"
+                onClick={() => {
+                  setError("");
+                  setView("github");
+                }}
+                disabled={isLoading}
+              />
+            </div>
           </form>
         )}
 
@@ -352,11 +352,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             <div>
               <label
                 htmlFor="otp"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                className="block text-sm font-medium text-foreground mb-2"
               >
                 {"Verification code"}
               </label>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              <p className="text-sm text-muted-foreground mb-3">
                 {"We sent a code to"}{" "}
                 <span className="font-medium">{email}</span>
               </p>
@@ -409,12 +409,12 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     setView("emailInput");
                     setOtp("");
                   }}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                   disabled={isLoading}
                 >
                   {"Change email"}
                 </button>
-                <span className="text-gray-400">·</span>
+                <span className="text-muted-foreground">·</span>
                 <button
                   type="button"
                   onClick={(e) => {
@@ -431,7 +431,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           </form>
         )}
 
-        <div className="pt-4 border-t border-gray-200 dark:border-gray-700 text-center text-xs text-gray-500 dark:text-gray-400">
+        <div className="pt-4 border-t border-border text-center text-xs text-muted-foreground">
           {"By signing in, you agree to our"}{" "}
           <a
             href="/terms-of-service"

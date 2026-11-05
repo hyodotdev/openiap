@@ -23,7 +23,7 @@ export const DOCS_NAV: DocsNavEntry[] = [
   {
     slug: "quickstart",
     title: "Quickstart",
-    summary: "From sign-up to a green /purchase/verify in five minutes.",
+    summary: "From sign-up to a purchase verified in your app.",
   },
   {
     slug: "projects",
@@ -91,8 +91,14 @@ export const DOCS_NAV: DocsNavEntry[] = [
   },
   {
     slug: "webhooks",
-    title: "Store webhooks",
-    summary: "Inbound Apple, Google and Amazon lifecycle delivery.",
+    title: "Webhooks",
+    summary: "Store notifications in, signed events out to your backend.",
+  },
+  {
+    slug: "commerce-protocol",
+    title: "Commerce Protocol endpoint",
+    summary:
+      "/commerce/v1: the open protocol surface, its keys, and when to use it.",
   },
   {
     slug: "operations",

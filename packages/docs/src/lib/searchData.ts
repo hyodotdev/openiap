@@ -968,24 +968,32 @@ export const apiData: ApiItem[] = [
     path: '/commerce-protocol',
   },
   {
-    id: 'commerce-protocol-ecosystem',
-    title: 'Commerce Protocol Build Your Part',
+    id: 'commerce-protocol-client',
+    title: 'Commerce Protocol From Your App',
     category: 'Documentation',
     description:
-      'Paywall, commerce, and data roles; OpenIAP client integration and composable platform boundaries',
+      'What the app sends to its backend, purchase-to-evidence mapping per store, and what verifyPurchaseWithProvider is',
+    path: '/commerce-protocol/client',
+  },
+  {
+    id: 'commerce-protocol-ecosystem',
+    title: 'Commerce Protocol Join the Ecosystem',
+    category: 'Documentation',
+    description:
+      'Paywall, commerce, and data roles, composable platform boundaries, and how to contribute',
     path: '/commerce-protocol/ecosystem',
   },
   {
     id: 'commerce-protocol-getting-started',
-    title: 'Commerce Protocol Follow a Purchase',
+    title: 'Commerce Protocol Call a Provider',
     category: 'Documentation',
     description:
-      'Follow Alice’s subscription step by step: buy, verify, connect the user, read access, and handle changes',
+      'Verify, bind, and read access from your backend, following Alice’s subscription step by step',
     path: '/commerce-protocol/getting-started',
   },
   {
     id: 'commerce-protocol-implementation',
-    title: 'Commerce Protocol Build and review',
+    title: 'Commerce Protocol Build Your Backend',
     category: 'Documentation',
     description:
       'Choose your services, give AI a product brief, and review the running purchase flow',

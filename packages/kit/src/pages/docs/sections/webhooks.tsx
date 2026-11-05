@@ -8,13 +8,13 @@ export default function WebhooksPage() {
   return (
     <DocsPage
       slug="webhooks"
-      title="Store webhooks"
-      description="Receive store lifecycle notifications and forward signed normalized events to your backend."
+      title="Webhooks"
+      description="Turn on store notifications, then receive signed lifecycle events at your own backend."
     >
       <p>
-        IAPKit accepts store lifecycle notifications, verifies and deduplicates
-        them, then updates purchase, subscription, and analytics state. The
-        supported server-to-server path is:
+        Webhooks run in two directions, both server to server. Stores notify
+        IAPKit of renewals, refunds, and expirations; IAPKit updates its state
+        and sends signed, normalized events to backends you register.
       </p>
       <CodeBlock language="text">
         Apple / Google / Amazon → IAPKit → your HTTPS backend
@@ -29,46 +29,104 @@ export default function WebhooksPage() {
         </p>
       </Callout>
 
+      <h2 className="mt-10 text-2xl font-semibold">Before you start</h2>
+      <ul className="my-3 list-disc space-y-1 pl-6">
+        <li>
+          Turn on each store&apos;s notifications at your project&apos;s{" "}
+          <a href="#lifecycle-url" className="text-primary underline">
+            lifecycle URL
+          </a>
+          . Without them IAPKit learns of no Apple or Google renewal or refund
+          and sends no event for it.
+        </li>
+        <li>
+          Link purchases to your users. Subscription events arrive for every
+          subscription, but only purchases your backend has bound to a user
+          carry <code>userId</code> and produce <code>entitlement.granted</code>{" "}
+          and <code>entitlement.revoked</code> (see{" "}
+          <Link to="/docs/purchase-flow" className="text-primary underline">
+            Purchase flow
+          </Link>
+          ).
+        </li>
+      </ul>
+
       <h2 className="mt-10 text-2xl font-semibold">
-        Developer backend destination
+        Send events to your backend
       </h2>
       <ol className="my-3 list-decimal space-y-2 pl-6">
-        <li>Open the project&apos;s Webhooks tab.</li>
-        <li>Enter a public HTTPS endpoint and create the destination.</li>
+        <li>
+          Open the project&apos;s Webhooks tab. Only owners and admins can
+          manage destinations.
+        </li>
+        <li>
+          Enter a public HTTPS endpoint, choose the event types it receives, and
+          create the destination.
+        </li>
         <li>
           Copy the signing secret immediately; IAPKit never shows it again.
         </li>
         <li>
-          Verify <code>openiap-signature</code> over the raw body, require the
-          event-id header to match the signed body&apos;s <code>eventId</code>,
-          and deduplicate on that body field before applying an effect.
+          Verify <code>openiap-signature</code> over the raw body, then
+          deduplicate on the signed body&apos;s <code>eventId</code> before
+          applying an effect.
         </li>
       </ol>
-      <p>
-        Delivery runs in a bounded Convex worker outside the Fly request path.
-        Retries use exponential backoff, permanent failures remain visible as
-        dead letters, and project admins can replay them from the same tab. See{" "}
-        <a href="#delivery-history" className="text-primary underline">
-          Delivery history and re-send
-        </a>{" "}
-        for attempts and manual redelivery.
-      </p>
+      <h3 className="mt-6 text-xl font-semibold">What your endpoint returns</h3>
+      <ul className="my-3 list-disc space-y-1 pl-6">
+        <li>
+          Return any <code>2xx</code> within 10 seconds, after you have stored
+          the event.
+        </li>
+        <li>
+          <code>408</code>, <code>429</code>, <code>5xx</code>, a timeout, or a
+          connection error is retried with backoff from 30 seconds up to 6
+          hours, for at most 14 attempts. Any other status, redirects included,
+          fails permanently.
+        </li>
+        <li>
+          After 20 failures in a row the destination is disabled; re-enable it
+          on the Webhooks tab once your endpoint recovers. Failed deliveries
+          stay visible and can be re-sent; see{" "}
+          <a href="#delivery-history" className="text-primary underline">
+            Delivery history and re-send
+          </a>
+          .
+        </li>
+      </ul>
       <CodeBlock language="text">{`content-type: application/json
 openiap-signature: v1=<hmac-sha256>
 openiap-timestamp: <unix-seconds>
-openiap-event-id: <must equal body.eventId>
+openiap-event-id: <body.eventId; read the body, not this header>
 openiap-delivery-id: <stable across retries of one attempt chain>`}</CodeBlock>
       <p>
-        Compute lowercase hex with{" "}
+        To verify a delivery, compute lowercase hex with{" "}
         <code>HMAC_SHA256(secret, timestamp + &quot;.&quot; + rawBody)</code>,
         then prefix it with <code>v1=</code>. During the 24-hour rotation
         window, the header contains the new and previous values comma-separated;
-        accept either valid value. Parse the timestamp as a finite Unix-seconds
-        number and require{" "}
+        accept either valid value. Require one timestamp of digits only and{" "}
         <code>Math.abs(Date.now() / 1000 - timestamp) &lt;= 300</code> to reject
         both stale and future values. Never reserialize JSON before
-        verification.
+        verification. The Commerce Protocol&apos;s{" "}
+        <a
+          href="https://openiap.dev/commerce-protocol/webhooks#receiver"
+          className="text-primary underline"
+        >
+          receiver example
+        </a>{" "}
+        does all of this in TypeScript.
       </p>
+      <p>
+        To rotate the secret, use <strong>Rotate</strong> on the destination.
+        For 24 hours both secrets sign each delivery, and another rotation is
+        blocked. If a secret leaked, revoke the old secrets with the CLI as an
+        owner or admin. It issues a new secret and stops both old ones at once,
+        so deploy the new secret to your receiver immediately or deliveries fail
+        verification. <code>kit webhooks list</code> shows the destination id.
+      </p>
+      <CodeBlock language="bash">{`npx @hyodotdev/openiap kit login
+npx @hyodotdev/openiap kit webhooks rotate-secret \\
+  --destination-id <destination-id> --revoke-previous true --yes`}</CodeBlock>
       <CodeBlock language="json">{`{
   "eventId": "commerceEvents_...",
   "eventType": "subscription.renewed",
@@ -93,17 +151,38 @@ subscription.expired, subscription.canceled, subscription.uncanceled,
 subscription.revoked, subscription.refunded, subscription.product_changed,
 subscription.price_changed, subscription.deferred, subscription.paused,
 subscription.resumed, entitlement.granted, entitlement.revoked`}</CodeBlock>
+      <h3 className="mt-6 text-xl font-semibold">What events cover</h3>
+      <ul className="my-3 list-disc space-y-1 pl-6">
+        <li>
+          Subscriptions only. A refunded or revoked one-time purchase,
+          consumable or not, sends no event.
+        </li>
+        <li>
+          Meta Horizon sends IAPKit no notifications, so Horizon purchases
+          produce no events.
+        </li>
+        <li>
+          Amazon events are in beta, and IAPKit also re-checks Amazon receipts
+          on a schedule. Apple and Google have no scheduled re-check, so a
+          notification the store gives up delivering is not recovered.
+        </li>
+      </ul>
       <p>
-        See the{" "}
+        IAPKit&apos;s live{" "}
         <a
-          href="https://github.com/hyodotdev/openiap/blob/main/packages/kit/COMMERCE-EVENTS.md"
-          target="_blank"
-          rel="noreferrer"
-          className="underline"
+          href="https://kit.openiap.dev/commerce/v1/capabilities"
+          className="text-primary underline"
         >
-          complete receiver contract
-        </a>
-        .
+          capability descriptor
+        </a>{" "}
+        lists what it observes per store. The protocol&apos;s{" "}
+        <a
+          href="https://openiap.dev/commerce-protocol/webhooks"
+          className="text-primary underline"
+        >
+          event and webhook reference
+        </a>{" "}
+        defines every field.
       </p>
 
       <h2 id="delivery-history" className="mt-10 text-2xl font-semibold">
@@ -137,7 +216,9 @@ subscription.resumed, entitlement.granted, entitlement.revoked`}</CodeBlock>
         </li>
       </ul>
 
-      <h2 className="mt-10 text-2xl font-semibold">Lifecycle URL</h2>
+      <h2 id="lifecycle-url" className="mt-10 text-2xl font-semibold">
+        Lifecycle URL
+      </h2>
       <Callout kind="note" title="Google subscription enrichment required">
         <p>
           Upload the Google Play service-account JSON in project settings. RTDN

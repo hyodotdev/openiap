@@ -447,11 +447,16 @@ function Introduction() {
             <p className="in-kit-eyebrow">One more thing</p>
             <img src={IAPKIT_LOGO_PATH} alt="" aria-hidden="true" />
             <h2 id="iapkit-reveal">Meet IAPKit</h2>
-            <p className="in-kit-tagline">The backend for every purchase</p>
+            <p className="in-kit-tagline">
+              A hosted backend for your purchases
+            </p>
             <p className="in-kit-description">
-              One backend validates purchases from Apple StoreKit 2, Google
-              Play, Meta Horizon, Amazon Fire OS, and Vega OS, then returns one
-              normalized result.
+              IAPKit validates purchases from Apple StoreKit 2, Google Play,
+              Meta Horizon, Amazon Fire OS, and Vega OS, then returns one
+              normalized result. It is one open-source implementation of the{' '}
+              <Link to="/commerce-protocol">Commerce Protocol</Link>, so your
+              backend can call it, another provider, or your own server through
+              the same protocol.
             </p>
             <div
               className="in-kit-platforms"

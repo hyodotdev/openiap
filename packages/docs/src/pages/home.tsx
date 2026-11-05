@@ -497,10 +497,14 @@ function Home() {
         <div className="section-container iapkit-home-panel">
           <div className="iapkit-home-copy">
             <p className="iapkit-home-eyebrow">Hosted infrastructure</p>
-            <h2>Your IAP backend</h2>
+            <h2>A hosted backend for your purchases</h2>
             <p>
-              Verification, entitlements, store notifications, MCP product sync,
-              and revenue metrics—all hosted.
+              IAPKit verifies purchases with each store, keeps entitlements
+              current from store notifications, syncs products through MCP, and
+              reports revenue. It is one open-source implementation of the{' '}
+              <Link to="/commerce-protocol">Commerce Protocol</Link>, so your
+              backend can call it, another provider, or your own server through
+              the same protocol.
             </p>
             <div className="iapkit-home-actions">
               <a

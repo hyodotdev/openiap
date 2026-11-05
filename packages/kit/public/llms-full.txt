@@ -563,6 +563,8 @@ Domains under `convex/` follow a CQRS layout — each has `query.ts`,
 - [/docs/verification/horizon](https://kit.openiap.dev/docs/verification/horizon)
 - [/docs/api](https://kit.openiap.dev/docs/api)
 - [/docs/purchase-flow](https://kit.openiap.dev/docs/purchase-flow) — backend-confirmed purchases and a reference backend
+- [/docs/webhooks](https://kit.openiap.dev/docs/webhooks) — store notifications and signed lifecycle events
+- [/docs/commerce-protocol](https://kit.openiap.dev/docs/commerce-protocol) — the OpenIAP Commerce Protocol endpoint at `/commerce/v1`
 - [/docs/operations](https://kit.openiap.dev/docs/operations)
 - [/docs/ai-assistants](https://kit.openiap.dev/docs/ai-assistants) — how to consume this file
 - [/docs/release-notes](https://kit.openiap.dev/docs/release-notes)

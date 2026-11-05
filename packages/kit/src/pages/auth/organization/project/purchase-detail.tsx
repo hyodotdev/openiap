@@ -1,22 +1,12 @@
 import { useState } from "react";
-import {
-  useLocation,
-  useNavigate,
-  useOutletContext,
-  useParams,
-} from "react-router-dom";
+import { useLocation, useOutletContext, useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { api, Id } from "@/convex";
+import { BackLink } from "@/components/BackLink";
 import { Badge } from "@/components/Badge";
 import { PageLoading } from "@/components/LoadingSpinner";
 import { cn } from "@/lib/utils";
-import {
-  ArrowLeft,
-  CheckCircle2,
-  XCircle,
-  Copy,
-  ClipboardCheck,
-} from "lucide-react";
+import { CheckCircle2, XCircle, Copy, ClipboardCheck } from "lucide-react";
 import { ResyncFromStoreButton } from "@/components/ResyncFromStoreButton";
 import { FALLBACK_VALUE, getPurchaseStateDisplay } from "./receipt-utils";
 
@@ -94,7 +84,6 @@ function DetailSection({
 }
 
 export default function PurchaseDetail() {
-  const navigate = useNavigate();
   const {
     orgSlug = "",
     projectSlug = "",
@@ -117,12 +106,8 @@ export default function PurchaseDetail() {
     project ? { projectId: project._id } : "skip",
   );
 
-  const backToList = () => {
-    const searchSuffix = search ? `${search}` : "";
-    void navigate(
-      `/${orgSlug}/project/${projectSlug}/purchases${searchSuffix}`,
-    );
-  };
+  // Returning keeps the list's filters.
+  const purchasesHref = `/${orgSlug}/project/${projectSlug}/purchases${search}`;
 
   const getStoreLabel = (store?: string) => {
     if (store === "apple") {
@@ -147,14 +132,7 @@ export default function PurchaseDetail() {
   if (!purchaseId) {
     return (
       <div className="space-y-4">
-        <button
-          type="button"
-          onClick={backToList}
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          {"Back to purchases"}
-        </button>
+        <BackLink to={purchasesHref} label="Purchases" />
         <div className="bg-card border border-border rounded-xl p-6">
           <p className="font-medium">
             {"Purchase ID is missing from the URL."}
@@ -167,14 +145,7 @@ export default function PurchaseDetail() {
   if (purchase === null) {
     return (
       <div className="space-y-4">
-        <button
-          type="button"
-          onClick={backToList}
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          {"Back to purchases"}
-        </button>
+        <BackLink to={purchasesHref} label="Purchases" />
         <div className="bg-card border border-border rounded-xl p-6">
           <h3 className="text-lg font-semibold">{"Purchase not found"}</h3>
           <p className="text-sm text-muted-foreground mt-2">
@@ -188,14 +159,7 @@ export default function PurchaseDetail() {
   if (purchase.projectId !== project._id) {
     return (
       <div className="space-y-4">
-        <button
-          type="button"
-          onClick={backToList}
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          {"Back to purchases"}
-        </button>
+        <BackLink to={purchasesHref} label="Purchases" />
         <div className="bg-card border border-border rounded-xl p-6">
           <h3 className="text-lg font-semibold">
             {"Different project purchase"}
@@ -272,14 +236,7 @@ export default function PurchaseDetail() {
 
   return (
     <div className="space-y-6">
-      <button
-        type="button"
-        onClick={backToList}
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        {"Back to purchases"}
-      </button>
+      <BackLink to={purchasesHref} label="Purchases" />
 
       <div className="contained-action-card">
         <div className="contained-action-card__text">

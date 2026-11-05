@@ -355,6 +355,17 @@ async function drainOrganizationPage(
     return true;
   }
 
+  const sponsorshipStates = await ctx.db
+    .query("sponsorshipStates")
+    .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+    .take(ACCOUNT_DELETION_PAGE);
+  for (const state of sponsorshipStates) {
+    await ctx.db.delete(state._id);
+  }
+  if (sponsorshipStates.length > 0) {
+    return true;
+  }
+
   // Clear `currentOrganizationId` references on other users' profiles.
   const referencingProfiles = await ctx.db
     .query("userProfiles")

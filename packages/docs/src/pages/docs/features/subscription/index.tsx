@@ -2721,15 +2721,14 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
         <p>Server-side validation is needed:</p>
         <ul>
           <li>
-            <strong>After purchase</strong> - Verify purchase is legitimate.
-            Consider using{' '}
-            <Link to="/docs/updates/announcements#2025-12-09">IAPKit</Link> to
-            make your life easier - it provides backend verification with
-            minimal setup via{' '}
+            <strong>After purchase</strong> - Verify the purchase with a trusted
+            verifier: your backend, or a verification service such as IAPKit
+            through{' '}
             <Link to="/docs/features/validation#verify-purchase-with-provider">
               verifyPurchaseWithProvider
             </Link>
-            .
+            . <Link to="/docs/features/validation">Validation</Link> compares
+            the options.
           </li>
           <li>
             <strong>On restore</strong> - Check current status

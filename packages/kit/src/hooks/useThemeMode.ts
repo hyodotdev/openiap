@@ -9,8 +9,6 @@ type UseThemeModeResult = {
 };
 
 const THEME_STORAGE_KEY = "theme";
-const DARK_BACKGROUND = "#18181B";
-const LIGHT_BACKGROUND = "#ffffff";
 
 const isBrowser = typeof window !== "undefined";
 const isDocumentAvailable = typeof document !== "undefined";
@@ -45,19 +43,7 @@ const applyDocumentTheme = (isDark: boolean) => {
     return;
   }
 
-  const root = document.documentElement;
-  const backgroundColor = isDark ? DARK_BACKGROUND : LIGHT_BACKGROUND;
-
-  if (isDark) {
-    root.classList.add("dark");
-  } else {
-    root.classList.remove("dark");
-  }
-
-  root.style.backgroundColor = backgroundColor;
-  if (document.body) {
-    document.body.style.backgroundColor = backgroundColor;
-  }
+  document.documentElement.classList.toggle("dark", isDark);
 };
 
 export function useThemeMode(): UseThemeModeResult {

@@ -43,7 +43,7 @@ export const REQUEST_TIMEOUT_MS = 10_000;
  */
 export const LEASE_MS = REQUEST_TIMEOUT_MS + 60_000;
 
-/** Receivers reject stale signatures, match the header, then dedupe body.eventId. */
+/** Receivers reject stale signatures, then dedupe the signed body.eventId. */
 export const SIGNATURE_TOLERANCE_SECONDS = toleranceSeconds;
 
 export const SIGNATURE_HEADER = headers.signature;

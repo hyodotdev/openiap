@@ -120,25 +120,21 @@ type PlatformCardKey = "all" | "ios" | "android";
 const PLATFORM_CARDS: Array<{
   key: PlatformCardKey;
   label: string;
-  accent: string;
   filter: PlatformFilter;
 }> = [
   {
     key: "all",
     label: "All platforms",
-    accent: "from-violet-500/10 to-transparent",
     filter: "all",
   },
   {
     key: "ios",
     label: "App Store",
-    accent: "from-blue-500/10 to-transparent",
     filter: "IOS",
   },
   {
     key: "android",
     label: "Google Play",
-    accent: "from-green-500/10 to-transparent",
     filter: "Android",
   },
 ];
@@ -594,7 +590,7 @@ export default function ProjectAnalytics() {
                 }
               }}
               className={cn(
-                "bg-card border rounded-xl p-4 shadow-sm relative overflow-hidden cursor-pointer transition",
+                "bg-card border rounded-xl p-4 shadow-sm cursor-pointer transition",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                 active
                   ? "border-primary ring-2 ring-primary/20"
@@ -602,25 +598,17 @@ export default function ProjectAnalytics() {
               )}
               aria-pressed={active}
             >
-              <div
-                className={cn(
-                  "absolute inset-0 bg-gradient-to-br opacity-80 pointer-events-none",
-                  card.accent,
-                )}
-              />
-              <div className="relative">
-                <p className="text-sm text-muted-foreground">{card.label}</p>
-                <p className="text-3xl font-semibold mt-2 tabular-nums">
-                  {money(cardTotals.revenueMicros)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  gross ·{" "}
-                  {cardTotals.activeHistoryComplete
-                    ? count(cardTotals.activeSubs)
-                    : "—"}{" "}
-                  active · {count(cardTotals.newSubs)} new
-                </p>
-              </div>
+              <p className="text-sm text-muted-foreground">{card.label}</p>
+              <p className="text-3xl font-semibold mt-2 tabular-nums">
+                {money(cardTotals.revenueMicros)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                gross ·{" "}
+                {cardTotals.activeHistoryComplete
+                  ? count(cardTotals.activeSubs)
+                  : "—"}{" "}
+                active · {count(cardTotals.newSubs)} new
+              </p>
             </div>
           );
         })}

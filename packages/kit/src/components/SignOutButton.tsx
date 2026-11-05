@@ -18,10 +18,7 @@ export function SignOutButton() {
   };
 
   return (
-    <button
-      className="btn-ghost gap-2 text-sm"
-      onClick={() => void handleSignOut()}
-    >
+    <button className="btn-ghost" onClick={() => void handleSignOut()}>
       <LogOut className="w-4 h-4" />
       <span className="hidden sm:inline">{"Sign Out"}</span>
     </button>

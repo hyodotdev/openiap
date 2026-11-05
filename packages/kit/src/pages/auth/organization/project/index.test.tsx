@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   cleanup,
@@ -25,6 +26,11 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("react-router-dom", () => ({
+  Link: ({ to, children, ...props }: { to: string; children?: ReactNode }) => (
+    <a href={to} {...props}>
+      {children}
+    </a>
+  ),
   Outlet: () => <div data-testid="project-outlet" />,
   useLocation: () => ({ pathname: mocks.pathname }),
   useNavigate: () => mocks.navigate,

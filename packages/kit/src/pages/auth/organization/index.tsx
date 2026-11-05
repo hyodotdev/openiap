@@ -167,7 +167,7 @@ export default function OrganizationLayout() {
             >
               <Menu className="w-5 h-5 text-muted-foreground" />
             </button>
-            <h1 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            <h1 className="text-lg font-medium text-foreground">
               {navigation.find((item) =>
                 location.pathname.startsWith(item.path),
               )?.title || ""}

@@ -43,7 +43,7 @@ describe("the public receiver contract stays in sync", () => {
           "utf8",
         ),
         "Supported event types are:",
-        "See the",
+        "What events cover",
       ),
     ];
 

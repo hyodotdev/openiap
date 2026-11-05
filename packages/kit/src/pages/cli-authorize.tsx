@@ -58,7 +58,7 @@ export default function CliAuthorize() {
           <p>Loading…</p>
         ) : !isAuthenticated ? (
           <button
-            className="btn-gradient px-5 py-3"
+            className="btn-gradient btn-lg"
             onClick={() =>
               void signIn("github", {
                 redirectTo: `/cli/authorize?user_code=${encodeURIComponent(code)}`,
@@ -82,7 +82,7 @@ export default function CliAuthorize() {
             <div className="flex gap-4 flex-wrap">
               <button
                 disabled={busy}
-                className="btn-gradient px-5 py-3"
+                className="btn-gradient btn-lg"
                 onClick={() => void respond(true)}
               >
                 Approve connection

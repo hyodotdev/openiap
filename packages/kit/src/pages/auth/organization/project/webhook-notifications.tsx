@@ -1,8 +1,9 @@
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import { usePaginatedQuery } from "convex/react";
-import { ArrowLeft, Inbox } from "lucide-react";
+import { Inbox } from "lucide-react";
 
 import { api, type Id } from "@/convex";
+import { BackLink } from "@/components/BackLink";
 import { Badge } from "@/components/Badge";
 import { PageLoading } from "@/components/LoadingSpinner";
 import { formatUtcDateTime } from "@/lib/utils";
@@ -24,13 +25,7 @@ export default function WebhookNotifications() {
 
   return (
     <div className="space-y-6">
-      <Link
-        to={`${base}/webhooks`}
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        {"Back to webhooks"}
-      </Link>
+      <BackLink to={`${base}/webhooks`} label="Webhooks" />
       <div>
         <h2 className="text-2xl font-semibold mb-1 flex items-center gap-2">
           <Inbox className="w-5 h-5" />

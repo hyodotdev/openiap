@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import { useQuery } from "convex/react";
@@ -25,16 +25,10 @@ import ProjectSettings from "./organization/project/settings";
 import ProjectPurchaseDetail from "./organization/project/purchase-detail";
 import ProjectOrders from "./organization/project/orders";
 import OrganizationUsagePage from "./organization/usage";
-import BlogLayout from "../blog/BlogLayout";
-import BlogIndex from "../blog";
-import IapkitJoinsOpenIap from "../blog/iapkit-joins-openiap";
+import { SiteLayout } from "@/components/SiteLayout";
 import DocsLayout from "../docs/DocsLayout";
 import { docsChildRoutes } from "../docs/routes";
-import NotFound from "../404";
-import Terms from "../terms-of-service";
-import Privacy from "../privacy-policy";
-import About from "../about";
-import Contact from "../contact";
+import { siteRoutesExcept } from "../site-routes";
 import { PageWithTitle } from "@/components/PageWithTitle";
 
 // Authenticated Pages Component - handles all authenticated routes
@@ -45,6 +39,11 @@ export default function AuthenticatedPages() {
   const currentOrg = useQuery(
     api.organizations.query.getCurrentOrganization,
     {},
+  );
+  const organizations = useQuery(api.organizations.query.getUserOrganizations);
+  const orgSlugs = useMemo(
+    () => new Set((organizations ?? []).map((org) => org?.slug ?? "")),
+    [organizations],
   );
   const hasTrackedSignup = useRef(false);
 
@@ -120,50 +119,8 @@ export default function AuthenticatedPages() {
       <Route path="docs" element={<DocsLayout />}>
         {docsChildRoutes}
       </Route>
-      <Route path="blog" element={<BlogLayout />}>
-        <Route index element={<BlogIndex />} />
-        <Route path="iapkit-joins-openiap" element={<IapkitJoinsOpenIap />} />
-      </Route>
-      <Route
-        path="about"
-        element={
-          <PageWithTitle title="About">
-            <About />
-          </PageWithTitle>
-        }
-      />
-      <Route
-        path="contact"
-        element={
-          <PageWithTitle title="Contact">
-            <Contact />
-          </PageWithTitle>
-        }
-      />
-      <Route
-        path="terms-of-service"
-        element={
-          <PageWithTitle title="Terms of Service">
-            <Terms />
-          </PageWithTitle>
-        }
-      />
-      <Route
-        path="privacy-policy"
-        element={
-          <PageWithTitle title="Privacy Policy">
-            <Privacy />
-          </PageWithTitle>
-        }
-      />
-      <Route
-        path="termsofservice"
-        element={<Navigate to="/terms-of-service" replace />}
-      />
-      <Route
-        path="privacyandpolicy"
-        element={<Navigate to="/privacy-policy" replace />}
-      />
+      {/* Public pages keep the site header when signed in. */}
+      <Route element={<SiteLayout />}>{siteRoutesExcept(orgSlugs)}</Route>
       <Route
         path="onboarding/create-organization"
         element={
@@ -338,15 +295,6 @@ export default function AuthenticatedPages() {
           />
         </Route>
       </Route>
-
-      <Route
-        path="*"
-        element={
-          <PageWithTitle title="Page not found">
-            <NotFound />
-          </PageWithTitle>
-        }
-      />
     </Routes>
   );
 }

@@ -1660,6 +1660,19 @@ const schema = defineSchema({
     // Worker claim scan.
     .index("by_status_and_next_attempt", ["status", "nextAttemptAt"])
     .index("by_status_and_lease_expiry", ["status", "leaseExpiresAt"]),
+  // Staged sponsorship emails (convex/sponsorship): one row per organization
+  // that reached a threshold or sponsors. Purchase verification never reads it.
+  sponsorshipStates: defineTable({
+    organizationId: v.id("organizations"),
+    stage: v.optional(v.union(v.literal("advisory"), v.literal("request"))),
+    lastNotifiedAt: v.optional(v.number()),
+    lastUsdMrr: v.optional(v.number()),
+    // Set with the request email: 30 days to reply.
+    requestDeadlineAt: v.optional(v.number()),
+    // Set by an operator once the organization sponsors; no more emails.
+    sponsoredAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  }).index("by_organization", ["organizationId"]),
 });
 
 export default schema;

@@ -5,51 +5,9 @@ import { EnsureUserProfile } from "./EnsureUserProfile";
 import PublicPages from "../pages";
 import AuthenticatedPages from "../pages/auth";
 
-// Wrapper component to ensure background is always visible
 function BackgroundWrapper({ children }: { children: React.ReactNode }) {
-  // Initialize with current theme
-  const getInitialBgColor = () => {
-    if (typeof document !== "undefined" && document.documentElement) {
-      const isDark = document.documentElement.classList.contains("dark");
-      return isDark ? "#18181B" : "#fefefe";
-    }
-    return "#fefefe";
-  };
-
-  const [bgColor, setBgColor] = useState(getInitialBgColor);
-
-  useEffect(() => {
-    const updateBgColor = () => {
-      if (document.documentElement) {
-        const isDark = document.documentElement.classList.contains("dark");
-        setBgColor(isDark ? "#18181B" : "#fefefe");
-      }
-    };
-
-    // Watch for theme changes
-    const observer = new MutationObserver(updateBgColor);
-    if (document.documentElement) {
-      observer.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ["class"],
-      });
-    }
-
-    return () => observer.disconnect();
-  }, []);
-
   return (
-    <div
-      className="min-h-screen bg-background"
-      style={{
-        backgroundColor: bgColor,
-        minHeight: "100vh",
-        width: "100%",
-        position: "relative",
-      }}
-    >
-      {children}
-    </div>
+    <div className="relative min-h-screen w-full bg-background">{children}</div>
   );
 }
 

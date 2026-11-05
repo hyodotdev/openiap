@@ -43,6 +43,7 @@ import type * as orders_shared from "../orders/shared.js";
 import type * as organizations_internal from "../organizations/internal.js";
 import type * as organizations_mutation from "../organizations/mutation.js";
 import type * as organizations_query from "../organizations/query.js";
+import type * as organizations_reservedSlugs from "../organizations/reservedSlugs.js";
 import type * as plans from "../plans.js";
 import type * as products_asc from "../products/asc.js";
 import type * as products_ascReview from "../products/ascReview.js";
@@ -93,6 +94,10 @@ import type * as purchases_verificationJobState from "../purchases/verificationJ
 import type * as purchases_verificationJobs from "../purchases/verificationJobs.js";
 import type * as purchases_verificationSource from "../purchases/verificationSource.js";
 import type * as purchases_verificationVerdict from "../purchases/verificationVerdict.js";
+import type * as sponsorship_action from "../sponsorship/action.js";
+import type * as sponsorship_email from "../sponsorship/email.js";
+import type * as sponsorship_internal from "../sponsorship/internal.js";
+import type * as sponsorship_logic from "../sponsorship/logic.js";
 import type * as subscriptions_accessHistory from "../subscriptions/accessHistory.js";
 import type * as subscriptions_action from "../subscriptions/action.js";
 import type * as subscriptions_amazon from "../subscriptions/amazon.js";
@@ -176,6 +181,7 @@ declare const fullApi: ApiFromModules<{
   "organizations/internal": typeof organizations_internal;
   "organizations/mutation": typeof organizations_mutation;
   "organizations/query": typeof organizations_query;
+  "organizations/reservedSlugs": typeof organizations_reservedSlugs;
   plans: typeof plans;
   "products/asc": typeof products_asc;
   "products/ascReview": typeof products_ascReview;
@@ -226,6 +232,10 @@ declare const fullApi: ApiFromModules<{
   "purchases/verificationJobs": typeof purchases_verificationJobs;
   "purchases/verificationSource": typeof purchases_verificationSource;
   "purchases/verificationVerdict": typeof purchases_verificationVerdict;
+  "sponsorship/action": typeof sponsorship_action;
+  "sponsorship/email": typeof sponsorship_email;
+  "sponsorship/internal": typeof sponsorship_internal;
+  "sponsorship/logic": typeof sponsorship_logic;
   "subscriptions/accessHistory": typeof subscriptions_accessHistory;
   "subscriptions/action": typeof subscriptions_action;
   "subscriptions/amazon": typeof subscriptions_amazon;

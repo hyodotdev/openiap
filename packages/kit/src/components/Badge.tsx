@@ -38,19 +38,15 @@ interface BadgeProps {
 
 const variantStyles: Record<BadgeVariant, string> = {
   default: "bg-muted text-muted-foreground border-muted/50",
-  popular:
-    "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25 dark:shadow-orange-500/20 border-transparent",
-  new: "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/25 dark:shadow-green-500/20 border-transparent",
-  beta: "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/25 dark:shadow-blue-500/20 border-transparent",
+  popular: "bg-primary text-primary-foreground border-transparent",
+  new: "bg-success/10 text-success border-success/30",
+  beta: "bg-secondary text-secondary-foreground border-primary/20",
   primary:
     "bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:border-primary/30",
   secondary: "bg-secondary/10 text-secondary-foreground border-secondary/20",
-  success:
-    "bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800",
-  warning:
-    "bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800",
-  danger:
-    "bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800",
+  success: "bg-success/10 text-success border-success/30",
+  warning: "bg-warning/10 text-warning border-warning/30",
+  danger: "bg-danger/10 text-danger border-danger/30",
   outline: "bg-transparent text-foreground border-border",
 };
 

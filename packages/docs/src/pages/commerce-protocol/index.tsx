@@ -22,6 +22,7 @@ import Webhooks from './webhooks';
 import Ecosystem from './ecosystem';
 import GettingStarted from './getting-started';
 import Implementation from './implementation';
+import Client from './client';
 import Whitepaper from './whitepaper';
 
 interface NavigationGroup {
@@ -36,12 +37,10 @@ const NAV_GROUPS: NavigationGroup[] = [
     title: 'Start here',
     items: [
       { to: '/commerce-protocol', label: 'Overview' },
-      {
-        to: '/commerce-protocol/getting-started',
-        label: '1. Follow a purchase',
-      },
-      { to: '/commerce-protocol/ecosystem', label: '2. Choose your part' },
-      { to: '/commerce-protocol/implementation', label: '3. Build and review' },
+      { to: '/commerce-protocol/client', label: 'From your app' },
+      { to: '/commerce-protocol/getting-started', label: 'Call a provider' },
+      { to: '/commerce-protocol/implementation', label: 'Build your backend' },
+      { to: '/commerce-protocol/ecosystem', label: 'Join the ecosystem' },
     ],
   },
   {
@@ -167,6 +166,7 @@ function CommerceProtocol() {
       <Routes>
         <Route index element={<Overview />} />
         <Route path="ecosystem" element={<Ecosystem />} />
+        <Route path="client" element={<Client />} />
         <Route path="getting-started" element={<GettingStarted />} />
         <Route path="implementation" element={<Implementation />} />
         <Route path="whitepaper" element={<Whitepaper />} />

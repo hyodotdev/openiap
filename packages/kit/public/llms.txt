@@ -61,6 +61,14 @@ header-authenticated `POST /v1/subscriptions/bind-user` for ownership binding.
 Canonical v1 account routes require a secret admin key and reject publishable
 keys with `403 INSUFFICIENT_SCOPE`. Never ship a secret key in an app.
 
+In an app, the OpenIAP SDKs (React Native IAP, Expo IAP, flutter_inapp_purchase,
+kmp-iap, OpenIap.Maui, godot-iap) make the verify call for you:
+`createPurchaseFlow({ confirmWithBackend: confirmWithIapkit({ apiKey, grant }), isConsumable })`,
+or call
+`verifyPurchaseWithProvider({ provider: 'iapkit', iapkit: { apiKey, ... } })`.
+The OpenIAP Commerce Protocol surface is served at `/commerce/v1`; see
+https://kit.openiap.dev/docs/commerce-protocol.
+
 ## Optional durable verification
 
 For callers that need to recover from disconnects, opt in to
@@ -203,7 +211,7 @@ assuming DAU implies safe request volume.
 ## Docs
 
 - [/docs](https://kit.openiap.dev/docs) — full in-dashboard documentation
-- [/docs/quickstart](https://kit.openiap.dev/docs/quickstart) — signup → project → API key → first verify
+- [/docs/quickstart](https://kit.openiap.dev/docs/quickstart) — from sign-up to a purchase verified in your app with the SDK purchase flow (`confirmWithIapkit`), then store notifications
 - [/docs/products](https://kit.openiap.dev/docs/products) — catalog sync, client payload editing, retrieval, caching, and limits
 - [/docs/orders](https://kit.openiap.dev/docs/orders) — read-only Apple and Google order support tooling
 - [/docs/verification/apple](https://kit.openiap.dev/docs/verification/apple) — bundle ID, Issuer ID, Key ID, .p8
@@ -213,7 +221,8 @@ assuming DAU implies safe request volume.
 - [/docs/api](https://kit.openiap.dev/docs/api) — request shapes, responses, errors, headers, and Amazon RVS payloads
 - [/docs/purchase-flow](https://kit.openiap.dev/docs/purchase-flow) — backend-confirmed purchases: responsibility split, status model, finish rules, recovery, ownership, and a reference backend
 - [/docs/compatibility](https://kit.openiap.dev/docs/compatibility) — additive `/v1` policy and older-SDK behavior
-- [/docs/webhooks](https://kit.openiap.dev/docs/webhooks) — inbound Apple ASN v2 and Google RTDN setup
+- [/docs/webhooks](https://kit.openiap.dev/docs/webhooks) — store notification setup (Apple ASN v2, Google RTDN, Amazon RTN) and signed lifecycle events to your backend: retries, secret rotation, event coverage
+- [/docs/commerce-protocol](https://kit.openiap.dev/docs/commerce-protocol) — the OpenIAP Commerce Protocol surface at `/commerce/v1` (publishable key = verification role, secret key = server role; `bindPurchase` links Amazon and Horizon purchases, and Apple and Google subscriptions only; Apple and Google one-time purchases link through `/v1/subscriptions/bind-user`)
 - [/docs/operations](https://kit.openiap.dev/docs/operations) — fair use, capacity, rate and concurrency limits, purchase issues, store re-sync, logs, `/health`, graceful shutdown
 - [OpenIAP Commerce Protocol webhook contract](https://openiap.dev/commerce-protocol/webhooks) — vendor-neutral signed outbound delivery semantics; IAPKit setup remains in the local guide above
 - [/docs/ai-assistants](https://kit.openiap.dev/docs/ai-assistants) — how to point Codex / Claude / Cursor / etc. at this file

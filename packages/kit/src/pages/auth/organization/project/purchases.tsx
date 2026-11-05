@@ -313,17 +313,14 @@ export default function ProjectPurchases() {
     return <PageLoading />;
   }
 
-  const statConfig: Array<{ key: CardKey; accent: string }> = [
-    {
-      key: "total",
-      accent: "from-violet-500/10 to-transparent",
-    },
-    { key: "apple", accent: "from-blue-500/10 to-transparent" },
-    { key: "google", accent: "from-green-500/10 to-transparent" },
-    { key: "horizon", accent: "from-sky-500/10 to-transparent" },
-    { key: "amazon", accent: "from-orange-500/10 to-transparent" },
-    { key: "valid", accent: "from-emerald-500/10 to-transparent" },
-    { key: "invalid", accent: "from-rose-500/10 to-transparent" },
+  const statKeys: CardKey[] = [
+    "total",
+    "apple",
+    "google",
+    "horizon",
+    "amazon",
+    "valid",
+    "invalid",
   ];
 
   return (
@@ -353,41 +350,40 @@ export default function ProjectPurchases() {
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {statConfig.map((stat) => {
+        {statKeys.map((statKey) => {
           // Determine which card matches the currently-active filter
           // so the selected card is visually distinct from hover (the
           // prior styling only highlighted on hover, so users couldn't
           // tell which card they had already clicked).
           const storeCard: StoreFilter | undefined =
-            stat.key === "apple" ||
-            stat.key === "google" ||
-            stat.key === "horizon" ||
-            stat.key === "amazon"
-              ? stat.key
+            statKey === "apple" ||
+            statKey === "google" ||
+            statKey === "horizon" ||
+            statKey === "amazon"
+              ? statKey
               : undefined;
           const isActive =
-            stat.key === "total"
+            statKey === "total"
               ? !storeFilter && isValidFilter === undefined
               : storeCard
                 ? storeFilter === storeCard
-                : stat.key === "valid"
+                : statKey === "valid"
                   ? isValidFilter === true
                   : isValidFilter === false;
           const applyCardFilter = () => {
-            if (stat.key === "total") {
+            if (statKey === "total") {
               resetFilters();
             } else if (storeCard) {
               applyStoreFilter(storeCard);
             } else {
-              applyValidityFilter(stat.key === "valid");
+              applyValidityFilter(statKey === "valid");
             }
           };
           return (
             <div
-              key={stat.key}
+              key={statKey}
               className={cn(
                 "bg-card border rounded-xl p-4 shadow-sm",
-                "relative overflow-hidden",
                 "cursor-pointer transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                 isActive
                   ? "border-primary ring-2 ring-primary/20"
@@ -403,22 +399,20 @@ export default function ProjectPurchases() {
                   applyCardFilter();
                 }
               }}
-              aria-label={STATS_LABELS[stat.key]}
+              aria-label={STATS_LABELS[statKey]}
             >
-              <div
+              <p className="text-sm text-muted-foreground">
+                {STATS_LABELS[statKey]}
+              </p>
+              <p
                 className={cn(
-                  "absolute inset-0 bg-gradient-to-br opacity-80 pointer-events-none",
-                  stat.accent,
+                  "text-3xl font-semibold mt-2",
+                  statKey === "valid" && "text-success",
+                  statKey === "invalid" && "text-danger",
                 )}
-              ></div>
-              <div className="relative">
-                <p className="text-sm text-muted-foreground">
-                  {STATS_LABELS[stat.key]}
-                </p>
-                <p className="text-3xl font-semibold mt-2">
-                  {cardValues[stat.key].toLocaleString()}
-                </p>
-              </div>
+              >
+                {cardValues[statKey].toLocaleString()}
+              </p>
             </div>
           );
         })}
