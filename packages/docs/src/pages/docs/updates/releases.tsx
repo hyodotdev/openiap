@@ -792,7 +792,8 @@ function Releases() {
             <code>Nitro runtime not installed yet</code>. A cause such as{' '}
             <code>ClassNotFoundException</code> means the app needs a native
             rebuild, which a restart or Metro reset does not replace. The
-            message still starts with the same text.
+            message still starts with the same text. See{' '}
+            <a href="https://github.com/hyodotdev/openiap/pull/590">#590</a>.
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
           <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
