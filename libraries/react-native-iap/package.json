@@ -52,7 +52,7 @@
     "lint:tsc": "tsc -p tsconfig.json --noEmit --skipLibCheck",
     "lint:ci": "yarn lint:tsc && yarn lint:eslint && yarn lint:prettier",
     "prepare": "tsx scripts/check-nitro-versions.ts && bob build && yarn nitrogen",
-    "nitrogen": "node --stack-size=65536 node_modules/nitrogen/lib/index.js",
+    "nitrogen": "node node_modules/nitrogen/lib/index.js",
     "specs": "yarn nitrogen --logLevel=\"debug\"",
     "test": "jest --coverage",
     "test:library": "jest --coverage",

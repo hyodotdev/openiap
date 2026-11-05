@@ -406,6 +406,7 @@ All error codes are defined in the `ErrorCode` enum:
 
 1. **Build failures after modifying .nitro.ts files**
    - Run `yarn specs` to regenerate Nitro bridge files
+   - If it fails with `Maximum call stack size exceeded`, `node_modules` predates the patched `nitrogen`. Run `yarn install --immutable`, then `yarn specs` again
 
 2. **React Duplication Instance Issues** ⚠️
    - **Problem**: "Cannot read properties of null" or "useState of null" errors
@@ -445,3 +446,13 @@ All error codes are defined in the `ErrorCode` enum:
    cd example
    yarn start --reset-cache
    ```
+
+6. **Android `initConnection failed: Nitro runtime not installed yet`**
+   - Read the `Cause:` at the end of the message. A native class the app cannot load, such as a `ClassNotFoundException`, needs a rebuild; a cold restart or Metro reset does not clear it. Check whether the APK linked another checkout's library. A copied checkout keeps the original's autolinking cache until a lockfile changes:
+
+   ```sh
+   cd example
+   node -p "require('./android/build/generated/autolinking/autolinking.json').dependencies['react-native-iap'].root"
+   ```
+
+   - If this is not your checkout, delete `android/build/generated/autolinking` and rebuild

@@ -94,6 +94,12 @@ describe('Expo Go', () => {
       );
     });
 
+    it('keeps the native cause in the runtime error', async () => {
+      await expect(loadWithoutNitro().initConnection()).rejects.toThrow(
+        NITRO_IMPORT_ERROR,
+      );
+    });
+
     it('defers a failed Nitro import until a native operation', async () => {
       const IAP = loadWithNitroImportFailure();
 

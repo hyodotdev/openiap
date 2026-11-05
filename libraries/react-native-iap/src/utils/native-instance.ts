@@ -78,7 +78,7 @@ export function getNativeIapInstance(): RnIap {
       msg.includes('HybridObject')
     ) {
       throw new Error(
-        'Nitro runtime not installed yet. Ensure react-native-nitro-modules is initialized before calling IAP.',
+        `Nitro runtime not installed yet. Ensure react-native-nitro-modules is initialized before calling IAP. Cause: ${msg}`,
       );
     }
     throw e;
