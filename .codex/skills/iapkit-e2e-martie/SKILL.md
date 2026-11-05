@@ -176,13 +176,30 @@ when the Play Store UI or tester controls differ.
 ## Make the Local Server Reachable
 
 Build and start the compiled server in a dedicated terminal with the real
-Martie Convex deployment:
+Martie Convex deployment. The server needs the same
+`IAPKIT_VERIFICATION_SOURCE_SECRET` as that deployment. Without it, `/health`
+reports `verificationSourceReady: false` and receipt verification answers 503.
+This capture keeps the value off the screen. Never run `bunx convex env list`
+here, because it prints every value; add `--names-only` when you only need the
+names.
 
 ```bash
 OPENIAP_REPO="${OPENIAP_REPO:-$(git rev-parse --show-toplevel)}"
 cd "$OPENIAP_REPO/packages/kit"
 : "${CONVEX_URL:?Set the real Martie Convex deployment URL}"
+CONVEX_NAME="${CONVEX_URL#https://}"
+CONVEX_NAME="${CONVEX_NAME%%.*}"
+if grep -Fq "://$CONVEX_NAME." production.env; then
+  echo 'BLOCKED: CONVEX_URL is the production deployment' >&2
+  exit 1
+fi
+IAPKIT_VERIFICATION_SOURCE_SECRET="$(bunx convex env get --deployment "$CONVEX_NAME" IAPKIT_VERIFICATION_SOURCE_SECRET)"
+if ! printf '%s' "$IAPKIT_VERIFICATION_SOURCE_SECRET" | grep -Eqx '[a-f0-9]{64}'; then
+  echo 'BLOCKED: no valid IAPKIT_VERIFICATION_SOURCE_SECRET on this deployment' >&2
+  exit 1
+fi
 VITE_KIT_CONVEX_URL="$CONVEX_URL" bun run build:all
+IAPKIT_VERIFICATION_SOURCE_SECRET="$IAPKIT_VERIFICATION_SOURCE_SECRET" \
 CONVEX_URL="$CONVEX_URL" \
 VITE_KIT_CONVEX_URL="$CONVEX_URL" \
 STATIC_ROOT="$PWD/dist" \
@@ -191,8 +208,9 @@ KIT_DEBUG_VERIFY_LOGS=1 \
 ./openiap-kit-server
 ```
 
-Verify `/health` from the host, then verify the same origin from the device or
-an equivalent device-side network probe.
+Verify `/health` from the host and require `"verificationSourceReady":true`, then
+verify the same origin from the device or an equivalent device-side network
+probe.
 
 - Android over USB: inspect the current reverse mappings and reuse an existing
   `tcp:3100` to `tcp:3100` mapping. If it is absent, create it and record that
@@ -284,6 +302,13 @@ confirm `android/gradle.properties` carries no
 that `android/app/build.gradle` has no fixed
 `missingDimensionStrategy`; the Gradle build then resolves the store from the
 device `ANDROID_SERIAL` names.
+
+**A copied checkout can link another checkout's React Native library.** The
+autolinking cache keeps the original path, so Metro serves this checkout's JS
+while the APK carries the other checkout's native code. The example then reports
+`Nitro runtime not installed yet`, and regenerating Nitro code here changes
+nothing. Follow item 6 of `Troubleshooting` in
+`libraries/react-native-iap/AGENTS.md`.
 
 **A Play "not compatible with your device" banner does not block billing.** The
 Martie production listing sets `minSdkVersion 31`, so Play marks an Android 11

@@ -126,6 +126,14 @@ const PURCHASE_RECOVERY_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'OpenIap.Maui', version: '3.2.1', tag: 'maui-iap-3.2.1' },
 ];
 
+const REACT_NATIVE_NITRO_CAUSE_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: 'react-native-iap',
+    version: '17.3.4',
+    tag: 'react-native-iap-17.3.4',
+  },
+];
+
 const REACT_NATIVE_EXPO_GO_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: 'react-native-iap',
@@ -768,6 +776,40 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'react-native-nitro-cause-2026-11-05',
+      date: new Date('2026-11-05'),
+      element: (
+        <div key="react-native-nitro-cause-2026-11-05" style={noteCardStyle}>
+          {REACT_NATIVE_NITRO_CAUSE_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="react-native-nitro-cause-2026-11-05" level="h4">
+            November 5, 2026 - See why Nitro failed to load
+          </AnchorLink>
+          <p>
+            react-native-iap 17.3.4 adds the native error to{' '}
+            <code>Nitro runtime not installed yet</code>. A cause such as{' '}
+            <code>ClassNotFoundException</code> means the app needs a native
+            rebuild, which a restart or Metro reset does not replace. The
+            message still starts with the same text. See{' '}
+            <a href="https://github.com/hyodotdev/openiap/pull/590">#590</a>.
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            {REACT_NATIVE_NITRO_CAUSE_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                >
+                  {getReleaseLabel(release)}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
     {
       id: 'restore-without-store-sync-2026-11-04',
       date: new Date('2026-11-04'),

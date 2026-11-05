@@ -200,19 +200,9 @@ fi
 If `--no-rebind` fails, stop this row as `BLOCKED` or select a different free
 port. Do not overwrite the existing mapping.
 
-Build and start the compiled IAPKit server in a dedicated terminal:
-
-```bash
-cd packages/kit
-: "${CONVEX_URL:?Set the Martie Convex deployment URL}"
-VITE_KIT_CONVEX_URL="$CONVEX_URL" bun run build:all
-CONVEX_URL="$CONVEX_URL" \
-VITE_KIT_CONVEX_URL="$CONVEX_URL" \
-STATIC_ROOT="$PWD/dist" \
-PORT=3100 \
-KIT_DEBUG_VERIFY_LOGS=1 \
-./openiap-kit-server
-```
+Build and start the compiled IAPKit server by following the "Make the Local
+Server Reachable" section of `.codex/skills/iapkit-e2e-martie/SKILL.md`,
+including its secret capture and `/health` check.
 
 Configure and rebuild one Martie example. React Native reads
 `IAPKIT_API_KEY` / `IAPKIT_BASE_URL`; Expo reads
