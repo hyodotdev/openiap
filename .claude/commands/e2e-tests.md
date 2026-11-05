@@ -200,38 +200,9 @@ fi
 If `--no-rebind` fails, stop this row as `BLOCKED` or select a different free
 port. Do not overwrite the existing mapping.
 
-Build and start the compiled IAPKit server in a dedicated terminal. The server
-needs the same `IAPKIT_VERIFICATION_SOURCE_SECRET` as its Convex deployment.
-Without it, `/health` reports `verificationSourceReady: false` and receipt
-verification answers 503. This capture keeps the value off the screen. Never run
-`bunx convex env list` here, because it prints every value; add `--names-only`
-when you only need the names.
-
-```bash
-cd packages/kit
-: "${CONVEX_URL:?Set the Martie Convex deployment URL}"
-CONVEX_NAME="${CONVEX_URL#https://}"
-CONVEX_NAME="${CONVEX_NAME%%.*}"
-if grep -q "$CONVEX_NAME" production.env; then
-  echo 'BLOCKED: CONVEX_URL is the production deployment' >&2
-  exit 1
-fi
-IAPKIT_VERIFICATION_SOURCE_SECRET="$(bunx convex env get --deployment "$CONVEX_NAME" IAPKIT_VERIFICATION_SOURCE_SECRET)"
-if ! printf '%s' "$IAPKIT_VERIFICATION_SOURCE_SECRET" | grep -Eqx '[a-f0-9]{64}'; then
-  echo 'BLOCKED: no valid IAPKIT_VERIFICATION_SOURCE_SECRET on this deployment' >&2
-  exit 1
-fi
-VITE_KIT_CONVEX_URL="$CONVEX_URL" bun run build:all
-IAPKIT_VERIFICATION_SOURCE_SECRET="$IAPKIT_VERIFICATION_SOURCE_SECRET" \
-CONVEX_URL="$CONVEX_URL" \
-VITE_KIT_CONVEX_URL="$CONVEX_URL" \
-STATIC_ROOT="$PWD/dist" \
-PORT=3100 \
-KIT_DEBUG_VERIFY_LOGS=1 \
-./openiap-kit-server
-```
-
-Require `"verificationSourceReady":true` from `/health` before any purchase.
+Build and start the compiled IAPKit server by following the "Make the Local
+Server Reachable" section of `.codex/skills/iapkit-e2e-martie/SKILL.md`,
+including its secret capture and `/health` check.
 
 Configure and rebuild one Martie example. React Native reads
 `IAPKIT_API_KEY` / `IAPKIT_BASE_URL`; Expo reads
