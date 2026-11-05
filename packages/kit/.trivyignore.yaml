@@ -1,1 +1,12 @@
-vulnerabilities: []
+vulnerabilities:
+  - id: CVE-2026-76844
+    purls:
+      - pkg:deb/debian/zlib1g
+    expired_at: 2026-11-19
+    statement: >-
+      The flaw is in zlib's gz* file-write functions, reached after a failed
+      write. Debian 13 has no fix yet (sid has 1:1.3.dfsg+really1.3.2-4), so the
+      distroless base cannot take one. The image ships zlib1g only through its
+      base; the Kit server has no gz* calls. The maintainer accepted this on
+      2026-11-05. Recheck the Debian tracker and the distroless digest before
+      expiry: https://security-tracker.debian.org/tracker/CVE-2026-76844.
