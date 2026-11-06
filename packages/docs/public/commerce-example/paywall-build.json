@@ -27,7 +27,7 @@
     "report": {
       "events": [
         {
-          "eventId": "69c244ab-f9c1-4d6d-bbb2-1accc2283dd4",
+          "eventId": "31b30ebc-58f4-4753-82fd-8c9eccf6cd34",
           "eventType": "subscription.started",
           "store": "apple",
           "customer": "alice-apple",
@@ -42,7 +42,7 @@
           "treatment": "known purchase amount"
         },
         {
-          "eventId": "b5ff3bfb-5be9-4571-9ddf-5ff8ecf3a536",
+          "eventId": "aef3c74d-2c02-426a-a0e8-5152c8d9207c",
           "eventType": "entitlement.granted",
           "store": "apple",
           "customer": "alice-apple",
@@ -53,7 +53,7 @@
           "treatment": "lifecycle only"
         },
         {
-          "eventId": "ed11a38f-14f9-4842-a1de-7559fa2cdc93",
+          "eventId": "03ee37d9-0bf1-4e2e-ab46-1b9a5b9e433d",
           "eventType": "subscription.renewed",
           "store": "apple",
           "customer": "alice-apple",
@@ -68,7 +68,7 @@
           "treatment": "known purchase amount"
         },
         {
-          "eventId": "2ddf0521-9cbc-4a81-ae33-dab000eab54f",
+          "eventId": "26643228-9613-4895-9e74-1c43daa58f2c",
           "eventType": "subscription.canceled",
           "store": "apple",
           "customer": "alice-apple",
@@ -79,7 +79,7 @@
           "treatment": "lifecycle only"
         },
         {
-          "eventId": "3ed7095c-25ac-4372-b9ad-25735a156925",
+          "eventId": "e75b932b-673e-425b-a075-b1a137b8ad36",
           "eventType": "subscription.started",
           "store": "google",
           "customer": "alice-google",
@@ -90,7 +90,7 @@
           "treatment": "amount unknown"
         },
         {
-          "eventId": "bac0dfa2-c28d-4b1f-8647-26a1b99ba748",
+          "eventId": "cb584c08-c538-4752-81de-b859febf4168",
           "eventType": "entitlement.granted",
           "store": "google",
           "customer": "alice-google",
@@ -112,7 +112,7 @@
       "unknownAmounts": 1,
       "reconciliation": 0
     },
-    "receiver": "http://127.0.0.1:63036/webhooks/commerce"
+    "receiver": "http://127.0.0.1:56327/webhooks/commerce"
   },
   "browserSourceCommit": "abdbcef40fc710540853aa46e0b374711b6047ba",
   "browser": {
@@ -174,7 +174,9 @@
                 "destination": "http://127.0.0.1:5198/commerce/v1/entitlements?userId=alice-apple",
                 "method": "GET",
                 "response": {
-                  "productIds": ["premium.monthly"],
+                  "productIds": [
+                    "premium.monthly"
+                  ],
                   "subscriptions": [
                     {
                       "active": true,
@@ -252,12 +254,12 @@
   },
   "harness": {
     "checks": 8,
-    "recordedAt": "2026-10-26T14:04:03.165Z"
+    "recordedAt": "2026-11-05T16:26:34.253Z"
   },
   "providerVerification": {
     "checks": 19,
     "regressionChecks": 177,
-    "recordedAt": "2026-10-26T14:03:09.184Z",
+    "recordedAt": "2026-11-05T16:26:27.632Z",
     "state": {
       "stores": [
         {
@@ -270,7 +272,7 @@
       "report": {
         "events": [
           {
-            "eventId": "k9726s127mf770g4hxr796tnq98h0rrf",
+            "eventId": "k971p23c1f3c5cb0xeb247w16x8hm067",
             "eventType": "subscription.started",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -285,7 +287,7 @@
             "treatment": "known purchase amount"
           },
           {
-            "eventId": "k9786r41nvrrw869apgm2325g98h1kca",
+            "eventId": "k970jd62j9534kxe7ebcwrbp858hm53r",
             "eventType": "entitlement.granted",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -296,7 +298,7 @@
             "treatment": "lifecycle only"
           },
           {
-            "eventId": "k97c7wp57kp2vbktk7sdgzb0j18h040g",
+            "eventId": "k972e8tdm894ypfwjj61p23cv98hnjxt",
             "eventType": "subscription.renewed",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -311,7 +313,7 @@
             "treatment": "known purchase amount"
           },
           {
-            "eventId": "k97f9v7k4q6xhdg39xx36f0qk18h11jy",
+            "eventId": "k970xasedept308781ktn16dch8hn0d7",
             "eventType": "subscription.canceled",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -333,7 +335,7 @@
         "unknownAmounts": 0,
         "reconciliation": 0
       },
-      "receiver": "http://127.0.0.1:62534/webhooks/commerce"
+      "receiver": "http://127.0.0.1:56201/webhooks/commerce"
     }
   }
 }
