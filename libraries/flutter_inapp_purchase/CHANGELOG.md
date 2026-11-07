@@ -1,5 +1,13 @@
 # Changelog
 
+## 11.3.2 (2026-11-07)
+
+- fix: restore through the purchase flow alone and fail on a failed confirmation (#587)
+- fix(ios): install OpenIAP as a Swift package in React Native and Expo (#585)
+- fix: confirm each Apple purchase once on an iOS restore (#584)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-11.3.2
+
+
 ## 11.3.1 (2026-10-31)
 
 - fix(google): stop replaying finished purchases and repair dependency audits (#575)
