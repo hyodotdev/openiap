@@ -27,7 +27,7 @@ function ClientProtocolChange({
   source: string;
   diff?: string;
   children: React.ReactNode;
-}) {
+}): React.JSX.Element {
   return (
     <>
       <h5>Client Protocol {version}</h5>

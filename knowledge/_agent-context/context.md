@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-11-08T08:28:33.768Z
+> Last updated: 2026-11-08T08:53:39.257Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -421,8 +421,10 @@ its original approval timestamp. Record a revised decision in a new comment.
 Put `Design approval: https://github.com/hyodotdev/openiap/issues/123#issuecomment-456`
 on its own line in the implementation PR body. CI checks the comment's author,
 source and target branches, and timestamp against the PR and its recorded
-commit dates. Commit dates are supplied by Git. The reviewer still checks
-that the change implements the approved design.
+commit dates. Approval must predate the PR and both the Git author and
+committer dates of every PR commit. If approval comes late, start the
+implementation from the approved design and open a new PR. Reviewers confirm
+the change follows the approved design and review any changes to the CI gate.
 
 CI detects edits to Client and Commerce schemas and their generated output,
 Client capability and conformance definitions, purchase-flow vectors, Commerce

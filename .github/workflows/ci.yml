@@ -56,7 +56,15 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/audit-design-approval.mjs
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          audit=scripts/audit-design-approval.mjs
+          # Once installed, the base supplies the audit for later PRs.
+          if git cat-file -e "$BASE_SHA:$audit"; then
+            git show "$BASE_SHA:$audit" > "$RUNNER_TEMP/audit-design-approval.mjs"
+            audit="$RUNNER_TEMP/audit-design-approval.mjs"
+          fi
+          node "$audit"
 
       - name: Require a release note for published source changes
         if: github.event_name == 'pull_request' && github.base_ref == 'main'
