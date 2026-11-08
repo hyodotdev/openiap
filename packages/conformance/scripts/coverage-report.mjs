@@ -15,6 +15,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { BEHAVIORS } from '../src/spec/behaviors.mjs';
 import { providerProfile } from '../src/spec/provider-profile.mjs';
 import { SUITE_VERSION, clientProtocolVersion } from '../src/spec/version.mjs';
@@ -56,6 +57,35 @@ function requireConsumer(consumer, marker) {
   if (!read(consumer).includes(marker)) {
     throw new Error(`coverage parser: ${consumer} no longer runs ${marker}`);
   }
+}
+
+function frameworkTestIds(path) {
+  const source = ts.createSourceFile(path, read(path), ts.ScriptTarget.Latest);
+  const known = new Set(BEHAVIORS.map(({ id }) => id));
+  const ids = new Set();
+  const visit = (node) => {
+    if (ts.isCallExpression(node)) {
+      const name = node.expression.getText(source);
+      if (/^(?:(?:describe|test|it)\.only(?:\.|$)|fdescribe$|fit$)/.test(name)) {
+        throw new Error(`${path} contains a focused Jest test or suite`);
+      }
+      if (name === 'xdescribe' || /^describe\.skip(?:\.|$)/.test(name)) return;
+      const [title, body] = node.arguments;
+      if (
+        (name === 'it' || name === 'test') &&
+        title && ts.isStringLiteral(title) && /^[a-z-]+\.[a-z0-9-]+$/.test(title.text) &&
+        body && (ts.isArrowFunction(body) || ts.isFunctionExpression(body))
+      ) {
+        if (!known.has(title.text) || ids.has(title.text)) {
+          throw new Error(`${path} names an unknown or duplicate behavior: ${title.text}`);
+        }
+        ids.add(title.text);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return [...ids];
 }
 
 const IMPLEMENTATIONS = [];
@@ -136,8 +166,13 @@ const ANDROID_SUITES = 'packages/conformance/android/src/main/kotlin/dev/hyo/ope
 
 // --- IAPKit lifecycle -------------------------------------------------------
 {
-  const suite = read('packages/kit/convex/webhooks/conformance.test.ts');
-  const ids = [...suite.matchAll(/"(lifecycle\.[a-z-]+)"/g)].map((match) => match[1]);
+  const path = 'packages/kit/convex/webhooks/conformance.test.ts';
+  const suite = read(path);
+  requireConsumer(path, 'runScenario(adapter, scenario);');
+  const scenarios = suite.split('const SCENARIOS:')[1]?.split('function runScenario(')[0] ?? '';
+  const ids = [...scenarios.matchAll(/^\s*covers: \[([^\]]*)\]/gm)].flatMap(([, covers]) =>
+    [...covers.matchAll(/"(lifecycle\.[a-z-]+)"/g)].map(([, id]) => id),
+  );
   for (const store of ['Apple', 'Google']) {
     IMPLEMENTATIONS.push({ name: `iapkit-${store.toLowerCase()}`, store, covered: [...new Set(ids)] });
   }
@@ -148,12 +183,7 @@ for (const [name, path] of [
   ['react-native-iap', 'libraries/react-native-iap/src/__tests__/conformance.test.ts'],
   ['expo-iap', 'libraries/expo-iap/src/__tests__/conformance.test.ts'],
 ]) {
-  const suite = read(path);
-  const block = suite.slice(suite.indexOf('const COVERED_BEHAVIORS'));
-  const ids = [...block.slice(0, block.indexOf('];')).matchAll(/'([a-z]+\.[a-z0-9-]+)'/g)].map(
-    (match) => match[1],
-  );
-  IMPLEMENTATIONS.push({ name, store: 'Google', covered: ids });
+  IMPLEMENTATIONS.push({ name, store: 'Google', covered: frameworkTestIds(path) });
 }
 
 // --- Reference implementation ----------------------------------------------
@@ -180,7 +210,6 @@ const rows = BEHAVIORS.map((behavior) => {
 });
 
 const uncovered = rows.filter((row) => row.coveredBy.length === 0);
-const realImplementations = IMPLEMENTATIONS.filter((impl) => impl.name !== 'openiap-reference');
 const uncoveredByReal = rows.filter(
   (row) => !row.coveredBy.some((name) => name !== 'openiap-reference'),
 );

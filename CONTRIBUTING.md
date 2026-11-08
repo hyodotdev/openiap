@@ -56,6 +56,9 @@ already installs it.
 Never edit generated files by hand; the list is in
 [AGENTS.md](AGENTS.md#auto-generated-files-do-not-edit).
 
+Maintainers document [Client Protocol changes](knowledge/internal/05-docs-patterns.md#client-protocol-changes)
+at the top of the release card.
+
 ## Changing the Commerce Protocol
 
 Start with the **Commerce Protocol proposal** issue form. The
@@ -71,6 +74,9 @@ GraphQL layer under `schema/`, then run `bun run build && bun run test` in
   without one; scopes are listed in
   [Git Commit Message Format](knowledge/internal/06-git-deployment.md#git-commit-message-format).
 - Say what changed and why in a few short paragraphs.
+- For shipped source, declare the public contract impact. Agree on changed
+  requirements before implementation and link their acceptance tests in the PR.
+  See [recording approval for CI](knowledge/internal/02-architecture.md#recording-approval-for-ci).
 - Skip labels and the release-notes card. The maintainer adds both, and on
   outside PRs the release-note check only warns.
 - Do not bump versions. Releases run from CI.

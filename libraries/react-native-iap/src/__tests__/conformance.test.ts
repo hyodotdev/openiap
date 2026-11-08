@@ -8,9 +8,7 @@
  * Behavior ids match packages/conformance/src/spec/behaviors.mjs.
  */
 
-// Marks this file as a module. Without it the top-level declarations below
-// land in the global scope and collide with the other suites' fixtures.
-export {};
+import behaviorErrors from './fixtures/behavior-errors.json';
 
 type FakeRecord = {
   token: string;
@@ -256,32 +254,8 @@ jest.mock('react-native', () => ({
 
 const IAP = require('../index');
 
-/** Behavior ids from packages/conformance this suite verifies. */
-const COVERED_BEHAVIORS = [
-  'products.fetch-returns-requested-skus',
-  'products.fetch-normalizes-required-fields',
-  'products.fetch-separates-in-app-and-subscription-types',
-  'products.fetch-empty-sku-list-is-an-error',
-  'purchases.request-emits-purchase-updated-on-success',
-  'purchases.request-emits-error-on-user-cancel',
-  'purchases.already-owned-surfaces-already-owned-error',
-  'purchases.unknown-sku-surfaces-sku-not-found',
-  'purchases.pending-purchase-is-not-delivered-as-purchased',
-  'completion.finish-removes-transaction-from-pending',
-  'completion.finish-is-idempotent',
-  'completion.unfinished-purchase-remains-available',
-  'restoration.available-purchases-returns-owned-items',
-  'restoration.available-purchases-excludes-consumed-items',
-  'restoration.available-purchases-is-empty-for-new-user',
-  'subscriptions.active-subscription-is-reported-active',
-  'subscriptions.groups-keep-independent-identifiers',
-  'subscriptions.has-active-agrees-with-get-active',
-  'identifiers.purchase-carries-a-concrete-store',
-  'identifiers.purchase-token-is-stable-across-reads',
-  'verification.result-exposes-uniform-validity',
-  'verification.forged-token-is-invalid',
-  'verification.infrastructure-error-is-not-a-verdict',
-];
+const expectedError = (id: keyof typeof behaviorErrors) =>
+  expect.stringMatching(new RegExp(`^(?:${behaviorErrors[id].join('|')})$`));
 
 const androidRequest = (sku: string) => ({
   request: {google: {skus: [sku]}},
@@ -294,11 +268,6 @@ describe('conformance: react-native-iap', () => {
     purchaseUpdatedListeners.length = 0;
     purchaseErrorListeners.length = 0;
     await IAP.initConnection();
-  });
-
-  it('declares distinct, namespaced behavior ids', () => {
-    expect(new Set(COVERED_BEHAVIORS).size).toBe(COVERED_BEHAVIORS.length);
-    COVERED_BEHAVIORS.forEach((id) => expect(id).toContain('.'));
   });
 
   // --- products -----------------------------------------------------------
@@ -339,7 +308,7 @@ describe('conformance: react-native-iap', () => {
     await expect(
       IAP.fetchProducts({skus: [], type: 'in-app'}),
     ).rejects.toMatchObject({
-      code: 'empty-sku-list',
+      code: expectedError('products.fetch-empty-sku-list-is-an-error'),
     });
   });
 
@@ -366,7 +335,9 @@ describe('conformance: react-native-iap', () => {
       IAP.requestPurchase(androidRequest('dev.hyo.martie.10bulbs')),
     ).rejects.toBeDefined();
 
-    expect(errors[0]?.code).toBe('user-cancelled');
+    expect(
+      behaviorErrors['purchases.request-emits-error-on-user-cancel'],
+    ).toContain(errors[0]?.code);
     expect(purchases).toHaveLength(0);
   });
 
@@ -374,7 +345,11 @@ describe('conformance: react-native-iap', () => {
     await IAP.requestPurchase(androidRequest('dev.hyo.martie.lifetime'));
     await expect(
       IAP.requestPurchase(androidRequest('dev.hyo.martie.lifetime')),
-    ).rejects.toMatchObject({code: 'already-owned'});
+    ).rejects.toMatchObject({
+      code: expectedError(
+        'purchases.already-owned-surfaces-already-owned-error',
+      ),
+    });
   });
 
   it('purchases.pending-purchase-is-not-delivered-as-purchased', async () => {
@@ -575,10 +550,8 @@ describe('conformance: react-native-iap', () => {
           isSub: false,
         },
       }),
-      // The statement requires a ServiceError/NetworkError surface, not just
-      // any rejection.
     ).rejects.toMatchObject({
-      code: expect.stringMatching(/^(service-error|network-error)$/),
+      code: expectedError('verification.infrastructure-error-is-not-a-verdict'),
     });
   });
 });

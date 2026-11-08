@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 // draft 2020-12 needs ajv's 2020 entry point; the default export is draft-07.
 import Ajv from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
+import { signatureClock } from "../conformance/generated-signature-clock.mjs";
 
 import {
   KNOWN_COMMERCE_EVENT_TYPES,
@@ -500,6 +501,14 @@ describe("prose cannot drift from the schemas", () => {
     }
   });
 
+  it("keeps the delivery diagram in sync with the normative signature clock rule", () => {
+    const tolerance = WEBHOOK.toleranceSeconds;
+    const { operator } = signatureClock;
+    expect(spec).toContain(
+      `MUST: reject if abs(now − timestamp) ${operator} ${tolerance} s<br/>`,
+    );
+  });
+
   it("states the transport constants the vectors pin", () => {
     for (const header of [
       WEBHOOK.signatureHeader,
@@ -509,7 +518,6 @@ describe("prose cannot drift from the schemas", () => {
     ]) {
       expect(spec, `${header} is undocumented`).toContain(header);
     }
-    expect(spec).toContain(String(WEBHOOK.toleranceSeconds));
     expect(spec).toContain(`\`${WEBHOOK.signaturePrefix}\``);
     expect(spec).toContain(`Content-Type: ${WEBHOOK.contentType}`);
   });

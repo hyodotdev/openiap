@@ -492,6 +492,23 @@ from issue #206 without duplicating release history across package-local files:
 - Keep package-local changelogs as pointers to this page and GitHub Releases,
   except where a package registry requires generated inline history.
 
+### Client Protocol Changes
+
+When a release changes the Client Protocol, place a visible
+`Client Protocol <version>` section immediately after the release summary.
+Compare with the previous published Client Protocol tag.
+
+- Use `+` and `-` for actual changes to GraphQL SDL or public API declarations.
+  Show just enough context to identify the change and explain its effect below.
+- For behavior changes with the same public API, use brief `Before` and `Now`
+  lines to compare what callers observe. Reserve diffs for the public contract.
+- Link the versioned source. Include changes to defaults, requiredness, and
+  wire values when relevant.
+- For a deprecation recorded only in annotations, state the affected APIs and
+  removal version in prose.
+- Keep native version adoption, framework changes, and longer migration
+  instructions in their own sections.
+
 ### Card Format
 
 Follow the existing card pattern:
@@ -525,19 +542,20 @@ Card section layout (mandatory for multi-package cards):
 
 - Use only the sections that contain distinct user-visible behavior or
   information readers must act on. When present, keep this order:
-  1. `Common changes`
-  2. `Protocols and native packages`
-  3. `Framework libraries`
-  4. `Integration notes` (or migration notes)
-  5. The bordered `Package Releases` block
+  1. `Client Protocol <version>` for a Client Protocol contract change
+  2. `Common changes`
+  3. `Protocols and native packages`
+  4. `Framework libraries`
+  5. `Integration notes` (or migration notes)
+  6. The bordered `Package Releases` block
 - Never add one `h5` heading per platform or framework (no `Apple`, `Google`,
   `React Native`, `Expo`, ... headings). Use one parent `<li>` per package,
   following the package-specific grouping rule above: put `<strong>package version</strong>`
   once, then one inline change or a nested `<ul>` for multiple changes.
   Never repeat the package/version label on each nested change.
-- `Protocols and native packages` holds `Client Protocol`, `Commerce Protocol`,
-  `openiap-apple`, and `openiap-google` bullets; `Framework libraries` holds the
-  framework SDK bullets. Omit the section when it would be empty.
+- `Protocols and native packages` holds Commerce Protocol, openiap-apple,
+  and openiap-google changes. `Framework libraries` holds framework SDK
+  changes. Omit empty sections.
 - The July 29, 2026 card (`openiap-major-api-cleanup-2026-07-29`) and the
   August 4, 2026 card (`amazon-rvs-user-data-patch-train-2026-08-04`) are the
   reference implementations of this layout.

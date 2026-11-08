@@ -130,6 +130,35 @@ to bypass this gate. Return for review if the approved public design changes.
 An internal refactor or bug fix that preserves the approved public contract
 does not require a new design approval.
 
+### Recording approval for CI
+
+Open a proposal issue in this repository with the concrete design and the
+intended implementation branch. Before implementation, Hyo posts an approval
+comment beginning with
+`Approved public contract design for OWNER/REPO:BRANCH into hyodotdev/openiap:main`,
+followed by the approved decisions. Include an `Acceptance:` line with the
+expected outcome and a rejection or edge case, and a `Verification:` line
+naming the spec section or behavior ID and the test that will verify it. Keep
+the comment unedited so GitHub retains its original approval timestamp.
+Record a revised decision in a new comment.
+
+Put `Design approval: https://github.com/hyodotdev/openiap/issues/123#issuecomment-456`
+on its own line in the implementation PR body. CI checks the comment's author,
+source and target branches, and timestamp against the PR and its recorded
+commit dates. Approval must predate the PR and both the Git author and
+committer dates of every PR commit. If approval comes late, start the
+implementation from the approved design and open a new PR. Reviewers confirm
+the change follows the approved design and review any changes to the CI gate.
+
+CI detects edits to Client and Commerce schemas and their generated output,
+Client capability and conformance definitions, purchase-flow vectors, Commerce
+`SPEC.md`, Commerce vectors, and Commerce public declarations. For other shipped
+source, declare `Public contract: changed` or `Public contract: unchanged` on
+its own line in the PR body. Use `changed` for any public change outside those
+paths as well. Link the executed acceptance tests in the PR so reviewers can
+trace the result back to the approved requirement. CI rechecks approval when
+the PR body changes.
+
 ### Verification Services Are Peers
 
 IAPKit is one third-party verification service. It has no privileged role in

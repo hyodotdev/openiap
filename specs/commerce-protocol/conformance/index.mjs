@@ -11,6 +11,7 @@
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { signatureClock } from "./generated-signature-clock.mjs";
 
 const load = (name) =>
   JSON.parse(
@@ -1494,47 +1495,22 @@ async function checkEventsProfile(capabilities, eventsAdapter, lifecycle) {
 
   // §9.4.2 consumer rules: accept a valid delivery and reject every rejection.
   if (typeof eventsAdapter.verify === "function") {
-    const tolerance = signatureVectors.toleranceSeconds;
+    const { cases } = signatureClock;
     for (const vector of signatureVectors.cases ?? []) {
       const secrets = [vector.secret];
       if (vector.previousSecret) secrets.push(vector.previousSecret);
       const header = vector.presentedHeader ?? vector.expected;
-      // SPEC.md 9.4.2 rule 1 rejects only |now - timestamp| > tolerance, so
-      // the boundary itself is INSIDE: exactly ±tolerance must be accepted
-      // (a >= comparison must not certify) and ±(tolerance+1) must be
-      // rejected (a > tolerance+1 comparison must not certify either).
-      for (const [now, label] of [
-        [vector.timestamp, "no skew"],
-        [vector.timestamp + tolerance, `+${tolerance}s skew`],
-        [vector.timestamp - tolerance, `-${tolerance}s skew`],
-      ]) {
-        const accepted = await eventsAdapter.verify({
+      for (const { skew, accepted } of cases) {
+        const actual = await eventsAdapter.verify({
           body: vector.body,
           timestamp: vector.timestamp,
           signature: header,
           secrets,
-          now,
+          now: vector.timestamp + skew,
         });
-        if (!accepted) {
+        if (Boolean(actual) !== accepted) {
           failures.push(
-            `signature case ${vector.name} (${label}): |now - timestamp| <= ${tolerance} must be accepted`,
-          );
-        }
-      }
-      for (const [now, label] of [
-        [vector.timestamp + tolerance + 1, `+${tolerance + 1}s skew`],
-        [vector.timestamp - tolerance - 1, `-${tolerance + 1}s skew`],
-      ]) {
-        const accepted = await eventsAdapter.verify({
-          body: vector.body,
-          timestamp: vector.timestamp,
-          signature: header,
-          secrets,
-          now,
-        });
-        if (accepted) {
-          failures.push(
-            `signature case ${vector.name} (${label}): |now - timestamp| > ${tolerance} must be rejected as stale`,
+            `signature case ${vector.name} (${skew}s skew): must be ${accepted ? "accepted" : "rejected as stale"} per SPEC.md §9.4.2`,
           );
         }
       }

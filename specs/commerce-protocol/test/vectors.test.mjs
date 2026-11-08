@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 
 import Ajv from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
+import { signatureClock } from "../conformance/generated-signature-clock.mjs";
+import { responseSemanticsTable } from "../scripts/audit-compatibility.mjs";
 
 import { WEBHOOK, bundleSchema } from "../src/index.mjs";
 
@@ -67,6 +69,22 @@ describe("signature vectors", () => {
         ? `${signFromSpec(testCase.secret, testCase.timestamp, testCase.body)},${signFromSpec(testCase.previousSecret, testCase.timestamp, testCase.body)}`
         : signFromSpec(testCase.secret, testCase.timestamp, testCase.body);
       expect(produced).toBe(testCase.expected);
+    },
+  );
+
+  it.each(signatureClock.cases)(
+    "checks the signed timestamp at $skew seconds of skew",
+    ({ skew, accepted }) => {
+      const { body, expected: header, secret, timestamp } = vectors.cases[0];
+      expect(
+        verifyFromSpec({
+          body,
+          header,
+          secret,
+          timestampSeconds: timestamp,
+          now: timestamp + skew,
+        }),
+      ).toBe(accepted);
     },
   );
 
@@ -155,6 +173,18 @@ describe("signature vectors", () => {
       expect(classifyFromSpec(testCase.status)).toBe(testCase.action);
     },
   );
+
+  it("pins the response classifier and vectors to the normative table", () => {
+    const spec = readFileSync(new URL("../SPEC.md", import.meta.url), "utf8");
+    expect(responseSemanticsTable(spec)).toEqual([
+      ["`2xx`", "Delivered"],
+      ["`408`, `429`, `5xx`", "Retry"],
+      ["`3xx`", "Permanent failure; do not follow"],
+      ["Other `4xx`", "Permanent failure; do not retry"],
+      ["Timeout or connection error", "Retry"],
+    ]);
+    expect(vectors.responseSemantics.connectionError).toBe("retry");
+  });
 
   it("every signature is lowercase hex behind the v1= prefix", () => {
     for (const testCase of vectors.cases) {

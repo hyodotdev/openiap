@@ -23,8 +23,10 @@ Use the executable contracts and reports below for the current state.
 
 The source coverage report binds every behavior id to at least one
 non-reference implementation, reading the store suites, both provider suites,
-IAPKit, and the React Native and Expo adapters; `--check` fails when one loses
-its last. This is not a claim of complete runtime coverage.
+IAPKit, and the enabled Jest tests in React Native and Expo. Use a behavior ID
+as the literal Jest test title. `--check` fails when a behavior loses its last
+non-reference test. This is source evidence for the test mapping. A passing
+run records the behavior and implementation that actually executed.
 
 The native provider profiles cover 15 common required behaviors, a separate
 Android native-redemption check, and up to three declared capability checks

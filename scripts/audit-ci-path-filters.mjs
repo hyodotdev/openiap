@@ -589,6 +589,7 @@ export const cases = Object.freeze([
       "ci-react-native-iap.yml",
       "ci:test-android",
       "ci:test-commerce-protocol",
+      "ci:test-conformance",
       "ci:test-gql",
       "ci:test-ios",
       "ci:test-ios-compiler-boundaries",
