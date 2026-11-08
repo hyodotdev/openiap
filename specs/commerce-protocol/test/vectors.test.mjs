@@ -128,6 +128,13 @@ describe("signature vectors", () => {
   });
 
   it("pins retry identity while requiring a fresh timestamp and signature", () => {
+    const spec = readFileSync(new URL("../SPEC.md", import.meta.url), "utf8");
+    const retryRule = spec
+      .split("#### 9.4.3 Response semantics")[1]
+      ?.split("#### ")[0];
+    expect(retryRule?.replace(/\s+/g, " ")).toContain(
+      "`openiap-delivery-id` stays stable across the attempt chain.",
+    );
     const first = vectors.cases.find((c) => c.name === "single-key");
     const retry = vectors.cases.find((c) => c.name === "retry-after-backoff");
     expect(JSON.parse(retry.body).eventId).toBe(JSON.parse(first.body).eventId);

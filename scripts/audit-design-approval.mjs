@@ -5,9 +5,10 @@ import { shipsInAnyPackage } from "./release-branch-policy.mjs";
 
 const projectLeadId = 27461460; // @hyochan in MAINTAINERS.md
 const publicContractPaths = [
-  /^specs\/client\/src\/(?:generated\/|(?:[^/]+\.graphql|capability-matrix\.mjs|purchase-flow\.vectors\.json)$)/,
+  /^specs\/(?:client|commerce-protocol)\/compatibility\.json$/,
+  /^specs\/client\/src\/(?:generated\/|(?:[^/]+\.graphql|capability-matrix\.mjs|kit-api\.ts|purchase-flow(?:-core|-confirmers)?\.ts|purchase-flow\.vectors\.json)$)/,
   /^packages\/conformance\/src\/spec\/(?:behaviors|provider-profile)\.mjs$/,
-  /^specs\/commerce-protocol\/(?:schema\/|generated\/|SPEC\.md$|vectors\/|(?:src|conformance)\/index\.d\.ts$)/,
+  /^specs\/commerce-protocol\/(?:schema\/|generated\/|SPEC\.md$|vectors\/|(?:src|conformance)\/index\.(?:mjs|d\.ts)$)/,
 ];
 
 export function needsDesignApproval(files, body) {
@@ -53,7 +54,73 @@ export function approvalLink(body, repository) {
   return { url, comment: reference[2] };
 }
 
-export function verifyDesignApproval({ pull, link, comment, commits }) {
+function approvalFields(details, field) {
+  const prefix = `${field}:`;
+  const values = details
+    .filter((line) => line.startsWith(prefix))
+    .map((line) => line.slice(prefix.length).trim());
+  if (
+    !values.length ||
+    values.some(
+      (value) => !value || /^(?:tbd|todo|pending|n\/?a)[.!]?$/i.test(value),
+    )
+  ) {
+    throw new Error(`The approval must include concrete ${field}: evidence.`);
+  }
+  return values;
+}
+
+function verifyApprovedScope(details, files, readTest) {
+  approvalFields(details, "Design");
+  approvalFields(details, "Acceptance");
+  const approvedPaths = approvalFields(details, "Contract");
+  const authored = files.filter((file) =>
+    publicContractPaths.some((pattern) => pattern.test(file)),
+  );
+  const source = authored.filter((file) => !/\/generated\//.test(file));
+  const required = source.length ? source : authored;
+  if (
+    approvedPaths.some((path) => !files.includes(path)) ||
+    required.some((path) => !approvedPaths.includes(path))
+  ) {
+    throw new Error(
+      "The approved Contract: paths must cover the changed public sources.",
+    );
+  }
+
+  for (const value of approvalFields(details, "Verification")) {
+    const [, path, test] = /^([\w./-]+)#(.+)$/.exec(value) ?? [];
+    if (
+      !path ||
+      path.split("/").some((part) => !part || part === "." || part === "..") ||
+      !/(?:^|\/)(?:__tests__|[Tt]ests?)\/|\.(?:test|spec)\.[^/]+$|Tests?\.(?:swift|kt|cs)$/.test(
+        path,
+      )
+    ) {
+      throw new Error(
+        "Verification: must use a repository test path followed by # and its test name.",
+      );
+    }
+    const source = readTest(path);
+    const quoted = test.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const declaration = new RegExp(
+      `^[ \\t]*(?:(?:it|test)\\(\\s*(["'])${quoted}\\1\\s*,|(?:func|fun|void)\\s+${quoted}\\s*\\()`,
+      "m",
+    );
+    if (!source || !declaration.test(source)) {
+      throw new Error(`Approved verification test was not found: ${value}`);
+    }
+  }
+}
+
+export function verifyDesignApproval({
+  pull,
+  link,
+  comment,
+  commits,
+  files,
+  readTest,
+}) {
   if (comment.html_url !== link.url || comment.user?.id !== projectLeadId) {
     throw new Error(
       "The linked issue comment must be written by the project lead.",
@@ -71,16 +138,7 @@ export function verifyDesignApproval({ pull, link, comment, commits }) {
       `Approval must name ${scope} and record the concrete design decision.`,
     );
   }
-  for (const field of ["Acceptance", "Verification"]) {
-    const prefix = `${field}:`;
-    if (
-      !details.some(
-        (line) => line.startsWith(prefix) && line.slice(prefix.length).trim(),
-      )
-    ) {
-      throw new Error(`The approval must include a ${field}: line.`);
-    }
-  }
+  verifyApprovedScope(details, files, readTest);
   const approvedAt = Date.parse(comment.created_at);
   if (
     !Number.isFinite(approvedAt) ||
@@ -147,7 +205,17 @@ function main() {
     "--paginate",
     "--slurp",
   ).flat();
-  verifyDesignApproval({ pull, link, comment, commits });
+  const readTest = (path) => {
+    try {
+      return execFileSync("git", ["show", `HEAD:${path}`], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      });
+    } catch {
+      return undefined;
+    }
+  };
+  verifyDesignApproval({ pull, link, comment, commits, files, readTest });
   console.log(`Design approval verified for PR #${number}: ${link.url}`);
 }
 

@@ -376,9 +376,14 @@ describe('conformance: react-native-iap', () => {
       androidRequest('dev.hyo.martie.10bulbs'),
     );
     expect(store.unfinished.has(purchase.purchaseToken)).toBe(true);
+    const purchasedItem = expect.objectContaining({
+      purchaseToken: purchase.purchaseToken,
+    });
+    expect(await IAP.getAvailablePurchases()).toContainEqual(purchasedItem);
 
     await IAP.finishTransaction({purchase, isConsumable: true});
     expect(store.unfinished.has(purchase.purchaseToken)).toBe(false);
+    expect(await IAP.getAvailablePurchases()).not.toContainEqual(purchasedItem);
   });
 
   it('completion.finish-is-idempotent', async () => {

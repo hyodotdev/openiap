@@ -143,7 +143,18 @@ const ANDROID_SUITES = 'packages/conformance/android/src/main/kotlin/dev/hyo/ope
   const generated = read('packages/apple/Tests/OpenIapTests/ConformanceBehaviors.swift');
   const table = resolveConstants(generated, /static let (\w+) = "([^"]+)"/g);
   const suite = read('packages/apple/Tests/OpenIapTests/StoreConformanceTests.swift');
-  const ids = declaredIds(suite, 'static let coveredBehaviors', table, /ConformanceBehaviors\.(\w+)/g);
+  const ids = [...suite.matchAll(/^    func test([A-Z]\w*)\(\)/gm)].map(([, name]) => {
+    const id = table.get(name[0].toLowerCase() + name.slice(1));
+    if (!id) throw new Error(`Apple conformance test test${name} has no behavior ID`);
+    return id;
+  });
+  if (new Set(ids).size !== ids.length) {
+    throw new Error('Apple client declares duplicate conformance behavior IDs');
+  }
+  const uncovered = declaredIds(suite, 'static let notCoveredBehaviors', table, /ConformanceBehaviors\.(\w+)/g);
+  if (ids.some((id) => uncovered.includes(id))) {
+    throw new Error('Apple client declares the same behavior covered and unsupported');
+  }
   IMPLEMENTATIONS.push({ name: 'apple-client', store: 'Apple', covered: ids });
 }
 

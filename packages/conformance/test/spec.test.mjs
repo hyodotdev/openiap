@@ -13,8 +13,17 @@ import {
 } from '../src/spec/behaviors.mjs';
 import { SUITE_VERSION, clientProtocolVersion } from '../src/spec/version.mjs';
 import { runConformance } from '../src/runner/runner.mjs';
+import { createReferenceAdapter } from '../src/adapters/reference-adapter.mjs';
 
 describe('conformance behavior spec', () => {
+  it('requires the completed transaction to leave the unfinished set', async () => {
+    const id = 'completion.finish-removes-transaction-from-pending';
+    expect(behaviorById(id).statement).toBe(
+      'Finishing a transaction removes it from the set of unfinished transactions.',
+    );
+    await createReferenceAdapter().behaviors[id]();
+  });
+
   it('gives every behavior a unique id', () => {
     const ids = behaviorIds();
     expect(new Set(ids).size).toBe(ids.length);

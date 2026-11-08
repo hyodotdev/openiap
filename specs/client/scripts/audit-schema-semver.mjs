@@ -141,8 +141,9 @@ export function readSdlAtRef(ref, root = repositoryRoot) {
 
 export function resolveBaseRef(requestedRef, root = repositoryRoot) {
   if (requestedRef) {
+    let commit;
     try {
-      runGit(
+      commit = runGit(
         ["rev-parse", "--verify", "--quiet", `${requestedRef}^{commit}`],
         root,
       );
@@ -151,6 +152,7 @@ export function resolveBaseRef(requestedRef, root = repositoryRoot) {
         `cannot resolve --base "${requestedRef}" — is the ref fetched and spelled correctly?`,
       );
     }
+    if (requestedRef.startsWith("refs/tags/")) return commit.trim();
     // Prefer the merge base so commits landed on the base branch after this
     // branch diverged are not misread as local schema changes.
     try {

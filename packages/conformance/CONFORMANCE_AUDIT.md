@@ -24,7 +24,8 @@ Use the executable contracts and reports below for the current state.
 The source coverage report binds every behavior id to at least one
 non-reference implementation, reading the store suites, both provider suites,
 IAPKit, and the enabled Jest tests in React Native and Expo. Use a behavior ID
-as the literal Jest test title. `--check` fails when a behavior loses its last
+as the literal Jest test title. Apple client coverage comes from XCTest method
+names, such as `testErrorsUnsupportedCodesAreNotSynthesized`. `--check` fails when a behavior loses its last
 non-reference test. This is source evidence for the test mapping. A passing
 run records the behavior and implementation that actually executed.
 

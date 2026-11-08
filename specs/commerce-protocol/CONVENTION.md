@@ -105,8 +105,12 @@ A MAJOR change requires a `### Migration to <protocol-version>` section in
 `SPEC.md` §12 stating what breaks and how consumers on the previous major
 should migrate.
 
-CI compares the PR against both its base and the latest stable Commerce release
-tag. To compare a specific release locally, run
+CI compares the PR against its base and every stable Commerce release from the
+[minimum checked version](compatibility.json).
+Older releases have documented differences in [SPEC.md §12](SPEC.md#12-versioning)
+and the notes on the retired error codes. Changing the compatibility floor
+requires an approved design and migration guidance. To compare a specific
+release locally, run
 `node scripts/audit-compatibility.mjs --base <git-ref>` after regenerating.
 The check compares the generated wire schemas, operation manifest, GraphQL
 binding, webhook signature rule, and delivery response table. It flags

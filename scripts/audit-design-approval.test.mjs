@@ -11,6 +11,9 @@ const url = `https://github.com/${repository}/issues/123#issuecomment-456`;
 const link = approvalLink(`Design approval: ${url}`, repository);
 const before = "2026-10-01T08:00:00Z";
 const after = "2026-10-01T09:00:00Z";
+const contractPath = "specs/commerce-protocol/SPEC.md";
+const testPath = "specs/commerce-protocol/test/conformance.test.mjs";
+const testName = "rejects a malformed receipt";
 
 function fixture() {
   return {
@@ -25,10 +28,19 @@ function fixture() {
       commits: 1,
     },
     link,
+    files: [contractPath, testPath],
+    readTest: (path) =>
+      path === testPath ? `it("${testName}", () => {});` : undefined,
     comment: {
       html_url: url,
       user: { id: 27461460 },
-      body: "Approved public contract design for contributor/openiap:feature into hyodotdev/openiap:main\n\nAcceptance: Valid receipts pass and malformed receipts are rejected.\nVerification: Run the Commerce verification vectors.",
+      body: [
+        "Approved public contract design for contributor/openiap:feature into hyodotdev/openiap:main",
+        "Design: Reject malformed receipt documents at the protocol boundary.",
+        `Contract: ${contractPath}`,
+        "Acceptance: Valid receipts pass and malformed receipts are rejected.",
+        `Verification: ${testPath}#${testName}`,
+      ].join("\n"),
       created_at: before,
       updated_at: before,
     },
@@ -49,6 +61,9 @@ test("authored contract paths and declared runtime changes require approval", ()
     "packages/conformance/src/spec/provider-profile.mjs",
     "specs/commerce-protocol/generated/bindings/http-binding.json",
     "specs/client/src/purchase-flow.vectors.json",
+    "specs/client/src/purchase-flow-confirmers.ts",
+    "specs/client/src/purchase-flow.ts",
+    "specs/commerce-protocol/conformance/index.mjs",
     "packages/conformance/src/spec/behaviors.mjs",
     "specs/commerce-protocol/SPEC.md",
     "specs/commerce-protocol/schema/02-commerce-event.graphql",
@@ -71,11 +86,7 @@ test("authored contract paths and declared runtime changes require approval", ()
 });
 
 test("requires a public impact decision for shipped implementation changes", () => {
-  for (const file of [
-    "specs/client/src/purchase-flow.ts",
-    "specs/commerce-protocol/conformance/index.mjs",
-    "libraries/expo-iap/src/index.ts",
-  ]) {
+  for (const file of ["libraries/expo-iap/src/index.ts"]) {
     assert.throws(() => needsDesignApproval([file], ""), /Classify/);
     assert.equal(
       needsDesignApproval([file], "Public contract: unchanged"),
@@ -126,6 +137,31 @@ test("rejects an approval without acceptance and verification evidence", () => {
     );
     assert.throws(() => verifyDesignApproval(value), new RegExp(`${field}:`));
   }
+});
+
+test("rejects placeholder approval and an unapproved public source", () => {
+  const value = fixture();
+  value.comment.body = value.comment.body.replace(
+    /^Acceptance:.*$/m,
+    "Acceptance: TBD",
+  );
+  assert.throws(() => verifyDesignApproval(value), /Acceptance:/);
+  value.comment.body = fixture().comment.body;
+  value.files.push("specs/commerce-protocol/schema/02-commerce-event.graphql");
+  assert.throws(() => verifyDesignApproval(value), /approved Contract:/);
+});
+
+test("requires a named test in the current tree", () => {
+  const value = fixture();
+  value.readTest = () => `it.skip("${testName}", () => {});`;
+  assert.throws(() => verifyDesignApproval(value), /test was not found/);
+  value.readTest = () => undefined;
+  assert.throws(() => verifyDesignApproval(value), /test was not found/);
+  value.comment.body = value.comment.body.replace(
+    /^Verification:.*$/m,
+    "Verification: test later",
+  );
+  assert.throws(() => verifyDesignApproval(value), /repository test path/);
 });
 
 test("rejects an unrelated, edited, or unauthorized approval", () => {
