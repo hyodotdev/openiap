@@ -46,9 +46,6 @@ already installs it.
 
 ## Changing the Client Schema
 
-For any public contract change, agree on the design first and
-[record the approval for CI](knowledge/internal/02-architecture.md#recording-approval-for-ci).
-
 1. Edit `specs/client/src/*.graphql`.
 2. Run `cd specs/client && bun run generate && bun run test`. Generation
    rewrites every language and syncs every SDK copy in one step.
@@ -77,6 +74,9 @@ GraphQL layer under `schema/`, then run `bun run build && bun run test` in
   without one; scopes are listed in
   [Git Commit Message Format](knowledge/internal/06-git-deployment.md#git-commit-message-format).
 - Say what changed and why in a few short paragraphs.
+- For shipped source, declare the public contract impact. Agree on changed
+  requirements before implementation and link their acceptance tests in the PR.
+  See [recording approval for CI](knowledge/internal/02-architecture.md#recording-approval-for-ci).
 - Skip labels and the release-notes card. The maintainer adds both, and on
   outside PRs the release-note check only warns.
 - Do not bump versions. Releases run from CI.

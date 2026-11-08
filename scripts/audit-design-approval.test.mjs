@@ -28,7 +28,7 @@ function fixture() {
     comment: {
       html_url: url,
       user: { id: 27461460 },
-      body: "Approved public contract design for contributor/openiap:feature into hyodotdev/openiap:main\n\nDocument the changed error and migration.",
+      body: "Approved public contract design for contributor/openiap:feature into hyodotdev/openiap:main\n\nAcceptance: Valid receipts pass and malformed receipts are rejected.\nVerification: Run the Commerce verification vectors.",
       created_at: before,
       updated_at: before,
     },
@@ -53,6 +53,8 @@ test("authored contract paths and declared runtime changes require approval", ()
     "specs/commerce-protocol/SPEC.md",
     "specs/commerce-protocol/schema/02-commerce-event.graphql",
     "specs/commerce-protocol/vectors/signatures.json",
+    "specs/commerce-protocol/src/index.d.ts",
+    "specs/commerce-protocol/conformance/index.d.ts",
   ])
     assert.equal(needsDesignApproval([file], ""), true, file);
   assert.equal(
@@ -65,6 +67,37 @@ test("authored contract paths and declared runtime changes require approval", ()
   assert.equal(
     needsDesignApproval(["specs/commerce-protocol/test/vectors.test.mjs"], ""),
     false,
+  );
+});
+
+test("requires a public impact decision for shipped implementation changes", () => {
+  for (const file of [
+    "specs/client/src/purchase-flow.ts",
+    "specs/commerce-protocol/conformance/index.mjs",
+    "libraries/expo-iap/src/index.ts",
+  ]) {
+    assert.throws(() => needsDesignApproval([file], ""), /Classify/);
+    assert.equal(
+      needsDesignApproval([file], "Public contract: unchanged"),
+      false,
+    );
+    assert.equal(needsDesignApproval([file], "Public contract: changed"), true);
+  }
+  assert.throws(
+    () =>
+      needsDesignApproval(
+        ["specs/client/src/type.graphql"],
+        "Public contract: unchanged",
+      ),
+    /needs design approval/,
+  );
+  assert.throws(
+    () =>
+      needsDesignApproval(
+        [],
+        "Public contract: unchanged\nPublic contract: changed",
+      ),
+    /single Public contract/,
   );
 });
 
@@ -82,6 +115,17 @@ test("requires a single same-repository issue comment URL", () => {
 
 test("accepts an explicit unedited approval for this branch before implementation", () => {
   assert.doesNotThrow(() => verifyDesignApproval(fixture()));
+});
+
+test("rejects an approval without acceptance and verification evidence", () => {
+  for (const field of ["Acceptance", "Verification"]) {
+    const value = fixture();
+    value.comment.body = value.comment.body.replace(
+      new RegExp(`^${field}:.*$`, "m"),
+      `${field}: `,
+    );
+    assert.throws(() => verifyDesignApproval(value), new RegExp(`${field}:`));
+  }
 });
 
 test("rejects an unrelated, edited, or unauthorized approval", () => {

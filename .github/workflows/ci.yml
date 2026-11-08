@@ -62,6 +62,7 @@ jobs:
           # Once installed, the base supplies the audit for later PRs.
           if git cat-file -e "$BASE_SHA:$audit"; then
             git show "$BASE_SHA:$audit" > "$RUNNER_TEMP/audit-design-approval.mjs"
+            git show "$BASE_SHA:scripts/release-branch-policy.mjs" > "$RUNNER_TEMP/release-branch-policy.mjs"
             audit="$RUNNER_TEMP/audit-design-approval.mjs"
           fi
           node "$audit"
@@ -531,8 +532,7 @@ jobs:
         working-directory: specs/commerce-protocol
         run: bun run test
 
-      - name: Compare Commerce with the PR base and latest stable tag
-        if: github.event_name == 'pull_request'
+      - name: Compare Commerce with the latest stable tag and PR base
         working-directory: specs/commerce-protocol
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -542,7 +542,9 @@ jobs:
             awk '$2 ~ /^refs\/tags\/hyodotdev-openiap-commerce-protocol-[0-9]+\.[0-9]+\.[0-9]+$/ && !found { print $2; found = 1 }')
           test -n "$stable_ref"
           git fetch --depth=1 --no-tags origin "$stable_ref:$stable_ref"
-          node scripts/audit-compatibility.mjs --base "$BASE_SHA"
+          if [[ -n "$BASE_SHA" ]]; then
+            node scripts/audit-compatibility.mjs --base "$BASE_SHA"
+          fi
           node scripts/audit-compatibility.mjs --base "$stable_ref"
 
       - name: Verify IAPKit conformance
@@ -590,7 +592,7 @@ jobs:
 
       - name: Ecosystem coverage report
         run: |
-          node packages/conformance/scripts/coverage-report.mjs
+          node packages/conformance/scripts/coverage-report.mjs --check
           node packages/conformance/scripts/coverage-report.mjs --json > conformance-coverage.json
           node packages/conformance/scripts/run-reference-report.mjs --json > conformance-report.json
 

@@ -80,6 +80,30 @@ export function protocolMajor(version) {
   return BigInt(match[1]);
 }
 
+export function responseSemanticsTable(spec) {
+  const section = spec.split(/^#### 9\.4\.3[ \t]/m)[1]?.split(/^#### /m)[0];
+  const table = section?.match(/^\|[^\r\n]+\|[ \t]*$/gm)?.slice(2);
+  if (!table?.length)
+    throw new Error("Missing response semantics table in SPEC.md §9.4.3.");
+  return table.map((line) =>
+    line
+      .split("|")
+      .slice(1, -1)
+      .map((cell) => cell.trim()),
+  );
+}
+
+export function hasMigrationNote(spec, version) {
+  const versioning = spec.split(/^## 12\.[ \t]/m)[1]?.split(/^## /m)[0];
+  return (versioning?.split(/^### /m) ?? []).some((section) => {
+    const [heading, ...body] = section.split(/\r?\n/);
+    return (
+      heading.trim() === `Migration to ${version}` &&
+      Boolean(body.join("\n").trim())
+    );
+  });
+}
+
 export function findCompatibilityChanges(before, after) {
   const changes = [];
   for (const [name, schema] of Object.entries(before.bundle.$defs)) {
@@ -137,6 +161,14 @@ export function findCompatibilityChanges(before, after) {
     signatureClockOperator(after.spec, after.signatures.toleranceSeconds)
   ) {
     changes.push("Webhook signature changed the timestamp boundary");
+  }
+  if (
+    !isDeepStrictEqual(
+      responseSemanticsTable(before.spec),
+      responseSemanticsTable(after.spec),
+    )
+  ) {
+    changes.push("Webhook delivery changed the response semantics table");
   }
 
   const oldSchema = buildSchema(before.graphql);
@@ -205,9 +237,16 @@ function main() {
     );
     process.exitCode = 1;
   } else if (changes.length) {
-    console.log(
-      "Breaking changes detected under a new protocol major. Review the migration note.",
-    );
+    if (!hasMigrationNote(after.spec, current)) {
+      console.error(
+        `Document the breaking changes under "### Migration to ${current}" in SPEC.md §12.`,
+      );
+      process.exitCode = 1;
+    } else {
+      console.log(
+        "Breaking changes detected under a new protocol major. Review the migration note.",
+      );
+    }
   } else {
     console.log("No breaking changes detected in the wire contract.");
   }

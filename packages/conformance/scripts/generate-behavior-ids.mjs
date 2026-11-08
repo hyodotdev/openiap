@@ -72,7 +72,7 @@ const errorExpectations = Object.fromEntries(
     );
     if (
       !assertion ||
-      /\b(?:never|not) $/.test(assertion[1]) ||
+      /\b(?:never|not|no)\b/i.test(assertion[1].replace(/\bdoes not recognize\b/gi, "")) ||
       assertion[2] !== references.map(([reference]) => reference).join(" or ")
     ) {
       throw new Error(`${id} must state allowed error codes as one explicit list.`);

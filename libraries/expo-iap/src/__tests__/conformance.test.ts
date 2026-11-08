@@ -222,29 +222,6 @@ import behaviorErrors from './fixtures/behavior-errors.json';
 const expectedError = (id: keyof typeof behaviorErrors) =>
   expect.stringMatching(new RegExp(`^(?:${behaviorErrors[id].join('|')})$`));
 
-/** Behavior ids from packages/conformance this suite verifies. */
-const COVERED_BEHAVIORS = [
-  'products.fetch-returns-requested-skus',
-  'products.fetch-normalizes-required-fields',
-  'products.fetch-separates-in-app-and-subscription-types',
-  'products.fetch-empty-sku-list-is-an-error',
-  'purchases.request-emits-purchase-updated-on-success',
-  'purchases.already-owned-surfaces-already-owned-error',
-  'purchases.unknown-sku-surfaces-sku-not-found',
-  'purchases.pending-purchase-is-not-delivered-as-purchased',
-  'restoration.available-purchases-returns-owned-items',
-  'restoration.available-purchases-excludes-consumed-items',
-  'restoration.available-purchases-is-empty-for-new-user',
-  'subscriptions.active-subscription-is-reported-active',
-  'subscriptions.groups-keep-independent-identifiers',
-  'subscriptions.has-active-agrees-with-get-active',
-  'identifiers.purchase-carries-a-concrete-store',
-  'identifiers.purchase-token-is-stable-across-reads',
-  'verification.result-exposes-uniform-validity',
-  'verification.forged-token-is-invalid',
-  'verification.infrastructure-error-is-not-a-verdict',
-];
-
 type TokenizedPurchase = Purchase & {purchaseToken: string};
 
 const isTokenizedPurchase = (
@@ -269,11 +246,6 @@ const buy = async (sku: string): Promise<TokenizedPurchase> => {
 describe('conformance: expo-iap', () => {
   beforeEach(() => {
     fakeStore.reset();
-  });
-
-  it('declares distinct, namespaced behavior ids', () => {
-    expect(new Set(COVERED_BEHAVIORS).size).toBe(COVERED_BEHAVIORS.length);
-    COVERED_BEHAVIORS.forEach((id) => expect(id).toContain('.'));
   });
 
   // --- products -----------------------------------------------------------

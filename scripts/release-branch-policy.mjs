@@ -378,6 +378,9 @@ export const publishedSources = {
   "client-protocol": [
     /^specs\/client\/src\/(generated\/|[^/]+\.graphql$|(kit-api|purchase-flow|purchase-flow-core|purchase-flow-confirmers)\.ts$)/,
   ],
+  "commerce-protocol": [
+    /^specs\/commerce-protocol\/(schema|generated|src|conformance|vectors)\//,
+  ],
   cli: [/^packages\/cli\/(src|bin)\//],
   "react-native": [
     /^libraries\/react-native-iap\/(src|ios|android\/src\/main)\//,

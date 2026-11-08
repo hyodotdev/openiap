@@ -101,15 +101,16 @@ A MINOR change requires:
 5. The matching prose in `SPEC.md`. `test/operations.test.mjs` pins §3, §6.1,
    and §8 to the generated manifest, so prose and contract cannot drift apart.
 
-A MAJOR change additionally requires a migration note in `SPEC.md` stating what
-breaks and what a consumer pinned to the previous major should do.
+A MAJOR change requires a `### Migration to <protocol-version>` section in
+`SPEC.md` §12 stating what breaks and how consumers on the previous major
+should migrate.
 
 CI compares the PR against both its base and the latest stable Commerce release
 tag. To compare a specific release locally, run
 `node scripts/audit-compatibility.mjs --base <git-ref>` after regenerating.
 The check compares the generated wire schemas, operation manifest, GraphQL
-binding, and webhook signature rule. It flags incompatible or uncertain changes
-within the same protocol major. Review behavior changes and documented
+binding, webhook signature rule, and delivery response table. It flags
+incompatible or uncertain changes within the same protocol major. Review behavior changes and documented
 pre-stable exceptions against §12 separately.
 
 ## The store axis has one source

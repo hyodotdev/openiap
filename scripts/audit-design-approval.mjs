@@ -1,21 +1,40 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
+import { shipsInAnyPackage } from "./release-branch-policy.mjs";
 
 const projectLeadId = 27461460; // @hyochan in MAINTAINERS.md
 const publicContractPaths = [
   /^specs\/client\/src\/(?:generated\/|(?:[^/]+\.graphql|capability-matrix\.mjs|purchase-flow\.vectors\.json)$)/,
   /^packages\/conformance\/src\/spec\/(?:behaviors|provider-profile)\.mjs$/,
-  /^specs\/commerce-protocol\/(?:schema\/|generated\/|SPEC\.md$|vectors\/signatures\.json$)/,
+  /^specs\/commerce-protocol\/(?:schema\/|generated\/|SPEC\.md$|vectors\/|(?:src|conformance)\/index\.d\.ts$)/,
 ];
 
 export function needsDesignApproval(files, body) {
-  return (
-    /^Public contract: changed[ \t]*$/im.test(body ?? "") ||
-    files.some((file) =>
-      publicContractPaths.some((pattern) => pattern.test(file)),
-    )
+  const fields = (body ?? "").match(/^Public contract:[^\r\n]*/gm) ?? [];
+  const impact = fields[0]?.slice("Public contract:".length).trim();
+  if (
+    fields.length > 1 ||
+    (fields.length && !["changed", "unchanged"].includes(impact))
+  ) {
+    throw new Error(
+      "Use a single Public contract: changed or Public contract: unchanged line.",
+    );
+  }
+  const authored = files.some((file) =>
+    publicContractPaths.some((pattern) => pattern.test(file)),
   );
+  if (authored && impact === "unchanged") {
+    throw new Error(
+      "This PR edits a public contract source and needs design approval.",
+    );
+  }
+  if (!authored && !impact && files.some(shipsInAnyPackage)) {
+    throw new Error(
+      "Classify the shipped changes as Public contract: changed or Public contract: unchanged in the PR body.",
+    );
+  }
+  return authored || impact === "changed";
 }
 
 export function approvalLink(body, repository) {
@@ -51,6 +70,16 @@ export function verifyDesignApproval({ pull, link, comment, commits }) {
     throw new Error(
       `Approval must name ${scope} and record the concrete design decision.`,
     );
+  }
+  for (const field of ["Acceptance", "Verification"]) {
+    const prefix = `${field}:`;
+    if (
+      !details.some(
+        (line) => line.startsWith(prefix) && line.slice(prefix.length).trim(),
+      )
+    ) {
+      throw new Error(`The approval must include a ${field}: line.`);
+    }
   }
   const approvedAt = Date.parse(comment.created_at);
   if (

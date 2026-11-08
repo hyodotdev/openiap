@@ -835,7 +835,8 @@ function Releases() {
           </AnchorLink>
           <p>
             The conformance runner takes its webhook timestamp cases from the
-            spec. The 300-second tolerance and the wire contract are unchanged.
+            spec, and the test suite checks that retry expectations match the
+            spec’s response table.
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
           <ul>

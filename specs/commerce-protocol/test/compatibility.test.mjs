@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   findCompatibilityChanges,
+  hasMigrationNote,
   protocolMajor,
 } from "../scripts/audit-compatibility.mjs";
 
@@ -123,6 +124,24 @@ describe("Commerce compatibility against the base revision", () => {
     expect(findCompatibilityChanges(baseline, next)).toContain(
       "Webhook signature changed the timestamp boundary",
     );
+  });
+
+  it("detects changes to delivery retry semantics in the normative table", () => {
+    const next = structuredClone(baseline);
+    next.spec = next.spec.replace("`408`, `429`, `5xx`", "`408`, `409`, `5xx`");
+    expect(findCompatibilityChanges(baseline, next)).toContain(
+      "Webhook delivery changed the response semantics table",
+    );
+  });
+
+  it("requires migration instructions for the target protocol version in §12", () => {
+    const spec = baseline.spec.replace(
+      "## 13. Provider switching",
+      "### Migration to 2.0\n\nRead the replacement member.\n\n## 13. Provider switching",
+    );
+    expect(hasMigrationNote(spec, "2.0")).toBe(true);
+    expect(hasMigrationNote(spec, "3.0")).toBe(false);
+    expect(hasMigrationNote(baseline.spec, "2.0")).toBe(false);
   });
 
   it("rejects invalid versions before using a major bump to admit breaks", () => {

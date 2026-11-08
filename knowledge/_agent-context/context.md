@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-11-08T08:53:39.257Z
+> Last updated: 2026-11-08T09:04:27.784Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -415,8 +415,11 @@ Open a proposal issue in this repository with the concrete design and the
 intended implementation branch. Before implementation, Hyo posts an approval
 comment beginning with
 `Approved public contract design for OWNER/REPO:BRANCH into hyodotdev/openiap:main`,
-followed by the approved decisions. Keep the comment unedited so GitHub retains
-its original approval timestamp. Record a revised decision in a new comment.
+followed by the approved decisions. Include an `Acceptance:` line with the
+expected outcome and a rejection or edge case, and a `Verification:` line
+naming the spec section or behavior ID and the test that will verify it. Keep
+the comment unedited so GitHub retains its original approval timestamp.
+Record a revised decision in a new comment.
 
 Put `Design approval: https://github.com/hyodotdev/openiap/issues/123#issuecomment-456`
 on its own line in the implementation PR body. CI checks the comment's author,
@@ -428,9 +431,12 @@ the change follows the approved design and review any changes to the CI gate.
 
 CI detects edits to Client and Commerce schemas and their generated output,
 Client capability and conformance definitions, purchase-flow vectors, Commerce
-`SPEC.md`, and signature vectors.
-For a public contract change elsewhere, add `Public contract: changed` on its
-own line in the PR body. CI rechecks approval when the PR body changes.
+`SPEC.md`, Commerce vectors, and Commerce public declarations. For other shipped
+source, declare `Public contract: changed` or `Public contract: unchanged` on
+its own line in the PR body. Use `changed` for any public change outside those
+paths as well. Link the executed acceptance tests in the PR so reviewers can
+trace the result back to the approved requirement. CI rechecks approval when
+the PR body changes.
 
 ### Verification Services Are Peers
 

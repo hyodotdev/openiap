@@ -257,33 +257,6 @@ const IAP = require('../index');
 const expectedError = (id: keyof typeof behaviorErrors) =>
   expect.stringMatching(new RegExp(`^(?:${behaviorErrors[id].join('|')})$`));
 
-/** Behavior ids from packages/conformance this suite verifies. */
-const COVERED_BEHAVIORS = [
-  'products.fetch-returns-requested-skus',
-  'products.fetch-normalizes-required-fields',
-  'products.fetch-separates-in-app-and-subscription-types',
-  'products.fetch-empty-sku-list-is-an-error',
-  'purchases.request-emits-purchase-updated-on-success',
-  'purchases.request-emits-error-on-user-cancel',
-  'purchases.already-owned-surfaces-already-owned-error',
-  'purchases.unknown-sku-surfaces-sku-not-found',
-  'purchases.pending-purchase-is-not-delivered-as-purchased',
-  'completion.finish-removes-transaction-from-pending',
-  'completion.finish-is-idempotent',
-  'completion.unfinished-purchase-remains-available',
-  'restoration.available-purchases-returns-owned-items',
-  'restoration.available-purchases-excludes-consumed-items',
-  'restoration.available-purchases-is-empty-for-new-user',
-  'subscriptions.active-subscription-is-reported-active',
-  'subscriptions.groups-keep-independent-identifiers',
-  'subscriptions.has-active-agrees-with-get-active',
-  'identifiers.purchase-carries-a-concrete-store',
-  'identifiers.purchase-token-is-stable-across-reads',
-  'verification.result-exposes-uniform-validity',
-  'verification.forged-token-is-invalid',
-  'verification.infrastructure-error-is-not-a-verdict',
-];
-
 const androidRequest = (sku: string) => ({
   request: {google: {skus: [sku]}},
   type: 'in-app' as const,
@@ -295,11 +268,6 @@ describe('conformance: react-native-iap', () => {
     purchaseUpdatedListeners.length = 0;
     purchaseErrorListeners.length = 0;
     await IAP.initConnection();
-  });
-
-  it('declares distinct, namespaced behavior ids', () => {
-    expect(new Set(COVERED_BEHAVIORS).size).toBe(COVERED_BEHAVIORS.length);
-    COVERED_BEHAVIORS.forEach((id) => expect(id).toContain('.'));
   });
 
   // --- products -----------------------------------------------------------
