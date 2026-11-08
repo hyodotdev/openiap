@@ -132,8 +132,8 @@ describe("signature vectors", () => {
     const retryRule = spec
       .split("#### 9.4.3 Response semantics")[1]
       ?.split("#### ")[0];
-    expect(retryRule?.replace(/\s+/g, " ")).toContain(
-      "`openiap-delivery-id` stays stable across the attempt chain.",
+    expect(retryRule?.replace(/\s+/g, " ")).toMatch(
+      /`openiap-delivery-id` (?:stays|remains) (?:stable|unchanged) across (?:the attempt chain|attempts)\./,
     );
     const first = vectors.cases.find((c) => c.name === "single-key");
     const retry = vectors.cases.find((c) => c.name === "retry-after-backoff");

@@ -103,8 +103,12 @@ function verifyApprovedScope(details, files, readTest) {
     }
     const source = readTest(path);
     const quoted = test.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const testCall = `(?:it|test)\\(\\s*(["'])${quoted}\\1\\s*,`;
+    const modifier =
+      "(?:@[\\w.]+(?:\\([^\\r\\n)]*\\))?|\\[[^\\]\\r\\n]+\\]|public|private|internal|protected|fileprivate|final|open|override|virtual|sealed|static|async|unsafe)";
+    const nativeMethod = `(?:${modifier}[ \\t]+)*(?:func|fun|void|Task|ValueTask)[ \\t]+(?:${quoted}|\\x60${quoted}\\x60)[ \\t]*\\(`;
     const declaration = new RegExp(
-      `^[ \\t]*(?:(?:it|test)\\(\\s*(["'])${quoted}\\1\\s*,|(?:func|fun|void)\\s+${quoted}\\s*\\()`,
+      `^[ \\t]*(?:${testCall}|${nativeMethod})`,
       "m",
     );
     if (!source || !declaration.test(source)) {

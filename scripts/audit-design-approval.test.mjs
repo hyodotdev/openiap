@@ -164,6 +164,34 @@ test("requires a named test in the current tree", () => {
   assert.throws(() => verifyDesignApproval(value), /repository test path/);
 });
 
+test("finds native tests with attributes, modifiers, and async return types", () => {
+  for (const [path, name, declaration] of [
+    [
+      "Tests/RestoreTests.swift",
+      "testRestore",
+      "@MainActor override func testRestore() async {}",
+    ],
+    [
+      "src/test/RestoreTests.kt",
+      "restores a purchase",
+      "@Test internal fun `restores a purchase`() {}",
+    ],
+    [
+      "tests/RestoreTests.cs",
+      "TestRestore",
+      "[Fact] public async Task TestRestore() {}",
+    ],
+  ]) {
+    const value = fixture();
+    value.comment.body = value.comment.body.replace(
+      /^Verification:.*$/m,
+      `Verification: ${path}#${name}`,
+    );
+    value.readTest = (file) => (file === path ? declaration : undefined);
+    assert.doesNotThrow(() => verifyDesignApproval(value), declaration);
+  }
+});
+
 test("rejects an unrelated, edited, or unauthorized approval", () => {
   const value = fixture();
   value.comment.user.id = 1;
