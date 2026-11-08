@@ -78,14 +78,19 @@ RUN --mount=type=secret,id=VITE_KIT_MIXPANEL_TOKEN,required=false \
 # Remove the zlib overlay when Distroless ships the fix for CVE-2026-85091.
 FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS zlib-security
 WORKDIR /tmp
-RUN set -eux; \
-    apt-get update; \
-    apt-get download zlib1g; \
-    dpkg --compare-versions "$(dpkg-deb --field zlib1g_*.deb Version)" ge '1:1.3.dfsg+really1.3.1-1+deb13u1'; \
-    dpkg-deb --extract zlib1g_*.deb /zlib; \
+ARG TARGETARCH
+ADD https://snapshot.debian.org/archive/debian-security/20261107T075304Z/pool/updates/main/z/zlib/zlib1g_1.3.dfsg+really1.3.1-1+deb13u1_${TARGETARCH}.deb zlib1g.deb
+RUN --network=none set -eux; \
+    case "$TARGETARCH" in \
+      amd64) checksum=8c27c342230503b73dfde629642c3b352e87b554e06d60cf58772f236a305ceb ;; \
+      arm64) checksum=0e41b3d7ad8ad7fcd36dd4d61ca91a70018478fc4af652e044f4be770784ddff ;; \
+      *) exit 1 ;; \
+    esac; \
+    printf '%s  zlib1g.deb\n' "$checksum" | sha256sum -c -; \
+    dpkg-deb --extract zlib1g.deb /zlib; \
     mkdir -p /zlib/var/lib/dpkg/status.d; \
-    dpkg-deb --field zlib1g_*.deb > /zlib/var/lib/dpkg/status.d/zlib1g; \
-    dpkg-deb --control zlib1g_*.deb control; \
+    dpkg-deb --field zlib1g.deb > /zlib/var/lib/dpkg/status.d/zlib1g; \
+    dpkg-deb --control zlib1g.deb control; \
     cp control/md5sums /zlib/var/lib/dpkg/status.d/zlib1g.md5sums
 
 # --- Runtime image (single binary + static assets) -----------------------
