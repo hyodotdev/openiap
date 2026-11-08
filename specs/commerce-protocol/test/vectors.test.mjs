@@ -140,6 +140,7 @@ describe("signature vectors", () => {
     expect(JSON.parse(retry.body).eventId).toBe(JSON.parse(first.body).eventId);
     expect(retry.body).toBe(first.body);
     expect(retry.deliveryId).toBe(first.deliveryId);
+    expect(retry.secret).toBe(first.secret);
     expect(retry.timestamp).toBeGreaterThan(first.timestamp);
     expect(retry.expected).not.toBe(first.expected);
     expect(
