@@ -46,6 +46,9 @@ already installs it.
 
 ## Changing the Client Schema
 
+For any public contract change, agree on the design first and
+[record the approval for CI](knowledge/internal/02-architecture.md#recording-approval-for-ci).
+
 1. Edit `specs/client/src/*.graphql`.
 2. Run `cd specs/client && bun run generate && bun run test`. Generation
    rewrites every language and syncs every SDK copy in one step.
@@ -55,6 +58,9 @@ already installs it.
 
 Never edit generated files by hand; the list is in
 [AGENTS.md](AGENTS.md#auto-generated-files-do-not-edit).
+
+Maintainers document [Client Protocol changes](knowledge/internal/05-docs-patterns.md#client-protocol-changes)
+at the top of the release card.
 
 ## Changing the Commerce Protocol
 

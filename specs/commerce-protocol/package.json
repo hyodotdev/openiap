@@ -24,8 +24,8 @@
     "./schema/*": "./schema/*"
   },
   "scripts": {
-    "build": "node scripts/assemble-schema.mjs && node scripts/build-json-schemas.mjs && node scripts/build-bundle.mjs && node scripts/build-lifecycle-vectors.mjs && node scripts/build-operations.mjs",
-    "test": "node scripts/assemble-schema.mjs --check && node scripts/build-json-schemas.mjs --check && node scripts/build-bundle.mjs --check && node scripts/build-lifecycle-vectors.mjs --check && node scripts/build-operations.mjs --check && prettier --check \"**/*.{graphql,json,md,mjs,ts}\" && vitest run test && node scripts/quickstart.mjs",
+    "build": "node scripts/assemble-schema.mjs && node scripts/build-json-schemas.mjs && node scripts/build-bundle.mjs && node scripts/build-lifecycle-vectors.mjs && node scripts/build-operations.mjs && node scripts/build-signature-clock.mjs",
+    "test": "node scripts/assemble-schema.mjs --check && node scripts/build-json-schemas.mjs --check && node scripts/build-bundle.mjs --check && node scripts/build-lifecycle-vectors.mjs --check && node scripts/build-operations.mjs --check && node scripts/build-signature-clock.mjs --check && prettier --check \"**/*.{graphql,json,md,mjs,ts}\" && vitest run test && node scripts/quickstart.mjs",
     "quickstart": "node scripts/quickstart.mjs"
   },
   "keywords": [

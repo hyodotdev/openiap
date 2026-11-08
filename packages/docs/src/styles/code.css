@@ -208,6 +208,36 @@ pre code {
   overflow-y: visible;
 }
 
+.client-protocol-diff code {
+  white-space: normal;
+}
+
+.client-protocol-diff span {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.client-protocol-diff [data-change='+'] {
+  background: #dafbe1;
+  color: #116329;
+}
+
+.client-protocol-diff [data-change='-'] {
+  background: #ffebe9;
+  color: #82071e;
+}
+
+:root.dark .client-protocol-diff [data-change='+'] {
+  background: #163324;
+  color: #aff5b4;
+}
+
+:root.dark .client-protocol-diff [data-change='-'] {
+  background: #42252a;
+  color: #ffdcd7;
+}
+
 /* Syntax Highlighting - Light Mode (Saturated colors for better visibility) */
 /* Comments */
 .code-block .token.comment,

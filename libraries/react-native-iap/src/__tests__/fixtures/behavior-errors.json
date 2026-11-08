@@ -1,0 +1,18 @@
+{
+  "products.fetch-empty-sku-list-is-an-error": [
+    "empty-sku-list"
+  ],
+  "purchases.request-emits-error-on-user-cancel": [
+    "user-cancelled"
+  ],
+  "purchases.already-owned-surfaces-already-owned-error": [
+    "already-owned"
+  ],
+  "errors.unrecognized-store-code-normalizes-to-unknown": [
+    "unknown"
+  ],
+  "verification.infrastructure-error-is-not-a-verdict": [
+    "service-error",
+    "network-error"
+  ]
+}

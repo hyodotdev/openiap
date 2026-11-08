@@ -8,9 +8,7 @@
  * Behavior ids match packages/conformance/src/spec/behaviors.mjs.
  */
 
-// Marks this file as a module. Without it the top-level declarations below
-// land in the global scope and collide with the other suites' fixtures.
-export {};
+import behaviorErrors from './fixtures/behavior-errors.json';
 
 type FakeRecord = {
   token: string;
@@ -256,6 +254,9 @@ jest.mock('react-native', () => ({
 
 const IAP = require('../index');
 
+const expectedError = (id: keyof typeof behaviorErrors) =>
+  expect.stringMatching(new RegExp(`^(?:${behaviorErrors[id].join('|')})$`));
+
 /** Behavior ids from packages/conformance this suite verifies. */
 const COVERED_BEHAVIORS = [
   'products.fetch-returns-requested-skus',
@@ -339,7 +340,7 @@ describe('conformance: react-native-iap', () => {
     await expect(
       IAP.fetchProducts({skus: [], type: 'in-app'}),
     ).rejects.toMatchObject({
-      code: 'empty-sku-list',
+      code: expectedError('products.fetch-empty-sku-list-is-an-error'),
     });
   });
 
@@ -366,7 +367,9 @@ describe('conformance: react-native-iap', () => {
       IAP.requestPurchase(androidRequest('dev.hyo.martie.10bulbs')),
     ).rejects.toBeDefined();
 
-    expect(errors[0]?.code).toBe('user-cancelled');
+    expect(
+      behaviorErrors['purchases.request-emits-error-on-user-cancel'],
+    ).toContain(errors[0]?.code);
     expect(purchases).toHaveLength(0);
   });
 
@@ -374,7 +377,11 @@ describe('conformance: react-native-iap', () => {
     await IAP.requestPurchase(androidRequest('dev.hyo.martie.lifetime'));
     await expect(
       IAP.requestPurchase(androidRequest('dev.hyo.martie.lifetime')),
-    ).rejects.toMatchObject({code: 'already-owned'});
+    ).rejects.toMatchObject({
+      code: expectedError(
+        'purchases.already-owned-surfaces-already-owned-error',
+      ),
+    });
   });
 
   it('purchases.pending-purchase-is-not-delivered-as-purchased', async () => {
@@ -575,10 +582,8 @@ describe('conformance: react-native-iap', () => {
           isSub: false,
         },
       }),
-      // The statement requires a ServiceError/NetworkError surface, not just
-      // any rejection.
     ).rejects.toMatchObject({
-      code: expect.stringMatching(/^(service-error|network-error)$/),
+      code: expectedError('verification.infrastructure-error-is-not-a-verdict'),
     });
   });
 });

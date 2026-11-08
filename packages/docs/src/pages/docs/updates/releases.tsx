@@ -17,6 +17,44 @@ const noteCardStyle = {
   maxWidth: '100%',
 };
 
+function ClientProtocolChange({
+  version,
+  source,
+  diff,
+  children,
+}: {
+  version: string;
+  source: string;
+  diff?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <>
+      <h5>Client Protocol {version}</h5>
+      {diff && (
+        <pre className="code-block client-protocol-diff">
+          <code>
+            {diff.split('\n').map((line, index) => (
+              <span key={index} data-change={line[0]}>
+                {line}
+                {'\n'}
+              </span>
+            ))}
+          </code>
+        </pre>
+      )}
+      <p>
+        {children}{' '}
+        <a
+          href={`https://github.com/hyodotdev/openiap/blob/openiap-client-protocol-${version}/specs/client/src/${source}`}
+        >
+          View contract source
+        </a>
+      </p>
+    </>
+  );
+}
+
 interface Note {
   id: string;
   date: Date;
@@ -35,6 +73,14 @@ interface ReleaseChange extends ReleaseMetadata {
 
 const IAPKIT_CLI_RELEASES: readonly ReleaseMetadata[] = [
   { name: '@hyodotdev/openiap', version: '0.3.0', tag: 'openiap-0.3.0' },
+];
+
+const COMMERCE_CONFORMANCE_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: '@hyodotdev/openiap-commerce-protocol',
+    version: '0.3.4',
+    tag: 'hyodotdev-openiap-commerce-protocol-0.3.4',
+  },
 ];
 
 const PURCHASE_ENVIRONMENT_RELEASES: readonly ReleaseMetadata[] = [
@@ -777,6 +823,36 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
+      id: 'commerce-conformance-clock-2026-11-08',
+      date: new Date('2026-11-08'),
+      element: (
+        <div key="commerce-conformance-clock-2026-11-08" style={noteCardStyle}>
+          {COMMERCE_CONFORMANCE_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="commerce-conformance-clock-2026-11-08" level="h4">
+            November 8, 2026 - Commerce webhook conformance checks
+          </AnchorLink>
+          <p>
+            The conformance runner takes its webhook timestamp cases from the
+            spec. The 300-second tolerance and the wire contract are unchanged.
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <ul>
+            {COMMERCE_CONFORMANCE_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                >
+                  {getReleaseLabel(release)}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
+    {
       id: 'react-native-nitro-cause-2026-11-05',
       date: new Date('2026-11-05'),
       element: (
@@ -822,36 +898,26 @@ function Releases() {
             November 4, 2026 - Restore through the purchase flow alone
           </AnchorLink>
           <p>
-            A purchase flow restore reads the store&apos;s history through the
-            flow, fails when a confirmation fails, and confirms on-device
-            purchases it already finished.
+            Restore through the purchase flow now reports confirmation failures.
           </p>
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>
-            Protocols and native packages
-          </h5>
-          <ul>
-            <li>
-              <strong>Client Protocol 1.3.3</strong>:{' '}
-              <code>confirmOnDeviceIOS</code> also answers a purchase the flow
-              already finished, from StoreKit&apos;s verified history, as{' '}
-              <code>entitled</code> with <code>alreadyGranted</code>, and grants
-              a non-consumable again. A revoked or upgraded transaction ends as{' '}
-              <code>invalid</code>, and an expired one as{' '}
-              <code>verification_delayed</code>, since billing grace can still
-              cover it.
-            </li>
-            <li>
-              <strong>openiap-apple 4.0.9 and openiap-google 4.0.10</strong>:
-              report Client Protocol 1.3.3.
-            </li>
-          </ul>
+          <ClientProtocolChange
+            version="1.3.3"
+            source="purchase-flow-confirmers.ts#L141-L170"
+          >
+            <strong>Before:</strong> <code>confirmOnDeviceIOS</code> could only
+            confirm unfinished purchases.
+            <br />
+            <strong>Now:</strong> It also checks verified StoreKit history, so
+            restore can recover access from finished purchases without crediting
+            consumables twice.
+          </ClientProtocolChange>
+          <p>
+            <strong>openiap-apple 4.0.9</strong> only updates the reported
+            Client Protocol version, and each framework SDK implements the new
+            restore behavior.
+          </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
           <ul>
-            <li>
-              <strong>All six</strong>: <code>confirmOnDeviceIOS</code> reads
-              StoreKit&apos;s history as Client Protocol 1.3.3 describes, so an
-              on-device restore confirms purchases it finished before.
-            </li>
             <li>
               <strong>react-native-iap 17.3.3 and expo-iap 6.4.3</strong>: with{' '}
               <code>purchaseFlow</code> set, the hook&apos;s{' '}
@@ -918,23 +984,25 @@ function Releases() {
             November 3, 2026 - One check per purchase on an iOS restore
           </AnchorLink>
           <p>
-            A purchase flow restore on iOS now works the same in each framework
-            below: it reads the full transaction history and confirms each
-            purchase once, through its newest transaction.
+            On iOS, the purchase flow restores access from transaction history
+            across the frameworks below.
           </p>
+          <ClientProtocolChange
+            version="1.3.2"
+            source="purchase-flow-core.ts"
+            diff={` export interface PurchaseFlowPurchase {
++  originalTransactionIdentifierIOS?: string | null;
++  transactionDate?: number;
+ }`}
+          >
+            iOS restore confirms the newest transaction per Apple purchase chain
+            plus unfinished transactions. It reuses outcomes the listener
+            settles during that restore.
+          </ClientProtocolChange>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
             Protocols and native packages
           </h5>
           <ul>
-            <li>
-              <strong>Client Protocol 1.3.2</strong>: on a restore, the purchase
-              flow core skips older transactions of the same Apple purchase and
-              reuses what the listener settled during the recovery pass.
-            </li>
-            <li>
-              <strong>openiap-apple 4.0.8 and openiap-google 4.0.9</strong>:
-              report Client Protocol 1.3.2.
-            </li>
             <li>
               <strong>Commerce Protocol 0.3.3</strong>: updated contribution
               rules in <code>CONVENTION.md</code>; the contract is unchanged.
@@ -953,11 +1021,6 @@ function Releases() {
               </strong>
               : a restore now reads the full history, once per purchase, so it
               also confirms a subscription in billing grace.
-            </li>
-            <li>
-              <strong>All five</strong>: a purchase the listener finishes or
-              finally rejects during a restore&apos;s recovery pass is not
-              confirmed a second time.
             </li>
             <li>
               <strong>react-native-iap 17.3.2 and expo-iap 6.4.2</strong>: iOS
@@ -1131,16 +1194,18 @@ function Releases() {
             test build. React Native also exposes structured native purchase
             errors across calls and listeners.
           </p>
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>
-            Protocols and native packages
-          </h5>
-          <ul>
-            <li>
-              <strong>Client Protocol 1.3.1</strong> adds Amazon verdict
-              expectations to the IAPKit helper and confirmation vectors; direct
-              helper and vector consumers need this release for the new cases.
-            </li>
-          </ul>
+          <ClientProtocolChange
+            version="1.3.1"
+            source="purchase-flow-confirmers.ts#L23-L29"
+            diff={`   amazon?: {
+     sandbox?: boolean;
++    expectedEnvironment?: "Sandbox" | "Production";
+   };`}
+          >
+            The default verdict environment is <code>Sandbox</code> when{' '}
+            <code>amazon.sandbox</code> is true and <code>Production</code>{' '}
+            otherwise.
+          </ClientProtocolChange>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
           <ul>
             <li>
@@ -1320,6 +1385,13 @@ npx --yes @hyodotdev/openiap kit schema keys create --json`}</CodeBlock>
             or supply another verifier through the existing{' '}
             <code>confirmWithBackend</code> callback.
           </p>
+          <ClientProtocolChange
+            version="1.3.0"
+            source="purchase-flow.ts#L18-L61"
+          >
+            The low-level confirmers and IAPKit verification types in{' '}
+            <code>/purchase-flow</code> are deprecated for removal in 2.0.
+          </ClientProtocolChange>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Common changes</h5>
           <Callout kind="important" title="Correcting our API design">
             <p>
@@ -1334,12 +1406,6 @@ npx --yes @hyodotdev/openiap kit schema keys create --json`}</CodeBlock>
               public confirmation result, so another service can implement it
               without adopting IAPKit&apos;s response model.
             </p>
-            <p>
-              We deprecated those helpers one release later so new apps would
-              use the SDK entry points before more code depended on the
-              low-level APIs. Existing imports, signatures and behavior stay
-              supported until their scheduled next major.
-            </p>
           </Callout>
           <p>
             On Vega, react-native-iap and expo-iap no longer infer renewal from
@@ -1349,11 +1415,6 @@ npx --yes @hyodotdev/openiap kit schema keys create --json`}</CodeBlock>
             Protocols and native packages
           </h5>
           <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
-            <li>
-              <strong>Client Protocol 1.3.0</strong>: keeps the published
-              purchase-flow callback contract and retains the deprecated helpers
-              and verification types until Client Protocol 2.0.
-            </li>
             <li>
               <strong>openiap-apple 4.0.5</strong>: the SwiftUI example now
               displays subscription prices and purchase options correctly.

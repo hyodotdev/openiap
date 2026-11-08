@@ -17,6 +17,11 @@ packages/conformance/src/spec/        what each behavior must do   <- you are he
 See the [Conformance Testing Audit](https://github.com/hyodotdev/openiap/blob/main/packages/conformance/CONFORMANCE_AUDIT.md)
 for current coverage, reproduction commands, and evidence limits.
 
+When a behavior names an `ErrorCode`, the generator resolves it through the
+generated Client enum. Run `bun run --cwd packages/conformance generate:ids`
+to refresh the expected errors for the reference, React Native, and Expo
+suites.
+
 ## Versioning
 
 A report states two versions, and neither is optional:

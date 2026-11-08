@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+    types: [opened, synchronize, reopened, edited]
   push:
     branches:
       - main
@@ -47,6 +48,15 @@ jobs:
         run: |
           node --test scripts/audit-plugin-manifests.test.mjs
           node scripts/audit-plugin-manifests.mjs
+
+      - name: Test the public contract approval audit
+        run: node --test scripts/audit-design-approval.test.mjs
+
+      - name: Verify prior design approval for public contract changes
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/audit-design-approval.mjs
 
       - name: Require a release note for published source changes
         if: github.event_name == 'pull_request' && github.base_ref == 'main'
@@ -292,6 +302,7 @@ jobs:
               - 'libraries/expo-iap/src/__tests__/conformance.test.ts'
               - 'specs/client/package.json'
               - 'specs/client/src/capability-matrix.mjs'
+              - 'specs/client/src/generated/types.ts'
               - 'package.json'
               - 'bun.lock'
               - '.github/workflows/ci.yml'
@@ -489,6 +500,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Setup Bun
@@ -510,6 +522,20 @@ jobs:
       - name: Run spec suite
         working-directory: specs/commerce-protocol
         run: bun run test
+
+      - name: Compare Commerce with the PR base and latest stable tag
+        if: github.event_name == 'pull_request'
+        working-directory: specs/commerce-protocol
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          stable_ref=$(git ls-remote --tags --refs --sort=-version:refname origin \
+            'refs/tags/hyodotdev-openiap-commerce-protocol-*' | \
+            awk '$2 ~ /^refs\/tags\/hyodotdev-openiap-commerce-protocol-[0-9]+\.[0-9]+\.[0-9]+$/ && !found { print $2; found = 1 }')
+          test -n "$stable_ref"
+          git fetch --depth=1 --no-tags origin "$stable_ref:$stable_ref"
+          node scripts/audit-compatibility.mjs --base "$BASE_SHA"
+          node scripts/audit-compatibility.mjs --base "$stable_ref"
 
       - name: Verify IAPKit conformance
         working-directory: packages/kit
@@ -548,7 +574,7 @@ jobs:
         working-directory: packages/conformance
         run: bun run test
 
-      - name: Verify cross-language behavior ids are in sync
+      - name: Verify conformance spec projections
         run: node packages/conformance/scripts/generate-behavior-ids.mjs --check
 
       - name: Reference conformance report

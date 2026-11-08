@@ -216,7 +216,11 @@ jest.mock('react-native', () => ({
 
 /* eslint-disable import/first */
 import * as IAP from '../index';
-import {ErrorCode, type Purchase} from '../types';
+import type {Purchase} from '../types';
+import behaviorErrors from './fixtures/behavior-errors.json';
+
+const expectedError = (id: keyof typeof behaviorErrors) =>
+  expect.stringMatching(new RegExp(`^(?:${behaviorErrors[id].join('|')})$`));
 
 /** Behavior ids from packages/conformance this suite verifies. */
 const COVERED_BEHAVIORS = [
@@ -310,7 +314,7 @@ describe('conformance: expo-iap', () => {
     await expect(
       IAP.fetchProducts({skus: [], type: 'in-app'}),
     ).rejects.toMatchObject({
-      code: ErrorCode.EmptySkuList,
+      code: expectedError('products.fetch-empty-sku-list-is-an-error'),
     });
   });
 
@@ -325,7 +329,9 @@ describe('conformance: expo-iap', () => {
   it('purchases.already-owned-surfaces-already-owned-error', async () => {
     await buy('dev.hyo.martie.lifetime');
     await expect(buy('dev.hyo.martie.lifetime')).rejects.toMatchObject({
-      code: 'already-owned',
+      code: expectedError(
+        'purchases.already-owned-surfaces-already-owned-error',
+      ),
     });
   });
 
@@ -474,10 +480,8 @@ describe('conformance: expo-iap', () => {
           isSub: false,
         },
       }),
-      // The statement requires a ServiceError/NetworkError surface, not just
-      // any rejection.
     ).rejects.toMatchObject({
-      code: expect.stringMatching(/^(service-error|network-error)$/),
+      code: expectedError('verification.infrastructure-error-is-not-a-verdict'),
     });
   });
 });

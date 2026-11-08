@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { FakeStore, StoreOutcome } from '../fake-store/fake-store.mjs';
 import { ReferenceImplementation } from '../fake-store/reference-implementation.mjs';
+import { ERROR_EXPECTATIONS } from '../spec/generated-errors.mjs';
 import { capabilityLevel } from '../spec/generated-spec.mjs';
 
 /**
@@ -16,6 +17,13 @@ const CATALOG = [
   { sku: 'dev.hyo.martie.10bulbs', type: 'in-app' },
   { sku: 'dev.hyo.martie.lifetime', type: 'in-app' },
 ];
+
+function assertBehaviorError(behaviorId, code) {
+  const expected = ERROR_EXPECTATIONS[behaviorId];
+  assert.ok(expected?.length, `${behaviorId} must declare its ErrorCode in the behavior spec`);
+  assert.ok(expected.includes(code), `${behaviorId} returned ${code}; expected ${expected.join(' or ')}`);
+  return true;
+}
 
 export function createReferenceAdapter({ store = 'Google' } = {}) {
   const fake = new FakeStore({ catalog: CATALOG, store });
@@ -59,7 +67,8 @@ export function createReferenceAdapter({ store = 'Google' } = {}) {
       'products.fetch-empty-sku-list-is-an-error': async () => {
         await assert.rejects(
           () => fresh().fetchProducts({ skus: [] }),
-          (error) => error.code === 'empty-sku-list',
+          (error) =>
+            assertBehaviorError('products.fetch-empty-sku-list-is-an-error', error.code),
         );
       },
 
@@ -91,7 +100,7 @@ export function createReferenceAdapter({ store = 'Google' } = {}) {
         fake.forceOutcome('dev.hyo.martie.10bulbs', StoreOutcome.UserCancelled);
 
         await assert.rejects(() => impl.requestPurchase({ sku: 'dev.hyo.martie.10bulbs' }));
-        assert.equal(errors[0]?.code, 'user-cancelled');
+        assertBehaviorError('purchases.request-emits-error-on-user-cancel', errors[0]?.code);
         assert.equal(purchases.length, 0, 'a cancelled purchase must not emit purchase-updated');
       },
 
@@ -100,7 +109,8 @@ export function createReferenceAdapter({ store = 'Google' } = {}) {
         await impl.requestPurchase({ sku: 'dev.hyo.martie.lifetime' });
         await assert.rejects(
           () => impl.requestPurchase({ sku: 'dev.hyo.martie.lifetime' }),
-          (error) => error.code === 'already-owned',
+          (error) =>
+            assertBehaviorError('purchases.already-owned-surfaces-already-owned-error', error.code),
         );
       },
 
@@ -242,7 +252,8 @@ export function createReferenceAdapter({ store = 'Google' } = {}) {
         fake.forceOutcome('dev.hyo.martie.10bulbs', 'SomeFutureStoreOutcome');
         await assert.rejects(
           () => impl.requestPurchase({ sku: 'dev.hyo.martie.10bulbs' }),
-          (error) => error.code === 'unknown',
+          (error) =>
+            assertBehaviorError('errors.unrecognized-store-code-normalizes-to-unknown', error.code),
         );
       },
 
@@ -285,7 +296,8 @@ export function createReferenceAdapter({ store = 'Google' } = {}) {
         fake.setVerifierAvailable(false);
         await assert.rejects(
           () => impl.verifyPurchase({ purchaseToken: purchase.purchaseToken }),
-          (error) => error.code === 'service-error' || error.code === 'network-error',
+          (error) =>
+            assertBehaviorError('verification.infrastructure-error-is-not-a-verdict', error.code),
           'an unreachable verifier must surface an error, not an isValid verdict',
         );
       },

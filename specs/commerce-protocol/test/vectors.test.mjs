@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 
 import Ajv from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
+import { signatureClock } from "../conformance/generated-signature-clock.mjs";
 
 import { WEBHOOK, bundleSchema } from "../src/index.mjs";
 
@@ -67,6 +68,22 @@ describe("signature vectors", () => {
         ? `${signFromSpec(testCase.secret, testCase.timestamp, testCase.body)},${signFromSpec(testCase.previousSecret, testCase.timestamp, testCase.body)}`
         : signFromSpec(testCase.secret, testCase.timestamp, testCase.body);
       expect(produced).toBe(testCase.expected);
+    },
+  );
+
+  it.each(signatureClock.cases)(
+    "checks the signed timestamp at $skew seconds of skew",
+    ({ skew, accepted }) => {
+      const { body, expected: header, secret, timestamp } = vectors.cases[0];
+      expect(
+        verifyFromSpec({
+          body,
+          header,
+          secret,
+          timestampSeconds: timestamp,
+          now: timestamp + skew,
+        }),
+      ).toBe(accepted);
     },
   );
 

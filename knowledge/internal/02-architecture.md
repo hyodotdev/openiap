@@ -130,6 +130,27 @@ to bypass this gate. Return for review if the approved public design changes.
 An internal refactor or bug fix that preserves the approved public contract
 does not require a new design approval.
 
+### Recording approval for CI
+
+Open a proposal issue in this repository with the concrete design and the
+intended implementation branch. Before implementation, Hyo posts an approval
+comment beginning with
+`Approved public contract design for OWNER/REPO:BRANCH into hyodotdev/openiap:main`,
+followed by the approved decisions. Keep the comment unedited so GitHub retains
+its original approval timestamp. Record a revised decision in a new comment.
+
+Put `Design approval: https://github.com/hyodotdev/openiap/issues/123#issuecomment-456`
+on its own line in the implementation PR body. CI checks the comment's author,
+source and target branches, and timestamp against the PR and its recorded
+commit dates. Commit dates are supplied by Git. The reviewer still checks
+that the change implements the approved design.
+
+CI detects edits to Client and Commerce schemas and their generated output,
+Client capability and conformance definitions, purchase-flow vectors, Commerce
+`SPEC.md`, and signature vectors.
+For a public contract change elsewhere, add `Public contract: changed` on its
+own line in the PR body. CI rechecks approval when the PR body changes.
+
 ### Verification Services Are Peers
 
 IAPKit is one third-party verification service. It has no privileged role in

@@ -62,6 +62,13 @@ bundle or modular outputs.
 `test/decentralization.test.mjs` guards this section. Adding a rule here without
 a test there means the rule is decoration.
 
+## Webhook clock cases
+
+The rejection formula in `SPEC.md` §9.4.2 determines which clock offsets the
+runner accepts. Keep the tolerance aligned with `vectors/signatures.json` and
+run `bun run build` to regenerate the clock cases. The runner tests both
+directions at and beyond the boundary against the provider's verifier.
+
 ## This package specifies; it does not implement
 
 Nothing here may import a backend, a database client, or IAPKit. The published
@@ -96,6 +103,14 @@ A MINOR change requires:
 
 A MAJOR change additionally requires a migration note in `SPEC.md` stating what
 breaks and what a consumer pinned to the previous major should do.
+
+CI compares the PR against both its base and the latest stable Commerce release
+tag. To compare a specific release locally, run
+`node scripts/audit-compatibility.mjs --base <git-ref>` after regenerating.
+The check compares the generated wire schemas, operation manifest, GraphQL
+binding, and webhook signature rule. It flags incompatible or uncertain changes
+within the same protocol major. Review behavior changes and documented
+pre-stable exceptions against §12 separately.
 
 ## The store axis has one source
 
