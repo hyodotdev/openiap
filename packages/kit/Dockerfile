@@ -75,6 +75,19 @@ RUN --mount=type=secret,id=VITE_KIT_MIXPANEL_TOKEN,required=false \
     VITE_KIT_MIXPANEL_TOKEN="$(cat /run/secrets/VITE_KIT_MIXPANEL_TOKEN 2>/dev/null || true)" \
     bun run build:all
 
+# Remove the zlib overlay when Distroless ships the fix for CVE-2026-85091.
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS zlib-security
+WORKDIR /tmp
+RUN set -eux; \
+    apt-get update; \
+    apt-get download zlib1g; \
+    dpkg --compare-versions "$(dpkg-deb --field zlib1g_*.deb Version)" ge '1:1.3.dfsg+really1.3.1-1+deb13u1'; \
+    dpkg-deb --extract zlib1g_*.deb /zlib; \
+    mkdir -p /zlib/var/lib/dpkg/status.d; \
+    dpkg-deb --field zlib1g_*.deb > /zlib/var/lib/dpkg/status.d/zlib1g; \
+    dpkg-deb --control zlib1g_*.deb control; \
+    cp control/md5sums /zlib/var/lib/dpkg/status.d/zlib1g.md5sums
+
 # --- Runtime image (single binary + static assets) -----------------------
 FROM gcr.io/distroless/base-debian13:nonroot@sha256:f9518b74815721f537a7458cc693b4406208c04fce23bbffab511516117f34fd AS runtime
 WORKDIR /srv
@@ -84,6 +97,7 @@ LABEL org.opencontainers.image.title="IAPKit" \
       org.opencontainers.image.source="https://github.com/hyodotdev/openiap" \
       org.opencontainers.image.revision="${IAPKIT_REVISION}"
 
+COPY --from=zlib-security /zlib/ /
 COPY --from=builder --chown=65532:65532 /app/packages/kit/openiap-kit-server ./openiap-kit-server
 COPY --from=builder --chown=65532:65532 /app/packages/kit/dist ./public
 
