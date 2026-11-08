@@ -292,6 +292,8 @@ jobs:
               - 'llms-full.txt'
               - '.github/workflows/ci.yml'
             commerce:
+              - 'scripts/check-protocol-compatibility.mjs'
+              - 'scripts/release-branch-policy.mjs'
               - 'specs/commerce-protocol/**'
               - 'specs/client/**'
               - 'packages/kit/**'
@@ -532,26 +534,20 @@ jobs:
         working-directory: specs/commerce-protocol
         run: bun run test
 
-      - name: Compare Commerce with the latest stable tag and PR base
-        working-directory: specs/commerce-protocol
+      - name: Compare Commerce with supported releases and PR base
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          stable_ref=$(git ls-remote --tags --refs --sort=-version:refname origin \
-            'refs/tags/hyodotdev-openiap-commerce-protocol-*' | \
-            awk '$2 ~ /^refs\/tags\/hyodotdev-openiap-commerce-protocol-[0-9]+\.[0-9]+\.[0-9]+$/ && !found { print $2; found = 1 }')
-          test -n "$stable_ref"
-          git fetch --depth=1 --no-tags origin "$stable_ref:$stable_ref"
           if [[ -n "$BASE_SHA" ]]; then
-            node scripts/audit-compatibility.mjs --base "$BASE_SHA"
+            node specs/commerce-protocol/scripts/audit-compatibility.mjs --base "$BASE_SHA"
           fi
-          node scripts/audit-compatibility.mjs --base "$stable_ref"
+          node scripts/check-protocol-compatibility.mjs commerce-protocol
 
       - name: Verify IAPKit conformance
         working-directory: packages/kit
         # The payload conformance proof plus the dual-binding runner pass over
         # the real REST and GraphQL adapters.
-        run: bunx vitest run convex/commerce/spec.conformance.test.ts server/api/commerce/
+        run: bunx vitest run convex/commerce/spec.conformance.test.ts convex/commerce/delivery.test.ts server/api/commerce/
 
   test-conformance:
     name: Test Conformance Suite
@@ -744,6 +740,9 @@ jobs:
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: bun run audit:schema-semver -- --base "origin/$BASE_REF"
+
+      - name: Compare Client SDL with supported releases
+        run: node scripts/check-protocol-compatibility.mjs client-protocol
 
       - name: Verify generated types are committed (no drift)
         run: node scripts/assert-clean-worktree.mjs

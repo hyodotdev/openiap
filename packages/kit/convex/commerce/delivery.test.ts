@@ -13,6 +13,7 @@ import {
   DELIVERY_ID_HEADER,
   EVENT_ID_HEADER,
   SIGNATURE_HEADER,
+  signPayload,
   TIMESTAMP_HEADER,
 } from "./signing";
 
@@ -68,6 +69,64 @@ describe("deliverPendingEventsHandler", () => {
         retryable: false,
       }),
     ]);
+  });
+
+  it("preserves the Commerce retry chain and signs each new attempt", async () => {
+    const retry = { ...claimed, attempts: 1, leaseToken: "lease-2" };
+    const runMutation = vi
+      .fn(
+        async (_reference, _args: Record<string, unknown>): Promise<unknown> =>
+          null,
+      )
+      .mockResolvedValueOnce([claimed])
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce([retry])
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce([]);
+    const requests: DeliveryRequest[] = [];
+    const firstTimestamp = 1787788800;
+    const retryTimestamp = firstTimestamp + 30;
+    vi.setSystemTime(firstTimestamp * 1000);
+
+    await expect(
+      deliverPendingEventsHandler({ runMutation } as never, async (request) => {
+        requests.push(request);
+        vi.setSystemTime(retryTimestamp * 1000);
+        return requests.length === 1 ? 429 : 204;
+      }),
+    ).resolves.toEqual({ attempted: 2, delivered: 1 });
+
+    expect(requests).toHaveLength(2);
+    for (const [index, timestamp] of [
+      firstTimestamp,
+      retryTimestamp,
+    ].entries()) {
+      expect(requests[index]).toMatchObject({
+        body: claimed.body,
+        headers: {
+          [EVENT_ID_HEADER]: claimed.eventId,
+          [DELIVERY_ID_HEADER]: claimed.deliveryId,
+          [TIMESTAMP_HEADER]: String(timestamp),
+          [SIGNATURE_HEADER]: await signPayload(
+            claimed.secret,
+            timestamp,
+            claimed.body,
+          ),
+        },
+      });
+    }
+    expect(runMutation.mock.calls[1][1]).toMatchObject({
+      deliveryId: claimed.deliveryId,
+      leaseToken: claimed.leaseToken,
+      statusCode: 429,
+      retryable: true,
+    });
+    expect(runMutation.mock.calls[3][1]).toMatchObject({
+      deliveryId: claimed.deliveryId,
+      leaseToken: retry.leaseToken,
+      statusCode: 204,
+      ok: true,
+    });
   });
 
   it("records redirects as permanent failures without following them", async () => {

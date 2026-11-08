@@ -4,8 +4,7 @@ import XCTest
 
 /// Apple's binding into the OpenIAP conformance suite.
 ///
-/// Behavior ids come from the generated `ConformanceBehaviors`, so a renamed or
-/// retired id fails to compile here rather than silently losing coverage.
+/// Test method names map to generated behavior IDs in the coverage report.
 ///
 /// Purchase, completion, and restoration behaviors are absent by necessity:
 /// driving them requires a live StoreKit session (StoreKitTest + a .storekit
@@ -13,15 +12,6 @@ import XCTest
 /// ids are declared in `notCoveredBehaviors` with the reason, so the coverage
 /// aggregator reports them as gaps instead of treating silence as success.
 final class StoreConformanceTests: XCTestCase {
-
-    /// Behaviors this suite verifies.
-    static let coveredBehaviors: [String] = [
-        ConformanceBehaviors.errorsStoreCodesNormalizeToSpecErrorCodes,
-        ConformanceBehaviors.errorsUnrecognizedStoreCodeNormalizesToUnknown,
-        ConformanceBehaviors.errorsUnsupportedCodesAreNotSynthesized,
-        ConformanceBehaviors.identifiersPurchaseCarriesAConcreteStore,
-        ConformanceBehaviors.verificationResultExposesUniformValidity,
-    ]
 
     /// Behaviors this implementation cannot verify here, with the reason.
     static let notCoveredBehaviors: [String: String] = [
@@ -42,19 +32,7 @@ final class StoreConformanceTests: XCTestCase {
         ConformanceBehaviors.capabilitiesUnsupportedOperationsDegradePredictably: "no unsupported Apple operation is exposed by this Swift package",
     ]
 
-    func testSuiteDeclaresDistinctBehaviorIds() {
-        let covered = Self.coveredBehaviors
-        XCTAssertEqual(Set(covered).count, covered.count)
-        for id in covered {
-            XCTAssertTrue(id.contains("."), "behavior id must be namespaced: \(id)")
-        }
-        for id in Self.notCoveredBehaviors.keys {
-            XCTAssertFalse(covered.contains(id), "\(id) cannot be both covered and not covered")
-        }
-    }
-
-    // errors.store-codes-normalize-to-spec-error-codes
-    func testStoreCodesNormalizeToSpecErrorCodes() {
+    func testErrorsStoreCodesNormalizeToSpecErrorCodes() {
         let expected: [(SKError.Code, ErrorCode)] = [
             (.paymentCancelled, .userCancelled),
             (.paymentNotAllowed, .iapNotAvailable),
@@ -75,8 +53,7 @@ final class StoreConformanceTests: XCTestCase {
         }
     }
 
-    // errors.unrecognized-store-code-normalizes-to-unknown
-    func testUnrecognizedStoreConditionFallsBackRatherThanGuessing() {
+    func testErrorsUnrecognizedStoreCodeNormalizesToUnknown() {
         // An error outside the StoreKit domain must not be mapped at all, so
         // the caller's fallback applies instead of a fabricated code.
         let foreign = NSError(domain: "com.example.other", code: 4242)
@@ -84,8 +61,7 @@ final class StoreConformanceTests: XCTestCase {
         XCTAssertEqual(PurchaseError.wrap(foreign, fallback: .unknown).code, .unknown)
     }
 
-    // errors.unsupported-codes-are-not-synthesized
-    func testAndroidOnlyErrorCodesAreNeverProduced() {
+    func testErrorsUnsupportedCodesAreNotSynthesized() {
         let androidOnly: Set<ErrorCode> = [
             .alreadyOwned,
             .billingUnavailable,
@@ -103,8 +79,7 @@ final class StoreConformanceTests: XCTestCase {
         }
     }
 
-    // identifiers.purchase-carries-a-concrete-store
-    func testPurchaseCarriesAConcreteStore() throws {
+    func testIdentifiersPurchaseCarriesAConcreteStore() throws {
         let json = """
         {
           "id": "txn-1",
@@ -148,8 +123,7 @@ final class StoreConformanceTests: XCTestCase {
         XCTAssertFalse(community.storeId.isEmpty, "storeId must never be empty")
     }
 
-    // verification.result-exposes-uniform-validity
-    func testEveryVerifyPurchaseVariantExposesIsValid() {
+    func testVerificationResultExposesUniformValidity() {
         // Each variant answers validity the same way, so a caller does not have
         // to switch on the concrete type before gating entitlement.
         let ios = VerifyPurchaseResultIOS(

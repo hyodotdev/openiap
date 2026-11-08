@@ -136,10 +136,17 @@ Open a proposal issue in this repository with the concrete design and the
 intended implementation branch. Before implementation, Hyo posts an approval
 comment beginning with
 `Approved public contract design for OWNER/REPO:BRANCH into hyodotdev/openiap:main`,
-followed by the approved decisions. Include an `Acceptance:` line with the
-expected outcome and a rejection or edge case, and a `Verification:` line
-naming the spec section or behavior ID and the test that will verify it. Keep
-the comment unedited so GitHub retains its original approval timestamp.
+followed by these lines:
+
+- `Design:` names the approved behavior and relevant constraints.
+- `Contract:` names one changed public source path per line. List authored
+  paths. If only generated contract files change, list those files.
+- `Acceptance:` states the expected outcome and a rejection or edge case.
+- `Verification: path/to/example.test.ts#rejects a malformed receipt` identifies
+  one test per line. Use a literal Jest or Vitest title or a native test method
+  name. The test must exist at the PR head.
+
+Keep the comment unedited so GitHub retains its original approval timestamp.
 Record a revised decision in a new comment.
 
 Put `Design approval: https://github.com/hyodotdev/openiap/issues/123#issuecomment-456`
@@ -151,9 +158,10 @@ implementation from the approved design and open a new PR. Reviewers confirm
 the change follows the approved design and review any changes to the CI gate.
 
 CI detects edits to Client and Commerce schemas and their generated output,
-Client capability and conformance definitions, purchase-flow vectors, Commerce
-`SPEC.md`, Commerce vectors, and Commerce public declarations. For other shipped
-source, declare `Public contract: changed` or `Public contract: unchanged` on
+Client capability and conformance definitions, portable Client helpers and
+purchase-flow vectors, Commerce `SPEC.md`, Commerce vectors, and Commerce
+public entry points and declarations, and both compatibility floors. For other
+shipped source, declare `Public contract: changed` or `Public contract: unchanged` on
 its own line in the PR body. Use `changed` for any public change outside those
 paths as well. Link the executed acceptance tests in the PR so reviewers can
 trace the result back to the approved requirement. CI rechecks approval when
