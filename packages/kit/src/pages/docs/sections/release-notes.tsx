@@ -23,6 +23,19 @@ const CHANGE_GROUPS = [
 
 const RELEASES: ReleaseEntry[] = [
   {
+    id: "week-2026-11-09",
+    weekStart: "2026-11-09",
+    date: "2026-11-09",
+    tagline: "Security update for the IAPKit runtime image.",
+    items: [
+      {
+        kind: "security",
+        topic: "Runtime image",
+        text: "The Debian zlib update fixes CVE-2026-85091. Self-hosted deployments should rebuild the IAPKit image.",
+      },
+    ],
+  },
+  {
     id: "week-2026-11-02",
     weekStart: "2026-11-02",
     date: "2026-11-04",
