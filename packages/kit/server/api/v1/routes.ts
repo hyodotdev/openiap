@@ -30,6 +30,7 @@ import {
 import { inFlightLimitMiddleware } from "./in-flight-limit";
 import { requestLoggerMiddleware } from "./request-logger";
 import { validator } from "./validator";
+import { externalCheckoutRoutes } from "./external-checkouts";
 import { webhooksRoutes } from "./webhooks";
 import { subscriptionsRoutes } from "./subscriptions";
 import { productsRoutes } from "./products";
@@ -660,6 +661,7 @@ app.post("/verify-purchase", ...verifyMiddleware);
 // checks the path key, applies the public API limiter, and verifies store
 // authenticity itself (see webhooks.ts).
 app.route("/webhooks", webhooksRoutes);
+app.route("/", externalCheckoutRoutes);
 
 // Subscription state, entitlements (what onesub gates features on), dashboard
 // metrics, and SDK user binding. `/status/{apiKey}` is onesub's `/status`.

@@ -268,6 +268,26 @@ export async function deleteProjectWithData(
     return false;
   }
 
+  const externalTables = [
+    "externalCheckoutJobs",
+    "externalCheckoutRefunds",
+    "externalCheckoutPayments",
+    "externalCheckoutKeys",
+    "externalCheckouts",
+    "externalPurchaseTokens",
+  ] as const;
+  for (const table of externalTables) {
+    const rows = await ctx.db
+      .query(table)
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .take(PROJECT_DELETION_PAGE);
+    for (const row of rows) await ctx.db.delete(row._id);
+    if (rows.length > 0) {
+      await scheduleProjectDeletionContinuation(ctx, projectId);
+      return false;
+    }
+  }
+
   const verificationJobs = await ctx.db
     .query("verificationJobs")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))

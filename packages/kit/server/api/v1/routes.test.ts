@@ -49,6 +49,21 @@ describe("apiRoutes", () => {
     logSpy.mockRestore();
   });
 
+  it("routes Stripe events past the store webhook routes", async () => {
+    convexClientMock.action.mockResolvedValue({ received: true });
+    const response = await apiRoutes.request("/webhooks/stripe/stripe-test", {
+      method: "POST",
+      body: "{}",
+      headers: { "Stripe-Signature": "t=1,v1=signature" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(convexClientMock.action).toHaveBeenCalledTimes(1);
+    expect(getFunctionName(convexClientMock.action.mock.calls[0][0])).toBe(
+      "externalCheckouts/action:ingestStripe",
+    );
+  });
+
   it("serves the generated OpenAPI specification", async () => {
     const response = await apiRoutes.request("/openapi");
 

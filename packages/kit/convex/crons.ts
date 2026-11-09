@@ -7,6 +7,12 @@ import { PURCHASE_ISSUE_RETENTION_MS } from "./purchaseIssues/internal";
 const crons = cronJobs();
 
 crons.interval(
+  "dispatch external checkout verification and reports",
+  { minutes: 1 },
+  internal.externalCheckouts.state.dispatch,
+);
+
+crons.interval(
   "recover and prune purchase verification jobs",
   { minutes: 1 },
   internal.purchases.verificationJobQueue.maintain,

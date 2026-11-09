@@ -176,6 +176,165 @@ bun run build:all      # Vite build + Bun compile → ./openiap-kit-server
 ./openiap-kit-server   # serves /v1/*, /api/v1/* + static SPA on :3000
 ```
 
+## External checkouts
+
+Use an IAPKit project secret key from your backend. Create the Stripe
+PaymentIntent or initial subscription invoice, then register the checkout
+before confirming payment. Set the same `orderId`, `userId`, and `productId`
+on PaymentIntent metadata for a one-time purchase or Subscription metadata
+for a recurring purchase. Use opaque app user IDs.
+
+1. For Apple, send each token to `POST /v1/external-purchase-tokens` with
+   `{ profileId, userId, token }` and retain the returned `tokenId`. Register
+   tokens even if the customer abandons checkout. For Google Alternative
+   Billing Only, forward the `externalTransactionToken` returned by Play.
+2. Send `POST /v1/external-checkouts` with an `Idempotency-Key` header.
+   Keep the key for retries. A conflicting key or order returns `409`.
+3. Confirm payment through Stripe. Its signed webhook queues verification.
+   You can also call `POST /v1/external-checkouts/{checkoutId}/verify`.
+   Its `202` means the request was durably accepted.
+4. Read `GET /v1/external-checkouts/{checkoutId}` for `paymentStatus`,
+   `reportingStatus`, and `entitlement.active`. Subscriptions also include
+   `entitlement.expiresAt` in Unix milliseconds. Use the entitlement to
+   gate access while reporting is queued or retrying.
+
+A Google checkout request body looks like this.
+
+```json
+{
+  "orderId": "order_123",
+  "userId": "user_42",
+  "productId": "premium_monthly",
+  "payment": {
+    "provider": "stripe",
+    "kind": "invoice",
+    "reference": "in_example"
+  },
+  "price": {
+    "currency": "EUR",
+    "netMinor": 800,
+    "taxMinor": 200,
+    "regionCode": "DE"
+  },
+  "reporting": {
+    "store": "google",
+    "profileId": "play-de-test",
+    "externalTransactionToken": "<Play token>"
+  }
+}
+```
+
+For Apple, use `{ "store": "apple", "profileId": "apple-de-test", "tokenIds": ["<tokenId>"] }`
+as the `reporting` value. For a one-time purchase, use `kind: "payment_intent"`
+and a `pi_` reference. Prices are integer minor units in the checkout currency.
+For a subscription that starts with a free trial, register its first invoice
+with `netMinor` and `taxMinor` of `0`. IAPKit grants access until the trial
+ends, reports the free start to the store, and reports the first paid invoice
+as a renewal; Apple's days of paid service leave out the trial.
+
+### Change a subscription plan
+
+Change the Stripe subscription's plan at once with
+`proration_behavior: "always_invoice"`, or at the next renewal with a
+subscription schedule phase. In the same update or phase, set the
+subscription's metadata `orderId` and `productId` to the new order. Register
+the invoice that bills the change as a new checkout with `changeOf` set to the
+current checkout's ID, the invoice's total and tax as the price, and a new
+store token: the `externalTransactionToken` Play returns for the change, or
+new Apple `tokenIds`. A downgrade whose credit leaves nothing to bill
+registers `netMinor` and `taxMinor` of `0`.
+
+Register the change within a day of its invoice's payment; you can register it
+as soon as Stripe creates the invoice. When IAPKit verifies the invoice, the
+new checkout takes over the subscription and the previous checkout's
+entitlement ends; refunds of earlier payments still apply but don't restore
+it. IAPKit reports the change to the store, and Apple's report references the
+subscription's first report. If you register a change later, call
+`POST /v1/external-checkouts/{checkoutId}/verify` for it instead of reporting
+its invoice yourself: IAPKit verifies and reports it, and clears the manual
+report the invoice left on the previous checkout.
+
+Stripe can pay part or all of an invoice from the customer's credit balance,
+such as a downgrade's credit. IAPKit reports only what the customer paid then,
+with tax in proportion, since the credit came from a payment already
+reported. The days the credit pays for still count as paid service for Apple.
+
+### Enable a reporting profile
+
+Set `IAPKIT_EXTERNAL_CHECKOUTS_CONFIG` in the Convex deployment's secret
+environment. Each integration binds one project and Stripe account to
+`sandbox` or `production`. The Stripe key needs read access to the account,
+PaymentIntents, charges, invoices, refunds, and disputes. Install the
+project’s Apple In-App Purchase key or Play Developer API service account
+through the existing IAPKit credential setup.
+
+```json
+{
+  "integrations": [
+    {
+      "id": "stripe-test",
+      "projectId": "<Convex project ID>",
+      "accountId": "acct_example",
+      "environment": "sandbox",
+      "apiKey": "<Stripe test API key>",
+      "signingSecret": "<Stripe webhook signing secret>"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "play-de-test",
+      "integrationId": "stripe-test",
+      "store": "google",
+      "appId": "com.example.app",
+      "regions": ["DE"]
+    }
+  ]
+}
+```
+
+Use unique integration and profile IDs and keep their account, app, and
+environment bindings stable. Use one Apple profile per project and environment
+for unreported-token notifications. For a Google profile that includes India,
+set `administrativeArea` to the applicable ISO 3166-2 subdivision and limit
+the profile to that subdivision. Use a Play license tester and test app for
+sandbox profiles.
+
+Point a Stripe webhook at `/v1/webhooks/stripe/{integrationId}` and subscribe
+to `payment_intent.succeeded`, `invoice.paid`, `refund.created`,
+`refund.updated`, and `charge.dispute.closed`. The account can also serve
+other sales: IAPKit skips a PaymentIntent with no checkout binding in its
+metadata and no registered checkout, and refunds or disputes of unknown
+charges wait without calling Stripe. Configure Apple's existing IAPKit App
+Store Server Notifications V2 URL to receive unreported-token notifications.
+When Apple lists an unused token as unreported, IAPKit sends its report
+again.
+
+A successful Stripe capture grants access and queues a store report in
+the same database transaction. Reports retry with stable IDs. A full
+refund removes the refunded payment's contribution to access, and a partial
+refund keeps it active. Partial refunds allocate the pretax amount in
+proportion to the original charge, with cumulative rounding. A lost dispute
+counts as a refund of the disputed amount, up to what the customer has not
+already been refunded, and is reported to the store as a refund. An open or
+won dispute changes nothing. IAPKit processes the remaining paid
+subscription periods independently. If the user was erased before IAPKit
+verified the payment, the payment is still recorded and reported, without
+access.
+
+The first integration supports direct Stripe accounts, one captured
+PaymentIntent per purchase, and single-item subscriptions: initial, recurring
+cycle, and plan change invoices paid by a captured Stripe charge, the
+customer's credit balance, or nothing, such as a free trial. A later paid
+invoice IAPKit can't verify, such as a renewal that also bills prorations or a
+plan change not registered within a day, sets
+`reportingStatus: "action_required"`, which later payments don't clear; access
+lasts until the verified period ends, and the invoice needs a manual store
+report unless a late plan change claims it. Store report failures also appear as
+`reportingStatus: "action_required"` when a provider rejects a report
+permanently or retries expire. Google requires reporting within 24 hours.
+Apple programs requiring manual reports still use the App Store Connect
+process.
+
 ## Operations
 
 ### Hosted fair use and capacity planning
