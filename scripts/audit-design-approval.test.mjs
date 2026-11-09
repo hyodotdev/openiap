@@ -261,6 +261,10 @@ test("rejects empty and disabled native verification methods", () => {
       "tests/RestoreTests.cs",
       '[Fact(Skip = "disabled")]\npublic void testRestore() { Assert.True(verified); }',
     ],
+    [
+      "tests/RestoreTests.cs",
+      '[Test]\npublic void testRestore() { Assert.Inconclusive("unverified"); }',
+    ],
   ]) {
     value.comment.body = value.comment.body.replace(
       /^Verification:.*$/m,

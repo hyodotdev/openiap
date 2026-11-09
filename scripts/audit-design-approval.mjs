@@ -168,7 +168,8 @@ function nativeBodyHasTestWork(source, bodyStart) {
           identifier,
         ) ||
         qualifier === "Assume" ||
-        qualifier === "Assumptions"
+        qualifier === "Assumptions" ||
+        (qualifier === "Assert" && identifier === "Inconclusive")
       )
         return false;
       hasCall = true;
