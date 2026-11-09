@@ -230,18 +230,46 @@ test("finds native tests with attributes, modifiers, and async return types", ()
   }
 });
 
-test("rejects an empty or explicitly skipped native verification method", () => {
+test("rejects empty and disabled native verification methods", () => {
   const value = fixture();
-  value.comment.body = value.comment.body.replace(
-    /^Verification:.*$/m,
-    "Verification: Tests/RestoreTests.swift#testRestore",
-  );
-  for (const source of [
-    "func testRestore() { /* test later */ }",
-    'func testRestore() throws { throw XCTSkip("disabled") }',
+  for (const [path, source] of [
+    ["Tests/RestoreTests.swift", "func testRestore() { /* test later */ }"],
+    [
+      "Tests/RestoreTests.swift",
+      "/*\nfunc testRestore() { XCTAssertTrue(verified) }\n*/",
+    ],
+    ["Tests/RestoreTests.swift", "func testRestore() { let fixture = true }"],
+    [
+      "Tests/RestoreTests.swift",
+      "func testRestore() throws { verify(); try XCTSkipIf(true) }",
+    ],
+    [
+      "Tests/RestoreTests.swift",
+      "static func testRestore() { XCTAssertTrue(verified) }",
+    ],
+    [
+      "src/test/RestoreTests.kt",
+      "@Disabled\n@Test\nfun testRestore() { assertTrue(verified) }",
+    ],
+    [
+      "src/test/RestoreTests.kt",
+      "@Test fun testRestore() { Assumptions.assumeTrue(false); assertTrue(verified) }",
+    ],
+    [
+      "tests/RestoreTests.cs",
+      '[Fact(Skip = "disabled")]\npublic void testRestore() { Assert.True(verified); }',
+    ],
   ]) {
+    value.comment.body = value.comment.body.replace(
+      /^Verification:.*$/m,
+      `Verification: ${path}#testRestore`,
+    );
     value.readTest = () => source;
-    assert.throws(() => verifyDesignApproval(value), /is empty or disabled/);
+    assert.throws(
+      () => verifyDesignApproval(value),
+      /is empty or disabled/,
+      source,
+    );
   }
 });
 

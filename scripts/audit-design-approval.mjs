@@ -124,25 +124,71 @@ function hasJavaScriptTest(path, source, name) {
   return search(file.statements);
 }
 
-function hasNativeTest(source, name) {
-  const quoted = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const modifier =
-    "(?:@[\\w.]+(?:\\([^\\r\\n)]*\\))?|\\[[^\\]\\r\\n]+\\]|public|private|internal|protected|fileprivate|final|open|override|virtual|sealed|static|async|unsafe)";
-  const method = `(?:${modifier}[ \\t]+)*(?:func|fun|void|Task|ValueTask)[ \\t]+(?:${quoted}|\\x60${quoted}\\x60)[ \\t]*\\([^{};]*\\{`;
-  const declaration = new RegExp(`^[ \\t]*${method}`, "m").exec(source);
-  if (!declaration) return false;
+function nativeBodyHasTestWork(source, bodyStart) {
+  const scanner = ts.createScanner(
+    ts.ScriptTarget.Latest,
+    true,
+    ts.LanguageVariant.Standard,
+    source,
+  );
+  const {
+    EndOfFileToken,
+    Identifier,
+    OpenBraceToken,
+    CloseBraceToken,
+    OpenParenToken,
+  } = ts.SyntaxKind;
+  let token = scanner.scan();
+  while (token !== EndOfFileToken && scanner.getTokenPos() < bodyStart) {
+    token = scanner.scan();
+  }
+  if (token !== OpenBraceToken || scanner.getTokenPos() !== bodyStart)
+    return false;
 
-  const body = source.slice(declaration.index + declaration[0].length);
-  const firstStatement = body.replace(
-    /^(?:\s+|\/\/[^\r\n]*|\/\*[\s\S]*?\*\/)+/,
-    "",
-  );
-  return (
-    Boolean(firstStatement) &&
-    !/^(?:[};]|(?:throw\s+)?XCTSkip\s*\(|Assert\.Ignore\s*\()/.test(
-      firstStatement,
+  let depth = 1;
+  let hasCall = false;
+  let previous;
+  for (
+    token = scanner.scan();
+    token !== EndOfFileToken;
+    token = scanner.scan()
+  ) {
+    if (token === OpenBraceToken) depth++;
+    if (token === CloseBraceToken && --depth === 0) return hasCall;
+    if (
+      token === Identifier &&
+      /^(?:XCTSkip(?:If|Unless)?|Ignore|Skip|Assume|Assumptions|assume\w+)$/.test(
+        scanner.getTokenText(),
+      )
     )
-  );
+      return false;
+    if (token === OpenParenToken && previous === Identifier) hasCall = true;
+    previous = token;
+  }
+  return false;
+}
+
+function hasNativeTest(path, source, name) {
+  const quoted = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const annotation = "@[\\w.]+(?:\\([^\\r\\n)]*\\))?|\\[[^\\]\\r\\n]+\\]";
+  const modifier = `(?:${annotation}|public|private|internal|protected|fileprivate|final|open|override|virtual|sealed|static|async|unsafe)`;
+  const method = `(?:${modifier}[ \\t]+)*(?:func|fun|void|Task|ValueTask)[ \\t]+(?:${quoted}|\\x60${quoted}\\x60)[ \\t]*\\([^{};]*\\{`;
+  const declaration = new RegExp(
+    `^[ \\t]*(?:(?:${annotation})[ \\t]*\\r?\\n[ \\t]*)*${method}`,
+    "m",
+  ).exec(source);
+  if (!declaration) return false;
+  const [signature] = declaration;
+  if (
+    /@(?:[\w.]+\.)?(?:Disabled|Ignore)\b|\[\s*(?:[\w.]+\.)?Ignore\b|\bSkip\s*=/.test(
+      signature,
+    )
+  ) {
+    return false;
+  }
+  if (path.endsWith(".swift") && /\bstatic\b/.test(signature)) return false;
+
+  return nativeBodyHasTestWork(source, declaration.index + signature.length - 1);
 }
 
 function verifyApprovedScope(details, files, readTest) {
@@ -180,7 +226,7 @@ function verifyApprovedScope(details, files, readTest) {
     const runnable =
       source &&
       (/\.(?:swift|kt|cs)$/.test(path)
-        ? hasNativeTest(source, test)
+        ? hasNativeTest(path, source, test)
         : hasJavaScriptTest(path, source, test));
     if (!runnable) {
       throw new Error(
