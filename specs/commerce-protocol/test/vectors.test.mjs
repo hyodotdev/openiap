@@ -132,7 +132,11 @@ describe("signature vectors", () => {
     const retryRule = spec
       .split("#### 9.4.3 Response semantics")[1]
       ?.split("#### ")[0];
-    expect(retryRule?.replace(/\s+/g, " ")).toMatch(
+    const rules = retryRule?.replace(/\s+/g, " ");
+    expect(rules).toMatch(
+      /emitter MUST (?:keep|preserve) (?:the )?(?:body and `eventId`|`eventId` and (?:the )?body) unchanged(?=[,.])/,
+    );
+    expect(rules).toMatch(
       /`openiap-delivery-id` (?:stays|remains) (?:stable|unchanged) across (?:the attempt chain|attempts)\./,
     );
     const first = vectors.cases.find((c) => c.name === "single-key");

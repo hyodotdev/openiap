@@ -143,8 +143,9 @@ followed by these lines:
   paths. If only generated contract files change, list those files.
 - `Acceptance:` states the expected outcome and a rejection or edge case.
 - `Verification: path/to/example.test.ts#rejects a malformed receipt` identifies
-  one test per line. Use a literal Jest or Vitest title or a native test method
-  name. The test must exist at the PR head.
+  one test per line. Use a literal Jest or Vitest title in an enabled suite,
+  or a native test method name. The test must have an executable body at the
+  PR head. Reviewers confirm that it ran and verifies the acceptance criteria.
 
 Keep the comment unedited so GitHub retains its original approval timestamp.
 Record a revised decision in a new comment.
@@ -160,8 +161,9 @@ the change follows the approved design and review any changes to the CI gate.
 CI detects edits to Client and Commerce schemas and their generated output,
 Client capability and conformance definitions, portable Client helpers and
 purchase-flow vectors, Commerce `SPEC.md`, Commerce vectors, and Commerce
-public entry points and declarations, and both compatibility floors. For other
-shipped source, declare `Public contract: changed` or `Public contract: unchanged` on
+public entry points and declarations, both compatibility floors, the React
+Native and Expo public entry points, and Kit Commerce runtime source. Changes
+to those paths require approval. For other shipped source, declare `Public contract: changed` or `Public contract: unchanged` on
 its own line in the PR body. Use `changed` for any public change outside those
 paths as well. Link the executed acceptance tests in the PR so reviewers can
 trace the result back to the approved requirement. CI rechecks approval when

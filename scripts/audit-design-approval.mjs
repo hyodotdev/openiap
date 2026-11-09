@@ -1,10 +1,13 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
+import ts from "typescript";
 import { shipsInAnyPackage } from "./release-branch-policy.mjs";
 
 const projectLeadId = 27461460; // @hyochan in MAINTAINERS.md
 const publicContractPaths = [
+  /^libraries\/(?:react-native-iap|expo-iap)\/src\/index\.ts$/,
+  /^packages\/kit\/(?:convex\/commerce|server\/api\/commerce)\/(?!.*\.(?:test|spec)\.ts$)(?!(?:.*\/)?(?:__tests__|tests?)\/).+\.ts$/,
   /^specs\/(?:client|commerce-protocol)\/compatibility\.json$/,
   /^specs\/client\/src\/(?:generated\/|(?:[^/]+\.graphql|capability-matrix\.mjs|kit-api\.ts|purchase-flow(?:-core|-confirmers)?\.ts|purchase-flow\.vectors\.json)$)/,
   /^packages\/conformance\/src\/spec\/(?:behaviors|provider-profile)\.mjs$/,
@@ -70,6 +73,214 @@ function approvalFields(details, field) {
   return values;
 }
 
+function hasJavaScriptTest(path, source, name) {
+  const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest);
+  const hasTestWork = (body) => {
+    let hasCall = false;
+    let skips = false;
+    const visit = (node, nested = false) => {
+      const inCallback = nested || ts.isFunctionLike(node);
+      if (ts.isCallExpression(node)) {
+        hasCall ||= !inCallback;
+        const target = node.expression;
+        skips ||=
+          (ts.isPropertyAccessExpression(target) &&
+            target.name.text === "skip") ||
+          (ts.isIdentifier(target) && target.text === "pending");
+      }
+      ts.forEachChild(node, (child) => visit(child, inCallback));
+    };
+    if (ts.isBlock(body)) {
+      for (const statement of body.statements) {
+        visit(statement);
+        if (ts.isReturnStatement(statement) || ts.isThrowStatement(statement))
+          break;
+      }
+    } else {
+      visit(body);
+    }
+    return hasCall && !skips;
+  };
+
+  // Only descend into plain, enabled suite callbacks. Skipped, focused and
+  // conditional suites cannot provide unconditional verification evidence.
+  const search = (statements) =>
+    statements.some((statement) => {
+      if (!ts.isExpressionStatement(statement)) return false;
+      const call = statement.expression;
+      if (!ts.isCallExpression(call) || !ts.isIdentifier(call.expression))
+        return false;
+      const [title, callback] = call.arguments;
+      if (
+        !callback ||
+        (!ts.isArrowFunction(callback) && !ts.isFunctionExpression(callback))
+      )
+        return false;
+
+      if (call.expression.text === "describe" && ts.isBlock(callback.body)) {
+        return search(callback.body.statements);
+      }
+      return (
+        ["it", "test"].includes(call.expression.text) &&
+        title &&
+        ts.isStringLiteralLike(title) &&
+        title.text === name &&
+        hasTestWork(callback.body)
+      );
+    });
+
+  return search(file.statements);
+}
+
+function nativeBodyHasTestWork(path, source, bodyStart, disabledScopes) {
+  const scanner = ts.createScanner(
+    ts.ScriptTarget.Latest,
+    true,
+    ts.LanguageVariant.Standard,
+    source,
+  );
+  const {
+    EndOfFileToken,
+    Identifier,
+    OpenBraceToken,
+    CloseBraceToken,
+    OpenParenToken,
+    DotToken,
+    CloseParenToken,
+    EqualsToken,
+    EqualsGreaterThanToken,
+    SemicolonToken,
+  } = ts.SyntaxKind;
+  const parents = [];
+  let token = scanner.scan();
+  while (token !== EndOfFileToken && scanner.getTokenPos() < bodyStart) {
+    if (token === OpenBraceToken)
+      parents.push(disabledScopes.has(scanner.getTokenPos()));
+    if (token === CloseBraceToken) parents.pop();
+    token = scanner.scan();
+  }
+  if (
+    token !== OpenBraceToken ||
+    scanner.getTokenPos() !== bodyStart ||
+    parents.includes(true)
+  )
+    return false;
+
+  const activeBlocks = [true];
+  const isCSharp = path.endsWith(".cs");
+  let hasCall = false;
+  let previous;
+  let previousText;
+  let beforeIdentifier;
+  let identifier;
+  let qualifier;
+  let inExpressionBody = false;
+  let localFunction = false;
+  for (
+    token = scanner.scan();
+    token !== EndOfFileToken;
+    token = scanner.scan()
+  ) {
+    if (token === OpenBraceToken) {
+      activeBlocks.push(
+        activeBlocks.at(-1) &&
+          !localFunction &&
+          previous !== EqualsToken &&
+          previous !== EqualsGreaterThanToken,
+      );
+      localFunction = false;
+    }
+    if (token === CloseBraceToken) {
+      activeBlocks.pop();
+      if (!activeBlocks.length) return hasCall;
+    }
+    if (token === EqualsGreaterThanToken) inExpressionBody = true;
+    if (token === SemicolonToken) {
+      inExpressionBody = false;
+      localFunction = false;
+    }
+    const tokenText = scanner.getTokenText();
+    if (isCSharp && tokenText === "delegate") localFunction = true;
+    if (token === Identifier) {
+      beforeIdentifier = previousText;
+      qualifier = previous === DotToken ? identifier : undefined;
+      identifier = tokenText;
+    }
+    if (token === OpenParenToken && previous === Identifier) {
+      if (
+        /^(?:XCTSkip(?:If|Unless)?|Ignore|Skip|assum(?:e|ing)\w+)$/.test(
+          identifier,
+        ) ||
+        qualifier === "Assume" ||
+        qualifier === "Assumptions" ||
+        (qualifier === "Assert" && identifier === "Inconclusive")
+      )
+        return false;
+      if (
+        !hasCall &&
+        activeBlocks.at(-1) &&
+        !inExpressionBody &&
+        !localFunction
+      ) {
+        const control = /^(?:foreach|lock|fixed|when)$/.test(identifier);
+        localFunction =
+          beforeIdentifier === "func" || beforeIdentifier === "fun";
+        if (!localFunction && isCSharp && !qualifier && !control) {
+          // A C# declaration has a block or expression body after its parameters.
+          localFunction = scanner.lookAhead(() => {
+            let parens = 1;
+            while (parens) {
+              const next = scanner.scan();
+              if (next === EndOfFileToken) return false;
+              if (next === OpenParenToken) parens++;
+              if (next === CloseParenToken) parens--;
+            }
+            const next = scanner.scan();
+            return next === OpenBraceToken || next === EqualsGreaterThanToken;
+          });
+        }
+        hasCall = !localFunction && !control;
+      }
+    }
+    previous = token;
+    previousText = tokenText;
+  }
+  return false;
+}
+
+function hasNativeTest(path, source, name) {
+  const quoted = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const annotation = "@[\\w.]+(?:\\([^\\r\\n)]*\\))?|\\[[^\\]\\r\\n]+\\]";
+  const gap = "(?:[ \\t\\r\\n]|//[^\\r\\n]*|/\\*[\\s\\S]*?\\*/)+";
+  const modifiers = `(?:(?:${annotation}|public|private|internal|protected|fileprivate|final|open|override|virtual|sealed|static|async|unsafe|partial|abstract)${gap})*`;
+  const method = `(?:func|fun|void|Task|ValueTask)[ \\t]+(?:${quoted}|\\x60${quoted}\\x60)[ \\t]*\\([^{};]*\\{`;
+  const declaration = new RegExp(`^[ \\t]*${modifiers}${method}`, "m").exec(
+    source,
+  );
+  if (!declaration) return false;
+  const [signature] = declaration;
+  const disabled =
+    /@(?:[\w.]+\.)?(?:Disabled|Ignore)\b|\[\s*(?:[\w.]+\.)?Ignore\b|\bSkip\s*=/;
+  if (disabled.test(signature)) return false;
+  if (path.endsWith(".swift") && /\bstatic\b/.test(signature)) return false;
+
+  const types = new RegExp(
+    `^[ \\t]*${modifiers}(?:class|object|struct|actor)\\b[^{};]*\\{`,
+    "gm",
+  );
+  const disabledScopes = new Set(
+    [...source.matchAll(types)]
+      .filter(([signature]) => disabled.test(signature))
+      .map(({ 0: signature, index }) => index + signature.length - 1),
+  );
+  return nativeBodyHasTestWork(
+    path,
+    source,
+    declaration.index + signature.length - 1,
+    disabledScopes,
+  );
+}
+
 function verifyApprovedScope(details, files, readTest) {
   approvalFields(details, "Design");
   approvalFields(details, "Acceptance");
@@ -102,17 +313,15 @@ function verifyApprovedScope(details, files, readTest) {
       );
     }
     const source = readTest(path);
-    const quoted = test.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const testCall = `(?:it|test)\\(\\s*(["'])${quoted}\\1\\s*,`;
-    const modifier =
-      "(?:@[\\w.]+(?:\\([^\\r\\n)]*\\))?|\\[[^\\]\\r\\n]+\\]|public|private|internal|protected|fileprivate|final|open|override|virtual|sealed|static|async|unsafe)";
-    const nativeMethod = `(?:${modifier}[ \\t]+)*(?:func|fun|void|Task|ValueTask)[ \\t]+(?:${quoted}|\\x60${quoted}\\x60)[ \\t]*\\(`;
-    const declaration = new RegExp(
-      `^[ \\t]*(?:${testCall}|${nativeMethod})`,
-      "m",
-    );
-    if (!source || !declaration.test(source)) {
-      throw new Error(`Approved verification test was not found: ${value}`);
+    const runnable =
+      source &&
+      (/\.(?:swift|kt|cs)$/.test(path)
+        ? hasNativeTest(path, source, test)
+        : hasJavaScriptTest(path, source, test));
+    if (!runnable) {
+      throw new Error(
+        `Approved verification test was not found or is empty or disabled: ${value}`,
+      );
     }
   }
 }

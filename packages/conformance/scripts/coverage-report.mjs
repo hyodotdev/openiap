@@ -16,6 +16,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
+import { appleConformanceMethods } from './check-apple-test-run.mjs';
 import { BEHAVIORS } from '../src/spec/behaviors.mjs';
 import { providerProfile } from '../src/spec/provider-profile.mjs';
 import { SUITE_VERSION, clientProtocolVersion } from '../src/spec/version.mjs';
@@ -143,9 +144,10 @@ const ANDROID_SUITES = 'packages/conformance/android/src/main/kotlin/dev/hyo/ope
   const generated = read('packages/apple/Tests/OpenIapTests/ConformanceBehaviors.swift');
   const table = resolveConstants(generated, /static let (\w+) = "([^"]+)"/g);
   const suite = read('packages/apple/Tests/OpenIapTests/StoreConformanceTests.swift');
-  const ids = [...suite.matchAll(/^    func test([A-Z]\w*)\(\)/gm)].map(([, name]) => {
+  const ids = appleConformanceMethods(suite).map((method) => {
+    const name = method.slice('test'.length);
     const id = table.get(name[0].toLowerCase() + name.slice(1));
-    if (!id) throw new Error(`Apple conformance test test${name} has no behavior ID`);
+    if (!id) throw new Error(`Apple conformance test ${method} has no behavior ID`);
     return id;
   });
   if (new Set(ids).size !== ids.length) {

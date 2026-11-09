@@ -72,6 +72,44 @@ test('new required input field is breaking', () => {
   assert.equal(result.breaking[0].type, 'REQUIRED_INPUT_FIELD_ADDED');
 });
 
+test('changed, added, and removed defaults on existing inputs and arguments are breaking', () => {
+  const schema = (input, arg) => `
+    type Query { products(limit: Int${arg}): String }
+    input ProductRequest { type: ProductType${input} }
+    enum ProductType { InApp All }
+  `;
+  for (const [before, after] of [
+    [schema(' = InApp', ' = 1'), schema(' = All', ' = 2')],
+    [schema('', ''), schema(' = null', ' = 2')],
+    [schema(' = null', ' = 1'), schema('', '')],
+  ]) {
+    const result = classifySchemaChange(before, after);
+    assert.deepEqual(result.breaking.map(({ type }) => type), [
+      'DEFAULT_VALUE_CHANGED',
+      'DEFAULT_VALUE_CHANGED',
+    ]);
+    assert.match(
+      result.breaking.map(({ description }) => description).join(' '),
+      /Query\.products\(limit:\).*ProductRequest\.type/,
+    );
+    assert.deepEqual(result.dangerous, []);
+  }
+});
+
+test('equivalent object defaults remain compatible', () => {
+  const schema = (value) => `
+    type Query { products(request: ProductRequest = ${value}): String }
+    input ProductRequest { count: Int, active: Boolean }
+  `;
+  assert.deepEqual(
+    classifySchemaChange(
+      schema('{count: 1, active: true}'),
+      schema('{active: true, count: 1}'),
+    ).breaking,
+    [],
+  );
+});
+
 test('added enum value is dangerous, not breaking', () => {
   const head = BASE.replace('  Subs\n', '  Subs\n  Bundle\n');
   const result = classifySchemaChange(BASE, head);

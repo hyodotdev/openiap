@@ -180,6 +180,14 @@ const REACT_NATIVE_NITRO_CAUSE_RELEASES: readonly ReleaseMetadata[] = [
   },
 ];
 
+const REACT_NATIVE_STRICT_TYPES_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: 'react-native-iap',
+    version: '17.3.5',
+    tag: 'react-native-iap-17.3.5',
+  },
+];
+
 const REACT_NATIVE_EXPO_GO_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: 'react-native-iap',
@@ -822,6 +830,40 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'react-native-strict-types-2026-11-09',
+      date: new Date('2026-11-09'),
+      element: (
+        <div key="react-native-strict-types-2026-11-09" style={noteCardStyle}>
+          {REACT_NATIVE_STRICT_TYPES_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="react-native-strict-types-2026-11-09" level="h4">
+            November 9, 2026 - Strict TypeScript imports in React Native
+          </AnchorLink>
+          <p>
+            TypeScript now uses the published declarations for{' '}
+            <code>react-native-iap</code> when the <code>react-native</code>{' '}
+            condition is enabled. Imports pass with{' '}
+            <code>exactOptionalPropertyTypes</code>, and Metro still loads the
+            same runtime entry. See{' '}
+            <a href="https://github.com/hyodotdev/openiap/issues/595">#595</a>.
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <ul>
+            {REACT_NATIVE_STRICT_TYPES_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                >
+                  {getReleaseLabel(release)}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
     {
       id: 'commerce-conformance-clock-2026-11-08',
       date: new Date('2026-11-08'),

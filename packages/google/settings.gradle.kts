@@ -19,6 +19,13 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        if (System.getenv("GITHUB_ACTIONS") == "true") {
+            // Hosted runners sometimes redirect the compiler JAR to a failing release URL.
+            exclusiveContent {
+                forRepository { maven { url = uri("https://repo1.maven.org/maven2") } }
+                filter { includeModule("org.jetbrains.kotlin", "kotlin-compiler-embeddable") }
+            }
+        }
     }
 }
 

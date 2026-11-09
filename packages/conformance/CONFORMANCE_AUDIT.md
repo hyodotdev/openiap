@@ -25,8 +25,9 @@ The source coverage report binds every behavior id to at least one
 non-reference implementation, reading the store suites, both provider suites,
 IAPKit, and the enabled Jest tests in React Native and Expo. Use a behavior ID
 as the literal Jest test title. Apple client coverage comes from XCTest method
-names, such as `testErrorsUnsupportedCodesAreNotSynthesized`. `--check` fails when a behavior loses its last
-non-reference test. This is source evidence for the test mapping. A passing
+names, such as `testErrorsUnsupportedCodesAreNotSynthesized`. The iOS CI job
+requires a passing XCTest result for every declared Apple method. `--check`
+fails when a behavior loses its last non-reference test. This is source evidence for the test mapping. A passing
 run records the behavior and implementation that actually executed.
 
 The native provider profiles cover 15 common required behaviors, a separate

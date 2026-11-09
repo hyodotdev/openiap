@@ -55,8 +55,9 @@ them requires a separately reviewed major design.
 
 CI checks the Client SDL against the PR base and every stable Client release
 from the [minimum checked version](compatibility.json).
-This compares the published schema shape. Runtime behavior is verified by the
-Client conformance and purchase-flow tests. Changing the compatibility floor
+This compares the published schema shape and existing input field and operation
+argument defaults. Runtime behavior is verified by the Client conformance and
+purchase-flow tests. Changing the compatibility floor
 requires an approved design and migration guidance.
 
 ## Platform Suffix Rules
