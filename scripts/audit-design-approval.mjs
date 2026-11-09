@@ -167,6 +167,7 @@ function nativeBodyHasTestWork(path, source, bodyStart, disabledScopes) {
     return false;
 
   const activeBlocks = [true];
+  const isCSharp = path.endsWith(".cs");
   let hasCall = false;
   let previous;
   let previousText;
@@ -199,6 +200,7 @@ function nativeBodyHasTestWork(path, source, bodyStart, disabledScopes) {
       localFunction = false;
     }
     const tokenText = scanner.getTokenText();
+    if (isCSharp && tokenText === "delegate") localFunction = true;
     if (token === Identifier) {
       beforeIdentifier = previousText;
       qualifier = previous === DotToken ? identifier : undefined;
@@ -223,7 +225,7 @@ function nativeBodyHasTestWork(path, source, bodyStart, disabledScopes) {
         const control = /^(?:foreach|lock|fixed|when)$/.test(identifier);
         localFunction =
           beforeIdentifier === "func" || beforeIdentifier === "fun";
-        if (!localFunction && path.endsWith(".cs") && !qualifier && !control) {
+        if (!localFunction && isCSharp && !qualifier && !control) {
           // A C# declaration has a block or expression body after its parameters.
           localFunction = scanner.lookAhead(() => {
             let parens = 1;

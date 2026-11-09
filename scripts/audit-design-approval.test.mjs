@@ -304,6 +304,10 @@ test("rejects empty and disabled native verification methods", () => {
       "tests/RestoreTests.cs",
       "[Test] public void testRestore() { Action unused = () => Assert.True(false); }",
     ],
+    [
+      "tests/RestoreTests.cs",
+      "[Test] public void testRestore() { Action unused = delegate { Assert.True(false); }; }",
+    ],
   ]) {
     value.comment.body = value.comment.body.replace(
       /^Verification:.*$/m,
