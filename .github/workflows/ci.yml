@@ -49,8 +49,10 @@ jobs:
           node --test scripts/audit-plugin-manifests.test.mjs
           node scripts/audit-plugin-manifests.mjs
 
-      - name: Test the public contract approval audit
-        run: node --test scripts/audit-design-approval.test.mjs
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
 
       - name: Verify prior design approval for public contract changes
         if: github.event_name == 'pull_request'
@@ -58,14 +60,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          audit=scripts/audit-design-approval.mjs
-          # Once installed, the base supplies the audit for later PRs.
-          if git cat-file -e "$BASE_SHA:$audit"; then
-            git show "$BASE_SHA:$audit" > "$RUNNER_TEMP/audit-design-approval.mjs"
-            git show "$BASE_SHA:scripts/release-branch-policy.mjs" > "$RUNNER_TEMP/release-branch-policy.mjs"
-            audit="$RUNNER_TEMP/audit-design-approval.mjs"
-          fi
-          node "$audit"
+          # Run the base checker with dependencies resolved from the base lockfile.
+          trusted="$RUNNER_TEMP/design-approval"
+          git worktree add --detach "$trusted" "$BASE_SHA"
+          (cd "$trusted" && bun install --frozen-lockfile --filter openiap-monorepo --ignore-scripts)
+          node "$trusted/scripts/audit-design-approval.mjs"
+
+      - name: Install release test dependencies
+        run: bun install --frozen-lockfile --filter openiap-monorepo --ignore-scripts
+
+      - name: Test the public contract approval audit
+        run: node --test scripts/audit-design-approval.test.mjs
 
       - name: Require a release note for published source changes
         if: github.event_name == 'pull_request' && github.base_ref == 'main'
@@ -93,14 +98,6 @@ jobs:
               fi
               ;;
           esac
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with:
-          bun-version-file: package.json
-
-      - name: Install release test dependencies
-        run: bun install --frozen-lockfile --filter openiap-monorepo --ignore-scripts
 
       - name: Test release automation
         run: >-
@@ -861,7 +858,10 @@ jobs:
 
       - name: Run tests
         working-directory: packages/apple
-        run: swift test
+        run: |
+          set -o pipefail
+          swift test 2>&1 | tee "$RUNNER_TEMP/apple-tests.log"
+          node ../../packages/conformance/scripts/check-apple-test-run.mjs "$RUNNER_TEMP/apple-tests.log"
 
       - name: Verify public provider contract and conformance
         run: |

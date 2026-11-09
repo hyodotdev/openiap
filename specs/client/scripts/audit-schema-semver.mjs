@@ -1,15 +1,19 @@
 #!/usr/bin/env node
 
-// Schema removals require a Client Protocol major increase.
+// Breaking schema and default changes require a Client Protocol major increase.
 
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 import {
   buildSchema,
   findBreakingChanges,
   findDangerousChanges,
+  isInputObjectType,
+  isInterfaceType,
+  isObjectType,
 } from "graphql";
 import { SCHEMA_FILE_NAMES } from "../schema-files.mjs";
 import { validateVersion } from "../../../scripts/release-branch-policy.mjs";
@@ -57,6 +61,53 @@ function rootTypeChanges(baseSchema, headSchema) {
     }));
 }
 
+// Compare coerced values so input-object key order and equivalent literals
+// do not count as changes. An omitted default and an explicit null differ.
+function defaultValueChanges(baseSchema, headSchema) {
+  const changes = [];
+  const compare = (coordinate, before, after) => {
+    if (after && !isDeepStrictEqual(before.defaultValue, after.defaultValue)) {
+      changes.push({
+        type: "DEFAULT_VALUE_CHANGED",
+        description: `Default value for ${coordinate} changed.`,
+      });
+    }
+  };
+  const compareArgs = (coordinate, before, after) => {
+    for (const arg of before) {
+      compare(
+        `${coordinate}(${arg.name}:)`,
+        arg,
+        after.find(({ name }) => name === arg.name),
+      );
+    }
+  };
+
+  for (const type of Object.values(baseSchema.getTypeMap())) {
+    if (type.name.startsWith("__")) continue;
+    const head = headSchema.getType(type.name);
+    if (isInputObjectType(type) && isInputObjectType(head)) {
+      for (const field of Object.values(type.getFields())) {
+        compare(
+          `${type.name}.${field.name}`,
+          field,
+          head.getFields()[field.name],
+        );
+      }
+    } else if (
+      (isObjectType(type) && isObjectType(head)) ||
+      (isInterfaceType(type) && isInterfaceType(head))
+    ) {
+      for (const field of Object.values(type.getFields())) {
+        const next = head.getFields()[field.name];
+        if (next)
+          compareArgs(`${type.name}.${field.name}`, field.args, next.args);
+      }
+    }
+  }
+  return changes;
+}
+
 export function classifySchemaChange(baseSdl, headSdl) {
   const baseSchema = buildSchemaOrExplain(baseSdl, "base");
   const headSchema = buildSchemaOrExplain(headSdl, "head");
@@ -65,9 +116,12 @@ export function classifySchemaChange(baseSdl, headSdl) {
   return {
     breaking: [
       ...rootTypeChanges(baseSchema, headSchema),
+      ...defaultValueChanges(baseSchema, headSchema),
       ...findBreakingChanges(baseSchema, headSchema),
     ],
-    dangerous: findDangerousChanges(baseSchema, headSchema),
+    dangerous: findDangerousChanges(baseSchema, headSchema).filter(
+      ({ type }) => type !== "ARG_DEFAULT_VALUE_CHANGE",
+    ),
     addedTypes: Object.keys(headSchema.getTypeMap())
       .filter((name) => !name.startsWith("__") && !baseTypes.has(name))
       .sort(),

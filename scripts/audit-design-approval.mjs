@@ -1,10 +1,13 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
+import ts from "typescript";
 import { shipsInAnyPackage } from "./release-branch-policy.mjs";
 
 const projectLeadId = 27461460; // @hyochan in MAINTAINERS.md
 const publicContractPaths = [
+  /^libraries\/(?:react-native-iap|expo-iap)\/src\/index\.ts$/,
+  /^packages\/kit\/(?:convex\/commerce|server\/api\/commerce)\/(?!.*\.(?:test|spec)\.ts$)(?!(?:.*\/)?(?:__tests__|tests?)\/).+\.ts$/,
   /^specs\/(?:client|commerce-protocol)\/compatibility\.json$/,
   /^specs\/client\/src\/(?:generated\/|(?:[^/]+\.graphql|capability-matrix\.mjs|kit-api\.ts|purchase-flow(?:-core|-confirmers)?\.ts|purchase-flow\.vectors\.json)$)/,
   /^packages\/conformance\/src\/spec\/(?:behaviors|provider-profile)\.mjs$/,
@@ -70,6 +73,78 @@ function approvalFields(details, field) {
   return values;
 }
 
+function hasJavaScriptTest(path, source, name) {
+  const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest);
+  const hasTestWork = (body) => {
+    let hasCall = false;
+    let skips = false;
+    const visit = (node) => {
+      if (ts.isFunctionLike(node)) return;
+      if (ts.isCallExpression(node)) {
+        hasCall = true;
+        const target = node.expression;
+        skips ||=
+          (ts.isPropertyAccessExpression(target) &&
+            target.name.text === "skip") ||
+          (ts.isIdentifier(target) && target.text === "pending");
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(body);
+    return hasCall && !skips;
+  };
+
+  // Only descend into plain, enabled suite callbacks. Skipped, focused and
+  // conditional suites cannot provide unconditional verification evidence.
+  const search = (statements) =>
+    statements.some((statement) => {
+      if (!ts.isExpressionStatement(statement)) return false;
+      const call = statement.expression;
+      if (!ts.isCallExpression(call) || !ts.isIdentifier(call.expression))
+        return false;
+      const [title, callback] = call.arguments;
+      if (
+        !callback ||
+        (!ts.isArrowFunction(callback) && !ts.isFunctionExpression(callback))
+      )
+        return false;
+
+      if (call.expression.text === "describe" && ts.isBlock(callback.body)) {
+        return search(callback.body.statements);
+      }
+      return (
+        ["it", "test"].includes(call.expression.text) &&
+        title &&
+        ts.isStringLiteralLike(title) &&
+        title.text === name &&
+        hasTestWork(callback.body)
+      );
+    });
+
+  return search(file.statements);
+}
+
+function hasNativeTest(source, name) {
+  const quoted = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const modifier =
+    "(?:@[\\w.]+(?:\\([^\\r\\n)]*\\))?|\\[[^\\]\\r\\n]+\\]|public|private|internal|protected|fileprivate|final|open|override|virtual|sealed|static|async|unsafe)";
+  const method = `(?:${modifier}[ \\t]+)*(?:func|fun|void|Task|ValueTask)[ \\t]+(?:${quoted}|\\x60${quoted}\\x60)[ \\t]*\\([^{};]*\\{`;
+  const declaration = new RegExp(`^[ \\t]*${method}`, "m").exec(source);
+  if (!declaration) return false;
+
+  const body = source.slice(declaration.index + declaration[0].length);
+  const firstStatement = body.replace(
+    /^(?:\s+|\/\/[^\r\n]*|\/\*[\s\S]*?\*\/)+/,
+    "",
+  );
+  return (
+    Boolean(firstStatement) &&
+    !/^(?:[};]|(?:throw\s+)?XCTSkip\s*\(|Assert\.Ignore\s*\()/.test(
+      firstStatement,
+    )
+  );
+}
+
 function verifyApprovedScope(details, files, readTest) {
   approvalFields(details, "Design");
   approvalFields(details, "Acceptance");
@@ -102,17 +177,15 @@ function verifyApprovedScope(details, files, readTest) {
       );
     }
     const source = readTest(path);
-    const quoted = test.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const testCall = `(?:it|test)\\(\\s*(["'])${quoted}\\1\\s*,`;
-    const modifier =
-      "(?:@[\\w.]+(?:\\([^\\r\\n)]*\\))?|\\[[^\\]\\r\\n]+\\]|public|private|internal|protected|fileprivate|final|open|override|virtual|sealed|static|async|unsafe)";
-    const nativeMethod = `(?:${modifier}[ \\t]+)*(?:func|fun|void|Task|ValueTask)[ \\t]+(?:${quoted}|\\x60${quoted}\\x60)[ \\t]*\\(`;
-    const declaration = new RegExp(
-      `^[ \\t]*(?:${testCall}|${nativeMethod})`,
-      "m",
-    );
-    if (!source || !declaration.test(source)) {
-      throw new Error(`Approved verification test was not found: ${value}`);
+    const runnable =
+      source &&
+      (/\.(?:swift|kt|cs)$/.test(path)
+        ? hasNativeTest(source, test)
+        : hasJavaScriptTest(path, source, test));
+    if (!runnable) {
+      throw new Error(
+        `Approved verification test was not found or is empty or disabled: ${value}`,
+      );
     }
   }
 }

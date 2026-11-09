@@ -30,7 +30,9 @@ function fixture() {
     link,
     files: [contractPath, testPath],
     readTest: (path) =>
-      path === testPath ? `it("${testName}", () => {});` : undefined,
+      path === testPath
+        ? `describe("receipt", () => { it("${testName}", () => { expect(rejectReceipt()).toBe(true); }); });`
+        : undefined,
     comment: {
       html_url: url,
       user: { id: 27461460 },
@@ -56,6 +58,10 @@ function fixture() {
 test("authored contract paths and declared runtime changes require approval", () => {
   for (const file of [
     "specs/client/src/type.graphql",
+    "libraries/react-native-iap/src/index.ts",
+    "libraries/expo-iap/src/index.ts",
+    "packages/kit/convex/commerce/delivery.ts",
+    "packages/kit/server/api/commerce/routes.ts",
     "specs/client/src/capability-matrix.mjs",
     "specs/client/src/generated/types.ts",
     "packages/conformance/src/spec/provider-profile.mjs",
@@ -86,7 +92,7 @@ test("authored contract paths and declared runtime changes require approval", ()
 });
 
 test("requires a public impact decision for shipped implementation changes", () => {
-  for (const file of ["libraries/expo-iap/src/index.ts"]) {
+  for (const file of ["libraries/expo-iap/src/purchase-flow.ts"]) {
     assert.throws(() => needsDesignApproval([file], ""), /Classify/);
     assert.equal(
       needsDesignApproval([file], "Public contract: unchanged"),
@@ -151,12 +157,44 @@ test("rejects placeholder approval and an unapproved public source", () => {
   assert.throws(() => verifyDesignApproval(value), /approved Contract:/);
 });
 
-test("requires a named test in the current tree", () => {
+test("rejects unchanged declarations for SDK entry points and Kit Commerce runtime", () => {
+  for (const path of [
+    "libraries/react-native-iap/src/index.ts",
+    "libraries/expo-iap/src/index.ts",
+    "packages/kit/convex/commerce/delivery.ts",
+    "packages/kit/server/api/commerce/routes.ts",
+  ]) {
+    assert.equal(needsDesignApproval([path], ""), true, path);
+    assert.throws(
+      () => needsDesignApproval([path], "Public contract: unchanged"),
+      /needs design approval/,
+      path,
+    );
+  }
+  assert.equal(
+    needsDesignApproval(["packages/kit/convex/commerce/delivery.test.ts"], ""),
+    false,
+  );
+});
+
+test("requires a named executable test in the current tree", () => {
   const value = fixture();
-  value.readTest = () => `it.skip("${testName}", () => {});`;
-  assert.throws(() => verifyDesignApproval(value), /test was not found/);
-  value.readTest = () => undefined;
-  assert.throws(() => verifyDesignApproval(value), /test was not found/);
+  for (const source of [
+    `it("${testName}", () => {});`,
+    `it("${testName}", () => undefined);`,
+    `it("${testName}", (ctx) => ctx.skip());`,
+    `it("${testName}", () => pending());`,
+    `it.skip("${testName}", () => expect(true).toBe(true));`,
+    `describe.skip("receipt", () => { it("${testName}", () => expect(true).toBe(true)); });`,
+    `describe.skipIf(true)("receipt", () => { it("${testName}", () => expect(true).toBe(true)); });`,
+    undefined,
+  ]) {
+    value.readTest = () => source;
+    assert.throws(
+      () => verifyDesignApproval(value),
+      /test was not found or is empty or disabled/,
+    );
+  }
   value.comment.body = value.comment.body.replace(
     /^Verification:.*$/m,
     "Verification: test later",
@@ -169,17 +207,17 @@ test("finds native tests with attributes, modifiers, and async return types", ()
     [
       "Tests/RestoreTests.swift",
       "testRestore",
-      "@MainActor override func testRestore() async {}",
+      "@MainActor override func testRestore() async { XCTAssertTrue(verified) }",
     ],
     [
       "src/test/RestoreTests.kt",
       "restores a purchase",
-      "@Test internal fun `restores a purchase`() {}",
+      "@Test internal fun `restores a purchase`() { assertTrue(verified) }",
     ],
     [
       "tests/RestoreTests.cs",
       "TestRestore",
-      "[Fact] public async Task TestRestore() {}",
+      "[Fact] public async Task TestRestore() { Assert.True(await Verify()); }",
     ],
   ]) {
     const value = fixture();
@@ -189,6 +227,21 @@ test("finds native tests with attributes, modifiers, and async return types", ()
     );
     value.readTest = (file) => (file === path ? declaration : undefined);
     assert.doesNotThrow(() => verifyDesignApproval(value), declaration);
+  }
+});
+
+test("rejects an empty or explicitly skipped native verification method", () => {
+  const value = fixture();
+  value.comment.body = value.comment.body.replace(
+    /^Verification:.*$/m,
+    "Verification: Tests/RestoreTests.swift#testRestore",
+  );
+  for (const source of [
+    "func testRestore() { /* test later */ }",
+    'func testRestore() throws { throw XCTSkip("disabled") }',
+  ]) {
+    value.readTest = () => source;
+    assert.throws(() => verifyDesignApproval(value), /is empty or disabled/);
   }
 });
 
