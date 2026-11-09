@@ -213,6 +213,11 @@ test("finds native tests with attributes, modifiers, and async return types", ()
       "@MainActor override func testRestore() async { XCTAssertTrue(verified) }",
     ],
     [
+      "Tests/RestoreTests.swift",
+      "testRestore",
+      "func testRestore() {\n  for expected in outcomes { XCTAssertEqual(actual, expected) }\n}",
+    ],
+    [
       "src/test/RestoreTests.kt",
       "restores a purchase",
       "@Disabled class Other {}\nclass Active {\n@Test internal fun `restores a purchase`() = runTest { assertTrue(verified) }\n}",
@@ -221,6 +226,11 @@ test("finds native tests with attributes, modifiers, and async return types", ()
       "tests/RestoreTests.cs",
       "TestRestore",
       "[Fact] public async Task TestRestore() { var result = await Verify(); Assert.False(result.Skip); }",
+    ],
+    [
+      "tests/RestoreTests.cs",
+      "TestRestore",
+      "[Fact] public void TestRestore() { foreach (var expected in outcomes) { Assert.Equal(actual, expected); } }",
     ],
   ]) {
     const value = fixture();
@@ -260,7 +270,7 @@ test("rejects empty and disabled native verification methods", () => {
     ],
     [
       "src/test/RestoreTests.kt",
-      "@Disabled\ninternal class RestoreTests {\n  @Test fun testRestore() { assertTrue(verified) }\n}",
+      "@Disabled\n// Pending a StoreKit fixture.\ninternal class RestoreTests {\n  @Test fun testRestore() { assertTrue(verified) }\n}",
     ],
     [
       "src/test/RestoreTests.kt",
@@ -280,11 +290,15 @@ test("rejects empty and disabled native verification methods", () => {
     ],
     [
       "tests/RestoreTests.cs",
-      '[Ignore("disabled")]\npublic sealed class RestoreTests {\n  [Test] public void testRestore() { Assert.True(verified); }\n}',
+      '[Ignore("disabled")]\n/* Pending a fixture. */\npublic sealed class RestoreTests {\n  [Test] public void testRestore() { Assert.True(verified); }\n}',
     ],
     [
       "tests/RestoreTests.cs",
       "[Test] public void testRestore() { void unused() { Assert.True(false); } }",
+    ],
+    [
+      "tests/RestoreTests.cs",
+      '[Test] public void testRestore() { string unused() { Assert.True(false); return ""; } }',
     ],
     [
       "tests/RestoreTests.cs",

@@ -132,7 +132,7 @@ function hasJavaScriptTest(path, source, name) {
   return search(file.statements);
 }
 
-function nativeBodyHasTestWork(source, bodyStart, disabledScopes) {
+function nativeBodyHasTestWork(path, source, bodyStart, disabledScopes) {
   const scanner = ts.createScanner(
     ts.ScriptTarget.Latest,
     true,
@@ -146,7 +146,8 @@ function nativeBodyHasTestWork(source, bodyStart, disabledScopes) {
     CloseBraceToken,
     OpenParenToken,
     DotToken,
-    VoidKeyword,
+    CloseParenToken,
+    EqualsToken,
     EqualsGreaterThanToken,
     SemicolonToken,
   } = ts.SyntaxKind;
@@ -165,27 +166,43 @@ function nativeBodyHasTestWork(source, bodyStart, disabledScopes) {
   )
     return false;
 
-  let depth = 1;
+  const activeBlocks = [true];
   let hasCall = false;
   let previous;
+  let previousText;
   let beforeIdentifier;
   let identifier;
   let qualifier;
   let inExpressionBody = false;
+  let localFunction = false;
   for (
     token = scanner.scan();
     token !== EndOfFileToken;
     token = scanner.scan()
   ) {
-    if (token === OpenBraceToken) depth++;
-    if (token === CloseBraceToken && --depth === 0) return hasCall;
-    if (depth === 1 && token === EqualsGreaterThanToken)
-      inExpressionBody = true;
-    if (depth === 1 && token === SemicolonToken) inExpressionBody = false;
+    if (token === OpenBraceToken) {
+      activeBlocks.push(
+        activeBlocks.at(-1) &&
+          !localFunction &&
+          previous !== EqualsToken &&
+          previous !== EqualsGreaterThanToken,
+      );
+      localFunction = false;
+    }
+    if (token === CloseBraceToken) {
+      activeBlocks.pop();
+      if (!activeBlocks.length) return hasCall;
+    }
+    if (token === EqualsGreaterThanToken) inExpressionBody = true;
+    if (token === SemicolonToken) {
+      inExpressionBody = false;
+      localFunction = false;
+    }
+    const tokenText = scanner.getTokenText();
     if (token === Identifier) {
-      beforeIdentifier = previous;
+      beforeIdentifier = previousText;
       qualifier = previous === DotToken ? identifier : undefined;
-      identifier = scanner.getTokenText();
+      identifier = tokenText;
     }
     if (token === OpenParenToken && previous === Identifier) {
       if (
@@ -197,14 +214,34 @@ function nativeBodyHasTestWork(source, bodyStart, disabledScopes) {
         (qualifier === "Assert" && identifier === "Inconclusive")
       )
         return false;
-      // Calls inside a nested closure or local function may never run.
-      hasCall ||=
-        depth === 1 &&
+      if (
+        !hasCall &&
+        activeBlocks.at(-1) &&
         !inExpressionBody &&
-        beforeIdentifier !== Identifier &&
-        beforeIdentifier !== VoidKeyword;
+        !localFunction
+      ) {
+        const control = /^(?:foreach|lock|fixed|when)$/.test(identifier);
+        localFunction =
+          beforeIdentifier === "func" || beforeIdentifier === "fun";
+        if (!localFunction && path.endsWith(".cs") && !qualifier && !control) {
+          // A C# declaration has a block or expression body after its parameters.
+          localFunction = scanner.lookAhead(() => {
+            let parens = 1;
+            while (parens) {
+              const next = scanner.scan();
+              if (next === EndOfFileToken) return false;
+              if (next === OpenParenToken) parens++;
+              if (next === CloseParenToken) parens--;
+            }
+            const next = scanner.scan();
+            return next === OpenBraceToken || next === EqualsGreaterThanToken;
+          });
+        }
+        hasCall = !localFunction && !control;
+      }
     }
     previous = token;
+    previousText = tokenText;
   }
   return false;
 }
@@ -212,7 +249,8 @@ function nativeBodyHasTestWork(source, bodyStart, disabledScopes) {
 function hasNativeTest(path, source, name) {
   const quoted = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const annotation = "@[\\w.]+(?:\\([^\\r\\n)]*\\))?|\\[[^\\]\\r\\n]+\\]";
-  const modifiers = `(?:(?:${annotation}|public|private|internal|protected|fileprivate|final|open|override|virtual|sealed|static|async|unsafe|partial|abstract)[ \\t\\r\\n]+)*`;
+  const gap = "(?:[ \\t\\r\\n]|//[^\\r\\n]*|/\\*[\\s\\S]*?\\*/)+";
+  const modifiers = `(?:(?:${annotation}|public|private|internal|protected|fileprivate|final|open|override|virtual|sealed|static|async|unsafe|partial|abstract)${gap})*`;
   const method = `(?:func|fun|void|Task|ValueTask)[ \\t]+(?:${quoted}|\\x60${quoted}\\x60)[ \\t]*\\([^{};]*\\{`;
   const declaration = new RegExp(`^[ \\t]*${modifiers}${method}`, "m").exec(
     source,
@@ -234,6 +272,7 @@ function hasNativeTest(path, source, name) {
       .map(({ 0: signature, index }) => index + signature.length - 1),
   );
   return nativeBodyHasTestWork(
+    path,
     source,
     declaration.index + signature.length - 1,
     disabledScopes,
