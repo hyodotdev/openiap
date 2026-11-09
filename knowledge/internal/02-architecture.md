@@ -143,9 +143,19 @@ followed by these lines:
   paths. If only generated contract files change, list those files.
 - `Acceptance:` states the expected outcome and a rejection or edge case.
 - `Verification: path/to/example.test.ts#rejects a malformed receipt` identifies
-  one test per line. Use a literal Jest or Vitest title in an enabled suite,
-  or a native test method name. The test must have an executable body at the
-  PR head. Reviewers confirm that it ran and verifies the acceptance criteria.
+  one test per line. Use a literal Jest, Vitest, `node:test`, or `bun:test`
+  title in an enabled suite, or a native test method name. The test must have
+  an executable body at the PR head, and CI accepts it only if its runner
+  reports it passed, so a skipped or unrun test fails. Required jobs read that
+  report: `Audit Release Metadata` runs JavaScript tests and the C# tests in
+  `libraries/maui-iap/tests/OpenIap.Maui.Tests`, `Test iOS` checks Swift tests
+  in `packages/apple/Tests`, and `Test Android` checks Kotlin unit tests in
+  `packages/google/core` and `packages/google/openiap`; both jobs run for every
+  PR that links an approval. CI rejects a native test elsewhere, since no
+  required job runs it. Name a plain test: a `node:test` test with subtests
+  or an xUnit test with a `DisplayName` reports under another name and fails
+  as not run. Reviewers confirm that each test verifies the acceptance
+  criteria and that the PR leaves the test setup intact.
 
 Keep the comment unedited so GitHub retains its original approval timestamp.
 Record a revised decision in a new comment.
@@ -156,14 +166,42 @@ source and target branches, and timestamp against the PR and its recorded
 commit dates. Approval must predate the PR and both the Git author and
 committer dates of every PR commit. If approval comes late, start the
 implementation from the approved design and open a new PR. Reviewers confirm
-the change follows the approved design and review any changes to the CI gate.
+the change follows the approved design. An approval covers one change: once a
+PR that links it, or a PR from the approved branch that links no approval,
+merges, record a new approval for the next change. Change the gate itself in a separate PR: an
+approved PR fails if it edits `design-approval.yml`, the scripts it runs
+(`audit-design-approval.mjs`, `public-declarations.mjs`,
+`approved-verification.mjs`, `check-apple-test-run.mjs`), or the
+`audit-release-state`, `test-android`, and `test-ios` jobs and workflow-level
+settings of `ci.yml`. Other CI jobs may change with the contract.
+
+The `Design Approval` workflow runs on `pull_request_target`, so it always uses
+main's checker and reads the PR only as data. A PR cannot remove or rewrite it.
+It reports the `OpenIAP Design Approval` check through a dedicated GitHub App
+whose key only main-branch runs receive, and the main ruleset requires that
+check from that App, so a PR job with the same name cannot satisfy it. Until
+the App's `DESIGN_APPROVAL_APP_CLIENT_ID` variable, its key in the main-only
+`design-approval` environment, and that required check exist, the gate
+enforces nothing and its publish job fails on every PR; set them up before
+relying on it.
 
 CI detects edits to Client and Commerce schemas and their generated output,
 Client capability and conformance definitions, portable Client helpers and
 purchase-flow vectors, Commerce `SPEC.md`, Commerce vectors, and Commerce
 public entry points and declarations, both compatibility floors, the React
 Native and Expo public entry points, and Kit Commerce runtime source. Changes
-to those paths require approval. For other shipped source, declare `Public contract: changed` or `Public contract: unchanged` on
+to those paths require approval. So does a change to anything the React
+Native and Expo entry points (`index.ts`, and `index.kepler.ts` for Vega)
+publish from other modules: the declarations, JSDoc, and parameter defaults
+(including those of class and object members) of the names they export and of
+every type those names reach (such as `hooks/useIAP.ts` or
+`specs/RnIap.nitro.ts`), `declare global` and `declare module` blocks in those
+modules, and the entry fields of the library `package.json`. The check
+type-checks the SDK sources against main's installed dependencies, so inferred
+types count too. A dependency upgrade that changes a public type is still a
+public change: declare it. In those other modules, a body-only refactor or a change to an
+export the SDKs do not publish needs no approval. A behavior change that leaves
+declarations and docs untouched is still a public change: declare it. For other shipped source, declare `Public contract: changed` or `Public contract: unchanged` on
 its own line in the PR body. Use `changed` for any public change outside those
 paths as well. Link the executed acceptance tests in the PR so reviewers can
 trace the result back to the approved requirement. CI rechecks approval when

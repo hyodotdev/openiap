@@ -57,6 +57,10 @@ export const pushAlwaysFilters = Object.freeze([
   "parity",
 ]);
 
+// Required jobs that check a design approval's native tests, so they also run
+// for every PR that links one, even when the changes job did not run.
+const approvalEvidenceJobs = new Set(["test-android", "test-ios"]);
+
 export const unconditionalCiJobs = Object.freeze([
   "audit-release-state",
   "changes",
@@ -1253,7 +1257,13 @@ function findCoverageViolations(root) {
         continue;
       }
 
-      if (job.if !== `needs.changes.outputs.${name} == 'true'`) {
+      const gate = `needs.changes.outputs.${name} == 'true'`;
+      if (
+        job.if !==
+        (approvalEvidenceJobs.has(jobId)
+          ? `\${{ !cancelled() && (${gate} || contains(github.event.pull_request.body, 'Design approval:')) }}`
+          : gate)
+      ) {
         findings.push(
           `ci.yml: job ${jobId} must gate on needs.changes.outputs.${name}`,
         );

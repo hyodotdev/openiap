@@ -9,6 +9,7 @@ import {
   resolvePublicAddresses,
   type DeliveryRequest,
 } from "./delivery";
+import { recordDeliveryResultHandler } from "./deliveryState";
 import {
   DELIVERY_ID_HEADER,
   EVENT_ID_HEADER,
@@ -127,6 +128,64 @@ describe("deliverPendingEventsHandler", () => {
       statusCode: 204,
       ok: true,
     });
+  });
+
+  it("records the exponential backoff SPEC.md 9.4.4 requires: 30s, then 60s", async () => {
+    const destinationId = "outboundDestinations_1";
+    const rows = new Map<string, Record<string, unknown>>([
+      [
+        claimed.deliveryId,
+        {
+          _id: claimed.deliveryId,
+          destinationId,
+          eventId: claimed.eventId,
+          status: "delivering",
+          attempts: 0,
+          leaseToken: claimed.leaseToken,
+        },
+      ],
+      [destinationId, { _id: destinationId, consecutiveFailures: 0 }],
+    ]);
+    const ctx = {
+      db: {
+        get: async (id: string) => rows.get(id) ?? null,
+        patch: async (id: string, doc: Record<string, unknown>) => {
+          Object.assign(rows.get(id) ?? {}, doc);
+        },
+      },
+    };
+    const delivery = rows.get(claimed.deliveryId)!;
+    const delays: number[] = [];
+    // Claims the row the way the scheduler would once its retry falls due.
+    let leases = 0;
+    const runMutation = vi.fn(async (_reference, args) => {
+      if (Object.keys(args).length > 0) {
+        return recordDeliveryResultHandler(ctx as never, args as never);
+      }
+      if (leases === 0) {
+        leases += 1;
+        return [claimed];
+      }
+      if (delivery.status !== "pending" || leases === 2) return [];
+      delays.push((delivery.nextAttemptAt as number) - Date.now());
+      vi.setSystemTime(delivery.nextAttemptAt as number);
+      leases += 1;
+      const leaseToken = `lease-${leases}`;
+      Object.assign(delivery, { status: "delivering", leaseToken });
+      return [
+        { ...claimed, attempts: delivery.attempts as number, leaseToken },
+      ];
+    });
+    vi.setSystemTime(new Date("2026-08-27T00:00:00.000Z"));
+
+    await deliverPendingEventsHandler(
+      { runMutation } as never,
+      async () => 503,
+    );
+
+    expect(delays).toEqual([30_000]);
+    expect(delivery).toMatchObject({ status: "pending", attempts: 2 });
+    expect((delivery.nextAttemptAt as number) - Date.now()).toBe(60_000);
   });
 
   it("records redirects as permanent failures without following them", async () => {

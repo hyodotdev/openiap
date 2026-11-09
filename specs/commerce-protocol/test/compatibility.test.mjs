@@ -134,6 +134,33 @@ describe("Commerce compatibility against the base revision", () => {
     );
   });
 
+  it("detects a retry requirement that drops exponential backoff", () => {
+    const next = structuredClone(baseline);
+    next.spec = next.spec.replace(
+      "MUST retry with exponential backoff",
+      "MUST retry at a fixed interval",
+    );
+    expect(next.spec).not.toBe(baseline.spec);
+    expect(findCompatibilityChanges(baseline, next)).toContain(
+      "Webhook delivery changed the retry requirement",
+    );
+    const loosened = structuredClone(baseline);
+    loosened.spec = loosened.spec.replace(
+      "MUST eventually stop and\ndead-letter rather than retry forever.",
+      "MUST eventually stop and\ndead-letter rather than retry forever.\n\nAn emitter MAY instead retry at a fixed interval.",
+    );
+    expect(loosened.spec).not.toBe(baseline.spec);
+    expect(findCompatibilityChanges(baseline, loosened)).toContain(
+      "Webhook delivery changed the retry requirement",
+    );
+    const rewrapped = structuredClone(baseline);
+    rewrapped.spec = rewrapped.spec.replace(
+      "MUST retry with exponential backoff and MUST",
+      "MUST retry with exponential backoff\nand MUST",
+    );
+    expect(findCompatibilityChanges(baseline, rewrapped)).toEqual([]);
+  });
+
   it("requires migration instructions for the target protocol version in §12", () => {
     const spec = baseline.spec.replace(
       "## 13. Provider switching",

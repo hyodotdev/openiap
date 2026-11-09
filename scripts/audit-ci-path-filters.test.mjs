@@ -364,7 +364,31 @@ test("rejects rewiring a gated job onto the wrong filter", () => {
     (root) => {
       assert.ok(
         findPolicyViolations(root).includes(
-          "ci.yml: job test-ios must gate on needs.changes.outputs.ios",
+          "ci.yml: job test-ios-compiler-boundaries must gate on needs.changes.outputs.ios",
+        ),
+      );
+    },
+  );
+});
+
+test("rejects an approval evidence job that skips approved PRs", () => {
+  withPatchedWorkflows(
+    (workflows) => {
+      const file = path.join(workflows, "ci.yml");
+      fs.writeFileSync(
+        file,
+        fs
+          .readFileSync(file, "utf8")
+          .replace(
+            "    if: ${{ !cancelled() && (needs.changes.outputs.android == 'true' || contains(github.event.pull_request.body, 'Design approval:')) }}",
+            "    if: needs.changes.outputs.android == 'true'",
+          ),
+      );
+    },
+    (root) => {
+      assert.ok(
+        findPolicyViolations(root).includes(
+          "ci.yml: job test-android must gate on needs.changes.outputs.android",
         ),
       );
     },
