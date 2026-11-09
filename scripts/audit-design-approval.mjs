@@ -90,7 +90,15 @@ function hasJavaScriptTest(path, source, name) {
       }
       ts.forEachChild(node, (child) => visit(child, inCallback));
     };
-    visit(body);
+    if (ts.isBlock(body)) {
+      for (const statement of body.statements) {
+        visit(statement);
+        if (ts.isReturnStatement(statement) || ts.isThrowStatement(statement))
+          break;
+      }
+    } else {
+      visit(body);
+    }
     return hasCall && !skips;
   };
 
@@ -124,7 +132,7 @@ function hasJavaScriptTest(path, source, name) {
   return search(file.statements);
 }
 
-function nativeBodyHasTestWork(source, bodyStart) {
+function nativeBodyHasTestWork(source, bodyStart, disabledScopes) {
   const scanner = ts.createScanner(
     ts.ScriptTarget.Latest,
     true,
@@ -138,19 +146,32 @@ function nativeBodyHasTestWork(source, bodyStart) {
     CloseBraceToken,
     OpenParenToken,
     DotToken,
+    VoidKeyword,
+    EqualsGreaterThanToken,
+    SemicolonToken,
   } = ts.SyntaxKind;
+  const parents = [];
   let token = scanner.scan();
   while (token !== EndOfFileToken && scanner.getTokenPos() < bodyStart) {
+    if (token === OpenBraceToken)
+      parents.push(disabledScopes.has(scanner.getTokenPos()));
+    if (token === CloseBraceToken) parents.pop();
     token = scanner.scan();
   }
-  if (token !== OpenBraceToken || scanner.getTokenPos() !== bodyStart)
+  if (
+    token !== OpenBraceToken ||
+    scanner.getTokenPos() !== bodyStart ||
+    parents.includes(true)
+  )
     return false;
 
   let depth = 1;
   let hasCall = false;
   let previous;
+  let beforeIdentifier;
   let identifier;
   let qualifier;
+  let inExpressionBody = false;
   for (
     token = scanner.scan();
     token !== EndOfFileToken;
@@ -158,7 +179,11 @@ function nativeBodyHasTestWork(source, bodyStart) {
   ) {
     if (token === OpenBraceToken) depth++;
     if (token === CloseBraceToken && --depth === 0) return hasCall;
+    if (depth === 1 && token === EqualsGreaterThanToken)
+      inExpressionBody = true;
+    if (depth === 1 && token === SemicolonToken) inExpressionBody = false;
     if (token === Identifier) {
+      beforeIdentifier = previous;
       qualifier = previous === DotToken ? identifier : undefined;
       identifier = scanner.getTokenText();
     }
@@ -172,7 +197,12 @@ function nativeBodyHasTestWork(source, bodyStart) {
         (qualifier === "Assert" && identifier === "Inconclusive")
       )
         return false;
-      hasCall = true;
+      // Calls inside a nested closure or local function may never run.
+      hasCall ||=
+        depth === 1 &&
+        !inExpressionBody &&
+        beforeIdentifier !== Identifier &&
+        beforeIdentifier !== VoidKeyword;
     }
     previous = token;
   }
@@ -182,24 +212,32 @@ function nativeBodyHasTestWork(source, bodyStart) {
 function hasNativeTest(path, source, name) {
   const quoted = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const annotation = "@[\\w.]+(?:\\([^\\r\\n)]*\\))?|\\[[^\\]\\r\\n]+\\]";
-  const modifier = `(?:${annotation}|public|private|internal|protected|fileprivate|final|open|override|virtual|sealed|static|async|unsafe)`;
-  const method = `(?:${modifier}[ \\t]+)*(?:func|fun|void|Task|ValueTask)[ \\t]+(?:${quoted}|\\x60${quoted}\\x60)[ \\t]*\\([^{};]*\\{`;
-  const declaration = new RegExp(
-    `^[ \\t]*(?:(?:${annotation})[ \\t]*\\r?\\n[ \\t]*)*${method}`,
-    "m",
-  ).exec(source);
+  const modifiers = `(?:(?:${annotation}|public|private|internal|protected|fileprivate|final|open|override|virtual|sealed|static|async|unsafe|partial|abstract)[ \\t\\r\\n]+)*`;
+  const method = `(?:func|fun|void|Task|ValueTask)[ \\t]+(?:${quoted}|\\x60${quoted}\\x60)[ \\t]*\\([^{};]*\\{`;
+  const declaration = new RegExp(`^[ \\t]*${modifiers}${method}`, "m").exec(
+    source,
+  );
   if (!declaration) return false;
   const [signature] = declaration;
-  if (
-    /@(?:[\w.]+\.)?(?:Disabled|Ignore)\b|\[\s*(?:[\w.]+\.)?Ignore\b|\bSkip\s*=/.test(
-      signature,
-    )
-  ) {
-    return false;
-  }
+  const disabled =
+    /@(?:[\w.]+\.)?(?:Disabled|Ignore)\b|\[\s*(?:[\w.]+\.)?Ignore\b|\bSkip\s*=/;
+  if (disabled.test(signature)) return false;
   if (path.endsWith(".swift") && /\bstatic\b/.test(signature)) return false;
 
-  return nativeBodyHasTestWork(source, declaration.index + signature.length - 1);
+  const types = new RegExp(
+    `^[ \\t]*${modifiers}(?:class|object|struct|actor)\\b[^{};]*\\{`,
+    "gm",
+  );
+  const disabledScopes = new Set(
+    [...source.matchAll(types)]
+      .filter(([signature]) => disabled.test(signature))
+      .map(({ 0: signature, index }) => index + signature.length - 1),
+  );
+  return nativeBodyHasTestWork(
+    source,
+    declaration.index + signature.length - 1,
+    disabledScopes,
+  );
 }
 
 function verifyApprovedScope(details, files, readTest) {

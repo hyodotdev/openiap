@@ -185,6 +185,7 @@ test("requires a named executable test in the current tree", () => {
     `it("${testName}", (ctx) => ctx.skip());`,
     `it("${testName}", (ctx) => run(() => ctx.skip()));`,
     `it("${testName}", () => { const unused = () => verify(); });`,
+    `it("${testName}", () => { return; verify(); });`,
     `it("${testName}", () => pending());`,
     `it.skip("${testName}", () => expect(true).toBe(true));`,
     `describe.skip("receipt", () => { it("${testName}", () => expect(true).toBe(true)); });`,
@@ -214,7 +215,7 @@ test("finds native tests with attributes, modifiers, and async return types", ()
     [
       "src/test/RestoreTests.kt",
       "restores a purchase",
-      "@Test internal fun `restores a purchase`() { assertTrue(verified) }",
+      "@Disabled class Other {}\nclass Active {\n@Test internal fun `restores a purchase`() = runTest { assertTrue(verified) }\n}",
     ],
     [
       "tests/RestoreTests.cs",
@@ -243,6 +244,10 @@ test("rejects empty and disabled native verification methods", () => {
     ["Tests/RestoreTests.swift", "func testRestore() { let fixture = true }"],
     [
       "Tests/RestoreTests.swift",
+      "func testRestore() { let unused = { XCTAssertTrue(false) } }",
+    ],
+    [
+      "Tests/RestoreTests.swift",
       "func testRestore() throws { verify(); try XCTSkipIf(true) }",
     ],
     [
@@ -255,6 +260,14 @@ test("rejects empty and disabled native verification methods", () => {
     ],
     [
       "src/test/RestoreTests.kt",
+      "@Disabled\ninternal class RestoreTests {\n  @Test fun testRestore() { assertTrue(verified) }\n}",
+    ],
+    [
+      "src/test/RestoreTests.kt",
+      "@Test fun testRestore() { fun unused() { assertTrue(false) } }",
+    ],
+    [
+      "src/test/RestoreTests.kt",
       "@Test fun testRestore() { Assumptions.assumeTrue(false); assertTrue(verified) }",
     ],
     [
@@ -264,6 +277,18 @@ test("rejects empty and disabled native verification methods", () => {
     [
       "tests/RestoreTests.cs",
       '[Test]\npublic void testRestore() { Assert.Inconclusive("unverified"); }',
+    ],
+    [
+      "tests/RestoreTests.cs",
+      '[Ignore("disabled")]\npublic sealed class RestoreTests {\n  [Test] public void testRestore() { Assert.True(verified); }\n}',
+    ],
+    [
+      "tests/RestoreTests.cs",
+      "[Test] public void testRestore() { void unused() { Assert.True(false); } }",
+    ],
+    [
+      "tests/RestoreTests.cs",
+      "[Test] public void testRestore() { Action unused = () => Assert.True(false); }",
     ],
   ]) {
     value.comment.body = value.comment.body.replace(

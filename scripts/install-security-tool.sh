@@ -10,11 +10,13 @@ fi
 
 SECURITY_TOOL_TMP=$(mktemp -d)
 trap 'rm -rf "$SECURITY_TOOL_TMP"' EXIT
+ASSET_API=
 
 case "$TOOL" in
   actionlint)
     ARCHIVE="$SECURITY_TOOL_TMP/actionlint.tar.gz"
-    URL=https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz?download=1
+    URL=https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+    ASSET_API=https://api.github.com/repos/rhysd/actionlint/releases/assets/384924896
     SHA256=8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
     ;;
   codecov)
@@ -30,6 +32,7 @@ case "$TOOL" in
   osv-scanner)
     ARCHIVE="$SECURITY_TOOL_TMP/osv-scanner"
     URL=https://github.com/google/osv-scanner/releases/download/v2.5.0/osv-scanner_linux_amd64
+    ASSET_API=https://api.github.com/repos/google/osv-scanner/releases/assets/504695129
     SHA256=edcfc41d257db36148f065055655fe3fcfc434b0b423ea67468a84c207524e0c
     ;;
   trivy)
@@ -43,10 +46,13 @@ case "$TOOL" in
     ;;
 esac
 
-curl --proto '=https' --tlsv1.2 -fsSL \
-  --retry 3 --retry-all-errors --retry-delay 2 \
-  --connect-timeout 15 --max-time 300 \
-  --output "$ARCHIVE" "$URL"
+download=(--proto '=https' --tlsv1.2 -fsSL --retry 3 --retry-all-errors --retry-delay 2
+  --connect-timeout 15 --max-time 300 --output "$ARCHIVE")
+curl "${download[@]}" "$URL" || {
+  status=$?
+  if [[ -z "$ASSET_API" ]]; then exit "$status"; fi
+  curl "${download[@]}" -H 'Accept: application/octet-stream' "$ASSET_API"
+}
 echo "$SHA256  $ARCHIVE" | sha256sum --check --strict
 if [[ "$ARCHIVE" == *.tar.gz ]]; then
   tar -xzf "$ARCHIVE" -C "$SECURITY_TOOL_TMP" "$TOOL"
