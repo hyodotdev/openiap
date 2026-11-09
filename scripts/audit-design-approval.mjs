@@ -78,17 +78,17 @@ function hasJavaScriptTest(path, source, name) {
   const hasTestWork = (body) => {
     let hasCall = false;
     let skips = false;
-    const visit = (node) => {
-      if (ts.isFunctionLike(node)) return;
+    const visit = (node, nested = false) => {
+      const inCallback = nested || ts.isFunctionLike(node);
       if (ts.isCallExpression(node)) {
-        hasCall = true;
+        hasCall ||= !inCallback;
         const target = node.expression;
         skips ||=
           (ts.isPropertyAccessExpression(target) &&
             target.name.text === "skip") ||
           (ts.isIdentifier(target) && target.text === "pending");
       }
-      ts.forEachChild(node, visit);
+      ts.forEachChild(node, (child) => visit(child, inCallback));
     };
     visit(body);
     return hasCall && !skips;
@@ -137,6 +137,7 @@ function nativeBodyHasTestWork(source, bodyStart) {
     OpenBraceToken,
     CloseBraceToken,
     OpenParenToken,
+    DotToken,
   } = ts.SyntaxKind;
   let token = scanner.scan();
   while (token !== EndOfFileToken && scanner.getTokenPos() < bodyStart) {
@@ -148,6 +149,8 @@ function nativeBodyHasTestWork(source, bodyStart) {
   let depth = 1;
   let hasCall = false;
   let previous;
+  let identifier;
+  let qualifier;
   for (
     token = scanner.scan();
     token !== EndOfFileToken;
@@ -155,14 +158,21 @@ function nativeBodyHasTestWork(source, bodyStart) {
   ) {
     if (token === OpenBraceToken) depth++;
     if (token === CloseBraceToken && --depth === 0) return hasCall;
-    if (
-      token === Identifier &&
-      /^(?:XCTSkip(?:If|Unless)?|Ignore|Skip|Assume|Assumptions|assume\w+)$/.test(
-        scanner.getTokenText(),
+    if (token === Identifier) {
+      qualifier = previous === DotToken ? identifier : undefined;
+      identifier = scanner.getTokenText();
+    }
+    if (token === OpenParenToken && previous === Identifier) {
+      if (
+        /^(?:XCTSkip(?:If|Unless)?|Ignore|Skip|assum(?:e|ing)\w+)$/.test(
+          identifier,
+        ) ||
+        qualifier === "Assume" ||
+        qualifier === "Assumptions"
       )
-    )
-      return false;
-    if (token === OpenParenToken && previous === Identifier) hasCall = true;
+        return false;
+      hasCall = true;
+    }
     previous = token;
   }
   return false;

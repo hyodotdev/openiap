@@ -183,6 +183,8 @@ test("requires a named executable test in the current tree", () => {
     `it("${testName}", () => {});`,
     `it("${testName}", () => undefined);`,
     `it("${testName}", (ctx) => ctx.skip());`,
+    `it("${testName}", (ctx) => run(() => ctx.skip()));`,
+    `it("${testName}", () => { const unused = () => verify(); });`,
     `it("${testName}", () => pending());`,
     `it.skip("${testName}", () => expect(true).toBe(true));`,
     `describe.skip("receipt", () => { it("${testName}", () => expect(true).toBe(true)); });`,
@@ -217,7 +219,7 @@ test("finds native tests with attributes, modifiers, and async return types", ()
     [
       "tests/RestoreTests.cs",
       "TestRestore",
-      "[Fact] public async Task TestRestore() { Assert.True(await Verify()); }",
+      "[Fact] public async Task TestRestore() { var result = await Verify(); Assert.False(result.Skip); }",
     ],
   ]) {
     const value = fixture();

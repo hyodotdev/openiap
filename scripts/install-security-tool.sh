@@ -14,7 +14,7 @@ trap 'rm -rf "$SECURITY_TOOL_TMP"' EXIT
 case "$TOOL" in
   actionlint)
     ARCHIVE="$SECURITY_TOOL_TMP/actionlint.tar.gz"
-    URL=https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+    URL=https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz?download=1
     SHA256=8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
     ;;
   codecov)
