@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   assertApprovedTestsPassed,
+  assertSameApproval,
   checkPlatformTests,
   junitCases,
   junitReport,
@@ -27,6 +28,23 @@ const report = (...statuses) => ({
 
 test("parses approval verification lines", () => {
   assert.deepEqual(verificationTests([`${path}#${name}`]), [{ path, name }]);
+});
+
+test("a re-run must see the approval its PR body has now", () => {
+  const approval =
+    "Design approval: https://github.com/o/r/issues/1#issuecomment-2";
+  assertSameApproval(`${approval}\nold text`, `${approval}\nnew text`);
+  assertSameApproval("no approval", null);
+  for (const [before, after] of [
+    ["no approval", approval],
+    [approval, `${approval.slice(0, -1)}3`],
+    [approval, "approval removed"],
+  ]) {
+    assert.throws(
+      () => assertSameApproval(before, after),
+      /changed after this CI run started/,
+    );
+  }
 });
 
 test("accepts only a test the runner reported as passed", () => {

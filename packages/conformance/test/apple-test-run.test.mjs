@@ -7,10 +7,11 @@ import {
 const methods = appleConformanceMethods(`
     func testErrors() {}
   func testStore() throws {}
+    func test_restore() {}
 `);
 
 it("discovers XCTest methods at any indentation and with modifiers", () => {
-  expect(methods).toEqual(["testErrors", "testStore"]);
+  expect(methods).toEqual(["testErrors", "testStore", "test_restore"]);
   expect(
     appleConformanceMethods(
       "\tfunc testTab() {}\n    @MainActor final func testActor() async throws {}\n    @available(iOS 15, *) nonisolated func testAvailable() {}\n    static func testStatic() {}",
@@ -30,6 +31,7 @@ it("rejects a case XCTest ran that discovery did not declare", () => {
       [
         result("testErrors", "passed"),
         result("testStore", "passed"),
+        result("test_restore", "passed"),
         result("testHidden", "skipped"),
       ].join("\n"),
     ),
@@ -43,28 +45,33 @@ it("requires all discovered Apple behavior tests to pass", () => {
   expect(() =>
     assertAppleConformanceRun(
       methods,
-      [result("testErrors", "passed"), result("testStore", "passed")].join(
-        "\n",
-      ),
+      [
+        result("testErrors", "passed"),
+        result("testStore", "passed"),
+        result("test_restore", "passed"),
+      ].join("\n"),
     ),
   ).not.toThrow();
 });
 
-it.each(["skipped", "missing", "duplicated"])(
-  "rejects an Apple behavior test that is %s",
-  (status) => {
-    const passed = result("testStore", "passed");
-    const store =
-      status === "missing"
-        ? ""
-        : status === "duplicated"
-          ? `${passed}\n${passed}`
-          : result("testStore", status);
-    expect(() =>
-      assertAppleConformanceRun(
-        methods,
-        `${result("testErrors", "passed")}\n${store}`,
-      ),
-    ).toThrow(/testStore/);
-  },
-);
+it.each([
+  ["testStore", "skipped"],
+  ["testStore", "missing"],
+  ["testStore", "duplicated"],
+  // A lowercase suffix is still an XCTest method.
+  ["test_restore", "missing"],
+])("rejects Apple behavior test %s when it is %s", (name, status) => {
+  const passed = result(name, "passed");
+  const outcome =
+    status === "missing"
+      ? ""
+      : status === "duplicated"
+        ? `${passed}\n${passed}`
+        : result(name, status);
+  const others = methods
+    .filter((method) => method !== name)
+    .map((method) => result(method, "passed"));
+  expect(() =>
+    assertAppleConformanceRun(methods, [...others, outcome].join("\n")),
+  ).toThrow(new RegExp(name));
+});

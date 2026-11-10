@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-11-09T16:58:16.544Z
+> Last updated: 2026-11-10T02:54:41.356Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -430,11 +430,13 @@ followed by these lines:
   `libraries/maui-iap/tests/OpenIap.Maui.Tests`, `Test iOS` checks Swift tests
   in `packages/apple/Tests`, and `Test Android` checks Kotlin unit tests in
   `packages/google/core` and `packages/google/openiap`; both jobs run for every
-  PR that links an approval. CI rejects a native test elsewhere, since no
-  required job runs it. Name a plain test: a `node:test` test with subtests
-  or an xUnit test with a `DisplayName` reports under another name and fails
-  as not run. Reviewers confirm that each test verifies the acceptance
-  criteria and that the PR leaves the test setup intact.
+  PR that links an approval. Editing the approval line starts a new CI run; a
+  re-run of a run from before the edit fails, so re-run the latest one. CI
+  rejects a native test elsewhere, since no required job runs it. Name a plain
+  test: a `node:test` test with subtests or an xUnit test with a `DisplayName`
+  reports under another name and fails as not run. Reviewers confirm that each
+  test verifies the acceptance criteria and that the PR leaves the test setup
+  intact.
 
 Keep the comment unedited so GitHub retains its original approval timestamp.
 Record a revised decision in a new comment.

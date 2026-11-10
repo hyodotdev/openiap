@@ -6,13 +6,13 @@ const suiteSource = new URL(
   import.meta.url,
 );
 
-// XCTest runs every instance `func test…()` without parameters, whatever its
-// indentation or modifiers, so discovery must not depend on either.
+// XCTest runs every instance method named `test…` without parameters,
+// whatever follows the prefix and whatever its indentation or modifiers.
 export function appleConformanceMethods(source) {
   const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
   return [
     ...code.matchAll(
-      /^[ \t]*(?:(?:@\w+(?:\([^)\n]*\))?|public|internal|private|fileprivate|final|override|open|nonisolated)[ \t]+)*func[ \t]+(test[A-Z]\w*)[ \t]*\([ \t]*\)/gm,
+      /^[ \t]*(?:(?:@\w+(?:\([^)\n]*\))?|public|internal|private|fileprivate|final|override|open|nonisolated)[ \t]+)*func[ \t]+(test\w*)[ \t]*\([ \t]*\)/gm,
     ),
   ].map(([, method]) => method);
 }
@@ -24,7 +24,7 @@ export function appleConformanceMethods(source) {
 export function appleTestOutcomes(log) {
   return [
     ...log.matchAll(
-      /^Test Case '-\[(?:\w+\.)?(\w+) (test\w+)\]' (passed|skipped|failed)\b/gm,
+      /^Test Case '-\[(?:\w+\.)?(\w+) (test\w*)\]' (passed|skipped|failed)\b/gm,
     ),
   ].map(([, suite, method, status]) => ({ suite, method, status }));
 }

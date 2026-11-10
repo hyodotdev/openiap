@@ -13,8 +13,11 @@ import { pathToFileURL } from "node:url";
 
 import { appleTestOutcomes } from "../packages/conformance/scripts/check-apple-test-run.mjs";
 
+const approvalLines = (body) =>
+  (body ?? "").match(/^Design approval:[^\r\n]*/gm) ?? [];
+
 export function approvalLink(body, repository) {
-  const fields = (body ?? "").match(/^Design approval:[^\r\n]*/gm) ?? [];
+  const fields = approvalLines(body);
   if (fields.length !== 1)
     throw new Error("Add one Design approval link to the PR body.");
   const url = fields[0].slice("Design approval:".length).trim();
@@ -405,6 +408,20 @@ const platformCases = {
     ),
 };
 
+/**
+ * A re-run replays its original event, whose PR body decided which evidence
+ * jobs run, so it must not check an approval added or changed since.
+ */
+export function assertSameApproval(eventBody, currentBody) {
+  if (
+    approvalLines(eventBody).join("\n") !==
+    approvalLines(currentBody).join("\n")
+  )
+    throw new Error(
+      "The design approval changed after this CI run started; re-run the latest run, which checks it.",
+    );
+}
+
 /** Checks the approved tests of one platform job against its report. */
 export function checkPlatformTests(tests, job, cases, readSource) {
   const native = tests.filter(({ path }) => nativeJobs[job].test(path));
@@ -431,9 +448,10 @@ function main([job, ...reports]) {
   const api = (path) =>
     JSON.parse(execFileSync("gh", ["api", path], { encoding: "utf8" }));
   const pull = api(`repos/${repo}/pulls/${event.pull_request.number}`);
+  assertSameApproval(event.pull_request.body, pull.body);
   // design-approval.yml decides whether the PR needs an approval and fails it
   // without one; this only checks the tests a linked approval names.
-  if (!/^Design approval:/m.test(pull.body ?? "")) {
+  if (!approvalLines(pull.body).length) {
     console.log("No design approval is linked, so there is nothing to check.");
     return;
   }
