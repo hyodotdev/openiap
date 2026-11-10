@@ -113,8 +113,8 @@ export const updateOrganization = mutation({
   args: {
     organizationId: v.id("organizations"),
     name: v.optional(v.string()),
-    // Retired billing fields, still accepted and ignored so older dashboards
-    // and CLI builds keep working until the schema drops them.
+    // Retired billing options, accepted and ignored so published CLI builds
+    // keep working.
     billingEmail: v.optional(v.string()),
     taxId: v.optional(v.union(v.string(), v.null())),
     taxIdType: v.optional(v.union(v.string(), v.null())),

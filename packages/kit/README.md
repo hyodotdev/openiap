@@ -990,21 +990,20 @@ npx convex run --prod --component migrations lib:getStatus \
 
 ### Legacy billing data removal
 
-The hosted service has no paid plans, so the Stripe billing data left on
-organizations is deleted: 19 fields, from `stripeCustomerId` through the stored
-card details, billing email, and tax ID (`convex/organizations/legacyBilling.ts`),
-plus every row in `stripeEvents` and `meteredUsageAccruals`. The deletion
-cannot be undone, so export a Convex snapshot first. Cancel any subscription
-still open in Stripe before running it, because the rows hold the only link
-between an organization and its Stripe customer.
+The hosted service has no paid plans, and the schema no longer has the Stripe
+billing data once stored on organizations: 19 fields, from `stripeCustomerId`
+through the stored card details, billing email, and tax ID, plus the
+`stripeEvents` and `meteredUsageAccruals` tables. Convex rejects this schema
+while any row still holds them.
 
-After the deploy that stops writing these fields, an operator runs the three
-migrations once; CI never runs them. Use the deployment selector and status
-states described under [Secret-key storage migration](#secret-key-storage-migration).
-The aggregate returns counts only, never billing values. A later release removes
-the fields and tables from the schema, and Convex rejects that schema while any
-row still holds them, so every deployment, including self-hosted ones, must
-finish these migrations before upgrading past it:
+A deployment that predates the removal deletes the data first. Deploy commit
+`911b1831a`, the last one with the three migrations, and run them once there;
+CI never runs them. The deletion cannot be undone, so export a Convex snapshot
+first, and cancel any subscription still open in Stripe, because the rows hold
+the only link between an organization and its Stripe customer. Use the
+deployment selector and status states described under
+[Secret-key storage migration](#secret-key-storage-migration). The aggregate
+returns counts only, never billing values:
 
 ```bash
 npx convex run --prod --component migrations lib:getStatus \
@@ -1030,7 +1029,7 @@ npx convex run --prod --component migrations lib:getStatus \
 ```
 
 Run the aggregate again afterwards: `partial` must be `false` and the three
-other counts `0`.
+other counts `0`. Then deploy the current release.
 
 ### Automated (CI on push to `main`)
 

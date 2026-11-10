@@ -2,7 +2,8 @@ name: Design Approval
 
 # pull_request_target runs this file and the checker from main, so a PR cannot
 # delete or rewrite the approval check. The PR head is read as data only; no
-# PR code, dependency, or script runs here.
+# PR code, dependency, or script runs here. The main ruleset requires the
+# "Verify Design Approval" job by name.
 on:
   pull_request_target:
     branches:
@@ -73,52 +74,3 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/audit-design-approval.mjs
-
-  publish:
-    name: Publish Design Approval
-    needs: verify
-    # A PR can name its own job "Verify Design Approval", but it cannot report
-    # a check as this App. The required check pins the App as its source. A
-    # run cancelled for a newer push reports nothing; the newer run reports.
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    # Its branch policy admits main only. pull_request_target runs on main; a
-    # PR's own workflows run on refs/pull and never receive the key.
-    environment: design-approval
-    permissions: {}
-    steps:
-      # Without the App no required check exists, so fail loudly instead of
-      # leaving contract changes unchecked.
-      - name: Require the check App
-        env:
-          CLIENT_ID: ${{ vars.DESIGN_APPROVAL_APP_CLIENT_ID }}
-        run: |
-          if [ -z "$CLIENT_ID" ]; then
-            echo "::error::Set up the design approval App, its environment, and the required check; see Public Contract Design Gate in knowledge/internal/02-architecture.md."
-            exit 1
-          fi
-
-      - name: Create check token
-        id: token
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
-        with:
-          client-id: ${{ vars.DESIGN_APPROVAL_APP_CLIENT_ID }}
-          private-key: ${{ secrets.DESIGN_APPROVAL_APP_PRIVATE_KEY }}
-          permission-checks: write
-
-      - name: Report the verdict on the PR head
-        env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          RESULT: ${{ needs.verify.result }}
-        run: |
-          conclusion=failure
-          if [ "$RESULT" = success ]; then conclusion=success; fi
-          gh api "repos/$GITHUB_REPOSITORY/check-runs" \
-            -f name="OpenIAP Design Approval" \
-            -f head_sha="$HEAD_SHA" \
-            -f status=completed \
-            -f conclusion="$conclusion" \
-            -f "output[title]=Design approval: $conclusion" \
-            -f "output[summary]=The base branch's Verify Design Approval job ended with $RESULT."
