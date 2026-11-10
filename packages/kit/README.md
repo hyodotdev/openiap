@@ -1028,6 +1028,9 @@ npx convex run --prod --component migrations lib:getStatus \
   '{"names":["migrations:removeLegacyBillingFields","migrations:deleteLegacyStripeEvents","migrations:deleteLegacyMeteredUsageAccruals"]}' --watch
 ```
 
+Run the aggregate again afterwards: `partial` must be `false` and the three
+other counts `0`. Then deploy the current release.
+
 ### Unused project bucket fields
 
 Admission buckets live in `verificationAdmissionBuckets`, but older projects
@@ -1043,9 +1046,6 @@ npx convex run --prod migrations:run \
 npx convex run --prod --component migrations lib:getStatus \
   '{"names":["migrations:removeUnusedProjectBucketFields"]}' --watch
 ```
-
-Run the aggregate again afterwards: `partial` must be `false` and the three
-other counts `0`. Then deploy the current release.
 
 ### Automated (CI on push to `main`)
 
