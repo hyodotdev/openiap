@@ -11,7 +11,10 @@ import {
 } from "./apple";
 import { testableFunction } from "../test.setup";
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+});
 
 // The environment is read from the notification before its signature is
 // checked, so it decides whether the signature is checked at all: the Apple
@@ -94,4 +97,72 @@ describe("Apple notification evidence dates", () => {
       });
     },
   );
+});
+
+describe("Apple external purchase token notifications", () => {
+  it("records the token's own dates and type for an unreported token", async () => {
+    const tokenCreationDate = Date.parse("2026-01-01T00:00:00Z");
+    const tokenExpirationDate = Date.parse("2026-01-31T00:00:00Z");
+    const project = {
+      _id: "project_fixture",
+      iosBundleId: "dev.openiap.test",
+      iosAppAppleId: 123,
+      iosAppStoreIssuerId: "fixture_issuer",
+      iosAppStoreKeyId: "fixture_key",
+    };
+    vi.stubEnv(
+      "IAPKIT_EXTERNAL_CHECKOUTS_CONFIG",
+      JSON.stringify({
+        integrations: [
+          { id: "stripe", projectId: project._id, environment: "sandbox" },
+        ],
+        profiles: [
+          {
+            id: "apple-jp",
+            integrationId: "stripe",
+            store: "apple",
+            appId: project.iosBundleId,
+            regions: ["JP"],
+          },
+        ],
+      }),
+    );
+    const token = {
+      externalPurchaseId: "SANDBOX_custom",
+      tokenCreationDate,
+      tokenExpirationDate,
+      tokenType: "SERVICES",
+      appAppleId: project.iosAppAppleId,
+      bundleId: project.iosBundleId,
+    };
+    const payload = {
+      notificationType: "EXTERNAL_PURCHASE_TOKEN",
+      subtype: "UNREPORTED",
+      notificationUUID: "fixture_token",
+      signedDate: Date.parse("2026-02-01T00:00:00Z"),
+      externalPurchaseToken: token,
+    };
+    vi.spyOn(
+      SignedDataVerifier.prototype,
+      "verifyAndDecodeNotification",
+    ).mockResolvedValue(payload);
+    const runMutation = vi.fn().mockResolvedValue({ deduped: false });
+    const jws = `e30.${Buffer.from(JSON.stringify(payload)).toString("base64url")}.fixture`;
+
+    await expect(
+      testableFunction(registeredIngest)._handler(
+        { runQuery: vi.fn().mockResolvedValue(project), runMutation },
+        { apiKey: "fixture_key", signedPayload: jws },
+      ),
+    ).resolves.toEqual({ type: "EXTERNAL_PURCHASE_TOKEN", deduped: false });
+    expect(runMutation).toHaveBeenCalledTimes(1);
+    expect(runMutation.mock.calls[0][1]).toEqual({
+      projectId: project._id,
+      profileId: "apple-jp",
+      externalId: token.externalPurchaseId,
+      createdAt: tokenCreationDate,
+      expiresAt: tokenExpirationDate,
+      tokenType: "SERVICES",
+    });
+  });
 });

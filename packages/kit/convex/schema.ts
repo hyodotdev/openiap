@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { accessHistoryValidator } from "./subscriptions/accessHistory";
+import { externalTables } from "./externalCheckouts/model";
 import { authTables } from "@convex-dev/auth/server";
 import { harmonizedPurchaseStateValidator } from "./purchases/purchaseState";
 import { receiptResponseValidator } from "./purchases/shared";
@@ -78,6 +79,7 @@ export const purchaseRequestDataValidator = v.union(
 const schema = defineSchema({
   ...authTables,
   users: usersTable,
+  ...externalTables,
 
   verificationJobs: defineTable({
     projectId: v.id("projects"),

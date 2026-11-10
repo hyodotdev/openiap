@@ -53,7 +53,7 @@ fi
 
 echo "📦 Installing app..."
 # Find app in XcodeDerivedData (correct path, excluding Index.noindex)
-APP_PATH=$(find /Users/crossplatformkorea/Library/Developer/Xcode/DerivedData -name "kmp-iap-example.app" -path "*/Build/Products/Debug-iphonesimulator/*" -not -path "*/Index.noindex/*" -type d 2>/dev/null | head -1)
+APP_PATH=$(find "$HOME/Library/Developer/Xcode/DerivedData" -name "kmp-iap-example.app" -path "*/Build/Products/Debug-iphonesimulator/*" -not -path "*/Index.noindex/*" -type d 2>/dev/null | head -1)
 
 if [ -n "$APP_PATH" ] && [ -d "$APP_PATH" ]; then
     echo "Found app at: $APP_PATH"
@@ -67,7 +67,7 @@ if [ -n "$APP_PATH" ] && [ -d "$APP_PATH" ]; then
     echo "✅ iOS app launched successfully!"
 else
     echo "❌ App not found. Searching for available apps..."
-    find /Users/crossplatformkorea/Library/Developer/Xcode/DerivedData -name "*.app" -path "*/Build/Products/Debug-iphonesimulator/*" 2>/dev/null || echo "No apps found in DerivedData"
+    find "$HOME/Library/Developer/Xcode/DerivedData" -name "*.app" -path "*/Build/Products/Debug-iphonesimulator/*" 2>/dev/null || echo "No apps found in DerivedData"
 
     echo "Try building the project first with:"
     echo "xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug build"

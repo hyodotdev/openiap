@@ -32,6 +32,10 @@ Thumbs.db
 
 # IDE
 .idea/
+# Eclipse metadata; the VS Code Java extension rewrites it with local paths.
+.project
+.classpath
+.settings/
 *.swp
 *.swo
 *~

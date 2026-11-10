@@ -1850,7 +1850,14 @@ export async function drainSubscriptionUserErasurePage(
 
   const now = Date.now();
   await ctx.db.patch(jobId, { status: "running", updatedAt: now });
-  const [subscriptions, commerceEvents, purchases, issues] = await Promise.all([
+  const [
+    subscriptions,
+    commerceEvents,
+    purchases,
+    issues,
+    externalCheckouts,
+    externalTokens,
+  ] = await Promise.all([
     ctx.db
       .query("subscriptions")
       .withIndex("by_project_and_user", (q) =>
@@ -1875,7 +1882,25 @@ export async function drainSubscriptionUserErasurePage(
         q.eq("projectId", job.projectId).eq("appUserId", job.userId),
       )
       .take(USER_ERASURE_BATCH_SIZE),
+    ctx.db
+      .query("externalCheckouts")
+      .withIndex("by_project_user", (q) =>
+        q.eq("projectId", job.projectId).eq("userId", job.userId),
+      )
+      .take(USER_ERASURE_BATCH_SIZE),
+    ctx.db
+      .query("externalPurchaseTokens")
+      .withIndex("by_project_user", (q) =>
+        q.eq("projectId", job.projectId).eq("userId", job.userId),
+      )
+      .take(USER_ERASURE_BATCH_SIZE),
   ]);
+  for (const checkout of externalCheckouts) {
+    await ctx.db.patch(checkout._id, { userId: undefined, active: false });
+  }
+  for (const token of externalTokens) {
+    await ctx.db.patch(token._id, { userId: undefined, accountErased: true });
+  }
 
   for (const subscription of subscriptions) {
     await ctx.db.patch(subscription._id, {
@@ -1921,6 +1946,8 @@ export async function drainSubscriptionUserErasurePage(
     subscriptions.length < USER_ERASURE_BATCH_SIZE &&
     purchases.length < USER_ERASURE_BATCH_SIZE &&
     issues.length < USER_ERASURE_BATCH_SIZE &&
+    externalCheckouts.length < USER_ERASURE_BATCH_SIZE &&
+    externalTokens.length < USER_ERASURE_BATCH_SIZE &&
     commerceEvents.length < USER_ERASURE_BATCH_SIZE;
 
   if (done) {

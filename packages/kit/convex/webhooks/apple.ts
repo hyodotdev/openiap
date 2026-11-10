@@ -21,9 +21,17 @@ import {
   type AppleDecodedTransaction,
   type AppleDecodedRenewalInfo,
 } from "./shared";
+import { appleNotificationProfile } from "../externalCheckouts/config";
+
+type CustomLinkToken = NonNullable<
+  ResponseBodyV2DecodedPayload["externalPurchaseToken"]
+> & {
+  tokenExpirationDate?: unknown;
+  tokenType?: unknown;
+};
 
 type IngestResult = {
-  eventId: Id<"webhookEvents">;
+  eventId?: Id<"webhookEvents">;
   type: string;
   deduped: boolean;
 };
@@ -40,7 +48,7 @@ export const ingestAppleAsnIOS = action({
     signedPayload: v.string(),
   },
   returns: v.object({
-    eventId: v.id("webhookEvents"),
+    eventId: v.optional(v.id("webhookEvents")),
     type: v.string(),
     deduped: v.boolean(),
   }),
@@ -80,7 +88,13 @@ export const ingestAppleAsnIOS = action({
       });
     }
 
-    const environment = mapPreviewEnvironment(previewPayload.data?.environment);
+    const externalId = previewPayload.externalPurchaseToken?.externalPurchaseId;
+    const environment =
+      typeof externalId === "string"
+        ? externalId.startsWith("SANDBOX")
+          ? Environment.SANDBOX
+          : Environment.PRODUCTION
+        : mapPreviewEnvironment(previewPayload.data?.environment);
     const appleRootCAs = loadAppleRootCertificates();
     const verifier = new SignedDataVerifier(
       appleRootCAs,
@@ -107,6 +121,41 @@ export const ingestAppleAsnIOS = action({
         code: "INVALID_SIGNATURE",
         message: "Apple ASN v2 signature verification failed",
       });
+    }
+
+    if (payload.notificationType === "EXTERNAL_PURCHASE_TOKEN") {
+      // The library type predates the custom link token fields.
+      const token: CustomLinkToken | undefined = payload.externalPurchaseToken;
+      const profile = appleNotificationProfile(
+        project,
+        environment === Environment.SANDBOX ? "sandbox" : "production",
+      );
+      if (
+        profile &&
+        payload.subtype === "UNREPORTED" &&
+        token?.externalPurchaseId &&
+        typeof token.tokenCreationDate === "number" &&
+        token.bundleId === project.iosBundleId &&
+        token.appAppleId === project.iosAppAppleId
+      ) {
+        const { deduped } = await ctx.runMutation(
+          internal.externalCheckouts.state.registerToken,
+          {
+            projectId: project._id,
+            profileId: profile.id,
+            externalId: token.externalPurchaseId,
+            createdAt: token.tokenCreationDate,
+            expiresAt:
+              typeof token.tokenExpirationDate === "number"
+                ? token.tokenExpirationDate
+                : undefined,
+            tokenType:
+              typeof token.tokenType === "string" ? token.tokenType : undefined,
+          },
+        );
+        return { type: "EXTERNAL_PURCHASE_TOKEN", deduped };
+      }
+      return { type: "EXTERNAL_PURCHASE_TOKEN", deduped: false };
     }
 
     // The inner transaction and renewal JWS are signed too, but the verified
@@ -217,6 +266,7 @@ export const ingestAppleAsnIOS = action({
 // mapWebhookError returns 400 instead of a 500 that Apple would retry.
 function previewDecodeNotification(jws: string): {
   data?: { environment?: string; bundleId?: string };
+  externalPurchaseToken?: { externalPurchaseId?: string };
 } {
   const parts = jws.split(".");
   if (parts.length !== 3) {
@@ -229,7 +279,7 @@ function previewDecodeNotification(jws: string): {
     const decoded = JSON.parse(
       Buffer.from(parts[1], "base64url").toString("utf-8"),
     );
-    return decoded as { data?: { environment?: string; bundleId?: string } };
+    return decoded;
   } catch {
     throw new ConvexError({
       code: "INVALID_SIGNATURE",

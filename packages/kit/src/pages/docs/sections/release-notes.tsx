@@ -26,9 +26,15 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-11-09",
     weekStart: "2026-11-09",
     date: "2026-11-09",
-    pullRequests: [596],
-    tagline: "Security update for the IAPKit runtime image.",
+    pullRequests: [596, 602],
+    tagline:
+      "External checkouts that report Stripe payments to Apple and Google, and a security update for the IAPKit runtime image.",
     items: [
+      {
+        kind: "feature",
+        topic: "External checkouts",
+        text: "Your backend can register a Stripe checkout paid outside the stores. IAPKit verifies it from Stripe's signed webhook, grants the entitlement, and reports it to Apple's External Purchase Server API or Google Play Alternative Billing Only. One-time purchases and subscriptions are covered, including free trials, plan changes at once or at renewal, payments from the customer's credit balance, refunds, and lost disputes. A deployment turns it on per project with a reporting profile; the IAPKit README explains the setup.",
+      },
       {
         kind: "security",
         topic: "Runtime image",
