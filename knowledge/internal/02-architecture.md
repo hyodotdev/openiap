@@ -169,10 +169,10 @@ commit dates. Approval must predate the PR and both the Git author and
 committer dates of every PR commit. If approval comes late, start the
 implementation from the approved design and open a new PR. Reviewers confirm
 the change follows the approved design. An approval covers one change: once a
-PR that links it, or a PR from the approved branch that links no approval,
-merges, record a new approval for the next change. Change the gate itself in a
-separate PR: an approved PR fails if it edits `design-approval.yml`, the
-scripts it runs (`audit-design-approval.mjs`, `public-declarations.mjs`,
+PR that links it, or any PR from the approved branch, merges after it, record
+a new approval for the next change. Change the gate itself in a separate PR:
+an approved PR fails if it edits `design-approval.yml`, the scripts it runs
+(`audit-design-approval.mjs`, `public-declarations.mjs`,
 `approved-verification.mjs`, `check-apple-test-run.mjs`), or the
 `audit-release-state`, `test-android`, and `test-ios` jobs and workflow-level
 settings of `ci.yml`. Other CI jobs may change with the contract.
@@ -180,12 +180,25 @@ settings of `ci.yml`. Other CI jobs may change with the contract.
 The `Design Approval` workflow runs on `pull_request_target`, so it always uses
 main's checker and reads the PR only as data. A PR cannot remove or rewrite it.
 It reports the `OpenIAP Design Approval` check through a dedicated GitHub App
-whose key only main-branch runs receive, and the main ruleset requires that
-check from that App, so a PR job with the same name cannot satisfy it. Until
-the App's `DESIGN_APPROVAL_APP_CLIENT_ID` variable, its key in the main-only
-`design-approval` environment, and that required check exist, the gate
-enforces nothing and its publish job fails on every PR; set them up before
-relying on it.
+whose key sits in an environment only main-branch runs can use, and the main
+ruleset requires that check from that App, so a PR job with the same name
+cannot satisfy it.
+
+Set the gate up in this order. Until the last step it enforces nothing, and
+its publish job fails on every PR until the first two are done:
+
+1. Create a GitHub App with `Checks: write`, install it on this repository,
+   and store its client ID in the `DESIGN_APPROVAL_APP_CLIENT_ID` variable.
+2. Create the `design-approval` environment, limit its deployment branches to
+   `main`, then store the App key there as `DESIGN_APPROVAL_APP_PRIVATE_KEY`.
+   Set the branch limit first: GitHub creates a missing environment without
+   one the first time the workflow runs.
+3. Confirm the App posts the check on a maintainer PR and on a Dependabot PR.
+   GitHub limits the secrets Dependabot's runs receive; if its run cannot read
+   the key, store the same key as a Dependabot secret.
+4. Require `OpenIAP Design Approval` from that App in the main ruleset.
+   Requiring it earlier blocks every PR, because nothing posts the check until
+   the workflow is on main and the App can report.
 
 CI detects edits to Client and Commerce schemas and their generated output,
 Client capability and conformance definitions, portable Client helpers and
@@ -198,17 +211,19 @@ publish from other modules: the declarations, JSDoc, and parameter defaults
 (including those of class and object members) of the names they export and of
 every type those names reach (such as `hooks/useIAP.ts` or
 `specs/RnIap.nitro.ts`), `declare global` and `declare module` blocks in those
-modules, and the entry fields of the library `package.json`. The check
-type-checks the SDK sources against main's installed dependencies, so inferred
-types count too. A dependency upgrade that changes a public type is still a
-public change: declare it. In those other modules, a body-only refactor or a
-change to an export the SDKs do not publish needs no approval. A behavior
-change that leaves declarations and docs untouched is still a public change:
-declare it. For other shipped source, declare `Public contract: changed` or
-`Public contract: unchanged` on its own line in the PR body. Use `changed` for
-any public change outside those paths as well. Link the executed acceptance
-tests in the PR so reviewers can trace the result back to the approved
-requirement. CI rechecks approval when the PR body changes.
+modules, the entry and build fields of the library `package.json`, and the
+settings in the library's root `tsconfig*.json` files. The check type-checks
+the SDK sources against main's installed dependencies with the strictness and
+target the SDKs build with, so inferred types count too. A dependency upgrade
+that changes a public type is still a public change: declare it. In those other
+modules, a body-only refactor or a change to an export the SDKs do not publish
+needs no approval. A behavior change that leaves declarations and docs
+untouched is still a public change: declare it. For other shipped source,
+declare `Public contract: changed` or `Public contract: unchanged` on its own
+line in the PR body. Use `changed` for any public change outside those paths as
+well. Link the executed acceptance tests in the PR so reviewers can trace the
+result back to the approved requirement. CI rechecks approval when the PR body
+changes.
 
 ### Verification Services Are Peers
 

@@ -333,3 +333,138 @@ test("an unresolved dependency type fails the check instead of hiding as any", (
     }),
   );
 });
+
+test("an inferred type the declarations name inline follows its module", () => {
+  const thing = `${rn}/thing.ts`;
+  const base = {
+    [`${rn}/index.ts`]: "export {thing} from './make';",
+    // Emitted as `thing: import("./thing").Thing`: make never imports it.
+    [`${rn}/make.ts`]:
+      "import {makeThing} from './factory';\nexport const thing = makeThing();",
+    [`${rn}/factory.ts`]:
+      "import type {Thing} from './thing';\nexport function makeThing(): Thing { return {size: 1}; }",
+    [thing]: "export interface Thing { size: number }",
+  };
+  assert.deepEqual(
+    publicSurfaceChanges([thing], (side, file) =>
+      side === "head" && file === thing
+        ? "export interface Thing { size: number; label?: string }"
+        : base[file],
+    ),
+    [thing],
+  );
+});
+
+test("a change no changed import explains flags the module itself", () => {
+  const merged = `${rn}/merged.ts`;
+  const internal = `${rn}/internal.ts`;
+  const base = {
+    // The entry imports internal for its value only, so merged never does.
+    [`${rn}/index.ts`]:
+      "import {log} from './internal';\nexport * from './merged';\nlog();",
+    [merged]:
+      "import {seed} from './common';\nexport const merged = {...seed, extra: 1};",
+    [`${rn}/common.ts`]:
+      "export interface Common { id: string }\nexport const seed = {id: ''} as Common;",
+    [internal]: "export const log = (): void => {};",
+  };
+  assert.deepEqual(
+    publicSurfaceChanges([internal], (side, file) =>
+      side === "head" && file === internal
+        ? `declare module './common' {\n  interface Common { secret: number }\n}\n${base[internal]}`
+        : base[file],
+    ),
+    [merged],
+  );
+  // Newly loading an unchanged module publishes its augmentations.
+  const make = `${rn}/make.ts`;
+  const loaded = {
+    [`${rn}/index.ts`]: "export {make} from './make';",
+    [make]: "export function make(): number { return 1; }",
+    [`${rn}/polyfill.ts`]:
+      "declare global {\n  interface Window { iap: string }\n}\nexport {};",
+    [`${rn}/plain.ts`]: "export {};",
+  };
+  const load = (specifier) =>
+    publicSurfaceChanges([make], (side, file) =>
+      side === "head" && file === make
+        ? `import '${specifier}';\n${loaded[make]}`
+        : loaded[file],
+    );
+  assert.deepEqual(load("./polyfill"), [`${rn}/polyfill.ts`]);
+  assert.deepEqual(load("./plain"), []);
+});
+
+test("checks with the strictness and target the SDKs build with", () => {
+  const module = `${rn}/pick.ts`;
+  const base = {
+    [`${rn}/index.ts`]: "export {first, last} from './pick';",
+    [module]: [
+      "export const first = (items: string[]) => items[0];",
+      "export const last = (items: string[]) => items.findLast(Boolean);",
+    ].join("\n"),
+  };
+  const check = (from, to) =>
+    publicSurfaceChanges([module], (side, file) =>
+      side === "head" && file === module
+        ? base[module].replace(from, to)
+        : base[file],
+    );
+  // noUncheckedIndexedAccess publishes `string | undefined` for items[0].
+  assert.deepEqual(check("items[0]", "items[0]!"), [module]);
+  // ES2023's findLast must resolve instead of reading as `any`.
+  assert.deepEqual(check("findLast(Boolean)", "findLast(Boolean) ?? ''"), [
+    module,
+  ]);
+});
+
+test("manifest build fields and a root tsconfig decide what is published", () => {
+  const manifest = "libraries/react-native-iap/package.json";
+  const config = "libraries/react-native-iap/tsconfig.build.json";
+  const nested = "libraries/expo-iap/plugin/tsconfig.json";
+  const base = {
+    [`${rn}/index.ts`]: "export const one = 1;",
+    [manifest]: JSON.stringify({
+      main: "lib/index.js",
+      files: ["lib"],
+      publishConfig: { registry: "https://registry.npmjs.org/" },
+      "react-native-builder-bob": { source: "src", output: "lib" },
+    }),
+    [config]:
+      '{\n  // Build settings.\n  "extends": "./tsconfig",\n  "compilerOptions": {"strict": true}\n}',
+    [nested]: '{"compilerOptions": {"strict": true}}',
+  };
+  const check = (path, head) =>
+    publicSurfaceChanges([path], (side, file) =>
+      side === "head" && file === path ? head : base[file],
+    );
+  const edited = (change) => {
+    const json = JSON.parse(base[manifest]);
+    change(json);
+    return JSON.stringify(json);
+  };
+  for (const change of [
+    (json) => (json.publishConfig.types = "lib/other.d.ts"),
+    (json) => (json["react-native-builder-bob"].source = "other"),
+    (json) => (json.typesVersions = { "*": { "*": ["lib/legacy/*"] } }),
+  ]) {
+    assert.deepEqual(check(manifest, edited(change)), [manifest]);
+  }
+  assert.deepEqual(
+    check(
+      manifest,
+      edited((json) => json.files.push("README.md")),
+    ),
+    [],
+  );
+  assert.deepEqual(
+    check(config, base[config].replace('"strict": true', '"strict": false')),
+    [config],
+  );
+  // A comment changes no setting, and a nested tsconfig builds no SDK module.
+  assert.deepEqual(
+    check(config, base[config].replace("Build settings.", "Settings for bob.")),
+    [],
+  );
+  assert.deepEqual(check(nested, '{"compilerOptions": {"strict": false}}'), []);
+});

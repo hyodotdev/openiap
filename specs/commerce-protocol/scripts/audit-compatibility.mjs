@@ -94,14 +94,18 @@ export function responseSemanticsTable(spec) {
 }
 
 /**
- * §9.4.4's paragraphs about retries, whitespace-normalized, so a loosened or
- * added retry rule is a change while a rewrap is not.
+ * §9.4.4's paragraphs about retrying a delivery, whitespace-normalized, so a
+ * loosened or added retry rule is a change while a rewrap is not.
  */
 export function deliveryRetryRequirement(spec) {
   const section = spec.split(/^#### 9\.4\.4[ \t]/m)[1]?.split(/^#### /m)[0];
   const paragraphs = section
     ?.split(/\r?\n\s*\r?\n/)
-    .filter((paragraph) => /\bretr(?:y|ies)\b/i.test(paragraph))
+    .filter((paragraph) =>
+      /\b(?:retr(?:y|ie[sd]|ying)|backoff|redeliver|dead-letter)/i.test(
+        paragraph,
+      ),
+    )
     .map((paragraph) => paragraph.replace(/\s+/g, " ").trim());
   if (!paragraphs?.some((paragraph) => /\bMUST retry\b/.test(paragraph)))
     throw new Error("Missing the retry requirement in SPEC.md §9.4.4.");

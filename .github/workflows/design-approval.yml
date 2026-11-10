@@ -20,6 +20,9 @@ jobs:
   verify:
     name: Verify Design Approval
     runs-on: ubuntu-latest
+    # A hung install or type-check fails here instead of leaving the check
+    # pending for six hours.
+    timeout-minutes: 20
     permissions:
       contents: read
       issues: read
@@ -79,6 +82,7 @@ jobs:
     # run cancelled for a newer push reports nothing; the newer run reports.
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     # Its branch policy admits main only. pull_request_target runs on main; a
     # PR's own workflows run on refs/pull and never receive the key.
     environment: design-approval

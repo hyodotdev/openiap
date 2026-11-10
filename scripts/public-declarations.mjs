@@ -19,15 +19,19 @@ export const publicEntryPoints = [
   "libraries/expo-iap/src/index.ts",
   "libraries/expo-iap/src/index.kepler.ts",
 ];
-// package.json fields that choose which module a consumer loads.
+// package.json fields that choose what is built and which module a consumer
+// loads.
 const entryFields = [
   "main",
   "module",
   "types",
   "typings",
+  "typesVersions",
   "react-native",
   "source",
   "exports",
+  "publishConfig",
+  "react-native-builder-bob",
 ];
 // A synced mirror is authored in its source, so report the source.
 const syncedSource = new Map(
@@ -251,6 +255,16 @@ function publishedEntries(module, names) {
       for (const statement of statements) {
         statement.forEachChild(function walk(node) {
           if (ts.isIdentifier(node)) visit(node.text);
+          // Declaration emit names an unimported type `import("./c").Thing`.
+          if (
+            ts.isImportTypeNode(node) &&
+            ts.isLiteralTypeNode(node.argument) &&
+            ts.isStringLiteral(node.argument.literal)
+          ) {
+            let name = node.qualifier;
+            while (name && ts.isQualifiedName(name)) name = name.left;
+            edges.push([node.argument.literal.text, name?.text ?? "*"]);
+          }
           node.forEachChild(walk);
         });
       }
@@ -296,14 +310,17 @@ function resolveModule(from, specifier, read) {
 // TypeScript's own lib files never change within a run; parse them once.
 const libraryFiles = new Map();
 
+// The strictness and target match what both SDKs build with, so an inferred
+// type here is the published one.
 const programOptions = {
   declaration: true,
   emitDeclarationOnly: true,
   removeComments: false,
   skipLibCheck: true,
   strict: true,
+  noUncheckedIndexedAccess: true,
   noEmitOnError: false,
-  target: ts.ScriptTarget.ES2022,
+  target: ts.ScriptTarget.ESNext,
   module: ts.ModuleKind.ESNext,
   moduleResolution: ts.ModuleResolutionKind.Bundler,
   jsx: ts.JsxEmit.ReactJSX,
@@ -492,7 +509,7 @@ function importClosure(path, read) {
   return [...seen];
 }
 
-/** Changed files whose published declarations differ, reported by source. */
+/** The source file behind each difference in the published declarations. */
 export function publicSurfaceChanges(files, read, options = {}) {
   const libraries = [
     ...new Set(publicEntryPoints.map((entry) => entry.replace(/src\/.*$/, ""))),
@@ -536,9 +553,12 @@ export function publicSurfaceChanges(files, read, options = {}) {
       publishedSurface(entry, (path) => cached(side, path), emitted[side]),
     );
     for (const path of new Set([...before.keys(), ...after.keys()])) {
-      if (isDeepStrictEqual(before.get(path), after.get(path))) continue;
+      const entries = (surface) => surface.get(path) ?? new Map();
+      if (isDeepStrictEqual(entries(before), entries(after))) continue;
       // An unchanged module can publish a different inferred type because a
-      // changed module it imports changed; that module is the edit.
+      // changed module it imports changed; that module is the edit. A change
+      // no import explains, such as an augmentation elsewhere, stays on the
+      // module itself.
       const causes = changed.has(path)
         ? [path]
         : ["base", "head"]
@@ -546,18 +566,31 @@ export function publicSurfaceChanges(files, read, options = {}) {
               importClosure(path, (file) => cached(side, file)),
             )
             .filter((file) => changed.has(file));
-      for (const file of causes) flagged.add(syncedSource.get(file) ?? file);
+      for (const file of causes.length ? causes : [path])
+        flagged.add(syncedSource.get(file) ?? file);
     }
   }
-  for (const root of libraries) {
-    const manifest = `${root}package.json`;
-    if (!changed.has(manifest)) continue;
-    const fields = (side) => {
-      const json = JSON.parse(cached(side, manifest) ?? "{}");
-      return entryFields.map((field) => json[field]);
-    };
-    if (!isDeepStrictEqual(fields("base"), fields("head")))
-      flagged.add(manifest);
+  // The manifest's entry fields and a library's root tsconfig files decide
+  // what is built and loaded; a tsconfig's comments and formatting do not.
+  const settings = (side, file, name) => {
+    const text = cached(side, file) ?? "{}";
+    if (name !== "package.json")
+      return ts.parseConfigFileTextToJson(file, text).config;
+    const manifest = JSON.parse(text);
+    return entryFields.map((field) => manifest[field]);
+  };
+  for (const file of files) {
+    const root = libraries.find((library) => file.startsWith(library));
+    const name = root === undefined ? "" : file.slice(root.length);
+    if (name !== "package.json" && !/^tsconfig[^/]*\.json$/.test(name))
+      continue;
+    if (
+      !isDeepStrictEqual(
+        settings("base", file, name),
+        settings("head", file, name),
+      )
+    )
+      flagged.add(file);
   }
   return [...flagged];
 }

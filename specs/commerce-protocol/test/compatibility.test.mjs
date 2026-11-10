@@ -144,15 +144,26 @@ describe("Commerce compatibility against the base revision", () => {
     expect(findCompatibilityChanges(baseline, next)).toContain(
       "Webhook delivery changed the retry requirement",
     );
-    const loosened = structuredClone(baseline);
-    loosened.spec = loosened.spec.replace(
-      "MUST eventually stop and\ndead-letter rather than retry forever.",
-      "MUST eventually stop and\ndead-letter rather than retry forever.\n\nAn emitter MAY instead retry at a fixed interval.",
-    );
-    expect(loosened.spec).not.toBe(baseline.spec);
-    expect(findCompatibilityChanges(baseline, loosened)).toContain(
-      "Webhook delivery changed the retry requirement",
-    );
+    // An added rule loosens it too, whichever word it uses for a retry.
+    const requirement =
+      "MUST eventually stop and\ndead-letter rather than retry forever.";
+    for (const rule of [
+      "An emitter MAY instead retry at a fixed interval.",
+      "A failed delivery need not be retried.",
+      "An emitter MAY stop retrying after one attempt.",
+      "An emitter MAY redeliver without backoff.",
+      "An emitter MAY dead-letter an event after its first failure.",
+    ]) {
+      const loosened = structuredClone(baseline);
+      loosened.spec = loosened.spec.replace(
+        requirement,
+        `${requirement}\n\n${rule}`,
+      );
+      expect(loosened.spec).not.toBe(baseline.spec);
+      expect(findCompatibilityChanges(baseline, loosened), rule).toContain(
+        "Webhook delivery changed the retry requirement",
+      );
+    }
     const rewrapped = structuredClone(baseline);
     rewrapped.spec = rewrapped.spec.replace(
       "MUST retry with exponential backoff and MUST",

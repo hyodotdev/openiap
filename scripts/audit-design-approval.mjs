@@ -348,10 +348,10 @@ function verifyApprovedScope(details, files, readTest, surfaceChanged) {
 }
 
 /**
- * An approval covers one change. A PR merged after it that linked it used it
- * up, and so did one from the same branch that linked no approval (its link
- * may have been edited out), so a recreated branch cannot ship a second
- * change on the same comment.
+ * An approval covers one change. The first PR merged from its branch after it
+ * used it up, whatever that PR's body links now (a body can be edited after
+ * the merge), and so did any merged PR that links it, so a recreated branch
+ * cannot ship a second change on the same comment.
  */
 export function assertApprovalUnused(link, pull, comment, merged) {
   const repository = pull.base.repo.full_name;
@@ -362,18 +362,12 @@ export function assertApprovalUnused(link, pull, comment, merged) {
       return undefined;
     }
   };
-  const used = merged.find((other) => {
-    if (
-      other.number === pull.number ||
-      !(Date.parse(other.merged_at) > Date.parse(comment.created_at))
-    )
-      return false;
-    const url = linked(other.body);
-    return (
-      url === link.url ||
-      (url === undefined && other.head.label === pull.head.label)
-    );
-  });
+  const used = merged.find(
+    (other) =>
+      other.number !== pull.number &&
+      Date.parse(other.merged_at) > Date.parse(comment.created_at) &&
+      (other.head.label === pull.head.label || linked(other.body) === link.url),
+  );
   if (used) {
     throw new Error(
       `Design approval ${link.url} was already used by merged PR #${used.number}; record a new approval for this change.`,
@@ -450,10 +444,13 @@ function main() {
   const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
   const repo = event.repository.full_name;
   const number = event.pull_request.number;
+  // The 1 MiB default fails on a long PR list and reads a large source as
+  // missing.
+  const output = { encoding: "utf8", maxBuffer: 2 ** 28 };
   const api = (...args) =>
-    JSON.parse(execFileSync("gh", ["api", ...args], { encoding: "utf8" }));
+    JSON.parse(execFileSync("gh", ["api", ...args], output));
   const git = (args, options) =>
-    execFileSync("git", args, { encoding: "utf8", ...options });
+    execFileSync("git", args, { ...output, ...options });
   const pullPath = `repos/${repo}/pulls/${number}`;
   const pull = api(pullPath);
   const { base, head } = event.pull_request;

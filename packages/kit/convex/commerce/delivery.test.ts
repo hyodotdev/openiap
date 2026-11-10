@@ -130,7 +130,7 @@ describe("deliverPendingEventsHandler", () => {
     });
   });
 
-  it("records the exponential backoff SPEC.md 9.4.4 requires: 30s, then 60s", async () => {
+  it("records the exponential backoff SPEC.md 9.4.4 requires: 30s, 60s, then 120s", async () => {
     const destinationId = "outboundDestinations_1";
     const rows = new Map<string, Record<string, unknown>>([
       [
@@ -166,7 +166,7 @@ describe("deliverPendingEventsHandler", () => {
         leases += 1;
         return [claimed];
       }
-      if (delivery.status !== "pending" || leases === 2) return [];
+      if (delivery.status !== "pending" || leases === 3) return [];
       delays.push((delivery.nextAttemptAt as number) - Date.now());
       vi.setSystemTime(delivery.nextAttemptAt as number);
       leases += 1;
@@ -183,9 +183,10 @@ describe("deliverPendingEventsHandler", () => {
       async () => 503,
     );
 
-    expect(delays).toEqual([30_000]);
-    expect(delivery).toMatchObject({ status: "pending", attempts: 2 });
-    expect((delivery.nextAttemptAt as number) - Date.now()).toBe(60_000);
+    // Three delays tell doubling from a fixed 30s step.
+    expect(delays).toEqual([30_000, 60_000]);
+    expect(delivery).toMatchObject({ status: "pending", attempts: 3 });
+    expect((delivery.nextAttemptAt as number) - Date.now()).toBe(120_000);
   });
 
   it("records redirects as permanent failures without following them", async () => {

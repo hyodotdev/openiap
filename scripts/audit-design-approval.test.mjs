@@ -451,26 +451,26 @@ test("a merged PR uses an approval up", () => {
   for (const other of [
     merged(12, "contributor:feature"),
     merged(13, "maintainer:docs", `Design approval: ${url}`),
+    // Its body was edited after the merge to link another approval.
+    merged(
+      17,
+      "contributor:feature",
+      `Design approval: ${url.replace("456", "455")}`,
+    ),
   ]) {
     assert.throws(
       () => assertApprovalUnused(link, pull, comment, [other]),
       new RegExp(`already used by merged PR #${other.number}`),
     );
   }
-  // This PR, an unmerged one, a branch merged before the approval, a merged
-  // PR that only mentions the issue, and an earlier PR from the branch that
-  // used another approval do not use it.
+  // This PR, an unmerged one, a branch merged before the approval, and a
+  // merged PR from another branch that only mentions the issue do not use it.
   assert.doesNotThrow(() =>
     assertApprovalUnused(link, pull, comment, [
       merged(30, "contributor:feature"),
       merged(14, "contributor:feature", "", null),
       merged(15, "contributor:feature", "", "2026-09-01T00:00:00Z"),
       merged(16, "maintainer:docs", "Refs the proposal issue."),
-      merged(
-        17,
-        "contributor:feature",
-        `Design approval: ${url.replace("456", "455")}`,
-      ),
     ]),
   );
 });

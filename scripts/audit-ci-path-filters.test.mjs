@@ -395,6 +395,35 @@ test("rejects an approval evidence job that skips approved PRs", () => {
   );
 });
 
+test("rejects an approval evidence job that lost its approved-test step", () => {
+  const command = "node scripts/approved-verification.mjs";
+  for (const [jobId, pinned, step] of [
+    ["audit-release-state", command, `${command}\n`],
+    ["test-android", `${command} google`, `${command} google packages/`],
+    ["test-ios", `${command} apple`, `${command} apple "$RUNNER_TEMP/`],
+  ]) {
+    withPatchedWorkflows(
+      (workflows) => {
+        const file = path.join(workflows, "ci.yml");
+        const source = fs.readFileSync(file, "utf8");
+        assert.ok(source.includes(`        run: ${step}`));
+        fs.writeFileSync(
+          file,
+          source.replace(`        run: ${step}`, `        run: echo ${step}`),
+        );
+      },
+      (root) => {
+        assert.deepEqual(
+          findPolicyViolations(root).filter((finding) =>
+            finding.includes(command),
+          ),
+          [`ci.yml: job ${jobId} must run '${pinned}' on every pull request`],
+        );
+      },
+    );
+  }
+});
+
 test("rejects deleting a filter that a job still gates on", () => {
   withPatchedWorkflows(
     (workflows) => {
