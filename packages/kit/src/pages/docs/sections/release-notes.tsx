@@ -43,7 +43,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "ops",
         topic: "Organization data",
-        text: "Organization settings no longer show or store a billing email or tax ID, and the data left from the retired paid plans, including Stripe IDs and saved card details, is deleted. The hosted service has no paid plans. Self-hosted deployments run the legacy billing migrations described in the README before the release that drops these fields.",
+        text: "Organization settings no longer show or store a billing email or tax ID, and the data left from the retired paid plans, including Stripe IDs and saved card details, is deleted. The hosted service has no paid plans. The schema no longer has these fields, so a self-hosted deployment that still holds them first runs the legacy billing migrations described in the README.",
       },
     ],
   },
