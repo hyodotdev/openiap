@@ -452,6 +452,15 @@ export const apiData: ApiItem[] = [
     path: '/docs/apis/android/show-billing-program-information-dialog-android',
   },
   {
+    id: 'show-alternative-billing-only-information-dialog-android',
+    title: 'showAlternativeBillingOnlyInformationDialogAndroid',
+    category: 'Android Specific',
+    description:
+      'Show the Google Play Alternative Billing Only information dialog before each checkout',
+    returns: 'BillingResultAndroid!',
+    path: '/docs/apis/android/show-alternative-billing-only-information-dialog-android',
+  },
+  {
     id: 'show-in-app-messages-android',
     title: 'showInAppMessagesAndroid',
     category: 'Android Specific',

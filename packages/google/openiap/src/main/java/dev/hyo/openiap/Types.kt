@@ -225,7 +225,13 @@ public enum class BillingProgramAndroid(val rawValue: String) {
      * Allows presenting Google Play Billing alongside an alternative in-app billing system or external web link.
      * Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
      */
-    BillingChoice("billing-choice");
+    BillingChoice("billing-choice"),
+    /**
+     * Google Play Alternative Billing Only. Use a dedicated connection, show the
+     * information dialog, and obtain a reporting token before starting checkout.
+     * Available in OpenIAP 1.4.0 / openiap-google 4.1.0.
+     */
+    AlternativeBillingOnly("alternative-billing-only");
 
     companion object {
         private fun fromKnownJson(value: String): BillingProgramAndroid? = when (value) {
@@ -247,6 +253,9 @@ public enum class BillingProgramAndroid(val rawValue: String) {
             "billing-choice" -> BillingProgramAndroid.BillingChoice
             "BILLING_CHOICE" -> BillingProgramAndroid.BillingChoice
             "BillingChoice" -> BillingProgramAndroid.BillingChoice
+            "alternative-billing-only" -> BillingProgramAndroid.AlternativeBillingOnly
+            "ALTERNATIVE_BILLING_ONLY" -> BillingProgramAndroid.AlternativeBillingOnly
+            "AlternativeBillingOnly" -> BillingProgramAndroid.AlternativeBillingOnly
             else -> null
         }
 
@@ -666,15 +675,23 @@ public enum class ExternalPurchaseCustomLinkNoticeTypeIOS(val rawValue: String) 
  */
 public enum class ExternalPurchaseCustomLinkTokenTypeIOS(val rawValue: String) {
     /**
-     * Token for customer acquisition tracking.
-     * Use this when a new customer makes their first purchase through external link.
+     * Acquisition reporting token for the EU custom link flow.
      */
     Acquisition("acquisition"),
     /**
-     * Token for ongoing services tracking.
-     * Use this for existing customers making additional purchases.
+     * Services reporting token for the EU custom link flow.
      */
-    Services("services");
+    Services("services"),
+    /**
+     * Token for an in-app payment provider in Japan (iOS 26.4+) and Brazil (iOS 26.5+).
+     * Available in OpenIAP 1.4.0 / openiap-apple 4.1.0.
+     */
+    InApp("in-app"),
+    /**
+     * Token for a payment on the developer's website in Japan (iOS 26.4+) and Brazil (iOS 26.5+).
+     * Available in OpenIAP 1.4.0 / openiap-apple 4.1.0.
+     */
+    LinkOut("link-out");
 
     companion object {
         private fun fromKnownJson(value: String): ExternalPurchaseCustomLinkTokenTypeIOS? = when (value) {
@@ -684,6 +701,12 @@ public enum class ExternalPurchaseCustomLinkTokenTypeIOS(val rawValue: String) {
             "services" -> ExternalPurchaseCustomLinkTokenTypeIOS.Services
             "SERVICES" -> ExternalPurchaseCustomLinkTokenTypeIOS.Services
             "Services" -> ExternalPurchaseCustomLinkTokenTypeIOS.Services
+            "in-app" -> ExternalPurchaseCustomLinkTokenTypeIOS.InApp
+            "IN_APP" -> ExternalPurchaseCustomLinkTokenTypeIOS.InApp
+            "InApp" -> ExternalPurchaseCustomLinkTokenTypeIOS.InApp
+            "link-out" -> ExternalPurchaseCustomLinkTokenTypeIOS.LinkOut
+            "LINK_OUT" -> ExternalPurchaseCustomLinkTokenTypeIOS.LinkOut
+            "LinkOut" -> ExternalPurchaseCustomLinkTokenTypeIOS.LinkOut
             else -> null
         }
 
@@ -4879,6 +4902,7 @@ public data class InitConnectionConfig(
      * - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+)
      * - BILLING_CHOICE: Google-rendered or developer-rendered billing choice
      *   (OpenIAP 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
+     * - ALTERNATIVE_BILLING_ONLY: Exclusive Google Play connection for in-app alternative billing
      */
     val enableBillingProgramAndroid: BillingProgramAndroid? = null
 ) {
@@ -6189,6 +6213,7 @@ public interface MutationResolver {
      * Returns external transaction token needed for reporting external transactions.
      * developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted,
      * native Android defaults it to IN_APP.
+     * For ALTERNATIVE_BILLING_ONLY, call after the information dialog succeeds; developerBillingType is ignored.
      * The Billing Choice extension is available in OpenIAP 2.1.0 /
      * openiap-google 2.3.0 (requires Play Billing 9.1.0+).
      * Throws OpenIapError.NotPrepared if billing client not ready.
@@ -6221,6 +6246,7 @@ public interface MutationResolver {
      * Introduced in Google Play Billing Library 8.2.0. External Offer and External
      * Content Link integrations must use 8.2.1+ because 8.2.1 fixes this API.
      * Returns availability result with isAvailable flag.
+     * For ALTERNATIVE_BILLING_ONLY, connect with that program before checking.
      * Throws OpenIapError.NotPrepared if billing client not ready.
      * See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
      */
@@ -6269,6 +6295,13 @@ public interface MutationResolver {
      * See: https://openiap.dev/docs/apis/restore-purchases
      */
     suspend fun restorePurchases(): Unit
+    /**
+     * Show the Google Play Alternative Billing Only information dialog before each checkout attempt.
+     * Continue only when responseCode is OK (0).
+     * See: https://openiap.dev/docs/features/external-purchase#alternative-billing-only
+     * Available in OpenIAP 1.4.0 / openiap-google 4.1.0.
+     */
+    suspend fun showAlternativeBillingOnlyInformationDialogAndroid(): BillingResultAndroid = throw UnsupportedOperationException("showAlternativeBillingOnlyInformationDialogAndroid is not supported by this resolver")
     /**
      * Show Google's mandatory information dialog before a developer-rendered,
      * in-app Billing Choice screen.
@@ -6377,7 +6410,7 @@ public interface QueryResolver {
      * Use this token to report transactions made through ExternalPurchaseCustomLink.
      * Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
      * See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
-     * Parameter tokenType: Token type: acquisition (new customers) or services (existing customers)
+     * Parameter tokenType: Use acquisition and services for the EU flow, or in-app and link-out for Japan (iOS 26.4+) and Brazil (iOS 26.5+).
      */
     suspend fun getExternalPurchaseCustomLinkTokenIOS(tokenType: ExternalPurchaseCustomLinkTokenTypeIOS): ExternalPurchaseCustomLinkTokenResultIOS
     /**
@@ -6527,6 +6560,7 @@ public typealias MutationPresentExternalPurchaseLinkIOSHandler = suspend (url: S
 public typealias MutationPresentExternalPurchaseNoticeSheetIOSHandler = suspend () -> ExternalPurchaseNoticeResultIOS
 public typealias MutationRequestPurchaseHandler = suspend (params: RequestPurchaseProps) -> RequestPurchaseResult?
 public typealias MutationRestorePurchasesHandler = suspend () -> Unit
+public typealias MutationShowAlternativeBillingOnlyInformationDialogAndroidHandler = suspend () -> BillingResultAndroid
 public typealias MutationShowBillingProgramInformationDialogAndroidHandler = suspend (params: BillingProgramInformationDialogParamsAndroid) -> BillingResultAndroid
 public typealias MutationShowExternalPurchaseCustomLinkNoticeIOSHandler = suspend (noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS) -> ExternalPurchaseCustomLinkNoticeResultIOS
 public typealias MutationShowInAppMessagesAndroidHandler = suspend (params: InAppMessageParamsAndroid?) -> InAppMessageResultAndroid
@@ -6535,7 +6569,7 @@ public typealias MutationSyncIOSHandler = suspend () -> Boolean
 public typealias MutationVerifyPurchaseHandler = suspend (options: VerifyPurchaseProps) -> VerifyPurchaseResult
 public typealias MutationVerifyPurchaseWithProviderHandler = suspend (options: VerifyPurchaseWithProviderProps) -> VerifyPurchaseWithProviderResult
 
-public data class MutationHandlers(
+public class MutationHandlers(
     /**
      * Acknowledge a non-consumable purchase. Required within 3 days or Google auto-refunds.
      * See: https://openiap.dev/docs/apis/android/acknowledge-purchase-android
@@ -6566,6 +6600,7 @@ public data class MutationHandlers(
      * Returns external transaction token needed for reporting external transactions.
      * developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted,
      * native Android defaults it to IN_APP.
+     * For ALTERNATIVE_BILLING_ONLY, call after the information dialog succeeds; developerBillingType is ignored.
      * The Billing Choice extension is available in OpenIAP 2.1.0 /
      * openiap-google 2.3.0 (requires Play Billing 9.1.0+).
      * Throws OpenIapError.NotPrepared if billing client not ready.
@@ -6598,6 +6633,7 @@ public data class MutationHandlers(
      * Introduced in Google Play Billing Library 8.2.0. External Offer and External
      * Content Link integrations must use 8.2.1+ because 8.2.1 fixes this API.
      * Returns availability result with isAvailable flag.
+     * For ALTERNATIVE_BILLING_ONLY, connect with that program before checking.
      * Throws OpenIapError.NotPrepared if billing client not ready.
      * See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
      */
@@ -6697,7 +6733,152 @@ public data class MutationHandlers(
      * See: https://openiap.dev/docs/features/validation#verify-purchase-with-provider
      */
     val verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler? = null
-)
+) {
+    /**
+     * Show the Google Play Alternative Billing Only information dialog before each checkout attempt.
+     * Continue only when responseCode is OK (0).
+     * See: https://openiap.dev/docs/features/external-purchase#alternative-billing-only
+     * Available in OpenIAP 1.4.0 / openiap-google 4.1.0.
+     */
+    var showAlternativeBillingOnlyInformationDialogAndroid: MutationShowAlternativeBillingOnlyInformationDialogAndroidHandler? = null
+        private set
+
+    constructor(
+        acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidHandler? = null,
+        beginRefundRequestIOS: MutationBeginRefundRequestIOSHandler? = null,
+        clearTransactionIOS: MutationClearTransactionIOSHandler? = null,
+        consumePurchaseAndroid: MutationConsumePurchaseAndroidHandler? = null,
+        createBillingProgramReportingDetailsAndroid: MutationCreateBillingProgramReportingDetailsAndroidHandler? = null,
+        deepLinkToSubscriptions: MutationDeepLinkToSubscriptionsHandler? = null,
+        endConnection: MutationEndConnectionHandler? = null,
+        finishTransaction: MutationFinishTransactionHandler? = null,
+        initConnection: MutationInitConnectionHandler? = null,
+        isBillingProgramAvailableAndroid: MutationIsBillingProgramAvailableAndroidHandler? = null,
+        launchExternalLinkAndroid: MutationLaunchExternalLinkAndroidHandler? = null,
+        openRedeemOfferCode: MutationOpenRedeemOfferCodeHandler? = null,
+        presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIOSHandler? = null,
+        presentExternalPurchaseNoticeSheetIOS: MutationPresentExternalPurchaseNoticeSheetIOSHandler? = null,
+        requestPurchase: MutationRequestPurchaseHandler? = null,
+        restorePurchases: MutationRestorePurchasesHandler? = null,
+        showBillingProgramInformationDialogAndroid: MutationShowBillingProgramInformationDialogAndroidHandler? = null,
+        showExternalPurchaseCustomLinkNoticeIOS: MutationShowExternalPurchaseCustomLinkNoticeIOSHandler? = null,
+        showInAppMessagesAndroid: MutationShowInAppMessagesAndroidHandler? = null,
+        showManageSubscriptionsIOS: MutationShowManageSubscriptionsIOSHandler? = null,
+        syncIOS: MutationSyncIOSHandler? = null,
+        verifyPurchase: MutationVerifyPurchaseHandler? = null,
+        verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler? = null,
+        showAlternativeBillingOnlyInformationDialogAndroid: MutationShowAlternativeBillingOnlyInformationDialogAndroidHandler?,
+    ) : this(acknowledgePurchaseAndroid, beginRefundRequestIOS, clearTransactionIOS, consumePurchaseAndroid, createBillingProgramReportingDetailsAndroid, deepLinkToSubscriptions, endConnection, finishTransaction, initConnection, isBillingProgramAvailableAndroid, launchExternalLinkAndroid, openRedeemOfferCode, presentExternalPurchaseLinkIOS, presentExternalPurchaseNoticeSheetIOS, requestPurchase, restorePurchases, showBillingProgramInformationDialogAndroid, showExternalPurchaseCustomLinkNoticeIOS, showInAppMessagesAndroid, showManageSubscriptionsIOS, syncIOS, verifyPurchase, verifyPurchaseWithProvider) {
+        this.showAlternativeBillingOnlyInformationDialogAndroid = showAlternativeBillingOnlyInformationDialogAndroid
+    }
+
+    operator fun component1(): MutationAcknowledgePurchaseAndroidHandler? = acknowledgePurchaseAndroid
+    operator fun component2(): MutationBeginRefundRequestIOSHandler? = beginRefundRequestIOS
+    operator fun component3(): MutationClearTransactionIOSHandler? = clearTransactionIOS
+    operator fun component4(): MutationConsumePurchaseAndroidHandler? = consumePurchaseAndroid
+    operator fun component5(): MutationCreateBillingProgramReportingDetailsAndroidHandler? = createBillingProgramReportingDetailsAndroid
+    operator fun component6(): MutationDeepLinkToSubscriptionsHandler? = deepLinkToSubscriptions
+    operator fun component7(): MutationEndConnectionHandler? = endConnection
+    operator fun component8(): MutationFinishTransactionHandler? = finishTransaction
+    operator fun component9(): MutationInitConnectionHandler? = initConnection
+    operator fun component10(): MutationIsBillingProgramAvailableAndroidHandler? = isBillingProgramAvailableAndroid
+    operator fun component11(): MutationLaunchExternalLinkAndroidHandler? = launchExternalLinkAndroid
+    operator fun component12(): MutationOpenRedeemOfferCodeHandler? = openRedeemOfferCode
+    operator fun component13(): MutationPresentExternalPurchaseLinkIOSHandler? = presentExternalPurchaseLinkIOS
+    operator fun component14(): MutationPresentExternalPurchaseNoticeSheetIOSHandler? = presentExternalPurchaseNoticeSheetIOS
+    operator fun component15(): MutationRequestPurchaseHandler? = requestPurchase
+    operator fun component16(): MutationRestorePurchasesHandler? = restorePurchases
+    operator fun component17(): MutationShowBillingProgramInformationDialogAndroidHandler? = showBillingProgramInformationDialogAndroid
+    operator fun component18(): MutationShowExternalPurchaseCustomLinkNoticeIOSHandler? = showExternalPurchaseCustomLinkNoticeIOS
+    operator fun component19(): MutationShowInAppMessagesAndroidHandler? = showInAppMessagesAndroid
+    operator fun component20(): MutationShowManageSubscriptionsIOSHandler? = showManageSubscriptionsIOS
+    operator fun component21(): MutationSyncIOSHandler? = syncIOS
+    operator fun component22(): MutationVerifyPurchaseHandler? = verifyPurchase
+    operator fun component23(): MutationVerifyPurchaseWithProviderHandler? = verifyPurchaseWithProvider
+
+    fun copy(
+        acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidHandler? = this.acknowledgePurchaseAndroid,
+        beginRefundRequestIOS: MutationBeginRefundRequestIOSHandler? = this.beginRefundRequestIOS,
+        clearTransactionIOS: MutationClearTransactionIOSHandler? = this.clearTransactionIOS,
+        consumePurchaseAndroid: MutationConsumePurchaseAndroidHandler? = this.consumePurchaseAndroid,
+        createBillingProgramReportingDetailsAndroid: MutationCreateBillingProgramReportingDetailsAndroidHandler? = this.createBillingProgramReportingDetailsAndroid,
+        deepLinkToSubscriptions: MutationDeepLinkToSubscriptionsHandler? = this.deepLinkToSubscriptions,
+        endConnection: MutationEndConnectionHandler? = this.endConnection,
+        finishTransaction: MutationFinishTransactionHandler? = this.finishTransaction,
+        initConnection: MutationInitConnectionHandler? = this.initConnection,
+        isBillingProgramAvailableAndroid: MutationIsBillingProgramAvailableAndroidHandler? = this.isBillingProgramAvailableAndroid,
+        launchExternalLinkAndroid: MutationLaunchExternalLinkAndroidHandler? = this.launchExternalLinkAndroid,
+        openRedeemOfferCode: MutationOpenRedeemOfferCodeHandler? = this.openRedeemOfferCode,
+        presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIOSHandler? = this.presentExternalPurchaseLinkIOS,
+        presentExternalPurchaseNoticeSheetIOS: MutationPresentExternalPurchaseNoticeSheetIOSHandler? = this.presentExternalPurchaseNoticeSheetIOS,
+        requestPurchase: MutationRequestPurchaseHandler? = this.requestPurchase,
+        restorePurchases: MutationRestorePurchasesHandler? = this.restorePurchases,
+        showBillingProgramInformationDialogAndroid: MutationShowBillingProgramInformationDialogAndroidHandler? = this.showBillingProgramInformationDialogAndroid,
+        showExternalPurchaseCustomLinkNoticeIOS: MutationShowExternalPurchaseCustomLinkNoticeIOSHandler? = this.showExternalPurchaseCustomLinkNoticeIOS,
+        showInAppMessagesAndroid: MutationShowInAppMessagesAndroidHandler? = this.showInAppMessagesAndroid,
+        showManageSubscriptionsIOS: MutationShowManageSubscriptionsIOSHandler? = this.showManageSubscriptionsIOS,
+        syncIOS: MutationSyncIOSHandler? = this.syncIOS,
+        verifyPurchase: MutationVerifyPurchaseHandler? = this.verifyPurchase,
+        verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler? = this.verifyPurchaseWithProvider,
+    ): MutationHandlers = MutationHandlers(
+        acknowledgePurchaseAndroid = acknowledgePurchaseAndroid,
+        beginRefundRequestIOS = beginRefundRequestIOS,
+        clearTransactionIOS = clearTransactionIOS,
+        consumePurchaseAndroid = consumePurchaseAndroid,
+        createBillingProgramReportingDetailsAndroid = createBillingProgramReportingDetailsAndroid,
+        deepLinkToSubscriptions = deepLinkToSubscriptions,
+        endConnection = endConnection,
+        finishTransaction = finishTransaction,
+        initConnection = initConnection,
+        isBillingProgramAvailableAndroid = isBillingProgramAvailableAndroid,
+        launchExternalLinkAndroid = launchExternalLinkAndroid,
+        openRedeemOfferCode = openRedeemOfferCode,
+        presentExternalPurchaseLinkIOS = presentExternalPurchaseLinkIOS,
+        presentExternalPurchaseNoticeSheetIOS = presentExternalPurchaseNoticeSheetIOS,
+        requestPurchase = requestPurchase,
+        restorePurchases = restorePurchases,
+        showBillingProgramInformationDialogAndroid = showBillingProgramInformationDialogAndroid,
+        showExternalPurchaseCustomLinkNoticeIOS = showExternalPurchaseCustomLinkNoticeIOS,
+        showInAppMessagesAndroid = showInAppMessagesAndroid,
+        showManageSubscriptionsIOS = showManageSubscriptionsIOS,
+        syncIOS = syncIOS,
+        verifyPurchase = verifyPurchase,
+        verifyPurchaseWithProvider = verifyPurchaseWithProvider,
+        showAlternativeBillingOnlyInformationDialogAndroid = this.showAlternativeBillingOnlyInformationDialogAndroid,
+    )
+
+    override fun equals(other: Any?): Boolean = other is MutationHandlers &&
+        acknowledgePurchaseAndroid == other.acknowledgePurchaseAndroid && beginRefundRequestIOS == other.beginRefundRequestIOS && clearTransactionIOS == other.clearTransactionIOS && consumePurchaseAndroid == other.consumePurchaseAndroid && createBillingProgramReportingDetailsAndroid == other.createBillingProgramReportingDetailsAndroid && deepLinkToSubscriptions == other.deepLinkToSubscriptions && endConnection == other.endConnection && finishTransaction == other.finishTransaction && initConnection == other.initConnection && isBillingProgramAvailableAndroid == other.isBillingProgramAvailableAndroid && launchExternalLinkAndroid == other.launchExternalLinkAndroid && openRedeemOfferCode == other.openRedeemOfferCode && presentExternalPurchaseLinkIOS == other.presentExternalPurchaseLinkIOS && presentExternalPurchaseNoticeSheetIOS == other.presentExternalPurchaseNoticeSheetIOS && requestPurchase == other.requestPurchase && restorePurchases == other.restorePurchases && showAlternativeBillingOnlyInformationDialogAndroid == other.showAlternativeBillingOnlyInformationDialogAndroid && showBillingProgramInformationDialogAndroid == other.showBillingProgramInformationDialogAndroid && showExternalPurchaseCustomLinkNoticeIOS == other.showExternalPurchaseCustomLinkNoticeIOS && showInAppMessagesAndroid == other.showInAppMessagesAndroid && showManageSubscriptionsIOS == other.showManageSubscriptionsIOS && syncIOS == other.syncIOS && verifyPurchase == other.verifyPurchase && verifyPurchaseWithProvider == other.verifyPurchaseWithProvider
+    override fun hashCode(): Int {
+        var result = 1
+        result = 31 * result + (acknowledgePurchaseAndroid?.hashCode() ?: 0)
+        result = 31 * result + (beginRefundRequestIOS?.hashCode() ?: 0)
+        result = 31 * result + (clearTransactionIOS?.hashCode() ?: 0)
+        result = 31 * result + (consumePurchaseAndroid?.hashCode() ?: 0)
+        result = 31 * result + (createBillingProgramReportingDetailsAndroid?.hashCode() ?: 0)
+        result = 31 * result + (deepLinkToSubscriptions?.hashCode() ?: 0)
+        result = 31 * result + (endConnection?.hashCode() ?: 0)
+        result = 31 * result + (finishTransaction?.hashCode() ?: 0)
+        result = 31 * result + (initConnection?.hashCode() ?: 0)
+        result = 31 * result + (isBillingProgramAvailableAndroid?.hashCode() ?: 0)
+        result = 31 * result + (launchExternalLinkAndroid?.hashCode() ?: 0)
+        result = 31 * result + (openRedeemOfferCode?.hashCode() ?: 0)
+        result = 31 * result + (presentExternalPurchaseLinkIOS?.hashCode() ?: 0)
+        result = 31 * result + (presentExternalPurchaseNoticeSheetIOS?.hashCode() ?: 0)
+        result = 31 * result + (requestPurchase?.hashCode() ?: 0)
+        result = 31 * result + (restorePurchases?.hashCode() ?: 0)
+        result = 31 * result + (showAlternativeBillingOnlyInformationDialogAndroid?.hashCode() ?: 0)
+        result = 31 * result + (showBillingProgramInformationDialogAndroid?.hashCode() ?: 0)
+        result = 31 * result + (showExternalPurchaseCustomLinkNoticeIOS?.hashCode() ?: 0)
+        result = 31 * result + (showInAppMessagesAndroid?.hashCode() ?: 0)
+        result = 31 * result + (showManageSubscriptionsIOS?.hashCode() ?: 0)
+        result = 31 * result + (syncIOS?.hashCode() ?: 0)
+        result = 31 * result + (verifyPurchase?.hashCode() ?: 0)
+        result = 31 * result + (verifyPurchaseWithProvider?.hashCode() ?: 0)
+        return result
+    }
+    override fun toString(): String = "MutationHandlers(acknowledgePurchaseAndroid=$acknowledgePurchaseAndroid, beginRefundRequestIOS=$beginRefundRequestIOS, clearTransactionIOS=$clearTransactionIOS, consumePurchaseAndroid=$consumePurchaseAndroid, createBillingProgramReportingDetailsAndroid=$createBillingProgramReportingDetailsAndroid, deepLinkToSubscriptions=$deepLinkToSubscriptions, endConnection=$endConnection, finishTransaction=$finishTransaction, initConnection=$initConnection, isBillingProgramAvailableAndroid=$isBillingProgramAvailableAndroid, launchExternalLinkAndroid=$launchExternalLinkAndroid, openRedeemOfferCode=$openRedeemOfferCode, presentExternalPurchaseLinkIOS=$presentExternalPurchaseLinkIOS, presentExternalPurchaseNoticeSheetIOS=$presentExternalPurchaseNoticeSheetIOS, requestPurchase=$requestPurchase, restorePurchases=$restorePurchases, showAlternativeBillingOnlyInformationDialogAndroid=$showAlternativeBillingOnlyInformationDialogAndroid, showBillingProgramInformationDialogAndroid=$showBillingProgramInformationDialogAndroid, showExternalPurchaseCustomLinkNoticeIOS=$showExternalPurchaseCustomLinkNoticeIOS, showInAppMessagesAndroid=$showInAppMessagesAndroid, showManageSubscriptionsIOS=$showManageSubscriptionsIOS, syncIOS=$syncIOS, verifyPurchase=$verifyPurchase, verifyPurchaseWithProvider=$verifyPurchaseWithProvider)"
+}
 
 // MARK: - Query Helpers
 
@@ -6775,7 +6956,7 @@ public class QueryHandlers(
      * Use this token to report transactions made through ExternalPurchaseCustomLink.
      * Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
      * See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
-     * Parameter tokenType: Token type: acquisition (new customers) or services (existing customers)
+     * Parameter tokenType: Use acquisition and services for the EU flow, or in-app and link-out for Japan (iOS 26.4+) and Brazil (iOS 26.5+).
      */
     val getExternalPurchaseCustomLinkTokenIOS: QueryGetExternalPurchaseCustomLinkTokenIOSHandler? = null,
     /**

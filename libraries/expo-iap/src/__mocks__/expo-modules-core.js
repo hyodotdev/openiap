@@ -51,6 +51,7 @@ const mockNativeModule = {
   launchExternalLinkAndroid: jest.fn(),
   createBillingProgramReportingDetailsAndroid: jest.fn(),
   showBillingProgramInformationDialogAndroid: jest.fn(),
+  showAlternativeBillingOnlyInformationDialogAndroid: jest.fn(),
   showInAppMessagesAndroid: jest.fn(),
   addListener: jest.fn(),
   removeListener: jest.fn(),

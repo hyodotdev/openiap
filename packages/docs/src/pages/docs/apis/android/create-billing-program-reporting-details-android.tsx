@@ -138,7 +138,8 @@ Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetails
           </em>{' '}
           — Billing Choice reporting destination. Use <code>'in-app'</code> for
           native in-app developer billing, or <code>'external-link'</code> when
-          the developer billing option uses a link.
+          the developer billing option uses a link. Ignored for{' '}
+          <code>ALTERNATIVE_BILLING_ONLY</code>.
         </li>
       </ul>
 

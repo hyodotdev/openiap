@@ -2841,6 +2841,16 @@ export const showBillingProgramInformationDialogAndroid: MutationField<
   }
 };
 
+/** Show the mandatory Google Play Alternative Billing Only notice before checkout. */
+export const showAlternativeBillingOnlyInformationDialogAndroid: MutationField<
+  'showAlternativeBillingOnlyInformationDialogAndroid'
+> = async () => {
+  if (Platform.OS !== 'android') {
+    throw new Error('Alternative Billing Only is only supported on Android');
+  }
+  return IAP.instance.showAlternativeBillingOnlyInformationDialogAndroid();
+};
+
 /**
  * Show Play Billing in-app messages, such as transactional subscription updates (Android only).
  *
@@ -3059,14 +3069,14 @@ export const isEligibleForExternalPurchaseCustomLinkIOS: QueryField<
  * Get external purchase token for reporting to Apple (iOS 18.1+).
  * Use this token with Apple's External Purchase Server API to report transactions.
  *
- * @param tokenType - Token type: 'acquisition' (new customers) or 'services' (existing customers)
+ * @param tokenType - Reporting token type for the app's storefront.
  * @returns Promise<ExternalPurchaseCustomLinkTokenResultIOS> - Result with token string or error
  * @platform iOS
  * @see https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
  *
  * @example
  * ```typescript
- * // For new customer acquisition
+ * // Request an EU acquisition reporting token
  * const result = await getExternalPurchaseCustomLinkTokenIOS('acquisition');
  * if (result.token) {
  *   // Report token to Apple's External Purchase Server API

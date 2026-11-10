@@ -113,6 +113,9 @@ interface OpenIapProtocol {
         params: BillingProgramInformationDialogParamsAndroid
     ): BillingResultAndroid
 
+    suspend fun showAlternativeBillingOnlyInformationDialog(activity: Activity): BillingResultAndroid =
+        throw OpenIapError.FeatureNotSupported("Alternative Billing Only requires Google Play")
+
     /**
      * Show Play billing in-app messages such as payment issues or price-change confirmations.
      */

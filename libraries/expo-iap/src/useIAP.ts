@@ -35,6 +35,7 @@ import {
   createBillingProgramReportingDetailsAndroid,
   launchExternalLinkAndroid,
   showBillingProgramInformationDialogAndroid,
+  showAlternativeBillingOnlyInformationDialogAndroid,
   showInAppMessagesAndroid,
 } from './modules/android';
 
@@ -122,6 +123,7 @@ type UseIap = {
   createBillingProgramReportingDetailsAndroid: MutationField<'createBillingProgramReportingDetailsAndroid'>;
   launchExternalLinkAndroid: MutationField<'launchExternalLinkAndroid'>;
   showBillingProgramInformationDialogAndroid: MutationField<'showBillingProgramInformationDialogAndroid'>;
+  showAlternativeBillingOnlyInformationDialogAndroid: MutationField<'showAlternativeBillingOnlyInformationDialogAndroid'>;
   showInAppMessagesAndroid: MutationField<'showInAppMessagesAndroid'>;
   openRedeemOfferCode: MutationField<'openRedeemOfferCode'>;
 };
@@ -913,6 +915,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     createBillingProgramReportingDetailsAndroid,
     launchExternalLinkAndroid,
     showBillingProgramInformationDialogAndroid,
+    showAlternativeBillingOnlyInformationDialogAndroid,
     showInAppMessagesAndroid,
     // Offer code redemption
     openRedeemOfferCode,

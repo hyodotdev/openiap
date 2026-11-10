@@ -5,6 +5,15 @@ import StoreKit
 /// - SeeAlso: https://developer.apple.com/documentation/storekit/product
 @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 enum StoreKitTypesBridge {
+    static func externalPurchaseTokenTypeIOS(from tokenType: ExternalPurchaseCustomLinkTokenTypeIOS) -> String {
+        switch tokenType {
+        case .acquisition: return "ACQUISITION"
+        case .services: return "SERVICES"
+        case .inApp: return "IN_APP"
+        case .linkOut: return "LINK_OUT"
+        }
+    }
+
     static func product(from product: StoreKit.Product) async -> Product {
         .productIos(await productIOS(from: product))
     }

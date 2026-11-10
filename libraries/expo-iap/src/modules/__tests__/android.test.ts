@@ -29,6 +29,7 @@ import {
   launchExternalLinkAndroid,
   createBillingProgramReportingDetailsAndroid,
   showBillingProgramInformationDialogAndroid,
+  showAlternativeBillingOnlyInformationDialogAndroid,
   showInAppMessagesAndroid,
 } from '../android';
 import {syncIOS} from '../ios';
@@ -420,8 +421,9 @@ describe('Android Module Functions', () => {
           ExpoIapModule.createBillingProgramReportingDetailsAndroid as jest.Mock
         ).mockResolvedValue(mockResult);
 
-        const result =
-          await createBillingProgramReportingDetailsAndroid('external-offer');
+        const result = await createBillingProgramReportingDetailsAndroid(
+          'external-offer',
+        );
 
         expect(
           ExpoIapModule.createBillingProgramReportingDetailsAndroid,
@@ -479,6 +481,19 @@ describe('Android Module Functions', () => {
           createBillingProgramReportingDetailsAndroid('external-offer'),
         ).rejects.toThrow('Failed to create reporting details');
       });
+    });
+
+    it('returns the Alternative Billing Only cancellation code', async () => {
+      const native = jest.mocked(
+        ExpoIapModule.showAlternativeBillingOnlyInformationDialogAndroid,
+      );
+      native.mockResolvedValue({responseCode: 1});
+      await expect(
+        showAlternativeBillingOnlyInformationDialogAndroid(),
+      ).resolves.toEqual({
+        responseCode: 1,
+      });
+      expect(native).toHaveBeenCalledWith();
     });
 
     describe('showBillingProgramInformationDialogAndroid', () => {

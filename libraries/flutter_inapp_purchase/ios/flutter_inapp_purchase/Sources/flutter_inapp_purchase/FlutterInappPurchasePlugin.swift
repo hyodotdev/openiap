@@ -386,7 +386,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                     getExternalPurchaseCustomLinkTokenIOS(tokenType: tokenType, result: result)
                 } else {
                     let code: ErrorCode = .developerError
-                    result(FlutterError(code: code.rawValue, message: "tokenType required ('acquisition' or 'services')", details: nil))
+                    result(FlutterError(code: code.rawValue, message: "tokenType is required", details: nil))
                 }
             } else {
                 let code: ErrorCode = .featureNotSupported
@@ -1311,7 +1311,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
             do {
                 guard let type = ExternalPurchaseCustomLinkTokenTypeIOS(rawValue: tokenType) else {
                     let code: ErrorCode = .developerError
-                    result(FlutterError(code: code.rawValue, message: "Invalid token type: \(tokenType). Must be 'acquisition' or 'services'", details: nil))
+                    result(FlutterError(code: code.rawValue, message: "Invalid token type: \(tokenType)", details: nil))
                     return
                 }
                 let res = try await OpenIapModule.shared.getExternalPurchaseCustomLinkTokenIOS(type)

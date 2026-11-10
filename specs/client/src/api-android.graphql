@@ -34,6 +34,7 @@ extend type Mutation {
   Introduced in Google Play Billing Library 8.2.0. External Offer and External
   Content Link integrations must use 8.2.1+ because 8.2.1 fixes this API.
   Returns availability result with isAvailable flag.
+  For ALTERNATIVE_BILLING_ONLY, connect with that program before checking.
   Throws OpenIapError.NotPrepared if billing client not ready.
   See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
   """
@@ -52,6 +53,7 @@ extend type Mutation {
   Returns external transaction token needed for reporting external transactions.
   developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted,
   native Android defaults it to IN_APP.
+  For ALTERNATIVE_BILLING_ONLY, call after the information dialog succeeds; developerBillingType is ignored.
   The Billing Choice extension is available in OpenIAP 2.1.0 /
   openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   Throws OpenIapError.NotPrepared if billing client not ready.
@@ -88,6 +90,15 @@ extend type Mutation {
   showBillingProgramInformationDialogAndroid(
     params: BillingProgramInformationDialogParamsAndroid!
   ): BillingResultAndroid!
+
+  """
+  Show the Google Play Alternative Billing Only information dialog before each checkout attempt.
+  Continue only when responseCode is OK (0).
+  See: https://openiap.dev/docs/features/external-purchase#alternative-billing-only
+  Available in OpenIAP 1.4.0 / openiap-google 4.1.0.
+  """
+  # Future
+  showAlternativeBillingOnlyInformationDialogAndroid: BillingResultAndroid!
 
   """
   Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations.

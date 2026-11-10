@@ -36,7 +36,7 @@ extend type Query {
   # Future
   getExternalPurchaseCustomLinkTokenIOS(
     """
-    Token type: acquisition (new customers) or services (existing customers)
+    Use acquisition and services for the EU flow, or in-app and link-out for Japan (iOS 26.4+) and Brazil (iOS 26.5+).
     """
     tokenType: ExternalPurchaseCustomLinkTokenTypeIOS!
   ): ExternalPurchaseCustomLinkTokenResultIOS!

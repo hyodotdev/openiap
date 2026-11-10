@@ -112,6 +112,10 @@ class FakeAndroidJsonPlugin:
 		last_args = [params_json]
 		return _respond("showBillingProgramInformationDialogAndroid", "{}")
 
+	func showAlternativeBillingOnlyInformationDialogAndroid() -> String:
+		last_args = []
+		return _respond("showAlternativeBillingOnlyInformationDialogAndroid", "{}")
+
 
 class FakeImmediateApplePlugin:
 	extends RefCounted
@@ -359,6 +363,25 @@ func test_failed_notice_and_dialog_never_read_as_success() -> void:
 	dialog = GodotIapPlugin.show_billing_program_information_dialog_android(params)
 	_assert_equal(dialog.response_code, 0, "A shown billing dialog keeps Play's response code")
 	_assert_equal(errors.size(), 1, "A shown billing dialog emits no error")
+	android.responses["showAlternativeBillingOnlyInformationDialogAndroid"] = JSON.stringify({"success": true, "responseCode": 1})
+	dialog = GodotIapPlugin.show_alternative_billing_only_information_dialog_android()
+	_assert_equal(dialog.response_code, 1, "Alternative Billing Only preserves Play cancellation")
+	_assert_equal(android.last_args, [], "The Alternative Billing Only notice needs no token")
+	var alternative_only = Types.BillingProgramAndroid.ALTERNATIVE_BILLING_ONLY
+	android.responses["isBillingProgramAvailableAndroid"] = JSON.stringify({"success": false, "code": "network-error", "error": "Connection lost"})
+	var availability = GodotIapPlugin.is_billing_program_available_android(alternative_only)
+	_assert_true(not availability.is_available, "A connection error must not report eligibility")
+	_assert_equal(errors.back().get("code"), "network-error", "Alternative Billing Only preserves the native retry error")
+	_assert_equal(android.last_args, ["alternative-billing-only"], "The Alternative Billing Only program is serialized for the native call")
+	android.responses["isBillingProgramAvailableAndroid"] = JSON.stringify({"success": false, "isAvailable": false, "code": "not-prepared", "error": "IAP connection is not initialized"})
+	availability = GodotIapPlugin.is_billing_program_available_android(Types.BillingProgramAndroid.BILLING_CHOICE)
+	_assert_true(not availability.is_available, "A failed availability check returns a typed result for every program")
+	_assert_equal(errors.back().get("code"), "not-prepared", "A failed availability check keeps the native code")
+	android.responses["createBillingProgramReportingDetailsAndroid"] = JSON.stringify({"success": false, "code": "not-prepared", "error": "IAP connection is not initialized"})
+	var details = GodotIapPlugin.create_billing_program_reporting_details_android(Types.BillingProgramAndroid.BILLING_CHOICE)
+	_assert_equal(details.billing_program, Types.BillingProgramAndroid.BILLING_CHOICE, "Failed reporting details return a typed result")
+	_assert_equal(details.external_transaction_token, "", "Failed reporting details carry no token")
+	_assert_equal(errors.back().get("code"), "not-prepared", "Failed reporting details keep the native code")
 	_uninstall_fake()
 
 	errors.clear()

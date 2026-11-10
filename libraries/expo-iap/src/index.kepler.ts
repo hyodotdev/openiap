@@ -348,6 +348,11 @@ export const createBillingProgramReportingDetailsAndroid: MutationField<
 export const showBillingProgramInformationDialogAndroid: MutationField<
   'showBillingProgramInformationDialogAndroid'
 > = async () => unsupported('showBillingProgramInformationDialogAndroid');
+export const showAlternativeBillingOnlyInformationDialogAndroid: MutationField<
+  'showAlternativeBillingOnlyInformationDialogAndroid'
+> = async () =>
+  unsupported('showAlternativeBillingOnlyInformationDialogAndroid');
+
 export const showInAppMessagesAndroid: MutationField<
   'showInAppMessagesAndroid'
 > = async () => unsupported('showInAppMessagesAndroid');

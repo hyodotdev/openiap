@@ -153,6 +153,7 @@ const operationParityRegistry = {
     "presentExternalPurchaseNoticeSheetIOS",
     "requestPurchase",
     "restorePurchases",
+    "showAlternativeBillingOnlyInformationDialogAndroid",
     "showBillingProgramInformationDialogAndroid",
     "showExternalPurchaseCustomLinkNoticeIOS",
     "showInAppMessagesAndroid",

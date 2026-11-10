@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-11-04T19:28:23.370Z
+> Generated: 2026-11-10T10:44:37.107Z
 
 ## Reading instructions for coding assistants
 
@@ -1428,6 +1428,30 @@ val updateParams = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
 > `GOOGLE_RENDERED` (default) or `DEVELOPER_RENDERED` so OpenIAP includes or
 > omits the listener correctly. Play-only APIs return unsupported/default
 > behavior on Horizon and Amazon.
+
+## Alternative Billing Only (6.1+)
+
+For an enrolled app that offers only its own in-app payment system, with no
+Play Billing choice. The client is built with `enableAlternativeBillingOnly()`
+and cannot share a connection with another billing program. The sequence is:
+
+1. Check `isAlternativeBillingOnlyAvailableAsync`.
+2. Call `showAlternativeBillingOnlyInformationDialog` before each checkout and
+   continue only on `BillingResponseCode.OK`.
+3. Call `createAlternativeBillingOnlyReportingDetailsAsync` for a fresh
+   external transaction token per one-time purchase, new subscription, or plan
+   change.
+4. Report the completed transaction and token from the backend within 24 hours.
+
+Official reference: [Alternative billing without user choice](https://developer.android.com/google/play/billing/alternative/alternative-billing-without-user-choice-in-app).
+
+> **OpenIAP Note**: OpenIAP exposes this as the `ALTERNATIVE_BILLING_ONLY`
+> billing program: connect with it alone, then use
+> `isBillingProgramAvailableAndroid`,
+> `showAlternativeBillingOnlyInformationDialogAndroid`, and
+> `createBillingProgramReportingDetailsAndroid` (`developerBillingType` is
+> ignored). `requestPurchase` is unavailable on that connection. Horizon and
+> Amazon reject the program as unsupported.
 
 ## In-App Billing Messages (4.1+)
 

@@ -417,6 +417,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     public Task<BillingChoiceInfoAndroid> GetBillingChoiceInfoAndroidAsync(GetBillingChoiceInfoParamsAndroid @params) => NotSupportedAndroid<BillingChoiceInfoAndroid>("getBillingChoiceInfoAndroid");
     public Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetailsAndroidAsync(BillingProgramAndroid program, DeveloperBillingTypeAndroid? developerBillingType = null) => NotSupportedAndroid<BillingProgramReportingDetailsAndroid>("createBillingProgramReportingDetailsAndroid");
     public Task<BillingResultAndroid> ShowBillingProgramInformationDialogAndroidAsync(BillingProgramInformationDialogParamsAndroid @params) => NotSupportedAndroid<BillingResultAndroid>("showBillingProgramInformationDialogAndroid");
+    public Task<BillingResultAndroid> ShowAlternativeBillingOnlyInformationDialogAndroidAsync() => NotSupportedAndroid<BillingResultAndroid>("showAlternativeBillingOnlyInformationDialogAndroid");
     public Task<InAppMessageResultAndroid> ShowInAppMessagesAndroidAsync(InAppMessageParamsAndroid? @params = null) => NotSupportedAndroid<InAppMessageResultAndroid>("showInAppMessagesAndroid");
     public Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @params) => Task.FromResult(false);
 

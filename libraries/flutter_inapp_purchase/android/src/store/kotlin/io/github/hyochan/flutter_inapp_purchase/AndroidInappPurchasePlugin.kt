@@ -790,6 +790,22 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler {
                     }
                 }
             }
+            "showAlternativeBillingOnlyInformationDialogAndroid" -> {
+                scope.launch {
+                    try {
+                        val iap = requireOpenIap()
+                        val act = activity
+                        if (act == null) {
+                            safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, "Activity not available")
+                            return@launch
+                        }
+                        val result = iap.showAlternativeBillingOnlyInformationDialog(act)
+                        safe.success(JSONObject(result.toJson()).toString())
+                    } catch (e: Exception) {
+                        replyBillingError(safe, e)
+                    }
+                }
+            }
             "showInAppMessagesAndroid" -> {
                 val params = try {
                     validateFlutterInAppMessageParams(call.argument<Any?>("categories"))

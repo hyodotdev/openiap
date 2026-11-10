@@ -13,15 +13,18 @@ import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.AcknowledgePurchaseResponseListener
 import com.android.billingclient.api.AlternativeBillingOnlyAvailabilityListener
 import com.android.billingclient.api.AlternativeBillingOnlyInformationDialogListener
+import com.android.billingclient.api.AlternativeBillingOnlyReportingDetails
 import com.android.billingclient.api.AlternativeBillingOnlyReportingDetailsListener
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingConfigResponseListener
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingProgramAvailabilityListener
+import com.android.billingclient.api.BillingProgramAvailabilityDetails
 import com.android.billingclient.api.BillingProgramInformationDialogListener
 import com.android.billingclient.api.BillingProgramInformationDialogParams
 import com.android.billingclient.api.BillingProgramReportingDetailsListener
+import com.android.billingclient.api.BillingProgramReportingDetails
 import com.android.billingclient.api.BillingProgramReportingDetailsParams
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ConsumeParams
@@ -56,6 +59,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -79,6 +86,110 @@ class OnPurchasesUpdatedRecoveryTest {
     fun tearDown() {
         OpenIapLog.setHandler(null)
         OpenIapLog.enable(false)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `alternative billing only uses its own availability dialog and token APIs`() {
+        val client = RecordingBillingClient()
+        val module = module()
+        val program = BillingProgramAndroid.AlternativeBillingOnly
+        val activity = Robolectric.buildActivity(Activity::class.java).create().get()
+        setBillingClient(module, client)
+        module.setActivity(activity)
+        val purchaseErrors = mutableListOf<String>()
+        module.addPurchaseErrorListener { purchaseErrors += it.code }
+        val mode = OpenIapModule::class.java.getDeclaredField("activeBillingClientMode").apply {
+            isAccessible = true
+            set(module, BillingClientMode.AlternativeBillingOnly)
+        }
+        Dispatchers.setMain(Dispatchers.Unconfined)
+        try {
+            runBlocking {
+                client.alternativeAvailability = BillingClient.BillingResponseCode.BILLING_UNAVAILABLE
+                assertEquals(false, module.isBillingProgramAvailable(program).isAvailable)
+                client.alternativeAvailability = BillingClient.BillingResponseCode.NETWORK_ERROR
+                assertTrue(runCatching {
+                    module.isBillingProgramAvailable(program)
+                }.exceptionOrNull() is OpenIapError.NetworkFailure)
+                client.alternativeAvailability = BillingClient.BillingResponseCode.OK
+                assertEquals(true, module.isBillingProgramAvailable(program).isAvailable)
+
+                client.alternativeDialogStart = BillingClient.BillingResponseCode.USER_CANCELED
+                assertEquals(BillingClient.BillingResponseCode.USER_CANCELED, module.showAlternativeBillingOnlyInformationDialog(activity).responseCode)
+                client.alternativeDialogStart = BillingClient.BillingResponseCode.OK
+                assertEquals(BillingClient.BillingResponseCode.OK, module.showAlternativeBillingOnlyInformationDialog(activity).responseCode)
+                client.alternativeDialogResponse = BillingClient.BillingResponseCode.USER_CANCELED
+                assertEquals(BillingClient.BillingResponseCode.USER_CANCELED, module.showAlternativeBillingOnlyInformationDialog(activity).responseCode)
+                assertEquals("alternative-token", module.createBillingProgramReportingDetails(program).externalTransactionToken)
+                // developerBillingType does not apply to this program and is ignored.
+                assertEquals(
+                    "alternative-token",
+                    module.createBillingProgramReportingDetails(program, DeveloperBillingTypeAndroid.InApp)
+                        .externalTransactionToken,
+                )
+                client.alternativeReportingToken = ""
+                assertTrue(runCatching {
+                    module.createBillingProgramReportingDetails(program)
+                }.exceptionOrNull() is OpenIapError.PurchaseFailed)
+                client.alternativeReportingResponse = BillingClient.BillingResponseCode.NETWORK_ERROR
+                assertTrue(runCatching {
+                    module.createBillingProgramReportingDetails(program)
+                }.exceptionOrNull() is OpenIapError.NetworkFailure)
+
+                module.requestPurchase(purchaseProps())
+                assertEquals(listOf(OpenIapError.DeveloperError.CODE), purchaseErrors)
+                assertEquals(0, client.launchCalls.get())
+
+                mode.set(module, BillingClientMode.Standard)
+                listOf<suspend () -> Any>(
+                    { module.isBillingProgramAvailable(program) },
+                    { module.showAlternativeBillingOnlyInformationDialog(activity) },
+                    { module.createBillingProgramReportingDetails(program) },
+                ).forEach { call ->
+                    assertTrue(runCatching { call() }.exceptionOrNull() is OpenIapError.DeveloperError)
+                }
+            }
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `billing choice still uses its token dialog and external offers use the link API`() {
+        val client = RecordingBillingClient()
+        val module = module()
+        val activity = Robolectric.buildActivity(Activity::class.java).create().get()
+        setBillingClient(module, client)
+        Dispatchers.setMain(Dispatchers.Unconfined)
+        try {
+            runBlocking {
+                val choice = BillingProgramAndroid.BillingChoice
+                val offer = BillingProgramAndroid.ExternalOffer
+                assertTrue(module.isBillingProgramAvailable(choice).isAvailable)
+                val choiceToken = module.createBillingProgramReportingDetails(choice).externalTransactionToken
+                val notice = module.showBillingProgramInformationDialog(
+                    activity, BillingProgramInformationDialogParamsAndroid(choice, choiceToken)
+                )
+                assertEquals(BillingClient.BillingResponseCode.OK, notice.responseCode)
+                assertEquals(choiceToken, client.billingChoiceDialogToken)
+                assertTrue(module.isBillingProgramAvailable(offer).isAvailable)
+                assertEquals("program-${BillingClient.BillingProgram.EXTERNAL_OFFER}", module.createBillingProgramReportingDetails(offer).externalTransactionToken)
+                assertTrue(module.launchExternalLink(
+                    activity,
+                    LaunchExternalLinkParamsAndroid(
+                        billingProgram = offer,
+                        launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+                        linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
+                        linkUri = "https://example.com/offer",
+                    ),
+                ))
+                assertEquals(BillingClient.BillingProgram.EXTERNAL_OFFER, client.externalLinkProgram)
+            }
+        } finally {
+            Dispatchers.resetMain()
+        }
     }
 
     @Test
@@ -2035,7 +2146,7 @@ class OnPurchasesUpdatedRecoveryTest {
         "signature"
     )
 
-    private class RecordingBillingClient(
+    class RecordingBillingClient(
         var ownedPurchases: List<BillingPurchase> = emptyList(),
         purchaseResponseCodes: List<Int> = emptyList(),
         private val onReadyCheck: (() -> Unit)? = null,
@@ -2043,6 +2154,13 @@ class OnPurchasesUpdatedRecoveryTest {
         private val launchResponseCode: Int = BillingResponseCode.FEATURE_NOT_SUPPORTED,
         private val consumeResponseCode: Int? = null,
     ) : BillingClient() {
+        var alternativeAvailability = BillingResponseCode.FEATURE_NOT_SUPPORTED
+        var alternativeDialogStart = BillingResponseCode.FEATURE_NOT_SUPPORTED
+        var alternativeDialogResponse = BillingResponseCode.OK
+        var alternativeReportingResponse = BillingResponseCode.OK
+        var alternativeReportingToken = "alternative-token"
+        var billingChoiceDialogToken: String? = null
+        var externalLinkProgram: Int? = null
         val queryPurchasesCalls = AtomicInteger(0)
         val launchCalls = AtomicInteger(0)
         var onLaunch: (() -> Unit)? = null
@@ -2097,7 +2215,12 @@ class OnPurchasesUpdatedRecoveryTest {
         override fun showAlternativeBillingOnlyInformationDialog(
             activity: Activity,
             listener: AlternativeBillingOnlyInformationDialogListener
-        ): BillingResult = unsupported()
+        ): BillingResult {
+            if (alternativeDialogStart == BillingResponseCode.OK) {
+                listener.onAlternativeBillingOnlyInformationDialogResponse(result(alternativeDialogResponse))
+            }
+            return result(alternativeDialogStart)
+        }
 
         override fun showExternalOfferInformationDialog(
             activity: Activity,
@@ -2114,7 +2237,10 @@ class OnPurchasesUpdatedRecoveryTest {
             activity: Activity,
             params: BillingProgramInformationDialogParams,
             listener: BillingProgramInformationDialogListener
-        ) = unsupportedUnit()
+        ) {
+            billingChoiceDialogToken = params.externalTransactionToken
+            listener.onBillingProgramInformationDialogResponse(result(BillingResponseCode.OK))
+        }
 
         override fun acknowledgePurchase(
             params: AcknowledgePurchaseParams,
@@ -2134,12 +2260,26 @@ class OnPurchasesUpdatedRecoveryTest {
 
         override fun createAlternativeBillingOnlyReportingDetailsAsync(
             listener: AlternativeBillingOnlyReportingDetailsListener
-        ) = unsupportedUnit()
+        ) {
+            val details = AlternativeBillingOnlyReportingDetails::class.java
+                .getDeclaredConstructor(String::class.java)
+                .apply { isAccessible = true }
+                .newInstance("""{"externalTransactionToken":"$alternativeReportingToken"}""")
+            listener.onAlternativeBillingOnlyTokenResponse(result(alternativeReportingResponse), details)
+        }
 
         override fun createBillingProgramReportingDetailsAsync(
             params: BillingProgramReportingDetailsParams,
             listener: BillingProgramReportingDetailsListener
-        ) = unsupportedUnit()
+        ) {
+            listener.onCreateBillingProgramReportingDetailsResponse(
+                result(BillingResponseCode.OK),
+                BillingProgramReportingDetails::class.java
+                    .getDeclaredConstructor(String::class.java, Int::class.javaPrimitiveType)
+                    .apply { isAccessible = true }
+                    .newInstance("program-${params.billingProgram}", params.billingProgram),
+            )
+        }
 
         override fun createExternalOfferReportingDetailsAsync(
             listener: ExternalOfferReportingDetailsListener
@@ -2159,12 +2299,18 @@ class OnPurchasesUpdatedRecoveryTest {
 
         override fun isAlternativeBillingOnlyAvailableAsync(
             listener: AlternativeBillingOnlyAvailabilityListener
-        ) = unsupportedUnit()
+        ) = listener.onAlternativeBillingOnlyAvailabilityResponse(result(alternativeAvailability))
 
         override fun isBillingProgramAvailableAsync(
             billingProgram: Int,
             listener: BillingProgramAvailabilityListener
-        ) = unsupportedUnit()
+        ) = listener.onBillingProgramAvailabilityResponse(
+            result(BillingResponseCode.OK),
+            BillingProgramAvailabilityDetails::class.java
+                .getDeclaredConstructor(Int::class.javaPrimitiveType)
+                .apply { isAccessible = true }
+                .newInstance(billingProgram),
+        )
 
         override fun isExternalOfferAvailableAsync(
             listener: ExternalOfferAvailabilityListener
@@ -2174,13 +2320,18 @@ class OnPurchasesUpdatedRecoveryTest {
             activity: Activity,
             params: LaunchExternalLinkParams,
             listener: LaunchExternalLinkResponseListener
-        ) = unsupportedUnit()
+        ) {
+            externalLinkProgram = params.billingProgram
+            listener.onLaunchExternalLinkResponse(result(BillingResponseCode.OK))
+        }
 
         override fun startConnection(listener: BillingClientStateListener) =
             unsupportedUnit()
 
-        private fun unsupported(): BillingResult = BillingResult.newBuilder()
-            .setResponseCode(BillingResponseCode.FEATURE_NOT_SUPPORTED)
+        private fun unsupported(): BillingResult = result(BillingResponseCode.FEATURE_NOT_SUPPORTED)
+
+        private fun result(code: Int): BillingResult = BillingResult.newBuilder()
+            .setResponseCode(code)
             .build()
 
         private fun unsupportedUnit() = Unit

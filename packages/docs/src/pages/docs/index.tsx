@@ -84,6 +84,7 @@ import APIsGetBillingChoiceInfoAndroid from './apis/android/get-billing-choice-i
 import APIsLaunchExternalLinkAndroid from './apis/android/launch-external-link-android';
 import APIsCreateBillingProgramReportingDetailsAndroid from './apis/android/create-billing-program-reporting-details-android';
 import APIsShowBillingProgramInformationDialogAndroid from './apis/android/show-billing-program-information-dialog-android';
+import APIsShowAlternativeBillingOnlyInformationDialogAndroid from './apis/android/show-alternative-billing-only-information-dialog-android';
 import APIsShowInAppMessagesAndroid from './apis/android/show-in-app-messages-android';
 import APIsOpenRedeemOfferCodeAndroid from './apis/android/open-redeem-offer-code-android';
 import Events from './events';
@@ -489,6 +490,11 @@ function Docs() {
                     {
                       to: '/docs/apis/android/show-billing-program-information-dialog-android',
                       label: 'showBillingProgramInformationDialogAndroid',
+                    },
+                    {
+                      to: '/docs/apis/android/show-alternative-billing-only-information-dialog-android',
+                      label:
+                        'showAlternativeBillingOnlyInformationDialogAndroid',
                     },
                     {
                       to: '/docs/apis/android/show-in-app-messages-android',
@@ -1138,6 +1144,10 @@ function Docs() {
         <Route
           path="apis/android/show-billing-program-information-dialog-android"
           element={<APIsShowBillingProgramInformationDialogAndroid />}
+        />
+        <Route
+          path="apis/android/show-alternative-billing-only-information-dialog-android"
+          element={<APIsShowAlternativeBillingOnlyInformationDialogAndroid />}
         />
         <Route
           path="apis/android/show-in-app-messages-android"

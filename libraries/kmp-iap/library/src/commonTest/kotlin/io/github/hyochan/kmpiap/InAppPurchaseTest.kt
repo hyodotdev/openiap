@@ -749,6 +749,11 @@ class InAppPurchaseTest {
         assertEquals("external-content-link", BillingProgramAndroid.ExternalContentLink.rawValue)
         assertEquals("external-offer", BillingProgramAndroid.ExternalOffer.rawValue)
         assertEquals("user-choice-billing", BillingProgramAndroid.UserChoiceBilling.rawValue)
+        assertEquals("alternative-billing-only", BillingProgramAndroid.AlternativeBillingOnly.rawValue)
+        assertEquals(
+            BillingProgramAndroid.AlternativeBillingOnly,
+            BillingProgramAndroid.fromJson("alternative-billing-only"),
+        )
     }
 
     @Test
@@ -1016,6 +1021,8 @@ class InAppPurchaseTest {
     fun testExternalPurchaseCustomLinkTokenTypeIOSEnum() {
         assertEquals("acquisition", ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition.rawValue)
         assertEquals("services", ExternalPurchaseCustomLinkTokenTypeIOS.Services.rawValue)
+        assertEquals("in-app", ExternalPurchaseCustomLinkTokenTypeIOS.InApp.rawValue)
+        assertEquals("link-out", ExternalPurchaseCustomLinkTokenTypeIOS.LinkOut.rawValue)
     }
 
     @Test
@@ -1035,6 +1042,14 @@ class InAppPurchaseTest {
         assertEquals(
             ExternalPurchaseCustomLinkTokenTypeIOS.Services,
             ExternalPurchaseCustomLinkTokenTypeIOS.fromJson("SERVICES")
+        )
+        assertEquals(
+            ExternalPurchaseCustomLinkTokenTypeIOS.InApp,
+            ExternalPurchaseCustomLinkTokenTypeIOS.fromJson("in-app")
+        )
+        assertEquals(
+            ExternalPurchaseCustomLinkTokenTypeIOS.LinkOut,
+            ExternalPurchaseCustomLinkTokenTypeIOS.fromJson("link-out")
         )
     }
 

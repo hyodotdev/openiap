@@ -474,6 +474,13 @@ dependencies {
             .
           </li>
           <li>
+            For Alternative Billing Only, show the information dialog with{' '}
+            <a href="/docs/apis/android/show-alternative-billing-only-information-dialog-android">
+              <code>showAlternativeBillingOnlyInformationDialogAndroid</code>
+            </a>{' '}
+            before each checkout.
+          </li>
+          <li>
             For developer-rendered external-link flows, generate an{' '}
             <code>EXTERNAL_LINK</code> token and pass it to{' '}
             <a href="/docs/apis/android/launch-external-link-android">

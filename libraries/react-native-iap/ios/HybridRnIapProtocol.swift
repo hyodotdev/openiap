@@ -283,6 +283,12 @@ final class HybridRnIapProtocol: HybridRnIapProtocolSpec {
              failure: { NitroBillingResultAndroidOutcome(value: nil, error: $0) })
     }
 
+    func showAlternativeBillingOnlyInformationDialogAndroid() -> Promise<NitroBillingResultAndroidOutcome> {
+        lift({ try implementation.showAlternativeBillingOnlyInformationDialogAndroid() },
+             success: { NitroBillingResultAndroidOutcome(value: $0, error: nil) },
+             failure: { NitroBillingResultAndroidOutcome(value: nil, error: $0) })
+    }
+
     func showInAppMessagesAndroid(params: Variant_NullType_NitroInAppMessageParamsAndroid?) -> Promise<NitroInAppMessageResultAndroidOutcome> {
         lift({ try implementation.showInAppMessagesAndroid(params: params) },
              success: { NitroInAppMessageResultAndroidOutcome(value: $0, error: nil) },

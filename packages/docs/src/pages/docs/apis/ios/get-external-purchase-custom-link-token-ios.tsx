@@ -29,20 +29,25 @@ function GetExternalPurchaseCustomLinkTokenIOS() {
         >
           ExternalPurchaseCustomLink
         </a>{' '}
-        API (iOS 18.1+, macOS 15.1+). Pair the returned token with Apple's
-        External Purchase Server API to report acquisition or services
-        transactions.
+        API (iOS 18.1+, macOS 15.1+).
       </p>
       <p>
-        Wraps <code>ExternalPurchaseCustomLink.token(for:)</code> — token to
-        report transactions to Apple's External Purchase Server. iOS 18.1+,
-        macOS 15.1+. See the{' '}
+        For the EU flow, request both token types at app launch and before each
+        potential transaction. Associate returned tokens with the customer
+        account on your server.
+      </p>
+      <p>
+        In Japan (iOS 26.4 or later) and Brazil (iOS 26.5 or later), request a
+        token before each potential transaction. The app needs Apple&apos;s
+        External Custom Purchase Link Regions entitlement and must be eligible
+        at runtime. Rebuild your app with the updated native SDK before using
+        the <code>in-app</code> and <code>link-out</code> values. See{' '}
         <a
-          href="https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)"
+          href="https://developer.apple.com/documentation/storekit/receiving-and-decoding-external-purchase-tokens"
           target="_blank"
           rel="noopener noreferrer"
         >
-          Apple StoreKit reference
+          Receiving and decoding external purchase tokens
         </a>
         .
       </p>
@@ -85,12 +90,10 @@ function GetExternalPurchaseCustomLinkTokenIOS() {
       </AnchorLink>
       <ul className="api-params">
         <li>
-          <code>tokenType</code>{' '}
-          <em>
-            (required, <code>ExternalPurchaseCustomLinkTokenTypeIOS</code>)
-          </em>{' '}
-          — <code>acquisition</code> (new customers) or <code>services</code>{' '}
-          (existing customers).
+          <code>tokenType</code> is required. Use <code>acquisition</code> and{' '}
+          <code>services</code> for the EU flow. In Brazil and Japan, use{' '}
+          <code>in-app</code> for a payment provider inside the app or{' '}
+          <code>link-out</code> for a checkout on your website.
         </li>
       </ul>
 
@@ -151,14 +154,6 @@ var token = await OpenIapClient.Query.GetExternalPurchaseCustomLinkTokenIOSAsync
           ),
         }}
       </LanguageTabs>
-
-      <p>
-        <code>tokenType</code> is{' '}
-        <code>ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition</code> for new
-        customers or{' '}
-        <code>ExternalPurchaseCustomLinkTokenTypeIOS.Services</code> for
-        existing ones. The result contains the opaque token or an error.
-      </p>
     </div>
   );
 }

@@ -666,15 +666,23 @@ Reference: https://developer.apple.com/documentation/storekit/externalpurchasecu
 """
 enum ExternalPurchaseCustomLinkTokenTypeIOS {
   """
-  Token for customer acquisition tracking.
-  Use this when a new customer makes their first purchase through external link.
+  Acquisition reporting token for the EU custom link flow.
   """
   Acquisition
   """
-  Token for ongoing services tracking.
-  Use this for existing customers making additional purchases.
+  Services reporting token for the EU custom link flow.
   """
   Services
+  """
+  Token for an in-app payment provider in Japan (iOS 26.4+) and Brazil (iOS 26.5+).
+  Available in OpenIAP 1.4.0 / openiap-apple 4.1.0.
+  """
+  InApp
+  """
+  Token for a payment on the developer's website in Japan (iOS 26.4+) and Brazil (iOS 26.5+).
+  Available in OpenIAP 1.4.0 / openiap-apple 4.1.0.
+  """
+  LinkOut
 }
 
 """

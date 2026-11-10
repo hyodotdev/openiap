@@ -989,6 +989,9 @@ class OpenIapModule(
         openRedeemOfferCode = { null },
         requestPurchase = requestPurchase,
         restorePurchases = restorePurchases,
+        showAlternativeBillingOnlyInformationDialogAndroid = {
+            throw OpenIapError.FeatureNotSupported("Alternative Billing Only requires Google Play")
+        },
         showBillingProgramInformationDialogAndroid = { params ->
             val activity = currentActivityRef?.get()
                 ?: throw OpenIapError.MissingCurrentActivity

@@ -172,8 +172,7 @@ describe('hooks/useIAP Android', () => {
 
   it('forwards alternative billing events to callbacks added after mount', async () => {
     let userChoiceListener:
-      | Parameters<typeof IAP.userChoiceBillingListenerAndroid>[0]
-      | undefined;
+      Parameters<typeof IAP.userChoiceBillingListenerAndroid>[0] | undefined;
     let developerProvidedListener:
       | Parameters<typeof IAP.developerProvidedBillingListenerAndroid>[0]
       | undefined;
@@ -253,6 +252,9 @@ describe('hooks/useIAP Android', () => {
     expect(api.launchExternalLinkAndroid).toBe(IAP.launchExternalLinkAndroid);
     expect(api.showBillingProgramInformationDialogAndroid).toBe(
       IAP.showBillingProgramInformationDialogAndroid,
+    );
+    expect(api.showAlternativeBillingOnlyInformationDialogAndroid).toBe(
+      IAP.showAlternativeBillingOnlyInformationDialogAndroid,
     );
     expect(api.showInAppMessagesAndroid).toBe(IAP.showInAppMessagesAndroid);
   });
