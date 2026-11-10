@@ -11,6 +11,7 @@ import {
   recomputePurchaseStatsForProject,
 } from "./purchases/stats.js";
 import { hashStoredSecretApiKeyPatch } from "./apiKeys/helpers.js";
+import { unusedProjectBucketFieldsPatch } from "./projects/unusedBucketFields.js";
 
 export const migrations = new Migrations<DataModel>(components.migrations);
 
@@ -289,28 +290,11 @@ export const backfillOutboundDeliveryEventTypes = migrations.define({
   },
 });
 
-// Left on projects from before admission buckets got their own table.
-const UNUSED_PROJECT_BUCKET_FIELDS = [
-  "verificationAdmissionTokens",
-  "verificationAdmissionRefilledAt",
-  "entitlementRecheckTokens",
-  "entitlementRecheckRefilledAt",
-] as const;
-
 /** Removes the unused admission-bucket fields from projects. */
 export const removeUnusedProjectBucketFields = migrations.define({
   table: "projects",
-  // db.patch only removes a field given as an explicit `undefined`.
-  migrateOne: async (_ctx, doc) => {
-    const present = UNUSED_PROJECT_BUCKET_FIELDS.filter(
-      (field) => field in doc,
-    );
-    if (present.length === 0) return undefined;
-    const patch: Partial<
-      Record<(typeof UNUSED_PROJECT_BUCKET_FIELDS)[number], undefined>
-    > = Object.fromEntries(present.map((field) => [field, undefined]));
-    return patch;
-  },
+  migrateOne: async (_ctx, doc) =>
+    unusedProjectBucketFieldsPatch(doc) ?? undefined,
 });
 
 export const run = migrations.runner();
