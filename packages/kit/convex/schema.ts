@@ -165,13 +165,6 @@ const schema = defineSchema({
     avatarUrl: v.optional(v.string()),
     avatarFileId: v.optional(v.id("_storage")),
 
-    // Billing
-    billingEmail: v.optional(v.string()),
-    taxId: v.optional(v.union(v.string(), v.null())),
-    // Stripe tax-id type such as "eu_vat" or "us_ein"; unset means "eu_vat".
-    // See https://stripe.com/docs/api/customer_tax_ids/object
-    taxIdType: v.optional(v.union(v.string(), v.null())),
-    stripeTaxIdId: v.optional(v.union(v.string(), v.null())),
     subscriptionTier: v.optional(
       v.union(
         v.literal("developer"),
@@ -181,23 +174,6 @@ const schema = defineSchema({
     ),
     monthlyRequestCount: v.optional(v.number()),
     monthlyRequestLimit: v.optional(v.number()),
-    stripeCustomerId: v.optional(v.union(v.string(), v.null())),
-    stripeSubscriptionId: v.optional(v.union(v.string(), v.null())),
-    stripePriceId: v.optional(v.union(v.string(), v.null())),
-    stripeBaseSubscriptionItemId: v.optional(v.union(v.string(), v.null())),
-    stripeMeteredSubscriptionItemId: v.optional(v.union(v.string(), v.null())),
-    // Legacy Stripe fields, unused since IAPKit became free for everyone. Kept
-    // so existing production rows validate until a schema cleanup removes them.
-    stripeSubscriptionStatus: v.optional(v.union(v.string(), v.null())),
-    stripeCancelAtPeriodEnd: v.optional(v.union(v.boolean(), v.null())),
-    stripeCurrentPeriodEnd: v.optional(v.union(v.number(), v.null())),
-    stripeTrialEnd: v.optional(v.union(v.number(), v.null())),
-    stripeCanceledAt: v.optional(v.union(v.number(), v.null())),
-    defaultPaymentMethodId: v.optional(v.union(v.string(), v.null())),
-    defaultPaymentMethodBrand: v.optional(v.union(v.string(), v.null())),
-    defaultPaymentMethodLast4: v.optional(v.union(v.string(), v.null())),
-    defaultPaymentMethodExpMonth: v.optional(v.union(v.number(), v.null())),
-    defaultPaymentMethodExpYear: v.optional(v.union(v.number(), v.null())),
 
     // Set by the membership drain when the org's sole member runs
     // `deleteAccount`. The paginated drain then deletes the org's projects,
@@ -212,8 +188,6 @@ const schema = defineSchema({
     // Storage cleanup must distinguish a true orphan from the legacy direct
     // avatar reference without scanning every organization.
     .index("by_avatar_file_id", ["avatarFileId"])
-    .index("by_stripe_customer", ["stripeCustomerId"])
-    .index("by_stripe_subscription", ["stripeSubscriptionId"])
     .index("by_pending_deletion", ["pendingDeletion"]),
 
   // Organization members table
@@ -671,35 +645,6 @@ const schema = defineSchema({
     tokens: v.number(),
     refilledAt: v.number(),
   }).index("by_project_and_bucket", ["projectId", "bucket"]),
-
-  stripeEvents: defineTable({
-    eventId: v.string(),
-    type: v.string(),
-    organizationId: v.optional(v.id("organizations")),
-    createdAt: v.number(),
-    processedAt: v.optional(v.number()),
-  })
-    .index("by_event_id", ["eventId"])
-    .index("by_organization", ["organizationId"]),
-
-  meteredUsageAccruals: defineTable({
-    organizationId: v.id("organizations"),
-    pendingQuantity: v.number(),
-    firstEventAt: v.number(),
-    lastEventAt: v.number(),
-    lastSyncAttemptAt: v.optional(v.union(v.number(), v.null())),
-    lastError: v.optional(v.union(v.string(), v.null())),
-    // In-flight Stripe meter-event batch, set when a sync starts and cleared
-    // once the post-send mutation commits. A retry reuses its `identifier`, so
-    // Stripe dedupes even if new usage arrived in between.
-    inFlightSyncId: v.optional(v.union(v.string(), v.null())),
-    inFlightQuantity: v.optional(v.union(v.number(), v.null())),
-    inFlightLastEventAt: v.optional(v.union(v.number(), v.null())),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_organization", ["organizationId"])
-    .index("by_pending_quantity", ["pendingQuantity"]),
 
   // Cursor state for cron jobs. cleanupIncompleteUsers stores the
   // `_creationTime` of its last processed user here, so a tick resumes there

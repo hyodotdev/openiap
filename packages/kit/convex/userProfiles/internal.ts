@@ -266,7 +266,6 @@ export const drainPendingDeletionOrganizations = internalMutation({
     }
     const madeProgress = await drainOrganizationPage(ctx, org._id);
     if (!madeProgress) {
-      // Legacy stripeCustomerId values stay; Stripe needs no teardown.
       const avatarFileId = org.avatarFileId;
       await ctx.db.delete(org._id);
       if (avatarFileId) {
@@ -330,28 +329,6 @@ async function drainOrganizationPage(
     await deleteFileAndStorageIfUnreferenced(ctx, file);
   }
   if (orgFiles.length > 0) {
-    return true;
-  }
-
-  const accruals = await ctx.db
-    .query("meteredUsageAccruals")
-    .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-    .take(ACCOUNT_DELETION_PAGE);
-  for (const accrual of accruals) {
-    await ctx.db.delete(accrual._id);
-  }
-  if (accruals.length > 0) {
-    return true;
-  }
-
-  const stripeEvents = await ctx.db
-    .query("stripeEvents")
-    .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-    .take(ACCOUNT_DELETION_PAGE);
-  for (const event of stripeEvents) {
-    await ctx.db.delete(event._id);
-  }
-  if (stripeEvents.length > 0) {
     return true;
   }
 
