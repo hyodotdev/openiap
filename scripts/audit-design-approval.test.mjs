@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { parse as parseYaml } from "yaml";
 import {
   approvalGateChanges,
   assertApprovalUnused,
+  evidenceJobs,
   needsDesignApproval,
   verifyDesignApproval,
 } from "./audit-design-approval.mjs";
@@ -438,6 +441,37 @@ test("an approved change cannot also change the CI that runs its tests", () => {
   const value = fixture();
   value.gateChanged = ["scripts/approved-verification.mjs"];
   assert.throws(() => verifyDesignApproval(value), /separate PR/);
+});
+
+test("an approved change cannot change a CI helper an evidence job runs", () => {
+  const { jobs } = parseYaml(
+    readFileSync(
+      new URL("../.github/workflows/ci.yml", import.meta.url),
+      "utf8",
+    ),
+  );
+  const helpers = new Set();
+  for (const job of evidenceJobs) {
+    const { steps } = jobs[job];
+    const check = steps.findLastIndex(({ run }) =>
+      run?.includes("approved-verification.mjs"),
+    );
+    // Later steps cannot change what the check read.
+    for (const { uses = "", run = "" } of steps.slice(0, check + 1)) {
+      if (uses.startsWith("./")) helpers.add(`${uses.slice(2)}/action.yml`);
+      for (const [script] of run.matchAll(
+        /(?<![\w$])(?:[\w-]+\/)+[\w.-]+\.(?:mjs|sh)/g,
+      )) {
+        helpers.add(script);
+      }
+    }
+  }
+  assert.ok(helpers.has("scripts/ci/retry-gradle.sh"));
+  assert.ok(helpers.has(".github/actions/setup-xcode/action.yml"));
+  assert.deepEqual(
+    approvalGateChanges([...helpers, "packages/google/build.gradle.kts"]),
+    [...helpers],
+  );
 });
 
 test("a merged PR uses an approval up", () => {

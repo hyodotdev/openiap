@@ -30,9 +30,12 @@ const gateFiles = new Set([
   "scripts/approved-verification.mjs",
   "scripts/public-declarations.mjs",
   "packages/conformance/scripts/check-apple-test-run.mjs",
+  // CI helpers the evidence jobs run before their check.
+  ".github/actions/setup-xcode/action.yml",
+  "scripts/ci/retry-gradle.sh",
 ]);
 const ciWorkflow = ".github/workflows/ci.yml";
-const evidenceJobs = ["audit-release-state", "test-android", "test-ios"];
+export const evidenceJobs = ["audit-release-state", "test-android", "test-ios"];
 
 /** Approval-gate changes an approved PR makes; they must land separately. */
 export function approvalGateChanges(files, read) {

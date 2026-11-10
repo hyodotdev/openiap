@@ -173,9 +173,11 @@ PR that links it, or any PR from the approved branch, merges after it, record
 a new approval for the next change. Change the gate itself in a separate PR:
 an approved PR fails if it edits `design-approval.yml`, the scripts it runs
 (`audit-design-approval.mjs`, `public-declarations.mjs`,
-`approved-verification.mjs`, `check-apple-test-run.mjs`), or the
+`approved-verification.mjs`, `check-apple-test-run.mjs`), the
 `audit-release-state`, `test-android`, and `test-ios` jobs and workflow-level
-settings of `ci.yml`. Other CI jobs may change with the contract.
+settings of `ci.yml`, or the CI helpers those jobs run before their check
+(`setup-xcode/action.yml`, `retry-gradle.sh`). Other CI jobs may change with
+the contract.
 
 The `Design Approval` workflow runs on `pull_request_target`, so it always uses
 main's checker and reads the PR only as data. A PR cannot remove or rewrite it.
