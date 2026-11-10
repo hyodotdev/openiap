@@ -21,7 +21,6 @@ import {
   type AppleDecodedTransaction,
   type AppleDecodedRenewalInfo,
 } from "./shared";
-
 import { appleNotificationProfile } from "../externalCheckouts/config";
 
 type CustomLinkToken = NonNullable<
