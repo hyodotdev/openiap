@@ -508,6 +508,17 @@ test("JSON files supply nested values and flags override selected fields", async
 });
 
 test("nullable credential strings accept values and JSON null for clearing", async () => {
+  const tax = await run([
+    "orgs",
+    "update",
+    "--org",
+    "org-a",
+    "--tax-id",
+    "123456789",
+    "--json",
+  ]);
+  assert.equal(tax.status, 0, tax.stderr);
+  assert.equal(requests.at(-1).body.args.taxId, "123456789");
   const configured = await run([
     "credentials",
     "configure",

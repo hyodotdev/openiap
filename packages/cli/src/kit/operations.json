@@ -222,6 +222,40 @@
             "type": "string"
           },
           "optional": true
+        },
+        "billingEmail": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "taxId": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "taxIdType": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "optional": true
         }
       }
     }

@@ -75,10 +75,6 @@ const IAPKIT_CLI_RELEASES: readonly ReleaseMetadata[] = [
   { name: '@hyodotdev/openiap', version: '0.3.0', tag: 'openiap-0.3.0' },
 ];
 
-const CLI_BILLING_OPTIONS_RELEASES: readonly ReleaseMetadata[] = [
-  { name: '@hyodotdev/openiap', version: '0.3.1', tag: 'openiap-0.3.1' },
-];
-
 const COMMERCE_CONFORMANCE_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: '@hyodotdev/openiap-commerce-protocol',
@@ -834,43 +830,6 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
-    {
-      id: 'cli-billing-options-2026-11-11',
-      date: new Date('2026-11-11'),
-      element: (
-        <div key="cli-billing-options-2026-11-11" style={noteCardStyle}>
-          {CLI_BILLING_OPTIONS_RELEASES.map((release) => (
-            <span key={release.tag} id={release.tag} aria-hidden="true" />
-          ))}
-          <AnchorLink id="cli-billing-options-2026-11-11" level="h4">
-            November 11, 2026 - CLI drops unused billing options
-          </AnchorLink>
-          <p>
-            <code>openiap kit orgs update</code> no longer accepts{' '}
-            <code>--billing-email</code>, <code>--tax-id</code>, or{' '}
-            <code>--tax-id-type</code>. IAPKit has no paid plans and stopped
-            storing these values, and its server now rejects them, so upgrade
-            the CLI before the next <code>orgs update</code>. See the{' '}
-            <a href="https://kit.openiap.dev/docs/release-notes#week-2026-11-09">
-              IAPKit weekly history
-            </a>{' '}
-            for the server change.
-          </p>
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
-          <ul>
-            {CLI_BILLING_OPTIONS_RELEASES.map((release) => (
-              <li key={release.tag}>
-                <a
-                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
-                >
-                  {getReleaseLabel(release)}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ),
-    },
     {
       id: 'react-native-strict-types-2026-11-09',
       date: new Date('2026-11-09'),
