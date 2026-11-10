@@ -6,19 +6,33 @@ const suiteSource = new URL(
   import.meta.url,
 );
 
+// XCTest runs every instance method named `test…` without parameters,
+// whatever follows the prefix and whatever its indentation or modifiers.
 export function appleConformanceMethods(source) {
-  return [...source.matchAll(/^    func (test[A-Z]\w*)\(\)/gm)].map(
-    ([, method]) => method,
-  );
+  const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
+  return [
+    ...code.matchAll(
+      /^[ \t]*(?:(?:@\w+(?:\([^)\n]*\))?|public|internal|private|fileprivate|final|override|open|nonisolated)[ \t]+)*func[ \t]+(test\w*)[ \t]*\([ \t]*\)/gm,
+    ),
+  ].map(([, method]) => method);
+}
+
+/**
+ * Reads XCTest's sequential result lines. SwiftPM's parallel xUnit report can
+ * omit skips; these lines distinguish passed, skipped, and failed cases.
+ */
+export function appleTestOutcomes(log) {
+  return [
+    ...log.matchAll(
+      /^Test Case '-\[(?:\w+\.)?(\w+) (test\w*)\]' (passed|skipped|failed)\b/gm,
+    ),
+  ].map(([, suite, method, status]) => ({ suite, method, status }));
 }
 
 export function assertAppleConformanceRun(methods, log) {
   const outcomes = new Map();
-  // SwiftPM's parallel xUnit report can omit XCTest skips. Read the sequential
-  // XCTest result lines that distinguish passed, skipped, and failed cases.
-  for (const [, method, status] of log.matchAll(
-    /^Test Case '-\[(?:\w+\.)?StoreConformanceTests (test\w+)\]' (passed|skipped|failed)\b/gm,
-  )) {
+  for (const { suite, method, status } of appleTestOutcomes(log)) {
+    if (suite !== "StoreConformanceTests") continue;
     const results = outcomes.get(method) ?? [];
     results.push(status);
     outcomes.set(method, results);
@@ -26,6 +40,15 @@ export function assertAppleConformanceRun(methods, log) {
 
   if (methods.length === 0)
     throw new Error("No Apple conformance tests declared");
+  // A case XCTest ran that discovery missed means the declared list is wrong.
+  const undiscovered = [...outcomes.keys()].filter(
+    (method) => !methods.includes(method),
+  );
+  if (undiscovered.length) {
+    throw new Error(
+      `Apple conformance tests ran but were not discovered in the suite: ${undiscovered.join(", ")}`,
+    );
+  }
   const incomplete = methods.filter(
     (method) => outcomes.get(method)?.join(",") !== "passed",
   );

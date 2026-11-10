@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { parse as parseYaml } from "yaml";
 import {
-  approvalLink,
+  approvalGateChanges,
+  assertApprovalUnused,
+  evidenceJobs,
   needsDesignApproval,
   verifyDesignApproval,
 } from "./audit-design-approval.mjs";
+import { approvalLink } from "./approved-verification.mjs";
 
 const repository = "hyodotdev/openiap";
 const url = `https://github.com/${repository}/issues/123#issuecomment-456`;
@@ -14,12 +19,18 @@ const after = "2026-10-01T09:00:00Z";
 const contractPath = "specs/commerce-protocol/SPEC.md";
 const testPath = "specs/commerce-protocol/test/conformance.test.mjs";
 const testName = "rejects a malformed receipt";
+const swiftTest = "packages/apple/Tests/OpenIapTests/RestoreTests.swift";
+const kotlinTest = "packages/google/core/src/test/java/dev/hyo/RestoreTests.kt";
+const csharpTest =
+  "libraries/maui-iap/tests/OpenIap.Maui.Tests/RestoreTests.cs";
 
 function fixture() {
   return {
     pull: {
+      number: 30,
       head: {
         sha: "head",
+        label: "contributor:feature",
         repo: { full_name: "contributor/openiap" },
         ref: "feature",
       },
@@ -119,7 +130,7 @@ test("requires a public impact decision for shipped implementation changes", () 
 });
 
 test("requires a single same-repository issue comment URL", () => {
-  assert.deepEqual(link, { url, comment: "456" });
+  assert.deepEqual(link, { url, issue: "123", comment: "456" });
   for (const body of [
     "",
     `Design approval: ${url}\nDesign approval: ${url}`,
@@ -183,6 +194,7 @@ test("requires a named executable test in the current tree", () => {
     `it("${testName}", () => {});`,
     `it("${testName}", () => undefined);`,
     `it("${testName}", (ctx) => ctx.skip());`,
+    `it("${testName}", (ctx) => { ctx["skip"](); });`,
     `it("${testName}", (ctx) => run(() => ctx.skip()));`,
     `it("${testName}", () => { const unused = () => verify(); });`,
     `it("${testName}", () => { return; verify(); });`,
@@ -208,27 +220,27 @@ test("requires a named executable test in the current tree", () => {
 test("finds native tests with attributes, modifiers, and async return types", () => {
   for (const [path, name, declaration] of [
     [
-      "Tests/RestoreTests.swift",
+      swiftTest,
       "testRestore",
       "@MainActor override func testRestore() async { XCTAssertTrue(verified) }",
     ],
     [
-      "Tests/RestoreTests.swift",
+      swiftTest,
       "testRestore",
       "func testRestore() {\n  for expected in outcomes { XCTAssertEqual(actual, expected) }\n}",
     ],
     [
-      "src/test/RestoreTests.kt",
+      kotlinTest,
       "restores a purchase",
       "@Disabled class Other {}\nclass Active {\n@Test internal fun `restores a purchase`() = runTest { assertTrue(verified) }\n}",
     ],
     [
-      "tests/RestoreTests.cs",
+      csharpTest,
       "TestRestore",
       "[Fact] public async Task TestRestore() { var result = await Verify(); Assert.False(result.Skip); }",
     ],
     [
-      "tests/RestoreTests.cs",
+      csharpTest,
       "TestRestore",
       "[Fact] public void TestRestore() { foreach (var expected in outcomes) { Assert.Equal(actual, expected); } }",
     ],
@@ -241,71 +253,68 @@ test("finds native tests with attributes, modifiers, and async return types", ()
     value.readTest = (file) => (file === path ? declaration : undefined);
     assert.doesNotThrow(() => verifyDesignApproval(value), declaration);
   }
+  // A test no required CI job runs cannot show its result.
+  const value = fixture();
+  const untested = "libraries/godot-iap/ios/Tests/RestoreTests.swift";
+  value.comment.body = value.comment.body.replace(
+    /^Verification:.*$/m,
+    `Verification: ${untested}#testRestore`,
+  );
+  value.readTest = () => "func testRestore() { XCTAssertTrue(verified) }";
+  assert.throws(() => verifyDesignApproval(value), /No required CI job runs/);
 });
 
 test("rejects empty and disabled native verification methods", () => {
   const value = fixture();
   for (const [path, source] of [
-    ["Tests/RestoreTests.swift", "func testRestore() { /* test later */ }"],
+    [swiftTest, "func testRestore() { /* test later */ }"],
+    [swiftTest, "/*\nfunc testRestore() { XCTAssertTrue(verified) }\n*/"],
+    [swiftTest, "func testRestore() { let fixture = true }"],
+    [swiftTest, "func testRestore() { let unused = { XCTAssertTrue(false) } }"],
+    [swiftTest, "func testRestore() throws { verify(); try XCTSkipIf(true) }"],
+    [swiftTest, "static func testRestore() { XCTAssertTrue(verified) }"],
     [
-      "Tests/RestoreTests.swift",
-      "/*\nfunc testRestore() { XCTAssertTrue(verified) }\n*/",
-    ],
-    ["Tests/RestoreTests.swift", "func testRestore() { let fixture = true }"],
-    [
-      "Tests/RestoreTests.swift",
-      "func testRestore() { let unused = { XCTAssertTrue(false) } }",
-    ],
-    [
-      "Tests/RestoreTests.swift",
-      "func testRestore() throws { verify(); try XCTSkipIf(true) }",
-    ],
-    [
-      "Tests/RestoreTests.swift",
-      "static func testRestore() { XCTAssertTrue(verified) }",
-    ],
-    [
-      "src/test/RestoreTests.kt",
+      kotlinTest,
       "@Disabled\n@Test\nfun testRestore() { assertTrue(verified) }",
     ],
     [
-      "src/test/RestoreTests.kt",
+      kotlinTest,
       "@Disabled\n// Pending a StoreKit fixture.\ninternal class RestoreTests {\n  @Test fun testRestore() { assertTrue(verified) }\n}",
     ],
     [
-      "src/test/RestoreTests.kt",
+      kotlinTest,
       "@Test fun testRestore() { fun unused() { assertTrue(false) } }",
     ],
     [
-      "src/test/RestoreTests.kt",
+      kotlinTest,
       "@Test fun testRestore() { Assumptions.assumeTrue(false); assertTrue(verified) }",
     ],
     [
-      "tests/RestoreTests.cs",
+      csharpTest,
       '[Fact(Skip = "disabled")]\npublic void testRestore() { Assert.True(verified); }',
     ],
     [
-      "tests/RestoreTests.cs",
+      csharpTest,
       '[Test]\npublic void testRestore() { Assert.Inconclusive("unverified"); }',
     ],
     [
-      "tests/RestoreTests.cs",
+      csharpTest,
       '[Ignore("disabled")]\n/* Pending a fixture. */\npublic sealed class RestoreTests {\n  [Test] public void testRestore() { Assert.True(verified); }\n}',
     ],
     [
-      "tests/RestoreTests.cs",
+      csharpTest,
       "[Test] public void testRestore() { void unused() { Assert.True(false); } }",
     ],
     [
-      "tests/RestoreTests.cs",
+      csharpTest,
       '[Test] public void testRestore() { string unused() { Assert.True(false); return ""; } }',
     ],
     [
-      "tests/RestoreTests.cs",
+      csharpTest,
       "[Test] public void testRestore() { Action unused = () => Assert.True(false); }",
     ],
     [
-      "tests/RestoreTests.cs",
+      csharpTest,
       "[Test] public void testRestore() { Action unused = delegate { Assert.True(false); }; }",
     ],
   ]) {
@@ -374,4 +383,128 @@ test("verifies all commits in a PR that spans multiple API pages", () => {
   assert.doesNotThrow(() => verifyDesignApproval(value));
   value.commits.shift();
   assert.throws(() => verifyDesignApproval(value), /complete commit list/);
+});
+
+const useIap = "libraries/react-native-iap/src/hooks/useIAP.ts";
+
+test("a declaration change must be in the approved Contract scope", () => {
+  const value = fixture();
+  value.files = [useIap, testPath];
+  value.surfaceChanged = [useIap];
+  assert.throws(() => verifyDesignApproval(value), /Contract: paths/);
+  value.comment.body = value.comment.body.replace(
+    `Contract: ${contractPath}`,
+    `Contract: ${useIap}`,
+  );
+  assert.doesNotThrow(() => verifyDesignApproval(value));
+});
+
+test("an approved change cannot also change the CI that runs its tests", () => {
+  const ci = ".github/workflows/ci.yml";
+  const workflow = (
+    evidence,
+    other = "true",
+    trigger = "main",
+    ios = "approved-verification.mjs apple",
+  ) =>
+    `on:\n  pull_request:\n    branches: [${trigger}]\njobs:\n  audit-release-state:\n    steps:\n      - run: ${evidence}\n  test-ios:\n    steps:\n      - run: ${ios}\n  other:\n    steps:\n      - run: ${other}\n`;
+  const gate = (head, files = [ci]) =>
+    approvalGateChanges(files, (side, path) =>
+      path === ci ? (side === "base" ? workflow("verify") : head) : "x",
+    );
+  assert.deepEqual(gate(workflow("verify", "false")), []);
+  for (const head of [
+    workflow("true"),
+    workflow("verify", "true", "nowhere"),
+    workflow("verify", "true", "main", "true"),
+    workflow("verify").replace(
+      "jobs:",
+      "env:\n  NODE_OPTIONS: --require ./x.js\njobs:",
+    ),
+  ]) {
+    assert.deepEqual(gate(head), [
+      `${ci} (an evidence job or its workflow settings)`,
+    ]);
+  }
+  assert.deepEqual(
+    gate(workflow("verify"), [
+      "scripts/approved-verification.mjs",
+      "scripts/audit-design-approval.mjs",
+      ".github/workflows/design-approval.yml",
+    ]),
+    [
+      "scripts/approved-verification.mjs",
+      "scripts/audit-design-approval.mjs",
+      ".github/workflows/design-approval.yml",
+    ],
+  );
+  const value = fixture();
+  value.gateChanged = ["scripts/approved-verification.mjs"];
+  assert.throws(() => verifyDesignApproval(value), /separate PR/);
+});
+
+test("an approved change cannot change a CI helper an evidence job runs", () => {
+  const { jobs } = parseYaml(
+    readFileSync(
+      new URL("../.github/workflows/ci.yml", import.meta.url),
+      "utf8",
+    ),
+  );
+  const helpers = new Set();
+  for (const job of evidenceJobs) {
+    const { steps } = jobs[job];
+    const check = steps.findLastIndex(({ run }) =>
+      run?.includes("approved-verification.mjs"),
+    );
+    // Later steps cannot change what the check read.
+    for (const { uses = "", run = "" } of steps.slice(0, check + 1)) {
+      if (uses.startsWith("./")) helpers.add(`${uses.slice(2)}/action.yml`);
+      for (const [script] of run.matchAll(
+        /(?<![\w$])(?:[\w-]+\/)+[\w.-]+\.(?:mjs|sh)/g,
+      )) {
+        helpers.add(script);
+      }
+    }
+  }
+  assert.ok(helpers.has("scripts/ci/retry-gradle.sh"));
+  assert.ok(helpers.has(".github/actions/setup-xcode/action.yml"));
+  assert.deepEqual(
+    approvalGateChanges([...helpers, "packages/google/build.gradle.kts"]),
+    [...helpers],
+  );
+});
+
+test("a merged PR uses an approval up", () => {
+  const { pull, comment } = fixture();
+  const merged = (number, label, body = "", mergedAt = after) => ({
+    number,
+    body,
+    head: { label },
+    merged_at: mergedAt,
+  });
+  for (const other of [
+    merged(12, "contributor:feature"),
+    merged(13, "maintainer:docs", `Design approval: ${url}`),
+    // Its body was edited after the merge to link another approval.
+    merged(
+      17,
+      "contributor:feature",
+      `Design approval: ${url.replace("456", "455")}`,
+    ),
+  ]) {
+    assert.throws(
+      () => assertApprovalUnused(link, pull, comment, [other]),
+      new RegExp(`already used by merged PR #${other.number}`),
+    );
+  }
+  // This PR, an unmerged one, a branch merged before the approval, and a
+  // merged PR from another branch that only mentions the issue do not use it.
+  assert.doesNotThrow(() =>
+    assertApprovalUnused(link, pull, comment, [
+      merged(30, "contributor:feature"),
+      merged(14, "contributor:feature", "", null),
+      merged(15, "contributor:feature", "", "2026-09-01T00:00:00Z"),
+      merged(16, "maintainer:docs", "Refs the proposal issue."),
+    ]),
+  );
 });

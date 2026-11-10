@@ -364,11 +364,64 @@ test("rejects rewiring a gated job onto the wrong filter", () => {
     (root) => {
       assert.ok(
         findPolicyViolations(root).includes(
-          "ci.yml: job test-ios must gate on needs.changes.outputs.ios",
+          "ci.yml: job test-ios-compiler-boundaries must gate on needs.changes.outputs.ios",
         ),
       );
     },
   );
+});
+
+test("rejects an approval evidence job that skips approved PRs", () => {
+  withPatchedWorkflows(
+    (workflows) => {
+      const file = path.join(workflows, "ci.yml");
+      fs.writeFileSync(
+        file,
+        fs
+          .readFileSync(file, "utf8")
+          .replace(
+            "    if: ${{ !cancelled() && (needs.changes.outputs.android == 'true' || contains(github.event.pull_request.body, 'Design approval:')) }}",
+            "    if: needs.changes.outputs.android == 'true'",
+          ),
+      );
+    },
+    (root) => {
+      assert.ok(
+        findPolicyViolations(root).includes(
+          "ci.yml: job test-android must gate on needs.changes.outputs.android",
+        ),
+      );
+    },
+  );
+});
+
+test("rejects an approval evidence job that lost its approved-test step", () => {
+  const command = "node scripts/approved-verification.mjs";
+  for (const [jobId, pinned, step] of [
+    ["audit-release-state", command, `${command}\n`],
+    ["test-android", `${command} google`, `${command} google packages/`],
+    ["test-ios", `${command} apple`, `${command} apple "$RUNNER_TEMP/`],
+  ]) {
+    withPatchedWorkflows(
+      (workflows) => {
+        const file = path.join(workflows, "ci.yml");
+        const source = fs.readFileSync(file, "utf8");
+        assert.ok(source.includes(`        run: ${step}`));
+        fs.writeFileSync(
+          file,
+          source.replace(`        run: ${step}`, `        run: echo ${step}`),
+        );
+      },
+      (root) => {
+        assert.deepEqual(
+          findPolicyViolations(root).filter((finding) =>
+            finding.includes(command),
+          ),
+          [`ci.yml: job ${jobId} must run '${pinned}' on every pull request`],
+        );
+      },
+    );
+  }
 });
 
 test("rejects deleting a filter that a job still gates on", () => {

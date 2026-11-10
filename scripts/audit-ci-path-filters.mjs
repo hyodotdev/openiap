@@ -57,6 +57,15 @@ export const pushAlwaysFilters = Object.freeze([
   "parity",
 ]);
 
+// Required jobs that check a design approval's tests, each in the step that
+// starts with this command. The filter-gated ones also run for every PR that
+// links an approval, even when the changes job did not run.
+const approvalEvidenceSteps = Object.freeze({
+  "audit-release-state": "node scripts/approved-verification.mjs",
+  "test-android": "node scripts/approved-verification.mjs google ",
+  "test-ios": "node scripts/approved-verification.mjs apple ",
+});
+
 export const unconditionalCiJobs = Object.freeze([
   "audit-release-state",
   "changes",
@@ -1233,6 +1242,21 @@ function findCoverageViolations(root) {
     }
   }
 
+  // Without its step the job still passes, with the approved tests unchecked.
+  for (const [jobId, command] of Object.entries(approvalEvidenceSteps)) {
+    const checksApprovedTests = (ci.jobs[jobId]?.steps ?? []).some(
+      (step) =>
+        String(step.run ?? "").startsWith(command) &&
+        step.if === "github.event_name == 'pull_request'",
+    );
+
+    if (!checksApprovedTests) {
+      findings.push(
+        `ci.yml: job ${jobId} must run '${command.trim()}' on every pull request`,
+      );
+    }
+  }
+
   // A filter only means something through the job it gates, so pin that wiring.
   const { filters: ciFilters } = dornyStep(ci, "changes", "filter");
 
@@ -1253,7 +1277,13 @@ function findCoverageViolations(root) {
         continue;
       }
 
-      if (job.if !== `needs.changes.outputs.${name} == 'true'`) {
+      const gate = `needs.changes.outputs.${name} == 'true'`;
+      if (
+        job.if !==
+        (Object.hasOwn(approvalEvidenceSteps, jobId)
+          ? `\${{ !cancelled() && (${gate} || contains(github.event.pull_request.body, 'Design approval:')) }}`
+          : gate)
+      ) {
         findings.push(
           `ci.yml: job ${jobId} must gate on needs.changes.outputs.${name}`,
         );

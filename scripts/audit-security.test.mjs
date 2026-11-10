@@ -206,6 +206,32 @@ steps:
   assert.equal(findWorkflowRunInterpolations(workflow).length, 2);
 });
 
+test("pull_request_target workflows may check out only the base branch", () => {
+  const workflow = (ref) =>
+    `on:\n  pull_request_target:\npermissions:\n  contents: read\njobs:\n  verify:\n    steps:\n      - uses: actions/checkout@${"c".repeat(40)} # v7\n        with:\n          persist-credentials: false\n${ref ? `          ref: ${ref}\n` : ""}`;
+  for (const ref of [
+    undefined,
+    "${{ github.sha }}",
+    "${{ github.event.pull_request.base.sha }}",
+  ]) {
+    assert.deepEqual(findWorkflowDependencyFindings(workflow(ref)), [], ref);
+  }
+  for (const ref of [
+    "${{ github.event.pull_request.head.sha }}",
+    "refs/pull/1/merge",
+    "${{ github.head_ref }}",
+    "${{ github.sha }}\n          repository: ${{ github.event.pull_request.head.repo.full_name }}",
+  ]) {
+    assert.deepEqual(
+      findWorkflowDependencyFindings(workflow(ref), "fixture.yml"),
+      [
+        "fixture.yml: job verify pull_request_target checkout must stay on the base branch",
+      ],
+      ref,
+    );
+  }
+});
+
 test("workflow dependency scan requires least privilege and immutable actions", () => {
   const pinned = `permissions:\n  contents: read\nsteps:\n  - uses: actions/checkout@${"a".repeat(40)} # v7\n`;
   assert.deepEqual(findWorkflowDependencyFindings(pinned), []);

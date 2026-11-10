@@ -137,8 +137,8 @@ Pods/
 *.apk
 *.ap_
 local.properties
-libraries/*/.gradle/
-libraries/*/example/.gradle/
+# Gradle caches at any depth, including fixture and conformance projects.
+.gradle/
 libraries/*/.cxx/
 
 # Flutter

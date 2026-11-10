@@ -178,6 +178,16 @@ export function findWorkflowDependencyFindings(
     }
   }
 
+  // pull_request_target runs with base-branch trust, so it may read a PR only
+  // as data: checking out the PR would run its code with that trust.
+  const triggers = workflow?.on;
+  const targetsPullRequests =
+    triggers === "pull_request_target" ||
+    (Array.isArray(triggers) && triggers.includes("pull_request_target")) ||
+    Object.hasOwn(
+      triggers && typeof triggers === "object" ? triggers : {},
+      "pull_request_target",
+    );
   for (const [jobName, job] of Object.entries(jobs)) {
     for (const step of job?.steps ?? []) {
       const action = String(step?.uses ?? "").toLowerCase();
@@ -185,6 +195,21 @@ export function findWorkflowDependencyFindings(
       if (String(step?.with?.["persist-credentials"]) !== "false") {
         findings.push(
           `${filename}: job ${jobName} checkout must disable persisted credentials`,
+        );
+      }
+      if (
+        targetsPullRequests &&
+        (![
+          undefined,
+          "${{ github.sha }}",
+          "${{ github.event.pull_request.base.sha }}",
+        ].includes(step?.with?.ref) ||
+          ![undefined, "${{ github.repository }}"].includes(
+            step?.with?.repository,
+          ))
+      ) {
+        findings.push(
+          `${filename}: job ${jobName} pull_request_target checkout must stay on the base branch`,
         );
       }
     }

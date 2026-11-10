@@ -1,7 +1,15 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { isDeepStrictEqual } from "node:util";
 import { pathToFileURL } from "node:url";
+import { parse as parseYaml } from "yaml";
 import ts from "typescript";
+import {
+  approvalFields,
+  approvalLink,
+  testRunnerFor,
+} from "./approved-verification.mjs";
+import { publicSurfaceChanges } from "./public-declarations.mjs";
 import { shipsInAnyPackage } from "./release-branch-policy.mjs";
 
 const projectLeadId = 27461460; // @hyochan in MAINTAINERS.md
@@ -14,7 +22,44 @@ const publicContractPaths = [
   /^specs\/commerce-protocol\/(?:schema\/|generated\/|SPEC\.md$|vectors\/|(?:src|conformance)\/index\.(?:mjs|d\.ts)$)/,
 ];
 
-export function needsDesignApproval(files, body) {
+// An approved PR cannot also change the check or the CI jobs that check its
+// approved tests. Other CI jobs may change along with the contract.
+const gateFiles = new Set([
+  ".github/workflows/design-approval.yml",
+  "scripts/audit-design-approval.mjs",
+  "scripts/approved-verification.mjs",
+  "scripts/public-declarations.mjs",
+  "packages/conformance/scripts/check-apple-test-run.mjs",
+  // CI helpers the evidence jobs run before their check.
+  ".github/actions/setup-xcode/action.yml",
+  "scripts/ci/retry-gradle.sh",
+]);
+const ciWorkflow = ".github/workflows/ci.yml";
+export const evidenceJobs = ["audit-release-state", "test-android", "test-ios"];
+
+/** Approval-gate changes an approved PR makes; they must land separately. */
+export function approvalGateChanges(files, read) {
+  const changed = files.filter((file) => gateFiles.has(file));
+  if (files.includes(ciWorkflow)) {
+    // The evidence jobs plus the triggers, env and permissions around them.
+    const gate = (side) => {
+      const source = read(side, ciWorkflow);
+      if (source === undefined) return undefined;
+      const workflow = parseYaml(source) ?? {};
+      return {
+        ...workflow,
+        jobs: Object.fromEntries(
+          evidenceJobs.map((job) => [job, workflow.jobs?.[job]]),
+        ),
+      };
+    };
+    if (!isDeepStrictEqual(gate("base"), gate("head")))
+      changed.push(`${ciWorkflow} (an evidence job or its workflow settings)`);
+  }
+  return changed;
+}
+
+export function needsDesignApproval(files, body, surfaceChanged = []) {
   const fields = (body ?? "").match(/^Public contract:[^\r\n]*/gm) ?? [];
   const impact = fields[0]?.slice("Public contract:".length).trim();
   if (
@@ -25,12 +70,16 @@ export function needsDesignApproval(files, body) {
       "Use a single Public contract: changed or Public contract: unchanged line.",
     );
   }
-  const authored = files.some((file) =>
-    publicContractPaths.some((pattern) => pattern.test(file)),
-  );
+  const authored =
+    surfaceChanged.length > 0 ||
+    files.some((file) =>
+      publicContractPaths.some((pattern) => pattern.test(file)),
+    );
   if (authored && impact === "unchanged") {
     throw new Error(
-      "This PR edits a public contract source and needs design approval.",
+      surfaceChanged.length
+        ? `This PR changes published SDK declarations and needs design approval: ${surfaceChanged.join(", ")}`
+        : "This PR edits a public contract source and needs design approval.",
     );
   }
   if (!authored && !impact && files.some(shipsInAnyPackage)) {
@@ -39,38 +88,6 @@ export function needsDesignApproval(files, body) {
     );
   }
   return authored || impact === "changed";
-}
-
-export function approvalLink(body, repository) {
-  const fields = (body ?? "").match(/^Design approval:[^\r\n]*/gm) ?? [];
-  if (fields.length !== 1)
-    throw new Error("Add one Design approval link to the PR body.");
-  const url = fields[0].slice("Design approval:".length).trim();
-  const prefix = `https://github.com/${repository}/issues/`;
-  const reference =
-    url.startsWith(prefix) &&
-    /^(\d+)#issuecomment-(\d+)$/.exec(url.slice(prefix.length));
-  if (!reference)
-    throw new Error(
-      "Design approval must link to a comment on a proposal issue in this repository.",
-    );
-  return { url, comment: reference[2] };
-}
-
-function approvalFields(details, field) {
-  const prefix = `${field}:`;
-  const values = details
-    .filter((line) => line.startsWith(prefix))
-    .map((line) => line.slice(prefix.length).trim());
-  if (
-    !values.length ||
-    values.some(
-      (value) => !value || /^(?:tbd|todo|pending|n\/?a)[.!]?$/i.test(value),
-    )
-  ) {
-    throw new Error(`The approval must include concrete ${field}: evidence.`);
-  }
-  return values;
 }
 
 function hasJavaScriptTest(path, source, name) {
@@ -86,6 +103,9 @@ function hasJavaScriptTest(path, source, name) {
         skips ||=
           (ts.isPropertyAccessExpression(target) &&
             target.name.text === "skip") ||
+          (ts.isElementAccessExpression(target) &&
+            ts.isStringLiteralLike(target.argumentExpression) &&
+            target.argumentExpression.text === "skip") ||
           (ts.isIdentifier(target) && target.text === "pending");
       }
       ts.forEachChild(node, (child) => visit(child, inCallback));
@@ -281,12 +301,14 @@ function hasNativeTest(path, source, name) {
   );
 }
 
-function verifyApprovedScope(details, files, readTest) {
+function verifyApprovedScope(details, files, readTest, surfaceChanged) {
   approvalFields(details, "Design");
   approvalFields(details, "Acceptance");
   const approvedPaths = approvalFields(details, "Contract");
-  const authored = files.filter((file) =>
-    publicContractPaths.some((pattern) => pattern.test(file)),
+  const authored = files.filter(
+    (file) =>
+      surfaceChanged.includes(file) ||
+      publicContractPaths.some((pattern) => pattern.test(file)),
   );
   const source = authored.filter((file) => !/\/generated\//.test(file));
   const required = source.length ? source : authored;
@@ -323,6 +345,36 @@ function verifyApprovedScope(details, files, readTest) {
         `Approved verification test was not found or is empty or disabled: ${value}`,
       );
     }
+    // A test no required CI job runs cannot show its result.
+    testRunnerFor(path, source);
+  }
+}
+
+/**
+ * An approval covers one change. The first PR merged from its branch after it
+ * used it up, whatever that PR's body links now (a body can be edited after
+ * the merge), and so did any merged PR that links it, so a recreated branch
+ * cannot ship a second change on the same comment.
+ */
+export function assertApprovalUnused(link, pull, comment, merged) {
+  const repository = pull.base.repo.full_name;
+  const linked = (body) => {
+    try {
+      return approvalLink(body, repository).url;
+    } catch {
+      return undefined;
+    }
+  };
+  const used = merged.find(
+    (other) =>
+      other.number !== pull.number &&
+      Date.parse(other.merged_at) > Date.parse(comment.created_at) &&
+      (other.head.label === pull.head.label || linked(other.body) === link.url),
+  );
+  if (used) {
+    throw new Error(
+      `Design approval ${link.url} was already used by merged PR #${used.number}; record a new approval for this change.`,
+    );
   }
 }
 
@@ -333,6 +385,8 @@ export function verifyDesignApproval({
   commits,
   files,
   readTest,
+  surfaceChanged = [],
+  gateChanged = [],
 }) {
   if (comment.html_url !== link.url || comment.user?.id !== projectLeadId) {
     throw new Error(
@@ -351,7 +405,12 @@ export function verifyDesignApproval({
       `Approval must name ${scope} and record the concrete design decision.`,
     );
   }
-  verifyApprovedScope(details, files, readTest);
+  verifyApprovedScope(details, files, readTest, surfaceChanged);
+  if (gateChanged.length) {
+    throw new Error(
+      `Change the approval CI in a separate PR, not with an approved contract change: ${gateChanged.join(", ")}`,
+    );
+  }
   const approvedAt = Date.parse(comment.created_at);
   if (
     !Number.isFinite(approvedAt) ||
@@ -388,23 +447,49 @@ function main() {
   const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
   const repo = event.repository.full_name;
   const number = event.pull_request.number;
+  // The 1 MiB default fails on a long PR list and reads a large source as
+  // missing.
+  const output = { encoding: "utf8", maxBuffer: 2 ** 28 };
   const api = (...args) =>
-    JSON.parse(execFileSync("gh", ["api", ...args], { encoding: "utf8" }));
+    JSON.parse(execFileSync("gh", ["api", ...args], output));
+  const git = (args, options) =>
+    execFileSync("git", args, { ...output, ...options });
   const pullPath = `repos/${repo}/pulls/${number}`;
   const pull = api(pullPath);
   const { base, head } = event.pull_request;
-  const parents = execFileSync("git", ["show", "-s", "--format=%P", "HEAD"], {
-    encoding: "utf8",
-  }).trim();
-  if (parents !== `${base.sha} ${head.sha}` || pull.head.sha !== head.sha) {
-    throw new Error("The checkout must be the merge of this PR head and base.");
+  if (pull.head.sha !== head.sha) {
+    throw new Error("The PR head moved; the run for the newer head checks it.");
   }
-  const files = execFileSync(
-    "git",
-    ["diff", "--name-only", "--no-renames", "-z", base.sha, "HEAD"],
-    { encoding: "utf8" },
-  ).split("\0");
-  if (!needsDesignApproval(files, pull.body)) {
+  // design-approval.yml checks out main and fetches the PR head as data. Diff
+  // from the merge base, as the PR's file list does.
+  const mergeBase = git(["merge-base", base.sha, head.sha]).trim();
+  const files = git([
+    "diff",
+    "--name-only",
+    "--no-renames",
+    "-z",
+    mergeBase,
+    head.sha,
+  ])
+    .split("\0")
+    .filter(Boolean);
+  const read = (side, path) => {
+    try {
+      return git(
+        ["show", `${side === "base" ? mergeBase : head.sha}:${path}`],
+        {
+          stdio: ["ignore", "pipe", "ignore"],
+        },
+      );
+    } catch {
+      return undefined;
+    }
+  };
+  // design-approval.yml installs the SDK dependencies from main's lockfiles.
+  const surfaceChanged = publicSurfaceChanges(files, read, {
+    requireDependencies: true,
+  });
+  if (!needsDesignApproval(files, pull.body, surfaceChanged)) {
     console.log(
       "No authored contract changes or declared public contract change.",
     );
@@ -413,22 +498,52 @@ function main() {
 
   const link = approvalLink(pull.body, repo);
   const comment = api(`repos/${repo}/issues/comments/${link.comment}`);
+  // The branch filter misses PRs from deleted forks; the proposal issue's
+  // cross-references still list them.
+  const referencing = api(
+    `repos/${repo}/issues/${link.issue}/timeline?per_page=100`,
+    "--paginate",
+    "--slurp",
+  )
+    .flat()
+    .filter(
+      ({ event, source }) =>
+        event === "cross-referenced" &&
+        source?.issue?.repository?.full_name === repo &&
+        source.issue.pull_request?.merged_at,
+    )
+    .map(({ source }) => api(`repos/${repo}/pulls/${source.issue.number}`));
+  assertApprovalUnused(link, pull, comment, [
+    ...api(
+      "-X",
+      "GET",
+      `repos/${repo}/pulls`,
+      "-f",
+      "state=closed",
+      "-f",
+      `head=${pull.head.label}`,
+      "-f",
+      "per_page=100",
+      "--paginate",
+      "--slurp",
+    ).flat(),
+    ...referencing,
+  ]);
   const commits = api(
     `${pullPath}/commits?per_page=100`,
     "--paginate",
     "--slurp",
   ).flat();
-  const readTest = (path) => {
-    try {
-      return execFileSync("git", ["show", `HEAD:${path}`], {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"],
-      });
-    } catch {
-      return undefined;
-    }
-  };
-  verifyDesignApproval({ pull, link, comment, commits, files, readTest });
+  verifyDesignApproval({
+    pull,
+    link,
+    comment,
+    commits,
+    files,
+    readTest: (path) => read("head", path),
+    surfaceChanged,
+    gateChanged: approvalGateChanges(files, read),
+  });
   console.log(`Design approval verified for PR #${number}: ${link.url}`);
 }
 
