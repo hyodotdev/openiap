@@ -181,26 +181,12 @@ the contract.
 
 The `Design Approval` workflow runs on `pull_request_target`, so it always uses
 main's checker and reads the PR only as data. A PR cannot remove or rewrite it.
-It reports the `OpenIAP Design Approval` check through a dedicated GitHub App
-whose key sits in an environment only main-branch runs can use, and the main
-ruleset requires that check from that App, so a PR job with the same name
-cannot satisfy it.
+The main ruleset requires its `Verify Design Approval` job. GitHub matches a
+required check by name, so reviewers reject any PR that adds another job or
+check with that name.
 
-Set the gate up in this order. Until the last step it enforces nothing, and
-its publish job fails on every PR until the first two are done:
-
-1. Create a GitHub App with `Checks: write`, install it on this repository,
-   and store its client ID in the `DESIGN_APPROVAL_APP_CLIENT_ID` variable.
-2. Create the `design-approval` environment, limit its deployment branches to
-   `main`, then store the App key there as `DESIGN_APPROVAL_APP_PRIVATE_KEY`.
-   Set the branch limit first: GitHub creates a missing environment without
-   one the first time the workflow runs.
-3. Confirm the App posts the check on a maintainer PR and on a Dependabot PR.
-   GitHub limits the secrets Dependabot's runs receive; if its run cannot read
-   the key, store the same key as a Dependabot secret.
-4. Require `OpenIAP Design Approval` from that App in the main ruleset.
-   Requiring it earlier blocks every PR, because nothing posts the check until
-   the workflow is on main and the App can report.
+Add `Verify Design Approval` to the main ruleset's required checks once the
+job has run on a PR; a check GitHub has never seen blocks every PR.
 
 CI detects edits to Client and Commerce schemas and their generated output,
 Client capability and conformance definitions, portable Client helpers and
