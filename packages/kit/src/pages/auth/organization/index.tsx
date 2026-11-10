@@ -8,7 +8,6 @@ import { KIT_REPO_URL } from "@/lib/constants";
 import { ThemeDropdown } from "../../../components/ThemeDropdown";
 import { SignOutButton } from "../../../components/SignOutButton";
 import { OrganizationInvitations } from "@/components/OrganizationInvitations";
-import { FreeTransitionNotice } from "../../../components/FreeTransitionNotice";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex";
 import type { Id } from "@/convex";
@@ -204,12 +203,6 @@ export default function OrganizationLayout() {
             table / tab scrollers; letting this shell scroll sideways
             moves the entire page underneath the pinned sidebar. */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden overscroll-none bg-background">
-          <FreeTransitionNotice
-            hadBillingRelationship={Boolean(
-              organization.stripeCustomerId ||
-              organization.stripeSubscriptionId,
-            )}
-          />
           <OrganizationInvitations />
           <Outlet />
         </main>

@@ -29,8 +29,6 @@ export const createOrganization = mutation({
       throw createError(ErrorCode.NOT_AUTHENTICATED);
     }
 
-    const user = await ctx.db.get(userId);
-
     // Generate slug if not provided, or validate user-provided slug
     let slug = args.slug || generateSlug(args.name);
 
@@ -77,7 +75,6 @@ export const createOrganization = mutation({
     const organizationId = await ctx.db.insert("organizations", {
       name: args.name,
       slug: finalSlug,
-      billingEmail: user?.email ?? undefined,
       monthlyRequestCount: 0,
       // Display-only threshold that powers the dashboard's sponsor
       // CTA; the verification path does not enforce this value.
@@ -116,11 +113,10 @@ export const updateOrganization = mutation({
   args: {
     organizationId: v.id("organizations"),
     name: v.optional(v.string()),
+    // Retired billing fields, still accepted and ignored so older dashboards
+    // and CLI builds keep working until the schema drops them.
     billingEmail: v.optional(v.string()),
     taxId: v.optional(v.union(v.string(), v.null())),
-    // See https://stripe.com/docs/api/customer_tax_ids/object — e.g.
-    // "eu_vat", "us_ein", "gb_vat". Kept as a string so we don't have
-    // to hand-roll a validator for every Stripe-supported type.
     taxIdType: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, args) => {
@@ -150,20 +146,6 @@ export const updateOrganization = mutation({
     };
 
     if (args.name !== undefined) updates.name = args.name;
-    if (args.billingEmail !== undefined)
-      updates.billingEmail = args.billingEmail;
-    if (args.taxId !== undefined) {
-      const normalized =
-        typeof args.taxId === "string" ? args.taxId.trim() || null : null;
-      updates.taxId = normalized;
-    }
-    if (args.taxIdType !== undefined) {
-      const normalized =
-        typeof args.taxIdType === "string"
-          ? args.taxIdType.trim() || null
-          : null;
-      updates.taxIdType = normalized;
-    }
 
     await ctx.db.patch(args.organizationId, updates);
   },

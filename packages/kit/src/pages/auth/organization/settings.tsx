@@ -49,8 +49,6 @@ export default function OrganizationSettings() {
   const removeMember = useMutation(api.organizations.mutation.removeMember);
   const [isEditing, setIsEditing] = useState(false);
   const [orgName, setOrgName] = useState("");
-  const [billingEmail, setBillingEmail] = useState("");
-  const [taxId, setTaxId] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
   const [isInviting, setIsInviting] = useState(false);
@@ -60,8 +58,6 @@ export default function OrganizationSettings() {
   useEffect(() => {
     if (currentOrg) {
       setOrgName(currentOrg.name);
-      setBillingEmail(currentOrg.billingEmail || "");
-      setTaxId(currentOrg.taxId || "");
     }
   }, [currentOrg]);
 
@@ -73,8 +69,6 @@ export default function OrganizationSettings() {
       await updateOrganization({
         organizationId: currentOrg._id,
         name: orgName.trim() || undefined,
-        billingEmail: billingEmail.trim() || undefined,
-        taxId: taxId.trim() || null,
       });
       toast.success("Organization updated successfully");
       setIsEditing(false);
@@ -225,33 +219,6 @@ export default function OrganizationSettings() {
                 placeholder={"Example Inc."}
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                {"Billing Email"}
-              </label>
-              <input
-                type="email"
-                value={billingEmail}
-                onChange={(e) => setBillingEmail(e.target.value)}
-                className="w-full px-3 py-2 bg-background border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary/20"
-                placeholder={"billing@example.com"}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                {"Tax ID"}
-              </label>
-              <input
-                type="text"
-                value={taxId}
-                onChange={(e) => setTaxId(e.target.value)}
-                className="w-full px-3 py-2 bg-background border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary/20"
-                placeholder={"e.g. 123456789"}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                {"Shown on invoices and sent to Stripe."}
-              </p>
-            </div>
             <div className="flex flex-wrap gap-3">
               <ButtonPrimary
                 type="button"
@@ -274,8 +241,6 @@ export default function OrganizationSettings() {
                 onClick={() => {
                   setIsEditing(false);
                   setOrgName(currentOrg.name);
-                  setBillingEmail(currentOrg.billingEmail || "");
-                  setTaxId(currentOrg.taxId || "");
                 }}
                 className="btn-ghost"
               >
@@ -301,16 +266,6 @@ export default function OrganizationSettings() {
                   kit.openiap.dev/{currentOrg.slug}
                 </a>
               </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">{"Billing Email"}</p>
-              <p className="font-medium">
-                {currentOrg.billingEmail || "Not set"}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">{"Tax ID"}</p>
-              <p className="font-medium">{currentOrg.taxId || "Not set"}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">{"Your Role"}</p>

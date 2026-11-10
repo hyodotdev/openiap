@@ -12,6 +12,7 @@ import {
   recomputePurchaseStatsForProject,
 } from "./purchases/stats.js";
 import { hashStoredSecretApiKeyPatch } from "./apiKeys/helpers.js";
+import { legacyBillingFieldsPatch } from "./organizations/legacyBilling.js";
 
 export const migrations = new Migrations<DataModel>(components.migrations);
 
@@ -358,6 +359,28 @@ export const backfillOutboundDeliveryEventTypes = migrations.define({
     if (doc.eventType !== undefined) return undefined;
     const event = await ctx.db.get(doc.eventId);
     return event ? { eventType: event.eventType } : undefined;
+  },
+});
+
+/** Removes the retired Stripe billing fields from organizations. */
+export const removeLegacyBillingFields = migrations.define({
+  table: "organizations",
+  migrateOne: async (_ctx, doc) => legacyBillingFieldsPatch(doc) ?? undefined,
+});
+
+/** Deletes the retired Stripe webhook log. */
+export const deleteLegacyStripeEvents = migrations.define({
+  table: "stripeEvents",
+  migrateOne: async (ctx, doc) => {
+    await ctx.db.delete(doc._id);
+  },
+});
+
+/** Deletes the retired Stripe usage-meter accruals. */
+export const deleteLegacyMeteredUsageAccruals = migrations.define({
+  table: "meteredUsageAccruals",
+  migrateOne: async (ctx, doc) => {
+    await ctx.db.delete(doc._id);
   },
 });
 
