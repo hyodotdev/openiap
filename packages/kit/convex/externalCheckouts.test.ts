@@ -488,6 +488,81 @@ describe("external checkout", () => {
     ]);
   });
 
+  it("flags a refund it can't read until a later event settles it", async () => {
+    const { t, apiKey, create, run } = await fixture();
+    const refund = { charge: "ch_test", currency: "eur", created: now / 1000 };
+    let stripe = stripeFetch({
+      "/v1/refunds/re_void": {
+        ...refund,
+        id: "re_void",
+        status: "canceled",
+        amount: 100,
+      },
+    });
+    // The Stripe key can't read refunds, as a restricted key may not.
+    let denied = true;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL) =>
+        denied && new URL(url).pathname.startsWith("/v1/refunds/")
+          ? new Response(null, { status: 403 })
+          : stripe(url),
+      ),
+    );
+    const { checkoutId } = await create();
+    await t.action(external.verify, { apiKey, checkoutId });
+    await run("verify");
+    const ingest = async (type: string, reference: string, id: string) => {
+      await t.action(external.ingestStripe, event(type, reference, id));
+      await run("stripe", id);
+    };
+    const checkout = () => t.run((ctx) => ctx.db.get(checkoutId));
+    await ingest("refund.created", "re_part", "evt_denied");
+    await ingest("refund.updated", "re_part", "evt_denied_again");
+    await ingest("refund.created", "re_rest", "evt_rest_denied");
+    await ingest("refund.created", "re_void", "evt_void_denied");
+    expect(await checkout()).toMatchObject({
+      paymentStatus: "paid",
+      reportingStatus: "action_required",
+      failedReports: 3,
+      active: true,
+    });
+    denied = false;
+    // Stripe canceled this refund, so there is nothing to report.
+    await ingest("refund.updated", "re_void", "evt_void");
+    expect(await checkout()).toMatchObject({
+      paymentStatus: "paid",
+      failedReports: 2,
+    });
+    // A payment event reads the refunds on its charge too.
+    stripe = stripeFetch({
+      "/v1/charges/ch_test": { ...paidCharge, amount_refunded: 250 },
+      "/v1/refunds": {
+        has_more: false,
+        data: [{ ...refund, id: "re_part", status: "succeeded", amount: 250 }],
+      },
+    });
+    await ingest("payment_intent.succeeded", "pi_test", "evt_paid_again");
+    expect(await checkout()).toMatchObject({
+      paymentStatus: "partially_refunded",
+      reportingStatus: "action_required",
+      failedReports: 1,
+    });
+    // A recorded refund needs no manual report, whatever a later event does.
+    denied = true;
+    await ingest("refund.updated", "re_part", "evt_denied_late");
+    expect(await checkout()).toMatchObject({ failedReports: 1 });
+    denied = false;
+    await ingest("refund.updated", "re_rest", "evt_rest_read");
+    expect(await checkout()).toMatchObject({
+      paymentStatus: "refunded",
+      reportingStatus: "queued",
+      failedReports: 0,
+      unverified: [],
+      active: false,
+    });
+  });
+
   it("applies a dispute lost before the first verification", async () => {
     const { t, apiKey, create, jobs, run } = await fixture();
     vi.stubGlobal(
@@ -840,7 +915,7 @@ describe("external checkout", () => {
     });
     expect(await t.run((ctx) => ctx.db.get(checkoutId))).toMatchObject({
       failedReports: reported.failedReports + failing.length,
-      missedInvoices: failing,
+      unverified: failing,
     });
     vi.setSystemTime(renewalEnd * 1000);
     expect(await t.action(external.get, { apiKey, checkoutId })).toMatchObject({
@@ -1278,7 +1353,7 @@ describe("external checkout", () => {
     await run("stripe", "evt_in_scheduled");
     expect(await parent()).toMatchObject({
       reportingStatus: "action_required",
-      missedInvoices: ["in_scheduled"],
+      unverified: ["in_scheduled"],
     });
     // Registered late, it is verified and reported instead.
     const { checkoutId } = await create("scheduled", {
@@ -1293,7 +1368,7 @@ describe("external checkout", () => {
     expect(await parent()).toMatchObject({
       replacedBy: checkoutId,
       failedReports: 0,
-      missedInvoices: [],
+      unverified: [],
       reportingStatus: "queued",
     });
     expect(await t.action(external.get, { apiKey, checkoutId })).toMatchObject({

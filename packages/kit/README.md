@@ -329,9 +329,13 @@ invoice IAPKit can't verify, such as a renewal that also bills prorations or a
 plan change not registered within a day, sets
 `reportingStatus: "action_required"`, which later payments don't clear; access
 lasts until the verified period ends, and the invoice needs a manual store
-report unless a late plan change claims it. Store report failures also appear as
-`reportingStatus: "action_required"` when a provider rejects a report
-permanently or retries expire. Google requires reporting within 24 hours.
+report unless a late plan change claims it. A refund or dispute of a recorded
+payment that IAPKit can't verify, such as one the Stripe key can't read, sets
+it too: access and `paymentStatus` stay as they were, and the refund needs a
+manual store report unless a later Stripe event for it is verified. Store
+report failures also appear as `reportingStatus: "action_required"` when a
+provider rejects a report permanently or retries expire. Google requires
+reporting within 24 hours.
 Apple programs requiring manual reports still use the App Store Connect
 process.
 

@@ -141,8 +141,9 @@ export const externalTables = {
     pendingReports: v.number(),
     retryingReports: v.number(),
     failedReports: v.number(),
-    // Paid invoices left for a manual report; a late plan change claims one.
-    missedInvoices: v.optional(v.array(v.string())),
+    // Stripe invoices and refunds IAPKit couldn't verify, each left for a
+    // manual report.
+    unverified: v.optional(v.array(v.string())),
   })
     .index("by_project", ["projectId"])
     .index("by_project_user", ["projectId", "userId"])

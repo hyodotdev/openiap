@@ -482,6 +482,32 @@ function reportStatus(
   return pending ? "queued" : "reported";
 }
 
+// Leaves a Stripe invoice or refund IAPKit couldn't verify for a manual
+// report, or clears that once it is verified.
+async function markUnverified(
+  ctx: MutationCtx,
+  checkout: Checkout,
+  reference: string,
+  unverified: boolean,
+): Promise<Checkout> {
+  const listed = checkout.unverified ?? [];
+  if (listed.includes(reference) === unverified) return checkout;
+  const failedReports = checkout.failedReports + (unverified ? 1 : -1);
+  const changes = {
+    unverified: unverified
+      ? [...listed, reference]
+      : listed.filter((item) => item !== reference),
+    failedReports,
+    reportingStatus: reportStatus(
+      checkout.pendingReports,
+      checkout.retryingReports,
+      failedReports,
+    ),
+  };
+  await ctx.db.patch(checkout._id, changes);
+  return { ...checkout, ...changes };
+}
+
 async function addReport(
   ctx: MutationCtx,
   checkout: Checkout,
@@ -644,28 +670,14 @@ export const applyPayment = internalMutation({
         ? await ctx.db.get(checkout.previousCheckoutId)
         : null;
     if (previous) {
-      // A change registered after its invoice was left for a manual report
-      // is reported now instead.
-      const missed = previous.missedInvoices?.includes(fact.reference);
-      const failedReports = previous.failedReports - (missed ? 1 : 0);
       await ctx.db.patch(previous._id, {
         subscriptionId: undefined,
         replacedBy: checkoutId,
         active: false,
-        ...(missed
-          ? {
-              missedInvoices: previous.missedInvoices?.filter(
-                (reference) => reference !== fact.reference,
-              ),
-              failedReports,
-              reportingStatus: reportStatus(
-                previous.pendingReports,
-                previous.retryingReports,
-                failedReports,
-              ),
-            }
-          : {}),
       });
+      // A change registered after its invoice was left for a manual report
+      // is reported now instead.
+      await markUnverified(ctx, previous, fact.reference, false);
     }
     await ctx.db.patch(checkoutId, {
       active: !!checkout.userId,
@@ -685,24 +697,33 @@ export const applyPayment = internalMutation({
   },
 });
 
+function refundByReference(
+  ctx: QueryCtx,
+  integrationId: string,
+  reference: string,
+) {
+  return ctx.db
+    .query("externalCheckoutRefunds")
+    .withIndex("by_reference", (q) =>
+      q.eq("integrationId", integrationId).eq("reference", reference),
+    )
+    .unique();
+}
+
 async function recordRefund(
   ctx: MutationCtx,
   integrationId: string,
   fact: RefundFact,
 ) {
-  const previous = await ctx.db
-    .query("externalCheckoutRefunds")
-    .withIndex("by_reference", (q) =>
-      q.eq("integrationId", integrationId).eq("reference", fact.reference),
-    )
-    .unique();
-  if (previous) return true;
+  if (await refundByReference(ctx, integrationId, fact.reference)) return true;
   const transaction = await paymentFor(ctx, integrationId, fact.chargeId);
   if (!transaction) return false;
-  const checkout = await ctx.db.get(transaction.checkoutId);
-  if (!checkout) return false;
-  const project = await ctx.db.get(checkout.projectId);
+  const flagged = await ctx.db.get(transaction.checkoutId);
+  if (!flagged) return false;
+  const project = await ctx.db.get(flagged.projectId);
   if (!project || project.pendingDeletion) return false;
+  // A refund recorded now needs no manual report, whichever event read it.
+  const checkout = await markUnverified(ctx, flagged, fact.reference, false);
   const price = transaction.fact.price;
   const original = total(price);
   // A lost dispute can cover an amount already refunded; the customer gets
@@ -892,7 +913,33 @@ export const finish = internalMutation({
           failedReports,
         ),
       });
-    } else if (!pending && outcome !== "done") {
+    } else if (!pending) {
+      const failed = outcome !== "done";
+      if (work.kind === "stripe" && work.charge) {
+        // A refund or dispute of a recorded payment that IAPKit couldn't
+        // verify needs a manual store report until a later event settles it.
+        const transaction = await paymentFor(
+          ctx,
+          work.integrationId,
+          work.charge,
+        );
+        const checkout =
+          transaction && (await ctx.db.get(transaction.checkoutId));
+        if (checkout)
+          await markUnverified(
+            ctx,
+            checkout,
+            work.reference,
+            failed &&
+              !(await refundByReference(
+                ctx,
+                work.integrationId,
+                work.reference,
+              )),
+          );
+        return;
+      }
+      if (!failed) return;
       const kind = work.kind === "stripe" && paymentEvents[work.event];
       const checkout =
         work.kind === "verify"
@@ -909,21 +956,11 @@ export const finish = internalMutation({
         work.kind === "stripe" &&
         work.reference !== checkout.payment.reference &&
         !(await paymentByReference(ctx, work.integrationId, work.reference))
-      ) {
+      )
         // A paid renewal IAPKit couldn't verify needs a manual store report,
         // which later payments must not hide. Another event for the same
         // invoice may already have recorded it.
-        const failedReports = checkout.failedReports + 1;
-        await ctx.db.patch(checkout._id, {
-          failedReports,
-          reportingStatus: reportStatus(
-            checkout.pendingReports,
-            checkout.retryingReports,
-            failedReports,
-          ),
-          missedInvoices: [...(checkout.missedInvoices ?? []), work.reference],
-        });
-      }
+        await markUnverified(ctx, checkout, work.reference, true);
     }
   },
 });
