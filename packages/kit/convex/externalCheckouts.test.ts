@@ -1,10 +1,11 @@
 // @vitest-environment edge-runtime
 /// <reference types="vite/client" />
-import { createHmac } from "node:crypto";
+import { createHmac, generateKeyPairSync } from "node:crypto";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
+import { getAppStoreServerCredentials } from "./purchases/ios";
 import { sha256Hex } from "./utils/sha256";
 import { stripeEvent, Stripe } from "./externalCheckouts/stripe";
 import {
@@ -15,6 +16,15 @@ import {
 } from "./externalCheckouts/reporters";
 import type { CheckoutInput } from "./externalCheckouts/model";
 import type { Doc } from "./_generated/dataModel";
+
+// Lets a test stand in for the project's App Store Connect key.
+vi.mock("./purchases/ios", async (original) => {
+  const actual = await original<typeof import("./purchases/ios")>();
+  return {
+    ...actual,
+    getAppStoreServerCredentials: vi.fn(actual.getAppStoreServerCredentials),
+  };
+});
 
 const modules = import.meta.glob("./**/*.ts");
 const external = api.externalCheckouts.action;
@@ -624,6 +634,7 @@ describe("external checkout", () => {
       reportingStatus: "queued",
       entitlement: { active: false },
     });
+    expect((await t.run((ctx) => ctx.db.get(checkoutId)))?.active).toBe(false);
     expect((await jobs()).map((job) => job.task.kind)).toEqual([
       "verify",
       "purchase",
@@ -1674,5 +1685,866 @@ describe("store report retries", () => {
       },
       expect.anything(),
     );
+  });
+});
+
+describe("external checkout guards", () => {
+  const start = now / 1000;
+  const period = { start, end: start + 30 * 86_400 };
+  const first = subscriptionInvoice("in_first", period);
+  const renewal = subscriptionInvoice(
+    "in_renewal",
+    { start: period.end, end: period.end + 30 * 86_400 },
+    { renewal: true },
+  );
+  const lines = (...items: object[]) => ({
+    lines: {
+      has_more: false,
+      data: items.map((item) => ({ ...first.lines.data[0], ...item })),
+    },
+  });
+
+  // The checkout row each kind of Stripe payment is checked against.
+  async function checkouts() {
+    const { t, create } = await fixture();
+    const { checkoutId } = await create();
+    const intent = (await t.run((ctx) => ctx.db.get(checkoutId)))!;
+    const invoice = {
+      ...intent,
+      payment: {
+        ...intent.payment,
+        kind: "invoice" as const,
+        reference: first.id,
+      },
+    };
+    return {
+      intent,
+      invoice,
+      renewal: { ...invoice, subscriptionId: "sub_test" },
+      change: { ...invoice, previousCheckoutId: checkoutId },
+    };
+  }
+  type Kind = keyof Awaited<ReturnType<typeof checkouts>>;
+
+  // Stripe as it answers for a paid checkout of that kind.
+  function paidFetch(kind: Kind, bill: object, stripe: object = {}) {
+    const invoice = { ...(kind === "renewal" ? renewal : first), ...bill };
+    vi.stubGlobal(
+      "fetch",
+      stripeFetch({
+        ...(kind === "intent"
+          ? {}
+          : paidWith(
+              "pi_test",
+              "ch_test",
+              invoice.id,
+              start,
+              invoice.amount_paid,
+            )),
+        "/v1/invoices/in_first": invoice,
+        ...stripe,
+      }),
+    );
+    return kind === "renewal" ? invoice : undefined;
+  }
+
+  type Row = [
+    name: string,
+    kind: Kind,
+    bill: object,
+    stripe: object,
+    code: string,
+    retryable?: boolean,
+  ];
+  const charge = (fields: object): Row => [
+    `a charge with ${JSON.stringify(fields)}`,
+    "intent",
+    {},
+    { "/v1/charges/ch_test": { ...paidCharge, ...fields } },
+    "STRIPE_CHARGE_MISMATCH",
+  ];
+  const unsupported = (
+    name: string,
+    bill: object,
+    kind: Kind = "invoice",
+  ): Row => [name, kind, bill, {}, "STRIPE_INVOICE_UNSUPPORTED"];
+  const amount = (name: string, bill: object, kind: Kind = "invoice"): Row => [
+    name,
+    kind,
+    bill,
+    {},
+    "STRIPE_AMOUNT_MISMATCH",
+  ];
+
+  it.each<Row>([
+    [
+      "an unfinished PaymentIntent",
+      "intent",
+      {},
+      {
+        "/v1/payment_intents/pi_test": { ...paidIntent, status: "processing" },
+      },
+      "STRIPE_PAYMENT_PENDING",
+      true,
+    ],
+    [
+      "a PaymentIntent that pays an invoice",
+      "intent",
+      {},
+      { "/v1/payment_intents/pi_test": { ...paidIntent, invoice: "in_other" } },
+      "STRIPE_PAYMENT_REFERENCE_MISMATCH",
+    ],
+    [
+      "a live-mode PaymentIntent",
+      "intent",
+      {},
+      { "/v1/payment_intents/pi_test": { ...paidIntent, livemode: true } },
+      "STRIPE_ENVIRONMENT_MISMATCH",
+    ],
+    charge({ captured: false }),
+    charge({ paid: false }),
+    charge({ payment_intent: "pi_other" }),
+    charge({ currency: "usd" }),
+    charge({ amount_captured: 900 }),
+    [
+      "an open invoice",
+      "invoice",
+      { status: "open" },
+      {},
+      "STRIPE_PAYMENT_PENDING",
+      true,
+    ],
+    unsupported("an invoice paid outside Stripe", { paid_out_of_band: true }),
+    unsupported("a charged invoice without a PaymentIntent", {
+      payment_intent: null,
+    }),
+    unsupported("a first invoice billed as a renewal", {
+      billing_reason: "subscription_cycle",
+    }),
+    unsupported(
+      "a plan change billed as a new subscription",
+      { billing_reason: "subscription_create" },
+      "change",
+    ),
+    unsupported("a truncated line list", {
+      lines: { ...first.lines, has_more: true },
+    }),
+    unsupported("two subscription lines", lines({}, {})),
+    unsupported("two units", lines({ quantity: 2 })),
+    unsupported("an empty period", lines({ period: { start, end: start } })),
+    unsupported(
+      "a plan change with a plain invoice item",
+      {
+        billing_reason: "subscription_update",
+        ...lines({ type: "invoiceitem" }),
+      },
+      "change",
+    ),
+    amount("an invoice in another currency", { currency: "usd" }),
+    amount("an invoice paid beyond its total", { amount_paid: 1200 }),
+    [
+      "a charge that captured less than the invoice",
+      "invoice",
+      {},
+      paidWith("pi_test", "ch_test", "in_first", start, 900),
+      "STRIPE_AMOUNT_MISMATCH",
+    ],
+    amount("a net amount the checkout didn't register", {
+      total: 1100,
+      amount_paid: 1100,
+    }),
+    amount("a tax amount the checkout didn't register", {
+      total: 900,
+      amount_paid: 900,
+      tax: 100,
+    }),
+    amount(
+      "a renewal that taxes more than it bills",
+      { total: 100, amount_paid: 100, tax: 200 },
+      "renewal",
+    ),
+    [
+      "a renewal of another subscription",
+      "renewal",
+      { subscription: "sub_other" },
+      {},
+      "STRIPE_SUBSCRIPTION_MISMATCH",
+    ],
+  ])(
+    "rejects %s",
+    async (_name, kind, bill, stripe, code, retryable = false) => {
+      const checkout = (await checkouts())[kind];
+      const invoice = paidFetch(kind, bill, stripe);
+      await expect(
+        new Stripe(integration).payment(checkout, invoice),
+      ).rejects.toMatchObject({ code, retryable });
+    },
+  );
+
+  it("reads the latest line, a credit's tax and only succeeded refunds", async () => {
+    const { intent, change } = await checkouts();
+    const stripe = new Stripe(integration);
+    const later = { start, end: period.end + 86_400 };
+    paidFetch("change", {
+      billing_reason: "subscription_update",
+      ...lines(
+        { type: "invoiceitem", proration: true, period: later },
+        { type: "invoiceitem", proration: true },
+      ),
+    });
+    expect((await stripe.payment(change)).fact.subscription).toMatchObject({
+      end: later.end * 1000,
+    });
+
+    // A downgrade's credit invoice carries negative tax and bills nothing.
+    paidFetch("change", {
+      billing_reason: "subscription_update",
+      total: -300,
+      tax: -60,
+      amount_paid: 0,
+      payment_intent: null,
+    });
+    const free = { ...change.price, netMinor: 0, taxMinor: 0 };
+    expect(
+      (await stripe.payment({ ...change, price: free })).fact,
+    ).toMatchObject({ price: free, subscription: { billed: false } });
+
+    const refund = { charge: "ch_test", currency: "eur", created: start };
+    paidFetch(
+      "intent",
+      {},
+      {
+        "/v1/charges/ch_test": { ...paidCharge, amount_refunded: 250 },
+        "/v1/refunds": {
+          has_more: false,
+          data: [
+            { ...refund, id: "re_part", status: "succeeded", amount: 250 },
+            { ...refund, id: "re_failed", status: "failed", amount: 100 },
+          ],
+        },
+      },
+    );
+    expect((await stripe.payment(intent)).refunds).toEqual([
+      expect.objectContaining({ reference: "re_part", amount: 250 }),
+    ]);
+  });
+
+  it("stops reading a refund history that keeps paging", async () => {
+    const { intent } = await checkouts();
+    const stripe = stripeFetch({
+      "/v1/charges/ch_test": { ...paidCharge, amount_refunded: 250 },
+    });
+    let pages = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL) =>
+        new URL(url).pathname === "/v1/refunds"
+          ? Response.json({
+              // The sixth page ends the list, so a missing limit can't hang.
+              has_more: ++pages < 6,
+              data: [
+                {
+                  id: `re_${pages}`,
+                  status: "succeeded",
+                  charge: "ch_test",
+                  amount: 1,
+                  currency: "eur",
+                  created: start,
+                },
+              ],
+            })
+          : stripe(url),
+      ),
+    );
+    await expect(new Stripe(integration).payment(intent)).rejects.toMatchObject(
+      {
+        code: "STRIPE_REFUND_HISTORY_UNSUPPORTED",
+        retryable: false,
+      },
+    );
+    expect(pages).toBe(3);
+  });
+
+  it.each([
+    [
+      "refund",
+      "re_zero",
+      { status: "succeeded", amount: 0 },
+      "STRIPE_REFUND_INVALID",
+      false,
+    ],
+    [
+      "refund",
+      "re_wait",
+      { status: "pending", amount: 250 },
+      "STRIPE_REFUND_PENDING",
+      true,
+    ],
+    [
+      "dispute",
+      "du_zero",
+      dispute("du_zero", "lost", 0),
+      "STRIPE_DISPUTE_INVALID",
+      false,
+    ],
+  ] as const)(
+    "rejects the %s %s",
+    async (kind, id, fields, code, retryable) => {
+      vi.stubGlobal(
+        "fetch",
+        stripeFetch({
+          [`/v1/${kind}s/${id}`]: {
+            id,
+            charge: "ch_test",
+            currency: "eur",
+            created: start,
+            ...fields,
+          },
+        }),
+      );
+      await expect(new Stripe(integration)[kind](id)).rejects.toMatchObject({
+        code,
+        retryable,
+      });
+    },
+  );
+
+  it.each([
+    [404, true],
+    [429, true],
+    [500, true],
+    [403, false],
+  ])("retries a Stripe %i only when it can pass", async (status, retryable) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status })),
+    );
+    await expect(new Stripe(integration).verifyAccount()).rejects.toMatchObject(
+      { code: `STRIPE_HTTP_${status}`, retryable },
+    );
+  });
+
+  it("rejects another Stripe account, mode, and an invoice event's charge", async () => {
+    vi.stubGlobal(
+      "fetch",
+      stripeFetch({ "/v1/account": { id: "acct_other" } }),
+    );
+    await expect(new Stripe(integration).verifyAccount()).rejects.toMatchObject(
+      { code: "STRIPE_ACCOUNT_MISMATCH" },
+    );
+
+    const paid = event("invoice.paid", "in_first", "evt_paid", {
+      charge: "ch_test",
+    });
+    const read = (fields: object = {}) =>
+      stripeEvent(paid.raw, paid.signature, { ...integration, ...fields });
+    expect(read()).toMatchObject({ reference: "in_first" });
+    expect(read()?.charge).toBeUndefined();
+    for (const other of [
+      { environment: "production" },
+      { accountId: "acct_other" },
+    ])
+      expect(() => read(other)).toThrow("does not match this integration");
+  });
+});
+
+describe("store report and job guards", () => {
+  const DAY = 86_400_000;
+  const start = now / 1000;
+  const period = { start, end: start + 30 * 86_400 };
+  const invoiceInput = {
+    ...input,
+    payment: {
+      ...input.payment,
+      kind: "invoice" as const,
+      reference: "in_first",
+    },
+  };
+  type Kit = Awaited<ReturnType<typeof fixture>>;
+  type Token = Doc<"externalPurchaseTokens">;
+  type Refund = Extract<
+    Doc<"externalCheckoutJobs">["task"],
+    { kind: "refund" }
+  >;
+  const refunded = (reference: string, amount: number) => ({
+    reference,
+    chargeId: "ch_test",
+    amount,
+    currency: "EUR",
+    at: now + 1000,
+  });
+
+  // A checkout whose Stripe payment is verified, with what its report reads.
+  async function verified(kit: Kit, body: CheckoutInput = input) {
+    vi.stubGlobal("fetch", stripeFetch());
+    const { checkoutId } = await kit.create("first", body);
+    await kit.t.action(external.verify, { apiKey: kit.apiKey, checkoutId });
+    await kit.run("verify");
+    const payment = (await kit.t.run((ctx) =>
+      ctx.db.query("externalCheckoutPayments").first(),
+    ))!;
+    const context = (await kit.t.query(state.reportContext, {
+      paymentId: payment._id,
+    }))!;
+    return { ...kit, checkoutId, ...context };
+  }
+
+  // An Apple checkout bound to one of the user's two one-use tokens.
+  async function appleCheckout(fields: Partial<Token> = {}) {
+    const kit = await fixture();
+    const register = (externalId: string, createdAt: number) =>
+      kit.t.mutation(state.registerToken, {
+        projectId: kit.projectId,
+        profileId: appleProfile.id,
+        userId: input.userId,
+        externalId,
+        createdAt,
+      });
+    const { tokenId } = await register("SANDBOX_one", now - 1000);
+    await register("SANDBOX_spare", now - 2000);
+    await kit.t.run((ctx) => ctx.db.patch(tokenId, fields));
+    return verified(kit, {
+      ...input,
+      reporting: {
+        store: "apple",
+        profileId: appleProfile.id,
+        tokenIds: [tokenId],
+      },
+    });
+  }
+
+  // How a queued job ends when run: done, waiting, retrying, or its final error.
+  async function outcome(
+    kit: Pick<Kit, "t" | "run">,
+    ...job: Parameters<Kit["run"]>
+  ) {
+    const jobId = await kit.run(...job);
+    const { dueAt, lastError } = (await kit.t.run((ctx) => ctx.db.get(jobId)))!;
+    if (dueAt === undefined) return lastError ?? "done";
+    return lastError ? `retry ${lastError}` : "waiting";
+  }
+
+  // Play answering every call with the transaction, or failing with a status.
+  function play(data: object = {}, status?: number) {
+    const answer = async (args: {
+      name?: string;
+      externalTransactionId?: string;
+    }) => {
+      if (status)
+        throw Object.assign(new Error("failed"), { response: { status } });
+      return {
+        data: {
+          externalTransactionId:
+            args.externalTransactionId ?? args.name?.split("/").pop(),
+          packageName: "dev.fixture",
+          testPurchase: {},
+          ...data,
+        },
+      };
+    };
+    return {
+      createexternaltransaction: vi.fn(answer),
+      getexternaltransaction: vi.fn(answer),
+      refundexternaltransaction: vi.fn(answer),
+    };
+  }
+
+  it("builds each Apple line from the payment, its token, and its refund", async () => {
+    const { checkout, transaction, appleToken, initial, root } =
+      await appleCheckout();
+    const token = appleToken!;
+    const purchase = buildAppleReport(
+      checkout,
+      transaction,
+      token,
+      initial,
+      root,
+    );
+    expect(purchase).toMatchObject({
+      externalPurchaseId: "SANDBOX_one",
+      lineItems: [{ productType: "ONE_TIME_BUY", creationDate: now }],
+    });
+    // A token issued within the second Stripe rounds the payment to dates it.
+    expect(
+      buildAppleReport(
+        checkout,
+        transaction,
+        { ...token, createdAt: now + 500 },
+        initial,
+        root,
+      ).lineItems,
+    ).toMatchObject([{ creationDate: now + 500 }]);
+    const refund = buildAppleReport(
+      checkout,
+      transaction,
+      token,
+      initial,
+      root,
+      {
+        kind: "refund",
+        paymentId: transaction._id,
+        refund: refunded("re_part", 250),
+        netMinor: 200,
+        taxMinor: 50,
+        before: 0,
+        refundedNet: 200,
+        full: false,
+      },
+    );
+    expect(refund.lineItems).toMatchObject([
+      {
+        eventType: "REFUND",
+        creationDate: now + 1000,
+        netAmountTaxExclusive: 6000,
+      },
+    ]);
+    expect(refund.requestIdentifier).not.toBe(purchase.requestIdentifier);
+  });
+
+  it.each([
+    ["looks up a retried report Apple answers 400 for, then sends it", true],
+    ["accepts a 400 for a report Apple already holds", false],
+  ])("%s", async (_, retry) => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 400 }))
+      .mockResolvedValueOnce(Response.json({}));
+    vi.stubGlobal("fetch", fetch);
+    await sendAppleReport(
+      "https://example.test/reports",
+      "jwt",
+      {
+        requestIdentifier: "request",
+        externalPurchaseId: "token",
+        status: "NO_LINE_ITEM",
+      },
+      retry,
+    );
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ["UNRECOGNIZED_TOKEN", {}],
+    ["NO_LINE_ITEM", { accountErased: true }],
+  ])("reports an unused Apple token as %s", async (status, fields) => {
+    const kit = await fixture();
+    const fetch = vi.fn().mockImplementation(async () => Response.json({}));
+    vi.stubGlobal("fetch", fetch);
+    vi.mocked(getAppStoreServerCredentials).mockResolvedValueOnce({
+      issuerId: "issuer",
+      keyId: "key",
+      privateKey: generateKeyPairSync("ec", { namedCurve: "P-256" })
+        .privateKey.export({ type: "pkcs8", format: "pem" })
+        .toString(),
+    });
+    const { tokenId } = await kit.t.mutation(state.registerToken, {
+      projectId: kit.projectId,
+      profileId: appleProfile.id,
+      externalId: "SANDBOX_unused",
+      createdAt: now - 1000,
+    });
+    await kit.t.run((ctx) => ctx.db.patch(tokenId, fields));
+    expect(await outcome(kit, "appleToken", tokenId)).toBe("done");
+    expect(fetch.mock.lastCall?.[1]).toMatchObject({
+      body: expect.stringContaining(`"${status}"`),
+    });
+  });
+
+  it("never reports a production token through a sandbox integration", async () => {
+    const kit = await fixture();
+    const { tokenId } = await kit.t.mutation(state.registerToken, {
+      projectId: kit.projectId,
+      profileId: appleProfile.id,
+      externalId: "LIVE_token",
+      createdAt: now - 1000,
+    });
+    expect(await outcome(kit, "appleToken", tokenId)).toBe(
+      "APPLE_ENVIRONMENT_MISMATCH",
+    );
+  });
+
+  it.each([
+    ["a duplicate", { duplicate: true }],
+    ["issued after the payment", { createdAt: now + 1000 }],
+    ["expired by the payment", { expiresAt: now }],
+  ])("reports no Apple token that is %s", async (_, fields) => {
+    const kit = await appleCheckout(fields);
+    expect(kit.transaction.appleTokenId).toBeUndefined();
+    expect(await outcome(kit, "purchase")).toBe("APPLE_TOKEN_MISSING");
+    expect(
+      await kit.t.action(external.get, {
+        apiKey: kit.apiKey,
+        checkoutId: kit.checkoutId,
+      }),
+    ).toMatchObject({ reportingStatus: "action_required" });
+  });
+
+  it("sends Google the tax address and needs the token for a first purchase", async () => {
+    const { checkout, transaction } = await verified(await fixture());
+    const india = {
+      ...transaction,
+      fact: {
+        ...transaction.fact,
+        price: { ...transaction.fact.price, regionCode: "IN" },
+      },
+    };
+    const karnataka = { ...profile, administrativeArea: "KA" };
+    expect(
+      buildGooglePurchase(checkout, india, india, "token", karnataka)
+        .userTaxAddress,
+    ).toEqual({ regionCode: "IN", administrativeArea: "KA" });
+    expect(
+      buildGooglePurchase(
+        checkout,
+        transaction,
+        transaction,
+        "token",
+        karnataka,
+      ).userTaxAddress,
+    ).toEqual({ regionCode: "DE" });
+    expect(() =>
+      buildGooglePurchase(
+        checkout,
+        transaction,
+        transaction,
+        undefined,
+        profile,
+      ),
+    ).toThrow("GOOGLE_TOKEN_MISSING");
+  });
+
+  it("stops a Google report the store's record disagrees with", async () => {
+    const { checkout, transaction, initial } = await verified(await fixture());
+    const send = (api: ReturnType<typeof play>, refund?: Refund) =>
+      sendGoogleReport(
+        api,
+        "dev.fixture",
+        integration,
+        checkout,
+        transaction,
+        initial,
+        "opaque",
+        profile,
+        refund,
+      );
+    await expect(send(play({ testPurchase: undefined }))).rejects.toMatchObject(
+      { code: "GOOGLE_REPORT_MISMATCH", retryable: false },
+    );
+    await expect(
+      send(
+        play({
+          currentPreTaxAmount: { currency: "EUR", priceMicros: "7000000" },
+        }),
+        {
+          kind: "refund",
+          paymentId: transaction._id,
+          refund: refunded("re_part", 250),
+          netMinor: 200,
+          taxMinor: 50,
+          before: 0,
+          refundedNet: 200,
+          full: false,
+        },
+      ),
+    ).rejects.toMatchObject({
+      code: "GOOGLE_REFUND_RECONCILIATION_REQUIRED",
+      retryable: false,
+    });
+    await expect(send(play({}, 404))).rejects.toMatchObject({
+      code: "GOOGLE_REPORT_404",
+      retryable: true,
+    });
+    await expect(send(play({}, 403))).rejects.toMatchObject({
+      code: "GOOGLE_REPORT_403",
+      retryable: false,
+    });
+  });
+
+  it("retries a report with backoff for a week and ignores a stale attempt", async () => {
+    const { t, jobs, checkoutId, transaction } = await verified(
+      await fixture(),
+    );
+    const jobId = (await jobs()).find(
+      (job) => job.task.kind === "purchase",
+    )!._id;
+    await t.run((ctx) => ctx.db.patch(jobId, { attempts: 2, startedAt: now }));
+    const finish = (attempt: number, outcome: "done" | "retry") =>
+      t.mutation(state.finish, { jobId, attempt, outcome });
+    const dueAt = async () => (await t.run((ctx) => ctx.db.get(jobId)))?.dueAt;
+
+    await finish(1, "done");
+    expect((await t.run((ctx) => ctx.db.get(transaction._id)))?.reported).toBe(
+      false,
+    );
+    vi.setSystemTime(now + 6 * DAY);
+    await finish(2, "retry");
+    expect(await dueAt()).toBe(now + 6 * DAY + 60_000);
+    vi.setSystemTime(now + week);
+    await finish(2, "retry");
+    expect(await dueAt()).toBeUndefined();
+    expect(
+      (await t.run((ctx) => ctx.db.get(checkoutId)))?.reportingStatus,
+    ).toBe("action_required");
+  });
+
+  it("reports refunds in the order Stripe made them and drops the Google token once used", async () => {
+    const kit = await verified(await fixture());
+    const { t, jobs, checkoutId, transaction } = kit;
+    expect(kit.checkout.googleToken).toBeDefined();
+    for (const [reference, amount] of Object.entries(refunds))
+      await t.mutation(state.applyRefund, {
+        integrationId: integration.id,
+        refund: refunded(reference, amount),
+      });
+    // Marks the job that reports this payment or refund as sent.
+    const done = async (key: string) => {
+      const job = (await jobs()).find((job) => job.key.endsWith(key))!;
+      await t.mutation(state.finish, {
+        jobId: job._id,
+        attempt: job.attempts,
+        outcome: "done",
+      });
+    };
+
+    await done(transaction._id);
+    expect(
+      (await t.run((ctx) => ctx.db.get(checkoutId)))?.googleToken,
+    ).toBeUndefined();
+    expect(await outcome(kit, "refund", "re_rest")).toBe("waiting");
+    await done("re_part");
+    await done("re_rest");
+    expect(
+      (await t.run((ctx) => ctx.db.get(transaction._id)))?.reportedRefunded,
+    ).toBe(1000);
+  });
+
+  it("leaves a verified checkout's verify job finished", async () => {
+    const { t, jobs, apiKey, checkoutId } = await verified(await fixture());
+    await t.action(external.verify, { apiKey, checkoutId });
+    expect(
+      (await jobs()).find((job) => job.task.kind === "verify")?.dueAt,
+    ).toBeUndefined();
+  });
+
+  it("keeps the latest renewal when an earlier one arrives late", async () => {
+    const kit = await fixture();
+    const { checkoutId } = await kit.create("first", invoiceInput);
+    const pay = (reference: string, months: number) => {
+      const paidAt = now + months * 30 * DAY;
+      return kit.t.mutation(state.applyPayment, {
+        checkoutId,
+        refunds: [],
+        fact: {
+          reference,
+          chargeId: `ch_${reference}`,
+          price: input.price,
+          paidAt,
+          subscription: {
+            id: "sub_test",
+            start: paidAt,
+            end: paidAt + 30 * DAY,
+            billed: true,
+          },
+        },
+      });
+    };
+    await pay("in_first", 0);
+    await pay("in_third", 2);
+    await pay("in_second", 1);
+
+    const checkout = (await kit.t.run((ctx) => ctx.db.get(checkoutId)))!;
+    const latest = (await kit.t.run((ctx) =>
+      ctx.db.get(checkout.latestPaymentId!),
+    ))!;
+    expect(checkout).toMatchObject({
+      latestPaidAt: now + 60 * DAY,
+      expiresAt: now + 90 * DAY,
+    });
+    expect(latest.fact.reference).toBe("in_third");
+    // A renewal is reported only after the purchase that started it.
+    expect(await outcome(kit, "purchase", latest._id)).toBe("waiting");
+  });
+
+  it("splits a refund between net and tax and rejects one the payment can't cover", async () => {
+    const { t, jobs, checkoutId } = await verified(await fixture());
+    const refund = (reference: string, amount: number, currency = "EUR") =>
+      t.mutation(state.applyRefund, {
+        integrationId: integration.id,
+        refund: { ...refunded(reference, amount), currency },
+      });
+
+    await refund("re_zero", 0);
+    expect((await jobs()).map((job) => job.task.kind)).not.toContain("refund");
+    expect((await t.run((ctx) => ctx.db.get(checkoutId)))?.paymentStatus).toBe(
+      "paid",
+    );
+    await refund("re_one", 1);
+    expect((await jobs()).at(-1)?.task).toMatchObject({
+      netMinor: 1,
+      taxMinor: 0,
+    });
+    for (const rejected of [
+      refund("re_over", 1000),
+      refund("re_usd", 100, "USD"),
+    ])
+      await expect(rejected).rejects.toThrow(
+        "Stripe refund differs from verified payment",
+      );
+  });
+
+  it("fails a Stripe event whose integration now belongs to another project", async () => {
+    const kit = await fixture();
+    vi.stubGlobal("fetch", stripeFetch());
+    await kit.create();
+    await kit.t.action(
+      external.ingestStripe,
+      event("payment_intent.succeeded", "pi_test", "evt_moved"),
+    );
+    vi.stubEnv(
+      "IAPKIT_EXTERNAL_CHECKOUTS_CONFIG",
+      JSON.stringify({
+        integrations: [{ ...integration, projectId: "another" }],
+        profiles: [profile, appleProfile],
+      }),
+    );
+    expect(await outcome(kit, "stripe", "evt_moved")).toBe(
+      "STRIPE_INTEGRATION_MISSING",
+    );
+  });
+
+  it("fails an invoice event Stripe answers with another invoice", async () => {
+    const kit = await fixture();
+    vi.stubGlobal(
+      "fetch",
+      stripeFetch({
+        "/v1/invoices/in_first": subscriptionInvoice("in_other", period),
+      }),
+    );
+    await kit.create("first", invoiceInput);
+    await kit.t.action(
+      external.ingestStripe,
+      event("invoice.paid", "in_first", "evt_first"),
+    );
+    expect(await outcome(kit, "stripe", "evt_first")).toBe(
+      "STRIPE_INVOICE_MISMATCH",
+    );
+  });
+
+  it("holds a paid invoice until a checkout claims it", async () => {
+    const kit = await fixture();
+    vi.stubGlobal(
+      "fetch",
+      stripeFetch({
+        "/v1/invoices/in_stray": {
+          ...subscriptionInvoice("in_stray", period),
+          subscription: "sub_stray",
+        },
+      }),
+    );
+    await kit.t.action(
+      external.ingestStripe,
+      event("invoice.paid", "in_stray", "evt_stray"),
+    );
+    expect(await outcome(kit, "stripe", "evt_stray")).toBe("waiting");
   });
 });

@@ -613,16 +613,7 @@ export const applyPayment = internalMutation({
             Number(b?.tokenType === "SERVICES") -
             Number(a?.tokenType === "SERVICES"),
         )[0];
-      const first =
-        !initial && checkout.initialPaymentId
-          ? await ctx.db.get(checkout.initialPaymentId)
-          : null;
-      const firstToken = first?.appleTokenId
-        ? await ctx.db.get(first.appleTokenId)
-        : null;
-      appleTokenId =
-        candidate?._id ??
-        (firstToken?.expiresAt === undefined ? firstToken?._id : undefined);
+      appleTokenId = candidate?._id;
       if (appleTokenId) await ctx.db.patch(appleTokenId, { used: true });
     }
 
@@ -659,10 +650,7 @@ export const applyPayment = internalMutation({
     });
     const expiresAt =
       fact.subscription &&
-      Math.max(
-        checkout.active ? (checkout.expiresAt ?? 0) : 0,
-        fact.subscription.end,
-      );
+      Math.max(checkout.expiresAt ?? 0, fact.subscription.end);
     const latest =
       !checkout.latestPaidAt || fact.paidAt >= checkout.latestPaidAt;
     const previous =
