@@ -170,9 +170,9 @@ committer dates of every PR commit. If approval comes late, start the
 implementation from the approved design and open a new PR. Reviewers confirm
 the change follows the approved design. An approval covers one change: once a
 PR that links it, or a PR from the approved branch that links no approval,
-merges, record a new approval for the next change. Change the gate itself in a separate PR: an
-approved PR fails if it edits `design-approval.yml`, the scripts it runs
-(`audit-design-approval.mjs`, `public-declarations.mjs`,
+merges, record a new approval for the next change. Change the gate itself in a
+separate PR: an approved PR fails if it edits `design-approval.yml`, the
+scripts it runs (`audit-design-approval.mjs`, `public-declarations.mjs`,
 `approved-verification.mjs`, `check-apple-test-run.mjs`), or the
 `audit-release-state`, `test-android`, and `test-ios` jobs and workflow-level
 settings of `ci.yml`. Other CI jobs may change with the contract.
@@ -201,13 +201,14 @@ every type those names reach (such as `hooks/useIAP.ts` or
 modules, and the entry fields of the library `package.json`. The check
 type-checks the SDK sources against main's installed dependencies, so inferred
 types count too. A dependency upgrade that changes a public type is still a
-public change: declare it. In those other modules, a body-only refactor or a change to an
-export the SDKs do not publish needs no approval. A behavior change that leaves
-declarations and docs untouched is still a public change: declare it. For other shipped source, declare `Public contract: changed` or `Public contract: unchanged` on
-its own line in the PR body. Use `changed` for any public change outside those
-paths as well. Link the executed acceptance tests in the PR so reviewers can
-trace the result back to the approved requirement. CI rechecks approval when
-the PR body changes.
+public change: declare it. In those other modules, a body-only refactor or a
+change to an export the SDKs do not publish needs no approval. A behavior
+change that leaves declarations and docs untouched is still a public change:
+declare it. For other shipped source, declare `Public contract: changed` or
+`Public contract: unchanged` on its own line in the PR body. Use `changed` for
+any public change outside those paths as well. Link the executed acceptance
+tests in the PR so reviewers can trace the result back to the approved
+requirement. CI rechecks approval when the PR body changes.
 
 ### Verification Services Are Peers
 
