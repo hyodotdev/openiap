@@ -1275,6 +1275,11 @@ describe('Amazon Vega adapter', () => {
     ).rejects.toMatchObject({
       code: ErrorCode.FeatureNotSupported,
     });
+    await expect(
+      module.showAlternativeBillingOnlyInformationDialogAndroid?.(),
+    ).rejects.toMatchObject({
+      code: ErrorCode.FeatureNotSupported,
+    });
     expect(service.notifyFulfillment).toHaveBeenCalledWith({
       fulfillmentResult: 1,
       receiptId: 'receipt-1',
