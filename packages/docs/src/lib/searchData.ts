@@ -457,6 +457,7 @@ export const apiData: ApiItem[] = [
     category: 'Android Specific',
     description:
       'Show the Google Play Alternative Billing Only information dialog before each checkout',
+    parameters: '',
     returns: 'BillingResultAndroid!',
     path: '/docs/apis/android/show-alternative-billing-only-information-dialog-android',
   },
