@@ -24,13 +24,6 @@ function describeError(error: unknown): string {
 
 const MAX_WEBHOOK_BODY_BYTES = 256 * 1024;
 
-export function legacyUnsupportedEventReason(error: unknown): string | null {
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  return errorMessage.startsWith("UNSUPPORTED_EVENT")
-    ? "Unsupported event"
-    : null;
-}
-
 export function isWebhookBodyTooLarge(contentLengthHeader: string | undefined) {
   return isContentLengthOverLimit(contentLengthHeader, MAX_WEBHOOK_BODY_BYTES);
 }
@@ -605,17 +598,6 @@ function mapWebhookError(
     if (convexError.code === "AMAZON_RVS_UNAVAILABLE")
       return c.json({ errors: [convexError] }, 503);
     return c.json({ errors: [convexError] }, 400);
-  }
-
-  const legacyUnsupportedReason = legacyUnsupportedEventReason(error);
-  if (legacyUnsupportedReason !== null) {
-    // Legacy fallback — kept until all action paths migrate to the
-    // ConvexError shape above.
-    return c.json({
-      ok: true,
-      dropped: true,
-      reason: legacyUnsupportedReason,
-    });
   }
 
   console.error(`[webhooks/${source}] unexpected error`, describeError(error));

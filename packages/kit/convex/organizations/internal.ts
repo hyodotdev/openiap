@@ -3,28 +3,6 @@ import type { MutationCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { Doc } from "../_generated/dataModel";
 import { v } from "convex/values";
-import type { SubscriptionPlanId } from "../plans";
-import { subscriptionPlanValidator } from "../plans";
-
-// Internal mutation to increment organization's monthly request count
-export const incrementRequestCount = internalMutation({
-  args: { organizationId: v.id("organizations") },
-  handler: async (ctx, args) => {
-    const organization = await ctx.db.get(args.organizationId);
-
-    if (!organization) {
-      throw new Error("Organization not found");
-    }
-
-    const currentCount = organization.monthlyRequestCount || 0;
-    await ctx.db.patch(args.organizationId, {
-      monthlyRequestCount: currentCount + 1,
-      updatedAt: Date.now(),
-    });
-
-    return currentCount + 1;
-  },
-});
 
 // Internal mutation to reset monthly request counts (for cron job)
 export const resetMonthlyRequestCounts = internalMutation({
@@ -40,57 +18,6 @@ export const resetMonthlyRequestCounts = internalMutation({
 
     await Promise.all(updates);
     return organizations.length;
-  },
-});
-
-/**
- * Counts an org's monthly requests for the dashboard; `allowed` is always true.
- * IAPKit has no monthly cap: abuse is stopped at the edge (the shape, replay
- * and burst guards in `server/api/v1/`).
- */
-export const assertUsageAllowedAndIncrement = internalMutation({
-  args: { organizationId: v.id("organizations") },
-  returns: v.object({
-    allowed: v.boolean(),
-    monthlyRequestCount: v.number(),
-    subscriptionTier: subscriptionPlanValidator,
-  }),
-  handler: async (ctx, args) => {
-    const org = await ctx.db.get(args.organizationId);
-    if (!org) {
-      throw new Error("Organization not found");
-    }
-
-    const tier: SubscriptionPlanId = org.subscriptionTier ?? "developer";
-    const current = org.monthlyRequestCount ?? 0;
-    const next = current + 1;
-
-    await ctx.db.patch(args.organizationId, {
-      monthlyRequestCount: next,
-      updatedAt: Date.now(),
-    });
-
-    return {
-      allowed: true,
-      monthlyRequestCount: next,
-      subscriptionTier: tier,
-    };
-  },
-});
-
-export const recordVerificationUsage = internalMutation({
-  args: { organizationId: v.id("organizations") },
-  returns: v.object({
-    monthlyRequestCount: v.number(),
-    subscriptionTier: subscriptionPlanValidator,
-  }),
-  handler: async (ctx, args) => {
-    const organization = await ctx.db.get(args.organizationId);
-    if (!organization) {
-      throw new Error("Organization not found");
-    }
-
-    return await recordVerificationUsageForOrganization(ctx, organization);
   },
 });
 
@@ -131,24 +58,15 @@ export const getMembership = internalQuery({
   },
 });
 
+// Counts the request for the dashboard; IAPKit has no monthly cap.
 export async function recordVerificationUsageForOrganization(
   ctx: MutationCtx,
   organization: Doc<"organizations">,
 ) {
-  const tier: SubscriptionPlanId = organization.subscriptionTier ?? "developer";
-  const current = organization.monthlyRequestCount ?? 0;
-  const next = current + 1;
-  const now = Date.now();
-
   await ctx.db.patch(organization._id, {
-    monthlyRequestCount: next,
-    updatedAt: now,
+    monthlyRequestCount: (organization.monthlyRequestCount ?? 0) + 1,
+    updatedAt: Date.now(),
   });
-
-  return {
-    monthlyRequestCount: next,
-    subscriptionTier: tier,
-  };
 }
 
 export const pruneExpiredInvitations = internalMutation({

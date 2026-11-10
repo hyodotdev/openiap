@@ -1,7 +1,6 @@
 import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import {
-  Star,
   Smartphone,
   Code2,
   Layers,
@@ -17,7 +16,6 @@ import {
 
 export type BadgeVariant =
   | "default"
-  | "popular"
   | "new"
   | "beta"
   | "primary"
@@ -38,7 +36,6 @@ interface BadgeProps {
 
 const variantStyles: Record<BadgeVariant, string> = {
   default: "bg-muted text-muted-foreground border-muted/50",
-  popular: "bg-primary text-primary-foreground border-transparent",
   new: "bg-success/10 text-success border-success/30",
   beta: "bg-secondary text-secondary-foreground border-primary/20",
   primary:
@@ -87,19 +84,6 @@ export function Badge({
       )}
       {children}
     </span>
-  );
-}
-
-// Legacy PopularBadge for backward compatibility
-export function PopularBadge() {
-  return (
-    <Badge
-      variant="popular"
-      className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10"
-      icon={<Star className="w-3.5 h-3.5 fill-current" />}
-    >
-      <span className="leading-none">{"Most Popular"}</span>
-    </Badge>
   );
 }
 

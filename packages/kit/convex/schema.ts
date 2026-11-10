@@ -263,7 +263,7 @@ const schema = defineSchema({
     // even after the last scoped key is deleted.
     legacyApiKeyFallbackDisabledAt: v.optional(v.number()),
     // Unused: admission buckets live in `verificationAdmissionBuckets`. Kept
-    // so existing documents validate until a migration clears them.
+    // until `removeUnusedProjectBucketFields` has run on every deployment.
     verificationAdmissionTokens: v.optional(v.number()),
     verificationAdmissionRefilledAt: v.optional(v.number()),
     entitlementRecheckTokens: v.optional(v.number()),
