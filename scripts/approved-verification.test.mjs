@@ -224,8 +224,9 @@ test("checks native tests in the platform job's own report", () => {
   const sources = {
     [kotlin]:
       "package dev.hyo.openiap\n\nclass AppTest {\n  @Test fun `keeps the token`() {}\n}",
+    // Swift's `package` is an access modifier, not a package line.
     [swift]:
-      "final class AppTests: XCTestCase {\n  func testKeepsToken() {}\n}",
+      "package func makeToken() {}\n\nfinal class AppTests: XCTestCase {\n  func testKeepsToken() {}\n}",
   };
   const gradle = (status) =>
     junitCases(`<testsuite name="dev.hyo.openiap.AppTest">

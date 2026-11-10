@@ -278,9 +278,10 @@ export function nativeReport(path, source, cases) {
       ...code.matchAll(/\b(?:class|struct|extension|actor|object)\s+(\w+)/g),
     ].map(([, type]) => type),
   );
-  const packageName = /^[ \t]*(?:package|namespace)[ \t]+([\w.]+)/m.exec(
-    code,
-  )?.[1];
+  // Swift has no package line; `package` there is an access modifier.
+  const packageName = path.endsWith(".swift")
+    ? undefined
+    : /^[ \t]*(?:package|namespace)[ \t]+([\w.]+)/m.exec(code)?.[1];
   const assertionResults = cases
     .filter(
       ({ classname }) =>
