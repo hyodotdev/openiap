@@ -666,6 +666,30 @@ val updateParams = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
 > omits the listener correctly. Play-only APIs return unsupported/default
 > behavior on Horizon and Amazon.
 
+## Alternative Billing Only (6.1+)
+
+For an enrolled app that offers only its own in-app payment system, with no
+Play Billing choice. The client is built with `enableAlternativeBillingOnly()`
+and cannot share a connection with another billing program. The sequence is:
+
+1. Check `isAlternativeBillingOnlyAvailableAsync`.
+2. Call `showAlternativeBillingOnlyInformationDialog` before each checkout and
+   continue only on `BillingResponseCode.OK`.
+3. Call `createAlternativeBillingOnlyReportingDetailsAsync` for a fresh
+   external transaction token per one-time purchase, new subscription, or plan
+   change.
+4. Report the completed transaction and token from the backend within 24 hours.
+
+Official reference: [Alternative billing without user choice](https://developer.android.com/google/play/billing/alternative/alternative-billing-without-user-choice-in-app).
+
+> **OpenIAP Note**: OpenIAP exposes this as the `ALTERNATIVE_BILLING_ONLY`
+> billing program: connect with it alone, then use
+> `isBillingProgramAvailableAndroid`,
+> `showAlternativeBillingOnlyInformationDialogAndroid`, and
+> `createBillingProgramReportingDetailsAndroid` (`developerBillingType` is
+> ignored). `requestPurchase` is unavailable on that connection. Horizon and
+> Amazon reject the program as unsupported.
+
 ## In-App Billing Messages (4.1+)
 
 `showInAppMessages()` must run on the UI thread. It returns a synchronous

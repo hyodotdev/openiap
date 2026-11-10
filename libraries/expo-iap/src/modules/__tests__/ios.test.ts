@@ -780,35 +780,22 @@ describe('iOS Module Functions', () => {
     });
 
     describe('getExternalPurchaseCustomLinkTokenIOS', () => {
-      it('should call native module with acquisition token type', async () => {
-        const mockResult = {token: 'acquisition-token-xyz'};
-        (
-          ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS as jest.Mock
-        ).mockResolvedValue(mockResult);
+      it.each(['acquisition', 'services', 'in-app', 'link-out'] as const)(
+        'should call the native module with the %s token type',
+        async (tokenType) => {
+          const mockResult = {token: 'acquisition-token-xyz'};
+          (
+            ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS as jest.Mock
+          ).mockResolvedValue(mockResult);
 
-        const result = await getExternalPurchaseCustomLinkTokenIOS(
-          'acquisition',
-        );
+          const result = await getExternalPurchaseCustomLinkTokenIOS(tokenType);
 
-        expect(
-          ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS,
-        ).toHaveBeenCalledWith('acquisition');
-        expect(result.token).toBe('acquisition-token-xyz');
-      });
-
-      it('should call native module with services token type', async () => {
-        const mockResult = {token: 'services-token-abc'};
-        (
-          ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS as jest.Mock
-        ).mockResolvedValue(mockResult);
-
-        const result = await getExternalPurchaseCustomLinkTokenIOS('services');
-
-        expect(
-          ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS,
-        ).toHaveBeenCalledWith('services');
-        expect(result.token).toBe('services-token-abc');
-      });
+          expect(
+            ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS,
+          ).toHaveBeenCalledWith(tokenType);
+          expect(result.token).toBe('acquisition-token-xyz');
+        },
+      );
 
       it('should return error when token fetch fails', async () => {
         const mockResult = {

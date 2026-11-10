@@ -314,6 +314,14 @@ export const showBillingProgramInformationDialogAndroid: MutationField<
   });
 };
 
+/** Show the mandatory Google Play Alternative Billing Only notice before checkout. */
+export const showAlternativeBillingOnlyInformationDialogAndroid: MutationField<
+  'showAlternativeBillingOnlyInformationDialogAndroid'
+> = async () => {
+  requireAndroidPlatform('showAlternativeBillingOnlyInformationDialogAndroid');
+  return ExpoIapModule.showAlternativeBillingOnlyInformationDialogAndroid();
+};
+
 /**
  * Show Play Billing in-app messages, such as transactional subscription updates.
  * Available in Google Play Billing Library 4.1.0+.

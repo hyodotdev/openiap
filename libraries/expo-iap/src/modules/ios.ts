@@ -467,7 +467,7 @@ export const isEligibleForExternalPurchaseCustomLinkIOS: QueryField<
  * Get external purchase token for reporting to Apple (iOS 18.1+).
  * Use this token with Apple's External Purchase Server API to report transactions.
  *
- * @param tokenType - Token type: 'acquisition' (new customers) or 'services' (existing customers)
+ * @param tokenType - Reporting token type for the app's storefront.
  * @returns Promise resolving to the token result with token string or error
  * @platform iOS
  * @see https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
@@ -480,7 +480,7 @@ export const getExternalPurchaseCustomLinkTokenIOS: QueryField<
   requireIosPlatform('getExternalPurchaseCustomLinkTokenIOS');
   if (!tokenType) {
     throw new Error(
-      "getExternalPurchaseCustomLinkTokenIOS requires a tokenType ('acquisition' or 'services')",
+      'getExternalPurchaseCustomLinkTokenIOS requires a tokenType',
     );
   }
   const result = await callNativeIOS(() =>

@@ -835,18 +835,22 @@ void main() {
       },
     );
 
-    test(
-      'getExternalPurchaseCustomLinkTokenIOS returns token',
-      () async {
-        final result = await iap.getExternalPurchaseCustomLinkTokenIOS(
-          ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition,
-        );
+    for (final (tokenType, wireValue) in [
+      (ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition, 'acquisition'),
+      (ExternalPurchaseCustomLinkTokenTypeIOS.Services, 'services'),
+      (ExternalPurchaseCustomLinkTokenTypeIOS.InApp, 'in-app'),
+      (ExternalPurchaseCustomLinkTokenTypeIOS.LinkOut, 'link-out'),
+    ]) {
+      test('getExternalPurchaseCustomLinkTokenIOS forwards $wireValue',
+          () async {
+        final result =
+            await iap.getExternalPurchaseCustomLinkTokenIOS(tokenType);
         expect(result.token, 'test-token-123');
         expect(result.error, isNull);
         expect(calls.last.method, 'getExternalPurchaseCustomLinkTokenIOS');
-        expect(calls.last.arguments['tokenType'], 'acquisition');
-      },
-    );
+        expect(calls.last.arguments['tokenType'], wireValue);
+      });
+    }
 
     test(
       'getExternalPurchaseCustomLinkTokenIOS returns error on non-iOS',

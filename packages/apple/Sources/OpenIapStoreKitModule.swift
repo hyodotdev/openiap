@@ -1679,6 +1679,24 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
     public func getExternalPurchaseCustomLinkTokenIOS(
         _ tokenType: ExternalPurchaseCustomLinkTokenTypeIOS
     ) async throws -> ExternalPurchaseCustomLinkTokenResultIOS {
+        if tokenType == .inApp || tokenType == .linkOut {
+            let supported: Bool
+            #if os(iOS) && !targetEnvironment(macCatalyst)
+            if #available(iOS 26.4, *) {
+                supported = true
+            } else {
+                supported = false
+            }
+            #else
+            supported = false
+            #endif
+            guard supported else {
+                throw PurchaseError.make(
+                    code: .featureNotSupported,
+                    message: "in-app and link-out external purchase tokens require iOS 26.4+"
+                )
+            }
+        }
         try await ensureConnection()
         // iOS 18.1+: ExternalPurchaseCustomLink.token(for:)
         // Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
@@ -1691,8 +1709,8 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             }
 
             do {
-                // Token type is a String parameter, use enum's rawValue directly
-                guard let token = try await ExternalPurchaseCustomLink.token(for: tokenType.rawValue) else {
+                let storeKitTokenType = StoreKitTypesBridge.externalPurchaseTokenTypeIOS(from: tokenType)
+                guard let token = try await ExternalPurchaseCustomLink.token(for: storeKitTokenType) else {
                     return ExternalPurchaseCustomLinkTokenResultIOS(
                         error: "Failed to retrieve external purchase token",
                         token: nil

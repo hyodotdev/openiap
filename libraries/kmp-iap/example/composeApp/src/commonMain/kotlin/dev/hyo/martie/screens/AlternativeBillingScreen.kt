@@ -200,6 +200,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                         BillingProgramAndroid.ExternalOffer -> "External Offer"
                         BillingProgramAndroid.ExternalPayments -> "External Payments (Japan)"
                         BillingProgramAndroid.ExternalContentLink -> "External Content Link"
+                        BillingProgramAndroid.AlternativeBillingOnly -> "Alternative Billing Only"
                         BillingProgramAndroid.Unspecified -> "Unspecified"
                     }
                 } mode"
@@ -475,6 +476,9 @@ fun AlternativeBillingScreen(navController: NavController) {
                 BillingProgramAndroid.ExternalOffer,
                 BillingProgramAndroid.ExternalPayments,
                 BillingProgramAndroid.ExternalContentLink -> handleAndroidBillingPrograms(product)
+                BillingProgramAndroid.AlternativeBillingOnly -> {
+                    purchaseResult = "❌ This screen does not demo Alternative Billing Only"
+                }
                 BillingProgramAndroid.Unspecified -> {
                     purchaseResult = "❌ Please select a billing program"
                 }
@@ -838,6 +842,11 @@ private fun InfoCard(platform: String, billingProgram: BillingProgramAndroid) {
                         • Handle return via deep link
                         • For content offers and promotions
                     """.trimIndent()
+                    BillingProgramAndroid.AlternativeBillingOnly -> """
+                        • Alternative Billing Only (6.1+)
+                        • Users CANNOT use Google Play billing
+                        • Show the information dialog, then your payment system
+                    """.trimIndent()
                     BillingProgramAndroid.Unspecified -> """
                         • No billing program selected
                         • Please select a billing program
@@ -868,6 +877,10 @@ private fun InfoCard(platform: String, billingProgram: BillingProgramAndroid) {
                     BillingProgramAndroid.ExternalContentLink -> """
                         ⚠️ Billing Library 8.2.0+ required
                         ⚠️ Must provide valid external URL
+                    """.trimIndent()
+                    BillingProgramAndroid.AlternativeBillingOnly -> """
+                        ⚠️ Requires enrollment with Google
+                        ⚠️ Must report tokens within 24 hours
                     """.trimIndent()
                     BillingProgramAndroid.Unspecified -> """
                         ⚠️ Select a billing program to continue
@@ -921,6 +934,7 @@ private fun ModeSelectorCard(
                         BillingProgramAndroid.ExternalOffer -> "External Offer (8.2.0+)"
                         BillingProgramAndroid.ExternalPayments -> "External Payments (8.3.0+, Japan)"
                         BillingProgramAndroid.ExternalContentLink -> "External Content Link (8.2.0+)"
+                        BillingProgramAndroid.AlternativeBillingOnly -> "Alternative Billing Only (6.1+)"
                         BillingProgramAndroid.Unspecified -> "Not Selected"
                     },
                     fontSize = 14.sp

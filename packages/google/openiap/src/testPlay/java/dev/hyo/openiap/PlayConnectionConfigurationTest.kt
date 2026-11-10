@@ -2,6 +2,7 @@ package dev.hyo.openiap
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -133,5 +134,33 @@ class PlayConnectionConfigurationTest {
         )
         assertEquals(BillingClientMode.UserChoice, userChoice.billingClientMode)
         assertEquals(BillingClientMode.Standard, standard.billingClientMode)
+    }
+
+    @Test
+    fun `alternative billing only opts in and cannot share a connection`() {
+        val program = BillingProgramAndroid.AlternativeBillingOnly
+        val config = InitConnectionConfig(enableBillingProgramAndroid = program)
+        val selected = playConnectionConfiguration(emptySet(), config)
+        assertEquals(BillingClientMode.AlternativeBillingOnly, selected.billingClientMode)
+        assertEquals(selected, playConnectionConfiguration(setOf(program), null))
+        assertEquals(selected, requestedConnectionConfiguration(emptySet(), null, selected, emptySet()))
+        assertEquals(
+            externalOffer,
+            requestedConnectionConfiguration(
+                emptySet(), InitConnectionConfig(enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer),
+                selected, emptySet(),
+            ),
+        )
+        for (other in listOf(BillingProgramAndroid.BillingChoice, BillingProgramAndroid.ExternalOffer)) {
+            assertThrows(OpenIapError.DeveloperError::class.java) {
+                playConnectionConfiguration(setOf(other), config)
+            }
+        }
+        assertEquals(
+            setOf(BillingProgramAndroid.BillingChoice, BillingProgramAndroid.ExternalOffer),
+            playConnectionConfiguration(
+                setOf(BillingProgramAndroid.BillingChoice), InitConnectionConfig(enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer),
+            ).billingPrograms,
+        )
     }
 }

@@ -1521,6 +1521,10 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         throw UnsupportedOperationException("showBillingProgramInformationDialogAndroid is only available on Android")
     }
 
+    override suspend fun showAlternativeBillingOnlyInformationDialogAndroid(): BillingResultAndroid {
+        throw UnsupportedOperationException("showAlternativeBillingOnlyInformationDialogAndroid is only available on Android")
+    }
+
     override suspend fun showInAppMessagesAndroid(params: InAppMessageParamsAndroid?): InAppMessageResultAndroid {
         throw UnsupportedOperationException("showInAppMessagesAndroid is only available on Android")
     }

@@ -402,6 +402,13 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
             ).toJson())
         } else failUnsupported("Google Play Billing Choice is unavailable on $storeName.")
 
+    override suspend fun showAlternativeBillingOnlyInformationDialogAndroid(): BillingResultAndroid =
+        if (hasPlayBillingApis) withMappedOpenIapError {
+            BillingResultAndroid.fromJson(
+                requireModule().showAlternativeBillingOnlyInformationDialog(requireActivity()).toJson()
+            )
+        } else failUnsupported("Alternative Billing Only requires Google Play.")
+
     override suspend fun showInAppMessagesAndroid(params: InAppMessageParamsAndroid?): InAppMessageResultAndroid =
         if (hasPlayBillingApis) withMappedOpenIapError {
             InAppMessageResultAndroid.fromJson(requireModule().showInAppMessages(

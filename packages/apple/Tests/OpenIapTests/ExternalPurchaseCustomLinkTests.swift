@@ -35,6 +35,40 @@ final class ExternalPurchaseCustomLinkTests: XCTestCase {
         XCTAssertNil(tokenType)
     }
 
+    func testStoreKitTokenType_UsesUppercaseIdentifiers() {
+        XCTAssertEqual(StoreKitTypesBridge.externalPurchaseTokenTypeIOS(from: .acquisition), "ACQUISITION")
+        XCTAssertEqual(StoreKitTypesBridge.externalPurchaseTokenTypeIOS(from: .services), "SERVICES")
+        XCTAssertEqual(StoreKitTypesBridge.externalPurchaseTokenTypeIOS(from: .inApp), "IN_APP")
+        XCTAssertEqual(StoreKitTypesBridge.externalPurchaseTokenTypeIOS(from: .linkOut), "LINK_OUT")
+    }
+
+    func testJapanTokenTypesUseKebabCaseOnTheWire() throws {
+        let cases: [(ExternalPurchaseCustomLinkTokenTypeIOS, String)] = [
+            (.inApp, "in-app"), (.linkOut, "link-out"),
+        ]
+        for (tokenType, wireValue) in cases {
+            let encoded = try JSONEncoder().encode(tokenType)
+            XCTAssertEqual(String(decoding: encoded, as: UTF8.self), "\"\(wireValue)\"")
+            XCTAssertEqual(try JSONDecoder().decode(ExternalPurchaseCustomLinkTokenTypeIOS.self, from: encoded), tokenType)
+        }
+    }
+
+    #if os(macOS)
+    func testJapanTokenTypesReachIOSAvailabilityCheckThroughObjC() async throws {
+        guard #available(macOS 15.1, *) else { throw XCTSkip("Custom Link bridge requires macOS 15.1+") }
+        let module = OpenIapModule(factory: OpenIapAppleProviderFactory())
+        for tokenType in ["in-app", "link-out"] {
+            let (result, error): (Any?, Error?) = await withCheckedContinuation { continuation in
+                module.getExternalPurchaseCustomLinkTokenIOSWithTokenType(tokenType) { result, error in
+                    continuation.resume(returning: (result, error))
+                }
+            }
+            XCTAssertNil(result)
+            XCTAssertEqual((error as? PurchaseError)?.code, .featureNotSupported)
+        }
+    }
+    #endif
+
     // MARK: - Notice Type Enum Tests
 
     func testNoticeType_Browser_RawValue() {
@@ -206,10 +240,7 @@ final class ExternalPurchaseCustomLinkTests: XCTestCase {
     // MARK: - All Cases Tests
 
     func testTokenType_AllCases() {
-        let allCases = ExternalPurchaseCustomLinkTokenTypeIOS.allCases
-        XCTAssertEqual(allCases.count, 2)
-        XCTAssertTrue(allCases.contains(.acquisition))
-        XCTAssertTrue(allCases.contains(.services))
+        XCTAssertEqual(ExternalPurchaseCustomLinkTokenTypeIOS.allCases, [.acquisition, .services, .inApp, .linkOut])
     }
 
     func testNoticeType_AllCases() {

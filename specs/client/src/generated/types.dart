@@ -226,7 +226,11 @@ enum BillingProgramAndroid {
   /// Billing Choice program.
   /// Allows presenting Google Play Billing alongside an alternative in-app billing system or external web link.
   /// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
-  BillingChoice('billing-choice');
+  BillingChoice('billing-choice'),
+  /// Google Play Alternative Billing Only. Use a dedicated connection, show the
+  /// information dialog, and obtain a reporting token before starting checkout.
+  /// Available in OpenIAP 1.4.0 / openiap-google 4.1.0.
+  AlternativeBillingOnly('alternative-billing-only');
 
   const BillingProgramAndroid(this.value);
   final String value;
@@ -246,6 +250,8 @@ enum BillingProgramAndroid {
         return BillingProgramAndroid.ExternalPayments;
       case 'billing-choice':
         return BillingProgramAndroid.BillingChoice;
+      case 'alternative-billing-only':
+        return BillingProgramAndroid.AlternativeBillingOnly;
     }
     return null;
   }
@@ -684,12 +690,16 @@ enum ExternalPurchaseCustomLinkNoticeTypeIOS {
 /// Used to request different types of external purchase tokens for reporting to Apple.
 /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
 enum ExternalPurchaseCustomLinkTokenTypeIOS {
-  /// Token for customer acquisition tracking.
-  /// Use this when a new customer makes their first purchase through external link.
+  /// Acquisition reporting token for the EU custom link flow.
   Acquisition('acquisition'),
-  /// Token for ongoing services tracking.
-  /// Use this for existing customers making additional purchases.
-  Services('services');
+  /// Services reporting token for the EU custom link flow.
+  Services('services'),
+  /// Token for an in-app payment provider in Japan (iOS 26.4+) and Brazil (iOS 26.5+).
+  /// Available in OpenIAP 1.4.0 / openiap-apple 4.1.0.
+  InApp('in-app'),
+  /// Token for a payment on the developer's website in Japan (iOS 26.4+) and Brazil (iOS 26.5+).
+  /// Available in OpenIAP 1.4.0 / openiap-apple 4.1.0.
+  LinkOut('link-out');
 
   const ExternalPurchaseCustomLinkTokenTypeIOS(this.value);
   final String value;
@@ -701,6 +711,12 @@ enum ExternalPurchaseCustomLinkTokenTypeIOS {
         return ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition;
       case 'services':
         return ExternalPurchaseCustomLinkTokenTypeIOS.Services;
+      case 'in-app':
+      case 'inapp':
+        return ExternalPurchaseCustomLinkTokenTypeIOS.InApp;
+      case 'link-out':
+      case 'linkout':
+        return ExternalPurchaseCustomLinkTokenTypeIOS.LinkOut;
     }
     return null;
   }
@@ -4933,6 +4949,7 @@ class InitConnectionConfig {
   /// - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+)
   /// - BILLING_CHOICE: Google-rendered or developer-rendered billing choice
   ///   (OpenIAP 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
+  /// - ALTERNATIVE_BILLING_ONLY: Exclusive Google Play connection for in-app alternative billing
   final BillingProgramAndroid? enableBillingProgramAndroid;
 
   factory InitConnectionConfig.fromJson(Map<String, dynamic> json) {
@@ -6151,6 +6168,7 @@ abstract class MutationResolver {
   /// Returns external transaction token needed for reporting external transactions.
   /// developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted,
   /// native Android defaults it to IN_APP.
+  /// For ALTERNATIVE_BILLING_ONLY, call after the information dialog succeeds; developerBillingType is ignored.
   /// The Billing Choice extension is available in OpenIAP 2.1.0 /
   /// openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   /// Throws OpenIapError.NotPrepared if billing client not ready.
@@ -6185,6 +6203,7 @@ abstract class MutationResolver {
   /// Introduced in Google Play Billing Library 8.2.0. External Offer and External
   /// Content Link integrations must use 8.2.1+ because 8.2.1 fixes this API.
   /// Returns availability result with isAvailable flag.
+  /// For ALTERNATIVE_BILLING_ONLY, connect with that program before checking.
   /// Throws OpenIapError.NotPrepared if billing client not ready.
   /// See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
   Future<BillingProgramAvailabilityResultAndroid> isBillingProgramAvailableAndroid(BillingProgramAndroid program);
@@ -6226,6 +6245,11 @@ abstract class MutationResolver {
   /// Restore non-consumable and active subscription purchases.
   /// See: https://openiap.dev/docs/apis/restore-purchases
   Future<void> restorePurchases();
+  /// Show the Google Play Alternative Billing Only information dialog before each checkout attempt.
+  /// Continue only when responseCode is OK (0).
+  /// See: https://openiap.dev/docs/features/external-purchase#alternative-billing-only
+  /// Available in OpenIAP 1.4.0 / openiap-google 4.1.0.
+  Future<BillingResultAndroid> showAlternativeBillingOnlyInformationDialogAndroid() => Future.error(UnsupportedError('showAlternativeBillingOnlyInformationDialogAndroid is not supported by this resolver'));
   /// Show Google's mandatory information dialog before a developer-rendered,
   /// in-app Billing Choice screen.
   /// OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
@@ -6324,7 +6348,7 @@ abstract class QueryResolver {
   /// Use this token to report transactions made through ExternalPurchaseCustomLink.
   /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
   /// See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
-  /// Parameter tokenType: Token type: acquisition (new customers) or services (existing customers)
+  /// Parameter tokenType: Use acquisition and services for the EU flow, or in-app and link-out for Japan (iOS 26.4+) and Brazil (iOS 26.5+).
   Future<ExternalPurchaseCustomLinkTokenResultIOS> getExternalPurchaseCustomLinkTokenIOS(ExternalPurchaseCustomLinkTokenTypeIOS tokenType);
   /// List unfinished StoreKit transactions in the queue.
   /// See: https://openiap.dev/docs/apis/ios/get-pending-transactions-ios
@@ -6458,6 +6482,7 @@ typedef MutationPresentExternalPurchaseLinkIOSHandler = Future<ExternalPurchaseL
 typedef MutationPresentExternalPurchaseNoticeSheetIOSHandler = Future<ExternalPurchaseNoticeResultIOS> Function();
 typedef MutationRequestPurchaseHandler = Future<RequestPurchaseResult?> Function(RequestPurchaseProps params);
 typedef MutationRestorePurchasesHandler = Future<void> Function();
+typedef MutationShowAlternativeBillingOnlyInformationDialogAndroidHandler = Future<BillingResultAndroid> Function();
 typedef MutationShowBillingProgramInformationDialogAndroidHandler = Future<BillingResultAndroid> Function({
   required BillingProgramAndroid billingProgram,
   required String externalTransactionToken,
@@ -6496,6 +6521,7 @@ class MutationHandlers {
     this.presentExternalPurchaseNoticeSheetIOS,
     this.requestPurchase,
     this.restorePurchases,
+    this.showAlternativeBillingOnlyInformationDialogAndroid,
     this.showBillingProgramInformationDialogAndroid,
     this.showExternalPurchaseCustomLinkNoticeIOS,
     this.showInAppMessagesAndroid,
@@ -6521,6 +6547,7 @@ class MutationHandlers {
   final MutationPresentExternalPurchaseNoticeSheetIOSHandler? presentExternalPurchaseNoticeSheetIOS;
   final MutationRequestPurchaseHandler? requestPurchase;
   final MutationRestorePurchasesHandler? restorePurchases;
+  final MutationShowAlternativeBillingOnlyInformationDialogAndroidHandler? showAlternativeBillingOnlyInformationDialogAndroid;
   final MutationShowBillingProgramInformationDialogAndroidHandler? showBillingProgramInformationDialogAndroid;
   final MutationShowExternalPurchaseCustomLinkNoticeIOSHandler? showExternalPurchaseCustomLinkNoticeIOS;
   final MutationShowInAppMessagesAndroidHandler? showInAppMessagesAndroid;

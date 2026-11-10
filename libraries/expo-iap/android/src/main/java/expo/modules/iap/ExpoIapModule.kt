@@ -747,6 +747,22 @@ class ExpoIapModule : Module() {
                 }
             }
 
+            AsyncFunction("showAlternativeBillingOnlyInformationDialogAndroid") { promise: Promise ->
+                scope.launch {
+                    try {
+                        val activity =
+                            runCatching { currentActivity }.getOrNull() ?: run {
+                                promise.reject(OpenIapError.ServiceUnavailable.CODE, "Activity not available", null)
+                                return@launch
+                            }
+                        promise.resolve(openIapStore.showAlternativeBillingOnlyInformationDialog(activity).toJson())
+                    } catch (e: Exception) {
+                        ExpoIapLog.failure("showAlternativeBillingOnlyInformationDialogAndroid", e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                    }
+                }
+            }
+
             AsyncFunction("showBillingProgramInformationDialogAndroid") { params: Map<String, Any?>, promise: Promise ->
                 ExpoIapLog.payload("showBillingProgramInformationDialogAndroid", params)
                 scope.launch {
@@ -890,6 +906,7 @@ class ExpoIapModule : Module() {
             "external-content-link" -> OpenIapBillingProgram.ExternalContentLink
             "external-payments" -> OpenIapBillingProgram.ExternalPayments
             "user-choice-billing" -> OpenIapBillingProgram.UserChoiceBilling
+            "alternative-billing-only" -> OpenIapBillingProgram.AlternativeBillingOnly
             "billing-choice" -> OpenIapBillingProgram.BillingChoice
             else -> OpenIapBillingProgram.Unspecified
         }

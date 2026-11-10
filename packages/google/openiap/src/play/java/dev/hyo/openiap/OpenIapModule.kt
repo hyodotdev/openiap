@@ -150,6 +150,7 @@ internal fun commitPlayConnectionConfiguration(
 internal enum class BillingClientMode {
     Standard,
     UserChoice,
+    AlternativeBillingOnly,
 }
 
 internal data class BillingConnectionConfiguration(
@@ -166,11 +167,15 @@ internal fun playConnectionConfiguration(
         pendingPrograms,
         config?.enableBillingProgramAndroid,
     )
+    val alternativeBillingOnly = BillingProgramAndroid.AlternativeBillingOnly in programs
+    if (alternativeBillingOnly && programs.size != 1) {
+        throw OpenIapError.DeveloperError("ALTERNATIVE_BILLING_ONLY requires a dedicated connection")
+    }
     return BillingConnectionConfiguration(
-        billingClientMode = if (BillingProgramAndroid.UserChoiceBilling in programs) {
-            BillingClientMode.UserChoice
-        } else {
-            BillingClientMode.Standard
+        billingClientMode = when {
+            alternativeBillingOnly -> BillingClientMode.AlternativeBillingOnly
+            BillingProgramAndroid.UserChoiceBilling in programs -> BillingClientMode.UserChoice
+            else -> BillingClientMode.Standard
         },
         billingPrograms = programs,
         // Play reads the renderer only for Billing Choice.
@@ -550,6 +555,8 @@ class OpenIapModule(
             throw OpenIapError.DeveloperError(
                 "USER_CHOICE_BILLING is configured directly on BillingClient"
             )
+        BillingProgramAndroid.AlternativeBillingOnly ->
+            throw OpenIapError.DeveloperError("Use the dedicated Alternative Billing Only flow")
         BillingProgramAndroid.Unspecified ->
             throw OpenIapError.DeveloperError("Cannot use UNSPECIFIED billing program")
     }
@@ -1108,6 +1115,22 @@ class OpenIapModule(
         val client = billingClient ?: throw OpenIapError.NotPrepared
         if (!client.isReady) throw OpenIapError.NotPrepared
 
+        if (program == BillingProgramAndroid.AlternativeBillingOnly) {
+            requireAlternativeBillingOnlyConnection(client)
+            return@withContext activeOperations.await(client) { operation ->
+                client.isAlternativeBillingOnlyAvailableAsync { result ->
+                    when (result.responseCode) {
+                        BillingClient.BillingResponseCode.OK ->
+                            operation.succeed(BillingProgramAvailabilityResultAndroid(billingProgram = program, isAvailable = true))
+                        BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED,
+                        BillingClient.BillingResponseCode.BILLING_UNAVAILABLE ->
+                            operation.succeed(BillingProgramAvailabilityResultAndroid(billingProgram = program, isAvailable = false))
+                        else -> operation.fail(result.toOpenIapError())
+                    }
+                }
+            }
+        }
+
         OpenIapLog.debug("Checking billing program availability for: $program", TAG)
 
         val billingProgramConstant = billingProgramToConstant(program)
@@ -1202,6 +1225,25 @@ class OpenIapModule(
     ): BillingProgramReportingDetailsAndroid = withContext(Dispatchers.IO) {
         val client = billingClient ?: throw OpenIapError.NotPrepared
         if (!client.isReady) throw OpenIapError.NotPrepared
+
+        if (program == BillingProgramAndroid.AlternativeBillingOnly) {
+            if (developerBillingType != null) {
+                OpenIapLog.warn("Ignoring developerBillingType for ALTERNATIVE_BILLING_ONLY", TAG)
+            }
+            requireAlternativeBillingOnlyConnection(client)
+            return@withContext activeOperations.await(client) { operation ->
+                client.createAlternativeBillingOnlyReportingDetailsAsync { result, details ->
+                    val token = details?.externalTransactionToken
+                    when {
+                        result.responseCode != BillingClient.BillingResponseCode.OK ->
+                            operation.fail(result.toOpenIapError())
+                        token.isNullOrBlank() ->
+                            operation.fail(OpenIapError.PurchaseFailed("Missing alternative billing reporting token"))
+                        else -> operation.succeed(BillingProgramReportingDetailsAndroid(program, token))
+                    }
+                }
+            }
+        }
 
         OpenIapLog.debug("Creating billing program reporting details for: $program", TAG)
 
@@ -1574,6 +1616,31 @@ class OpenIapModule(
         }
     }
 
+    private fun requireAlternativeBillingOnlyConnection(client: BillingClient) {
+        synchronized(connectionLifecycleLock) {
+            if (billingClient !== client || connectionAttempt != null || !client.isReady) {
+                throw OpenIapError.NotPrepared
+            }
+            if (activeBillingClientMode != BillingClientMode.AlternativeBillingOnly) {
+                throw OpenIapError.DeveloperError("Connect with ALTERNATIVE_BILLING_ONLY first")
+            }
+        }
+    }
+
+    override suspend fun showAlternativeBillingOnlyInformationDialog(activity: Activity): BillingResultAndroid =
+        withContext(Dispatchers.Main) {
+            val client = billingClient ?: throw OpenIapError.NotPrepared
+            requireAlternativeBillingOnlyConnection(client)
+            activeOperations.await(client) { operation ->
+                val started = client.showAlternativeBillingOnlyInformationDialog(activity) { result ->
+                    operation.succeed(result.toOpenIapBillingResult())
+                }
+                if (started.responseCode != BillingClient.BillingResponseCode.OK) {
+                    operation.succeed(started.toOpenIapBillingResult())
+                }
+            }
+        }
+
     /**
      * Show Play billing in-app messages, such as payment issues or price-change confirmations.
      */
@@ -1678,6 +1745,12 @@ class OpenIapModule(
             val client = billingClient
             if (client == null || !client.isReady) {
                 val err = OpenIapError.NotPrepared
+                errorEventGate.publishOnce(err)
+                return@withContext emptyList()
+            }
+
+            if (activeBillingClientMode == BillingClientMode.AlternativeBillingOnly) {
+                val err = OpenIapError.DeveloperError("requestPurchase is unavailable in ALTERNATIVE_BILLING_ONLY")
                 errorEventGate.publishOnce(err)
                 return@withContext emptyList()
             }
@@ -2338,6 +2411,11 @@ class OpenIapModule(
                 ?: throw OpenIapError.MissingCurrentActivity
             showBillingProgramInformationDialog(activity, params)
         },
+        showAlternativeBillingOnlyInformationDialogAndroid = {
+            val activity = currentActivityRef?.get() ?: fallbackActivity
+                ?: throw OpenIapError.MissingCurrentActivity
+            showAlternativeBillingOnlyInformationDialog(activity)
+        },
         showInAppMessagesAndroid = { params ->
             val activity = currentActivityRef?.get() ?: fallbackActivity
                 ?: throw OpenIapError.MissingCurrentActivity
@@ -2895,6 +2973,7 @@ class OpenIapModule(
         enableAutoServiceReconnectionIfAvailable(builder)
 
         when (configuration.billingClientMode) {
+            BillingClientMode.AlternativeBillingOnly -> builder.enableAlternativeBillingOnly()
             BillingClientMode.Standard -> {
                 OpenIapLog.debug("Standard Google Play billing mode", TAG)
             }
@@ -2989,9 +3068,11 @@ class OpenIapModule(
         if (configuration.billingPrograms.isNotEmpty()) {
             OpenIapLog.debug("=== BILLING PROGRAMS INITIALIZATION ===", TAG)
             for (program in configuration.billingPrograms) {
-                // USER_CHOICE_BILLING is configured directly on BillingClient.
-                if (program == BillingProgramAndroid.UserChoiceBilling) {
-                    OpenIapLog.debug("✓ User Choice Billing configured", TAG)
+                // These modes are configured directly on BillingClient.
+                if (program == BillingProgramAndroid.UserChoiceBilling ||
+                    program == BillingProgramAndroid.AlternativeBillingOnly
+                ) {
+                    OpenIapLog.debug("✓ Billing client mode configured: $program", TAG)
                     continue
                 }
 

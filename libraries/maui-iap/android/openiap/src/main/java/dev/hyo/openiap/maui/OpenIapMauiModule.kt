@@ -216,6 +216,10 @@ class OpenIapMauiModule(private val context: Context) {
         gson.toJson(module.showBillingProgramInformationDialog(activity, params).toJson())
     }
 
+    fun showAlternativeBillingOnlyInformationDialogAndroid(callback: ResultCallback) = run(callback) {
+        gson.toJson(module.showAlternativeBillingOnlyInformationDialog(currentActivityOrThrow()).toJson())
+    }
+
     fun showInAppMessagesAndroid(paramsJson: String?, callback: ResultCallback) = run(callback) {
         val params = paramsJson?.let { decode("InAppMessageParamsAndroid") { InAppMessageParamsAndroid.fromJson(parseMap(it)) } }
         val activity = currentActivityOrThrow()

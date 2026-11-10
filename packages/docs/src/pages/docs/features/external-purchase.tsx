@@ -630,11 +630,76 @@ func handle_external_purchase_flow() -> void:
             ),
             android: (
               <>
+                <AnchorLink id="alternative-billing-only" level="h4">
+                  Alternative Billing Only
+                </AnchorLink>
+                <p>
+                  Use this flow for an enrolled Google Play app that offers its
+                  own in-app payment system without a Play Billing choice.
+                  Enable <code>alternative-billing-only</code> on a dedicated
+                  connection. Call{' '}
+                  <Link to="/docs/apis/android/show-alternative-billing-only-information-dialog-android">
+                    <code>
+                      showAlternativeBillingOnlyInformationDialogAndroid
+                    </code>
+                  </Link>{' '}
+                  before each checkout attempt and proceed only after Play
+                  returns response code <code>0</code>.
+                </p>
+                <CodeBlock language="typescript">{`import {
+  initConnection,
+  isBillingProgramAvailableAndroid,
+  showAlternativeBillingOnlyInformationDialogAndroid,
+  createBillingProgramReportingDetailsAndroid,
+} from 'expo-iap';
+
+// These exports are also available from react-native-iap.
+async function startPurchase(productId: string) {
+  const program = 'alternative-billing-only';
+  if (!(await initConnection({ enableBillingProgramAndroid: program }))) return;
+  if (!(await isBillingProgramAvailableAndroid(program)).isAvailable) return;
+
+  const notice = await showAlternativeBillingOnlyInformationDialogAndroid();
+  if (notice.responseCode !== 0) return;
+
+  const { externalTransactionToken } =
+    await createBillingProgramReportingDetailsAndroid(program);
+  const session = await backend.createCheckoutSession({ productId, externalTransactionToken });
+  await openInAppCheckout(session);
+}`}</CodeBlock>
+                <p>
+                  Flutter, KMP, and .NET MAUI use{' '}
+                  <code>BillingProgramAndroid.AlternativeBillingOnly</code>.
+                  Godot uses{' '}
+                  <code>BillingProgramAndroid.ALTERNATIVE_BILLING_ONLY</code>{' '}
+                  and{' '}
+                  <code>
+                    show_alternative_billing_only_information_dialog_android()
+                  </code>
+                  . Call the no-argument notice from a foreground Android
+                  activity. Generate a fresh token for each one-time purchase,
+                  new subscription, or plan change. The backend verifies the
+                  payment and reports the completed transaction to Google within
+                  24 hours.
+                </p>
+                <p>
+                  Apps can share checkout, payment verification, and access
+                  management between Android and iOS. Use the appropriate store
+                  APIs for notices and tokens, and pass the store alongside the
+                  token to the backend so it can apply the correct reporting
+                  rules.
+                </p>
+                <p>
+                  <a href="https://developer.android.com/google/play/billing/alternative/alternative-billing-without-user-choice-in-app">
+                    Google Play Alternative Billing Only integration
+                  </a>
+                </p>
+
                 <h4>Billing Programs API (8.2.1+)</h4>
                 <p>
                   Google Play Billing Library 8.2.0 introduced the{' '}
                   <strong>Billing Programs API</strong>, which replaces the
-                  legacy alternative billing APIs. Use 8.2.1 or later for its
+                  legacy External Offers APIs. Use 8.2.1 or later for its
                   availability, reporting-details, and external-link fixes.
                 </p>
 

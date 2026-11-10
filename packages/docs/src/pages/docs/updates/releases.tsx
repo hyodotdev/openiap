@@ -180,6 +180,30 @@ const REACT_NATIVE_NITRO_CAUSE_RELEASES: readonly ReleaseMetadata[] = [
   },
 ];
 
+const ALTERNATIVE_BILLING_ONLY_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '1.4.0',
+    tag: 'openiap-client-protocol-1.4.0',
+  },
+  { name: 'openiap-apple', version: '4.1.0', tag: '4.1.0' },
+  { name: 'openiap-google', version: '4.1.0', tag: 'google-4.1.0' },
+  {
+    name: 'react-native-iap',
+    version: '17.4.0',
+    tag: 'react-native-iap-17.4.0',
+  },
+  { name: 'expo-iap', version: '6.5.0', tag: 'expo-iap-6.5.0' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '11.4.0',
+    tag: 'flutter-iap-11.4.0',
+  },
+  { name: 'godot-iap', version: '4.4.0', tag: 'godot-iap-4.4.0' },
+  { name: 'kmp-iap', version: '4.3.0', tag: 'kmp-iap-4.3.0' },
+  { name: 'OpenIap.Maui', version: '3.3.0', tag: 'maui-iap-3.3.0' },
+];
+
 const REACT_NATIVE_STRICT_TYPES_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: 'react-native-iap',
@@ -830,6 +854,130 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'alternative-billing-only-2026-11-11',
+      date: new Date('2026-11-11'),
+      element: (
+        <div key="alternative-billing-only-2026-11-11" style={noteCardStyle}>
+          {ALTERNATIVE_BILLING_ONLY_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="alternative-billing-only-2026-11-11" level="h4">
+            November 11, 2026 - Google Play Alternative Billing Only
+          </AnchorLink>
+          <p>
+            Android apps enrolled in Google Play Alternative Billing Only can
+            show the Play information dialog and get the reporting token from
+            every SDK. iOS apps can request the in-app and link-out tokens Apple
+            added for Japan and Brazil. See the{' '}
+            <Link to="/docs/features/external-purchase#alternative-billing-only">
+              Alternative Billing Only guide
+            </Link>
+            .
+          </p>
+          <ClientProtocolChange
+            version="1.4.0"
+            source="api-android.graphql#L94-L101"
+            diff={`+ enum BillingProgramAndroid { ALTERNATIVE_BILLING_ONLY }
++ showAlternativeBillingOnlyInformationDialogAndroid: BillingResultAndroid!
++ enum ExternalPurchaseCustomLinkTokenTypeIOS { InApp, LinkOut }`}
+          >
+            The new program&apos;s wire value is{' '}
+            <code>alternative-billing-only</code>; the new iOS token types are{' '}
+            <code>in-app</code> and <code>link-out</code>. Existing values and
+            defaults are unchanged.
+          </ClientProtocolChange>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Protocols and native packages
+          </h5>
+          <ul>
+            <li>
+              <strong>openiap-google 4.1.0</strong>
+              <ul>
+                <li>
+                  <code>initConnection</code> with{' '}
+                  <code>enableBillingProgramAndroid</code> set to{' '}
+                  <code>alternative-billing-only</code> opens a dedicated Play
+                  connection. On it,{' '}
+                  <code>isBillingProgramAvailableAndroid</code>,{' '}
+                  <code>
+                    showAlternativeBillingOnlyInformationDialogAndroid
+                  </code>
+                  , and <code>createBillingProgramReportingDetailsAndroid</code>{' '}
+                  use Play&apos;s Alternative Billing Only APIs.
+                </li>
+                <li>
+                  That connection rejects <code>requestPurchase</code> with a
+                  developer error, because Play Billing is not offered in this
+                  program. On a standard connection the three calls above fail
+                  with a developer error for this program.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>openiap-apple 4.1.0</strong>:{' '}
+              <code>getExternalPurchaseCustomLinkTokenIOS</code> accepts{' '}
+              <code>in-app</code> and <code>link-out</code> for Japan (iOS 26.4
+              or later) and Brazil (iOS 26.5 or later).
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul>
+            <li>
+              <strong>
+                react-native-iap 17.4.0, expo-iap 6.5.0, flutter_inapp_purchase
+                11.4.0, godot-iap 4.4.0, kmp-iap 4.3.0, and OpenIap.Maui 3.3.0
+              </strong>
+              : each exposes the Alternative Billing Only program value and the
+              information dialog call. The React Native and Expo{' '}
+              <code>useIAP</code> hook returns{' '}
+              <code>showAlternativeBillingOnlyInformationDialogAndroid</code>.
+              Each also accepts the two new iOS token types.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul>
+            <li>
+              The app must be enrolled in the program with Google. Show the
+              dialog before each checkout, continue only on response code{' '}
+              <code>0</code>, and report the transaction token from your backend
+              within 24 hours.
+            </li>
+            <li>
+              Existing Billing Choice, External Offer, External Content Link,
+              and External Payments flows are unchanged.
+            </li>
+            <li>
+              godot-iap: a failed{' '}
+              <code>is_billing_program_available_android</code> or{' '}
+              <code>create_billing_program_reporting_details_android</code> call
+              now also emits <code>purchase_error</code>, for every program. The
+              typed default result is still returned.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <div
+            style={{
+              border: '1px solid var(--border-color)',
+              borderRadius: '0.5rem',
+              padding: '1rem',
+            }}
+          >
+            <ul style={{ marginBottom: 0, paddingLeft: '1.25rem' }}>
+              {ALTERNATIVE_BILLING_ONLY_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  >
+                    {getReleaseLabel(release)}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
     {
       id: 'react-native-strict-types-2026-11-09',
       date: new Date('2026-11-09'),

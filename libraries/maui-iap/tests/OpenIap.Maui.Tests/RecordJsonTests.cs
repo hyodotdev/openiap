@@ -11,6 +11,26 @@ namespace OpenIap.Maui.Tests;
 
 public class RecordJsonTests
 {
+    [Theory]
+    [InlineData(ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition, "acquisition")]
+    [InlineData(ExternalPurchaseCustomLinkTokenTypeIOS.Services, "services")]
+    [InlineData(ExternalPurchaseCustomLinkTokenTypeIOS.InApp, "in-app")]
+    [InlineData(ExternalPurchaseCustomLinkTokenTypeIOS.LinkOut, "link-out")]
+    public void ExternalPurchaseTokenTypeUsesItsWireValue(ExternalPurchaseCustomLinkTokenTypeIOS tokenType, string wireValue)
+    {
+        Assert.Equal(wireValue, tokenType.ToJson());
+        Assert.Equal(tokenType, JsonSerializer.Deserialize<ExternalPurchaseCustomLinkTokenTypeIOS>($"\"{wireValue}\"", Options));
+    }
+
+    [Fact]
+    public void AlternativeBillingOnlyProgramUsesItsWireValue()
+    {
+        Assert.Equal("alternative-billing-only", BillingProgramAndroid.AlternativeBillingOnly.ToJson());
+        Assert.Equal(
+            BillingProgramAndroid.AlternativeBillingOnly,
+            JsonSerializer.Deserialize<BillingProgramAndroid>("\"alternative-billing-only\"", Options));
+    }
+
     [Fact]
     public void OwnershipEvidenceKeepsAnInconclusiveVerdict()
     {
