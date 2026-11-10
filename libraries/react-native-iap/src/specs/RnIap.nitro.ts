@@ -22,7 +22,6 @@ import type {
   InitConnectionConfig,
   ExternalPurchaseCustomLinkNoticeResultIOS,
   ExternalPurchaseCustomLinkTokenResultIOS,
-  // Two values ('acquisition' | 'services'), so it imports directly.
   ExternalPurchaseCustomLinkTokenTypeIOS,
   ExternalPurchaseLinkResultIOS,
   ExternalPurchaseNoticeResultIOS,
@@ -93,7 +92,8 @@ export type BillingProgramAndroid =
   | 'external-offer'
   | 'external-payments'
   | 'user-choice-billing'
-  | 'billing-choice';
+  | 'billing-choice'
+  | 'alternative-billing-only';
 
 export type BillingChoiceImageLayoutAndroid =
   | 'rectangular-four-by-one'
@@ -1147,6 +1147,8 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
     params: NitroBillingProgramInformationDialogParamsAndroid,
   ): Promise<NitroBillingResultAndroid>;
 
+  showAlternativeBillingOnlyInformationDialogAndroid(): Promise<NitroBillingResultAndroid>;
+
   /**
    * Show Play Billing in-app messages, such as transactional subscription updates.
    *
@@ -1221,7 +1223,7 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
    * Get external purchase token for reporting to Apple (iOS 18.1+).
    * Use this token with Apple's External Purchase Server API to report transactions.
    *
-   * @param tokenType - Token type: 'acquisition' (new customers) or 'services' (existing customers)
+   * @param tokenType - Reporting token type for the app's storefront.
    * @returns Promise<ExternalPurchaseCustomLinkTokenResultIOS> - Result with token string or error
    * @platform iOS
    * @see https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)

@@ -254,6 +254,8 @@ export interface RnIapProtocol extends HybridObject<{
   showBillingProgramInformationDialogAndroid(
     params: NitroBillingProgramInformationDialogParamsAndroid,
   ): Promise<NitroBillingResultAndroidOutcome>;
+  showAlternativeBillingOnlyInformationDialogAndroid(): Promise<NitroBillingResultAndroidOutcome>;
+
   showInAppMessagesAndroid(
     params?: NitroInAppMessageParamsAndroid | null,
   ): Promise<NitroInAppMessageResultAndroidOutcome>;

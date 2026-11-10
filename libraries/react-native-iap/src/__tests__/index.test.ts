@@ -72,6 +72,9 @@ const mockIap: any = {
     debugMessage: null,
     subResponseCode: 'no-applicable-sub-response-code',
   })),
+  showAlternativeBillingOnlyInformationDialogAndroid: jest.fn(async () => ({
+    responseCode: 1,
+  })),
   showInAppMessagesAndroid: jest.fn(async () => ({
     responseCode: 'no-action-needed',
     purchaseToken: null,
@@ -4034,6 +4037,33 @@ describe('Public API (src/index.ts)', () => {
       });
     });
 
+    it('forwards the Alternative Billing Only notice with no reporting token', async () => {
+      Object.assign(Platform, {OS: 'android'});
+      await expect(
+        IAP.showAlternativeBillingOnlyInformationDialogAndroid(),
+      ).resolves.toEqual({
+        responseCode: 1,
+      });
+      expect(
+        mockIap.showAlternativeBillingOnlyInformationDialogAndroid,
+      ).toHaveBeenCalledWith();
+      expect(
+        mockIap.showBillingProgramInformationDialogAndroid,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('rejects the Alternative Billing Only notice on non-Android', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      await expect(
+        IAP.showAlternativeBillingOnlyInformationDialogAndroid(),
+      ).rejects.toThrow(
+        'Alternative Billing Only is only supported on Android',
+      );
+      expect(
+        mockIap.showAlternativeBillingOnlyInformationDialogAndroid,
+      ).not.toHaveBeenCalled();
+    });
+
     describe('showBillingProgramInformationDialogAndroid', () => {
       it('should show Billing Choice information dialog with default program', async () => {
         Object.assign(Platform, {OS: 'android'});
@@ -4233,44 +4263,28 @@ describe('Public API (src/index.ts)', () => {
     });
 
     describe('getExternalPurchaseCustomLinkTokenIOS', () => {
-      it('should return token for acquisition type on iOS', async () => {
-        Object.assign(Platform, {OS: 'ios'});
-        const mockResult = {
-          token: 'external-purchase-token-123',
-          error: null,
-        };
-        mockIap.getExternalPurchaseCustomLinkTokenIOS = jest.fn(
-          async () => mockResult,
-        );
+      it.each(['acquisition', 'services', 'in-app', 'link-out'] as const)(
+        'should forward the %s token type on iOS',
+        async (tokenType) => {
+          Object.assign(Platform, {OS: 'ios'});
+          const mockResult = {
+            token: 'external-purchase-token-123',
+            error: null,
+          };
+          mockIap.getExternalPurchaseCustomLinkTokenIOS = jest.fn(
+            async () => mockResult,
+          );
 
-        const result =
-          await IAP.getExternalPurchaseCustomLinkTokenIOS('acquisition');
+          const result =
+            await IAP.getExternalPurchaseCustomLinkTokenIOS(tokenType);
 
-        expect(result.token).toBe('external-purchase-token-123');
-        expect(result.error).toBeNull();
-        expect(
-          mockIap.getExternalPurchaseCustomLinkTokenIOS,
-        ).toHaveBeenCalledWith('acquisition');
-      });
-
-      it('should return token for services type on iOS', async () => {
-        Object.assign(Platform, {OS: 'ios'});
-        const mockResult = {
-          token: 'services-token-456',
-          error: null,
-        };
-        mockIap.getExternalPurchaseCustomLinkTokenIOS = jest.fn(
-          async () => mockResult,
-        );
-
-        const result =
-          await IAP.getExternalPurchaseCustomLinkTokenIOS('services');
-
-        expect(result.token).toBe('services-token-456');
-        expect(
-          mockIap.getExternalPurchaseCustomLinkTokenIOS,
-        ).toHaveBeenCalledWith('services');
-      });
+          expect(result.token).toBe('external-purchase-token-123');
+          expect(result.error).toBeNull();
+          expect(
+            mockIap.getExternalPurchaseCustomLinkTokenIOS,
+          ).toHaveBeenCalledWith(tokenType);
+        },
+      );
 
       it('should throw on non-iOS platforms', async () => {
         Object.assign(Platform, {OS: 'android'});
@@ -4635,6 +4649,11 @@ describe('Public API (src/index.ts)', () => {
           IAP.showBillingProgramInformationDialogAndroid({
             externalTransactionToken: 'opaque',
           }),
+      },
+      {
+        name: 'Alternative Billing Only dialog',
+        nativeMethod: 'showAlternativeBillingOnlyInformationDialogAndroid',
+        invoke: () => IAP.showAlternativeBillingOnlyInformationDialogAndroid(),
       },
       {
         name: 'in-app messages',

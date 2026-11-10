@@ -175,8 +175,7 @@ export const fetchProducts = async (
   const normalizedType = normalizeProductQueryType(type);
   const nitroProducts = await getModule().fetchProducts(skus, normalizedType);
   return mapProducts(nitroProducts, normalizedType) as
-    | Product[]
-    | ProductSubscription[];
+    Product[] | ProductSubscription[];
 };
 
 export const requestPurchase: MutationField<'requestPurchase'> = async (
@@ -376,6 +375,11 @@ export const createBillingProgramReportingDetailsAndroid: MutationField<
 export const showBillingProgramInformationDialogAndroid: MutationField<
   'showBillingProgramInformationDialogAndroid'
 > = async () => unsupported('showBillingProgramInformationDialogAndroid');
+export const showAlternativeBillingOnlyInformationDialogAndroid: MutationField<
+  'showAlternativeBillingOnlyInformationDialogAndroid'
+> = async () =>
+  unsupported('showAlternativeBillingOnlyInformationDialogAndroid');
+
 export const showInAppMessagesAndroid: MutationField<
   'showInAppMessagesAndroid'
 > = async () => unsupported('showInAppMessagesAndroid');

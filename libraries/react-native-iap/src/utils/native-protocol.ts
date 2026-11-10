@@ -43,6 +43,7 @@ const operations = {
   getBillingChoiceInfoAndroid: false,
   createBillingProgramReportingDetailsAndroid: false,
   showBillingProgramInformationDialogAndroid: false,
+  showAlternativeBillingOnlyInformationDialogAndroid: false,
   showInAppMessagesAndroid: false,
   launchExternalLinkAndroid: false,
   canPresentExternalPurchaseNoticeIOS: false,

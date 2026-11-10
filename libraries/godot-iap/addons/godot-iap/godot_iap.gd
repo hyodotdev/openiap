@@ -2156,7 +2156,7 @@ func is_eligible_for_external_purchase_custom_link_ios() -> bool:
 ## Kicks off the native async request and awaits the next `products_fetched`
 ## emit tagged with method == "getExternalPurchaseCustomLinkTokenIOS".
 ## Returns null on error or on unsupported platforms (i.e. iOS < 18.1).
-## @param token_type: String "acquisition" | "services"
+## @param token_type: String "acquisition", "services", "in-app", or "link-out"
 ## @return Variant Types.ExternalPurchaseCustomLinkTokenResultIOS or null
 ##
 ## See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
@@ -2245,10 +2245,12 @@ func _consume_purchase_android_raw(purchase_token: String) -> Dictionary:
 ## See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
 func is_billing_program_available_android(billing_program) -> Variant:
 	if _native_plugin and _platform == "Android":
-		var result_json = _native_plugin.call("isBillingProgramAvailableAndroid", _billing_program_to_raw(billing_program))
+		var raw_program = _billing_program_to_raw(billing_program)
+		var result_json = _native_plugin.call("isBillingProgramAvailableAndroid", raw_program)
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
-			return Types.BillingProgramAvailabilityResultAndroid.from_dict(result)
+			if not _report_billing_program_error("isBillingProgramAvailableAndroid", result):
+				return Types.BillingProgramAvailabilityResultAndroid.from_dict(result)
 	var default_result = Types.BillingProgramAvailabilityResultAndroid.new()
 	default_result.is_available = false
 	default_result.billing_program = billing_program
@@ -2300,20 +2302,28 @@ func launch_external_link_android(params) -> bool:
 ## See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
 func create_billing_program_reporting_details_android(billing_program, developer_billing_type = null) -> Variant:
 	if _native_plugin and _platform == "Android":
+		var raw_program = _billing_program_to_raw(billing_program)
 		var result_json: String
 		if developer_billing_type == null:
-			result_json = _native_plugin.call("createBillingProgramReportingDetailsAndroid", _billing_program_to_raw(billing_program))
+			result_json = _native_plugin.call("createBillingProgramReportingDetailsAndroid", raw_program)
 		else:
 			result_json = _native_plugin.call("createBillingProgramReportingDetailsAndroidWithType", JSON.stringify({
-				"billingProgram": _billing_program_to_raw(billing_program),
+				"billingProgram": raw_program,
 				"developerBillingType": _developer_billing_type_to_raw(developer_billing_type)
 			}))
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
-			return Types.BillingProgramReportingDetailsAndroid.from_dict(result)
+			if not _report_billing_program_error("createBillingProgramReportingDetailsAndroid", result):
+				return Types.BillingProgramReportingDetailsAndroid.from_dict(result)
 	var default_result = Types.BillingProgramReportingDetailsAndroid.new()
 	default_result.billing_program = billing_program
 	return default_result
+
+func _report_billing_program_error(method: String, result: Dictionary) -> bool:
+	if result.get("success", true):
+		return false
+	_purchase_failure(String(result.get("code", "service-error")), String(result.get("error", "Billing program request failed")), {"method": method})
+	return true
 
 ## Show Google's mandatory information dialog before a developer-rendered,
 ## in-app Billing Choice screen (Android 9.1.0+).
@@ -2322,21 +2332,31 @@ func create_billing_program_reporting_details_android(billing_program, developer
 ##
 ## See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
 func show_billing_program_information_dialog_android(params) -> Variant:
+	return _show_billing_dialog_android("showBillingProgramInformationDialogAndroid", params)
+
+## Show the Google Play Alternative Billing Only notice before checkout.
+## @return Types.BillingResultAndroid
+##
+## See: https://openiap.dev/docs/apis/android/show-alternative-billing-only-information-dialog-android
+func show_alternative_billing_only_information_dialog_android() -> Variant:
+	return _show_billing_dialog_android("showAlternativeBillingOnlyInformationDialogAndroid")
+
+func _show_billing_dialog_android(method: String, params = null) -> Variant:
 	# A failure must never read as response code 0 (OK); 6 is Play's ERROR.
 	var failed = Types.BillingResultAndroid.new()
 	failed.response_code = 6
 	if not (_native_plugin and _platform == "Android"):
 		failed.debug_message = "The billing information dialog requires the Android native plugin"
-		_purchase_failure("not-prepared" if _platform == "Android" else "feature-not-supported", failed.debug_message, {"method": "showBillingProgramInformationDialogAndroid"})
+		_purchase_failure("not-prepared" if _platform == "Android" else "feature-not-supported", failed.debug_message, {"method": method})
 		return failed
-	var result_json = _native_plugin.call("showBillingProgramInformationDialogAndroid", JSON.stringify(params.to_dict()))
+	var result_json = _native_plugin.call(method) if params == null else _native_plugin.call(method, JSON.stringify(params.to_dict()))
 	var result = JSON.parse_string(result_json)
 	if not result is Dictionary:
 		result = {"code": "billing-response-json-parse-error", "error": "Invalid billing information dialog result"}
 	if result.get("success", false):
 		return Types.BillingResultAndroid.from_dict(result)
 	failed.debug_message = String(result.get("error", "The billing information dialog failed"))
-	_purchase_failure(String(result.get("code", "service-error")), failed.debug_message, {"method": "showBillingProgramInformationDialogAndroid"})
+	_purchase_failure(String(result.get("code", "service-error")), failed.debug_message, {"method": method})
 	return failed
 
 ## Show Play Billing in-app messages (Android).

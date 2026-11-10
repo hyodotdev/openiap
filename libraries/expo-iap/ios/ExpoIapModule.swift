@@ -481,7 +481,7 @@ public final class ExpoIapModule: Module {
                 guard let type = ExternalPurchaseCustomLinkTokenTypeIOS(rawValue: tokenType) else {
                     throw PurchaseError.make(
                         code: .developerError,
-                        message: "Invalid token type: \(tokenType). Must be 'acquisition' or 'services'"
+                        message: "Invalid token type: \(tokenType)"
                     )
                 }
                 let result = try await OpenIapModule.shared.getExternalPurchaseCustomLinkTokenIOS(type)

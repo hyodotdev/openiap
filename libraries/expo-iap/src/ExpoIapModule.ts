@@ -74,6 +74,7 @@ export type ExpoIapNativeModule = NativeEventModule &
     | 'presentExternalPurchaseNoticeSheetIOS'
     | 'showBillingProgramInformationDialogAndroid'
     | 'showExternalPurchaseCustomLinkNoticeIOS'
+    | 'showAlternativeBillingOnlyInformationDialogAndroid'
     | 'showInAppMessagesAndroid'
     | 'syncIOS'
     | 'verifyPurchase'

@@ -1725,6 +1725,11 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
         'showBillingProgramInformationDialogAndroid',
       );
     },
+    async showAlternativeBillingOnlyInformationDialogAndroid(): Promise<never> {
+      return throwUnsupportedFeature(
+        'showAlternativeBillingOnlyInformationDialogAndroid',
+      );
+    },
     async showInAppMessagesAndroid(): Promise<never> {
       return throwUnsupportedFeature('showInAppMessagesAndroid');
     },

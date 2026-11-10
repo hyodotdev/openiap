@@ -63,6 +63,10 @@ class CommunityOptionalOperationsTest {
                     assertEquals("external-token", (args?.get(1) as dev.hyo.openiap.BillingProgramInformationDialogParamsAndroid).externalTransactionToken)
                     dev.hyo.openiap.BillingResultAndroid(debugMessage = "opened", responseCode = 0)
                 }
+                "showAlternativeBillingOnlyInformationDialog" -> {
+                    assertEquals(activity, args?.get(0))
+                    dev.hyo.openiap.BillingResultAndroid(debugMessage = "noticed", responseCode = 0)
+                }
                 "showInAppMessages" -> {
                     assertEquals(activity, args?.get(0))
                     assertEquals(null, args?.get(1))
@@ -89,10 +93,11 @@ class CommunityOptionalOperationsTest {
         assertEquals("loyalty", delegate.getBillingChoiceInfoAndroid(GetBillingChoiceInfoParamsAndroid(userLocale = "en-US")).playBillingLoyaltyInfo)
         assertEquals("external-token", delegate.createBillingProgramReportingDetailsAndroid(BillingProgramAndroid.BillingChoice, DeveloperBillingTypeAndroid.InApp).externalTransactionToken)
         assertEquals("opened", delegate.showBillingProgramInformationDialogAndroid(BillingProgramInformationDialogParamsAndroid(externalTransactionToken = "external-token")).debugMessage)
+        assertEquals("noticed", delegate.showAlternativeBillingOnlyInformationDialogAndroid().debugMessage)
         assertEquals("opaque-token", delegate.showInAppMessagesAndroid(null).purchaseToken)
         assertTrue(delegate.launchExternalLinkAndroid(linkParams()))
         assertNull(delegate.openRedeemOfferCode())
-        assertEquals(9, calls.size)
+        assertEquals(10, calls.size)
     }
 
     @Test
@@ -134,6 +139,7 @@ class CommunityOptionalOperationsTest {
             val operations = listOf<suspend () -> Any?>(
                 { ui.showInAppMessagesAndroid(null) },
                 { ui.showBillingProgramInformationDialogAndroid(BillingProgramInformationDialogParamsAndroid(externalTransactionToken = "token")) },
+                { ui.showAlternativeBillingOnlyInformationDialogAndroid() },
                 { ui.launchExternalLinkAndroid(linkParams()) },
             ) + if (store == Store.UNKNOWN) listOf<suspend () -> Any?>({ ui.openRedeemOfferCode() }) else emptyList()
             for (operation in operations) {
@@ -195,6 +201,7 @@ class CommunityOptionalOperationsTest {
                 { delegate.getBillingChoiceInfoAndroid(GetBillingChoiceInfoParamsAndroid()) },
                 { delegate.createBillingProgramReportingDetailsAndroid(BillingProgramAndroid.BillingChoice, null) },
                 { delegate.showBillingProgramInformationDialogAndroid(BillingProgramInformationDialogParamsAndroid(externalTransactionToken = "token")) },
+                { delegate.showAlternativeBillingOnlyInformationDialogAndroid() },
             )) assertEquals(ErrorCode.FeatureNotSupported, assertFailsWith<PurchaseException> { operation() }.error.code)
         }
     }

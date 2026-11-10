@@ -241,6 +241,11 @@ class HybridRnIapProtocol: HybridRnIapProtocolSpec() {
             { NitroBillingResultAndroidOutcome(value = it, error = null) },
             { NitroBillingResultAndroidOutcome(value = null, error = it) })
 
+    override fun showAlternativeBillingOnlyInformationDialogAndroid(): Promise<NitroBillingResultAndroidOutcome> =
+        lift({ implementation.showAlternativeBillingOnlyInformationDialogAndroid() },
+            { NitroBillingResultAndroidOutcome(value = it, error = null) },
+            { NitroBillingResultAndroidOutcome(value = null, error = it) })
+
     override fun showInAppMessagesAndroid(params: Variant_NullType_NitroInAppMessageParamsAndroid?): Promise<NitroInAppMessageResultAndroidOutcome> =
         lift({ implementation.showInAppMessagesAndroid(params) },
             { NitroInAppMessageResultAndroidOutcome(value = it, error = null) },

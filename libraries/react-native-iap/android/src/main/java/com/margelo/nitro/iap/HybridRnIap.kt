@@ -2189,6 +2189,31 @@ class HybridRnIap : HybridRnIapSpec() {
         }
     }
 
+    override fun showAlternativeBillingOnlyInformationDialogAndroid(): Promise<NitroBillingResultAndroid> =
+        Promise.async {
+            RnIapLog.payload("showAlternativeBillingOnlyInformationDialogAndroid", null)
+            try {
+                val activity = withContext(Dispatchers.Main) {
+                    runCatching { context.currentActivity }.getOrNull()
+                } ?: throw OpenIapException(toPurchaseError(OpenIapError.DeveloperError(), debugMessage = "Activity not available"))
+                val result = withContext(Dispatchers.Main) {
+                    openIapStore.showAlternativeBillingOnlyInformationDialog(activity)
+                }
+                RnIapLog.result("showAlternativeBillingOnlyInformationDialogAndroid", mapOf("responseCode" to result.responseCode))
+                NitroBillingResultAndroid(
+                    responseCode = result.responseCode.toDouble(),
+                    debugMessage = result.debugMessage.wrapVariant(),
+                    subResponseCode = mapSubResponseCode(result.subResponseCode)
+                )
+            } catch (err: CancellationException) {
+                throw err
+            } catch (err: Exception) {
+                RnIapLog.failure("showAlternativeBillingOnlyInformationDialogAndroid", err)
+                val errorType = parseOpenIapError(err)
+                throw OpenIapException(toPurchaseError(errorType, debugMessage = err.message), err)
+            }
+        }
+
     override fun showInAppMessagesAndroid(
         params: Variant_NullType_NitroInAppMessageParamsAndroid?
     ): Promise<NitroInAppMessageResultAndroid> {
@@ -2290,6 +2315,7 @@ class HybridRnIap : HybridRnIapSpec() {
             BillingProgramAndroid.EXTERNAL_OFFER -> OpenIapBillingProgramAndroid.ExternalOffer
             BillingProgramAndroid.EXTERNAL_PAYMENTS -> OpenIapBillingProgramAndroid.ExternalPayments
             BillingProgramAndroid.USER_CHOICE_BILLING -> OpenIapBillingProgramAndroid.UserChoiceBilling
+            BillingProgramAndroid.ALTERNATIVE_BILLING_ONLY -> OpenIapBillingProgramAndroid.AlternativeBillingOnly
             BillingProgramAndroid.BILLING_CHOICE -> OpenIapBillingProgramAndroid.BillingChoice
         }
     }

@@ -191,7 +191,7 @@ export type BillingChoiceScreenTypeAndroid = 'unspecified' | 'developer-rendered
  * BILLING_CHOICE added in OpenIAP 2.1.0 / openiap-google 2.3.0
  * (requires Play Billing 9.1.0+).
  */
-export type BillingProgramAndroid = 'unspecified' | 'user-choice-billing' | 'external-content-link' | 'external-offer' | 'external-payments' | 'billing-choice';
+export type BillingProgramAndroid = 'unspecified' | 'user-choice-billing' | 'external-content-link' | 'external-offer' | 'external-payments' | 'billing-choice' | 'alternative-billing-only';
 
 /**
  * Result of checking billing program availability (Android)
@@ -573,7 +573,7 @@ export interface ExternalPurchaseCustomLinkTokenResultIOS {
  * Used to request different types of external purchase tokens for reporting to Apple.
  * Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
  */
-export type ExternalPurchaseCustomLinkTokenTypeIOS = 'acquisition' | 'services';
+export type ExternalPurchaseCustomLinkTokenTypeIOS = 'acquisition' | 'services' | 'in-app' | 'link-out';
 
 /** Result of presenting an external purchase link */
 export interface ExternalPurchaseLinkResultIOS {
@@ -699,6 +699,7 @@ export interface InitConnectionConfig {
    * - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+)
    * - BILLING_CHOICE: Google-rendered or developer-rendered billing choice
    *   (OpenIAP 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
+   * - ALTERNATIVE_BILLING_ONLY: Exclusive Google Play connection for in-app alternative billing
    */
   enableBillingProgramAndroid?: (BillingProgramAndroid | null);
 }
@@ -789,6 +790,7 @@ export interface Mutation {
    * Returns external transaction token needed for reporting external transactions.
    * developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted,
    * native Android defaults it to IN_APP.
+   * For ALTERNATIVE_BILLING_ONLY, call after the information dialog succeeds; developerBillingType is ignored.
    * The Billing Choice extension is available in OpenIAP 2.1.0 /
    * openiap-google 2.3.0 (requires Play Billing 9.1.0+).
    * Throws OpenIapError.NotPrepared if billing client not ready.
@@ -821,6 +823,7 @@ export interface Mutation {
    * Introduced in Google Play Billing Library 8.2.0. External Offer and External
    * Content Link integrations must use 8.2.1+ because 8.2.1 fixes this API.
    * Returns availability result with isAvailable flag.
+   * For ALTERNATIVE_BILLING_ONLY, connect with that program before checking.
    * Throws OpenIapError.NotPrepared if billing client not ready.
    * See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
    */
@@ -869,6 +872,13 @@ export interface Mutation {
    * See: https://openiap.dev/docs/apis/restore-purchases
    */
   restorePurchases: Promise<void>;
+  /**
+   * Show the Google Play Alternative Billing Only information dialog before each checkout attempt.
+   * Continue only when responseCode is OK (0).
+   * See: https://openiap.dev/docs/features/external-purchase#alternative-billing-only
+   * Available in OpenIAP 1.4.0 / openiap-google 4.1.0.
+   */
+  showAlternativeBillingOnlyInformationDialogAndroid: Promise<BillingResultAndroid>;
   /**
    * Show Google's mandatory information dialog before a developer-rendered,
    * in-app Billing Choice screen.
@@ -2365,6 +2375,7 @@ export type MutationArgsMap = {
   presentExternalPurchaseNoticeSheetIOS: never;
   requestPurchase: MutationRequestPurchaseArgs;
   restorePurchases: never;
+  showAlternativeBillingOnlyInformationDialogAndroid: never;
   showBillingProgramInformationDialogAndroid: MutationShowBillingProgramInformationDialogAndroidArgs;
   showExternalPurchaseCustomLinkNoticeIOS: MutationShowExternalPurchaseCustomLinkNoticeIosArgs;
   showInAppMessagesAndroid: MutationShowInAppMessagesAndroidArgs;

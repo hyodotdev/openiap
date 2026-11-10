@@ -866,7 +866,7 @@ import StoreKit
                 guard let tokenType = ExternalPurchaseCustomLinkTokenTypeIOS(rawValue: tokenTypeString) else {
                     let error = PurchaseError(
                         code: .developerError,
-                        message: "Invalid token type: \(tokenTypeString). Use 'acquisition' or 'services'"
+                        message: "Invalid token type: \(tokenTypeString)"
                     )
                     throw error
                 }

@@ -345,6 +345,10 @@ describe('Amazon Vega public API', () => {
           externalTransactionToken: 'token',
         }),
     ],
+    [
+      'showAlternativeBillingOnlyInformationDialogAndroid',
+      () => Kepler.showAlternativeBillingOnlyInformationDialogAndroid(),
+    ],
     ['showInAppMessagesAndroid', () => Kepler.showInAppMessagesAndroid()],
   ])('rejects unsupported %s calls', async (_api, call) => {
     await expect(call()).rejects.toThrow('not supported on Amazon Vega');

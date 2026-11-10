@@ -601,6 +601,9 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     ): BillingResultAndroid =
         module.showBillingProgramInformationDialog(activity, params)
 
+    suspend fun showAlternativeBillingOnlyInformationDialog(activity: Activity): BillingResultAndroid =
+        module.showAlternativeBillingOnlyInformationDialog(activity)
+
     /**
      * Show Play billing in-app messages such as payment issues or price-change confirmations.
      *

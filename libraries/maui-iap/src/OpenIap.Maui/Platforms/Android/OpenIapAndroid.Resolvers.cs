@@ -151,6 +151,14 @@ internal sealed partial class OpenIapAndroid
             ?? throw OpenIapErrorMapper.Wrap(ErrorCode.Unknown, "Empty showBillingProgramInformationDialog result");
     }
 
+    public async Task<BillingResultAndroid> ShowAlternativeBillingOnlyInformationDialogAndroidAsync()
+    {
+        RefreshCurrentActivity();
+        var result = await Invoke(cb => _module.ShowAlternativeBillingOnlyInformationDialogAndroid(cb));
+        return JsonSerializer.Deserialize<BillingResultAndroid>(result, JsonOptions.Default)
+            ?? throw OpenIapErrorMapper.Wrap(ErrorCode.Unknown, "Empty Alternative Billing Only dialog result");
+    }
+
     public async Task<InAppMessageResultAndroid> ShowInAppMessagesAndroidAsync(InAppMessageParamsAndroid? @params = null)
     {
         RefreshCurrentActivity();

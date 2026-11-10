@@ -113,10 +113,7 @@ function BillingPrograms() {
               <td>
                 <code>EXTERNAL_OFFER</code>
               </td>
-              <td>
-                For apps offering alternative payment options (replaces
-                ALTERNATIVE_ONLY)
-              </td>
+              <td>For apps that link to an external offer</td>
               <td>8.2.0+</td>
             </tr>
             <tr>
@@ -138,6 +135,20 @@ function BillingPrograms() {
                 billing system or external web link
               </td>
               <td>9.1.0+</td>
+            </tr>
+            <tr>
+              <td>
+                <code>ALTERNATIVE_BILLING_ONLY</code>
+              </td>
+              <td>
+                Offer an in-app alternative billing system without a Play
+                Billing choice. Use a dedicated connection and follow the{' '}
+                <Link to="/docs/features/external-purchase#alternative-billing-only">
+                  Alternative Billing Only flow
+                </Link>
+                .
+              </td>
+              <td>6.1+</td>
             </tr>
           </tbody>
         </table>

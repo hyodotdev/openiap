@@ -190,6 +190,9 @@ describe('useIAP hook', () => {
       expect(hookResult!.showBillingProgramInformationDialogAndroid).toBe(
         AndroidApi.showBillingProgramInformationDialogAndroid,
       );
+      expect(
+        hookResult!.showAlternativeBillingOnlyInformationDialogAndroid,
+      ).toBe(AndroidApi.showAlternativeBillingOnlyInformationDialogAndroid);
       expect(hookResult!.showInAppMessagesAndroid).toBe(
         AndroidApi.showInAppMessagesAndroid,
       );

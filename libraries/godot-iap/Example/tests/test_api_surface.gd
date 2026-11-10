@@ -127,7 +127,7 @@ func test_query_fields_have_wrapper_methods() -> void:
 
 func test_mutation_fields_have_wrapper_methods() -> void:
 	var fields = _collect_fields(Types.Mutation)
-	_assert_true(fields.size() == 23, "Mutation should expose the 23 stable generated fields (got %d)" % fields.size())
+	_assert_true(fields.size() == 24, "Mutation should expose the 24 generated fields (got %d)" % fields.size())
 	for field in fields:
 		_assert_true(
 			GodotIapPlugin.has_method(field["snake_name"]),
@@ -231,9 +231,24 @@ func test_args_helper_shapes() -> void:
 		"is_billing_program_available_android_args should serialize the enum"
 	)
 	_assert_equal(
+		Types.is_billing_program_available_android_args(Types.BillingProgramAndroid.ALTERNATIVE_BILLING_ONLY),
+		{"program": "alternative-billing-only"},
+		"is_billing_program_available_android_args should serialize Alternative Billing Only"
+	)
+	_assert_equal(
 		Types.get_external_purchase_custom_link_token_ios_args(Types.ExternalPurchaseCustomLinkTokenTypeIOS.SERVICES),
 		{"tokenType": "services"},
 		"get_external_purchase_custom_link_token_ios_args should serialize the enum"
+	)
+	_assert_equal(
+		Types.get_external_purchase_custom_link_token_ios_args(Types.ExternalPurchaseCustomLinkTokenTypeIOS.IN_APP),
+		{"tokenType": "in-app"},
+		"The in-app token type should serialize to its wire value"
+	)
+	_assert_equal(
+		Types.get_external_purchase_custom_link_token_ios_args(Types.ExternalPurchaseCustomLinkTokenTypeIOS.LINK_OUT),
+		{"tokenType": "link-out"},
+		"The link-out token type should serialize to its wire value"
 	)
 	_assert_equal(
 		Types.show_external_purchase_custom_link_notice_ios_args(Types.ExternalPurchaseCustomLinkNoticeTypeIOS.BROWSER),

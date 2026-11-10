@@ -83,6 +83,8 @@ enum BillingProgramAndroid {
 	EXTERNAL_PAYMENTS = 4,
 	## Billing Choice program. Allows presenting Google Play Billing alongside an alternative in-app billing system or external web link. Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 	BILLING_CHOICE = 5,
+	## Google Play Alternative Billing Only. Use a dedicated connection, show the information dialog, and obtain a reporting token before starting checkout. Available in OpenIAP 1.4.0 / openiap-google 4.1.0.
+	ALTERNATIVE_BILLING_ONLY = 6,
 }
 
 ## Launch mode for developer billing option (Android) Determines how the external payment URL is launched Available in Google Play Billing Library 8.3.0+
@@ -182,10 +184,14 @@ enum ExternalPurchaseCustomLinkNoticeTypeIOS {
 
 ## Token types for ExternalPurchaseCustomLink (iOS 18.1+). Used to request different types of external purchase tokens for reporting to Apple. Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
 enum ExternalPurchaseCustomLinkTokenTypeIOS {
-	## Token for customer acquisition tracking. Use this when a new customer makes their first purchase through external link.
+	## Acquisition reporting token for the EU custom link flow.
 	ACQUISITION = 0,
-	## Token for ongoing services tracking. Use this for existing customers making additional purchases.
+	## Services reporting token for the EU custom link flow.
 	SERVICES = 1,
+	## Token for an in-app payment provider in Japan (iOS 26.4+) and Brazil (iOS 26.5+). Available in OpenIAP 1.4.0 / openiap-apple 4.1.0.
+	IN_APP = 2,
+	## Token for a payment on the developer's website in Japan (iOS 26.4+) and Brazil (iOS 26.5+). Available in OpenIAP 1.4.0 / openiap-apple 4.1.0.
+	LINK_OUT = 3,
 }
 
 ## User actions on external purchase notice sheet (iOS 17.4+)
@@ -4260,7 +4266,7 @@ class InAppMessageParamsAndroid:
 
 ## Connection initialization configuration
 class InitConnectionConfig:
-	## Enable a specific billing program for Android (7.0+) When set, enables the specified billing program for external transactions. - USER_CHOICE_BILLING: User can select between Google Play or alternative (7.0+) - EXTERNAL_CONTENT_LINK: Link to external content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_OFFER: External offers for digital content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+) - BILLING_CHOICE: Google-rendered or developer-rendered billing choice (OpenIAP 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
+	## Enable a specific billing program for Android (7.0+) When set, enables the specified billing program for external transactions. - USER_CHOICE_BILLING: User can select between Google Play or alternative (7.0+) - EXTERNAL_CONTENT_LINK: Link to external content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_OFFER: External offers for digital content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+) - BILLING_CHOICE: Google-rendered or developer-rendered billing choice (OpenIAP 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+) - ALTERNATIVE_BILLING_ONLY: Exclusive Google Play connection for in-app alternative billing
 	var enable_billing_program_android: Variant = null
 	## Billing Choice renderer configured in Play Console. Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). GOOGLE_RENDERED registers the developer-provided billing listener so OpenIAP can emit the selection event. DEVELOPER_RENDERED omits that listener so the app can render its own choice screen and use the reporting/dialog/link APIs. Must match choiceScreenType returned by isBillingProgramAvailableAndroid. Defaults to GOOGLE_RENDERED.
 	var billing_choice_screen_type_android: _Types.BillingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.GOOGLE_RENDERED
@@ -5805,7 +5811,8 @@ const BILLING_PROGRAM_ANDROID_VALUES = {
 	BillingProgramAndroid.EXTERNAL_CONTENT_LINK: "external-content-link",
 	BillingProgramAndroid.EXTERNAL_OFFER: "external-offer",
 	BillingProgramAndroid.EXTERNAL_PAYMENTS: "external-payments",
-	BillingProgramAndroid.BILLING_CHOICE: "billing-choice"
+	BillingProgramAndroid.BILLING_CHOICE: "billing-choice",
+	BillingProgramAndroid.ALTERNATIVE_BILLING_ONLY: "alternative-billing-only"
 }
 
 const DEVELOPER_BILLING_LAUNCH_MODE_ANDROID_VALUES = {
@@ -5883,7 +5890,9 @@ const EXTERNAL_PURCHASE_CUSTOM_LINK_NOTICE_TYPE_IOS_VALUES = {
 
 const EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_VALUES = {
 	ExternalPurchaseCustomLinkTokenTypeIOS.ACQUISITION: "acquisition",
-	ExternalPurchaseCustomLinkTokenTypeIOS.SERVICES: "services"
+	ExternalPurchaseCustomLinkTokenTypeIOS.SERVICES: "services",
+	ExternalPurchaseCustomLinkTokenTypeIOS.IN_APP: "in-app",
+	ExternalPurchaseCustomLinkTokenTypeIOS.LINK_OUT: "link-out"
 }
 
 const EXTERNAL_PURCHASE_NOTICE_ACTION_VALUES = {
@@ -6100,7 +6109,9 @@ const BILLING_PROGRAM_ANDROID_FROM_STRING = {
 	"external-payments": BillingProgramAndroid.EXTERNAL_PAYMENTS,
 	"EXTERNAL_PAYMENTS": BillingProgramAndroid.EXTERNAL_PAYMENTS,
 	"billing-choice": BillingProgramAndroid.BILLING_CHOICE,
-	"BILLING_CHOICE": BillingProgramAndroid.BILLING_CHOICE
+	"BILLING_CHOICE": BillingProgramAndroid.BILLING_CHOICE,
+	"alternative-billing-only": BillingProgramAndroid.ALTERNATIVE_BILLING_ONLY,
+	"ALTERNATIVE_BILLING_ONLY": BillingProgramAndroid.ALTERNATIVE_BILLING_ONLY
 }
 
 const DEVELOPER_BILLING_LAUNCH_MODE_ANDROID_FROM_STRING = {
@@ -6274,7 +6285,13 @@ const EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_FROM_STRING = {
 	"Acquisition": ExternalPurchaseCustomLinkTokenTypeIOS.ACQUISITION,
 	"services": ExternalPurchaseCustomLinkTokenTypeIOS.SERVICES,
 	"SERVICES": ExternalPurchaseCustomLinkTokenTypeIOS.SERVICES,
-	"Services": ExternalPurchaseCustomLinkTokenTypeIOS.SERVICES
+	"Services": ExternalPurchaseCustomLinkTokenTypeIOS.SERVICES,
+	"in-app": ExternalPurchaseCustomLinkTokenTypeIOS.IN_APP,
+	"IN_APP": ExternalPurchaseCustomLinkTokenTypeIOS.IN_APP,
+	"InApp": ExternalPurchaseCustomLinkTokenTypeIOS.IN_APP,
+	"link-out": ExternalPurchaseCustomLinkTokenTypeIOS.LINK_OUT,
+	"LINK_OUT": ExternalPurchaseCustomLinkTokenTypeIOS.LINK_OUT,
+	"LinkOut": ExternalPurchaseCustomLinkTokenTypeIOS.LINK_OUT
 }
 
 const EXTERNAL_PURCHASE_NOTICE_ACTION_FROM_STRING = {
@@ -6733,7 +6750,7 @@ class Query:
 		const name = "getExternalPurchaseCustomLinkTokenIOS"
 		const snake_name = "get_external_purchase_custom_link_token_ios"
 		class Args:
-			## Token type: acquisition (new customers) or services (existing customers)
+			## Use acquisition and services for the EU flow, or in-app and link-out for Japan (iOS 26.4+) and Brazil (iOS 26.5+).
 			var token_type: _Types.ExternalPurchaseCustomLinkTokenTypeIOS
 
 			static func from_dict(data: Dictionary) -> _Types.Query.getExternalPurchaseCustomLinkTokenIOSField.Args:
@@ -7202,7 +7219,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Check whether a billing program (e.g., External Payments) is available for the current user. Replaces the deprecated isExternalOfferAvailableAsync API. Introduced in Google Play Billing Library 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ because 8.2.1 fixes this API. Returns availability result with isAvailable flag. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
+	## Check whether a billing program (e.g., External Payments) is available for the current user. Replaces the deprecated isExternalOfferAvailableAsync API. Introduced in Google Play Billing Library 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ because 8.2.1 fixes this API. Returns availability result with isAvailable flag. For ALTERNATIVE_BILLING_ONLY, connect with that program before checking. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
 	class isBillingProgramAvailableAndroidField:
 		const name = "isBillingProgramAvailableAndroid"
 		const snake_name = "is_billing_program_available_android"
@@ -7227,7 +7244,7 @@ class Mutation:
 		const return_type = "BillingProgramAvailabilityResultAndroid"
 		const is_array = false
 
-	## Create the reporting details and external transaction token required by a billing program. Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ and create fresh details immediately before every redirect session; do not cache the token for a later redirect. The same token may report multiple purchases made during one External Offer session. Replaces the deprecated createExternalOfferReportingDetailsAsync API. Returns external transaction token needed for reporting external transactions. developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted, native Android defaults it to IN_APP. The Billing Choice extension is available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
+	## Create the reporting details and external transaction token required by a billing program. Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ and create fresh details immediately before every redirect session; do not cache the token for a later redirect. The same token may report multiple purchases made during one External Offer session. Replaces the deprecated createExternalOfferReportingDetailsAsync API. Returns external transaction token needed for reporting external transactions. developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted, native Android defaults it to IN_APP. For ALTERNATIVE_BILLING_ONLY, call after the information dialog succeeds; developerBillingType is ignored. The Billing Choice extension is available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
 	class createBillingProgramReportingDetailsAndroidField:
 		const name = "createBillingProgramReportingDetailsAndroid"
 		const snake_name = "create_billing_program_reporting_details_android"
@@ -7295,6 +7312,15 @@ class Mutation:
 
 			func to_dict() -> Dictionary:
 				return _Types.show_billing_program_information_dialog_android_args(params)
+		const return_type = "BillingResultAndroid"
+		const is_array = false
+
+	## Show the Google Play Alternative Billing Only information dialog before each checkout attempt. Continue only when responseCode is OK (0). See: https://openiap.dev/docs/features/external-purchase#alternative-billing-only Available in OpenIAP 1.4.0 / openiap-google 4.1.0.
+	class showAlternativeBillingOnlyInformationDialogAndroidField:
+		const name = "showAlternativeBillingOnlyInformationDialogAndroid"
+		const snake_name = "show_alternative_billing_only_information_dialog_android"
+		class Args:
+			pass
 		const return_type = "BillingResultAndroid"
 		const is_array = false
 
@@ -7580,7 +7606,7 @@ static func consume_purchase_android_args(purchase_token: String) -> Dictionary:
 	args["purchaseToken"] = purchase_token
 	return args
 
-## Check whether a billing program (e.g., External Payments) is available for the current user. Replaces the deprecated isExternalOfferAvailableAsync API. Introduced in Google Play Billing Library 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ because 8.2.1 fixes this API. Returns availability result with isAvailable flag. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
+## Check whether a billing program (e.g., External Payments) is available for the current user. Replaces the deprecated isExternalOfferAvailableAsync API. Introduced in Google Play Billing Library 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ because 8.2.1 fixes this API. Returns availability result with isAvailable flag. For ALTERNATIVE_BILLING_ONLY, connect with that program before checking. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
 static func is_billing_program_available_android_args(program: _Types.BillingProgramAndroid) -> Dictionary:
 	var args = {}
 	if BILLING_PROGRAM_ANDROID_VALUES.has(program):
@@ -7589,7 +7615,7 @@ static func is_billing_program_available_android_args(program: _Types.BillingPro
 		args["program"] = program
 	return args
 
-## Create the reporting details and external transaction token required by a billing program. Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ and create fresh details immediately before every redirect session; do not cache the token for a later redirect. The same token may report multiple purchases made during one External Offer session. Replaces the deprecated createExternalOfferReportingDetailsAsync API. Returns external transaction token needed for reporting external transactions. developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted, native Android defaults it to IN_APP. The Billing Choice extension is available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
+## Create the reporting details and external transaction token required by a billing program. Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ and create fresh details immediately before every redirect session; do not cache the token for a later redirect. The same token may report multiple purchases made during one External Offer session. Replaces the deprecated createExternalOfferReportingDetailsAsync API. Returns external transaction token needed for reporting external transactions. developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted, native Android defaults it to IN_APP. For ALTERNATIVE_BILLING_ONLY, call after the information dialog succeeds; developerBillingType is ignored. The Billing Choice extension is available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
 static func create_billing_program_reporting_details_android_args(program: _Types.BillingProgramAndroid, developer_billing_type: Variant = null) -> Dictionary:
 	var args = {}
 	if BILLING_PROGRAM_ANDROID_VALUES.has(program):
@@ -7622,6 +7648,10 @@ static func show_billing_program_information_dialog_android_args(params: _Types.
 		else:
 			args["params"] = params
 	return args
+
+## Show the Google Play Alternative Billing Only information dialog before each checkout attempt. Continue only when responseCode is OK (0). See: https://openiap.dev/docs/features/external-purchase#alternative-billing-only Available in OpenIAP 1.4.0 / openiap-google 4.1.0.
+static func show_alternative_billing_only_information_dialog_android_args() -> Dictionary:
+	return {}
 
 ## Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations. OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0). Returns a response code and, when the subscription status changes, the related purchase token. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-in-app-messages-android
 static func show_in_app_messages_android_args(params: Variant = null) -> Dictionary:

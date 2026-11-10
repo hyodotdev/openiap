@@ -899,6 +899,21 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     }
 
     @UsedByGodot
+    fun showAlternativeBillingOnlyInformationDialogAndroid(): String {
+        if (!isInitialized) return notInitializedJson()
+        val activity = activity
+            ?: return failureJson(OpenIapError.MissingCurrentActivity.CODE, "Activity not available")
+        return runBlocking {
+            try {
+                val result = store.showAlternativeBillingOnlyInformationDialog(activity)
+                JSONObject(result.toJson()).put("success", true).toString()
+            } catch (e: Exception) {
+                failureJson(e)
+            }
+        }
+    }
+
+    @UsedByGodot
     fun showInAppMessagesAndroid(paramsJson: String): String {
         GodotIapLog.payload("showInAppMessagesAndroid", paramsJson)
 
@@ -1060,6 +1075,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             "external-content-link" -> OpenIapBillingProgram.ExternalContentLink
             "external-payments" -> OpenIapBillingProgram.ExternalPayments
             "user-choice-billing" -> OpenIapBillingProgram.UserChoiceBilling
+            "alternative-billing-only" -> OpenIapBillingProgram.AlternativeBillingOnly
             "billing-choice" -> OpenIapBillingProgram.BillingChoice
             else -> OpenIapBillingProgram.Unspecified
         }

@@ -732,6 +732,10 @@ void main() {
     expect(mutation.openRedeemOfferCode, isNotNull);
     expect(mutation.requestPurchase, isNotNull);
     expect(mutation.restorePurchases, isNotNull);
+    expect(
+      mutation.showAlternativeBillingOnlyInformationDialogAndroid,
+      isNotNull,
+    );
     expect(mutation.showBillingProgramInformationDialogAndroid, isNotNull);
     expect(mutation.showInAppMessagesAndroid, isNotNull);
     expect(mutation.showManageSubscriptionsIOS, isNotNull);

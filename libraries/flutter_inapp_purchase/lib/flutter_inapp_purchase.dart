@@ -2592,6 +2592,10 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         isAvailable: false,
       );
     } catch (error) {
+      // A wrong connection mode must not read as "not eligible".
+      if (program == gentype.BillingProgramAndroid.AlternativeBillingOnly) {
+        rethrow;
+      }
       debugPrint('isBillingProgramAvailableAndroid error: $error');
       return gentype.BillingProgramAvailabilityResultAndroid(
         billingProgram: program,
@@ -2700,6 +2704,30 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
       debugPrint('showBillingProgramInformationDialogAndroid error: $error');
       rethrow;
     }
+  }
+
+  /// Show the Google Play Alternative Billing Only notice before checkout.
+  Future<gentype.BillingResultAndroid>
+      showAlternativeBillingOnlyInformationDialogAndroid() async {
+    if (!_platform.isAndroid) {
+      throw PurchaseError(
+        code: gentype.ErrorCode.IapNotAvailable,
+        message:
+            'showAlternativeBillingOnlyInformationDialogAndroid only available on Android',
+      );
+    }
+    final result = await _channel.invokeMethod<String>(
+      'showAlternativeBillingOnlyInformationDialogAndroid',
+    );
+    if (result == null) {
+      throw PurchaseError(
+        code: gentype.ErrorCode.ServiceError,
+        message: 'Missing Alternative Billing Only dialog result',
+      );
+    }
+    return gentype.BillingResultAndroid.fromJson(
+      jsonDecode(result) as Map<String, dynamic>,
+    );
   }
 
   /// Show Play Billing in-app messages such as transactional subscription updates.
@@ -3144,6 +3172,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         restorePurchases: restorePurchases,
         showBillingProgramInformationDialogAndroid:
             _showBillingProgramInformationDialogAndroidHandler,
+        showAlternativeBillingOnlyInformationDialogAndroid:
+            showAlternativeBillingOnlyInformationDialogAndroid,
         showInAppMessagesAndroid: _showInAppMessagesAndroidHandler,
         showManageSubscriptionsIOS: showManageSubscriptionsIOS,
         syncIOS: syncIOS,

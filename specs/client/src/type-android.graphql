@@ -628,6 +628,12 @@ enum BillingProgramAndroid {
   Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   """
   BILLING_CHOICE
+  """
+  Google Play Alternative Billing Only. Use a dedicated connection, show the
+  information dialog, and obtain a reporting token before starting checkout.
+  Available in OpenIAP 1.4.0 / openiap-google 4.1.0.
+  """
+  ALTERNATIVE_BILLING_ONLY
 }
 
 """

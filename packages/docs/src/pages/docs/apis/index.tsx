@@ -79,6 +79,8 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
     '/docs/apis/android/create-billing-program-reporting-details-android',
   'show-billing-program-information-dialog-android':
     '/docs/apis/android/show-billing-program-information-dialog-android',
+  'show-alternative-billing-only-information-dialog-android':
+    '/docs/apis/android/show-alternative-billing-only-information-dialog-android',
   'show-in-app-messages-android':
     '/docs/apis/android/show-in-app-messages-android',
   'open-redeem-offer-code-android':
@@ -682,6 +684,19 @@ function APIsIndex() {
               <td>
                 Show Google's Billing Choice information dialog (Play Billing
                 9.1.0+).
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <Link to="/docs/apis/android/show-alternative-billing-only-information-dialog-android">
+                  <code>
+                    showAlternativeBillingOnlyInformationDialogAndroid
+                  </code>
+                </Link>
+              </td>
+              <td>
+                Show Google's Alternative Billing Only information dialog (Play
+                Billing 6.1+).
               </td>
             </tr>
             <tr>

@@ -328,6 +328,7 @@ public final class dev/hyo/openiap/BillingChoiceScreenTypeAndroid$Companion {
 }
 
 public final class dev/hyo/openiap/BillingProgramAndroid : java/lang/Enum {
+	public static final field AlternativeBillingOnly Ldev/hyo/openiap/BillingProgramAndroid;
 	public static final field BillingChoice Ldev/hyo/openiap/BillingProgramAndroid;
 	public static final field Companion Ldev/hyo/openiap/BillingProgramAndroid$Companion;
 	public static final field ExternalContentLink Ldev/hyo/openiap/BillingProgramAndroid;
@@ -900,6 +901,8 @@ public final class dev/hyo/openiap/ExternalPurchaseCustomLinkTokenResultIOS$Comp
 public final class dev/hyo/openiap/ExternalPurchaseCustomLinkTokenTypeIOS : java/lang/Enum {
 	public static final field Acquisition Ldev/hyo/openiap/ExternalPurchaseCustomLinkTokenTypeIOS;
 	public static final field Companion Ldev/hyo/openiap/ExternalPurchaseCustomLinkTokenTypeIOS$Companion;
+	public static final field InApp Ldev/hyo/openiap/ExternalPurchaseCustomLinkTokenTypeIOS;
+	public static final field LinkOut Ldev/hyo/openiap/ExternalPurchaseCustomLinkTokenTypeIOS;
 	public static final field Services Ldev/hyo/openiap/ExternalPurchaseCustomLinkTokenTypeIOS;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public final fun getRawValue ()Ljava/lang/String;
@@ -1330,6 +1333,8 @@ public final class dev/hyo/openiap/MutationHandlers {
 	public fun <init> ()V
 	public fun <init> (Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
 	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lkotlin/jvm/functions/Function2;
 	public final fun component10 ()Lkotlin/jvm/functions/Function2;
 	public final fun component11 ()Lkotlin/jvm/functions/Function2;
@@ -1371,6 +1376,7 @@ public final class dev/hyo/openiap/MutationHandlers {
 	public final fun getPresentExternalPurchaseNoticeSheetIOS ()Lkotlin/jvm/functions/Function1;
 	public final fun getRequestPurchase ()Lkotlin/jvm/functions/Function2;
 	public final fun getRestorePurchases ()Lkotlin/jvm/functions/Function1;
+	public final fun getShowAlternativeBillingOnlyInformationDialogAndroid ()Lkotlin/jvm/functions/Function1;
 	public final fun getShowBillingProgramInformationDialogAndroid ()Lkotlin/jvm/functions/Function2;
 	public final fun getShowExternalPurchaseCustomLinkNoticeIOS ()Lkotlin/jvm/functions/Function2;
 	public final fun getShowInAppMessagesAndroid ()Lkotlin/jvm/functions/Function2;
@@ -1404,6 +1410,7 @@ public abstract interface class dev/hyo/openiap/MutationResolver {
 	public abstract fun presentExternalPurchaseNoticeSheetIOS (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun requestPurchase (Ldev/hyo/openiap/RequestPurchaseProps;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun restorePurchases (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun showAlternativeBillingOnlyInformationDialogAndroid (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun showBillingProgramInformationDialogAndroid (Ldev/hyo/openiap/BillingProgramInformationDialogParamsAndroid;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun showExternalPurchaseCustomLinkNoticeIOS (Ldev/hyo/openiap/ExternalPurchaseCustomLinkNoticeTypeIOS;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun showInAppMessagesAndroid (Ldev/hyo/openiap/InAppMessageParamsAndroid;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -1419,6 +1426,7 @@ public final class dev/hyo/openiap/MutationResolver$DefaultImpls {
 	public static synthetic fun deepLinkToSubscriptions$default (Ldev/hyo/openiap/MutationResolver;Ldev/hyo/openiap/DeepLinkOptions;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static synthetic fun finishTransaction$default (Ldev/hyo/openiap/MutationResolver;Ldev/hyo/openiap/Purchase;Ljava/lang/Boolean;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static synthetic fun initConnection$default (Ldev/hyo/openiap/MutationResolver;Ldev/hyo/openiap/InitConnectionConfig;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static fun showAlternativeBillingOnlyInformationDialogAndroid (Ldev/hyo/openiap/MutationResolver;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun showInAppMessagesAndroid$default (Ldev/hyo/openiap/MutationResolver;Ldev/hyo/openiap/InAppMessageParamsAndroid;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }
 
@@ -2042,6 +2050,7 @@ public abstract interface class dev/hyo/openiap/OpenIapProtocol {
 	public abstract fun removeSubscriptionBillingIssueListener (Ldev/hyo/openiap/listener/OpenIapSubscriptionBillingIssueListener;)V
 	public abstract fun removeUserChoiceBillingListener (Ldev/hyo/openiap/listener/OpenIapUserChoiceBillingListener;)V
 	public abstract fun setActivity (Landroid/app/Activity;)V
+	public fun showAlternativeBillingOnlyInformationDialog (Landroid/app/Activity;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun showBillingProgramInformationDialog (Landroid/app/Activity;Ldev/hyo/openiap/BillingProgramInformationDialogParamsAndroid;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun showInAppMessages (Landroid/app/Activity;Ldev/hyo/openiap/InAppMessageParamsAndroid;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun showInAppMessages$default (Ldev/hyo/openiap/OpenIapProtocol;Landroid/app/Activity;Ldev/hyo/openiap/InAppMessageParamsAndroid;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
@@ -2053,6 +2062,7 @@ public final class dev/hyo/openiap/OpenIapProtocol$DefaultImpls {
 	public static fun getAvailableItems (Ldev/hyo/openiap/OpenIapProtocol;Ldev/hyo/openiap/ProductQueryType;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static fun getStorefront (Ldev/hyo/openiap/OpenIapProtocol;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static fun getVerifyAppOwnership (Ldev/hyo/openiap/OpenIapProtocol;)Lkotlin/jvm/functions/Function2;
+	public static fun showAlternativeBillingOnlyInformationDialog (Ldev/hyo/openiap/OpenIapProtocol;Landroid/app/Activity;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun showInAppMessages$default (Ldev/hyo/openiap/OpenIapProtocol;Landroid/app/Activity;Ldev/hyo/openiap/InAppMessageParamsAndroid;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }
 
@@ -4685,6 +4695,7 @@ public final class dev/hyo/openiap/store/OpenIapStore {
 	public final fun removeUserChoiceBillingListener (Ldev/hyo/openiap/listener/OpenIapUserChoiceBillingListener;)V
 	public final fun restorePurchases (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun setActivity (Landroid/app/Activity;)V
+	public final fun showAlternativeBillingOnlyInformationDialog (Landroid/app/Activity;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun showBillingProgramInformationDialog (Landroid/app/Activity;Ldev/hyo/openiap/BillingProgramInformationDialogParamsAndroid;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun showInAppMessages (Landroid/app/Activity;Ldev/hyo/openiap/InAppMessageParamsAndroid;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun showInAppMessages$default (Ldev/hyo/openiap/store/OpenIapStore;Landroid/app/Activity;Ldev/hyo/openiap/InAppMessageParamsAndroid;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;

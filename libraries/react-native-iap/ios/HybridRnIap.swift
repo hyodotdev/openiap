@@ -2181,6 +2181,12 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
 
+    func showAlternativeBillingOnlyInformationDialogAndroid() throws -> Promise<NitroBillingResultAndroid> {
+        return Promise.async {
+            throw OpenIapException.make(code: .featureNotSupported, message: "Alternative Billing Only requires Google Play")
+        }
+    }
+
     func showInAppMessagesAndroid(params: Variant_NullType_NitroInAppMessageParamsAndroid?) throws -> Promise<NitroInAppMessageResultAndroid> {
         return Promise.async {
             throw OpenIapException.make(code: .featureNotSupported, message: "In-app messages are Android-only")
@@ -2332,7 +2338,7 @@ class HybridRnIap: HybridRnIapSpec {
             do {
                 // Convert Nitro enum to OpenIAP enum
                 guard let openIapTokenType = OpenIAP.ExternalPurchaseCustomLinkTokenTypeIOS(rawValue: tokenType.stringValue) else {
-                    throw OpenIapException.make(code: .developerError, message: "Invalid token type: \(tokenType.stringValue). Must be 'acquisition' or 'services'")
+                    throw OpenIapException.make(code: .developerError, message: "Invalid token type: \(tokenType.stringValue)")
                 }
                 let result = try await self.runConnectedOperation {
                     try await OpenIapModule.shared.getExternalPurchaseCustomLinkTokenIOS(openIapTokenType)

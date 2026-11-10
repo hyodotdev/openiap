@@ -907,6 +907,7 @@ input InitConnectionConfig {
   - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+)
   - BILLING_CHOICE: Google-rendered or developer-rendered billing choice
     (OpenIAP 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
+  - ALTERNATIVE_BILLING_ONLY: Exclusive Google Play connection for in-app alternative billing
   """
   enableBillingProgramAndroid: BillingProgramAndroid
   """

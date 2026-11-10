@@ -213,6 +213,95 @@ void main() {
       });
     });
 
+    test(
+        'Alternative Billing Only notice forwards cancellation without arguments',
+        () async {
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        calls.add(call);
+        return jsonEncode({'responseCode': 1});
+      });
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      final result =
+          await iap.showAlternativeBillingOnlyInformationDialogAndroid();
+
+      expect(result.responseCode, 1);
+      expect(calls.single.method,
+          'showAlternativeBillingOnlyInformationDialogAndroid');
+      expect(calls.single.arguments, isNull);
+    });
+
+    test('Alternative Billing Only notice rejects a missing result', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async => null);
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      await expectLater(
+        iap.showAlternativeBillingOnlyInformationDialogAndroid(),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            ErrorCode.ServiceError,
+          ),
+        ),
+      );
+    });
+
+    test('Alternative Billing Only notice is Android only', () async {
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+
+      await expectLater(
+        iap.showAlternativeBillingOnlyInformationDialogAndroid(),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            ErrorCode.IapNotAvailable,
+          ),
+        ),
+      );
+    });
+
+    test(
+        'a native availability failure rethrows only for Alternative Billing Only',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        throw PlatformException(
+          code: 'developer-error',
+          message: 'Connect with ALTERNATIVE_BILLING_ONLY first',
+        );
+      });
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      await expectLater(
+        iap.isBillingProgramAvailableAndroid(
+          types.BillingProgramAndroid.AlternativeBillingOnly,
+        ),
+        throwsA(
+          isA<PlatformException>().having(
+            (error) => error.code,
+            'code',
+            'developer-error',
+          ),
+        ),
+      );
+      final other = await iap.isBillingProgramAvailableAndroid(
+        types.BillingProgramAndroid.ExternalOffer,
+      );
+      expect(other.isAvailable, isFalse);
+    });
+
     test('showInAppMessagesAndroid returns response code', () async {
       final calls = <MethodCall>[];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

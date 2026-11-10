@@ -46,6 +46,7 @@ internal sealed class UnsupportedOpenIap : IOpenIap, QueryResolver, MutationReso
     public Task<string> RestorePurchasesAsync() => Unsupported<string>();
     public Task<BillingResultAndroid> ShowBillingProgramInformationDialogAndroidAsync(BillingProgramInformationDialogParamsAndroid @params) => Unsupported<BillingResultAndroid>();
     public Task<ExternalPurchaseCustomLinkNoticeResultIOS> ShowExternalPurchaseCustomLinkNoticeIOSAsync(ExternalPurchaseCustomLinkNoticeTypeIOS noticeType) => Unsupported<ExternalPurchaseCustomLinkNoticeResultIOS>();
+    public Task<BillingResultAndroid> ShowAlternativeBillingOnlyInformationDialogAndroidAsync() => Unsupported<BillingResultAndroid>();
     public Task<InAppMessageResultAndroid> ShowInAppMessagesAndroidAsync(InAppMessageParamsAndroid? @params = null) => Unsupported<InAppMessageResultAndroid>();
     public Task<IReadOnlyList<PurchaseIOS>> ShowManageSubscriptionsIOSAsync() => Unsupported<IReadOnlyList<PurchaseIOS>>();
     public Task<bool> SyncIOSAsync() => Unsupported<bool>();

@@ -27,6 +27,7 @@ import {
   createBillingProgramReportingDetailsAndroid,
   launchExternalLinkAndroid,
   showBillingProgramInformationDialogAndroid,
+  showAlternativeBillingOnlyInformationDialogAndroid,
   showInAppMessagesAndroid,
   openRedeemOfferCode,
   userChoiceBillingListenerAndroid,
@@ -276,6 +277,8 @@ type UseIap = {
   launchExternalLinkAndroid?: MutationField<'launchExternalLinkAndroid'>;
   /** Show the required Billing Choice information dialog. */
   showBillingProgramInformationDialogAndroid?: MutationField<'showBillingProgramInformationDialogAndroid'>;
+  /** Show the Alternative Billing Only information dialog. */
+  showAlternativeBillingOnlyInformationDialogAndroid?: MutationField<'showAlternativeBillingOnlyInformationDialogAndroid'>;
   /** Show Play billing in-app messages. */
   showInAppMessagesAndroid?: MutationField<'showInAppMessagesAndroid'>;
 };
@@ -954,6 +957,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
           createBillingProgramReportingDetailsAndroid,
           launchExternalLinkAndroid,
           showBillingProgramInformationDialogAndroid,
+          showAlternativeBillingOnlyInformationDialogAndroid,
           showInAppMessagesAndroid,
         }
       : {}),

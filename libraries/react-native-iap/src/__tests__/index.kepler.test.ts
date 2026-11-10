@@ -420,6 +420,7 @@ describe('Amazon Vega public API', () => {
         IAP.showBillingProgramInformationDialogAndroid({
           externalTransactionToken: 'token',
         }),
+      () => IAP.showAlternativeBillingOnlyInformationDialogAndroid(),
       () => IAP.showInAppMessagesAndroid({}),
     ]) {
       await expect(call()).rejects.toThrow(/not supported on Amazon Vega/);
