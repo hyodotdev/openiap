@@ -944,8 +944,15 @@ function Releases() {
               within 24 hours.
             </li>
             <li>
-              <code>showAlternativeBillingDialogAndroid</code> and the other
-              deprecated alternative billing calls keep working.
+              Existing Billing Choice, External Offer, External Content Link,
+              and External Payments flows are unchanged.
+            </li>
+            <li>
+              godot-iap: a failed{' '}
+              <code>is_billing_program_available_android</code> or{' '}
+              <code>create_billing_program_reporting_details_android</code> call
+              now also emits <code>purchase_error</code>, for every program. The
+              typed default result is still returned.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>

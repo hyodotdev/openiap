@@ -843,7 +843,7 @@ private fun InfoCard(platform: String, billingProgram: BillingProgramAndroid) {
                         • For content offers and promotions
                     """.trimIndent()
                     BillingProgramAndroid.AlternativeBillingOnly -> """
-                        • Alternative Billing Only (6.2+)
+                        • Alternative Billing Only (6.1+)
                         • Users CANNOT use Google Play billing
                         • Show the information dialog, then your payment system
                     """.trimIndent()
@@ -934,7 +934,7 @@ private fun ModeSelectorCard(
                         BillingProgramAndroid.ExternalOffer -> "External Offer (8.2.0+)"
                         BillingProgramAndroid.ExternalPayments -> "External Payments (8.3.0+, Japan)"
                         BillingProgramAndroid.ExternalContentLink -> "External Content Link (8.2.0+)"
-                        BillingProgramAndroid.AlternativeBillingOnly -> "Alternative Billing Only (6.2+)"
+                        BillingProgramAndroid.AlternativeBillingOnly -> "Alternative Billing Only (6.1+)"
                         BillingProgramAndroid.Unspecified -> "Not Selected"
                     },
                     fontSize = 14.sp
