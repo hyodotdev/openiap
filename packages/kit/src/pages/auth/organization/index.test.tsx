@@ -60,10 +60,6 @@ vi.mock("../../../components/SignOutButton", () => ({
   SignOutButton: () => <button type="button">Sign out</button>,
 }));
 
-vi.mock("../../../components/FreeTransitionNotice", () => ({
-  FreeTransitionNotice: () => null,
-}));
-
 vi.mock("@/components/OrganizationInvitations", () => ({
   OrganizationInvitations: () => null,
 }));
