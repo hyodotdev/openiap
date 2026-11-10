@@ -6,7 +6,10 @@ import { api } from "@/convex";
 import { client, handleConvexError } from "../../convex";
 import { validator } from "./validator";
 import { apiKeyMiddleware } from "./middleware";
-import { multiAxisRateLimitMiddleware } from "./rate-limit";
+import {
+  multiAxisRateLimitMiddleware,
+  sourceRateLimitMiddleware,
+} from "./rate-limit";
 
 const external = api.externalCheckouts.action;
 const app = new Hono<{ Variables: { apiKey: string; apiKeyHash: string } }>();
@@ -167,9 +170,13 @@ app.post(
     responses: {
       200: { description: "Event accepted or already recorded" },
       400: { description: "Invalid signature or event" },
+      429: { description: "Rate limit exceeded; Stripe retries" },
       503: { description: "Event could not be queued" },
     },
   }),
+  // Anyone can call this before the signature check, so the source limits
+  // keep a flood away from Convex.
+  sourceRateLimitMiddleware(),
   bodyLimit({ maxSize: 262_144 }),
   async (c) => {
     try {

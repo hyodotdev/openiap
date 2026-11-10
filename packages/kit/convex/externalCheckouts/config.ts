@@ -1,30 +1,30 @@
 import type { Doc } from "../_generated/dataModel";
 import { fail } from "./model";
 
-export type Integration = {
+export interface Integration {
   id: string;
   projectId: string;
   accountId: string;
   environment: "sandbox" | "production";
   apiKey: string;
   signingSecret: string;
-};
+}
 
-export type Profile = {
+export interface Profile {
   id: string;
   integrationId: string;
   store: "apple" | "google";
   regions: string[];
   appId: string;
   administrativeArea?: string;
-};
+}
 
 function config(): { integrations: Integration[]; profiles: Profile[] } {
   const raw = process.env.IAPKIT_EXTERNAL_CHECKOUTS_CONFIG;
   return raw ? JSON.parse(raw) : { integrations: [], profiles: [] };
 }
 
-export function findIntegration(id: string) {
+export function findIntegration(id: string): Integration | undefined {
   return config().integrations.find((item) => item.id === id);
 }
 
@@ -32,7 +32,7 @@ export function requireProfile(
   profileId: string,
   project: Doc<"projects">,
   store: Profile["store"],
-) {
+): { profile: Profile; integration: Integration } {
   const { integrations, profiles } = config();
   const profile = profiles.find(
     (item) => item.id === profileId && item.store === store,
@@ -54,7 +54,7 @@ export function requireProfile(
 export function appleNotificationProfile(
   project: Doc<"projects">,
   environment: Integration["environment"],
-) {
+): Profile | undefined {
   const { integrations, profiles } = config();
   return profiles.find(
     (item) =>

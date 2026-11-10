@@ -173,3 +173,23 @@ it("registers Apple tokens and maps each route's errors", async () => {
     expect(await response.json()).toMatchObject({ errors: [{ code }] });
   }
 });
+
+it("limits Stripe event sources before calling Convex", async () => {
+  const action = vi
+    .spyOn(client, "action")
+    .mockResolvedValue({ received: true });
+  const send = () =>
+    app.request("/v1/webhooks/stripe/integration-test", {
+      method: "POST",
+      body: "{}",
+      headers: { "Fly-Client-IP": "203.0.113.9" },
+    });
+  let sent = 0;
+  let response = await send();
+  while (response.status === 200 && sent < 1_000) {
+    sent++;
+    response = await send();
+  }
+  expect(response.status).toBe(429);
+  expect(action).toHaveBeenCalledTimes(sent);
+});
