@@ -194,9 +194,10 @@ const xmlText = (text) =>
   );
 
 // Messages escape `<`, and test output lands in XML comments or CDATA, which
-// are dropped first, so test output cannot forge a result.
+// are dropped first, so test output cannot forge a result. A space keeps the
+// text around a dropped section from joining into new markup.
 const reportElements = (xml) =>
-  xml.replace(/<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>/g, "");
+  xml.replace(/<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>/g, " ");
 
 const xmlAttribute = (attributes, key) => {
   const value = new RegExp(`\\s${key}="([^"]*)"`).exec(attributes)?.[1];
