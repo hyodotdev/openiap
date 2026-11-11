@@ -186,7 +186,10 @@ jobs:
         run: |
           sudo rm -f /etc/apt/sources.list.d/google-chrome.list \
             /etc/apt/sources.list.d/google-chrome.sources
-          bunx playwright install --with-deps chromium
+          # The runner image already has Chromium's libraries, so an apt
+          # outage costs only the extra fonts: install without them then.
+          bunx playwright install --with-deps chromium ||
+            bunx playwright install chromium
 
       - name: Smoke test compiled server
         run: ./scripts/smoke-server.sh
