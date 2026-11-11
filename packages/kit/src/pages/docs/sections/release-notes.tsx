@@ -26,7 +26,7 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-11-09",
     weekStart: "2026-11-09",
     date: "2026-11-09",
-    pullRequests: [596, 602, 604, 606, 607],
+    pullRequests: [596, 602, 604, 606, 607, 608],
     tagline:
       "External checkouts that report Stripe payments to Apple and Google, and a security update for the IAPKit runtime image.",
     items: [
@@ -48,7 +48,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "ops",
         topic: "Dashboard cleanup",
-        text: 'The organization menu entry "Plan & Billing" is now "Usage" and opens the usage page directly. Four unused rate-limit fields left on older projects can be removed with the `removeUnusedProjectBucketFields` migration described in the README; a self-hosted deployment runs it once.',
+        text: 'The organization menu entry "Plan & Billing" is now "Usage" and opens the usage page directly. The schema no longer has four unused rate-limit fields left on older projects, so a self-hosted deployment that still holds them first runs the `removeUnusedProjectBucketFields` migration described in the README.',
       },
     ],
   },

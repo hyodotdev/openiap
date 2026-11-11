@@ -11,7 +11,6 @@ import {
   recomputePurchaseStatsForProject,
 } from "./purchases/stats.js";
 import { hashStoredSecretApiKeyPatch } from "./apiKeys/helpers.js";
-import { unusedProjectBucketFieldsPatch } from "./projects/unusedBucketFields.js";
 
 export const migrations = new Migrations<DataModel>(components.migrations);
 
@@ -288,13 +287,6 @@ export const backfillOutboundDeliveryEventTypes = migrations.define({
     const event = await ctx.db.get(doc.eventId);
     return event ? { eventType: event.eventType } : undefined;
   },
-});
-
-/** Removes the unused admission-bucket fields from projects. */
-export const removeUnusedProjectBucketFields = migrations.define({
-  table: "projects",
-  migrateOne: async (_ctx, doc) =>
-    unusedProjectBucketFieldsPatch(doc) ?? undefined,
 });
 
 export const run = migrations.runner();
