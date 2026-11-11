@@ -3,7 +3,5 @@
 
 export { api } from "../convex/_generated/api";
 export type { Id, Doc } from "../convex/_generated/dataModel";
-export { SUBSCRIPTION_PLANS } from "../convex/plans";
-export type { SubscriptionPlanId } from "../convex/plans";
 export { HarmonizedPurchaseState } from "../convex/purchases/purchaseState";
 export { isValidState } from "../convex/purchases/shared";

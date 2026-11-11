@@ -124,8 +124,8 @@ export default function OrganizationLayout() {
       path: `/${orgSlug}/settings`,
     },
     {
-      title: "Plan & Billing",
-      path: `/${orgSlug}/plan`,
+      title: "Usage",
+      path: `/${orgSlug}/usage`,
     },
   ];
 

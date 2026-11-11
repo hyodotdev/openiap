@@ -543,17 +543,6 @@ describe("webhooksRoutes", () => {
   });
 });
 
-describe("legacyUnsupportedEventReason", () => {
-  it("keeps legacy unsupported-event responses free of raw error details", () => {
-    expect(
-      helpers.legacyUnsupportedEventReason(
-        new Error("UNSUPPORTED_EVENT: raw payload details"),
-      ),
-    ).toBe("Unsupported event");
-    expect(helpers.legacyUnsupportedEventReason(new Error("OTHER"))).toBeNull();
-  });
-});
-
 describe("isWebhookBodyTooLarge", () => {
   it("only rejects declared webhook bodies over the cap", () => {
     expect(helpers.isWebhookBodyTooLarge(undefined)).toBe(false);

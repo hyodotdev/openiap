@@ -1,0 +1,4 @@
+[[IgnoredVulns]]
+id = "GHSA-8474-xrp6-wh69"
+ignoreUntil = 2026-12-04
+reason = "CocoaPods caps activesupport below 8 and the 7.2 line has no fixed release. Only the CocoaPods CLI loads it here, on trusted local and CI inputs; nothing passes untrusted names to safe_constantize or runs Action Cable."

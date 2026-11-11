@@ -66,11 +66,11 @@
     "decode-uri-component": "0.5.1",
     "zod": "4.6.7",
     "expo-constants": "57.0.10",
-    "fast-xml-parser": "5.7.0",
+    "fast-xml-parser": "5.12.0",
     "lodash": "4.18.1",
     "uuid": "11.1.1",
     "shell-quote": "1.12.0",
-    "node-forge": "1.4.2",
+    "node-forge": "1.4.3",
     "joi": "17.13.9"
   },
   "private": true,

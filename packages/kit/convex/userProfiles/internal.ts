@@ -8,9 +8,9 @@ import {
   deleteStorageIfUnreferenced,
 } from "../files/storage";
 
-// Rows per account-deletion phase. Auth tokens, Stripe payloads and org or file
-// metadata can be large; ten maximum-size documents stay under Convex's 16 MiB
-// transaction read limit.
+// Rows per account-deletion phase. Auth tokens and org or file metadata can be
+// large; ten maximum-size documents stay under Convex's 16 MiB transaction
+// read limit.
 const ACCOUNT_DELETION_PAGE = 10;
 
 // Auth callbacks only: the caller supplies userId, so it must never be public.

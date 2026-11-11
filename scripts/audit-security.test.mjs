@@ -833,7 +833,8 @@ test("Yarn-only OSV exceptions cannot become stale or expired", () => {
 });
 
 test("OSV scans non-Bun locks without exception files", () => {
-  const gemLock = "libraries/react-native-iap/example/Gemfile.lock";
+  // The scanner is stubbed; this path has no osv-scanner.toml beside it.
+  const gemLock = "scripts/Gemfile.lock";
   let calls = 0;
   const cleanScanner = (command, args) => {
     calls += 1;

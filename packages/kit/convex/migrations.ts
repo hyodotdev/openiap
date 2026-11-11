@@ -4,7 +4,6 @@ import { DataModel } from "./_generated/dataModel.js";
 import {
   extractOrderIdFromRemoteResponse,
   extractProductIdFromRemoteResponse,
-  isValidState,
 } from "./purchases/shared.js";
 import {
   applyPurchaseStatsDelta,
@@ -12,79 +11,9 @@ import {
   recomputePurchaseStatsForProject,
 } from "./purchases/stats.js";
 import { hashStoredSecretApiKeyPatch } from "./apiKeys/helpers.js";
+import { unusedProjectBucketFieldsPatch } from "./projects/unusedBucketFields.js";
 
 export const migrations = new Migrations<DataModel>(components.migrations);
-
-/**
- * Migration: move the old free/starter/growth/scale tiers to developer.
- * Enterprise is unchanged.
- */
-export const updateSubscriptionTiers = migrations.define({
-  table: "organizations",
-  migrateOne: async (ctx, doc) => {
-    const oldTiers = ["free", "starter", "growth", "scale"];
-
-    if (doc.subscriptionTier && oldTiers.includes(doc.subscriptionTier)) {
-      return {
-        ...doc,
-        subscriptionTier: "developer" as const,
-      };
-    }
-
-    return doc;
-  },
-});
-
-/**
- * Migration: Remove deprecated avatar/bio fields from user profiles
- */
-export const removeLegacyProfileFields = migrations.define({
-  table: "userProfiles",
-  migrateOne: async (_ctx, doc) => {
-    const hasLegacyFields =
-      "avatarUrl" in doc || "avatarFileId" in doc || "bio" in doc;
-
-    if (!hasLegacyFields) {
-      return doc;
-    }
-
-    const updatedDoc = { ...doc } as typeof doc & Record<string, unknown>;
-    delete updatedDoc["avatarUrl"];
-    delete updatedDoc["avatarFileId"];
-    delete updatedDoc["bio"];
-    return updatedDoc;
-  },
-});
-
-/**
- * Migration: replace the deprecated `isAuthentic` with `isValid`, computed
- * from `state` by isValidState().
- */
-export const replaceIsAuthenticWithIsValid = migrations.define({
-  table: "purchases",
-  migrateOne: async (_ctx, doc) => {
-    const isValid = isValidState(doc.state);
-
-    return {
-      ...doc,
-      isValid,
-      isAuthentic: undefined,
-    };
-  },
-});
-
-/**
- * Migration: Remove deprecated purchaseId field from requestData on purchases
- */
-export const removePurchaseIdFromRequestData = migrations.define({
-  table: "purchases",
-  migrateOne: async (_ctx, doc) => {
-    return {
-      ...doc,
-      requestData: { ...doc.requestData, purchaseId: undefined },
-    };
-  },
-});
 
 /**
  * Migration: backfill `purchaseStats` from `purchases`, one purchase and one
@@ -359,6 +288,13 @@ export const backfillOutboundDeliveryEventTypes = migrations.define({
     const event = await ctx.db.get(doc.eventId);
     return event ? { eventType: event.eventType } : undefined;
   },
+});
+
+/** Removes the unused admission-bucket fields from projects. */
+export const removeUnusedProjectBucketFields = migrations.define({
+  table: "projects",
+  migrateOne: async (_ctx, doc) =>
+    unusedProjectBucketFieldsPatch(doc) ?? undefined,
 });
 
 export const run = migrations.runner();

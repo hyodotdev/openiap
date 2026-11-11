@@ -1031,6 +1031,22 @@ npx convex run --prod --component migrations lib:getStatus \
 Run the aggregate again afterwards: `partial` must be `false` and the three
 other counts `0`. Then deploy the current release.
 
+### Unused project bucket fields
+
+Admission buckets live in `verificationAdmissionBuckets`, but older projects
+still hold four unused fields: `verificationAdmissionTokens`,
+`verificationAdmissionRefilledAt`, `entitlementRecheckTokens`, and
+`entitlementRecheckRefilledAt`. The schema keeps them optional until every
+deployment has run this migration once; CI never runs it. It removes only those
+four fields and is safe to rerun:
+
+```bash
+npx convex run --prod migrations:run \
+  '{"fn":"migrations:removeUnusedProjectBucketFields"}'
+npx convex run --prod --component migrations lib:getStatus \
+  '{"names":["migrations:removeUnusedProjectBucketFields"]}' --watch
+```
+
 ### Automated (CI on push to `main`)
 
 Use the locked Convex CLI version. [Convex 1.46](https://ship.convex.dev/changelog/convex-v1-46-0)

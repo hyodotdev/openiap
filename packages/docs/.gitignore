@@ -25,3 +25,8 @@ dist-ssr
 .claude
 .vercel
 .env*.local
+
+# TypeScript build output (tsc -b compiles vite.config.ts in place)
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
