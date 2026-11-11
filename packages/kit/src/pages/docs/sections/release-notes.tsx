@@ -26,7 +26,7 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-11-09",
     weekStart: "2026-11-09",
     date: "2026-11-09",
-    pullRequests: [596, 602, 604, 606, 607],
+    pullRequests: [596, 602, 604, 606, 607, 608],
     tagline:
       "External checkouts that report Stripe payments to Apple and Google, and a security update for the IAPKit runtime image.",
     items: [
