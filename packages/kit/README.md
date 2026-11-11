@@ -1029,7 +1029,8 @@ npx convex run --prod --component migrations lib:getStatus \
 ```
 
 Run the aggregate again afterwards: `partial` must be `false` and the three
-other counts `0`. Then deploy the current release.
+other counts `0`. Then continue with
+[Unused project bucket fields](#unused-project-bucket-fields).
 
 ### Unused project bucket fields
 
@@ -1039,9 +1040,10 @@ longer has the four fields older projects held: `verificationAdmissionTokens`,
 `entitlementRecheckRefilledAt`. Convex rejects this schema while any project
 still holds one.
 
-A deployment that predates the removal deletes them first. Deploy commit
-`b0e28bebd`, the last one with the migration, and run it once there; CI never
-runs it. It removes only those four fields and is safe to rerun:
+A deployment that predates the removal deletes them first. After the legacy
+billing removal above, whose data this commit's schema also rejects, deploy
+commit `b0e28bebd`, the last one with the migration, and run it once there; CI
+never runs it. It removes only those four fields and is safe to rerun:
 
 ```bash
 npx convex run --prod migrations:run \
