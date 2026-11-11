@@ -47,7 +47,7 @@ jobs:
       # Approved C# tests run in the next step.
       - name: Setup .NET
         if: github.event_name == 'pull_request' && contains(github.event.pull_request.body, 'Design approval:')
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
           dotnet-version: "10.0.x"
 
@@ -731,7 +731,7 @@ jobs:
           cache-sdk: true
 
       - name: Setup .NET 10 SDK
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
           dotnet-version: "10.0.403"
 
