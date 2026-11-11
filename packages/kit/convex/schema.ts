@@ -262,12 +262,6 @@ const schema = defineSchema({
     // Set once scoped keys are issued. The legacy `apiKey` then stays rejected,
     // even after the last scoped key is deleted.
     legacyApiKeyFallbackDisabledAt: v.optional(v.number()),
-    // Unused: admission buckets live in `verificationAdmissionBuckets`. Kept
-    // until `removeUnusedProjectBucketFields` has run on every deployment.
-    verificationAdmissionTokens: v.optional(v.number()),
-    verificationAdmissionRefilledAt: v.optional(v.number()),
-    entitlementRecheckTokens: v.optional(v.number()),
-    entitlementRecheckRefilledAt: v.optional(v.number()),
     // Keyed user-erasure lookup without retaining a dictionary-testable hash.
     userErasureHashKey: v.optional(v.string()),
     // Keys the evidence fingerprints members see. Never returned by a query.
