@@ -190,18 +190,18 @@ const ALTERNATIVE_BILLING_ONLY_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'openiap-google', version: '4.1.0', tag: 'google-4.1.0' },
   {
     name: 'react-native-iap',
-    version: '17.4.0',
-    tag: 'react-native-iap-17.4.0',
+    version: '17.3.6',
+    tag: 'react-native-iap-17.3.6',
   },
-  { name: 'expo-iap', version: '6.5.0', tag: 'expo-iap-6.5.0' },
+  { name: 'expo-iap', version: '6.4.4', tag: 'expo-iap-6.4.4' },
   {
     name: 'flutter_inapp_purchase',
-    version: '11.4.0',
-    tag: 'flutter-iap-11.4.0',
+    version: '11.3.3',
+    tag: 'flutter-iap-11.3.3',
   },
-  { name: 'godot-iap', version: '4.4.0', tag: 'godot-iap-4.4.0' },
-  { name: 'kmp-iap', version: '4.3.0', tag: 'kmp-iap-4.3.0' },
-  { name: 'OpenIap.Maui', version: '3.3.0', tag: 'maui-iap-3.3.0' },
+  { name: 'godot-iap', version: '4.3.4', tag: 'godot-iap-4.3.4' },
+  { name: 'kmp-iap', version: '4.2.4', tag: 'kmp-iap-4.2.4' },
+  { name: 'OpenIap.Maui', version: '3.2.4', tag: 'maui-iap-3.2.4' },
 ];
 
 const REACT_NATIVE_STRICT_TYPES_RELEASES: readonly ReleaseMetadata[] = [
@@ -925,8 +925,8 @@ function Releases() {
           <ul>
             <li>
               <strong>
-                react-native-iap 17.4.0, expo-iap 6.5.0, flutter_inapp_purchase
-                11.4.0, godot-iap 4.4.0, kmp-iap 4.3.0, and OpenIap.Maui 3.3.0
+                react-native-iap 17.3.6, expo-iap 6.4.4, flutter_inapp_purchase
+                11.3.3, godot-iap 4.3.4, kmp-iap 4.2.4, and OpenIap.Maui 3.2.4
               </strong>
               : each exposes the Alternative Billing Only program value and the
               information dialog call. The React Native and Expo{' '}
