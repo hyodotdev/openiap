@@ -1,5 +1,15 @@
 # Changelog
 
+## 11.3.3 (2026-11-12)
+
+- chore(kit): remove dead legacy code and finished migrations (#607)
+- feat: add Alternative Billing Only support across SDKs (#605)
+- feat(kit): report Stripe external checkouts to Apple and Google (#602)
+- fix(ci): enforce protocol checks and fix strict React Native imports (#598)
+- ci(protocol): verify behavior and approval evidence (#597)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-11.3.3
+
+
 ## 11.3.2 (2026-11-07)
 
 - fix: restore through the purchase flow alone and fail on a failed confirmation (#587)
