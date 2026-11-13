@@ -10,10 +10,10 @@ import '../constants.dart';
 ///
 /// Demonstrates alternative billing flows for iOS and Android:
 ///
-/// iOS (Alternative Billing):
-/// - Redirects users to external website
-/// - No onPurchaseUpdated callback when using external URL
-/// - User completes purchase on external website
+/// iOS (External Purchase Link):
+/// - Check isExternalPurchaseLinkAvailable(), then openExternalPurchaseLink()
+/// - Apple's disclosure shows first; the URL opens only if the user continues
+/// - No onPurchaseUpdated callback; report the returned token from your server
 /// - Must implement deep link to return to app
 ///
 /// Android (Billing Programs API - Recommended for 8.2.0+):
@@ -239,31 +239,47 @@ Important:
     });
 
     try {
-      final result = await FlutterInappPurchase.instance
-          .presentExternalPurchaseLinkIOS(url);
+      final iap = FlutterInappPurchase.instance;
+      final available = await iap.isExternalPurchaseLinkAvailable();
+      if (!mounted) return;
+      if (!available) {
+        setState(() => _purchaseResult = 'External purchase link unavailable');
+        _showAlert('Not Available', 'External purchase links are unavailable.');
+        return;
+      }
 
-      debugPrint('[iOS] External purchase link result: $result');
+      // Shows Apple's disclosure first; opens the URL only if the user continues.
+      final result = await iap.openExternalPurchaseLink(
+        ExternalPurchaseLinkRequest(url: url),
+      );
+
+      debugPrint('[iOS] External purchase link status: ${result.status.name}');
 
       if (!mounted) return;
 
-      if (result.error != null) {
-        setState(() => _purchaseResult = 'Error: ${result.error}');
-        _showAlert('Error', result.error!);
-      } else if (result.success) {
-        setState(() {
-          _purchaseResult = '''
+      switch (result.status) {
+        case ExternalPurchaseLinkStatus.Opened:
+          setState(() {
+            _purchaseResult = '''
 External purchase link opened
 
 Product: ${product.id}
 URL: $url
+Token: ${result.reportToken != null ? 'Present' : 'Missing'}
 
-User redirected to external website.
+Report the token from your server.
 ''';
-        });
-        _showAlert(
-          'Redirected',
-          'User was redirected to your external purchase website.',
-        );
+          });
+          _showAlert(
+            'Redirected',
+            'User was redirected to your external purchase website.',
+          );
+        case ExternalPurchaseLinkStatus.Cancelled:
+          setState(() => _purchaseResult = 'User cancelled external purchase');
+        case ExternalPurchaseLinkStatus.Unavailable:
+          setState(
+            () => _purchaseResult = 'External purchase link unavailable',
+          );
       }
     } catch (e) {
       debugPrint('[iOS] Alternative billing error: $e');
@@ -735,7 +751,7 @@ If user selects:
     String infoText;
     if (isIOS) {
       infoText =
-          '- Enter your external purchase URL\n- Tap Purchase on any product\n- User will be redirected to the external URL\n- Complete purchase on your website';
+          '- Enter your external purchase URL\n- Tap Purchase on any product\n- Apple shows its disclosure, then opens the URL\n- Report the returned token from your server';
     } else if (_androidBillingMode == 'billing-programs') {
       if (_billingProgram == BillingProgramAndroid.UserChoiceBilling) {
         infoText =
@@ -779,7 +795,7 @@ If user selects:
           const SizedBox(height: 8),
           Text(
             isIOS
-                ? 'iOS 16.0+ required\nValid external URL needed'
+                ? 'iOS 17.4+ required\nValid external URL needed'
                 : 'Requires approval from Google\nMust report tokens within 24 hours',
             style: TextStyle(fontSize: 12, color: Colors.deepOrange[700]),
           ),

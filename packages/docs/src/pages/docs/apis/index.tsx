@@ -547,6 +547,7 @@ function APIsIndex() {
                 </Link>
               </td>
               <td>
+                Deprecated: use <code>isExternalPurchaseLinkAvailable</code>.
                 Check eligibility for the external purchase notice sheet (iOS
                 17.4+).
               </td>
@@ -557,7 +558,10 @@ function APIsIndex() {
                   <code>presentExternalPurchaseNoticeSheetIOS</code>
                 </Link>
               </td>
-              <td>Present the external purchase notice sheet (iOS 17.4+).</td>
+              <td>
+                Deprecated: use <code>openExternalPurchaseLink</code>. Present
+                the external purchase notice sheet (iOS 17.4+).
+              </td>
             </tr>
             <tr>
               <td>
@@ -566,7 +570,8 @@ function APIsIndex() {
                 </Link>
               </td>
               <td>
-                Present an external purchase link, StoreKit External (iOS 16+).
+                Deprecated: use <code>openExternalPurchaseLink</code>. Present
+                an external purchase link, StoreKit External (iOS 16+).
               </td>
             </tr>
             <tr>
@@ -576,6 +581,7 @@ function APIsIndex() {
                 </Link>
               </td>
               <td>
+                Deprecated: use <code>isExternalPurchaseLinkAvailable</code>.
                 Check eligibility for the custom-link variant of external
                 purchase (iOS 18.1+).
               </td>

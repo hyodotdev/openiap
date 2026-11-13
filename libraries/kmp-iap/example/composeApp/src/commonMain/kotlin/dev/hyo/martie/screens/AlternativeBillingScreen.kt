@@ -243,47 +243,33 @@ fun AlternativeBillingScreen(navController: NavController) {
             isProcessing = true
 
             try {
-                // Present the notice sheet first when available (iOS 17.4+)
-                if (kmpIapInstance.canPresentExternalPurchaseNoticeIOS()) {
-                    purchaseResult = "📋 Presenting external purchase notice..."
-
-                    val noticeResult = kmpIapInstance.presentExternalPurchaseNoticeSheetIOS()
-
-                    if (noticeResult.error != null) {
-                        purchaseResult = "❌ Notice error: ${noticeResult.error}"
-                        isProcessing = false
-                        return@launch
-                    }
-
-                    if (noticeResult.result == ExternalPurchaseNoticeAction.Dismissed) {
-                        purchaseResult = "ℹ️ User dismissed external purchase notice"
-                        isProcessing = false
-                        return@launch
-                    }
-
-                    // User chose to continue
+                if (!kmpIapInstance.isExternalPurchaseLinkAvailable()) {
+                    purchaseResult = "❌ External purchase links are not available"
+                    return@launch
                 }
 
                 purchaseResult = "🌐 Opening external purchase link..."
 
-                val result = kmpIapInstance.presentExternalPurchaseLinkIOS(externalUrl)
+                // Shows the App Store disclosure first, then opens the URL
+                val result = kmpIapInstance.openExternalPurchaseLink(
+                    ExternalPurchaseLinkRequest(url = externalUrl)
+                )
 
-                purchaseResult = if (result.error?.contains("opened in Safari") == true) {
-                    """
-                        🌐 External purchase link opened in Safari
+                purchaseResult = when (result.status) {
+                    ExternalPurchaseLinkStatus.Opened -> """
+                        🌐 External purchase link opened
 
                         Product: ${product.id}
                         URL: $externalUrl
+                        Report token: ${result.reportToken ?: "none"}
 
                         ⚠️ Important:
-                        - User was redirected to external website
-                        - Complete purchase on your website
-                        - Implement server-side validation
-                        - Use deep linking to return user to app
-                        - Purchase completion must be verified via backend
+                        - Complete the purchase on your website
+                        - Report the token from your server
+                        - Use deep linking to return the user to the app
                     """.trimIndent()
-                } else {
-                    "❌ Error: ${result.error}"
+                    ExternalPurchaseLinkStatus.Cancelled -> "ℹ️ User dismissed the external purchase notice"
+                    ExternalPurchaseLinkStatus.Unavailable -> "❌ External purchase links are not available"
                 }
             } catch (e: Exception) {
                 purchaseResult = "❌ Error: ${e.message}"

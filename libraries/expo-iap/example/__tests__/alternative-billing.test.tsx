@@ -82,6 +82,48 @@ describe('AlternativeBilling Component', () => {
     expect(getByText('Not supported on Amazon Vega')).toBeDefined();
   });
 
+  it('opens the iOS external purchase link through the shared API', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: jest.fn(() => 'ios'),
+      configurable: true,
+    });
+    jest
+      .mocked(ExpoIap.isExternalPurchaseLinkAvailable)
+      .mockResolvedValueOnce(true);
+    jest.mocked(ExpoIap.openExternalPurchaseLink).mockResolvedValueOnce({
+      platform: 'ios',
+      status: 'opened',
+      reportToken: 'external-purchase-token',
+    });
+    const {getByText} = await render(<AlternativeBilling />);
+
+    await fireEvent.press(getByText('Test Consumable'));
+    await fireEvent.press(getByText('🛒 Buy (External URL)'));
+
+    expect(ExpoIap.openExternalPurchaseLink).toHaveBeenCalledWith({
+      url: 'https://openiap.dev',
+    });
+    expect(getByText(/External purchase link opened/)).toBeTruthy();
+    expect(getByText(/Report token: Present/)).toBeTruthy();
+  });
+
+  it('skips the iOS link when the storefront is not eligible', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: jest.fn(() => 'ios'),
+      configurable: true,
+    });
+    jest
+      .mocked(ExpoIap.isExternalPurchaseLinkAvailable)
+      .mockResolvedValueOnce(false);
+    const {getByText} = await render(<AlternativeBilling />);
+
+    await fireEvent.press(getByText('Test Consumable'));
+    await fireEvent.press(getByText('🛒 Buy (External URL)'));
+
+    expect(ExpoIap.openExternalPurchaseLink).not.toHaveBeenCalled();
+    expect(getByText(/not available for this app or storefront/)).toBeTruthy();
+  });
+
   it('switches the billing flow only after native applies its program', async () => {
     Object.defineProperty(Platform, 'OS', {
       get: jest.fn(() => 'android'),

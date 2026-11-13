@@ -1,4 +1,6 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
+import Callout from '../../../../components/Callout';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -19,6 +21,14 @@ function IsEligibleForExternalPurchaseCustomLinkIOS() {
         <span className="platform-badge platform-badge--ios">iOS</span>{' '}
         isEligibleForExternalPurchaseCustomLinkIOS
       </h1>
+      <Callout kind="warning" title="Deprecated">
+        Use{' '}
+        <Link to="/docs/apis/is-external-purchase-link-available">
+          isExternalPurchaseLinkAvailable
+        </Link>{' '}
+        instead. It runs the required store disclosure and opens the link in one
+        call. This API keeps working until client protocol 2.0.0.
+      </Callout>
       <p>
         Check whether the app is eligible to use the{' '}
         <a

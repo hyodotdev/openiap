@@ -101,9 +101,6 @@ jest.mock('expo-iap', () => {
     getReceiptDataIOS: jest.fn(),
     isTransactionVerifiedIOS: jest.fn(),
     getTransactionJwsIOS: jest.fn(),
-    presentExternalPurchaseLinkIOS: jest.fn(() =>
-      Promise.resolve({success: true}),
-    ),
     getAppTransactionIOS: jest.fn(),
 
     // Cross-platform storefront helper

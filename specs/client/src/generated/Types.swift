@@ -4841,11 +4841,15 @@ public protocol MutationResolver {
     func openRedeemOfferCode() async throws -> Purchase?
     /// Present an external purchase link, StoreKit External (iOS 16+).
     /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+    /// @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
+    @available(*, deprecated, message: "Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     func presentExternalPurchaseLinkIOS(_ url: String) async throws -> ExternalPurchaseLinkResultIOS
     /// Present the external purchase notice sheet (iOS 17.4+).
     /// Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues.
     /// Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
     /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+    /// @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
+    @available(*, deprecated, message: "Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS
     /// Initiate a purchase or subscription flow; rely on events for final state.
     /// Providers emit one canonical purchase-error event before returning or throwing a request failure.
@@ -4909,6 +4913,8 @@ public protocol QueryResolver {
     /// Check eligibility for the external purchase notice sheet (iOS 17.4+).
     /// Uses ExternalPurchase.canPresent.
     /// See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+    /// @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
+    @available(*, deprecated, message: "Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     func canPresentExternalPurchaseNoticeIOS() async throws -> Bool
     /// Get the user's current entitlement for a product, using StoreKit 2 (iOS 15+).
     /// See: https://openiap.dev/docs/apis/ios/current-entitlement-ios
@@ -4971,6 +4977,8 @@ public protocol QueryResolver {
     /// Returns true if the app can use custom external purchase links.
     /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible
     /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+    /// @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
+    @available(*, deprecated, message: "Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     func isEligibleForExternalPurchaseCustomLinkIOS() async throws -> Bool
     /// Check intro-offer eligibility for a subscription group.
     /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
@@ -5088,7 +5096,9 @@ public struct MutationHandlers {
     public var launchExternalLinkAndroid: MutationLaunchExternalLinkAndroidHandler?
     public var openExternalPurchaseLink: MutationOpenExternalPurchaseLinkHandler?
     public var openRedeemOfferCode: MutationOpenRedeemOfferCodeHandler?
+    @available(*, deprecated, message: "Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     public var presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIOSHandler?
+    @available(*, deprecated, message: "Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     public var presentExternalPurchaseNoticeSheetIOS: MutationPresentExternalPurchaseNoticeSheetIOSHandler?
     public var requestPurchase: MutationRequestPurchaseHandler?
     public var restorePurchases: MutationRestorePurchasesHandler?
@@ -5182,6 +5192,7 @@ public typealias QuerySubscriptionStatusIOSHandler = (_ sku: String) async throw
 public typealias QueryVerifyAppOwnershipHandler = (_ options: VerifyAppOwnershipProps?) async throws -> AppOwnershipVerificationResult
 
 public struct QueryHandlers {
+    @available(*, deprecated, message: "Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     public var canPresentExternalPurchaseNoticeIOS: QueryCanPresentExternalPurchaseNoticeIOSHandler?
     public var currentEntitlementIOS: QueryCurrentEntitlementIOSHandler?
     public var fetchProducts: QueryFetchProductsHandler?
@@ -5197,6 +5208,7 @@ public struct QueryHandlers {
     public var getStorefront: QueryGetStorefrontHandler?
     public var getTransactionJwsIOS: QueryGetTransactionJwsIOSHandler?
     public var hasActiveSubscriptions: QueryHasActiveSubscriptionsHandler?
+    @available(*, deprecated, message: "Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     public var isEligibleForExternalPurchaseCustomLinkIOS: QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler?
     public var isEligibleForIntroOfferIOS: QueryIsEligibleForIntroOfferIOSHandler?
     public var isExternalPurchaseLinkAvailable: QueryIsExternalPurchaseLinkAvailableHandler?

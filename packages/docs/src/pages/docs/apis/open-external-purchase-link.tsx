@@ -38,7 +38,8 @@ function OpenExternalPurchaseLink() {
           <strong>iOS 17.4 to 18.0:</strong> shows the{' '}
           <code>ExternalPurchase</code> notice sheet, which returns the token,
           then opens the URL. Use a link listed under{' '}
-          <code>SKExternalPurchase</code> in Info.plist.
+          <code>SKExternalPurchaseLink</code> (or{' '}
+          <code>SKExternalPurchaseMultiLink</code>) in Info.plist.
         </li>
         <li>
           <strong>Google Play:</strong> creates external offer reporting
@@ -120,7 +121,9 @@ function OpenExternalPurchaseLink() {
         <li>
           <code>reportToken</code>: present only when <code>opened</code>.
           Play&apos;s <code>externalTransactionToken</code> or Apple&apos;s
-          external purchase token. OpenIAP never sends it anywhere.
+          external purchase token. OpenIAP never sends it anywhere. Apple
+          requires every token in your monthly report, even when no purchase
+          follows.
         </li>
         <li>
           <code>platform</code>: the platform that produced the token.
@@ -149,7 +152,7 @@ const result = await openExternalPurchaseLink({
   apple: { tokenType: 'acquisition' },
 });
 if (result.status === 'opened') {
-  // Report result.reportToken from your backend after the web purchase.
+  // Send result.reportToken to your backend and report it as the store requires.
 }`}</CodeBlock>
           ),
           swift: (

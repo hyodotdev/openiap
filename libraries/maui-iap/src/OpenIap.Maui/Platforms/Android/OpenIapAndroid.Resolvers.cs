@@ -188,7 +188,9 @@ internal sealed partial class OpenIapAndroid
 
     public Task<string?> BeginRefundRequestIOSAsync(string sku) => NotSupportedIOS<string?>("beginRefundRequestIOS");
     public Task<bool> ClearTransactionIOSAsync() => NotSupportedIOS<bool>("clearTransactionIOS");
+    [Obsolete("Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")]
     public Task<ExternalPurchaseLinkResultIOS> PresentExternalPurchaseLinkIOSAsync(string url) => NotSupportedIOS<ExternalPurchaseLinkResultIOS>("presentExternalPurchaseLinkIOS");
+    [Obsolete("Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")]
     public Task<ExternalPurchaseNoticeResultIOS> PresentExternalPurchaseNoticeSheetIOSAsync() => NotSupportedIOS<ExternalPurchaseNoticeResultIOS>("presentExternalPurchaseNoticeSheetIOS");
     public Task<ExternalPurchaseCustomLinkNoticeResultIOS> ShowExternalPurchaseCustomLinkNoticeIOSAsync(ExternalPurchaseCustomLinkNoticeTypeIOS noticeType) => NotSupportedIOS<ExternalPurchaseCustomLinkNoticeResultIOS>("showExternalPurchaseCustomLinkNoticeIOS");
     public Task<IReadOnlyList<PurchaseIOS>> ShowManageSubscriptionsIOSAsync() => NotSupportedIOS<IReadOnlyList<PurchaseIOS>>("showManageSubscriptionsIOS");
@@ -241,6 +243,7 @@ internal sealed partial class OpenIapAndroid
 
     // ---- iOS-only queries (defaults / throw not-supported) --------------
 
+    [Obsolete("Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")]
     public Task<bool> CanPresentExternalPurchaseNoticeIOSAsync() => Task.FromResult(false);
     public Task<PurchaseIOS?> CurrentEntitlementIOSAsync(string sku) => Task.FromResult<PurchaseIOS?>(null);
     public Task<IReadOnlyList<PurchaseIOS>> GetAllTransactionsIOSAsync() => Task.FromResult<IReadOnlyList<PurchaseIOS>>(Array.Empty<PurchaseIOS>());
@@ -250,6 +253,7 @@ internal sealed partial class OpenIapAndroid
     public Task<ProductIOS?> GetPromotedProductIOSAsync() => Task.FromResult<ProductIOS?>(null);
     public Task<string?> GetReceiptDataIOSAsync() => Task.FromResult<string?>(null);
     public Task<string?> GetTransactionJwsIOSAsync(string sku) => Task.FromResult<string?>(null);
+    [Obsolete("Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")]
     public Task<bool> IsEligibleForExternalPurchaseCustomLinkIOSAsync() => Task.FromResult(false);
     public Task<bool> IsEligibleForIntroOfferIOSAsync(string groupId) => Task.FromResult(false);
     public Task<bool> IsTransactionVerifiedIOSAsync(string sku) => Task.FromResult(false);

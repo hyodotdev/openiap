@@ -43,6 +43,17 @@ class ExternalPurchaseLinkTest {
     }
 
     @Test
+    fun `unenrolled app is unavailable`() = runBlocking {
+        val provider = provider { method, _ ->
+            check(method == "isBillingProgramAvailable")
+            throw OpenIapError.BillingUnavailable("not enrolled")
+        }
+
+        assertFalse(provider.externalPurchaseLinkAvailable())
+        assertEquals(ExternalPurchaseLinkStatus.Unavailable, provider.openExternalPurchaseLinkFlow(activity, request).status)
+    }
+
+    @Test
     fun `cancelled disclosure returns no token`() = runBlocking {
         val provider = provider(available = true, launch = { throw OpenIapError.UserCancelled() })
 

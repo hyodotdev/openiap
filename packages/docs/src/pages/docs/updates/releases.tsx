@@ -906,9 +906,14 @@ function Releases() {
             source="api.graphql"
             diff={`+ isExternalPurchaseLinkAvailable: Boolean!
 + openExternalPurchaseLink(request: ExternalPurchaseLinkRequest!): ExternalPurchaseLinkResult!
-+ enum ExternalPurchaseLinkStatus { Opened, Cancelled, Unavailable }`}
++ enum ExternalPurchaseLinkStatus { Opened, Cancelled, Unavailable }
+  canPresentExternalPurchaseNoticeIOS: Boolean! @deprecated
+  isEligibleForExternalPurchaseCustomLinkIOS: Boolean! @deprecated
+  presentExternalPurchaseNoticeSheetIOS: ExternalPurchaseNoticeResultIOS! @deprecated
+  presentExternalPurchaseLinkIOS(url: String!): ExternalPurchaseLinkResultIOS! @deprecated`}
           >
-            Additive only; no existing member, value or default changes.
+            Additive. Four iOS calls are deprecated and keep working until
+            client protocol 2.0.0; no value or default changes.
           </ClientProtocolChange>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
             Protocols and native packages
@@ -949,14 +954,24 @@ function Releases() {
             </li>
             <li>
               <code>cancelled</code> and <code>unavailable</code> are results,
-              not errors. Report <code>reportToken</code> only after your
-              backend confirms the web purchase.
+              not errors. Send <code>reportToken</code> to your backend. Apple
+              requires every token in the monthly report, even when no purchase
+              follows; Play reports it with the external transaction.
             </li>
             <li>
-              Platform calls such as{' '}
-              <code>showExternalPurchaseCustomLinkNoticeIOS</code> and{' '}
-              <code>launchExternalLinkAndroid</code>, and Play&apos;s in-app
-              billing choice, are unchanged.
+              Deprecated, removed in client protocol 2.0.0:{' '}
+              <code>canPresentExternalPurchaseNoticeIOS</code> and{' '}
+              <code>isEligibleForExternalPurchaseCustomLinkIOS</code> (use{' '}
+              <code>isExternalPurchaseLinkAvailable</code>), and{' '}
+              <code>presentExternalPurchaseNoticeSheetIOS</code> and{' '}
+              <code>presentExternalPurchaseLinkIOS</code> (use{' '}
+              <code>openExternalPurchaseLink</code>). They still work.
+            </li>
+            <li>
+              <code>showExternalPurchaseCustomLinkNoticeIOS</code>,{' '}
+              <code>getExternalPurchaseCustomLinkTokenIOS</code>, the Android
+              billing program calls, and Play&apos;s in-app billing choice are
+              unchanged. The example apps now use the shared call.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>

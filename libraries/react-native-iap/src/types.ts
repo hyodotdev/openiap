@@ -922,6 +922,7 @@ export interface Mutation {
   /**
    * Present an external purchase link, StoreKit External (iOS 16+).
    * See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+   * @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
    */
   presentExternalPurchaseLinkIOS: Promise<ExternalPurchaseLinkResultIOS>;
   /**
@@ -929,6 +930,7 @@ export interface Mutation {
    * Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues.
    * Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
    * See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+   * @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
    */
   presentExternalPurchaseNoticeSheetIOS: Promise<ExternalPurchaseNoticeResultIOS>;
   /**
@@ -1495,6 +1497,7 @@ export interface Query {
    * Check eligibility for the external purchase notice sheet (iOS 17.4+).
    * Uses ExternalPurchase.canPresent.
    * See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+   * @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
    */
   canPresentExternalPurchaseNoticeIOS: Promise<boolean>;
   /**
@@ -1586,6 +1589,7 @@ export interface Query {
    * Returns true if the app can use custom external purchase links.
    * Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible
    * See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+   * @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
    */
   isEligibleForExternalPurchaseCustomLinkIOS: Promise<boolean>;
   /**

@@ -55,9 +55,13 @@ private enum ExternalPurchaseLinkRoute {
 private extension OpenIapModuleProtocol {
     // Prefer the iOS 18.1+ custom link; fall back to the iOS 17.4+ notice sheet.
     func externalPurchaseLinkRoute() async throws -> ExternalPurchaseLinkRoute? {
+        #if os(watchOS)
+        return nil // watchOS cannot open the link, so never show the disclosure.
+        #else
         if try await unlessUnsupported(isEligibleForExternalPurchaseCustomLinkIOS) { return .customLink }
         if try await unlessUnsupported(canPresentExternalPurchaseNoticeIOS) { return .noticeSheet }
         return nil
+        #endif
     }
 
     func unlessUnsupported(_ check: () async throws -> Bool) async throws -> Bool {

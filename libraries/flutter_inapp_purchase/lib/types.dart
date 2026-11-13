@@ -6398,11 +6398,15 @@ abstract class MutationResolver {
   Future<Purchase?> openRedeemOfferCode();
   /// Present an external purchase link, StoreKit External (iOS 16+).
   /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+  /// @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
+  @Deprecated('Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.')
   Future<ExternalPurchaseLinkResultIOS> presentExternalPurchaseLinkIOS(String url);
   /// Present the external purchase notice sheet (iOS 17.4+).
   /// Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues.
   /// Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
   /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+  /// @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
+  @Deprecated('Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.')
   Future<ExternalPurchaseNoticeResultIOS> presentExternalPurchaseNoticeSheetIOS();
   /// Initiate a purchase or subscription flow; rely on events for final state.
   /// Providers emit one canonical purchase-error event before returning or throwing a request failure.
@@ -6472,6 +6476,8 @@ abstract class QueryResolver {
   /// Check eligibility for the external purchase notice sheet (iOS 17.4+).
   /// Uses ExternalPurchase.canPresent.
   /// See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+  /// @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
+  @Deprecated('Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.')
   Future<bool> canPresentExternalPurchaseNoticeIOS();
   /// Get the user's current entitlement for a product, using StoreKit 2 (iOS 15+).
   /// See: https://openiap.dev/docs/apis/ios/current-entitlement-ios
@@ -6545,6 +6551,8 @@ abstract class QueryResolver {
   /// Returns true if the app can use custom external purchase links.
   /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible
   /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+  /// @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
+  @Deprecated('Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.')
   Future<bool> isEligibleForExternalPurchaseCustomLinkIOS();
   /// Check intro-offer eligibility for a subscription group.
   /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
@@ -6719,7 +6727,9 @@ class MutationHandlers {
   final MutationLaunchExternalLinkAndroidHandler? launchExternalLinkAndroid;
   final MutationOpenExternalPurchaseLinkHandler? openExternalPurchaseLink;
   final MutationOpenRedeemOfferCodeHandler? openRedeemOfferCode;
+  @Deprecated('Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.')
   final MutationPresentExternalPurchaseLinkIOSHandler? presentExternalPurchaseLinkIOS;
+  @Deprecated('Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.')
   final MutationPresentExternalPurchaseNoticeSheetIOSHandler? presentExternalPurchaseNoticeSheetIOS;
   final MutationRequestPurchaseHandler? requestPurchase;
   final MutationRestorePurchasesHandler? restorePurchases;
@@ -6798,6 +6808,7 @@ class QueryHandlers {
     this.verifyAppOwnership,
   });
 
+  @Deprecated('Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.')
   final QueryCanPresentExternalPurchaseNoticeIOSHandler? canPresentExternalPurchaseNoticeIOS;
   final QueryCurrentEntitlementIOSHandler? currentEntitlementIOS;
   final QueryFetchProductsHandler? fetchProducts;
@@ -6813,6 +6824,7 @@ class QueryHandlers {
   final QueryGetStorefrontHandler? getStorefront;
   final QueryGetTransactionJwsIOSHandler? getTransactionJwsIOS;
   final QueryHasActiveSubscriptionsHandler? hasActiveSubscriptions;
+  @Deprecated('Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.')
   final QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler? isEligibleForExternalPurchaseCustomLinkIOS;
   final QueryIsEligibleForIntroOfferIOSHandler? isEligibleForIntroOfferIOS;
   final QueryIsExternalPurchaseLinkAvailableHandler? isExternalPurchaseLinkAvailable;

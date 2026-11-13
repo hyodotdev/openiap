@@ -1878,6 +1878,7 @@ func get_promoted_product_ios() -> Variant:
 ## @return bool - true if external purchase notice can be presented
 ##
 ## See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+## @deprecated: Use is_external_purchase_link_available instead. Scheduled for removal in client protocol 2.0.0.
 func can_present_external_purchase_notice_ios() -> bool:
 	if _native_plugin and _platform == "iOS":
 		var payload = await _call_native_async("canPresentExternalPurchaseNoticeIOS")
@@ -1888,6 +1889,7 @@ func can_present_external_purchase_notice_ios() -> bool:
 ## @return Types.ExternalPurchaseNoticeResultIOS
 ##
 ## See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+## @deprecated: Use open_external_purchase_link instead. Scheduled for removal in client protocol 2.0.0.
 func present_external_purchase_notice_sheet_ios() -> Variant:
 	# A failure must never read as CONTINUE, the enum's zero value.
 	var failed = Types.ExternalPurchaseNoticeResultIOS.new()
@@ -1915,6 +1917,7 @@ func present_external_purchase_notice_sheet_ios() -> Variant:
 ## @return Types.ExternalPurchaseLinkResultIOS
 ##
 ## See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+## @deprecated: Use open_external_purchase_link instead. Scheduled for removal in client protocol 2.0.0.
 func present_external_purchase_link_ios(url: String) -> Variant:
 	if _native_plugin and _platform == "iOS":
 		var payload = await _call_native_async(
@@ -2144,6 +2147,7 @@ func _parse_request_id(pending_json) -> String:
 ## @return bool true if the current context can show external purchase custom link
 ##
 ## See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+## @deprecated: Use is_external_purchase_link_available instead. Scheduled for removal in client protocol 2.0.0.
 func is_eligible_for_external_purchase_custom_link_ios() -> bool:
 	if not (_native_plugin and _platform == "iOS"):
 		return false

@@ -2980,6 +2980,7 @@ export const launchExternalLinkAndroid: MutationField<
  * Check if the device can present an external purchase notice sheet (iOS 17.4+).
  * Wraps `ExternalPurchase.canPresent`.
  *
+ * @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
  * @returns Promise<boolean> - true if notice sheet can be presented
  * @platform iOS
  *
@@ -3015,6 +3016,7 @@ export const canPresentExternalPurchaseNoticeIOS: QueryField<
  * Present an external purchase notice sheet to inform users about external purchases (iOS 17.4+).
  * This must be called before opening an external purchase link.
  *
+ * @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
  * @returns Promise<ExternalPurchaseNoticeResultIOS> - Result with action and error if any
  * @platform iOS
  *
@@ -3049,6 +3051,7 @@ export const presentExternalPurchaseNoticeSheetIOS: MutationField<
 /**
  * Present an external purchase link to redirect users to your website (iOS 16.0+).
  *
+ * @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
  * @param url - The external purchase URL to open
  * @returns Promise<ExternalPurchaseLinkResultIOS> - Result with success status and error if any
  * @platform iOS
@@ -3084,6 +3087,7 @@ export const presentExternalPurchaseLinkIOS: MutationField<
 /**
  * Check if app is eligible for ExternalPurchaseCustomLink API (iOS 18.1+).
  *
+ * @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
  * @returns Promise<boolean> - true if eligible
  * @platform iOS
  * @see https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible

@@ -636,7 +636,8 @@ void main() {
       );
     });
 
-    test('isExternalPurchaseLinkAvailable maps native failures to PurchaseError',
+    test(
+        'isExternalPurchaseLinkAvailable maps native failures to PurchaseError',
         () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {

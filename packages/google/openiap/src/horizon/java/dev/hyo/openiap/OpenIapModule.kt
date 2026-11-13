@@ -1523,8 +1523,15 @@ class OpenIapModule(
     override val mutationHandlers: MutationHandlers = MutationHandlers(
         openExternalPurchaseLink = { request ->
             val activity = currentActivityRef?.get() ?: fallbackActivity
-                ?: throw OpenIapError.MissingCurrentActivity
-            openExternalPurchaseLink(activity, request)
+            when {
+                activity != null -> openExternalPurchaseLink(activity, request)
+                // Nothing will be shown, so no activity is needed to say so.
+                !isExternalPurchaseLinkAvailable() -> ExternalPurchaseLinkResult(
+                    platform = IapPlatform.Android,
+                    status = ExternalPurchaseLinkStatus.Unavailable,
+                )
+                else -> throw OpenIapError.MissingCurrentActivity
+            }
         },
         acknowledgePurchaseAndroid = acknowledgePurchaseAndroid,
         consumePurchaseAndroid = consumePurchaseAndroid,

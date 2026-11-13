@@ -5556,7 +5556,9 @@ public interface MutationResolver
     /// <summary>
     /// Present an external purchase link, StoreKit External (iOS 16+).
     /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+    /// @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
     /// </summary>
+    [Obsolete("Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")]
     Task<ExternalPurchaseLinkResultIOS> PresentExternalPurchaseLinkIOSAsync(string url);
 
     /// <summary>
@@ -5564,7 +5566,9 @@ public interface MutationResolver
     /// Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues.
     /// Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
     /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+    /// @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
     /// </summary>
+    [Obsolete("Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")]
     Task<ExternalPurchaseNoticeResultIOS> PresentExternalPurchaseNoticeSheetIOSAsync();
 
     /// <summary>
@@ -5654,7 +5658,9 @@ public interface QueryResolver
     /// Check eligibility for the external purchase notice sheet (iOS 17.4+).
     /// Uses ExternalPurchase.canPresent.
     /// See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+    /// @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
     /// </summary>
+    [Obsolete("Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")]
     Task<bool> CanPresentExternalPurchaseNoticeIOSAsync();
 
     /// <summary>
@@ -5761,7 +5767,9 @@ public interface QueryResolver
     /// Returns true if the app can use custom external purchase links.
     /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible
     /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+    /// @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
     /// </summary>
+    [Obsolete("Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")]
     Task<bool> IsEligibleForExternalPurchaseCustomLinkIOSAsync();
 
     /// <summary>

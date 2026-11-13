@@ -10,6 +10,8 @@ internal suspend fun OpenIapProtocol.externalPurchaseLinkAvailable(): Boolean =
         isBillingProgramAvailable(BillingProgramAndroid.ExternalOffer).isAvailable
     } catch (_: OpenIapError.FeatureNotSupported) {
         false
+    } catch (_: OpenIapError.BillingUnavailable) {
+        false // Play's answer for an unenrolled app or ineligible country.
     }
 
 internal suspend fun OpenIapProtocol.openExternalPurchaseLinkFlow(

@@ -84,6 +84,35 @@ describe('AlternativeBilling Screen', () => {
     expect(getByText(/Current mode: EXTERNAL_PAYMENTS/)).toBeTruthy();
   });
 
+  it('opens the iOS external purchase link through the shared API', async () => {
+    Object.assign(Platform, {OS: 'ios'});
+    const {getByText} = await render(<AlternativeBilling />);
+
+    await fireEvent.press(getByText('Test Consumable'));
+    await fireEvent.press(getByText('🛒 Buy (External URL)'));
+
+    expect(RNIap.isExternalPurchaseLinkAvailable).toHaveBeenCalled();
+    expect(RNIap.openExternalPurchaseLink).toHaveBeenCalledWith({
+      url: 'https://openiap.dev',
+    });
+    expect(getByText(/External purchase link opened/)).toBeTruthy();
+    expect(getByText(/Report token: Present/)).toBeTruthy();
+  });
+
+  it('skips the iOS link when the storefront is not eligible', async () => {
+    Object.assign(Platform, {OS: 'ios'});
+    jest
+      .mocked(RNIap.isExternalPurchaseLinkAvailable)
+      .mockResolvedValueOnce(false);
+    const {getByText} = await render(<AlternativeBilling />);
+
+    await fireEvent.press(getByText('Test Consumable'));
+    await fireEvent.press(getByText('🛒 Buy (External URL)'));
+
+    expect(RNIap.openExternalPurchaseLink).not.toHaveBeenCalled();
+    expect(getByText(/not available for this app or storefront/)).toBeTruthy();
+  });
+
   it('renders Amazon Vega as unsupported for alternative billing', async () => {
     Object.assign(Platform, {OS: 'kepler'});
 

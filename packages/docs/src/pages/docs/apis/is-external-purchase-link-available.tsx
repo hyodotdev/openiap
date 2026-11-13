@@ -81,7 +81,8 @@ function IsExternalPurchaseLinkAvailable() {
         <code>true</code> when <code>openExternalPurchaseLink</code> can show
         the store disclosure. It returns <code>false</code> instead of throwing
         when the program is not enabled or the user is not eligible. A
-        connection failure still throws.
+        connection failure still throws, except in Godot, which has no
+        exceptions and returns <code>false</code> for any failure.
       </p>
 
       <h2>Example</h2>

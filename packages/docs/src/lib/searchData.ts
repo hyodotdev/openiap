@@ -337,7 +337,7 @@ export const apiData: ApiItem[] = [
     title: 'canPresentExternalPurchaseNoticeIOS',
     category: 'iOS Specific',
     description:
-      'Check if the external purchase notice sheet can be presented (iOS 17.4+)',
+      'Deprecated: use isExternalPurchaseLinkAvailable. Check if the external purchase notice sheet can be presented (iOS 17.4+)',
     parameters: '',
     returns: 'Boolean!',
     path: '/docs/apis/ios/can-present-external-purchase-notice-ios',
@@ -346,7 +346,8 @@ export const apiData: ApiItem[] = [
     id: 'present-external-purchase-notice-sheet-ios',
     title: 'presentExternalPurchaseNoticeSheetIOS',
     category: 'iOS Specific',
-    description: "Present Apple's compliance notice sheet (iOS 17.4+)",
+    description:
+      "Deprecated: use openExternalPurchaseLink. Present Apple's compliance notice sheet (iOS 17.4+)",
     parameters: '',
     returns: 'ExternalPurchaseNoticeResultIOS!',
     path: '/docs/apis/ios/present-external-purchase-notice-sheet-ios',
@@ -355,7 +356,8 @@ export const apiData: ApiItem[] = [
     id: 'present-external-purchase-link-ios',
     title: 'presentExternalPurchaseLinkIOS',
     category: 'iOS Specific',
-    description: 'Open the external purchase URL in Safari (iOS 16+)',
+    description:
+      'Deprecated: use openExternalPurchaseLink. Open the external purchase URL in Safari (iOS 16+)',
     parameters: 'url: String!',
     returns: 'ExternalPurchaseLinkResultIOS!',
     path: '/docs/apis/ios/present-external-purchase-link-ios',
@@ -365,7 +367,7 @@ export const apiData: ApiItem[] = [
     title: 'isEligibleForExternalPurchaseCustomLinkIOS',
     category: 'iOS Specific',
     description:
-      'Check whether the app can use the iOS 18.1+ ExternalPurchaseCustomLink API',
+      'Deprecated: use isExternalPurchaseLinkAvailable. Check whether the app can use the iOS 18.1+ ExternalPurchaseCustomLink API',
     parameters: '',
     returns: 'Boolean!',
     path: '/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios',

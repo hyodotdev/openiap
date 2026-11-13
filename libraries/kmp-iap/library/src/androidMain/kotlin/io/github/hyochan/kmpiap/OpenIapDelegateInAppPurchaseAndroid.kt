@@ -483,10 +483,14 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
     override suspend fun showManageSubscriptionsIOS(): List<PurchaseIOS> = emptyList()
     override suspend fun syncIOS(): Boolean = false
     override suspend fun clearTransactionIOS(): Boolean = false
+    @Deprecated("Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     override suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS = failUnsupported("External purchase links are iOS only.")
+    @Deprecated("Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     override suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS = failUnsupported("External purchase notice sheet is iOS only.")
     override suspend fun showExternalPurchaseCustomLinkNoticeIOS(noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS): ExternalPurchaseCustomLinkNoticeResultIOS = failUnsupported("External purchase custom-link notice is iOS only.")
+    @Deprecated("Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     override suspend fun canPresentExternalPurchaseNoticeIOS(): Boolean = false
+    @Deprecated("Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     override suspend fun isEligibleForExternalPurchaseCustomLinkIOS(): Boolean = false
     override suspend fun getExternalPurchaseCustomLinkTokenIOS(tokenType: ExternalPurchaseCustomLinkTokenTypeIOS): ExternalPurchaseCustomLinkTokenResultIOS = failUnsupported("External purchase custom-link token is iOS only.")
     override suspend fun isEligibleForIntroOfferIOS(groupID: String): Boolean = false

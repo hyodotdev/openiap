@@ -6452,14 +6452,18 @@ public interface MutationResolver {
     /**
      * Present an external purchase link, StoreKit External (iOS 16+).
      * See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+     * @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
      */
+    @Deprecated("Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS
     /**
      * Present the external purchase notice sheet (iOS 17.4+).
      * Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues.
      * Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
      * See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+     * @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
      */
+    @Deprecated("Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS
     /**
      * Initiate a purchase or subscription flow; rely on events for final state.
@@ -6540,7 +6544,9 @@ public interface QueryResolver {
      * Check eligibility for the external purchase notice sheet (iOS 17.4+).
      * Uses ExternalPurchase.canPresent.
      * See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+     * @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
      */
+    @Deprecated("Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     suspend fun canPresentExternalPurchaseNoticeIOS(): Boolean
     /**
      * Get the user's current entitlement for a product, using StoreKit 2 (iOS 15+).
@@ -6632,7 +6638,9 @@ public interface QueryResolver {
      * Returns true if the app can use custom external purchase links.
      * Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible
      * See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+     * @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
      */
+    @Deprecated("Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     suspend fun isEligibleForExternalPurchaseCustomLinkIOS(): Boolean
     /**
      * Check intro-offer eligibility for a subscription group.
@@ -6859,14 +6867,18 @@ public class MutationHandlers(
     /**
      * Present an external purchase link, StoreKit External (iOS 16+).
      * See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+     * @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
      */
+    @Deprecated("Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     val presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIOSHandler? = null,
     /**
      * Present the external purchase notice sheet (iOS 17.4+).
      * Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues.
      * Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
      * See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+     * @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
      */
+    @Deprecated("Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     val presentExternalPurchaseNoticeSheetIOS: MutationPresentExternalPurchaseNoticeSheetIOSHandler? = null,
     /**
      * Initiate a purchase or subscription flow; rely on events for final state.
@@ -7112,7 +7124,9 @@ public class QueryHandlers(
      * Check eligibility for the external purchase notice sheet (iOS 17.4+).
      * Uses ExternalPurchase.canPresent.
      * See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+     * @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
      */
+    @Deprecated("Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     val canPresentExternalPurchaseNoticeIOS: QueryCanPresentExternalPurchaseNoticeIOSHandler? = null,
     /**
      * Get the user's current entitlement for a product, using StoreKit 2 (iOS 15+).
@@ -7204,7 +7218,9 @@ public class QueryHandlers(
      * Returns true if the app can use custom external purchase links.
      * Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible
      * See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+     * @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
      */
+    @Deprecated("Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     val isEligibleForExternalPurchaseCustomLinkIOS: QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler? = null,
     /**
      * Check intro-offer eligibility for a subscription group.

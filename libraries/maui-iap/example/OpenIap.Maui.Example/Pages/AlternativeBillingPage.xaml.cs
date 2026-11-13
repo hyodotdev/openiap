@@ -312,19 +312,30 @@ public partial class AlternativeBillingPage : ContentPage
         }
 
         SetProcessing(true);
-        ShowResult("🌐 Opening external purchase link...");
         try
         {
-            var result = await OpenIapClient.Mutation.PresentExternalPurchaseLinkIOSAsync(externalUrl);
-            if (!string.IsNullOrEmpty(result.Error))
+            if (!await OpenIapClient.Query.IsExternalPurchaseLinkAvailableAsync())
             {
-                ShowResult($"❌ Error: {result.Error}");
-                await DisplayAlertAsync("Error", result.Error, "OK");
+                ShowResult("❌ External purchase links are not available");
+                return;
             }
-            else if (result.Success)
+
+            ShowResult("🌐 Opening external purchase link...");
+            // Shows the App Store disclosure first, then opens the URL
+            var result = await OpenIapClient.Mutation.OpenExternalPurchaseLinkAsync(
+                new ExternalPurchaseLinkRequest { Url = externalUrl });
+            switch (result.Status)
             {
-                ShowResult($"✅ External purchase link opened successfully\n\nProduct: {product.Id}\nURL: {externalUrl}\n\nUser was redirected to external website.\n\nNote: Complete purchase on your website and implement server-side validation.");
-                await DisplayAlertAsync("Redirected", "User was redirected to your external purchase website. Complete the purchase there.", "OK");
+                case ExternalPurchaseLinkStatus.Opened:
+                    ShowResult($"✅ External purchase link opened\n\nProduct: {product.Id}\nURL: {externalUrl}\nReport token: {result.ReportToken ?? "none"}\n\nNote: Complete purchase on your website and report the token from your server.");
+                    await DisplayAlertAsync("Redirected", "User was redirected to your external purchase website. Complete the purchase there.", "OK");
+                    break;
+                case ExternalPurchaseLinkStatus.Cancelled:
+                    ShowResult("ℹ️ User dismissed the external purchase notice");
+                    break;
+                case ExternalPurchaseLinkStatus.Unavailable:
+                    ShowResult("❌ External purchase links are not available");
+                    break;
             }
         }
         catch (Exception ex)

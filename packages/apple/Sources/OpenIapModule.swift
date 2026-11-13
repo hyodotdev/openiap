@@ -159,18 +159,22 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         try await provider.deepLinkToSubscriptions(options)
     }
 
+    @available(*, deprecated, message: "Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     public func canPresentExternalPurchaseNoticeIOS() async throws -> Bool {
         try await provider.canPresentExternalPurchaseNoticeIOS()
     }
 
+    @available(*, deprecated, message: "Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     public func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS {
         try await provider.presentExternalPurchaseNoticeSheetIOS()
     }
 
+    @available(*, deprecated, message: "Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     public func presentExternalPurchaseLinkIOS(_ url: String) async throws -> ExternalPurchaseLinkResultIOS {
         try await provider.presentExternalPurchaseLinkIOS(url)
     }
 
+    @available(*, deprecated, message: "Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     public func isEligibleForExternalPurchaseCustomLinkIOS() async throws -> Bool {
         try await provider.isEligibleForExternalPurchaseCustomLinkIOS()
     }

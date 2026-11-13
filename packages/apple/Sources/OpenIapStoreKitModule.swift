@@ -1631,7 +1631,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
     /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
     public func presentExternalPurchaseLinkIOS(_ url: String) async throws -> ExternalPurchaseLinkResultIOS {
         try await ensureConnection()
-        // UIApplication.open is available on iOS/tvOS/visionOS but not watchOS/macOS
+        // UIApplication.open on iOS/tvOS/visionOS, NSWorkspace on macOS; watchOS cannot open URLs.
         // Reference: https://developer.apple.com/documentation/uikit/uiapplication/1648685-open
         #if os(iOS) || os(tvOS) || os(visionOS)
         guard let customLink = URL(string: url) else {
@@ -1654,6 +1654,12 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                 )
             }
         }
+        #elseif os(macOS)
+        guard let customLink = URL(string: url) else {
+            return ExternalPurchaseLinkResultIOS(error: "Invalid URL", success: false)
+        }
+        let opened = await MainActor.run { NSWorkspace.shared.open(customLink) }
+        return ExternalPurchaseLinkResultIOS(error: opened ? nil : "Cannot open URL", success: opened)
         #else
         throw PurchaseError.make(code: .featureNotSupported)
         #endif // os(iOS) || os(tvOS) || os(visionOS)

@@ -114,6 +114,14 @@ jest.mock('../src/index', () => {
     verifyPurchase: mockVerifyPurchase,
     verifyPurchaseWithProvider: mockVerifyPurchaseWithProvider,
     openRedeemOfferCode: jest.fn(() => Promise.resolve(null)),
+    isExternalPurchaseLinkAvailable: jest.fn(() => Promise.resolve(true)),
+    openExternalPurchaseLink: jest.fn(() =>
+      Promise.resolve({
+        platform: 'ios',
+        status: 'opened',
+        reportToken: 'external-purchase-token',
+      }),
+    ),
     verifyAppOwnership: jest.fn(),
 
     // Android specific

@@ -321,7 +321,12 @@ describe('generated compatibility', () => {
     const implementors = interfaceImplementors();
     const unionOwners = interfaceUnionOwners();
 
-    expect(entries).toEqual([]);
+    expect(entries.map((entry) => entry.ownerPath)).toEqual([
+      'Query.canPresentExternalPurchaseNoticeIOS',
+      'Query.isEligibleForExternalPurchaseCustomLinkIOS',
+      'Mutation.presentExternalPurchaseNoticeSheetIOS',
+      'Mutation.presentExternalPurchaseLinkIOS',
+    ]);
     for (const file of generatedFiles) {
       const source = generated(file);
       expect(source).not.toContain('openRedeemOfferCodeAndroid');

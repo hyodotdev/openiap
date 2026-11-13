@@ -392,6 +392,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     public Task<string?> BeginRefundRequestIOSAsync(string sku) => InvokeNullableString(cb => _module.BeginRefundRequestIOS(sku, cb));
     public Task<bool> ClearTransactionIOSAsync() => InvokeBool(cb => _module.ClearTransactionIOS(cb));
 
+    [Obsolete("Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")]
     public Task<ExternalPurchaseLinkResultIOS> PresentExternalPurchaseLinkIOSAsync(string url)
     {
         if (!OperatingSystem.IsIOSVersionAtLeast(16, 0) && !OperatingSystem.IsMacCatalystVersionAtLeast(16, 0))
@@ -399,6 +400,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         return InvokeDict<ExternalPurchaseLinkResultIOS>(cb => _module.PresentExternalPurchaseLinkIOS(url, cb), required: true)!;
     }
 
+    [Obsolete("Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")]
     public Task<ExternalPurchaseNoticeResultIOS> PresentExternalPurchaseNoticeSheetIOSAsync()
     {
         if (!OperatingSystem.IsIOSVersionAtLeast(17, 4) && !OperatingSystem.IsMacCatalystVersionAtLeast(17, 4))
@@ -513,6 +515,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
 
     public Task<bool> IsExternalPurchaseLinkAvailableAsync() => InvokeBool(cb => _module.IsExternalPurchaseLinkAvailable(cb));
 
+    [Obsolete("Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")]
     public Task<bool> CanPresentExternalPurchaseNoticeIOSAsync()
     {
         if (!OperatingSystem.IsIOSVersionAtLeast(17, 4) && !OperatingSystem.IsMacCatalystVersionAtLeast(17, 4))
@@ -550,6 +553,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     public Task<string?> GetReceiptDataIOSAsync() => InvokeNullableString(cb => _module.GetReceiptDataIOS(cb));
     public Task<string?> GetTransactionJwsIOSAsync(string sku) => InvokeNullableString(cb => _module.GetTransactionJwsIOS(sku, cb));
 
+    [Obsolete("Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")]
     public Task<bool> IsEligibleForExternalPurchaseCustomLinkIOSAsync()
     {
         if (!OperatingSystem.IsIOSVersionAtLeast(18, 1) && !OperatingSystem.IsMacCatalystVersionAtLeast(18, 1))

@@ -6925,7 +6925,7 @@ class Query:
 		const return_type = "ProductIOS"
 		const is_array = false
 
-	## Check eligibility for the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.canPresent. See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+	## Check eligibility for the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.canPresent. See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
 	class canPresentExternalPurchaseNoticeIOSField:
 		const name = "canPresentExternalPurchaseNoticeIOS"
 		const snake_name = "can_present_external_purchase_notice_ios"
@@ -6934,7 +6934,7 @@ class Query:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Check eligibility for the custom-link variant of external purchase (iOS 18.1+). Returns true if the app can use custom external purchase links. Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+	## Check eligibility for the custom-link variant of external purchase (iOS 18.1+). Returns true if the app can use custom external purchase links. Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
 	class isEligibleForExternalPurchaseCustomLinkIOSField:
 		const name = "isEligibleForExternalPurchaseCustomLinkIOS"
 		const snake_name = "is_eligible_for_external_purchase_custom_link_ios"
@@ -7346,7 +7346,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Present the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues. Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet() See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+	## Present the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues. Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet() See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
 	class presentExternalPurchaseNoticeSheetIOSField:
 		const name = "presentExternalPurchaseNoticeSheetIOS"
 		const snake_name = "present_external_purchase_notice_sheet_ios"
@@ -7355,7 +7355,7 @@ class Mutation:
 		const return_type = "ExternalPurchaseNoticeResultIOS"
 		const is_array = false
 
-	## Present an external purchase link, StoreKit External (iOS 16+). See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+	## Present an external purchase link, StoreKit External (iOS 16+). See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
 	class presentExternalPurchaseLinkIOSField:
 		const name = "presentExternalPurchaseLinkIOS"
 		const snake_name = "present_external_purchase_link_ios"
@@ -7622,11 +7622,11 @@ static func is_external_purchase_link_available_args() -> Dictionary:
 static func get_promoted_product_ios_args() -> Dictionary:
 	return {}
 
-## Check eligibility for the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.canPresent. See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+## Check eligibility for the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.canPresent. See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
 static func can_present_external_purchase_notice_ios_args() -> Dictionary:
 	return {}
 
-## Check eligibility for the custom-link variant of external purchase (iOS 18.1+). Returns true if the app can use custom external purchase links. Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+## Check eligibility for the custom-link variant of external purchase (iOS 18.1+). Returns true if the app can use custom external purchase links. Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
 static func is_eligible_for_external_purchase_custom_link_ios_args() -> Dictionary:
 	return {}
 
@@ -7805,11 +7805,11 @@ static func begin_refund_request_ios_args(sku: String) -> Dictionary:
 static func sync_ios_args() -> Dictionary:
 	return {}
 
-## Present the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues. Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet() See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+## Present the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues. Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet() See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
 static func present_external_purchase_notice_sheet_ios_args() -> Dictionary:
 	return {}
 
-## Present an external purchase link, StoreKit External (iOS 16+). See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+## Present an external purchase link, StoreKit External (iOS 16+). See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
 static func present_external_purchase_link_ios_args(url: String) -> Dictionary:
 	var args = {}
 	args["url"] = url

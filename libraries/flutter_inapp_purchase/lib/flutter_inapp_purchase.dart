@@ -1592,6 +1592,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// Check eligibility for the external purchase notice sheet (iOS 17.4+, macOS 14.4+).
   ///
   /// See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+  @Deprecated(
+      'Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.')
   gentype.QueryCanPresentExternalPurchaseNoticeIOSHandler
       get canPresentExternalPurchaseNoticeIOS => () async {
             if (!isIOS) {
@@ -2900,6 +2902,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// Present the external purchase notice sheet (iOS 17.4+, macOS 14.4+).
   ///
   /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+  @Deprecated(
+      'Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.')
   gentype.MutationPresentExternalPurchaseNoticeSheetIOSHandler
       get presentExternalPurchaseNoticeSheetIOS => () async {
             if (!isIOS) {
@@ -2938,6 +2942,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// Present an external purchase link (iOS 16+; unsupported on macOS).
   ///
   /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+  @Deprecated(
+      'Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.')
   gentype.MutationPresentExternalPurchaseLinkIOSHandler
       get presentExternalPurchaseLinkIOS => (String url) async {
             if (!_platform.isIOS || _platform.isMacOS) {
@@ -2979,6 +2985,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// Check eligibility for ExternalPurchaseCustomLink (iOS 18.1+, macOS 15.1+).
   ///
   /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+  @Deprecated(
+      'Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.')
   gentype.QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler
       get isEligibleForExternalPurchaseCustomLinkIOS => () async {
             if (!_platform.isIOS && !_platform.isMacOS) {
