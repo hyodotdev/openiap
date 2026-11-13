@@ -43,9 +43,9 @@ repo-local skills directly. Install the globally named ones
 ```
 
 Then ask normally ("review PR 65", "resolve issue 88") or name a skill such as
-`$openiap-workflows`. Keep `$review-self`, `$loop-review`, and `$ship-release`
-repo-local: their review, merge, and release policies are specific to this
-repository.
+`$openiap-workflows`. Keep `$review-self`, `$loop-review`,
+`$loop-review-self`, and `$ship-release` repo-local: their review, merge, and
+release policies are specific to this repository.
 
 ## Claude Code
 
@@ -107,6 +107,7 @@ in `headers.Authorization`. That file then holds a secret in plaintext:
 | `$github-labels`            | Apply relevant labels to issues, Discussions and PRs            | `$github-labels`                      |
 | `$review-self`              | Review and improve current work until stable                    | `$review-self` or `$review-self <PR>` |
 | `$loop-review`              | Start from current main, review, PR, and merge                  | `$loop-review`                        |
+| `$loop-review-self`         | Review a minor docs or housekeeping change, then push to main   | `$loop-review-self`                   |
 | `$ship-release`             | Merge, publish, document, and deploy a release                  | `$ship-release`                       |
 | `$rebase-main`              | Pull main and safely rebase the current branch                  | `$rebase-main`                        |
 | `$generate-doc`             | Write OpenIAP docs and pre-release release notes                | `$generate-doc`                       |
@@ -135,6 +136,12 @@ against the request and conventions, fixes in-scope findings, rechecks at the
 requested interval (five minutes by default), and stops after two consecutive
 clean snapshots or a named blocker. It grants no commit, push, PR, merge,
 deploy, or release authority the request did not already give.
+
+`$loop-review-self` is the no-PR lane for a minor documentation, release-note,
+or repository-housekeeping change: it runs `$review-self` to two clean
+snapshots, runs the checks its paths require, then commits and pushes straight
+to `main`. Its skill file lists the paths that qualify; anything else goes
+through `$loop-review`.
 
 `/review-pr` fixes each valid unresolved review thread, replies without
 resolving when a comment is wrong, runs lint, typecheck, and tests before

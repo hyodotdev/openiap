@@ -174,8 +174,10 @@ to create follow-up PRs. "Continue", "finish the remaining work", "merge", and
 - If a new PR is necessary after the task's PR has merged, prepare the fix
   and checks, then ask before opening it. Do not infer permission from a CI
   failure or a release blocker.
-- A small docs fix with no open PR (a guide sentence, a snippet, a link) gets
-  no PR at all: ask in one line whether to commit it straight to `main`.
+- A minor documentation, release-note, or repository-housekeeping change with
+  no open PR gets no PR at all. Review it and commit it straight to `main`;
+  `$loop-review-self` owns that lane and lists the paths that qualify. Product
+  code, specs, and published package sources are never in it.
 
 Claude Code enforces this: `scripts/guard-pull-request.mjs` holds `gh pr
 create`, `gh pr new`, the REST and GraphQL create calls, GitHub MCP tools that

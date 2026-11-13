@@ -134,8 +134,10 @@ This rule binds AI agents and maintainer sessions; human contributors are
 welcome to open PRs. Open a new PR only when the maintainer explicitly requests
 it. Permission for one PR, or to continue, merge, or release, does not
 authorize follow-up PRs. Keep small fixes in the relevant open PR, and leave
-unrelated PRs alone. A small docs fix with no open PR is a one-line question
-about committing straight to `main`. Claude Code holds PR creation for approval
+unrelated PRs alone. A minor documentation, release-note, or housekeeping change
+with no open PR gets no PR at all: `$loop-review-self` reviews it and commits it
+straight to `main`.
+Claude Code holds PR creation for approval
 (`scripts/guard-pull-request.mjs`).
 [Canonical rule](knowledge/internal/06-git-deployment.md#opening-pull-requests).
 

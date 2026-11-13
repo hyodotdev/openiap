@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-11-10T17:03:19.791Z
+> Last updated: 2026-11-13T11:31:46.025Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2798,8 +2798,10 @@ to create follow-up PRs. "Continue", "finish the remaining work", "merge", and
 - If a new PR is necessary after the task's PR has merged, prepare the fix
   and checks, then ask before opening it. Do not infer permission from a CI
   failure or a release blocker.
-- A small docs fix with no open PR (a guide sentence, a snippet, a link) gets
-  no PR at all: ask in one line whether to commit it straight to `main`.
+- A minor documentation, release-note, or repository-housekeeping change with
+  no open PR gets no PR at all. Review it and commit it straight to `main`;
+  `$loop-review-self` owns that lane and lists the paths that qualify. Product
+  code, specs, and published package sources are never in it.
 
 Claude Code enforces this: `scripts/guard-pull-request.mjs` holds `gh pr
 create`, `gh pr new`, the REST and GraphQL create calls, GitHub MCP tools that
@@ -3865,9 +3867,9 @@ repo-local skills directly. Install the globally named ones
 ```
 
 Then ask normally ("review PR 65", "resolve issue 88") or name a skill such as
-`$openiap-workflows`. Keep `$review-self`, `$loop-review`, and `$ship-release`
-repo-local: their review, merge, and release policies are specific to this
-repository.
+`$openiap-workflows`. Keep `$review-self`, `$loop-review`,
+`$loop-review-self`, and `$ship-release` repo-local: their review, merge, and
+release policies are specific to this repository.
 
 ## Claude Code
 
@@ -3929,6 +3931,7 @@ in `headers.Authorization`. That file then holds a secret in plaintext:
 | `$github-labels`            | Apply relevant labels to issues, Discussions and PRs            | `$github-labels`                      |
 | `$review-self`              | Review and improve current work until stable                    | `$review-self` or `$review-self <PR>` |
 | `$loop-review`              | Start from current main, review, PR, and merge                  | `$loop-review`                        |
+| `$loop-review-self`         | Review a minor docs or housekeeping change, then push to main   | `$loop-review-self`                   |
 | `$ship-release`             | Merge, publish, document, and deploy a release                  | `$ship-release`                       |
 | `$rebase-main`              | Pull main and safely rebase the current branch                  | `$rebase-main`                        |
 | `$generate-doc`             | Write OpenIAP docs and pre-release release notes                | `$generate-doc`                       |
@@ -3957,6 +3960,12 @@ against the request and conventions, fixes in-scope findings, rechecks at the
 requested interval (five minutes by default), and stops after two consecutive
 clean snapshots or a named blocker. It grants no commit, push, PR, merge,
 deploy, or release authority the request did not already give.
+
+`$loop-review-self` is the no-PR lane for a minor documentation, release-note,
+or repository-housekeeping change: it runs `$review-self` to two clean
+snapshots, runs the checks its paths require, then commits and pushes straight
+to `main`. Its skill file lists the paths that qualify; anything else goes
+through `$loop-review`.
 
 `/review-pr` fixes each valid unresolved review thread, replies without
 resolving when a comment is wrong, runs lint, typecheck, and tests before
