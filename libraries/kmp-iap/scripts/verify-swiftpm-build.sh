@@ -29,6 +29,19 @@ xcodebuild -project example/iosApp/iosApp.xcodeproj -scheme iosApp \
   -derivedDataPath "$verification_dir/DerivedData" \
   CODE_SIGNING_ALLOWED=NO ARCHS=arm64 build
 
+# PR CI passes --allow-unreleased-apple: when packages/apple differs from the
+# pinned release, the published consumer cannot build yet. The release
+# workflow omits the flag, so it always runs the published check.
+apple_version="$(python3 -c 'import json; print(json.load(open("openiap-versions.json"))["apple"])')"
+if [ "${1:-}" = "--allow-unreleased-apple" ]; then
+  git fetch --quiet --no-tags --depth=1 origin "refs/tags/${apple_version}:refs/tags/${apple_version}"
+  if ! git diff --quiet "refs/tags/$apple_version" HEAD -- ../../packages/apple/Sources ../../packages/apple/Package.swift; then
+    test ! -e "$OPENIAP_COCOAPODS_CALLED"
+    echo "::warning::Skipped the published consumer check: packages/apple differs from openiap-apple $apple_version. The KMP release runs it after the Apple release."
+    exit 0
+  fi
+fi
+
 verification_version=0.0.0-swiftpm-check
 ./gradlew --no-parallel -PopeniapAppleRemote=true \
   "-PlibraryVersion=$verification_version" "-Dmaven.repo.local=$verification_dir/maven" \
