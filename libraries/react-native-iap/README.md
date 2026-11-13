@@ -210,7 +210,7 @@ We also recognize sponsors and backers through OpenCollective. The original reac
 
 ### Past supporters
 
-Supported the project before the OpenIAP sponsor program: Nami for 1 year and Courier for 1 month.
+Supported the project before the OpenIAP sponsor program: Nami for 30 months and Courier for 1 month.
 
 <p align="center">
   <a href="https://namiml.com">

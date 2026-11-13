@@ -1089,8 +1089,10 @@
 }
 
 .xp-supporters small {
+  max-width: 11rem;
   font-size: 0.72rem;
   line-height: 1.4;
+  text-align: center;
 }
 
 .xp-supporters > div.xp-in-kind-list {

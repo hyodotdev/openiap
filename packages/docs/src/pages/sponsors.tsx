@@ -344,7 +344,7 @@ function Sponsors() {
                   alt={supporter.name}
                   style={{ height: supporter.logo.height }}
                 />
-                <small>{supporter.supported}</small>
+                <small>Supported for {supporter.supported}</small>
               </a>
             ))}
           </div>
