@@ -27,7 +27,8 @@ function PresentExternalPurchaseLinkIOS() {
           openExternalPurchaseLink
         </Link>{' '}
         instead. It runs the required store disclosure and opens the link in one
-        call. This API keeps working until client protocol 2.0.0.
+        call on iOS 17.4+. Keep this API for iOS 16 to 17.3; it works until
+        client protocol 2.0.0.
       </Callout>
       <p>Open an external purchase URL outside the app (iOS 16+).</p>
       <p>
@@ -46,9 +47,10 @@ function PresentExternalPurchaseLinkIOS() {
         </a>
         .
       </p>
-      <Callout kind="note" title="macOS and watchOS">
-        macOS opens the URL with <code>NSWorkspace</code>. watchOS returns a
-        feature-not-supported error.
+      <Callout kind="note" title="macOS">
+        Not supported. The current OpenIAP Apple core implementation uses{' '}
+        <code>UIApplication</code> and returns a feature-not-supported error on
+        macOS.
       </Callout>
 
       <h2>Signature</h2>

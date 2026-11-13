@@ -253,9 +253,9 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
         setState(() => _status = 'Alternative billing not supported on web');
       }
     } catch (e) {
-      setState(() => _status = 'Error: $e');
+      if (mounted) setState(() => _status = 'Error: $e');
     } finally {
-      setState(() => _isProcessing = false);
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
@@ -287,9 +287,9 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
         setState(() => _status = 'Alternative billing not supported on web');
       }
     } catch (e) {
-      setState(() => _status = 'Error: $e');
+      if (mounted) setState(() => _status = 'Error: $e');
     } finally {
-      setState(() => _isProcessing = false);
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 

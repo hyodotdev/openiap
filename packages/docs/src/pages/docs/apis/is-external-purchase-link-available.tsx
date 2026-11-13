@@ -42,8 +42,10 @@ function IsExternalPurchaseLinkAvailable() {
           <code>enableBillingProgramAndroid</code> and available to this user.
         </li>
         <li>
-          <strong>Amazon, Meta Horizon, Vega OS:</strong> always{' '}
-          <code>false</code>.
+          <strong>
+            Amazon, Meta Horizon, Vega OS, macOS, watchOS, iOS before 17.4:
+          </strong>{' '}
+          always <code>false</code>.
         </li>
       </ul>
 

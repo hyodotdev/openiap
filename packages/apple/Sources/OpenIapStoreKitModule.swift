@@ -1631,7 +1631,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
     /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
     public func presentExternalPurchaseLinkIOS(_ url: String) async throws -> ExternalPurchaseLinkResultIOS {
         try await ensureConnection()
-        // UIApplication.open on iOS/tvOS/visionOS, NSWorkspace on macOS; watchOS cannot open URLs.
+        // UIApplication.open is available on iOS/tvOS/visionOS but not watchOS/macOS
         // Reference: https://developer.apple.com/documentation/uikit/uiapplication/1648685-open
         #if os(iOS) || os(tvOS) || os(visionOS)
         guard let customLink = URL(string: url) else {
@@ -1654,15 +1654,26 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                 )
             }
         }
-        #elseif os(macOS)
-        guard let customLink = URL(string: url) else {
-            return ExternalPurchaseLinkResultIOS(error: "Invalid URL", success: false)
-        }
-        let opened = await MainActor.run { NSWorkspace.shared.open(customLink) }
-        return ExternalPurchaseLinkResultIOS(error: opened ? nil : "Cannot open URL", success: opened)
         #else
         throw PurchaseError.make(code: .featureNotSupported)
         #endif // os(iOS) || os(tvOS) || os(visionOS)
+    }
+
+    // The link opens with UIApplication, so other platforms never show the disclosure.
+    public func isExternalPurchaseLinkAvailable() async throws -> Bool {
+        #if os(iOS) || os(tvOS) || os(visionOS)
+        return try await externalPurchaseLinkRoute() != nil
+        #else
+        return false
+        #endif
+    }
+
+    public func openExternalPurchaseLink(_ request: ExternalPurchaseLinkRequest) async throws -> ExternalPurchaseLinkResult {
+        #if os(iOS) || os(tvOS) || os(visionOS)
+        return try await openExternalPurchaseLinkFlow(request)
+        #else
+        return ExternalPurchaseLinkResult(platform: .ios, status: .unavailable)
+        #endif
     }
 
     // MARK: - ExternalPurchaseCustomLink (iOS 18.1+)

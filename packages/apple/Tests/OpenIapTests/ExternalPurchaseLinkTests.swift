@@ -17,6 +17,31 @@ final class ExternalPurchaseLinkTests: XCTestCase {
         XCTAssertEqual(module.calls, [])
     }
 
+    #if os(macOS)
+    func testStoreKitModuleIsUnavailableOnMacOS() async throws {
+        let module = OpenIapStoreKitModule()
+
+        let available = try await module.isExternalPurchaseLinkAvailable()
+        let result = try await module.openExternalPurchaseLink(request)
+
+        XCTAssertFalse(available)
+        XCTAssertEqual(result.status, .unavailable)
+    }
+    #endif
+
+    @MainActor
+    func testStoreForwardsToItsModule() async throws {
+        let module = FakeExternalLinkModule(customLinkEligible: true, noticeContinues: true)
+        let store = OpenIapStore(module: module)
+
+        let available = try await store.isExternalPurchaseLinkAvailable()
+        let result = try await store.openExternalPurchaseLink(request)
+
+        XCTAssertTrue(available)
+        XCTAssertEqual(result.status, .opened)
+        XCTAssertEqual(module.calls, ["notice", "token:acquisition", "open:https://example.com/checkout"])
+    }
+
     func testUnsupportedProviderIsUnavailable() async throws {
         let module = FakeExternalLinkModule(unsupported: true)
 

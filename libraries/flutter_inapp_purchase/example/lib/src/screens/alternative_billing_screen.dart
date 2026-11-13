@@ -283,6 +283,7 @@ Report the token from your server.
       }
     } catch (e) {
       debugPrint('[iOS] Alternative billing error: $e');
+      if (!mounted) return;
       setState(() => _purchaseResult = 'Error: $e');
       _showAlert('Error', e.toString());
     } finally {

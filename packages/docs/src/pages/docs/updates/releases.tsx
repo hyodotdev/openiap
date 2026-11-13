@@ -923,8 +923,9 @@ function Releases() {
               <strong>openiap-apple 4.2.0</strong>: uses{' '}
               <code>ExternalPurchaseCustomLink</code> on iOS 18.1 or later and
               the <code>ExternalPurchase</code> notice sheet on iOS 17.4 to
-              18.0. A custom provider gets the same flow from its existing
-              external purchase methods.
+              18.0. macOS and watchOS return <code>unavailable</code>. A custom
+              provider gets the same flow from its existing external purchase
+              methods.
             </li>
             <li>
               <strong>openiap-google 4.2.0</strong>: uses Play&apos;s external

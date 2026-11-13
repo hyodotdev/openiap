@@ -616,6 +616,14 @@ public final class OpenIapStore: ObservableObject {
 
     #endif // !os(tvOS)
 
+    public func isExternalPurchaseLinkAvailable() async throws -> Bool {
+        try await module.isExternalPurchaseLinkAvailable()
+    }
+
+    public func openExternalPurchaseLink(_ request: ExternalPurchaseLinkRequest) async throws -> ExternalPurchaseLinkResult {
+        try await module.openExternalPurchaseLink(request)
+    }
+
     @available(*, deprecated, message: "Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     public func canPresentExternalPurchaseNoticeIOS() async throws -> Bool {
         try await module.canPresentExternalPurchaseNoticeIOS()

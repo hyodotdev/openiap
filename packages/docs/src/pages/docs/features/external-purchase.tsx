@@ -120,8 +120,10 @@ function ExternalPurchase() {
             <code>external-offer</code>.
           </li>
           <li>
-            <strong>Amazon, Meta Horizon, Vega OS</strong>: always{' '}
-            <code>unavailable</code>.
+            <strong>
+              Amazon, Meta Horizon, Vega OS, macOS, watchOS, iOS before 17.4
+            </strong>
+            : always <code>unavailable</code>.
           </li>
         </ul>
         <CodeBlock language="typescript">{`import {

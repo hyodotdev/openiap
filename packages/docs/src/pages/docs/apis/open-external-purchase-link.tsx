@@ -47,8 +47,13 @@ function OpenExternalPurchaseLink() {
           Play&apos;s dialog before opening the link.
         </li>
         <li>
-          <strong>Amazon, Meta Horizon, Vega OS:</strong> returns{' '}
-          <code>unavailable</code> without showing anything.
+          <strong>
+            Amazon, Meta Horizon, Vega OS, macOS, watchOS, iOS before 17.4:
+          </strong>{' '}
+          returns <code>unavailable</code> without showing anything. An app that
+          still links out on iOS 16 to 17.3 keeps the deprecated{' '}
+          <code>presentExternalPurchaseLinkIOS</code> for those versions until
+          client protocol 2.0.0.
         </li>
       </ul>
 

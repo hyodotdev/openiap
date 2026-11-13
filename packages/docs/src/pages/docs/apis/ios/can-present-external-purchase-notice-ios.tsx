@@ -26,8 +26,12 @@ function CanPresentExternalPurchaseNoticeIOS() {
         <Link to="/docs/apis/is-external-purchase-link-available">
           isExternalPurchaseLinkAvailable
         </Link>{' '}
-        instead. It runs the required store disclosure and opens the link in one
-        call. This API keeps working until client protocol 2.0.0.
+        instead. It only checks availability; then call{' '}
+        <Link to="/docs/apis/open-external-purchase-link">
+          openExternalPurchaseLink
+        </Link>
+        , which shows the disclosure and opens the link. This API keeps working
+        until client protocol 2.0.0.
       </Callout>
       <p>
         Check if external purchase notice sheet can be presented (iOS 17.4+,

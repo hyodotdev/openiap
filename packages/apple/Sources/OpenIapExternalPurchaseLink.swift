@@ -12,6 +12,13 @@ public extension OpenIapModuleProtocol {
     /// The URL opens only after the store disclosure continues.
     /// See: https://openiap.dev/docs/apis/open-external-purchase-link
     func openExternalPurchaseLink(_ request: ExternalPurchaseLinkRequest) async throws -> ExternalPurchaseLinkResult {
+        try await openExternalPurchaseLinkFlow(request)
+    }
+}
+
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+extension OpenIapModuleProtocol {
+    func openExternalPurchaseLinkFlow(_ request: ExternalPurchaseLinkRequest) async throws -> ExternalPurchaseLinkResult {
         let token: String
         switch try await externalPurchaseLinkRoute() {
         case nil:
@@ -46,25 +53,21 @@ public extension OpenIapModuleProtocol {
     }
 }
 
-private enum ExternalPurchaseLinkRoute {
+enum ExternalPurchaseLinkRoute {
     case customLink
     case noticeSheet
 }
 
 @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
-private extension OpenIapModuleProtocol {
+extension OpenIapModuleProtocol {
     // Prefer the iOS 18.1+ custom link; fall back to the iOS 17.4+ notice sheet.
     func externalPurchaseLinkRoute() async throws -> ExternalPurchaseLinkRoute? {
-        #if os(watchOS)
-        return nil // watchOS cannot open the link, so never show the disclosure.
-        #else
         if try await unlessUnsupported(isEligibleForExternalPurchaseCustomLinkIOS) { return .customLink }
         if try await unlessUnsupported(canPresentExternalPurchaseNoticeIOS) { return .noticeSheet }
         return nil
-        #endif
     }
 
-    func unlessUnsupported(_ check: () async throws -> Bool) async throws -> Bool {
+    private func unlessUnsupported(_ check: () async throws -> Bool) async throws -> Bool {
         do {
             return try await check()
         } catch let error as PurchaseError where error.code == .featureNotSupported {
@@ -72,7 +75,7 @@ private extension OpenIapModuleProtocol {
         }
     }
 
-    func externalPurchaseLinkError(_ message: String) -> PurchaseError {
+    private func externalPurchaseLinkError(_ message: String) -> PurchaseError {
         PurchaseError.make(code: .serviceError, message: message)
     }
 }
