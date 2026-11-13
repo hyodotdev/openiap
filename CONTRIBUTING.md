@@ -74,9 +74,8 @@ GraphQL layer under `schema/`, then run `bun run build && bun run test` in
   without one; scopes are listed in
   [Git Commit Message Format](knowledge/internal/06-git-deployment.md#git-commit-message-format).
 - Say what changed and why in a few short paragraphs.
-- For shipped source, declare the public contract impact. Agree on changed
-  requirements before implementation and link their acceptance tests in the PR.
-  See [recording approval for CI](knowledge/internal/02-architecture.md#recording-approval-for-ci).
+- For a public API change, describe the new contract and link its tests in the
+  PR. See the [Public Contract Design Gate](knowledge/internal/02-architecture.md#public-contract-design-gate).
 - Skip labels and the release-notes card. The maintainer adds both, and on
   outside PRs the release-note check only warns.
 - Do not bump versions. Releases run from CI.

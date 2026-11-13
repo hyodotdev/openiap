@@ -20,7 +20,7 @@ directory's `schema-files.mjs` or merge the two generation pipelines.
 
 Before changing the public contract, follow the
 [Public Contract Design Gate](../../knowledge/internal/02-architecture.md#public-contract-design-gate).
-Hyo approves the concrete design before implementation; IAPKit uses the same
+Hyo reviews the concrete design before merge; IAPKit uses the same
 vendor-independent contract as other verification services.
 
 Keep the published `/purchase-flow-vectors` keys and optional adapter-evidence

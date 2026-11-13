@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-11-13T11:31:46.025Z
+> Last updated: 2026-11-13T11:53:00.190Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -390,107 +390,22 @@ contract so apps use one call and one result-handling flow.
 
 ## Public Contract Design Gate
 
-Hyo must explicitly review and approve the concrete design **before** an agent
-implements a new or changed specification or public API. This includes schema
-members, exported helpers and package entry points, signatures, defaults, wire
-values, observable semantics, deprecations, and removals across every SDK.
-Do not invent a public API to make an implementation or example convenient.
+Hyo reviews and approves every new or changed specification or public API
+before it merges. This includes schema members, exported helpers and package
+entry points, signatures, defaults, wire values, observable semantics,
+deprecations, and removals across every SDK. Do not invent a public API to make
+an implementation or example convenient.
 
-Present the problem and evidence, existing alternatives, exact proposed
-signatures and call examples, trust and failure behavior, affected SDKs, and
-compatibility and migration plan. List additions, changes, and removals against
-the published contract. For a verification abstraction, demonstrate how an
-independent third-party service uses the same contract without a core change.
+An agent may implement the design first and open it as a draft PR. Describe the
+problem and evidence, existing alternatives, exact signatures and call
+examples, trust and failure behavior, affected SDKs, and the compatibility and
+migration plan. List additions, changes, and removals against the published
+contract. For a verification abstraction, show how an independent third-party
+service uses the same contract without a core change.
 
-Wait for Hyo's explicit approval of that design. A general request to implement,
-continue, review, merge, or release, passing CI, and an automated review are not
-design approval. Do not split a change into helper APIs or rename it a refactor
-to bypass this gate. Return for review if the approved public design changes.
-An internal refactor or bug fix that preserves the approved public contract
-does not require a new design approval.
-
-### Recording approval for CI
-
-Open a proposal issue in this repository with the concrete design and the
-intended implementation branch. Before implementation, Hyo posts an approval
-comment beginning with
-`Approved public contract design for OWNER/REPO:BRANCH into hyodotdev/openiap:main`,
-followed by these lines:
-
-- `Design:` names the approved behavior and relevant constraints.
-- `Contract:` names one changed public source path per line. List authored
-  paths. If only generated contract files change, list those files.
-- `Acceptance:` states the expected outcome and a rejection or edge case.
-- `Verification: path/to/example.test.ts#rejects a malformed receipt` identifies
-  one test per line. Use a literal Jest, Vitest, `node:test`, or `bun:test`
-  title in an enabled suite, or a native test method name. The test must have
-  an executable body at the PR head, and CI accepts it only if its runner
-  reports it passed, so a skipped or unrun test fails. Required jobs read that
-  report: `Audit Release Metadata` runs JavaScript tests and the C# tests in
-  `libraries/maui-iap/tests/OpenIap.Maui.Tests`, `Test iOS` checks Swift tests
-  in `packages/apple/Tests`, and `Test Android` checks Kotlin unit tests in
-  `packages/google/core` and `packages/google/openiap`; both jobs run for every
-  PR that links an approval. Editing the approval line starts a new CI run; a
-  re-run of a run from before the edit fails, so re-run the latest one. CI
-  rejects a native test elsewhere, since no required job runs it. Name a plain
-  test: a `node:test` test with subtests or an xUnit test with a `DisplayName`
-  reports under another name and fails as not run. Reviewers confirm that each
-  test verifies the acceptance criteria and that the PR leaves the test setup
-  intact.
-
-Keep the comment unedited so GitHub retains its original approval timestamp.
-Record a revised decision in a new comment.
-
-Put `Design approval: https://github.com/hyodotdev/openiap/issues/123#issuecomment-456`
-on its own line in the implementation PR body. CI checks the comment's author,
-source and target branches, and timestamp against the PR and its recorded
-commit dates. Approval must predate the PR and both the Git author and
-committer dates of every PR commit. If approval comes late, start the
-implementation from the approved design and open a new PR. Reviewers confirm
-the change follows the approved design. An approval covers one change: once a
-PR that links it, or any PR from the approved branch, merges after it, record
-a new approval for the next change. Change the gate itself in a separate PR:
-an approved PR fails if it edits `design-approval.yml`, the scripts it runs
-(`audit-design-approval.mjs`, `public-declarations.mjs`,
-`approved-verification.mjs`, `check-apple-test-run.mjs`), the
-`audit-release-state`, `test-android`, and `test-ios` jobs and workflow-level
-settings of `ci.yml`, or the CI helpers those jobs run before their check
-(`setup-xcode/action.yml`, `retry-gradle.sh`). Other CI jobs may change with
-the contract.
-
-The `Design Approval` workflow runs on `pull_request_target`, so it always uses
-main's checker and reads the PR only as data. A PR cannot remove or rewrite it.
-The main ruleset requires its `Verify Design Approval` job. GitHub matches a
-required check by name, so reviewers reject any PR that adds another job or
-check with that name.
-
-Add `Verify Design Approval` to the main ruleset's required checks once the
-job has run on a PR; a check GitHub has never seen blocks every PR.
-
-CI detects edits to Client and Commerce schemas and their generated output,
-Client capability and conformance definitions, portable Client helpers and
-purchase-flow vectors, Commerce `SPEC.md`, Commerce vectors, and Commerce
-public entry points and declarations, both compatibility floors, the React
-Native and Expo public entry points, and Kit Commerce runtime source. Changes
-to those paths require approval. So does a change to anything the React
-Native and Expo entry points (`index.ts`, and `index.kepler.ts` for Vega)
-publish from other modules: the declarations, JSDoc, and parameter defaults
-(including those of class and object members) of the names they export and of
-every type those names reach (such as `hooks/useIAP.ts` or
-`specs/RnIap.nitro.ts`), `declare global` and `declare module` blocks in those
-modules, the entry and build fields of the library `package.json`, and the
-settings in the library's root `tsconfig*.json` files. The check type-checks
-the SDK sources against main's installed dependencies with the strictness and
-target the SDKs build with, so inferred types count too. A dependency upgrade
-that changes a public type is still a public change: declare it. In those other
-modules, a body-only refactor or a change to an export the SDKs do not publish
-needs no approval. A behavior change that leaves declarations and docs
-untouched is still a public change: declare it. For other shipped source,
-declare `Public contract: changed` or `Public contract: unchanged` on its own
-line in the PR body. Use `changed` for any public change outside those paths as
-well. Link the executed acceptance tests in the PR so reviewers can trace the
-result back to the approved requirement. CI rechecks approval when the PR body
-changes.
+Passing CI or an automated review is not approval. Do not split a change into
+helper APIs or call it a refactor to avoid review. An internal refactor or bug
+fix that preserves the public contract needs no new review.
 
 ### Verification Services Are Peers
 

@@ -5,7 +5,7 @@ file covers how to modify it safely.
 
 Before changing the public contract, follow the
 [Public Contract Design Gate](../../knowledge/internal/02-architecture.md#public-contract-design-gate).
-Hyo approves the concrete design before implementation; IAPKit is one
+Hyo reviews the concrete design before merge; IAPKit is one
 third-party implementation of the standard.
 
 ## The GraphQL contract is the source of truth
