@@ -95,6 +95,8 @@ public protocol OpenIapModuleProtocol {
     func showExternalPurchaseCustomLinkNoticeIOS(
         _ noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS
     ) async throws -> ExternalPurchaseCustomLinkNoticeResultIOS
+    func isExternalPurchaseLinkAvailable() async throws -> Bool
+    func openExternalPurchaseLink(_ request: ExternalPurchaseLinkRequest) async throws -> ExternalPurchaseLinkResult
 
     // Event Listeners
     func purchaseUpdatedListener(

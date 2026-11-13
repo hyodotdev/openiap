@@ -389,6 +389,33 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             }
         }
 
+    /** Whether this device and storefront may link out with [openExternalPurchaseLink]. */
+    override suspend fun isExternalPurchaseLinkAvailable(): Boolean =
+        suspendCancellableCoroutine { continuation ->
+            openIapModule.isExternalPurchaseLinkAvailableWithCompletion { isAvailable, error ->
+                if (error != null) {
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
+                } else {
+                    continuation.resumeIfActive(isAvailable)
+                }
+            }
+        }
+
+    /** Shows the App Store disclosure, opens the link once the user continues, and returns the report token. */
+    override suspend fun openExternalPurchaseLink(request: ExternalPurchaseLinkRequest): ExternalPurchaseLinkResult =
+        suspendCancellableCoroutine { continuation ->
+            openIapModule.openExternalPurchaseLinkWithRequest(request.toJson().toBridgeMapIOS()) { result, error ->
+                if (error != null) {
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
+                    return@openExternalPurchaseLinkWithRequest
+                }
+                val map = (result as? Map<*, *>)?.mapKeys { it.key.toString() } ?: emptyMap()
+                runCatching { ExternalPurchaseLinkResult.fromJson(map) }
+                    .onSuccess { continuation.resumeIfActive(it) }
+                    .onFailure { continuation.resumeWithExceptionIfActive(it) }
+            }
+        }
+
     /**
      * Present the refund request sheet (iOS 15+).
      *

@@ -21,6 +21,26 @@ public class MutationResolverContractTests
     }
 
     [Fact]
+    public void OpenExternalPurchaseLink_TakesRequestAndReturnsResultTask()
+    {
+        var method = typeof(MutationResolver).GetMethod("OpenExternalPurchaseLinkAsync");
+
+        Assert.NotNull(method);
+        Assert.Equal(typeof(ExternalPurchaseLinkRequest), Assert.Single(method!.GetParameters()).ParameterType);
+        Assert.Equal(typeof(Task<ExternalPurchaseLinkResult>), method.ReturnType);
+    }
+
+    [Fact]
+    public void IsExternalPurchaseLinkAvailable_IsParameterlessBoolQuery()
+    {
+        var method = typeof(QueryResolver).GetMethod("IsExternalPurchaseLinkAvailableAsync");
+
+        Assert.NotNull(method);
+        Assert.Empty(method!.GetParameters());
+        Assert.Equal(typeof(Task<bool>), method.ReturnType);
+    }
+
+    [Fact]
     public void RemovedRedemptionAliases_AreAbsentFromTheStableContract()
     {
         Assert.Null(typeof(MutationResolver).GetMethod("OpenRedeemOfferCodeAndroidAsync"));

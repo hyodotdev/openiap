@@ -1066,3 +1066,14 @@ input PlayIntegrityParamsAndroid {
   """Hash of the server challenge and request data; at most 500 UTF-8 bytes."""
   requestHash: String!
 }
+
+"""
+Google options for openExternalPurchaseLink.
+Available in Client Protocol 1.5.0 / openiap-google 4.2.0 (requires Play Billing 8.2.1+).
+"""
+input ExternalPurchaseLinkAndroidProps {
+  """
+  Link type passed to Play. Defaults to LINK_TO_DIGITAL_CONTENT_OFFER.
+  """
+  linkType: ExternalLinkTypeAndroid
+}

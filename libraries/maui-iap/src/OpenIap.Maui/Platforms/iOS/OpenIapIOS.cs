@@ -379,6 +379,14 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     public Task<Purchase?> OpenRedeemOfferCodeAsync() =>
         InvokeDict<Purchase>(cb => _module.OpenRedeemOfferCode(cb));
 
+    public Task<ExternalPurchaseLinkResult> OpenExternalPurchaseLinkAsync(ExternalPurchaseLinkRequest request)
+    {
+        var node = JsonSerializer.SerializeToNode(request, JsonOptions.Default) as JsonObject
+            ?? throw OpenIapErrorMapper.Wrap(ErrorCode.DeveloperError, "Unable to serialize ExternalPurchaseLinkRequest");
+        var payload = NSObjectJsonBridge.JsonObjectToDictionary(node);
+        return InvokeDict<ExternalPurchaseLinkResult>(cb => _module.OpenExternalPurchaseLink(payload, cb), required: true)!;
+    }
+
     // ---- iOS-only mutations --------------------------------------------
 
     public Task<string?> BeginRefundRequestIOSAsync(string sku) => InvokeNullableString(cb => _module.BeginRefundRequestIOS(sku, cb));
@@ -502,6 +510,8 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
             throw OpenIapErrorMapper.Wrap(ErrorCode.ServiceError, "Storefront lookup returned no country code");
         return storefront;
     }
+
+    public Task<bool> IsExternalPurchaseLinkAvailableAsync() => InvokeBool(cb => _module.IsExternalPurchaseLinkAvailable(cb));
 
     public Task<bool> CanPresentExternalPurchaseNoticeIOSAsync()
     {

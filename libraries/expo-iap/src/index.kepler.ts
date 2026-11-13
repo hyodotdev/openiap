@@ -318,6 +318,13 @@ export const deepLinkToSubscriptions: MutationField<
 export const openRedeemOfferCode: MutationField<
   'openRedeemOfferCode'
 > = async () => null;
+// Vega has no external purchase link program.
+export const isExternalPurchaseLinkAvailable: QueryField<
+  'isExternalPurchaseLinkAvailable'
+> = async () => false;
+export const openExternalPurchaseLink: MutationField<
+  'openExternalPurchaseLink'
+> = async () => ({status: 'unavailable', platform: 'android'});
 
 export const promotedProductListenerIOS = (): EventSubscription => ({
   remove: () => {},

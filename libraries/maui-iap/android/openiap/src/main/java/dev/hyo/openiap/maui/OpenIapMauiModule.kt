@@ -10,6 +10,7 @@ import dev.hyo.openiap.BillingProgramInformationDialogParamsAndroid
 import dev.hyo.openiap.BillingProgramAndroid
 import dev.hyo.openiap.DeepLinkOptions
 import dev.hyo.openiap.DeveloperBillingTypeAndroid
+import dev.hyo.openiap.ExternalPurchaseLinkRequest
 import dev.hyo.openiap.FetchProductsResult
 import dev.hyo.openiap.FetchProductsResultAll
 import dev.hyo.openiap.FetchProductsResultProducts
@@ -128,6 +129,10 @@ class OpenIapMauiModule(private val context: Context) {
         wrapString(module.getStorefront())
     }
 
+    fun isExternalPurchaseLinkAvailable(callback: ResultCallback) = run(callback) {
+        wrapBool(module.isExternalPurchaseLinkAvailable())
+    }
+
     // -----------------------------------------------------------------
     // Mutations — cross-platform
     // -----------------------------------------------------------------
@@ -234,6 +239,11 @@ class OpenIapMauiModule(private val context: Context) {
 
     fun openRedeemOfferCode(callback: ResultCallback) = run(callback) {
         gson.toJson(redeemOfferCode(module, currentActivity)?.toJson())
+    }
+
+    fun openExternalPurchaseLink(requestJson: String, callback: ResultCallback) = run(callback) {
+        val request = decode("ExternalPurchaseLinkRequest") { ExternalPurchaseLinkRequest.fromJson(parseMap(requestJson)) }
+        gson.toJson(module.openExternalPurchaseLink(currentActivityOrThrow(), request).toJson())
     }
 
     // -----------------------------------------------------------------

@@ -106,6 +106,15 @@ internal sealed partial class OpenIapAndroid
         return JsonSerializer.Deserialize<Purchase>(result, JsonOptions.Default);
     }
 
+    public async Task<ExternalPurchaseLinkResult> OpenExternalPurchaseLinkAsync(ExternalPurchaseLinkRequest request)
+    {
+        RefreshCurrentActivity();
+        var json = JsonSerializer.Serialize(request, JsonOptions.Default);
+        var result = await Invoke(cb => _module.OpenExternalPurchaseLink(json, cb));
+        return JsonSerializer.Deserialize<ExternalPurchaseLinkResult>(result, JsonOptions.Default)
+            ?? throw OpenIapErrorMapper.Wrap(ErrorCode.Unknown, "Empty openExternalPurchaseLink result");
+    }
+
     // ---- Android-only mutations -----------------------------------------
 
     public Task<bool> AcknowledgePurchaseAndroidAsync(string purchaseToken)
@@ -226,6 +235,9 @@ internal sealed partial class OpenIapAndroid
             throw OpenIapErrorMapper.Wrap(ErrorCode.ServiceError, "Storefront lookup returned no country code");
         return storefront;
     }
+
+    public Task<bool> IsExternalPurchaseLinkAvailableAsync()
+        => InvokeBool(cb => _module.IsExternalPurchaseLinkAvailable(cb));
 
     // ---- iOS-only queries (defaults / throw not-supported) --------------
 

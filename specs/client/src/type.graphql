@@ -253,6 +253,65 @@ input PurchaseInput {
   isAutoRenewing: Boolean!
 }
 
+"""
+Request for openExternalPurchaseLink.
+Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+"""
+input ExternalPurchaseLinkRequest {
+  """
+  External purchase URL. On iOS 17.4 to 18.0 it must match the
+  SKExternalPurchase link in Info.plist.
+  """
+  url: String!
+  """
+  Apple-specific options
+  """
+  apple: ExternalPurchaseLinkIosProps
+  """
+  Google-specific options
+  """
+  google: ExternalPurchaseLinkAndroidProps
+}
+
+"""
+Result of openExternalPurchaseLink.
+Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+"""
+type ExternalPurchaseLinkResult {
+  """
+  What happened to the link
+  """
+  status: ExternalPurchaseLinkStatus!
+  """
+  Token to report from your server: Play's externalTransactionToken or Apple's
+  external purchase token. Present only when status is Opened.
+  """
+  reportToken: String
+  """
+  Platform that produced reportToken
+  """
+  platform: IapPlatform!
+}
+
+"""
+Outcome of openExternalPurchaseLink.
+Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+"""
+enum ExternalPurchaseLinkStatus {
+  """
+  The user continued past the store disclosure and the link was opened
+  """
+  Opened
+  """
+  The user dismissed the store disclosure; nothing was opened
+  """
+  Cancelled
+  """
+  The store program is not enabled or the user is not eligible; nothing was shown
+  """
+  Unavailable
+}
+
 # Options for deep linking into subscription management
 input DeepLinkOptions {
   """

@@ -575,6 +575,60 @@ export interface ExternalPurchaseCustomLinkTokenResultIOS {
  */
 export type ExternalPurchaseCustomLinkTokenTypeIOS = 'acquisition' | 'services' | 'in-app' | 'link-out';
 
+/**
+ * Google options for openExternalPurchaseLink.
+ * Available in Client Protocol 1.5.0 / openiap-google 4.2.0 (requires Play Billing 8.2.1+).
+ */
+export interface ExternalPurchaseLinkAndroidProps {
+  /** Link type passed to Play. Defaults to LINK_TO_DIGITAL_CONTENT_OFFER. */
+  linkType?: (ExternalLinkTypeAndroid | null);
+}
+
+/**
+ * Apple options for openExternalPurchaseLink.
+ * Available in Client Protocol 1.5.0 / openiap-apple 4.2.0.
+ */
+export interface ExternalPurchaseLinkIosProps {
+  /**
+   * ExternalPurchaseCustomLink token type on iOS 18.1+. Defaults to Acquisition;
+   * use LinkOut in Japan and Brazil. Ignored on iOS 17.4 to 18.0, where the
+   * notice sheet returns the token.
+   */
+  tokenType?: (ExternalPurchaseCustomLinkTokenTypeIOS | null);
+}
+
+/**
+ * Request for openExternalPurchaseLink.
+ * Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+ */
+export interface ExternalPurchaseLinkRequest {
+  /** Apple-specific options */
+  apple?: (ExternalPurchaseLinkIosProps | null);
+  /** Google-specific options */
+  google?: (ExternalPurchaseLinkAndroidProps | null);
+  /**
+   * External purchase URL. On iOS 17.4 to 18.0 it must match the
+   * SKExternalPurchase link in Info.plist.
+   */
+  url: string;
+}
+
+/**
+ * Result of openExternalPurchaseLink.
+ * Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+ */
+export interface ExternalPurchaseLinkResult {
+  /** Platform that produced reportToken */
+  platform: IapPlatform;
+  /**
+   * Token to report from your server: Play's externalTransactionToken or Apple's
+   * external purchase token. Present only when status is Opened.
+   */
+  reportToken?: (string | null);
+  /** What happened to the link */
+  status: ExternalPurchaseLinkStatus;
+}
+
 /** Result of presenting an external purchase link */
 export interface ExternalPurchaseLinkResultIOS {
   /** Optional error message if the presentation failed */
@@ -582,6 +636,12 @@ export interface ExternalPurchaseLinkResultIOS {
   /** Whether the user completed the external purchase flow */
   success: boolean;
 }
+
+/**
+ * Outcome of openExternalPurchaseLink.
+ * Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+ */
+export type ExternalPurchaseLinkStatus = 'opened' | 'cancelled' | 'unavailable';
 
 /** User actions on external purchase notice sheet (iOS 17.4+) */
 export type ExternalPurchaseNoticeAction = 'continue' | 'dismissed';
@@ -841,6 +901,16 @@ export interface Mutation {
    */
   launchExternalLinkAndroid: Promise<boolean>;
   /**
+   * Show the store's required disclosure, open the external purchase link only
+   * after the user continues, and return the token to report from your server.
+   * The disclosure cannot be skipped. Unavailable and Cancelled are results, not
+   * errors.
+   * Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0
+   * (requires iOS 17.4+ or Play Billing 8.2.1+).
+   * See: https://openiap.dev/docs/apis/open-external-purchase-link
+   */
+  openExternalPurchaseLink: Promise<ExternalPurchaseLinkResult>;
+  /**
    * Open the platform's offer/promo code redemption flow.
    * Resolves the redeemed purchase only when the store reports it synchronously;
    * every other path resolves null, so reconcile through the purchase listeners.
@@ -954,6 +1024,8 @@ export type MutationInitConnectionArgs = (InitConnectionConfig | null) | undefin
 export type MutationIsBillingProgramAvailableAndroidArgs = BillingProgramAndroid;
 
 export type MutationLaunchExternalLinkAndroidArgs = LaunchExternalLinkParamsAndroid;
+
+export type MutationOpenExternalPurchaseLinkArgs = ExternalPurchaseLinkRequest;
 
 export type MutationPresentExternalPurchaseLinkIosArgs = string;
 
@@ -1521,6 +1593,15 @@ export interface Query {
    * See: https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
    */
   isEligibleForIntroOfferIOS: Promise<boolean>;
+  /**
+   * Whether this device and storefront may link out to an external purchase
+   * with openExternalPurchaseLink. Returns false instead of throwing when the
+   * store program is not enabled or the user is not eligible.
+   * Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0
+   * (requires iOS 17.4+ or Play Billing 8.2.1+).
+   * See: https://openiap.dev/docs/apis/is-external-purchase-link-available
+   */
+  isExternalPurchaseLinkAvailable: Promise<boolean>;
   /**
    * Check whether a transaction's JWS verification passed (StoreKit 2).
    * See: https://openiap.dev/docs/apis/ios/is-transaction-verified-ios
@@ -2370,6 +2451,7 @@ export type MutationArgsMap = {
   initConnection: MutationInitConnectionArgs;
   isBillingProgramAvailableAndroid: MutationIsBillingProgramAvailableAndroidArgs;
   launchExternalLinkAndroid: MutationLaunchExternalLinkAndroidArgs;
+  openExternalPurchaseLink: MutationOpenExternalPurchaseLinkArgs;
   openRedeemOfferCode: never;
   presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIosArgs;
   presentExternalPurchaseNoticeSheetIOS: never;
@@ -2416,6 +2498,7 @@ export type QueryArgsMap = {
   hasActiveSubscriptions: QueryHasActiveSubscriptionsArgs;
   isEligibleForExternalPurchaseCustomLinkIOS: never;
   isEligibleForIntroOfferIOS: QueryIsEligibleForIntroOfferIosArgs;
+  isExternalPurchaseLinkAvailable: never;
   isTransactionVerifiedIOS: QueryIsTransactionVerifiedIosArgs;
   latestTransactionIOS: QueryLatestTransactionIosArgs;
   subscriptionStatusIOS: QuerySubscriptionStatusIosArgs;

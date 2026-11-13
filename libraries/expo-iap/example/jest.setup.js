@@ -110,6 +110,10 @@ jest.mock('expo-iap', () => {
     getStorefront: jest.fn(),
     deepLinkToSubscriptions: jest.fn(() => Promise.resolve(true)),
     openRedeemOfferCode: jest.fn(() => Promise.resolve(null)),
+    isExternalPurchaseLinkAvailable: jest.fn(() => Promise.resolve(false)),
+    openExternalPurchaseLink: jest.fn(() =>
+      Promise.resolve({status: 'unavailable', platform: 'ios'}),
+    ),
     verifyAppOwnership: jest.fn(),
 
     // Android functions

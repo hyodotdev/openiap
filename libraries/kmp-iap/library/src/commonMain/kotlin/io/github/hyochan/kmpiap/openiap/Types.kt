@@ -696,6 +696,47 @@ public enum class ExternalPurchaseCustomLinkTokenTypeIOS(val rawValue: String) {
 }
 
 /**
+ * Outcome of openExternalPurchaseLink.
+ * Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+ */
+public enum class ExternalPurchaseLinkStatus(val rawValue: String) {
+    /**
+     * The user continued past the store disclosure and the link was opened
+     */
+    Opened("opened"),
+    /**
+     * The user dismissed the store disclosure; nothing was opened
+     */
+    Cancelled("cancelled"),
+    /**
+     * The store program is not enabled or the user is not eligible; nothing was shown
+     */
+    Unavailable("unavailable");
+
+    companion object {
+        private fun fromKnownJson(value: String): ExternalPurchaseLinkStatus? = when (value) {
+            "opened" -> ExternalPurchaseLinkStatus.Opened
+            "OPENED" -> ExternalPurchaseLinkStatus.Opened
+            "Opened" -> ExternalPurchaseLinkStatus.Opened
+            "cancelled" -> ExternalPurchaseLinkStatus.Cancelled
+            "CANCELLED" -> ExternalPurchaseLinkStatus.Cancelled
+            "Cancelled" -> ExternalPurchaseLinkStatus.Cancelled
+            "unavailable" -> ExternalPurchaseLinkStatus.Unavailable
+            "UNAVAILABLE" -> ExternalPurchaseLinkStatus.Unavailable
+            "Unavailable" -> ExternalPurchaseLinkStatus.Unavailable
+            else -> null
+        }
+
+        fun fromJson(value: String): ExternalPurchaseLinkStatus = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ExternalPurchaseLinkStatus value: $value")
+
+        fun fromJsonStrict(value: String): ExternalPurchaseLinkStatus =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ExternalPurchaseLinkStatus input value: $value")
+    }
+
+    fun toJson(): String = rawValue
+}
+
+/**
  * User actions on external purchase notice sheet (iOS 17.4+)
  */
 public enum class ExternalPurchaseNoticeAction(val rawValue: String) {
@@ -2501,6 +2542,44 @@ public data class ExternalPurchaseCustomLinkTokenResultIOS(
         "__typename" to "ExternalPurchaseCustomLinkTokenResultIOS",
         "error" to error,
         "token" to token,
+    )
+}
+
+/**
+ * Result of openExternalPurchaseLink.
+ * Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+ */
+public data class ExternalPurchaseLinkResult(
+    /**
+     * Platform that produced reportToken
+     */
+    val platform: IapPlatform,
+    /**
+     * Token to report from your server: Play's externalTransactionToken or Apple's
+     * external purchase token. Present only when status is Opened.
+     */
+    val reportToken: String? = null,
+    /**
+     * What happened to the link
+     */
+    val status: ExternalPurchaseLinkStatus
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): ExternalPurchaseLinkResult {
+            return ExternalPurchaseLinkResult(
+                platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for IapPlatform"),
+                reportToken = json["reportToken"] as? String,
+                status = (json["status"] as? String)?.let { ExternalPurchaseLinkStatus.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for ExternalPurchaseLinkStatus"),
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "ExternalPurchaseLinkResult",
+        "platform" to platform.toJson(),
+        "reportToken" to reportToken,
+        "status" to status.toJson(),
     )
 }
 
@@ -4768,6 +4847,94 @@ public data class DiscountOfferInputIOS(
 }
 
 /**
+ * Google options for openExternalPurchaseLink.
+ * Available in Client Protocol 1.5.0 / openiap-google 4.2.0 (requires Play Billing 8.2.1+).
+ */
+public data class ExternalPurchaseLinkAndroidProps(
+    /**
+     * Link type passed to Play. Defaults to LINK_TO_DIGITAL_CONTENT_OFFER.
+     */
+    val linkType: ExternalLinkTypeAndroid? = null
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): ExternalPurchaseLinkAndroidProps {
+            return ExternalPurchaseLinkAndroidProps(
+                linkType = json["linkType"]?.let { raw -> (raw as? String)?.let { ExternalLinkTypeAndroid.fromJsonStrict(it) } ?: throw IllegalArgumentException("Missing or invalid enum input value for ExternalLinkTypeAndroid") },
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "linkType" to linkType?.toJson(),
+    )
+}
+
+/**
+ * Apple options for openExternalPurchaseLink.
+ * Available in Client Protocol 1.5.0 / openiap-apple 4.2.0.
+ */
+public data class ExternalPurchaseLinkIosProps(
+    /**
+     * ExternalPurchaseCustomLink token type on iOS 18.1+. Defaults to Acquisition;
+     * use LinkOut in Japan and Brazil. Ignored on iOS 17.4 to 18.0, where the
+     * notice sheet returns the token.
+     */
+    val tokenType: ExternalPurchaseCustomLinkTokenTypeIOS? = null
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): ExternalPurchaseLinkIosProps {
+            return ExternalPurchaseLinkIosProps(
+                tokenType = json["tokenType"]?.let { raw -> (raw as? String)?.let { ExternalPurchaseCustomLinkTokenTypeIOS.fromJsonStrict(it) } ?: throw IllegalArgumentException("Missing or invalid enum input value for ExternalPurchaseCustomLinkTokenTypeIOS") },
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "tokenType" to tokenType?.toJson(),
+    )
+}
+
+/**
+ * Request for openExternalPurchaseLink.
+ * Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+ */
+public data class ExternalPurchaseLinkRequest(
+    /**
+     * Apple-specific options
+     */
+    val apple: ExternalPurchaseLinkIosProps? = null,
+    /**
+     * Google-specific options
+     */
+    val google: ExternalPurchaseLinkAndroidProps? = null,
+    /**
+     * External purchase URL. On iOS 17.4 to 18.0 it must match the
+     * SKExternalPurchase link in Info.plist.
+     */
+    val url: String
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): ExternalPurchaseLinkRequest? {
+            val apple = json["apple"]?.let { value -> (value as? Map<String, Any?>)?.let { ExternalPurchaseLinkIosProps.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for ExternalPurchaseLinkIosProps") }
+            val google = json["google"]?.let { value -> (value as? Map<String, Any?>)?.let { ExternalPurchaseLinkAndroidProps.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for ExternalPurchaseLinkAndroidProps") }
+            val url = json["url"] as? String
+            if (url == null) return null
+            return ExternalPurchaseLinkRequest(
+                apple = apple,
+                google = google,
+                url = url,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "apple" to apple?.toJson(),
+        "google" to google?.toJson(),
+        "url" to url,
+    )
+}
+
+/**
  * Parameters for fetching Billing Choice display information (Android)
  * Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
@@ -6211,6 +6378,16 @@ public interface MutationResolver {
      */
     suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid): Boolean
     /**
+     * Show the store's required disclosure, open the external purchase link only
+     * after the user continues, and return the token to report from your server.
+     * The disclosure cannot be skipped. Unavailable and Cancelled are results, not
+     * errors.
+     * Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0
+     * (requires iOS 17.4+ or Play Billing 8.2.1+).
+     * See: https://openiap.dev/docs/apis/open-external-purchase-link
+     */
+    suspend fun openExternalPurchaseLink(request: ExternalPurchaseLinkRequest): ExternalPurchaseLinkResult
+    /**
      * Open the platform's offer/promo code redemption flow.
      * Resolves the redeemed purchase only when the store reports it synchronously;
      * every other path resolves null, so reconcile through the purchase listeners.
@@ -6410,6 +6587,15 @@ public interface QueryResolver {
      */
     suspend fun isEligibleForIntroOfferIOS(groupID: String): Boolean
     /**
+     * Whether this device and storefront may link out to an external purchase
+     * with openExternalPurchaseLink. Returns false instead of throwing when the
+     * store program is not enabled or the user is not eligible.
+     * Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0
+     * (requires iOS 17.4+ or Play Billing 8.2.1+).
+     * See: https://openiap.dev/docs/apis/is-external-purchase-link-available
+     */
+    suspend fun isExternalPurchaseLinkAvailable(): Boolean
+    /**
      * Check whether a transaction's JWS verification passed (StoreKit 2).
      * See: https://openiap.dev/docs/apis/ios/is-transaction-verified-ios
      */
@@ -6502,6 +6688,7 @@ public typealias MutationFinishTransactionHandler = suspend (purchase: PurchaseI
 public typealias MutationInitConnectionHandler = suspend (config: InitConnectionConfig?) -> Boolean
 public typealias MutationIsBillingProgramAvailableAndroidHandler = suspend (program: BillingProgramAndroid) -> BillingProgramAvailabilityResultAndroid
 public typealias MutationLaunchExternalLinkAndroidHandler = suspend (params: LaunchExternalLinkParamsAndroid) -> Boolean
+public typealias MutationOpenExternalPurchaseLinkHandler = suspend (request: ExternalPurchaseLinkRequest) -> ExternalPurchaseLinkResult
 public typealias MutationOpenRedeemOfferCodeHandler = suspend () -> Purchase?
 public typealias MutationPresentExternalPurchaseLinkIOSHandler = suspend (url: String) -> ExternalPurchaseLinkResultIOS
 public typealias MutationPresentExternalPurchaseNoticeSheetIOSHandler = suspend () -> ExternalPurchaseNoticeResultIOS
@@ -6597,6 +6784,16 @@ public class MutationHandlers(
      * See: https://openiap.dev/docs/apis/android/launch-external-link-android
      */
     val launchExternalLinkAndroid: MutationLaunchExternalLinkAndroidHandler? = null,
+    /**
+     * Show the store's required disclosure, open the external purchase link only
+     * after the user continues, and return the token to report from your server.
+     * The disclosure cannot be skipped. Unavailable and Cancelled are results, not
+     * errors.
+     * Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0
+     * (requires iOS 17.4+ or Play Billing 8.2.1+).
+     * See: https://openiap.dev/docs/apis/open-external-purchase-link
+     */
+    val openExternalPurchaseLink: MutationOpenExternalPurchaseLinkHandler? = null,
     /**
      * Open the platform's offer/promo code redemption flow.
      * Resolves the redeemed purchase only when the store reports it synchronously;
@@ -6702,6 +6899,7 @@ public class MutationHandlers(
         initConnection: MutationInitConnectionHandler? = null,
         isBillingProgramAvailableAndroid: MutationIsBillingProgramAvailableAndroidHandler? = null,
         launchExternalLinkAndroid: MutationLaunchExternalLinkAndroidHandler? = null,
+        openExternalPurchaseLink: MutationOpenExternalPurchaseLinkHandler? = null,
         openRedeemOfferCode: MutationOpenRedeemOfferCodeHandler? = null,
         presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIOSHandler? = null,
         presentExternalPurchaseNoticeSheetIOS: MutationPresentExternalPurchaseNoticeSheetIOSHandler? = null,
@@ -6715,7 +6913,7 @@ public class MutationHandlers(
         verifyPurchase: MutationVerifyPurchaseHandler? = null,
         verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler? = null,
         showAlternativeBillingOnlyInformationDialogAndroid: MutationShowAlternativeBillingOnlyInformationDialogAndroidHandler?,
-    ) : this(acknowledgePurchaseAndroid, beginRefundRequestIOS, clearTransactionIOS, consumePurchaseAndroid, createBillingProgramReportingDetailsAndroid, deepLinkToSubscriptions, endConnection, finishTransaction, initConnection, isBillingProgramAvailableAndroid, launchExternalLinkAndroid, openRedeemOfferCode, presentExternalPurchaseLinkIOS, presentExternalPurchaseNoticeSheetIOS, requestPurchase, restorePurchases, showBillingProgramInformationDialogAndroid, showExternalPurchaseCustomLinkNoticeIOS, showInAppMessagesAndroid, showManageSubscriptionsIOS, syncIOS, verifyPurchase, verifyPurchaseWithProvider) {
+    ) : this(acknowledgePurchaseAndroid, beginRefundRequestIOS, clearTransactionIOS, consumePurchaseAndroid, createBillingProgramReportingDetailsAndroid, deepLinkToSubscriptions, endConnection, finishTransaction, initConnection, isBillingProgramAvailableAndroid, launchExternalLinkAndroid, openExternalPurchaseLink, openRedeemOfferCode, presentExternalPurchaseLinkIOS, presentExternalPurchaseNoticeSheetIOS, requestPurchase, restorePurchases, showBillingProgramInformationDialogAndroid, showExternalPurchaseCustomLinkNoticeIOS, showInAppMessagesAndroid, showManageSubscriptionsIOS, syncIOS, verifyPurchase, verifyPurchaseWithProvider) {
         this.showAlternativeBillingOnlyInformationDialogAndroid = showAlternativeBillingOnlyInformationDialogAndroid
     }
 
@@ -6730,18 +6928,19 @@ public class MutationHandlers(
     operator fun component9(): MutationInitConnectionHandler? = initConnection
     operator fun component10(): MutationIsBillingProgramAvailableAndroidHandler? = isBillingProgramAvailableAndroid
     operator fun component11(): MutationLaunchExternalLinkAndroidHandler? = launchExternalLinkAndroid
-    operator fun component12(): MutationOpenRedeemOfferCodeHandler? = openRedeemOfferCode
-    operator fun component13(): MutationPresentExternalPurchaseLinkIOSHandler? = presentExternalPurchaseLinkIOS
-    operator fun component14(): MutationPresentExternalPurchaseNoticeSheetIOSHandler? = presentExternalPurchaseNoticeSheetIOS
-    operator fun component15(): MutationRequestPurchaseHandler? = requestPurchase
-    operator fun component16(): MutationRestorePurchasesHandler? = restorePurchases
-    operator fun component17(): MutationShowBillingProgramInformationDialogAndroidHandler? = showBillingProgramInformationDialogAndroid
-    operator fun component18(): MutationShowExternalPurchaseCustomLinkNoticeIOSHandler? = showExternalPurchaseCustomLinkNoticeIOS
-    operator fun component19(): MutationShowInAppMessagesAndroidHandler? = showInAppMessagesAndroid
-    operator fun component20(): MutationShowManageSubscriptionsIOSHandler? = showManageSubscriptionsIOS
-    operator fun component21(): MutationSyncIOSHandler? = syncIOS
-    operator fun component22(): MutationVerifyPurchaseHandler? = verifyPurchase
-    operator fun component23(): MutationVerifyPurchaseWithProviderHandler? = verifyPurchaseWithProvider
+    operator fun component12(): MutationOpenExternalPurchaseLinkHandler? = openExternalPurchaseLink
+    operator fun component13(): MutationOpenRedeemOfferCodeHandler? = openRedeemOfferCode
+    operator fun component14(): MutationPresentExternalPurchaseLinkIOSHandler? = presentExternalPurchaseLinkIOS
+    operator fun component15(): MutationPresentExternalPurchaseNoticeSheetIOSHandler? = presentExternalPurchaseNoticeSheetIOS
+    operator fun component16(): MutationRequestPurchaseHandler? = requestPurchase
+    operator fun component17(): MutationRestorePurchasesHandler? = restorePurchases
+    operator fun component18(): MutationShowBillingProgramInformationDialogAndroidHandler? = showBillingProgramInformationDialogAndroid
+    operator fun component19(): MutationShowExternalPurchaseCustomLinkNoticeIOSHandler? = showExternalPurchaseCustomLinkNoticeIOS
+    operator fun component20(): MutationShowInAppMessagesAndroidHandler? = showInAppMessagesAndroid
+    operator fun component21(): MutationShowManageSubscriptionsIOSHandler? = showManageSubscriptionsIOS
+    operator fun component22(): MutationSyncIOSHandler? = syncIOS
+    operator fun component23(): MutationVerifyPurchaseHandler? = verifyPurchase
+    operator fun component24(): MutationVerifyPurchaseWithProviderHandler? = verifyPurchaseWithProvider
 
     fun copy(
         acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidHandler? = this.acknowledgePurchaseAndroid,
@@ -6755,6 +6954,7 @@ public class MutationHandlers(
         initConnection: MutationInitConnectionHandler? = this.initConnection,
         isBillingProgramAvailableAndroid: MutationIsBillingProgramAvailableAndroidHandler? = this.isBillingProgramAvailableAndroid,
         launchExternalLinkAndroid: MutationLaunchExternalLinkAndroidHandler? = this.launchExternalLinkAndroid,
+        openExternalPurchaseLink: MutationOpenExternalPurchaseLinkHandler? = this.openExternalPurchaseLink,
         openRedeemOfferCode: MutationOpenRedeemOfferCodeHandler? = this.openRedeemOfferCode,
         presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIOSHandler? = this.presentExternalPurchaseLinkIOS,
         presentExternalPurchaseNoticeSheetIOS: MutationPresentExternalPurchaseNoticeSheetIOSHandler? = this.presentExternalPurchaseNoticeSheetIOS,
@@ -6779,6 +6979,7 @@ public class MutationHandlers(
         initConnection = initConnection,
         isBillingProgramAvailableAndroid = isBillingProgramAvailableAndroid,
         launchExternalLinkAndroid = launchExternalLinkAndroid,
+        openExternalPurchaseLink = openExternalPurchaseLink,
         openRedeemOfferCode = openRedeemOfferCode,
         presentExternalPurchaseLinkIOS = presentExternalPurchaseLinkIOS,
         presentExternalPurchaseNoticeSheetIOS = presentExternalPurchaseNoticeSheetIOS,
@@ -6795,7 +6996,7 @@ public class MutationHandlers(
     )
 
     override fun equals(other: Any?): Boolean = other is MutationHandlers &&
-        acknowledgePurchaseAndroid == other.acknowledgePurchaseAndroid && beginRefundRequestIOS == other.beginRefundRequestIOS && clearTransactionIOS == other.clearTransactionIOS && consumePurchaseAndroid == other.consumePurchaseAndroid && createBillingProgramReportingDetailsAndroid == other.createBillingProgramReportingDetailsAndroid && deepLinkToSubscriptions == other.deepLinkToSubscriptions && endConnection == other.endConnection && finishTransaction == other.finishTransaction && initConnection == other.initConnection && isBillingProgramAvailableAndroid == other.isBillingProgramAvailableAndroid && launchExternalLinkAndroid == other.launchExternalLinkAndroid && openRedeemOfferCode == other.openRedeemOfferCode && presentExternalPurchaseLinkIOS == other.presentExternalPurchaseLinkIOS && presentExternalPurchaseNoticeSheetIOS == other.presentExternalPurchaseNoticeSheetIOS && requestPurchase == other.requestPurchase && restorePurchases == other.restorePurchases && showAlternativeBillingOnlyInformationDialogAndroid == other.showAlternativeBillingOnlyInformationDialogAndroid && showBillingProgramInformationDialogAndroid == other.showBillingProgramInformationDialogAndroid && showExternalPurchaseCustomLinkNoticeIOS == other.showExternalPurchaseCustomLinkNoticeIOS && showInAppMessagesAndroid == other.showInAppMessagesAndroid && showManageSubscriptionsIOS == other.showManageSubscriptionsIOS && syncIOS == other.syncIOS && verifyPurchase == other.verifyPurchase && verifyPurchaseWithProvider == other.verifyPurchaseWithProvider
+        acknowledgePurchaseAndroid == other.acknowledgePurchaseAndroid && beginRefundRequestIOS == other.beginRefundRequestIOS && clearTransactionIOS == other.clearTransactionIOS && consumePurchaseAndroid == other.consumePurchaseAndroid && createBillingProgramReportingDetailsAndroid == other.createBillingProgramReportingDetailsAndroid && deepLinkToSubscriptions == other.deepLinkToSubscriptions && endConnection == other.endConnection && finishTransaction == other.finishTransaction && initConnection == other.initConnection && isBillingProgramAvailableAndroid == other.isBillingProgramAvailableAndroid && launchExternalLinkAndroid == other.launchExternalLinkAndroid && openExternalPurchaseLink == other.openExternalPurchaseLink && openRedeemOfferCode == other.openRedeemOfferCode && presentExternalPurchaseLinkIOS == other.presentExternalPurchaseLinkIOS && presentExternalPurchaseNoticeSheetIOS == other.presentExternalPurchaseNoticeSheetIOS && requestPurchase == other.requestPurchase && restorePurchases == other.restorePurchases && showAlternativeBillingOnlyInformationDialogAndroid == other.showAlternativeBillingOnlyInformationDialogAndroid && showBillingProgramInformationDialogAndroid == other.showBillingProgramInformationDialogAndroid && showExternalPurchaseCustomLinkNoticeIOS == other.showExternalPurchaseCustomLinkNoticeIOS && showInAppMessagesAndroid == other.showInAppMessagesAndroid && showManageSubscriptionsIOS == other.showManageSubscriptionsIOS && syncIOS == other.syncIOS && verifyPurchase == other.verifyPurchase && verifyPurchaseWithProvider == other.verifyPurchaseWithProvider
     override fun hashCode(): Int {
         var result = 1
         result = 31 * result + (acknowledgePurchaseAndroid?.hashCode() ?: 0)
@@ -6809,6 +7010,7 @@ public class MutationHandlers(
         result = 31 * result + (initConnection?.hashCode() ?: 0)
         result = 31 * result + (isBillingProgramAvailableAndroid?.hashCode() ?: 0)
         result = 31 * result + (launchExternalLinkAndroid?.hashCode() ?: 0)
+        result = 31 * result + (openExternalPurchaseLink?.hashCode() ?: 0)
         result = 31 * result + (openRedeemOfferCode?.hashCode() ?: 0)
         result = 31 * result + (presentExternalPurchaseLinkIOS?.hashCode() ?: 0)
         result = 31 * result + (presentExternalPurchaseNoticeSheetIOS?.hashCode() ?: 0)
@@ -6824,7 +7026,7 @@ public class MutationHandlers(
         result = 31 * result + (verifyPurchaseWithProvider?.hashCode() ?: 0)
         return result
     }
-    override fun toString(): String = "MutationHandlers(acknowledgePurchaseAndroid=$acknowledgePurchaseAndroid, beginRefundRequestIOS=$beginRefundRequestIOS, clearTransactionIOS=$clearTransactionIOS, consumePurchaseAndroid=$consumePurchaseAndroid, createBillingProgramReportingDetailsAndroid=$createBillingProgramReportingDetailsAndroid, deepLinkToSubscriptions=$deepLinkToSubscriptions, endConnection=$endConnection, finishTransaction=$finishTransaction, initConnection=$initConnection, isBillingProgramAvailableAndroid=$isBillingProgramAvailableAndroid, launchExternalLinkAndroid=$launchExternalLinkAndroid, openRedeemOfferCode=$openRedeemOfferCode, presentExternalPurchaseLinkIOS=$presentExternalPurchaseLinkIOS, presentExternalPurchaseNoticeSheetIOS=$presentExternalPurchaseNoticeSheetIOS, requestPurchase=$requestPurchase, restorePurchases=$restorePurchases, showAlternativeBillingOnlyInformationDialogAndroid=$showAlternativeBillingOnlyInformationDialogAndroid, showBillingProgramInformationDialogAndroid=$showBillingProgramInformationDialogAndroid, showExternalPurchaseCustomLinkNoticeIOS=$showExternalPurchaseCustomLinkNoticeIOS, showInAppMessagesAndroid=$showInAppMessagesAndroid, showManageSubscriptionsIOS=$showManageSubscriptionsIOS, syncIOS=$syncIOS, verifyPurchase=$verifyPurchase, verifyPurchaseWithProvider=$verifyPurchaseWithProvider)"
+    override fun toString(): String = "MutationHandlers(acknowledgePurchaseAndroid=$acknowledgePurchaseAndroid, beginRefundRequestIOS=$beginRefundRequestIOS, clearTransactionIOS=$clearTransactionIOS, consumePurchaseAndroid=$consumePurchaseAndroid, createBillingProgramReportingDetailsAndroid=$createBillingProgramReportingDetailsAndroid, deepLinkToSubscriptions=$deepLinkToSubscriptions, endConnection=$endConnection, finishTransaction=$finishTransaction, initConnection=$initConnection, isBillingProgramAvailableAndroid=$isBillingProgramAvailableAndroid, launchExternalLinkAndroid=$launchExternalLinkAndroid, openExternalPurchaseLink=$openExternalPurchaseLink, openRedeemOfferCode=$openRedeemOfferCode, presentExternalPurchaseLinkIOS=$presentExternalPurchaseLinkIOS, presentExternalPurchaseNoticeSheetIOS=$presentExternalPurchaseNoticeSheetIOS, requestPurchase=$requestPurchase, restorePurchases=$restorePurchases, showAlternativeBillingOnlyInformationDialogAndroid=$showAlternativeBillingOnlyInformationDialogAndroid, showBillingProgramInformationDialogAndroid=$showBillingProgramInformationDialogAndroid, showExternalPurchaseCustomLinkNoticeIOS=$showExternalPurchaseCustomLinkNoticeIOS, showInAppMessagesAndroid=$showInAppMessagesAndroid, showManageSubscriptionsIOS=$showManageSubscriptionsIOS, syncIOS=$syncIOS, verifyPurchase=$verifyPurchase, verifyPurchaseWithProvider=$verifyPurchaseWithProvider)"
 }
 
 // MARK: - Query Helpers
@@ -6846,6 +7048,7 @@ public typealias QueryGetTransactionJwsIOSHandler = suspend (sku: String) -> Str
 public typealias QueryHasActiveSubscriptionsHandler = suspend (subscriptionIds: List<String>?) -> Boolean
 public typealias QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler = suspend () -> Boolean
 public typealias QueryIsEligibleForIntroOfferIOSHandler = suspend (groupID: String) -> Boolean
+public typealias QueryIsExternalPurchaseLinkAvailableHandler = suspend () -> Boolean
 public typealias QueryIsTransactionVerifiedIOSHandler = suspend (sku: String) -> Boolean
 public typealias QueryLatestTransactionIOSHandler = suspend (sku: String) -> PurchaseIOS?
 public typealias QuerySubscriptionStatusIOSHandler = suspend (sku: String) -> List<SubscriptionStatusIOS>
@@ -6956,6 +7159,15 @@ public class QueryHandlers(
      */
     val isEligibleForIntroOfferIOS: QueryIsEligibleForIntroOfferIOSHandler? = null,
     /**
+     * Whether this device and storefront may link out to an external purchase
+     * with openExternalPurchaseLink. Returns false instead of throwing when the
+     * store program is not enabled or the user is not eligible.
+     * Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0
+     * (requires iOS 17.4+ or Play Billing 8.2.1+).
+     * See: https://openiap.dev/docs/apis/is-external-purchase-link-available
+     */
+    val isExternalPurchaseLinkAvailable: QueryIsExternalPurchaseLinkAvailableHandler? = null,
+    /**
      * Check whether a transaction's JWS verification passed (StoreKit 2).
      * See: https://openiap.dev/docs/apis/ios/is-transaction-verified-ios
      */
@@ -6998,11 +7210,12 @@ public class QueryHandlers(
         hasActiveSubscriptions: QueryHasActiveSubscriptionsHandler? = null,
         isEligibleForExternalPurchaseCustomLinkIOS: QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler? = null,
         isEligibleForIntroOfferIOS: QueryIsEligibleForIntroOfferIOSHandler? = null,
+        isExternalPurchaseLinkAvailable: QueryIsExternalPurchaseLinkAvailableHandler? = null,
         isTransactionVerifiedIOS: QueryIsTransactionVerifiedIOSHandler? = null,
         latestTransactionIOS: QueryLatestTransactionIOSHandler? = null,
         subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler? = null,
         verifyAppOwnership: QueryVerifyAppOwnershipHandler?,
-    ) : this(canPresentExternalPurchaseNoticeIOS, currentEntitlementIOS, fetchProducts, getActiveSubscriptions, getAllTransactionsIOS, getAppTransactionIOS, getAvailablePurchases, getBillingChoiceInfoAndroid, getExternalPurchaseCustomLinkTokenIOS, getPendingTransactionsIOS, getPromotedProductIOS, getReceiptDataIOS, getStorefront, getTransactionJwsIOS, hasActiveSubscriptions, isEligibleForExternalPurchaseCustomLinkIOS, isEligibleForIntroOfferIOS, isTransactionVerifiedIOS, latestTransactionIOS, subscriptionStatusIOS) {
+    ) : this(canPresentExternalPurchaseNoticeIOS, currentEntitlementIOS, fetchProducts, getActiveSubscriptions, getAllTransactionsIOS, getAppTransactionIOS, getAvailablePurchases, getBillingChoiceInfoAndroid, getExternalPurchaseCustomLinkTokenIOS, getPendingTransactionsIOS, getPromotedProductIOS, getReceiptDataIOS, getStorefront, getTransactionJwsIOS, hasActiveSubscriptions, isEligibleForExternalPurchaseCustomLinkIOS, isEligibleForIntroOfferIOS, isExternalPurchaseLinkAvailable, isTransactionVerifiedIOS, latestTransactionIOS, subscriptionStatusIOS) {
         this.verifyAppOwnership = verifyAppOwnership
     }
 
@@ -7023,9 +7236,10 @@ public class QueryHandlers(
     operator fun component15(): QueryHasActiveSubscriptionsHandler? = hasActiveSubscriptions
     operator fun component16(): QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler? = isEligibleForExternalPurchaseCustomLinkIOS
     operator fun component17(): QueryIsEligibleForIntroOfferIOSHandler? = isEligibleForIntroOfferIOS
-    operator fun component18(): QueryIsTransactionVerifiedIOSHandler? = isTransactionVerifiedIOS
-    operator fun component19(): QueryLatestTransactionIOSHandler? = latestTransactionIOS
-    operator fun component20(): QuerySubscriptionStatusIOSHandler? = subscriptionStatusIOS
+    operator fun component18(): QueryIsExternalPurchaseLinkAvailableHandler? = isExternalPurchaseLinkAvailable
+    operator fun component19(): QueryIsTransactionVerifiedIOSHandler? = isTransactionVerifiedIOS
+    operator fun component20(): QueryLatestTransactionIOSHandler? = latestTransactionIOS
+    operator fun component21(): QuerySubscriptionStatusIOSHandler? = subscriptionStatusIOS
 
     fun copy(
         canPresentExternalPurchaseNoticeIOS: QueryCanPresentExternalPurchaseNoticeIOSHandler? = this.canPresentExternalPurchaseNoticeIOS,
@@ -7045,6 +7259,7 @@ public class QueryHandlers(
         hasActiveSubscriptions: QueryHasActiveSubscriptionsHandler? = this.hasActiveSubscriptions,
         isEligibleForExternalPurchaseCustomLinkIOS: QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler? = this.isEligibleForExternalPurchaseCustomLinkIOS,
         isEligibleForIntroOfferIOS: QueryIsEligibleForIntroOfferIOSHandler? = this.isEligibleForIntroOfferIOS,
+        isExternalPurchaseLinkAvailable: QueryIsExternalPurchaseLinkAvailableHandler? = this.isExternalPurchaseLinkAvailable,
         isTransactionVerifiedIOS: QueryIsTransactionVerifiedIOSHandler? = this.isTransactionVerifiedIOS,
         latestTransactionIOS: QueryLatestTransactionIOSHandler? = this.latestTransactionIOS,
         subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler? = this.subscriptionStatusIOS,
@@ -7066,6 +7281,7 @@ public class QueryHandlers(
         hasActiveSubscriptions = hasActiveSubscriptions,
         isEligibleForExternalPurchaseCustomLinkIOS = isEligibleForExternalPurchaseCustomLinkIOS,
         isEligibleForIntroOfferIOS = isEligibleForIntroOfferIOS,
+        isExternalPurchaseLinkAvailable = isExternalPurchaseLinkAvailable,
         isTransactionVerifiedIOS = isTransactionVerifiedIOS,
         latestTransactionIOS = latestTransactionIOS,
         subscriptionStatusIOS = subscriptionStatusIOS,
@@ -7073,7 +7289,7 @@ public class QueryHandlers(
     )
 
     override fun equals(other: Any?): Boolean = other is QueryHandlers &&
-        canPresentExternalPurchaseNoticeIOS == other.canPresentExternalPurchaseNoticeIOS && currentEntitlementIOS == other.currentEntitlementIOS && fetchProducts == other.fetchProducts && getActiveSubscriptions == other.getActiveSubscriptions && getAllTransactionsIOS == other.getAllTransactionsIOS && getAppTransactionIOS == other.getAppTransactionIOS && getAvailablePurchases == other.getAvailablePurchases && getBillingChoiceInfoAndroid == other.getBillingChoiceInfoAndroid && getExternalPurchaseCustomLinkTokenIOS == other.getExternalPurchaseCustomLinkTokenIOS && getPendingTransactionsIOS == other.getPendingTransactionsIOS && getPromotedProductIOS == other.getPromotedProductIOS && getReceiptDataIOS == other.getReceiptDataIOS && getStorefront == other.getStorefront && getTransactionJwsIOS == other.getTransactionJwsIOS && hasActiveSubscriptions == other.hasActiveSubscriptions && isEligibleForExternalPurchaseCustomLinkIOS == other.isEligibleForExternalPurchaseCustomLinkIOS && isEligibleForIntroOfferIOS == other.isEligibleForIntroOfferIOS && isTransactionVerifiedIOS == other.isTransactionVerifiedIOS && latestTransactionIOS == other.latestTransactionIOS && subscriptionStatusIOS == other.subscriptionStatusIOS && verifyAppOwnership == other.verifyAppOwnership
+        canPresentExternalPurchaseNoticeIOS == other.canPresentExternalPurchaseNoticeIOS && currentEntitlementIOS == other.currentEntitlementIOS && fetchProducts == other.fetchProducts && getActiveSubscriptions == other.getActiveSubscriptions && getAllTransactionsIOS == other.getAllTransactionsIOS && getAppTransactionIOS == other.getAppTransactionIOS && getAvailablePurchases == other.getAvailablePurchases && getBillingChoiceInfoAndroid == other.getBillingChoiceInfoAndroid && getExternalPurchaseCustomLinkTokenIOS == other.getExternalPurchaseCustomLinkTokenIOS && getPendingTransactionsIOS == other.getPendingTransactionsIOS && getPromotedProductIOS == other.getPromotedProductIOS && getReceiptDataIOS == other.getReceiptDataIOS && getStorefront == other.getStorefront && getTransactionJwsIOS == other.getTransactionJwsIOS && hasActiveSubscriptions == other.hasActiveSubscriptions && isEligibleForExternalPurchaseCustomLinkIOS == other.isEligibleForExternalPurchaseCustomLinkIOS && isEligibleForIntroOfferIOS == other.isEligibleForIntroOfferIOS && isExternalPurchaseLinkAvailable == other.isExternalPurchaseLinkAvailable && isTransactionVerifiedIOS == other.isTransactionVerifiedIOS && latestTransactionIOS == other.latestTransactionIOS && subscriptionStatusIOS == other.subscriptionStatusIOS && verifyAppOwnership == other.verifyAppOwnership
     override fun hashCode(): Int {
         var result = 1
         result = 31 * result + (canPresentExternalPurchaseNoticeIOS?.hashCode() ?: 0)
@@ -7093,13 +7309,14 @@ public class QueryHandlers(
         result = 31 * result + (hasActiveSubscriptions?.hashCode() ?: 0)
         result = 31 * result + (isEligibleForExternalPurchaseCustomLinkIOS?.hashCode() ?: 0)
         result = 31 * result + (isEligibleForIntroOfferIOS?.hashCode() ?: 0)
+        result = 31 * result + (isExternalPurchaseLinkAvailable?.hashCode() ?: 0)
         result = 31 * result + (isTransactionVerifiedIOS?.hashCode() ?: 0)
         result = 31 * result + (latestTransactionIOS?.hashCode() ?: 0)
         result = 31 * result + (subscriptionStatusIOS?.hashCode() ?: 0)
         result = 31 * result + (verifyAppOwnership?.hashCode() ?: 0)
         return result
     }
-    override fun toString(): String = "QueryHandlers(canPresentExternalPurchaseNoticeIOS=$canPresentExternalPurchaseNoticeIOS, currentEntitlementIOS=$currentEntitlementIOS, fetchProducts=$fetchProducts, getActiveSubscriptions=$getActiveSubscriptions, getAllTransactionsIOS=$getAllTransactionsIOS, getAppTransactionIOS=$getAppTransactionIOS, getAvailablePurchases=$getAvailablePurchases, getBillingChoiceInfoAndroid=$getBillingChoiceInfoAndroid, getExternalPurchaseCustomLinkTokenIOS=$getExternalPurchaseCustomLinkTokenIOS, getPendingTransactionsIOS=$getPendingTransactionsIOS, getPromotedProductIOS=$getPromotedProductIOS, getReceiptDataIOS=$getReceiptDataIOS, getStorefront=$getStorefront, getTransactionJwsIOS=$getTransactionJwsIOS, hasActiveSubscriptions=$hasActiveSubscriptions, isEligibleForExternalPurchaseCustomLinkIOS=$isEligibleForExternalPurchaseCustomLinkIOS, isEligibleForIntroOfferIOS=$isEligibleForIntroOfferIOS, isTransactionVerifiedIOS=$isTransactionVerifiedIOS, latestTransactionIOS=$latestTransactionIOS, subscriptionStatusIOS=$subscriptionStatusIOS, verifyAppOwnership=$verifyAppOwnership)"
+    override fun toString(): String = "QueryHandlers(canPresentExternalPurchaseNoticeIOS=$canPresentExternalPurchaseNoticeIOS, currentEntitlementIOS=$currentEntitlementIOS, fetchProducts=$fetchProducts, getActiveSubscriptions=$getActiveSubscriptions, getAllTransactionsIOS=$getAllTransactionsIOS, getAppTransactionIOS=$getAppTransactionIOS, getAvailablePurchases=$getAvailablePurchases, getBillingChoiceInfoAndroid=$getBillingChoiceInfoAndroid, getExternalPurchaseCustomLinkTokenIOS=$getExternalPurchaseCustomLinkTokenIOS, getPendingTransactionsIOS=$getPendingTransactionsIOS, getPromotedProductIOS=$getPromotedProductIOS, getReceiptDataIOS=$getReceiptDataIOS, getStorefront=$getStorefront, getTransactionJwsIOS=$getTransactionJwsIOS, hasActiveSubscriptions=$hasActiveSubscriptions, isEligibleForExternalPurchaseCustomLinkIOS=$isEligibleForExternalPurchaseCustomLinkIOS, isEligibleForIntroOfferIOS=$isEligibleForIntroOfferIOS, isExternalPurchaseLinkAvailable=$isExternalPurchaseLinkAvailable, isTransactionVerifiedIOS=$isTransactionVerifiedIOS, latestTransactionIOS=$latestTransactionIOS, subscriptionStatusIOS=$subscriptionStatusIOS, verifyAppOwnership=$verifyAppOwnership)"
 }
 
 // MARK: - Subscription Helpers

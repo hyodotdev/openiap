@@ -2490,6 +2490,46 @@ func open_redeem_offer_code() -> Variant:
 	return null
 
 # ==========================================
+# External Purchase Link (OpenIAP)
+# ==========================================
+
+## Whether this device and storefront may link out with [method open_external_purchase_link].
+## Returns false when the store program is unavailable or the check fails.
+##
+## See: https://openiap.dev/docs/apis/is-external-purchase-link-available
+func is_external_purchase_link_available() -> bool:
+	if not (_is_apple() or _platform == "Android"):
+		return false
+	var payload = await _call_native_async("isExternalPurchaseLinkAvailable")
+	return payload.get("success", false) and bool(payload.get("available", false))
+
+## Show the store disclosure, then open [code]request.url[/code] once the user continues.
+## Report [code]report_token[/code] from your server when the status is OPENED.
+## Failures emit purchase_error and return null.
+## @param request: Types.ExternalPurchaseLinkRequest
+## @return Types.ExternalPurchaseLinkResult or null
+##
+## See: https://openiap.dev/docs/apis/open-external-purchase-link
+func open_external_purchase_link(request) -> Variant:
+	var method := "openExternalPurchaseLink"
+	var payload: Dictionary = {"success": false, "code": "feature-not-supported", "error": "External purchase links are unsupported on this platform"}
+	if _is_apple() or _platform == "Android":
+		payload = await _call_native_async(method, [JSON.stringify(_as_dictionary(request))], _apple_async_ui_timeout_seconds)
+	if payload.get("success", false):
+		var parsed = JSON.parse_string(String(payload.get("resultJson", "")))
+		if parsed is Dictionary:
+			var result = Types.ExternalPurchaseLinkResult.from_dict(parsed)
+			if result != null:
+				return result
+		payload = {"code": "billing-response-json-parse-error", "error": "Invalid external purchase link result"}
+	_purchase_failure(
+		String(payload.get("code", "service-error")),
+		String(payload.get("error", "Failed to open the external purchase link")),
+		{"method": method}
+	)
+	return null
+
+# ==========================================
 # Utility Functions
 # ==========================================
 

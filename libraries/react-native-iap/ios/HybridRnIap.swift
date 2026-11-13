@@ -763,6 +763,69 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
 
+    func isExternalPurchaseLinkAvailable() throws -> Promise<Bool> {
+        return Promise.async {
+            RnIapLog.payload("isExternalPurchaseLinkAvailable", nil)
+            do {
+                let available = try await self.runConnectedOperation {
+                    try await OpenIapModule.shared.isExternalPurchaseLinkAvailable()
+                }
+                RnIapLog.result("isExternalPurchaseLinkAvailable", available)
+                return available
+            } catch let purchaseError as PurchaseError {
+                RnIapLog.failure("isExternalPurchaseLinkAvailable", error: purchaseError)
+                throw OpenIapException.from(purchaseError)
+            } catch let connectionError as OpenIapException {
+                RnIapLog.failure("isExternalPurchaseLinkAvailable", error: connectionError)
+                throw connectionError
+            } catch {
+                RnIapLog.failure("isExternalPurchaseLinkAvailable", error: error)
+                throw OpenIapException.make(code: .serviceError, message: error.localizedDescription)
+            }
+        }
+    }
+
+    func openExternalPurchaseLink(request: NitroExternalPurchaseLinkRequest) throws -> Promise<NitroExternalPurchaseLinkResult> {
+        return Promise.async {
+            RnIapLog.payload("openExternalPurchaseLink", ["url": request.url])
+            do {
+                var tokenType: OpenIAP.ExternalPurchaseCustomLinkTokenTypeIOS?
+                if case .second(let apple) = request.apple, let nitroTokenType = apple.tokenType {
+                    guard let converted = OpenIAP.ExternalPurchaseCustomLinkTokenTypeIOS(rawValue: nitroTokenType.stringValue) else {
+                        throw OpenIapException.make(code: .developerError, message: "Invalid token type: \(nitroTokenType.stringValue)")
+                    }
+                    tokenType = converted
+                }
+                let openIapRequest = OpenIAP.ExternalPurchaseLinkRequest(
+                    apple: OpenIAP.ExternalPurchaseLinkIosProps(tokenType: tokenType),
+                    url: request.url
+                )
+                let result = try await self.runConnectedOperation {
+                    try await OpenIapModule.shared.openExternalPurchaseLink(openIapRequest)
+                }
+                guard let status = ExternalPurchaseLinkStatus(fromString: result.status.rawValue),
+                      let platform = IapPlatform(fromString: result.platform.rawValue) else {
+                    throw OpenIapException.make(code: .serviceError, message: "Invalid external purchase link result")
+                }
+                RnIapLog.result("openExternalPurchaseLink", ["status": result.status.rawValue])
+                return NitroExternalPurchaseLinkResult(
+                    platform: platform,
+                    reportToken: RnIapHelper.wrapString(result.reportToken),
+                    status: status
+                )
+            } catch let purchaseError as PurchaseError {
+                RnIapLog.failure("openExternalPurchaseLink", error: purchaseError)
+                throw OpenIapException.from(purchaseError)
+            } catch let connectionError as OpenIapException {
+                RnIapLog.failure("openExternalPurchaseLink", error: connectionError)
+                throw connectionError
+            } catch {
+                RnIapLog.failure("openExternalPurchaseLink", error: error)
+                throw OpenIapException.make(code: .serviceError, message: error.localizedDescription)
+            }
+        }
+    }
+
     // MARK: - iOS-specific Public Methods
     func getAppTransactionIOS() throws -> Promise<Variant_NullType_String> {
         return Promise.async {

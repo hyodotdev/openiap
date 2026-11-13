@@ -89,6 +89,63 @@ function ExternalPurchase() {
       </section>
 
       <section>
+        <AnchorLink id="external-purchase-link" level="h2">
+          One Call for Both Stores
+        </AnchorLink>
+        <p>
+          To link out to a web checkout, call{' '}
+          <Link to="/docs/apis/open-external-purchase-link">
+            <code>openExternalPurchaseLink</code>
+          </Link>
+          . It shows the store&apos;s required disclosure, opens the URL only
+          after the user continues, and returns the token to report from your
+          server. The disclosure cannot be skipped, so the call cannot produce a
+          flow that App Review rejects for a missing notice.
+        </p>
+        <ul>
+          <li>
+            <strong>iOS 18.1+</strong>: <code>ExternalPurchaseCustomLink</code>{' '}
+            notice, then a token of <code>apple.tokenType</code> (default{' '}
+            <code>acquisition</code>; use <code>link-out</code> in Japan and
+            Brazil).
+          </li>
+          <li>
+            <strong>iOS 17.4 to 18.0</strong>: the <code>ExternalPurchase</code>{' '}
+            notice sheet, which returns the token.
+          </li>
+          <li>
+            <strong>Google Play</strong>: the external offers program (Play
+            Billing 8.2.1+). Play shows its own dialog before it opens the link.
+            Initialize with <code>enableBillingProgramAndroid</code> set to{' '}
+            <code>external-offer</code>.
+          </li>
+          <li>
+            <strong>Amazon, Meta Horizon, Vega OS</strong>: always{' '}
+            <code>unavailable</code>.
+          </li>
+        </ul>
+        <CodeBlock language="typescript">{`import {
+  isExternalPurchaseLinkAvailable,
+  openExternalPurchaseLink,
+} from 'expo-iap'; // or 'react-native-iap'
+
+if (await isExternalPurchaseLinkAvailable()) {
+  const result = await openExternalPurchaseLink({
+    url: 'https://example.com/checkout',
+  });
+  if (result.status === 'opened') {
+    // Report result.reportToken from your backend after the web purchase.
+    await api.saveExternalPurchaseToken(result.platform, result.reportToken);
+  }
+}`}</CodeBlock>
+        <p>
+          The store entitlement or program enrollment is still required. Use the
+          platform calls below when you need Android&apos;s in-app billing
+          choice or a step-by-step flow.
+        </p>
+      </section>
+
+      <section>
         <AnchorLink id="platform-implementation" level="h2">
           Platform-Specific Implementation
         </AnchorLink>

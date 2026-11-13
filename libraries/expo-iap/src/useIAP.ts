@@ -22,6 +22,8 @@ import {
   getActiveSubscriptions,
   hasActiveSubscriptions,
   openRedeemOfferCode,
+  isExternalPurchaseLinkAvailable,
+  openExternalPurchaseLink,
   type ActiveSubscription,
   type ProductTypeInput,
 } from './index';
@@ -126,6 +128,8 @@ type UseIap = {
   showAlternativeBillingOnlyInformationDialogAndroid: MutationField<'showAlternativeBillingOnlyInformationDialogAndroid'>;
   showInAppMessagesAndroid: MutationField<'showInAppMessagesAndroid'>;
   openRedeemOfferCode: MutationField<'openRedeemOfferCode'>;
+  isExternalPurchaseLinkAvailable: QueryField<'isExternalPurchaseLinkAvailable'>;
+  openExternalPurchaseLink: MutationField<'openExternalPurchaseLink'>;
 };
 
 export interface UseIAPOptions {
@@ -919,5 +923,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     showInAppMessagesAndroid,
     // Offer code redemption
     openRedeemOfferCode,
+    isExternalPurchaseLinkAvailable,
+    openExternalPurchaseLink,
   };
 }

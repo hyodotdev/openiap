@@ -267,6 +267,28 @@ function APIsIndex() {
             </tr>
             <tr>
               <td>
+                <Link to="/docs/apis/is-external-purchase-link-available">
+                  <code>isExternalPurchaseLinkAvailable</code>
+                </Link>
+              </td>
+              <td>
+                Whether this device and storefront may link out to an external
+                purchase.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <Link to="/docs/apis/open-external-purchase-link">
+                  <code>openExternalPurchaseLink</code>
+                </Link>
+              </td>
+              <td>
+                Show the store disclosure, open the link after the user
+                continues, and return the token to report from your server.
+              </td>
+            </tr>
+            <tr>
+              <td>
                 <Link to="/docs/apis/verify-app-ownership">
                   <code>verifyAppOwnership</code>
                 </Link>

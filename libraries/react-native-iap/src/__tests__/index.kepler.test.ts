@@ -127,6 +127,13 @@ describe('Amazon Vega public API', () => {
     await expect(IAP.openRedeemOfferCode()).resolves.toBeNull();
   });
 
+  it('reports external purchase links as unavailable', async () => {
+    await expect(IAP.isExternalPurchaseLinkAvailable()).resolves.toBe(false);
+    await expect(
+      IAP.openExternalPurchaseLink({url: 'https://example.test/checkout'}),
+    ).resolves.toEqual({platform: 'android', status: 'unavailable'});
+  });
+
   it('exposes inconclusive app ownership through the Vega entry', async () => {
     await expect(IAP.verifyAppOwnership()).resolves.toEqual({
       status: 'unknown',

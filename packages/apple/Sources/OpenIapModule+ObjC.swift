@@ -902,6 +902,30 @@ import StoreKit
         }
     }
 
+    // MARK: - External Purchase Link
+
+    @objc func isExternalPurchaseLinkAvailableWithCompletion(_ completion: @escaping (Bool, Error?) -> Void) {
+        Task {
+            do {
+                completion(try await isExternalPurchaseLinkAvailable(), nil)
+            } catch {
+                completion(false, error)
+            }
+        }
+    }
+
+    @objc func openExternalPurchaseLinkWithRequest(_ request: NSDictionary, completion: @escaping (Any?, Error?) -> Void) {
+        Task {
+            do {
+                let props = try OpenIapSerialization.decode(object: request, as: ExternalPurchaseLinkRequest.self)
+                let result = try await openExternalPurchaseLink(props)
+                completion(OpenIapSerialization.encode(result), nil)
+            } catch {
+                completion(nil, error)
+            }
+        }
+    }
+
     // MARK: - Event Listeners
 
     @objc func addPurchaseUpdatedListener(_ callback: @escaping (NSDictionary) -> Void) -> NSObject {

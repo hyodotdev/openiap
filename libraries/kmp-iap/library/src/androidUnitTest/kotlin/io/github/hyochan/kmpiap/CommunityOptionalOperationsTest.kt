@@ -124,6 +124,37 @@ class CommunityOptionalOperationsTest {
     }
 
     @Test
+    fun externalPurchaseLinkMapsRequestAndResult() = runBlocking {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val provider = fakeModule { method, args ->
+            when (method) {
+                "isExternalPurchaseLinkAvailable" -> true
+                "openExternalPurchaseLink" -> {
+                    assertEquals(activity, args?.get(0))
+                    val request = args?.get(1) as dev.hyo.openiap.ExternalPurchaseLinkRequest
+                    assertEquals("https://example.test/pay", request.url)
+                    assertEquals(dev.hyo.openiap.ExternalLinkTypeAndroid.LinkToAppDownload, request.google?.linkType)
+                    dev.hyo.openiap.ExternalPurchaseLinkResult(
+                        platform = dev.hyo.openiap.IapPlatform.Android,
+                        reportToken = "external-token",
+                        status = dev.hyo.openiap.ExternalPurchaseLinkStatus.Opened,
+                    )
+                }
+                else -> error("Unexpected call: $method")
+            }
+        }
+        val delegate = delegateFor(Store.UNKNOWN, provider, activity)
+        assertTrue(delegate.isExternalPurchaseLinkAvailable())
+        val result = delegate.openExternalPurchaseLink(ExternalPurchaseLinkRequest(
+            url = "https://example.test/pay",
+            google = ExternalPurchaseLinkAndroidProps(linkType = ExternalLinkTypeAndroid.LinkToAppDownload),
+        ))
+        assertEquals(ExternalPurchaseLinkStatus.Opened, result.status)
+        assertEquals("external-token", result.reportToken)
+        assertEquals(IapPlatform.Android, result.platform)
+    }
+
+    @Test
     fun providerFailuresAndMissingActivityRemainTyped() = runBlocking {
         for (store in listOf(Store.UNKNOWN, Store.PLAY_STORE)) {
             val failing = delegateFor(store, fakeModule { _, args ->
@@ -141,6 +172,7 @@ class CommunityOptionalOperationsTest {
                 { ui.showBillingProgramInformationDialogAndroid(BillingProgramInformationDialogParamsAndroid(externalTransactionToken = "token")) },
                 { ui.showAlternativeBillingOnlyInformationDialogAndroid() },
                 { ui.launchExternalLinkAndroid(linkParams()) },
+                { ui.openExternalPurchaseLink(ExternalPurchaseLinkRequest(url = "https://example.test/pay")) },
             ) + if (store == Store.UNKNOWN) listOf<suspend () -> Any?>({ ui.openRedeemOfferCode() }) else emptyList()
             for (operation in operations) {
                 assertEquals(ErrorCode.ActivityUnavailable, assertFailsWith<PurchaseException> { operation() }.error.code, "$store")
@@ -196,6 +228,11 @@ class CommunityOptionalOperationsTest {
             assertFalse(delegate.isBillingProgramAvailableAndroid(BillingProgramAndroid.BillingChoice).isAvailable)
             assertFalse(delegate.launchExternalLinkAndroid(linkParams()))
             assertNull(delegate.openRedeemOfferCode())
+            assertFalse(delegate.isExternalPurchaseLinkAvailable())
+            assertEquals(
+                ExternalPurchaseLinkStatus.Unavailable,
+                delegate.openExternalPurchaseLink(ExternalPurchaseLinkRequest(url = "https://example.test/pay")).status,
+            )
             for (operation in listOf<suspend () -> Any?>(
                 { delegate.verifyPurchase(VerifyPurchaseProps()) },
                 { delegate.getBillingChoiceInfoAndroid(GetBillingChoiceInfoParamsAndroid()) },

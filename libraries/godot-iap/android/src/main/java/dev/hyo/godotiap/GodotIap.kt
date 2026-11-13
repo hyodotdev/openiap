@@ -763,15 +763,36 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     }
 
     @UsedByGodot
-    fun verifyAppOwnership(optionsJson: String): String {
+    fun verifyAppOwnership(optionsJson: String): String = launchAsync("verifyAppOwnership") { envelope ->
+        val options = VerifyAppOwnershipProps.fromJson(GodotIapHelper.jsonObjectToMap(JSONObject(optionsJson)))
+        val result = openIap.verifyAppOwnership(options)
+        envelope.put("ownershipJson", JSONObject(result.toJson()).toString())
+    }
+
+    @UsedByGodot
+    fun isExternalPurchaseLinkAvailable(): String = launchAsync("isExternalPurchaseLinkAvailable") { envelope ->
+        envelope.put("available", openIap.isExternalPurchaseLinkAvailable())
+    }
+
+    @UsedByGodot
+    fun openExternalPurchaseLink(requestJson: String): String = launchAsync("openExternalPurchaseLink") { envelope ->
+        val activity = activity ?: throw OpenIapError.MissingCurrentActivity
+        val request = ExternalPurchaseLinkRequest.fromJson(GodotIapHelper.jsonObjectToMap(JSONObject(requestJson)))
+            ?: throw IllegalArgumentException("Invalid external purchase link request")
+        val result = openIap.openExternalPurchaseLink(activity, request)
+        GodotIapLog.result("openExternalPurchaseLink", result.status.toJson())
+        envelope.put("resultJson", JSONObject(result.toJson()).toString())
+    }
+
+    /** Runs [block] off the call and completes the GDScript waiter on products_fetched by method and requestId. */
+    private fun launchAsync(method: String, block: suspend (JSONObject) -> Unit): String {
         val requestId = java.util.UUID.randomUUID().toString()
         pluginScope.launch {
-            val envelope = JSONObject().put("method", "verifyAppOwnership").put("requestId", requestId)
+            val envelope = JSONObject().put("method", method).put("requestId", requestId)
             try {
                 if (!isInitialized) throw OpenIapError.NotPrepared
-                val options = VerifyAppOwnershipProps.fromJson(GodotIapHelper.jsonObjectToMap(JSONObject(optionsJson)))
-                val result = openIap.verifyAppOwnership(options)
-                envelope.put("success", true).put("ownershipJson", JSONObject(result.toJson()).toString())
+                block(envelope)
+                envelope.put("success", true)
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (error: Exception) {

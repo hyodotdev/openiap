@@ -264,6 +264,26 @@ public final class ExpoIapModule: Module {
             }
         }
 
+        AsyncFunction("isExternalPurchaseLinkAvailable") { () async throws -> Bool in
+            try await IapException.bridging("isExternalPurchaseLinkAvailable") {
+                ExpoIapLog.payload("isExternalPurchaseLinkAvailable", payload: nil)
+                let isAvailable = try await OpenIapModule.shared.isExternalPurchaseLinkAvailable()
+                ExpoIapLog.result("isExternalPurchaseLinkAvailable", value: isAvailable)
+                return isAvailable
+            }
+        }
+
+        AsyncFunction("openExternalPurchaseLink") { (params: [String: Any]) async throws -> [String: Any] in
+            try await IapException.bridging("openExternalPurchaseLink") {
+                ExpoIapLog.payload("openExternalPurchaseLink", payload: params)
+                let request = try OpenIapSerialization.decode(object: params, as: ExternalPurchaseLinkRequest.self)
+                let result = try await OpenIapModule.shared.openExternalPurchaseLink(request)
+                let sanitized = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(result))
+                ExpoIapLog.result("openExternalPurchaseLink", value: sanitized)
+                return sanitized
+            }
+        }
+
         AsyncFunction("showManageSubscriptionsIOS") { () async throws -> [[String: Any]] in
             try await IapException.bridging("showManageSubscriptionsIOS") {
                 ExpoIapLog.payload("showManageSubscriptionsIOS", payload: nil)

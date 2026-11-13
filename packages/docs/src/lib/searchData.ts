@@ -107,6 +107,26 @@ export const apiData: ApiItem[] = [
     path: '/docs/apis/open-redeem-offer-code',
   },
   {
+    id: 'is-external-purchase-link-available',
+    title: 'isExternalPurchaseLinkAvailable',
+    category: 'Purchase',
+    description:
+      'Check whether this device and storefront may link out to an external purchase',
+    parameters: '',
+    returns: 'Boolean!',
+    path: '/docs/apis/is-external-purchase-link-available',
+  },
+  {
+    id: 'open-external-purchase-link',
+    title: 'openExternalPurchaseLink',
+    category: 'Purchase',
+    description:
+      'Show the store disclosure, open the external purchase link after the user continues, and return the report token',
+    parameters: 'request: ExternalPurchaseLinkRequest',
+    returns: 'ExternalPurchaseLinkResult!',
+    path: '/docs/apis/open-external-purchase-link',
+  },
+  {
     id: 'get-storefront',
     title: 'getStorefront',
     category: 'Purchase',

@@ -36,12 +36,16 @@ import io.github.hyochan.kmpiap.openiap.ExternalPurchaseCustomLinkNoticeResultIO
 import io.github.hyochan.kmpiap.openiap.ExternalPurchaseCustomLinkNoticeTypeIOS
 import io.github.hyochan.kmpiap.openiap.ExternalPurchaseCustomLinkTokenResultIOS
 import io.github.hyochan.kmpiap.openiap.ExternalPurchaseCustomLinkTokenTypeIOS
+import io.github.hyochan.kmpiap.openiap.ExternalPurchaseLinkRequest
+import io.github.hyochan.kmpiap.openiap.ExternalPurchaseLinkResult
 import io.github.hyochan.kmpiap.openiap.ExternalPurchaseLinkResultIOS
+import io.github.hyochan.kmpiap.openiap.ExternalPurchaseLinkStatus
 import io.github.hyochan.kmpiap.openiap.ExternalPurchaseNoticeResultIOS
 import io.github.hyochan.kmpiap.openiap.FetchProductsResult
 import io.github.hyochan.kmpiap.openiap.FetchProductsResultAll
 import io.github.hyochan.kmpiap.openiap.FetchProductsResultProducts
 import io.github.hyochan.kmpiap.openiap.FetchProductsResultSubscriptions
+import io.github.hyochan.kmpiap.openiap.IapPlatform
 import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
 import io.github.hyochan.kmpiap.openiap.GetBillingChoiceInfoParamsAndroid
 import io.github.hyochan.kmpiap.openiap.InAppMessageParamsAndroid
@@ -422,6 +426,16 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
                 requireActivity(), requireNotNull(dev.hyo.openiap.LaunchExternalLinkParamsAndroid.fromJson(params.toJson()))
             )
         } else false
+
+    override suspend fun isExternalPurchaseLinkAvailable(): Boolean =
+        hasPlayBillingApis && withMappedOpenIapError { requireModule().isExternalPurchaseLinkAvailable() }
+
+    override suspend fun openExternalPurchaseLink(request: ExternalPurchaseLinkRequest): ExternalPurchaseLinkResult =
+        if (hasPlayBillingApis) withMappedOpenIapError {
+            ExternalPurchaseLinkResult.fromJson(requireModule().openExternalPurchaseLink(
+                requireActivity(), requireNotNull(dev.hyo.openiap.ExternalPurchaseLinkRequest.fromJson(request.toJson()))
+            ).toJson())
+        } else ExternalPurchaseLinkResult(platform = IapPlatform.Android, status = ExternalPurchaseLinkStatus.Unavailable)
 
     // Opens the store's redeem page, which needs no billing connection.
     override suspend fun openRedeemOfferCode(): Purchase? = when {

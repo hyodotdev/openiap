@@ -39,6 +39,7 @@ internal sealed class UnsupportedOpenIap : IOpenIap, QueryResolver, MutationReso
     public Task<bool> InitConnectionAsync(InitConnectionConfig? config = null) => Unsupported<bool>();
     public Task<BillingProgramAvailabilityResultAndroid> IsBillingProgramAvailableAndroidAsync(BillingProgramAndroid program) => Unsupported<BillingProgramAvailabilityResultAndroid>();
     public Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @params) => Unsupported<bool>();
+    public Task<ExternalPurchaseLinkResult> OpenExternalPurchaseLinkAsync(ExternalPurchaseLinkRequest request) => Unsupported<ExternalPurchaseLinkResult>();
     public Task<Purchase?> OpenRedeemOfferCodeAsync() => Unsupported<Purchase?>();
     public Task<ExternalPurchaseLinkResultIOS> PresentExternalPurchaseLinkIOSAsync(string url) => Unsupported<ExternalPurchaseLinkResultIOS>();
     public Task<ExternalPurchaseNoticeResultIOS> PresentExternalPurchaseNoticeSheetIOSAsync() => Unsupported<ExternalPurchaseNoticeResultIOS>();
@@ -71,6 +72,7 @@ internal sealed class UnsupportedOpenIap : IOpenIap, QueryResolver, MutationReso
     public Task<bool> HasActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null) => Unsupported<bool>();
     public Task<bool> IsEligibleForExternalPurchaseCustomLinkIOSAsync() => Unsupported<bool>();
     public Task<bool> IsEligibleForIntroOfferIOSAsync(string groupId) => Unsupported<bool>();
+    public Task<bool> IsExternalPurchaseLinkAvailableAsync() => Unsupported<bool>();
     public Task<bool> IsTransactionVerifiedIOSAsync(string sku) => Unsupported<bool>();
     public Task<PurchaseIOS?> LatestTransactionIOSAsync(string sku) => Unsupported<PurchaseIOS?>();
     public Task<IReadOnlyList<SubscriptionStatusIOS>> SubscriptionStatusIOSAsync(string sku) => Unsupported<IReadOnlyList<SubscriptionStatusIOS>>();

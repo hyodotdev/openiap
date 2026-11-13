@@ -12,6 +12,8 @@ import type {
   NitroBillingProgramReportingDetailsAndroid,
   NitroBillingResultAndroid,
   NitroDeepLinkOptionsAndroid,
+  NitroExternalPurchaseLinkRequest,
+  NitroExternalPurchaseLinkResult,
   NitroFinishTransactionParams,
   NitroGetBillingChoiceInfoParamsAndroid,
   NitroInAppMessageParamsAndroid,
@@ -101,6 +103,11 @@ export interface NitroStringOutcome {
 
 export interface NitroOpenRedeemOfferCodeOutcome {
   value?: NitroPurchase | null;
+  error?: NitroPurchaseError;
+}
+
+export interface NitroExternalPurchaseLinkResultOutcome {
+  value?: NitroExternalPurchaseLinkResult;
   error?: NitroPurchaseError;
 }
 
@@ -198,6 +205,10 @@ export interface RnIapProtocol extends HybridObject<{
   ): Promise<NitroFinishTransactionOutcome>;
   verifyAppOwnership(optionsJson: string): Promise<NitroStringOutcome>;
   openRedeemOfferCode(): Promise<NitroOpenRedeemOfferCodeOutcome>;
+  isExternalPurchaseLinkAvailable(): Promise<NitroBooleanOutcome>;
+  openExternalPurchaseLink(
+    request: NitroExternalPurchaseLinkRequest,
+  ): Promise<NitroExternalPurchaseLinkResultOutcome>;
   restorePurchases(): Promise<NitroBooleanOutcome>;
   verifyPurchase(
     params: NitroPurchaseVerificationParams,

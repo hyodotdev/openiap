@@ -42,6 +42,16 @@ extend type Query {
   """
   # Future
   getStorefront: String!
+  """
+  Whether this device and storefront may link out to an external purchase
+  with openExternalPurchaseLink. Returns false instead of throwing when the
+  store program is not enabled or the user is not eligible.
+  Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0
+  (requires iOS 17.4+ or Play Billing 8.2.1+).
+  See: https://openiap.dev/docs/apis/is-external-purchase-link-available
+  """
+  # Future
+  isExternalPurchaseLinkAvailable: Boolean!
 }
 
 # Request APIs (event driven)
@@ -96,6 +106,19 @@ extend type Mutation {
   """
   # Future
   openRedeemOfferCode: Purchase
+  """
+  Show the store's required disclosure, open the external purchase link only
+  after the user continues, and return the token to report from your server.
+  The disclosure cannot be skipped. Unavailable and Cancelled are results, not
+  errors.
+  Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0
+  (requires iOS 17.4+ or Play Billing 8.2.1+).
+  See: https://openiap.dev/docs/apis/open-external-purchase-link
+  """
+  # Future
+  openExternalPurchaseLink(
+    request: ExternalPurchaseLinkRequest!
+  ): ExternalPurchaseLinkResult!
   """
   Verify a purchase against your own backend. Every VerifyPurchaseResult
   variant exposes isValid, so entitlement can be gated without inspecting the

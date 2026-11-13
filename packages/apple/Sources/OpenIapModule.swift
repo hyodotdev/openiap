@@ -183,6 +183,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         try await provider.showExternalPurchaseCustomLinkNoticeIOS(noticeType)
     }
 
+    public func isExternalPurchaseLinkAvailable() async throws -> Bool {
+        try await provider.isExternalPurchaseLinkAvailable()
+    }
+
+    public func openExternalPurchaseLink(_ request: ExternalPurchaseLinkRequest) async throws -> ExternalPurchaseLinkResult {
+        try await provider.openExternalPurchaseLink(request)
+    }
+
     public func purchaseUpdatedListener(_ listener: @escaping PurchaseUpdatedListener, options: PurchaseUpdatedListenerOptions? = nil) -> Subscription {
         guard case .success(let selected) = selection else { return Subscription(eventType: .purchaseUpdated) }
         return selected.module.purchaseUpdatedListener(listener, options: options)

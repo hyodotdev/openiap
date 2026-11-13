@@ -1202,6 +1202,71 @@ public static class ExternalPurchaseCustomLinkTokenTypeIOSExtensions
     public static ExternalPurchaseCustomLinkTokenTypeIOS FromJson(string value) => ExternalPurchaseCustomLinkTokenTypeIOSJsonConverter.FromRawString(value);
 }
 
+/// <summary>
+/// Outcome of openExternalPurchaseLink.
+/// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+/// </summary>
+[JsonConverter(typeof(ExternalPurchaseLinkStatusJsonConverter))]
+public enum ExternalPurchaseLinkStatus
+{
+    /// <summary>The user continued past the store disclosure and the link was opened</summary>
+    Opened,
+    /// <summary>The user dismissed the store disclosure; nothing was opened</summary>
+    Cancelled,
+    /// <summary>The store program is not enabled or the user is not eligible; nothing was shown</summary>
+    Unavailable
+}
+
+public sealed class ExternalPurchaseLinkStatusJsonConverter : JsonConverter<ExternalPurchaseLinkStatus>, IOpenIapEnumJsonConverter<ExternalPurchaseLinkStatus>
+{
+    private static readonly Dictionary<string, ExternalPurchaseLinkStatus> _fromString = new()
+    {
+        ["opened"] = ExternalPurchaseLinkStatus.Opened,
+        ["OPENED"] = ExternalPurchaseLinkStatus.Opened,
+        ["Opened"] = ExternalPurchaseLinkStatus.Opened,
+        ["cancelled"] = ExternalPurchaseLinkStatus.Cancelled,
+        ["CANCELLED"] = ExternalPurchaseLinkStatus.Cancelled,
+        ["Cancelled"] = ExternalPurchaseLinkStatus.Cancelled,
+        ["unavailable"] = ExternalPurchaseLinkStatus.Unavailable,
+        ["UNAVAILABLE"] = ExternalPurchaseLinkStatus.Unavailable,
+        ["Unavailable"] = ExternalPurchaseLinkStatus.Unavailable,
+    };
+
+    private static readonly Dictionary<ExternalPurchaseLinkStatus, string> _toString = new()
+    {
+        [ExternalPurchaseLinkStatus.Opened] = "opened",
+        [ExternalPurchaseLinkStatus.Cancelled] = "cancelled",
+        [ExternalPurchaseLinkStatus.Unavailable] = "unavailable",
+    };
+
+    public override ExternalPurchaseLinkStatus Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        var raw = reader.GetString();
+        if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
+        throw new JsonException($"Unknown ExternalPurchaseLinkStatus value: {raw}");
+    }
+
+    public override void Write(Utf8JsonWriter writer, ExternalPurchaseLinkStatus value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(_toString[value]);
+    }
+
+    internal static string ToRawString(ExternalPurchaseLinkStatus value) => _toString[value];
+    internal static ExternalPurchaseLinkStatus FromRawString(string value) =>
+        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown ExternalPurchaseLinkStatus value: {value}");
+
+    public bool TryReadRaw(string value, out ExternalPurchaseLinkStatus result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(ExternalPurchaseLinkStatus value) => _toString[value];
+}
+
+public static class ExternalPurchaseLinkStatusExtensions
+{
+    public static string ToJson(this ExternalPurchaseLinkStatus value) => ExternalPurchaseLinkStatusJsonConverter.ToRawString(value);
+    public static ExternalPurchaseLinkStatus FromJson(string value) => ExternalPurchaseLinkStatusJsonConverter.FromRawString(value);
+}
+
 /// <summary>User actions on external purchase notice sheet (iOS 17.4+)</summary>
 [JsonConverter(typeof(ExternalPurchaseNoticeActionJsonConverter))]
 public enum ExternalPurchaseNoticeAction
@@ -3267,6 +3332,26 @@ public sealed record ExternalPurchaseCustomLinkTokenResultIOS
     public string? Token { get; init; }
 }
 
+/// <summary>
+/// Result of openExternalPurchaseLink.
+/// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+/// </summary>
+public sealed record ExternalPurchaseLinkResult
+{
+    /// <summary>Platform that produced reportToken</summary>
+    [JsonPropertyName("platform")]
+    public required IapPlatform Platform { get; init; }
+    /// <summary>
+    /// Token to report from your server: Play&apos;s externalTransactionToken or Apple&apos;s
+    /// external purchase token. Present only when status is Opened.
+    /// </summary>
+    [JsonPropertyName("reportToken")]
+    public string? ReportToken { get; init; }
+    /// <summary>What happened to the link</summary>
+    [JsonPropertyName("status")]
+    public required ExternalPurchaseLinkStatus Status { get; init; }
+}
+
 /// <summary>Result of presenting an external purchase link</summary>
 public sealed record ExternalPurchaseLinkResultIOS
 {
@@ -4677,6 +4762,54 @@ public sealed record DiscountOfferInputIOS
 }
 
 /// <summary>
+/// Google options for openExternalPurchaseLink.
+/// Available in Client Protocol 1.5.0 / openiap-google 4.2.0 (requires Play Billing 8.2.1+).
+/// </summary>
+public sealed record ExternalPurchaseLinkAndroidProps
+{
+    /// <summary>Link type passed to Play. Defaults to LINK_TO_DIGITAL_CONTENT_OFFER.</summary>
+    [JsonPropertyName("linkType")]
+    [JsonConverter(typeof(StrictNullableEnumJsonConverter<ExternalLinkTypeAndroid, ExternalLinkTypeAndroidJsonConverter>))]
+    public ExternalLinkTypeAndroid? LinkType { get; init; }
+}
+
+/// <summary>
+/// Apple options for openExternalPurchaseLink.
+/// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0.
+/// </summary>
+public sealed record ExternalPurchaseLinkIosProps
+{
+    /// <summary>
+    /// ExternalPurchaseCustomLink token type on iOS 18.1+. Defaults to Acquisition;
+    /// use LinkOut in Japan and Brazil. Ignored on iOS 17.4 to 18.0, where the
+    /// notice sheet returns the token.
+    /// </summary>
+    [JsonPropertyName("tokenType")]
+    [JsonConverter(typeof(StrictNullableEnumJsonConverter<ExternalPurchaseCustomLinkTokenTypeIOS, ExternalPurchaseCustomLinkTokenTypeIOSJsonConverter>))]
+    public ExternalPurchaseCustomLinkTokenTypeIOS? TokenType { get; init; }
+}
+
+/// <summary>
+/// Request for openExternalPurchaseLink.
+/// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+/// </summary>
+public sealed record ExternalPurchaseLinkRequest
+{
+    /// <summary>
+    /// External purchase URL. On iOS 17.4 to 18.0 it must match the
+    /// SKExternalPurchase link in Info.plist.
+    /// </summary>
+    [JsonPropertyName("url")]
+    public required string Url { get; init; }
+    /// <summary>Apple-specific options</summary>
+    [JsonPropertyName("apple")]
+    public ExternalPurchaseLinkIosProps? Apple { get; init; }
+    /// <summary>Google-specific options</summary>
+    [JsonPropertyName("google")]
+    public ExternalPurchaseLinkAndroidProps? Google { get; init; }
+}
+
+/// <summary>
 /// Parameters for fetching Billing Choice display information (Android)
 /// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 /// </summary>
@@ -5400,6 +5533,17 @@ public interface MutationResolver
     Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @params);
 
     /// <summary>
+    /// Show the store&apos;s required disclosure, open the external purchase link only
+    /// after the user continues, and return the token to report from your server.
+    /// The disclosure cannot be skipped. Unavailable and Cancelled are results, not
+    /// errors.
+    /// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0
+    /// (requires iOS 17.4+ or Play Billing 8.2.1+).
+    /// See: https://openiap.dev/docs/apis/open-external-purchase-link
+    /// </summary>
+    Task<ExternalPurchaseLinkResult> OpenExternalPurchaseLinkAsync(ExternalPurchaseLinkRequest request);
+
+    /// <summary>
     /// Open the platform&apos;s offer/promo code redemption flow.
     /// Resolves the redeemed purchase only when the store reports it synchronously;
     /// every other path resolves null, so reconcile through the purchase listeners.
@@ -5625,6 +5769,16 @@ public interface QueryResolver
     /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
     /// </summary>
     Task<bool> IsEligibleForIntroOfferIOSAsync(string groupId);
+
+    /// <summary>
+    /// Whether this device and storefront may link out to an external purchase
+    /// with openExternalPurchaseLink. Returns false instead of throwing when the
+    /// store program is not enabled or the user is not eligible.
+    /// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0
+    /// (requires iOS 17.4+ or Play Billing 8.2.1+).
+    /// See: https://openiap.dev/docs/apis/is-external-purchase-link-available
+    /// </summary>
+    Task<bool> IsExternalPurchaseLinkAvailableAsync();
 
     /// <summary>
     /// Check whether a transaction&apos;s JWS verification passed (StoreKit 2).
