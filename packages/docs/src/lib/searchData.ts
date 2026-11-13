@@ -122,7 +122,7 @@ export const apiData: ApiItem[] = [
     category: 'Purchase',
     description:
       'Show the store disclosure, open the external purchase link after the user continues, and return the report token',
-    parameters: 'request: ExternalPurchaseLinkRequest',
+    parameters: 'request: ExternalPurchaseLinkRequest!',
     returns: 'ExternalPurchaseLinkResult!',
     path: '/docs/apis/open-external-purchase-link',
   },

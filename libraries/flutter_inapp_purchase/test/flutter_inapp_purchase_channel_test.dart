@@ -636,6 +636,51 @@ void main() {
       );
     });
 
+    test('isExternalPurchaseLinkAvailable maps native failures to PurchaseError',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        throw PlatformException(code: 'service-error', message: 'boom');
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+
+      await expectLater(
+        iap.isExternalPurchaseLinkAvailable(),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.ServiceError,
+          ),
+        ),
+      );
+    });
+
+    test('openExternalPurchaseLink rejects an empty native result', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async => null);
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      await expectLater(
+        iap.openExternalPurchaseLink(
+          const types.ExternalPurchaseLinkRequest(url: 'https://example.com'),
+        ),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.ServiceError,
+          ),
+        ),
+      );
+    });
+
     test('openExternalPurchaseLink rejects platforms without a store',
         () async {
       final iap = FlutterInappPurchase.private(

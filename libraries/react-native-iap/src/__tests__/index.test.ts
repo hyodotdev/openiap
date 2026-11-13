@@ -3183,6 +3183,19 @@ describe('Public API (src/index.ts)', () => {
       ).resolves.toEqual({platform: 'android', status: 'cancelled'});
     });
 
+    it('isExternalPurchaseLinkAvailable surfaces native failures as PurchaseError', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      mockIap.isExternalPurchaseLinkAvailable.mockRejectedValueOnce(
+        new Error('storekit down'),
+      );
+      await expect(IAP.isExternalPurchaseLinkAvailable()).rejects.toMatchObject(
+        {
+          code: ErrorCode.Unknown,
+          message: 'storekit down',
+        },
+      );
+    });
+
     it('openExternalPurchaseLink surfaces native failures as PurchaseError', async () => {
       Object.assign(Platform, {OS: 'android'});
       mockIap.openExternalPurchaseLink.mockRejectedValueOnce(
