@@ -11,6 +11,7 @@ import { LIBRARIES, LIBRARY_IMAGES } from '../lib/images';
 import {
   CURRENT_SPONSORS,
   FUNDING_LINKS,
+  IN_KIND_SUPPORTERS,
   PAST_SUPPORTERS,
 } from '../lib/sponsors';
 
@@ -298,6 +299,32 @@ function Sponsors() {
           </div>
         </section>
 
+        {IN_KIND_SUPPORTERS.length > 0 ? (
+          <section className="xp-supporters" aria-labelledby="in-kind-support">
+            <div>
+              <p>Tools for the work</p>
+              <h2 id="in-kind-support">In-kind support</h2>
+              <p>Services donated to the maintainer, not cash sponsorship.</p>
+            </div>
+            <div className="xp-in-kind-list">
+              {IN_KIND_SUPPORTERS.map(({ Wordmark, ...supporter }) => (
+                <a
+                  key={supporter.id}
+                  href={supporter.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Wordmark />
+                  <span>
+                    <strong>{supporter.program}</strong>:{' '}
+                    {supporter.contribution}, {supporter.period}
+                  </span>
+                </a>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         <section className="xp-supporters" aria-labelledby="past-supporters">
           <div>
             <p>With thanks to</p>
@@ -312,7 +339,12 @@ function Sponsors() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <img src={supporter.logo.src} alt={supporter.name} />
+                <img
+                  src={supporter.logo.src}
+                  alt={supporter.name}
+                  style={{ height: supporter.logo.height }}
+                />
+                <small>{supporter.supported}</small>
               </a>
             ))}
           </div>

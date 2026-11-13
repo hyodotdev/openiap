@@ -100,6 +100,28 @@ function validateLogo(root, logo, label, staged) {
   }
 }
 
+const requiredSupporterFields = {
+  currentSponsors: ["shortName", "tier"],
+  inKindSupporters: ["program", "contribution"],
+  pastSupporters: ["supported"],
+};
+
+function isIsoDate(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/u.test(value)) {
+    return false;
+  }
+  const date = new Date(`${value}T00:00:00Z`);
+  // Rejects overflow such as 2026-02-30, which Date rolls into March.
+  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
+}
+
+export function formatSupportDate(value) {
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "long",
+    timeZone: "UTC",
+  }).format(new Date(`${value}T00:00:00Z`));
+}
+
 export function validateRegistry(root, registry, { staged = false } = {}) {
   if (
     !Array.isArray(registry.currentSponsors) ||
@@ -108,13 +130,16 @@ export function validateRegistry(root, registry, { staged = false } = {}) {
     throw new Error("currentSponsors must contain at least one sponsor");
   }
 
-  if (!Array.isArray(registry.pastSupporters)) {
-    throw new Error("pastSupporters must be an array");
+  for (const group of ["inKindSupporters", "pastSupporters"]) {
+    if (!Array.isArray(registry[group])) {
+      throw new Error(`${group} must be an array`);
+    }
   }
 
   const ids = new Set();
   for (const [group, entries] of [
     ["currentSponsors", registry.currentSponsors],
+    ["inKindSupporters", registry.inKindSupporters],
     ["pastSupporters", registry.pastSupporters],
   ]) {
     for (const entry of entries) {
@@ -128,16 +153,24 @@ export function validateRegistry(root, registry, { staged = false } = {}) {
       }
       ids.add(entry.id);
 
-      for (const field of [
-        "name",
-        ...(group === "currentSponsors" ? ["shortName", "tier"] : []),
-      ]) {
+      for (const field of ["name", ...requiredSupporterFields[group]]) {
         if (typeof entry[field] !== "string" || entry[field].trim() === "") {
           throw new Error(`${label}.${field} must be a non-empty string`);
         }
       }
 
       requireUrl(entry.url, `${label}.url`);
+
+      if (group === "inKindSupporters") {
+        for (const field of ["since", "until"]) {
+          if (!isIsoDate(entry[field])) {
+            throw new Error(`${label}.${field} must be a YYYY-MM-DD date`);
+          }
+        }
+        if (entry.until <= entry.since) {
+          throw new Error(`${label}.until must be after since`);
+        }
+      }
 
       validateLogo(root, entry.logo, `${label}.logo`, staged);
       if (entry.logo.readme !== undefined) {
@@ -250,11 +283,33 @@ function renderSupporterLogo(entry) {
   ].join("\n");
 }
 
+function renderInKindSection(inKindSupporters, options) {
+  if (inKindSupporters.length === 0) {
+    return [];
+  }
+
+  return [
+    "### In-kind support",
+    "",
+    '<p align="center">',
+    inKindSupporters
+      .map((supporter) => renderLogo(supporter, options))
+      .join("\n  &nbsp;&nbsp;&nbsp;&nbsp;\n"),
+    "</p>",
+    "",
+    ...inKindSupporters.map(
+      (supporter) =>
+        `[${supporter.program}](${supporter.url}) provides ${supporter.contribution} from ${formatSupportDate(supporter.since)} to ${formatSupportDate(supporter.until)}.`,
+    ),
+    "",
+  ];
+}
+
 export function renderSponsorBlock(
   registry,
   { repositoryAssets = false } = {},
 ) {
-  const { currentSponsors, pastSupporters } = registry;
+  const { currentSponsors, inKindSupporters, pastSupporters } = registry;
   const funding = resolveFundingLinks(registry.funding);
   const currentSponsorLinks = currentSponsors.map(
     (sponsor) => `[${sponsor.name}](${sponsor.url})`,
@@ -269,6 +324,14 @@ export function renderSponsorBlock(
   const pastLogos = pastSupporters
     .map(renderSupporterLogo)
     .join("\n  &nbsp;&nbsp;&nbsp;&nbsp;\n");
+  const pastPeriods = new Intl.ListFormat("en", {
+    style: "long",
+    type: "conjunction",
+  }).format(
+    pastSupporters.map(
+      (supporter) => `${supporter.name} for ${supporter.supported}`,
+    ),
+  );
   const collectiveSponsorsImage = `${funding.openCollectiveUrl}/sponsors.svg?width=890&cache=${funding.openCollectiveImageCache}`;
   const collectiveBackersImage = `${funding.openCollectiveUrl}/backers.svg?width=890&cache=${funding.openCollectiveImageCache}`;
 
@@ -286,6 +349,7 @@ export function renderSponsorBlock(
     "",
     `Thank you to ${currentSponsorList} for supporting OpenIAP. [View sponsorship options](${funding.sponsorsPage}).`,
     "",
+    ...renderInKindSection(inKindSupporters, { repositoryAssets }),
     "### OpenCollective",
     "",
     "We also recognize sponsors and backers through OpenCollective. The original react-native-iap collective now supports the broader OpenIAP ecosystem and is managed separately from the main sponsor program.",
@@ -298,7 +362,7 @@ export function renderSponsorBlock(
     "",
     "### Past supporters",
     "",
-    "Supported the project before the OpenIAP sponsor program.",
+    `Supported the project before the OpenIAP sponsor program: ${pastPeriods}.`,
     "",
     '<p align="center">',
     pastLogos,
@@ -470,7 +534,9 @@ export function synchronizePubspecFunding(pubspec, packageFunding) {
     ...withoutFunding.matchAll(/^(?:homepage|repository):.*\n/gmu),
   ].at(-1);
   if (!anchor) {
-    throw new Error("pubspec needs a homepage or repository line to place funding after");
+    throw new Error(
+      "pubspec needs a homepage or repository line to place funding after",
+    );
   }
   const at = anchor.index + anchor[0].length;
   const fundingBlock = packageFunding.map(({ url }) => `  - ${url}\n`).join("");
@@ -550,9 +616,7 @@ export function discoverReadmes(
       .filter(
         (relative) =>
           relative === "README.md" ||
-          /^(?:packages|libraries|specs)\/[^/]+\/README\.md$/u.test(
-            relative,
-          ),
+          /^(?:packages|libraries|specs)\/[^/]+\/README\.md$/u.test(relative),
       )
       .sort();
   }
@@ -640,7 +704,12 @@ export function synchronizeSponsorFiles(
       (text) => synchronizePackageFunding(text, packageFunding),
     ]),
     ...(readmes.includes(pubspecPath.replace(/pubspec\.yaml$/u, "README.md"))
-      ? [[pubspecPath, (text) => synchronizePubspecFunding(text, packageFunding)]]
+      ? [
+          [
+            pubspecPath,
+            (text) => synchronizePubspecFunding(text, packageFunding),
+          ],
+        ]
       : []),
   ];
   for (const [relative, synchronize] of fundingSurfaces) {

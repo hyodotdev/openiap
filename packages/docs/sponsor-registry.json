@@ -29,23 +29,41 @@
       }
     }
   ],
+  "inKindSupporters": [
+    {
+      "id": "claude",
+      "name": "Claude",
+      "url": "https://claude.com/contact-sales/claude-for-oss",
+      "program": "Claude for Open Source",
+      "contribution": "the Claude Ultra plan for the maintainer",
+      "since": "2026-07-20",
+      "until": "2027-01-19",
+      "logo": {
+        "src": "/sponsors/claude.svg",
+        "darkSrc": "/sponsors/claude-dark.svg",
+        "height": 32
+      }
+    }
+  ],
   "pastSupporters": [
     {
       "id": "nami",
       "name": "Nami",
       "url": "https://namiml.com",
+      "supported": "1 year",
       "logo": {
         "src": "/sponsors/nami.webp",
-        "height": 32
+        "height": 40
       }
     },
     {
       "id": "courier",
       "name": "Courier",
       "url": "https://www.courier.com/?utm_source=react-native-iap&utm_campaign=osssponsors",
+      "supported": "1 month",
       "logo": {
         "src": "/sponsors/courier.webp",
-        "height": 32
+        "height": 24
       }
     }
   ],

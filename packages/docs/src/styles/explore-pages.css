@@ -1079,6 +1079,30 @@
   object-fit: contain;
 }
 
+.xp-supporters > div:last-child > a {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.xp-supporters small {
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.xp-supporters > div.xp-in-kind-list {
+  opacity: 1;
+}
+
+.xp-supporters > div.xp-in-kind-list > a {
+  align-items: flex-start;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
 @media (max-width: 900px) {
   .xp-page-header-grid,
   .xp-section-heading,

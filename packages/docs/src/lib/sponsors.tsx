@@ -27,6 +27,19 @@ export interface Supporter extends RegistrySupporter {
   Wordmark: ComponentType<SponsorWordmarkProps>;
 }
 
+export interface InKindSupporter extends Supporter {
+  program: string;
+  contribution: string;
+  since: string;
+  until: string;
+  /** Readable support window, e.g. "July 20, 2026 to January 19, 2027". */
+  period: string;
+}
+
+export interface PastSupporter extends RegistrySupporter {
+  supported: string;
+}
+
 export interface Sponsor extends Supporter {
   shortName: string;
   tier: string;
@@ -64,10 +77,6 @@ function createWordmark(
   return SponsorWordmark;
 }
 
-function toSupporter(entry: RegistrySupporter): Supporter {
-  return { ...entry, Wordmark: createWordmark(entry) };
-}
-
 function toSponsor(entry: RegistrySponsor): Sponsor {
   return { ...entry, Wordmark: createWordmark(entry) };
 }
@@ -75,16 +84,25 @@ function toSponsor(entry: RegistrySponsor): Sponsor {
 export const CURRENT_SPONSORS: readonly Sponsor[] =
   sponsorRegistry.currentSponsors.map(toSponsor);
 
-export const PAST_SUPPORTERS: readonly Supporter[] =
-  sponsorRegistry.pastSupporters.map(toSupporter);
+function formatSupportDate(value: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    dateStyle: 'long',
+    timeZone: 'UTC',
+  }).format(new Date(`${value}T00:00:00Z`));
+}
 
-const ALL_SUPPORTERS: readonly Supporter[] = [
-  ...CURRENT_SPONSORS,
-  ...PAST_SUPPORTERS,
-];
+export const IN_KIND_SUPPORTERS: readonly InKindSupporter[] =
+  sponsorRegistry.inKindSupporters.map((entry) => ({
+    ...entry,
+    period: `${formatSupportDate(entry.since)} to ${formatSupportDate(entry.until)}`,
+    Wordmark: createWordmark(entry),
+  }));
+
+export const PAST_SUPPORTERS: readonly PastSupporter[] =
+  sponsorRegistry.pastSupporters;
 
 function requireSupporter(id: string): Supporter {
-  const supporter = ALL_SUPPORTERS.find((entry) => entry.id === id);
+  const supporter = CURRENT_SPONSORS.find((entry) => entry.id === id);
 
   if (!supporter) {
     throw new Error(`Missing supporter: ${id}`);

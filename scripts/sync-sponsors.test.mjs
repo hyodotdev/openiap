@@ -55,11 +55,24 @@ const registry = {
       },
     },
   ],
+  inKindSupporters: [
+    {
+      id: "tool",
+      name: "Tool",
+      url: "https://tool.example",
+      program: "Tool for Open Source",
+      contribution: "a free plan for the maintainer",
+      since: "2026-07-20",
+      until: "2027-01-19",
+      logo: { src: "/tool.svg", darkSrc: "/tool-dark.svg", height: 32 },
+    },
+  ],
   pastSupporters: [
     {
       id: "past",
       name: "Past",
       url: "https://past.example",
+      supported: "1 year",
       logo: { src: "/past.webp", height: 32 },
     },
   ],
@@ -88,6 +101,8 @@ function writeSponsorAssets(root) {
     "amazon.webp",
     "amazon-dark.webp",
     "past.webp",
+    "tool.svg",
+    "tool-dark.svg",
   ]) {
     fs.writeFileSync(path.join(publicRoot, asset), asset);
   }
@@ -100,7 +115,13 @@ test("renders current, collective, and past supporters from one registry", () =>
   assert.match(block, /amazon-dark\.webp/);
   assert.match(block, /OpenCollective sponsors/);
   assert.match(block, /Past supporters/);
-  assert.match(block, /before the OpenIAP sponsor program/);
+  assert.match(block, /before the OpenIAP sponsor program: Past for 1 year\./u);
+  assert.match(block, /### In-kind support/u);
+  assert.match(
+    block,
+    /\[Tool for Open Source\]\(https:\/\/tool\.example\) provides a free plan for the maintainer from July 20, 2026 to January 19, 2027\./u,
+  );
+  assert.match(block, /tool-dark\.svg/u);
   assert.match(block, /\[openiap-github-sponsors\]/);
   assert.match(block, /\[openiap-paypal\]/);
   assert.match(block, /\[openiap-company-contact\]/);
@@ -256,6 +277,34 @@ test("rejects duplicate supporter ids and missing logo assets", () => {
       /duplicate supporter id: meta/u,
     );
 
+    const reversed = structuredClone(registry);
+    reversed.inKindSupporters[0].until = "2026-07-01";
+    assert.throws(
+      () => validateRegistry(root, reversed),
+      /inKindSupporters\.tool\.until must be after since/u,
+    );
+
+    const invalidDate = structuredClone(registry);
+    invalidDate.inKindSupporters[0].since = "2026-02-30";
+    assert.throws(
+      () => validateRegistry(root, invalidDate),
+      /inKindSupporters\.tool\.since must be a YYYY-MM-DD date/u,
+    );
+
+    const impossibleMonth = structuredClone(registry);
+    impossibleMonth.inKindSupporters[0].since = "2026-13-01";
+    assert.throws(
+      () => validateRegistry(root, impossibleMonth),
+      /inKindSupporters\.tool\.since must be a YYYY-MM-DD date/u,
+    );
+
+    const missingPeriod = structuredClone(registry);
+    delete missingPeriod.pastSupporters[0].supported;
+    assert.throws(
+      () => validateRegistry(root, missingPeriod),
+      /pastSupporters\.past\.supported must be a non-empty string/u,
+    );
+
     const missingAsset = structuredClone(registry);
     missingAsset.currentSponsors[0].logo.src = "/missing.webp";
     assert.throws(
@@ -287,10 +336,7 @@ test("discovers root, package, library, and specification READMEs", () => {
       path.join(root, "specs/gamma/README.md"),
       `# Gamma\n\n${sponsorBlockStart}\n${sponsorBlockEnd}\n`,
     );
-    fs.writeFileSync(
-      path.join(root, "specs/neutral/README.md"),
-      "# Neutral\n",
-    );
+    fs.writeFileSync(path.join(root, "specs/neutral/README.md"), "# Neutral\n");
     // The umbrella README is not a package surface.
     fs.writeFileSync(
       path.join(root, "specs/README.md"),
@@ -336,10 +382,7 @@ test("writes every discovered surface and then reports a clean audit", () => {
     fs.writeFileSync(path.join(root, ".github/FUNDING.yml"), "stale\n");
 
     fs.mkdirSync(path.join(root, "specs/neutral"), { recursive: true });
-    fs.writeFileSync(
-      path.join(root, "specs/neutral/README.md"),
-      "# Neutral\n",
-    );
+    fs.writeFileSync(path.join(root, "specs/neutral/README.md"), "# Neutral\n");
 
     assert.deepEqual(synchronizeSponsorFiles(root, { write: true }), [
       "README.md",
@@ -350,10 +393,7 @@ test("writes every discovered surface and then reports a clean audit", () => {
     assert.deepEqual(synchronizeSponsorFiles(root), []);
     // A specification README without markers is audited but never rewritten.
     assert.equal(
-      fs.readFileSync(
-        path.join(root, "specs/neutral/README.md"),
-        "utf8",
-      ),
+      fs.readFileSync(path.join(root, "specs/neutral/README.md"), "utf8"),
       "# Neutral\n",
     );
     fs.writeFileSync(
@@ -371,10 +411,7 @@ test("writes every discovered surface and then reports a clean audit", () => {
       synchronizeSponsorFiles(root)[0],
       /^specs\/neutral\/README\.md: unmanaged sponsor\/supporter heading/u,
     );
-    fs.writeFileSync(
-      path.join(root, "specs/neutral/README.md"),
-      "# Neutral\n",
-    );
+    fs.writeFileSync(path.join(root, "specs/neutral/README.md"), "# Neutral\n");
 
     const betaReadme = path.join(root, "libraries/beta/README.md");
     fs.writeFileSync(
@@ -429,7 +466,11 @@ test("Git fixtures preserve the invoking worktree and index", (context) => {
     fs.rmSync(root, { recursive: true, force: true });
   });
   const git = (...args) =>
-    execFileSync("git", args, { cwd: root, encoding: "utf8", env: environment });
+    execFileSync("git", args, {
+      cwd: root,
+      encoding: "utf8",
+      env: environment,
+    });
   git("init", "-q");
   fs.writeFileSync(path.join(root, "sentinel"), "committed\n");
   git("add", ".");
@@ -511,17 +552,11 @@ test("audits sponsor surfaces from the staged snapshot", (context) => {
       path.join(root, "specs/gamma/README.md"),
       `# Gamma\n\n${sponsorBlockStart}\n${sponsorBlockEnd}\n`,
     );
-    fs.writeFileSync(
-      path.join(root, "specs/neutral/README.md"),
-      "# Neutral\n",
-    );
+    fs.writeFileSync(path.join(root, "specs/neutral/README.md"), "# Neutral\n");
     fs.writeFileSync(path.join(root, ".github/FUNDING.yml"), "stale\n");
     synchronizeSponsorFiles(root, { write: true });
     assert.equal(
-      fs.readFileSync(
-        path.join(root, "specs/neutral/README.md"),
-        "utf8",
-      ),
+      fs.readFileSync(path.join(root, "specs/neutral/README.md"), "utf8"),
       "# Neutral\n",
     );
 
@@ -604,7 +639,8 @@ test("names the package in the generated community section", () => {
 });
 
 test("places a missing community block before the sponsor block and replaces a stale one", () => {
-  const block = (text) => `${communityBlockStart}\n${text}\n${communityBlockEnd}`;
+  const block = (text) =>
+    `${communityBlockStart}\n${text}\n${communityBlockEnd}`;
   const readme = `# Package\n\nIntro\n\n${sponsorBlockStart}\nS\n${sponsorBlockEnd}\n`;
   const inserted = synchronizeCommunityBlock(readme, block("new"));
   assert.equal(
@@ -613,7 +649,10 @@ test("places a missing community block before the sponsor block and replaces a s
   );
   assert.equal(synchronizeCommunityBlock(inserted, block("new")), inserted);
   assert.equal(
-    synchronizeCommunityBlock(inserted.replace(block("new"), block("old")), block("new")),
+    synchronizeCommunityBlock(
+      inserted.replace(block("new"), block("old")),
+      block("new"),
+    ),
     inserted,
   );
 });

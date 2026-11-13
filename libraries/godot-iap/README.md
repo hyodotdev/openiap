@@ -200,6 +200,19 @@ If godot-iap saves you time, a ⭐ on [hyodotdev/openiap](https://github.com/hyo
 
 Thank you to [Meta](https://meta.com) and [Amazon Developer](https://developer.amazon.com/) for supporting OpenIAP. [View sponsorship options](https://openiap.dev/sponsors).
 
+### In-kind support
+
+<p align="center">
+  <a href="https://claude.com/contact-sales/claude-for-oss">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://openiap.dev/sponsors/claude-dark.svg">
+      <img src="https://openiap.dev/sponsors/claude.svg" alt="Claude" height="32" align="middle">
+    </picture>
+  </a>
+</p>
+
+[Claude for Open Source](https://claude.com/contact-sales/claude-for-oss) provides the Claude Ultra plan for the maintainer from July 20, 2026 to January 19, 2027.
+
 ### OpenCollective
 
 We also recognize sponsors and backers through OpenCollective. The original react-native-iap collective now supports the broader OpenIAP ecosystem and is managed separately from the main sponsor program.
@@ -212,15 +225,15 @@ We also recognize sponsors and backers through OpenCollective. The original reac
 
 ### Past supporters
 
-Supported the project before the OpenIAP sponsor program.
+Supported the project before the OpenIAP sponsor program: Nami for 1 year and Courier for 1 month.
 
 <p align="center">
   <a href="https://namiml.com">
-    <img src="https://openiap.dev/sponsors/nami.webp" alt="Nami" height="32" align="middle">
+    <img src="https://openiap.dev/sponsors/nami.webp" alt="Nami" height="40" align="middle">
   </a>
   &nbsp;&nbsp;&nbsp;&nbsp;
   <a href="https://www.courier.com/?utm_source=react-native-iap&utm_campaign=osssponsors">
-    <img src="https://openiap.dev/sponsors/courier.webp" alt="Courier" height="32" align="middle">
+    <img src="https://openiap.dev/sponsors/courier.webp" alt="Courier" height="24" align="middle">
   </a>
 </p>
 
