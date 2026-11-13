@@ -41,7 +41,8 @@ run() {
         actual=$(printf '%s' "$output" | python3 -c '
 import json, sys
 raw = sys.stdin.read()
-data = json.loads(raw[raw.index("{"):])
+# MSBuild may print warnings after the JSON, so read only the first object.
+data, _ = json.JSONDecoder().raw_decode(raw, raw.index("{"))
 maven = sorted(i["Identity"].split(":")[1] for i in data["Items"].get("AndroidMavenLibrary", []))
 print(data["Properties"]["OpenIapLinkedStore"] + ":" + ",".join(maven))')
     fi
