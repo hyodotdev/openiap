@@ -91,7 +91,8 @@ internal static class IapLifecycle
         VerificationMethod.IapkitLocal => ConfirmWithIapkit(IapKitSettings.LocalBaseUrl
             ?? throw new InvalidOperationException("IAPKit base URL not configured for Local (IAPKit)"))(purchase, isConsumable),
         VerificationMethod.Local => OpenIapClient.ConfirmOnDeviceIOS(GrantAsync)(purchase, isConsumable),
-        _ => throw new InvalidOperationException("Receipt retained. Choose verification to retry this receipt."),
+        // Valid but not granted: the purchase stays unfinished.
+        _ => Task.FromResult<PurchaseConfirmation?>(new PurchaseConfirmation.Verified()),
     };
 
     private static PurchaseConfirmer ConfirmWithIapkit(string? baseUrl) =>

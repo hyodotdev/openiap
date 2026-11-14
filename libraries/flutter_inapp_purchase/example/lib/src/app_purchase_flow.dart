@@ -109,9 +109,8 @@ class AppPurchaseFlow {
     final method = verificationMethod.value;
     switch (method) {
       case VerificationMethod.ignore:
-        throw _unverified(
-          'Receipt retained. Choose verification to retry this receipt.',
-        );
+        // Valid but not granted: the purchase stays unfinished.
+        return const PurchaseVerified();
       case VerificationMethod.local:
         final confirm = iap.confirmOnDeviceIOS(grant: _grant);
         return confirm(purchase, isConsumable: isConsumable);
@@ -212,7 +211,7 @@ String describeOutcome(PurchaseFlowOutcome outcome) {
     PurchaseFlowGuidanceKey.purchaseNotValid =>
       '❌ The store did not confirm this purchase.',
     PurchaseFlowGuidanceKey.accessPending =>
-      '⏳ Purchase confirmed. Access is being prepared.',
+      '⏳ Receipt retained. Choose verification to retry this receipt.',
     PurchaseFlowGuidanceKey.accessGranted => '✅ Access granted.',
     PurchaseFlowGuidanceKey.tryAgainLater =>
       '❌ Could not confirm the purchase. Try again later.',
