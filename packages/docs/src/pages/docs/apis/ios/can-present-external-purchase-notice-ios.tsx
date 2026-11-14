@@ -1,4 +1,6 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
+import Callout from '../../../../components/Callout';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -19,6 +21,18 @@ function CanPresentExternalPurchaseNoticeIOS() {
         <span className="platform-badge platform-badge--ios">iOS</span>{' '}
         canPresentExternalPurchaseNoticeIOS
       </h1>
+      <Callout kind="warning" title="Deprecated">
+        Use{' '}
+        <Link to="/docs/apis/is-external-purchase-link-available">
+          isExternalPurchaseLinkAvailable
+        </Link>{' '}
+        instead. It only checks availability; then call{' '}
+        <Link to="/docs/apis/open-external-purchase-link">
+          openExternalPurchaseLink
+        </Link>
+        , which shows the disclosure and opens the link. This API keeps working
+        until client protocol 2.0.0.
+      </Callout>
       <p>
         Check if external purchase notice sheet can be presented (iOS 17.4+,
         macOS 14.4+).

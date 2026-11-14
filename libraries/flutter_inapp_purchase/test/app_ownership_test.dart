@@ -56,22 +56,23 @@ void main() {
   test('explicit Apple refresh reaches the native provider', () async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
-          expect(call.method, 'verifyAppOwnership');
-          expect(
-            call.arguments,
-            const types.VerifyAppOwnershipProps(
-              apple: types.VerifyAppOwnershipOptionsIOS(refresh: true),
-            ).toJson(),
-          );
-          return {'status': 'licensed', 'storeId': 'apple'};
-        });
+      expect(call.method, 'verifyAppOwnership');
+      expect(
+        call.arguments,
+        const types.VerifyAppOwnershipProps(
+          apple: types.VerifyAppOwnershipOptionsIOS(refresh: true),
+        ).toJson(),
+      );
+      return {'status': 'licensed', 'storeId': 'apple'};
+    });
     final iap = FlutterInappPurchase.private(
       FakePlatform(operatingSystem: 'ios'),
     );
     expect(
       (await iap.verifyAppOwnership(
         apple: const types.VerifyAppOwnershipOptionsIOS(refresh: true),
-      )).status,
+      ))
+          .status,
       types.AppOwnershipStatus.Licensed,
     );
   });

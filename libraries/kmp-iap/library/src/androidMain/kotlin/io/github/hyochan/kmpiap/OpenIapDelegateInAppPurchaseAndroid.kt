@@ -36,12 +36,16 @@ import io.github.hyochan.kmpiap.openiap.ExternalPurchaseCustomLinkNoticeResultIO
 import io.github.hyochan.kmpiap.openiap.ExternalPurchaseCustomLinkNoticeTypeIOS
 import io.github.hyochan.kmpiap.openiap.ExternalPurchaseCustomLinkTokenResultIOS
 import io.github.hyochan.kmpiap.openiap.ExternalPurchaseCustomLinkTokenTypeIOS
+import io.github.hyochan.kmpiap.openiap.ExternalPurchaseLinkRequest
+import io.github.hyochan.kmpiap.openiap.ExternalPurchaseLinkResult
 import io.github.hyochan.kmpiap.openiap.ExternalPurchaseLinkResultIOS
+import io.github.hyochan.kmpiap.openiap.ExternalPurchaseLinkStatus
 import io.github.hyochan.kmpiap.openiap.ExternalPurchaseNoticeResultIOS
 import io.github.hyochan.kmpiap.openiap.FetchProductsResult
 import io.github.hyochan.kmpiap.openiap.FetchProductsResultAll
 import io.github.hyochan.kmpiap.openiap.FetchProductsResultProducts
 import io.github.hyochan.kmpiap.openiap.FetchProductsResultSubscriptions
+import io.github.hyochan.kmpiap.openiap.IapPlatform
 import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
 import io.github.hyochan.kmpiap.openiap.GetBillingChoiceInfoParamsAndroid
 import io.github.hyochan.kmpiap.openiap.InAppMessageParamsAndroid
@@ -423,6 +427,16 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
             )
         } else false
 
+    override suspend fun isExternalPurchaseLinkAvailable(): Boolean =
+        hasPlayBillingApis && withMappedOpenIapError { requireModule().isExternalPurchaseLinkAvailable() }
+
+    override suspend fun openExternalPurchaseLink(request: ExternalPurchaseLinkRequest): ExternalPurchaseLinkResult =
+        if (hasPlayBillingApis) withMappedOpenIapError {
+            ExternalPurchaseLinkResult.fromJson(requireModule().openExternalPurchaseLink(
+                requireActivity(), requireNotNull(dev.hyo.openiap.ExternalPurchaseLinkRequest.fromJson(request.toJson()))
+            ).toJson())
+        } else ExternalPurchaseLinkResult(platform = IapPlatform.Android, status = ExternalPurchaseLinkStatus.Unavailable)
+
     // Opens the store's redeem page, which needs no billing connection.
     override suspend fun openRedeemOfferCode(): Purchase? = when {
         !hasPlayBillingApis -> null
@@ -469,10 +483,14 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
     override suspend fun showManageSubscriptionsIOS(): List<PurchaseIOS> = emptyList()
     override suspend fun syncIOS(): Boolean = false
     override suspend fun clearTransactionIOS(): Boolean = false
+    @Deprecated("Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     override suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS = failUnsupported("External purchase links are iOS only.")
+    @Deprecated("Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     override suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS = failUnsupported("External purchase notice sheet is iOS only.")
     override suspend fun showExternalPurchaseCustomLinkNoticeIOS(noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS): ExternalPurchaseCustomLinkNoticeResultIOS = failUnsupported("External purchase custom-link notice is iOS only.")
+    @Deprecated("Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     override suspend fun canPresentExternalPurchaseNoticeIOS(): Boolean = false
+    @Deprecated("Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     override suspend fun isEligibleForExternalPurchaseCustomLinkIOS(): Boolean = false
     override suspend fun getExternalPurchaseCustomLinkTokenIOS(tokenType: ExternalPurchaseCustomLinkTokenTypeIOS): ExternalPurchaseCustomLinkTokenResultIOS = failUnsupported("External purchase custom-link token is iOS only.")
     override suspend fun isEligibleForIntroOfferIOS(groupID: String): Boolean = false

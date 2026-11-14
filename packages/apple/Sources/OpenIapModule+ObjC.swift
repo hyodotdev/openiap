@@ -805,6 +805,7 @@ import StoreKit
     #endif // !os(tvOS)
 
     @available(iOS 16.0, macOS 14.0, *)
+    @available(*, deprecated, message: "Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     @objc func presentExternalPurchaseLinkIOSWithUrl(_ url: String, completion: @escaping (Any?, Error?) -> Void) {
         Task {
             do {
@@ -818,6 +819,7 @@ import StoreKit
     }
 
     @available(iOS 17.4, macOS 14.4, *)
+    @available(*, deprecated, message: "Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     @objc func presentExternalPurchaseNoticeSheetIOSWithCompletion(_ completion: @escaping (Any?, Error?) -> Void) {
         Task {
             do {
@@ -831,6 +833,7 @@ import StoreKit
     }
 
     @available(iOS 17.4, macOS 14.4, *)
+    @available(*, deprecated, message: "Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     @objc func canPresentExternalPurchaseNoticeIOSWithCompletion(_ completion: @escaping (Bool, Error?) -> Void) {
         Task {
             do {
@@ -845,6 +848,7 @@ import StoreKit
     // MARK: - ExternalPurchaseCustomLink (iOS 18.1+)
 
     @available(iOS 18.1, macOS 15.1, tvOS 18.1, watchOS 11.1, visionOS 2.1, *)
+    @available(*, deprecated, message: "Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     @objc func isEligibleForExternalPurchaseCustomLinkIOSWithCompletion(_ completion: @escaping (Bool, Error?) -> Void) {
         Task {
             do {
@@ -896,6 +900,30 @@ import StoreKit
                 let result = try await showExternalPurchaseCustomLinkNoticeIOS(noticeType)
                 let dictionary = OpenIapSerialization.encode(result)
                 completion(dictionary, nil)
+            } catch {
+                completion(nil, error)
+            }
+        }
+    }
+
+    // MARK: - External Purchase Link
+
+    @objc func isExternalPurchaseLinkAvailableWithCompletion(_ completion: @escaping (Bool, Error?) -> Void) {
+        Task {
+            do {
+                completion(try await isExternalPurchaseLinkAvailable(), nil)
+            } catch {
+                completion(false, error)
+            }
+        }
+    }
+
+    @objc func openExternalPurchaseLinkWithRequest(_ request: NSDictionary, completion: @escaping (Any?, Error?) -> Void) {
+        Task {
+            do {
+                let props = try OpenIapSerialization.decode(object: request, as: ExternalPurchaseLinkRequest.self)
+                let result = try await openExternalPurchaseLink(props)
+                completion(OpenIapSerialization.encode(result), nil)
             } catch {
                 completion(nil, error)
             }

@@ -14,6 +14,8 @@ const mockNativeModule = {
   isTransactionVerifiedIOS: jest.fn(),
   getTransactionJwsIOS: jest.fn(),
   openRedeemOfferCode: jest.fn(async () => null),
+  isExternalPurchaseLinkAvailable: jest.fn(async () => false),
+  openExternalPurchaseLink: jest.fn(),
   canPresentExternalPurchaseNoticeIOS: jest.fn(),
   presentExternalPurchaseNoticeSheetIOS: jest.fn(),
   presentExternalPurchaseLinkIOS: jest.fn(),

@@ -89,6 +89,66 @@ function ExternalPurchase() {
       </section>
 
       <section>
+        <AnchorLink id="external-purchase-link" level="h2">
+          One Call for Both Stores
+        </AnchorLink>
+        <p>
+          To link out to a web checkout, call{' '}
+          <Link to="/docs/apis/open-external-purchase-link">
+            <code>openExternalPurchaseLink</code>
+          </Link>
+          . It shows the store&apos;s required disclosure, opens the URL only
+          after the user continues, and returns the token to report from your
+          server. The disclosure cannot be skipped, so the call cannot produce a
+          flow that App Review rejects for a missing notice.
+        </p>
+        <ul>
+          <li>
+            <strong>iOS 18.1+</strong>: <code>ExternalPurchaseCustomLink</code>{' '}
+            notice, then a token of <code>apple.tokenType</code> (default{' '}
+            <code>acquisition</code>; use <code>link-out</code> in Japan and
+            Brazil).
+          </li>
+          <li>
+            <strong>iOS 17.4 to 18.0</strong>: the <code>ExternalPurchase</code>{' '}
+            notice sheet, which returns the token.
+          </li>
+          <li>
+            <strong>Google Play</strong>: the external offers program (Play
+            Billing 8.2.1+). Play shows its own dialog before it opens the link.
+            Initialize with <code>enableBillingProgramAndroid</code> set to{' '}
+            <code>external-offer</code>.
+          </li>
+          <li>
+            <strong>
+              Amazon, Meta Horizon, Vega OS, macOS, watchOS, iOS before 17.4
+            </strong>
+            : always <code>unavailable</code>.
+          </li>
+        </ul>
+        <CodeBlock language="typescript">{`import {
+  isExternalPurchaseLinkAvailable,
+  openExternalPurchaseLink,
+} from 'expo-iap'; // or 'react-native-iap'
+
+if (await isExternalPurchaseLinkAvailable()) {
+  const result = await openExternalPurchaseLink({
+    url: 'https://example.com/checkout',
+  });
+  if (result.status === 'opened') {
+    // Send result.reportToken to your backend and report it as the store requires.
+    await api.saveExternalPurchaseToken(result.platform, result.reportToken);
+  }
+}`}</CodeBlock>
+        <p>
+          The store entitlement or program enrollment is still required. On
+          Android, use the platform calls below for alternative billing and
+          billing choice. The step-by-step iOS calls are deprecated and are
+          removed in client protocol 2.0.0.
+        </p>
+      </section>
+
+      <section>
         <AnchorLink id="platform-implementation" level="h2">
           Platform-Specific Implementation
         </AnchorLink>
@@ -106,275 +166,25 @@ function ExternalPurchase() {
 
                 <h4>Basic Usage</h4>
                 <p>
-                  Check that the notice sheet can be shown, present it, then
-                  open your purchase link when the user continues:
+                  Call{' '}
+                  <a href="#external-purchase-link">
+                    <code>openExternalPurchaseLink</code>
+                  </a>
+                  . It picks <code>ExternalPurchaseCustomLink</code> on iOS
+                  18.1+ and the notice sheet on iOS 17.4 to 18.0. The
+                  step-by-step calls it replaces (
+                  <code>canPresentExternalPurchaseNoticeIOS</code>,{' '}
+                  <code>isEligibleForExternalPurchaseCustomLinkIOS</code>,{' '}
+                  <code>presentExternalPurchaseNoticeSheetIOS</code>, and{' '}
+                  <code>presentExternalPurchaseLinkIOS</code>) are deprecated
+                  and keep working until client protocol 2.0.0.
                 </p>
-                <LanguageTabs>
-                  {{
-                    typescript: (
-                      <CodeBlock language="typescript">{`import {
-  canPresentExternalPurchaseNoticeIOS,
-  presentExternalPurchaseNoticeSheetIOS,
-  presentExternalPurchaseLinkIOS
-} from 'expo-iap';
-
-async function handleExternalPurchaseFlow() {
-  const externalUrl = 'https://your-payment-site.com/checkout';
-
-  try {
-    // Step 1: Check if notice sheet can be presented
-    const canPresent = await canPresentExternalPurchaseNoticeIOS();
-
-    if (!canPresent) {
-      console.log('External purchase notice sheet not available');
-      return;
-    }
-
-    // Step 2: Present notice sheet (Apple's info sheet)
-    const noticeResult = await presentExternalPurchaseNoticeSheetIOS();
-
-    if (noticeResult.result === 'continue') {
-      // Step 3: Present external purchase link
-      const linkResult = await presentExternalPurchaseLinkIOS(externalUrl);
-
-      if (linkResult.success) {
-        console.log('User acknowledged external purchase');
-        // User approved external purchase
-        // Call your backend API to initiate purchase
-        // await yourBackend.createPurchase(productId, userId);
-      } else {
-        console.log(\`External purchase link failed: \${linkResult.error ?? ''}\`);
-      }
-    } else {
-      console.log('User dismissed notice sheet');
-    }
-  } catch (error) {
-    console.error('External purchase error:', error);
-  }
-}`}</CodeBlock>
-                    ),
-                    swift: (
-                      <CodeBlock language="swift">{`import OpenIAP
-
-@available(iOS 17.4, *)
-func handleExternalPurchaseFlow() async {
-    let externalUrl = "https://your-payment-site.com/checkout"
-
-    do {
-        // Step 1: Check if notice sheet can be presented
-        let canPresent = try await OpenIapModule.shared
-            .canPresentExternalPurchaseNoticeIOS()
-
-        guard canPresent else {
-            print("External purchase notice sheet not available")
-            return
-        }
-
-        // Step 2: Present notice sheet (Apple's info sheet)
-        let noticeResult = try await OpenIapModule.shared
-            .presentExternalPurchaseNoticeSheetIOS()
-
-        if noticeResult.result == .continue {
-            // Step 3: Present external purchase link
-            let linkResult = try await OpenIapModule.shared
-                .presentExternalPurchaseLinkIOS(externalUrl)
-
-            if linkResult.success {
-                print("User acknowledged external purchase")
-                // User approved external purchase
-                // Call your backend API to initiate purchase
-                // await yourBackend.createPurchase(productId, userId)
-            } else {
-                print("External purchase link failed: \\(linkResult.error ?? "")")
-            }
-        } else {
-            print("User dismissed notice sheet")
-        }
-    } catch {
-        print("External purchase error: \\(error)")
-    }
-}`}</CodeBlock>
-                    ),
-                    kotlin: (
-                      <CodeBlock language="kotlin">{`import dev.openiap.OpenIap
-import dev.openiap.ExternalPurchaseNoticeAction
-
-// iOS 17.4+ External Purchase Flow (from Kotlin Multiplatform)
-suspend fun handleExternalPurchaseFlow() {
-    val externalUrl = "https://your-payment-site.com/checkout"
-
-    try {
-        // Step 1: Check if notice sheet can be presented
-        val canPresent = OpenIap.canPresentExternalPurchaseNoticeIOS()
-
-        if (!canPresent) {
-            println("External purchase notice sheet not available")
-            return
-        }
-
-        // Step 2: Present notice sheet (Apple's info sheet)
-        val noticeResult = OpenIap.presentExternalPurchaseNoticeSheetIOS()
-
-        if (noticeResult.result == ExternalPurchaseNoticeAction.Continue) {
-            // Step 3: Present external purchase link
-            val linkResult = OpenIap.presentExternalPurchaseLinkIOS(externalUrl)
-
-            if (linkResult.success) {
-                println("User acknowledged external purchase")
-                // User approved external purchase
-                // Call your backend API to initiate purchase
-                // yourBackend.createPurchase(productId, userId)
-            } else {
-                println("External purchase link failed: \${linkResult.error ?: ""}")
-            }
-        } else {
-            println("User dismissed notice sheet")
-        }
-    } catch (e: Exception) {
-        println("External purchase error: \${e.message}")
-    }
-}`}</CodeBlock>
-                    ),
-                    kmp: (
-                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.ExternalPurchaseNoticeAction
-
-// iOS 17.4+ External Purchase Flow (from Kotlin Multiplatform)
-suspend fun handleExternalPurchaseFlow() {
-    val kmpIAP = KmpIAP()
-    val externalUrl = "https://your-payment-site.com/checkout"
-
-    try {
-        // Step 1: Check if notice sheet can be presented
-        val canPresent = kmpIAP.canPresentExternalPurchaseNoticeIOS()
-
-        if (!canPresent) {
-            println("External purchase notice sheet not available")
-            return
-        }
-
-        // Step 2: Present notice sheet (Apple's info sheet)
-        val noticeResult = kmpIAP.presentExternalPurchaseNoticeSheetIOS()
-
-        if (noticeResult.result == ExternalPurchaseNoticeAction.Continue) {
-            // Step 3: Present external purchase link
-            val linkResult = kmpIAP.presentExternalPurchaseLinkIOS(externalUrl)
-
-            if (linkResult.success) {
-                println("User acknowledged external purchase")
-                // User approved external purchase
-                // Call your backend API to initiate purchase
-                // yourBackend.createPurchase(productId, userId)
-            } else {
-                println("External purchase link failed: \${linkResult.error ?: ""}")
-            }
-        } else {
-            println("User dismissed notice sheet")
-        }
-    } catch (e: Exception) {
-        println("External purchase error: \${e.message}")
-    }
-}`}</CodeBlock>
-                    ),
-                    dart: (
-                      <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
-
-// iOS 17.4+ External Purchase Flow
-Future<void> handleExternalPurchaseFlow() async {
-  const externalUrl = 'https://your-payment-site.com/checkout';
-
-  try {
-    // Step 1: Check if notice sheet can be presented
-    final canPresent = await FlutterInappPurchase.instance
-        .canPresentExternalPurchaseNoticeIOS();
-
-    if (!canPresent) {
-      print('External purchase notice sheet not available');
-      return;
-    }
-
-    // Step 2: Present notice sheet (Apple's info sheet)
-    final noticeResult = await FlutterInappPurchase.instance
-        .presentExternalPurchaseNoticeSheetIOS();
-
-    if (noticeResult.result == ExternalPurchaseNoticeAction.Continue) {
-      // Step 3: Present external purchase link
-      final linkResult = await FlutterInappPurchase.instance
-          .presentExternalPurchaseLinkIOS(externalUrl);
-
-      if (linkResult.success) {
-        print('User acknowledged external purchase');
-        // User approved external purchase
-        // Call your backend API to initiate purchase
-        // await yourBackend.createPurchase(productId, userId);
-      } else {
-        print('External purchase link failed: \${linkResult.error ?? ""}');
-      }
-    } else {
-      print('User dismissed notice sheet');
-    }
-  } catch (e) {
-    print('External purchase error: $e');
-  }
-}`}</CodeBlock>
-                    ),
-                    csharp: (
-                      <CodeBlock language="csharp">{`using OpenIap;
-using OpenIap.Maui;
-
-async Task HandleExternalPurchaseFlowAsync()
-{
-    if (!await OpenIapClient.Query.CanPresentExternalPurchaseNoticeIOSAsync()) return;
-
-    var notice = await OpenIapClient.Mutation.PresentExternalPurchaseNoticeSheetIOSAsync();
-    if (notice.Result != ExternalPurchaseNoticeAction.Continue) return;
-
-    var link = await OpenIapClient.Mutation.PresentExternalPurchaseLinkIOSAsync(
-        "https://your-payment-site.com/checkout");
-    if (!link.Success)
-    {
-        Console.WriteLine($"External purchase link failed: {link.Error}");
-    }
-}`}</CodeBlock>
-                    ),
-                    gdscript: (
-                      <CodeBlock language="gdscript">{`# iOS 17.4+ External Purchase Flow
-func handle_external_purchase_flow() -> void:
-    var external_url = "https://your-payment-site.com/checkout"
-
-    # Step 1: Check if notice sheet can be presented
-    var can_present = await iap.can_present_external_purchase_notice_ios()
-
-    if not can_present:
-        print("External purchase notice sheet not available")
-        return
-
-    # Step 2: Present notice sheet (Apple's info sheet)
-    var notice_result = await iap.present_external_purchase_notice_sheet_ios()
-
-    if notice_result.result == ExternalPurchaseNoticeAction.CONTINUE:
-        # Step 3: Present external purchase link
-        var link_result = await iap.present_external_purchase_link_ios(external_url)
-
-        if link_result.success:
-            print("User acknowledged external purchase")
-            # User approved external purchase
-            # Call your backend API to initiate purchase
-            # await your_backend.create_purchase(product_id, user_id)
-        else:
-            print("External purchase link failed: %s" % (link_result.error if link_result.error else ""))
-    else:
-        print("User dismissed notice sheet")`}</CodeBlock>
-                    ),
-                  }}
-                </LanguageTabs>
 
                 <h4>Requirements</h4>
                 <ul>
                   <li>
                     <strong>iOS 17.4+</strong> - Required for{' '}
-                    <code>canPresentExternalPurchaseNoticeIOS</code> and{' '}
-                    <code>presentExternalPurchaseNoticeSheetIOS</code>
+                    <code>openExternalPurchaseLink</code>
                   </li>
                   <li>
                     <strong>iOS 18.1+</strong> - Required for the{' '}
@@ -1796,45 +1606,26 @@ func _ready_user_choice() -> void:
                     <tr>
                       <td>1</td>
                       <td>
-                        <Link to="/docs/apis/ios/can-present-external-purchase-notice-ios">
-                          <code>canPresentExternalPurchaseNoticeIOS()</code>
+                        <Link to="/docs/apis/is-external-purchase-link-available">
+                          <code>isExternalPurchaseLinkAvailable()</code>
                         </Link>
                       </td>
-                      <td>
-                        Check if device supports external purchase notice sheet
-                      </td>
+                      <td>Check that this app and device can link out</td>
                     </tr>
                     <tr>
                       <td>2</td>
                       <td>
-                        <Link to="/docs/apis/ios/present-external-purchase-notice-sheet-ios">
-                          <code>presentExternalPurchaseNoticeSheetIOS()</code>
+                        <Link to="/docs/apis/open-external-purchase-link">
+                          <code>openExternalPurchaseLink(request)</code>
                         </Link>
                       </td>
                       <td>
-                        Show Apple's notice sheet informing user about external
-                        purchase
+                        Shows Apple&apos;s notice, opens the URL if the user
+                        continues, and returns the report token
                       </td>
                     </tr>
                     <tr>
                       <td>3</td>
-                      <td>User Action</td>
-                      <td>
-                        User taps "Continue" or dismisses the notice sheet
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>4</td>
-                      <td>
-                        <code>presentExternalPurchaseLinkIOS(url)</code>
-                      </td>
-                      <td>
-                        If user continued, present external purchase link (user
-                        acknowledges external purchase)
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>5</td>
                       <td>Backend Payment Processing</td>
                       <td>
                         App calls backend API to process payment with payment
@@ -1842,7 +1633,7 @@ func _ready_user_choice() -> void:
                       </td>
                     </tr>
                     <tr>
-                      <td>6</td>
+                      <td>4</td>
                       <td>Unlock Content</td>
                       <td>
                         App unlocks purchased content after backend confirmation
@@ -1956,15 +1747,17 @@ func _ready_user_choice() -> void:
                     >
                       AlternativeBillingScreen.swift
                     </a>{' '}
-                    - Complete implementation with notice sheet and external
-                    purchase link presentation
+                    - Complete implementation with{' '}
+                    <code>openExternalPurchaseLink</code>
                   </li>
                 </ul>
 
                 <p>This example demonstrates:</p>
                 <ul>
                   <li>Complete UI implementation with state management</li>
-                  <li>Notice sheet presentation (iOS 17.4+)</li>
+                  <li>
+                    Apple&apos;s disclosure before the link opens (iOS 17.4+)
+                  </li>
                   <li>Deep link handling and verification flow</li>
                   <li>Error handling and user feedback</li>
                   <li>Production-ready code patterns</li>

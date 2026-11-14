@@ -23,6 +23,33 @@ public class RecordJsonTests
     }
 
     [Fact]
+    public void ExternalPurchaseLinkRequestUsesPlatformKeysAndWireValues()
+    {
+        var request = new ExternalPurchaseLinkRequest
+        {
+            Url = "https://example.com/buy",
+            Apple = new ExternalPurchaseLinkIosProps { TokenType = ExternalPurchaseCustomLinkTokenTypeIOS.LinkOut },
+            Google = new ExternalPurchaseLinkAndroidProps { LinkType = ExternalLinkTypeAndroid.LinkToAppDownload },
+        };
+        var json = JsonNode.Parse(JsonSerializer.Serialize(request, Options))!;
+        Assert.Equal("https://example.com/buy", (string?)json["url"]);
+        Assert.Equal("link-out", (string?)json["apple"]!["tokenType"]);
+        Assert.Equal("link-to-app-download", (string?)json["google"]!["linkType"]);
+    }
+
+    [Theory]
+    [InlineData("""{"status":"opened","reportToken":"token-1","platform":"android"}""", ExternalPurchaseLinkStatus.Opened, "token-1", IapPlatform.Android)]
+    [InlineData("""{"status":"cancelled","reportToken":null,"platform":"ios"}""", ExternalPurchaseLinkStatus.Cancelled, null, IapPlatform.IOS)]
+    [InlineData("""{"status":"unavailable","platform":"android"}""", ExternalPurchaseLinkStatus.Unavailable, null, IapPlatform.Android)]
+    public void ExternalPurchaseLinkResultDecodesNativePayload(string json, ExternalPurchaseLinkStatus status, string? reportToken, IapPlatform platform)
+    {
+        var result = JsonSerializer.Deserialize<ExternalPurchaseLinkResult>(json, Options)!;
+        Assert.Equal(status, result.Status);
+        Assert.Equal(reportToken, result.ReportToken);
+        Assert.Equal(platform, result.Platform);
+    }
+
+    [Fact]
     public void AlternativeBillingOnlyProgramUsesItsWireValue()
     {
         Assert.Equal("alternative-billing-only", BillingProgramAndroid.AlternativeBillingOnly.ToJson());

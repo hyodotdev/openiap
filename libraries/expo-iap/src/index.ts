@@ -952,8 +952,8 @@ export const verifyAppOwnership: QueryField<'verifyAppOwnership'> = async (
       storeId: isVegaOS()
         ? 'amazon'
         : ExpoIapModule.USING_ONSIDE_SDK
-          ? 'onside'
-          : 'unknown',
+        ? 'onside'
+        : 'unknown',
     };
   }
   return invokeNativeWithPurchaseError(
@@ -1352,6 +1352,55 @@ export const openRedeemOfferCode: MutationField<
     () => ExpoIapModule.openRedeemOfferCode(),
     nativePlatform(),
     {code: ErrorCode.PurchaseError, message: 'Failed to redeem offer code.'},
+  );
+};
+
+/**
+ * Whether this device and storefront may link out to an external purchase
+ * with `openExternalPurchaseLink`. Resolves false where no program applies.
+ *
+ * @see {@link https://openiap.dev/docs/apis/is-external-purchase-link-available}
+ */
+export const isExternalPurchaseLinkAvailable: QueryField<
+  'isExternalPurchaseLinkAvailable'
+> = async () => {
+  if (isVegaOS()) return false;
+  if (!isStorePlatform()) {
+    throw unsupportedPlatformError();
+  }
+  return invokeNativeWithPurchaseError(
+    () => ExpoIapModule.isExternalPurchaseLinkAvailable(),
+    nativePlatform(),
+    {
+      code: ErrorCode.ServiceError,
+      message: 'Failed to check external purchase link availability.',
+    },
+  );
+};
+
+/**
+ * Show the store disclosure, open the external purchase link after the user
+ * continues, and return the token to report from your server.
+ *
+ * @param request - URL plus optional Apple and Google options
+ * @returns Promise resolving to the link status and report token
+ *
+ * @see {@link https://openiap.dev/docs/apis/open-external-purchase-link}
+ */
+export const openExternalPurchaseLink: MutationField<
+  'openExternalPurchaseLink'
+> = async (request) => {
+  if (isVegaOS()) return {status: 'unavailable', platform: 'android'};
+  if (!isStorePlatform()) {
+    throw unsupportedPlatformError();
+  }
+  return invokeNativeWithPurchaseError(
+    () => ExpoIapModule.openExternalPurchaseLink(request),
+    nativePlatform(),
+    {
+      code: ErrorCode.ServiceError,
+      message: 'Failed to open external purchase link.',
+    },
   );
 };
 

@@ -1,6 +1,8 @@
 import {
   fetchProducts,
   getAvailablePurchases,
+  isExternalPurchaseLinkAvailable,
+  openExternalPurchaseLink,
   openRedeemOfferCode,
   requestPurchase,
 } from '../index.kepler';
@@ -120,6 +122,13 @@ describe('Amazon Vega public API', () => {
 
   it('resolves null for openRedeemOfferCode without launching anything', async () => {
     await expect(openRedeemOfferCode()).resolves.toBeNull();
+  });
+
+  it('reports external purchase links as unavailable', async () => {
+    await expect(isExternalPurchaseLinkAvailable()).resolves.toBe(false);
+    await expect(
+      openExternalPurchaseLink({url: 'https://example.com/buy'}),
+    ).resolves.toEqual({status: 'unavailable', platform: 'android'});
   });
 
   it("rejects the removed 'inapp' product type", async () => {

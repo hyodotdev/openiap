@@ -40,6 +40,12 @@ const mockIap: any = {
   getAppTransactionIOS: jest.fn(async () => null),
   getPromotedProductIOS: jest.fn(async () => null),
   openRedeemOfferCode: jest.fn(async () => null),
+  isExternalPurchaseLinkAvailable: jest.fn(async () => true),
+  openExternalPurchaseLink: jest.fn(async () => ({
+    platform: 'ios',
+    status: 'opened',
+    reportToken: 'report-token',
+  })),
   getAllTransactionsIOS: jest.fn(async () => []),
 
   // Unified storefront
@@ -3133,6 +3139,108 @@ describe('Public API (src/index.ts)', () => {
       await expect(IAP.openRedeemOfferCode()).rejects.toThrow(
         'Unsupported platform: web',
       );
+    });
+
+    it('isExternalPurchaseLinkAvailable forwards the native answer on iOS and Android', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      mockIap.isExternalPurchaseLinkAvailable.mockResolvedValueOnce(true);
+      await expect(IAP.isExternalPurchaseLinkAvailable()).resolves.toBe(true);
+
+      Object.assign(Platform, {OS: 'android'});
+      mockIap.isExternalPurchaseLinkAvailable.mockResolvedValueOnce(false);
+      await expect(IAP.isExternalPurchaseLinkAvailable()).resolves.toBe(false);
+      expect(mockIap.isExternalPurchaseLinkAvailable).toHaveBeenCalledTimes(2);
+    });
+
+    it('openExternalPurchaseLink passes the request and returns the report token', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      const request = {
+        url: 'https://example.test/checkout',
+        apple: {tokenType: 'link-out' as const},
+        google: {linkType: 'link-to-digital-content-offer' as const},
+      };
+      mockIap.openExternalPurchaseLink.mockResolvedValueOnce({
+        platform: 'ios',
+        status: 'opened',
+        reportToken: 'apple-token',
+      });
+      await expect(IAP.openExternalPurchaseLink(request)).resolves.toEqual({
+        platform: 'ios',
+        status: 'opened',
+        reportToken: 'apple-token',
+      });
+      expect(mockIap.openExternalPurchaseLink).toHaveBeenCalledWith(request);
+    });
+
+    it('openExternalPurchaseLink resolves cancelled on Android without throwing', async () => {
+      Object.assign(Platform, {OS: 'android'});
+      mockIap.openExternalPurchaseLink.mockResolvedValueOnce({
+        platform: 'android',
+        status: 'cancelled',
+      });
+      await expect(
+        IAP.openExternalPurchaseLink({url: 'https://example.test/checkout'}),
+      ).resolves.toEqual({platform: 'android', status: 'cancelled'});
+    });
+
+    it('isExternalPurchaseLinkAvailable surfaces native failures as PurchaseError', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      mockIap.isExternalPurchaseLinkAvailable.mockRejectedValueOnce(
+        new Error('storekit down'),
+      );
+      await expect(IAP.isExternalPurchaseLinkAvailable()).rejects.toMatchObject(
+        {
+          code: ErrorCode.Unknown,
+          message: 'storekit down',
+        },
+      );
+    });
+
+    it('openExternalPurchaseLink surfaces native failures as PurchaseError', async () => {
+      Object.assign(Platform, {OS: 'android'});
+      mockIap.openExternalPurchaseLink.mockRejectedValueOnce(
+        new Error('activity gone'),
+      );
+      await expect(
+        IAP.openExternalPurchaseLink({url: 'https://example.test/checkout'}),
+      ).rejects.toMatchObject({
+        code: ErrorCode.Unknown,
+        message: 'activity gone',
+      });
+    });
+
+    it('external purchase link APIs report unavailable on Vega without calling native', async () => {
+      jest.resetModules();
+      jest.doMock('react-native', () => ({
+        Platform: {OS: 'kepler'},
+      }));
+      jest.doMock('react-native-nitro-modules', () => ({
+        NitroModules: {
+          createHybridObject: jest.fn(() => mockIap),
+        },
+      }));
+      jest.doMock('../vega', () => ({
+        getVegaIapModule: jest.fn(() => mockIap),
+        isVegaOS: jest.fn(() => true),
+      }));
+      IAP = require('../index');
+
+      await expect(IAP.isExternalPurchaseLinkAvailable()).resolves.toBe(false);
+      await expect(
+        IAP.openExternalPurchaseLink({url: 'https://example.test/checkout'}),
+      ).resolves.toEqual({platform: 'android', status: 'unavailable'});
+      expect(mockIap.isExternalPurchaseLinkAvailable).not.toHaveBeenCalled();
+      expect(mockIap.openExternalPurchaseLink).not.toHaveBeenCalled();
+    });
+
+    it('external purchase link APIs throw on unsupported platform', async () => {
+      Object.assign(Platform, {OS: 'web'});
+      await expect(IAP.isExternalPurchaseLinkAvailable()).rejects.toThrow(
+        'Unsupported platform: web',
+      );
+      await expect(
+        IAP.openExternalPurchaseLink({url: 'https://example.test/checkout'}),
+      ).rejects.toThrow('Unsupported platform: web');
     });
   });
 

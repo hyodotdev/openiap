@@ -526,6 +526,183 @@ void main() {
     });
   });
 
+  group('external purchase link', () {
+    test('isExternalPurchaseLinkAvailable forwards the native answer',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        return call.method == 'isExternalPurchaseLinkAvailable' ? true : null;
+      });
+
+      for (final os in ['ios', 'macos', 'android']) {
+        final iap = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: os),
+        );
+        expect(await iap.isExternalPurchaseLinkAvailable(), isTrue);
+      }
+    });
+
+    test('isExternalPurchaseLinkAvailable is false without a store', () async {
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'windows'),
+      );
+      expect(await iap.isExternalPurchaseLinkAvailable(), isFalse);
+    });
+
+    test('openExternalPurchaseLink sends the request and decodes the result',
+        () async {
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        calls.add(call);
+        return <String, dynamic>{
+          'platform': 'android',
+          'reportToken': 'external-token',
+          'status': 'opened',
+        };
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      final result = await iap.openExternalPurchaseLink(
+        const types.ExternalPurchaseLinkRequest(
+          url: 'https://example.com/buy',
+          apple: types.ExternalPurchaseLinkIosProps(
+            tokenType: types.ExternalPurchaseCustomLinkTokenTypeIOS.Services,
+          ),
+          google: types.ExternalPurchaseLinkAndroidProps(
+            linkType: types.ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
+          ),
+        ),
+      );
+
+      expect(result.status, types.ExternalPurchaseLinkStatus.Opened);
+      expect(result.reportToken, 'external-token');
+      expect(result.platform, types.IapPlatform.Android);
+
+      final call = calls.single;
+      expect(call.method, 'openExternalPurchaseLink');
+      expect(call.arguments, <String, dynamic>{
+        'apple': <String, dynamic>{'tokenType': 'services'},
+        'google': <String, dynamic>{
+          'linkType': 'link-to-digital-content-offer',
+        },
+        'url': 'https://example.com/buy',
+      });
+    });
+
+    test('openExternalPurchaseLink resolves cancelled without a token on iOS',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        return <String, dynamic>{'platform': 'ios', 'status': 'cancelled'};
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+      final result = await iap.openExternalPurchaseLink(
+        const types.ExternalPurchaseLinkRequest(url: 'https://example.com'),
+      );
+
+      expect(result.status, types.ExternalPurchaseLinkStatus.Cancelled);
+      expect(result.reportToken, isNull);
+      expect(result.platform, types.IapPlatform.IOS);
+    });
+
+    test('openExternalPurchaseLink maps native failures to PurchaseError',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        throw PlatformException(code: 'service-error', message: 'boom');
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      await expectLater(
+        iap.openExternalPurchaseLink(
+          const types.ExternalPurchaseLinkRequest(url: 'https://example.com'),
+        ),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.ServiceError,
+          ),
+        ),
+      );
+    });
+
+    test(
+        'isExternalPurchaseLinkAvailable maps native failures to PurchaseError',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        throw PlatformException(code: 'service-error', message: 'boom');
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+
+      await expectLater(
+        iap.isExternalPurchaseLinkAvailable(),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.ServiceError,
+          ),
+        ),
+      );
+    });
+
+    test('openExternalPurchaseLink rejects an empty native result', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async => null);
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      await expectLater(
+        iap.openExternalPurchaseLink(
+          const types.ExternalPurchaseLinkRequest(url: 'https://example.com'),
+        ),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.ServiceError,
+          ),
+        ),
+      );
+    });
+
+    test('openExternalPurchaseLink rejects platforms without a store',
+        () async {
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'windows'),
+      );
+
+      await expectLater(
+        iap.openExternalPurchaseLink(
+          const types.ExternalPurchaseLinkRequest(url: 'https://example.com'),
+        ),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.IapNotAvailable,
+          ),
+        ),
+      );
+    });
+  });
+
   group('openRedeemOfferCode', () {
     test('decodes the synchronously reported purchase on iOS', () async {
       final calls = <MethodCall>[];

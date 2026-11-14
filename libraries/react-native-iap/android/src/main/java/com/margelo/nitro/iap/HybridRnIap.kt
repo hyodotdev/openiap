@@ -58,6 +58,10 @@ import dev.hyo.openiap.InAppMessageResponseCodeAndroid as OpenIapInAppMessageRes
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid as OpenIapLaunchExternalLinkParams
 import dev.hyo.openiap.ExternalLinkLaunchModeAndroid as OpenIapExternalLinkLaunchMode
 import dev.hyo.openiap.ExternalLinkTypeAndroid as OpenIapExternalLinkType
+import dev.hyo.openiap.ExternalPurchaseLinkAndroidProps as OpenIapExternalPurchaseLinkAndroidProps
+import dev.hyo.openiap.ExternalPurchaseLinkRequest as OpenIapExternalPurchaseLinkRequest
+import dev.hyo.openiap.ExternalPurchaseLinkStatus as OpenIapExternalPurchaseLinkStatus
+import dev.hyo.openiap.IapPlatform as OpenIapPlatform
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.helpers.OpenIapFirstPurchaseNotice
 import dev.hyo.openiap.store.OpenIapStore
@@ -2301,6 +2305,63 @@ class HybridRnIap : HybridRnIapSpec() {
                 throw err
             } catch (err: Exception) {
                 RnIapLog.failure("openRedeemOfferCode", err)
+                val errorType = parseOpenIapError(err)
+                throw OpenIapException(toPurchaseError(errorType, debugMessage = err.message), err)
+            }
+        }
+    }
+
+    override fun isExternalPurchaseLinkAvailable(): Promise<Boolean> {
+        return Promise.async {
+            RnIapLog.payload("isExternalPurchaseLinkAvailable", null)
+            try {
+                val available = openIap.isExternalPurchaseLinkAvailable()
+                RnIapLog.result("isExternalPurchaseLinkAvailable", available)
+                available
+            } catch (err: CancellationException) {
+                throw err
+            } catch (err: Exception) {
+                RnIapLog.failure("isExternalPurchaseLinkAvailable", err)
+                val errorType = parseOpenIapError(err)
+                throw OpenIapException(toPurchaseError(errorType, debugMessage = err.message), err)
+            }
+        }
+    }
+
+    override fun openExternalPurchaseLink(request: NitroExternalPurchaseLinkRequest): Promise<NitroExternalPurchaseLinkResult> {
+        return Promise.async {
+            RnIapLog.payload("openExternalPurchaseLink", mapOf("url" to request.url))
+            try {
+                val activity = withContext(Dispatchers.Main) {
+                    runCatching { context.currentActivity }.getOrNull()
+                } ?: throw OpenIapException(toPurchaseError(OpenIapError.DeveloperError(), debugMessage = "Activity not available"))
+
+                val linkType = (request.google as? Variant_NullType_NitroExternalPurchaseLinkAndroidProps.Second)
+                    ?.value?.linkType
+                val openIapRequest = OpenIapExternalPurchaseLinkRequest(
+                    google = OpenIapExternalPurchaseLinkAndroidProps(linkType = linkType?.let { mapExternalLinkType(it) }),
+                    url = request.url
+                )
+                val result = withContext(Dispatchers.Main) {
+                    openIap.openExternalPurchaseLink(activity, openIapRequest)
+                }
+                RnIapLog.result("openExternalPurchaseLink", mapOf("status" to result.status.rawValue))
+                NitroExternalPurchaseLinkResult(
+                    platform = when (result.platform) {
+                        OpenIapPlatform.Ios -> IapPlatform.IOS
+                        OpenIapPlatform.Android -> IapPlatform.ANDROID
+                    },
+                    reportToken = result.reportToken.wrapVariant(),
+                    status = when (result.status) {
+                        OpenIapExternalPurchaseLinkStatus.Opened -> ExternalPurchaseLinkStatus.OPENED
+                        OpenIapExternalPurchaseLinkStatus.Cancelled -> ExternalPurchaseLinkStatus.CANCELLED
+                        OpenIapExternalPurchaseLinkStatus.Unavailable -> ExternalPurchaseLinkStatus.UNAVAILABLE
+                    }
+                )
+            } catch (err: CancellationException) {
+                throw err
+            } catch (err: Exception) {
+                RnIapLog.failure("openExternalPurchaseLink", err)
                 val errorType = parseOpenIapError(err)
                 throw OpenIapException(toPurchaseError(errorType, debugMessage = err.message), err)
             }

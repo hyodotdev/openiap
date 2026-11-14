@@ -194,6 +194,16 @@ enum ExternalPurchaseCustomLinkTokenTypeIOS {
 	LINK_OUT = 3,
 }
 
+## Outcome of openExternalPurchaseLink. Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+enum ExternalPurchaseLinkStatus {
+	## The user continued past the store disclosure and the link was opened
+	OPENED = 0,
+	## The user dismissed the store disclosure; nothing was opened
+	CANCELLED = 1,
+	## The store program is not enabled or the user is not eligible; nothing was shown
+	UNAVAILABLE = 2,
+}
+
 ## User actions on external purchase notice sheet (iOS 17.4+)
 enum ExternalPurchaseNoticeAction {
 	## User chose to continue to external purchase
@@ -1341,6 +1351,59 @@ class ExternalPurchaseCustomLinkTokenResultIOS:
 			dict["token"] = token
 		if error != null:
 			dict["error"] = error
+		return dict
+
+## Result of openExternalPurchaseLink. Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+class ExternalPurchaseLinkResult:
+	## What happened to the link
+	var status: _Types.ExternalPurchaseLinkStatus
+	## Token to report from your server: Play's externalTransactionToken or Apple's external purchase token. Present only when status is Opened.
+	var report_token: Variant = null
+	## Platform that produced reportToken
+	var platform: _Types.IapPlatform
+
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.ExternalPurchaseLinkResult:
+		if not data.has("status") or not ((data["status"] is String and EXTERNAL_PURCHASE_LINK_STATUS_FROM_STRING.has(data["status"])) or (data["status"] is int and EXTERNAL_PURCHASE_LINK_STATUS_VALUES.has(data["status"]))):
+			if report_errors:
+				push_error("Invalid ExternalPurchaseLinkResult.status enum value")
+			return null
+		if not data.has("platform") or not ((data["platform"] is String and IAP_PLATFORM_FROM_STRING.has(data["platform"])) or (data["platform"] is int and IAP_PLATFORM_VALUES.has(data["platform"]))):
+			if report_errors:
+				push_error("Invalid ExternalPurchaseLinkResult.platform enum value")
+			return null
+		var obj = ExternalPurchaseLinkResult.new()
+		if data.has("status") and data["status"] != null:
+			var enum_str = data["status"]
+			if enum_str is String and EXTERNAL_PURCHASE_LINK_STATUS_FROM_STRING.has(enum_str):
+				obj.status = EXTERNAL_PURCHASE_LINK_STATUS_FROM_STRING[enum_str]
+			elif enum_str is int and EXTERNAL_PURCHASE_LINK_STATUS_VALUES.has(enum_str):
+				obj.status = enum_str
+			else:
+				obj.status = enum_str
+		if data.has("reportToken") and data["reportToken"] != null:
+			obj.report_token = data["reportToken"]
+		if data.has("platform") and data["platform"] != null:
+			var enum_str = data["platform"]
+			if enum_str is String and IAP_PLATFORM_FROM_STRING.has(enum_str):
+				obj.platform = IAP_PLATFORM_FROM_STRING[enum_str]
+			elif enum_str is int and IAP_PLATFORM_VALUES.has(enum_str):
+				obj.platform = enum_str
+			else:
+				obj.platform = enum_str
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		if EXTERNAL_PURCHASE_LINK_STATUS_VALUES.has(status):
+			dict["status"] = EXTERNAL_PURCHASE_LINK_STATUS_VALUES[status]
+		else:
+			dict["status"] = status
+		if report_token != null:
+			dict["reportToken"] = report_token
+		if IAP_PLATFORM_VALUES.has(platform):
+			dict["platform"] = IAP_PLATFORM_VALUES[platform]
+		else:
+			dict["platform"] = platform
 		return dict
 
 ## Result of presenting an external purchase link
@@ -4168,6 +4231,114 @@ class DiscountOfferInputIOS:
 			dict["timestamp"] = timestamp
 		return dict
 
+## Google options for openExternalPurchaseLink. Available in Client Protocol 1.5.0 / openiap-google 4.2.0 (requires Play Billing 8.2.1+).
+class ExternalPurchaseLinkAndroidProps:
+	## Link type passed to Play. Defaults to LINK_TO_DIGITAL_CONTENT_OFFER.
+	var link_type: Variant = null
+
+	static func from_dict(data: Dictionary) -> _Types.ExternalPurchaseLinkAndroidProps:
+		var obj = ExternalPurchaseLinkAndroidProps.new()
+		if data.has("linkType") and data["linkType"] != null:
+			var enum_str = data["linkType"]
+			if enum_str is String and EXTERNAL_LINK_TYPE_ANDROID_FROM_STRING.has(enum_str):
+				obj.link_type = EXTERNAL_LINK_TYPE_ANDROID_FROM_STRING[enum_str]
+			elif enum_str is int and EXTERNAL_LINK_TYPE_ANDROID_VALUES.has(enum_str):
+				obj.link_type = enum_str
+			else:
+				push_error("Invalid ExternalLinkTypeAndroid input value")
+				return null
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		if link_type != null:
+			if EXTERNAL_LINK_TYPE_ANDROID_VALUES.has(link_type):
+				dict["linkType"] = EXTERNAL_LINK_TYPE_ANDROID_VALUES[link_type]
+			else:
+				dict["linkType"] = link_type
+		return dict
+
+## Apple options for openExternalPurchaseLink. Available in Client Protocol 1.5.0 / openiap-apple 4.2.0.
+class ExternalPurchaseLinkIosProps:
+	## ExternalPurchaseCustomLink token type on iOS 18.1+. Defaults to Acquisition; use LinkOut in Japan and Brazil. Ignored on iOS 17.4 to 18.0, where the notice sheet returns the token.
+	var token_type: Variant = null
+
+	static func from_dict(data: Dictionary) -> _Types.ExternalPurchaseLinkIosProps:
+		var obj = ExternalPurchaseLinkIosProps.new()
+		if data.has("tokenType") and data["tokenType"] != null:
+			var enum_str = data["tokenType"]
+			if enum_str is String and EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_FROM_STRING.has(enum_str):
+				obj.token_type = EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_FROM_STRING[enum_str]
+			elif enum_str is int and EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_VALUES.has(enum_str):
+				obj.token_type = enum_str
+			else:
+				push_error("Invalid ExternalPurchaseCustomLinkTokenTypeIOS input value")
+				return null
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		if token_type != null:
+			if EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_VALUES.has(token_type):
+				dict["tokenType"] = EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_VALUES[token_type]
+			else:
+				dict["tokenType"] = token_type
+		return dict
+
+## Request for openExternalPurchaseLink. Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+class ExternalPurchaseLinkRequest:
+	## External purchase URL. On iOS 17.4 to 18.0 it must match the SKExternalPurchase link in Info.plist.
+	var url: String = ""
+	## Apple-specific options
+	var apple: _Types.ExternalPurchaseLinkIosProps
+	## Google-specific options
+	var google: _Types.ExternalPurchaseLinkAndroidProps
+
+	static func from_dict(data: Dictionary) -> _Types.ExternalPurchaseLinkRequest:
+		if not data.has("url") or not data["url"] is String:
+			push_error("Invalid required ExternalPurchaseLinkRequest.url value")
+			return null
+		var obj = ExternalPurchaseLinkRequest.new()
+		if data.has("url") and data["url"] != null:
+			obj.url = data["url"]
+		if data.has("apple") and data["apple"] != null:
+			if data["apple"] is Dictionary:
+				var decoded_apple = ExternalPurchaseLinkIosProps.from_dict(data["apple"])
+				if decoded_apple == null:
+					push_error("Invalid input ExternalPurchaseLinkIosProps value for apple")
+					return null
+				obj.apple = decoded_apple
+			else:
+				push_error("Expected apple to be a ExternalPurchaseLinkIosProps dictionary")
+				return null
+		if data.has("google") and data["google"] != null:
+			if data["google"] is Dictionary:
+				var decoded_google = ExternalPurchaseLinkAndroidProps.from_dict(data["google"])
+				if decoded_google == null:
+					push_error("Invalid input ExternalPurchaseLinkAndroidProps value for google")
+					return null
+				obj.google = decoded_google
+			else:
+				push_error("Expected google to be a ExternalPurchaseLinkAndroidProps dictionary")
+				return null
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		if url != null:
+			dict["url"] = url
+		if apple != null:
+			if apple is Object and apple.has_method("to_dict"):
+				dict["apple"] = apple.to_dict()
+			else:
+				dict["apple"] = apple
+		if google != null:
+			if google is Object and google.has_method("to_dict"):
+				dict["google"] = google.to_dict()
+			else:
+				dict["google"] = google
+		return dict
+
 ## Parameters for fetching Billing Choice display information (Android) Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 class GetBillingChoiceInfoParamsAndroid:
 	## Billing program. Currently only BILLING_CHOICE is supported.
@@ -5895,6 +6066,12 @@ const EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_VALUES = {
 	ExternalPurchaseCustomLinkTokenTypeIOS.LINK_OUT: "link-out"
 }
 
+const EXTERNAL_PURCHASE_LINK_STATUS_VALUES = {
+	ExternalPurchaseLinkStatus.OPENED: "opened",
+	ExternalPurchaseLinkStatus.CANCELLED: "cancelled",
+	ExternalPurchaseLinkStatus.UNAVAILABLE: "unavailable"
+}
+
 const EXTERNAL_PURCHASE_NOTICE_ACTION_VALUES = {
 	ExternalPurchaseNoticeAction.CONTINUE: "continue",
 	ExternalPurchaseNoticeAction.DISMISSED: "dismissed"
@@ -6292,6 +6469,18 @@ const EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_FROM_STRING = {
 	"link-out": ExternalPurchaseCustomLinkTokenTypeIOS.LINK_OUT,
 	"LINK_OUT": ExternalPurchaseCustomLinkTokenTypeIOS.LINK_OUT,
 	"LinkOut": ExternalPurchaseCustomLinkTokenTypeIOS.LINK_OUT
+}
+
+const EXTERNAL_PURCHASE_LINK_STATUS_FROM_STRING = {
+	"opened": ExternalPurchaseLinkStatus.OPENED,
+	"OPENED": ExternalPurchaseLinkStatus.OPENED,
+	"Opened": ExternalPurchaseLinkStatus.OPENED,
+	"cancelled": ExternalPurchaseLinkStatus.CANCELLED,
+	"CANCELLED": ExternalPurchaseLinkStatus.CANCELLED,
+	"Cancelled": ExternalPurchaseLinkStatus.CANCELLED,
+	"unavailable": ExternalPurchaseLinkStatus.UNAVAILABLE,
+	"UNAVAILABLE": ExternalPurchaseLinkStatus.UNAVAILABLE,
+	"Unavailable": ExternalPurchaseLinkStatus.UNAVAILABLE
 }
 
 const EXTERNAL_PURCHASE_NOTICE_ACTION_FROM_STRING = {
@@ -6718,6 +6907,15 @@ class Query:
 		const return_type = "String"
 		const is_array = false
 
+	## Whether this device and storefront may link out to an external purchase with openExternalPurchaseLink. Returns false instead of throwing when the store program is not enabled or the user is not eligible. Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0 (requires iOS 17.4+ or Play Billing 8.2.1+). See: https://openiap.dev/docs/apis/is-external-purchase-link-available
+	class isExternalPurchaseLinkAvailableField:
+		const name = "isExternalPurchaseLinkAvailable"
+		const snake_name = "is_external_purchase_link_available"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
 	## Read the App Store-promoted product, if any (iOS 15+). OpenIAP consumes PurchaseIntent.intents on iOS 16.4+ and uses the StoreKit 1 observer only on iOS 15–16.3. When PurchaseIntent carries an externally redeemed win-back offer, OpenIAP preserves it for the next matching requestPurchase unless the caller supplies an explicit win-back or promotional offer. See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
 	class getPromotedProductIOSField:
 		const name = "getPromotedProductIOS"
@@ -6727,7 +6925,7 @@ class Query:
 		const return_type = "ProductIOS"
 		const is_array = false
 
-	## Check eligibility for the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.canPresent. See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+	## Check eligibility for the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.canPresent. See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
 	class canPresentExternalPurchaseNoticeIOSField:
 		const name = "canPresentExternalPurchaseNoticeIOS"
 		const snake_name = "can_present_external_purchase_notice_ios"
@@ -6736,7 +6934,7 @@ class Query:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Check eligibility for the custom-link variant of external purchase (iOS 18.1+). Returns true if the app can use custom external purchase links. Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+	## Check eligibility for the custom-link variant of external purchase (iOS 18.1+). Returns true if the app can use custom external purchase links. Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
 	class isEligibleForExternalPurchaseCustomLinkIOSField:
 		const name = "isEligibleForExternalPurchaseCustomLinkIOS"
 		const snake_name = "is_eligible_for_external_purchase_custom_link_ios"
@@ -7049,6 +7247,24 @@ class Mutation:
 		const return_type = "Purchase"
 		const is_array = false
 
+	## Show the store's required disclosure, open the external purchase link only after the user continues, and return the token to report from your server. The disclosure cannot be skipped. Unavailable and Cancelled are results, not errors. Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0 (requires iOS 17.4+ or Play Billing 8.2.1+). See: https://openiap.dev/docs/apis/open-external-purchase-link
+	class openExternalPurchaseLinkField:
+		const name = "openExternalPurchaseLink"
+		const snake_name = "open_external_purchase_link"
+		class Args:
+			var request: _Types.ExternalPurchaseLinkRequest
+
+			static func from_dict(data: Dictionary) -> _Types.Mutation.openExternalPurchaseLinkField.Args:
+				var obj = Args.new()
+				if data.has("request") and data["request"] != null:
+					obj.request = data["request"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				return _Types.open_external_purchase_link_args(request)
+		const return_type = "ExternalPurchaseLinkResult"
+		const is_array = false
+
 	## Verify a purchase against your own backend. Every VerifyPurchaseResult variant exposes isValid, so entitlement can be gated without inspecting the concrete type. Variants add their own metadata on top: IOS carries receipt/JWS fields, Android carries Play Store receipt fields, and Horizon carries grantTime. See: https://openiap.dev/docs/features/validation#verify-purchase
 	class verifyPurchaseField:
 		const name = "verifyPurchase"
@@ -7130,7 +7346,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Present the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues. Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet() See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+	## Present the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues. Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet() See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
 	class presentExternalPurchaseNoticeSheetIOSField:
 		const name = "presentExternalPurchaseNoticeSheetIOS"
 		const snake_name = "present_external_purchase_notice_sheet_ios"
@@ -7139,7 +7355,7 @@ class Mutation:
 		const return_type = "ExternalPurchaseNoticeResultIOS"
 		const is_array = false
 
-	## Present an external purchase link, StoreKit External (iOS 16+). See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+	## Present an external purchase link, StoreKit External (iOS 16+). See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
 	class presentExternalPurchaseLinkIOSField:
 		const name = "presentExternalPurchaseLinkIOS"
 		const snake_name = "present_external_purchase_link_ios"
@@ -7398,15 +7614,19 @@ static func has_active_subscriptions_args(subscription_ids: Variant = null) -> D
 static func get_storefront_args() -> Dictionary:
 	return {}
 
+## Whether this device and storefront may link out to an external purchase with openExternalPurchaseLink. Returns false instead of throwing when the store program is not enabled or the user is not eligible. Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0 (requires iOS 17.4+ or Play Billing 8.2.1+). See: https://openiap.dev/docs/apis/is-external-purchase-link-available
+static func is_external_purchase_link_available_args() -> Dictionary:
+	return {}
+
 ## Read the App Store-promoted product, if any (iOS 15+). OpenIAP consumes PurchaseIntent.intents on iOS 16.4+ and uses the StoreKit 1 observer only on iOS 15–16.3. When PurchaseIntent carries an externally redeemed win-back offer, OpenIAP preserves it for the next matching requestPurchase unless the caller supplies an explicit win-back or promotional offer. See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
 static func get_promoted_product_ios_args() -> Dictionary:
 	return {}
 
-## Check eligibility for the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.canPresent. See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+## Check eligibility for the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.canPresent. See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
 static func can_present_external_purchase_notice_ios_args() -> Dictionary:
 	return {}
 
-## Check eligibility for the custom-link variant of external purchase (iOS 18.1+). Returns true if the app can use custom external purchase links. Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+## Check eligibility for the custom-link variant of external purchase (iOS 18.1+). Returns true if the app can use custom external purchase links. Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
 static func is_eligible_for_external_purchase_custom_link_ios_args() -> Dictionary:
 	return {}
 
@@ -7537,6 +7757,16 @@ static func deep_link_to_subscriptions_args(options: Variant = null) -> Dictiona
 static func open_redeem_offer_code_args() -> Dictionary:
 	return {}
 
+## Show the store's required disclosure, open the external purchase link only after the user continues, and return the token to report from your server. The disclosure cannot be skipped. Unavailable and Cancelled are results, not errors. Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0 (requires iOS 17.4+ or Play Billing 8.2.1+). See: https://openiap.dev/docs/apis/open-external-purchase-link
+static func open_external_purchase_link_args(request: _Types.ExternalPurchaseLinkRequest) -> Dictionary:
+	var args = {}
+	if request != null:
+		if request is Object and request.has_method("to_dict"):
+			args["request"] = request.to_dict()
+		else:
+			args["request"] = request
+	return args
+
 ## Verify a purchase against your own backend. Every VerifyPurchaseResult variant exposes isValid, so entitlement can be gated without inspecting the concrete type. Variants add their own metadata on top: IOS carries receipt/JWS fields, Android carries Play Store receipt fields, and Horizon carries grantTime. See: https://openiap.dev/docs/features/validation#verify-purchase
 static func verify_purchase_args(options: _Types.VerifyPurchaseProps) -> Dictionary:
 	var args = {}
@@ -7575,11 +7805,11 @@ static func begin_refund_request_ios_args(sku: String) -> Dictionary:
 static func sync_ios_args() -> Dictionary:
 	return {}
 
-## Present the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues. Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet() See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+## Present the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues. Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet() See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
 static func present_external_purchase_notice_sheet_ios_args() -> Dictionary:
 	return {}
 
-## Present an external purchase link, StoreKit External (iOS 16+). See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+## Present an external purchase link, StoreKit External (iOS 16+). See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
 static func present_external_purchase_link_ios_args(url: String) -> Dictionary:
 	var args = {}
 	args["url"] = url

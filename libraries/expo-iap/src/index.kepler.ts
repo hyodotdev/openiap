@@ -307,6 +307,7 @@ export const getPromotedProductIOS: QueryField<
 export const showManageSubscriptionsIOS: MutationField<
   'showManageSubscriptionsIOS'
 > = async () => [];
+/** @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0. */
 export const presentExternalPurchaseLinkIOS: MutationField<
   'presentExternalPurchaseLinkIOS'
 > = async () => unsupported('presentExternalPurchaseLinkIOS');
@@ -318,6 +319,13 @@ export const deepLinkToSubscriptions: MutationField<
 export const openRedeemOfferCode: MutationField<
   'openRedeemOfferCode'
 > = async () => null;
+// Vega has no external purchase link program.
+export const isExternalPurchaseLinkAvailable: QueryField<
+  'isExternalPurchaseLinkAvailable'
+> = async () => false;
+export const openExternalPurchaseLink: MutationField<
+  'openExternalPurchaseLink'
+> = async () => ({status: 'unavailable', platform: 'android'});
 
 export const promotedProductListenerIOS = (): EventSubscription => ({
   remove: () => {},

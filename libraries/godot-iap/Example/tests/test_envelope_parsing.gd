@@ -93,6 +93,15 @@ class FakeAndroidJsonPlugin:
 		last_args = [options_json]
 		return _respond("verifyAppOwnership", "{}")
 
+	func isExternalPurchaseLinkAvailable() -> String:
+		last_method = "isExternalPurchaseLinkAvailable"
+		return _respond("isExternalPurchaseLinkAvailable", "{}")
+
+	func openExternalPurchaseLink(request_json: String) -> String:
+		last_method = "openExternalPurchaseLink"
+		last_args = [request_json]
+		return _respond("openExternalPurchaseLink", "{}")
+
 	func verifyPurchase(props_json: String) -> String:
 		last_args = [props_json]
 		return _respond("verifyPurchase", JSON.stringify({"isValid": false}))
@@ -132,6 +141,13 @@ class FakeImmediateApplePlugin:
 	func verifyAppOwnership(options_json: String) -> String:
 		last_args = [options_json]
 		return _respond("verifyAppOwnership", "{}")
+
+	func isExternalPurchaseLinkAvailable() -> String:
+		return _respond("isExternalPurchaseLinkAvailable", "{}")
+
+	func openExternalPurchaseLink(request_json: String) -> String:
+		last_args = [request_json]
+		return _respond("openExternalPurchaseLink", "{}")
 
 	func initConnection() -> String:
 		return _respond("initConnection", JSON.stringify({"success": true}))
@@ -283,6 +299,7 @@ func _run_all_tests() -> void:
 	await test_android_open_redeem_offer_code_envelope()
 	await test_app_ownership_evidence()
 	await test_app_ownership_failure_routing()
+	await test_external_purchase_link_envelopes()
 	await test_android_verify_purchase_envelope()
 	await test_provider_verification_errors()
 	await test_apple_concurrent_verification_failures()
@@ -1922,6 +1939,55 @@ func test_app_ownership_evidence() -> void:
 		_uninstall_fake()
 	var unsupported = await GodotIapPlugin.verify_app_ownership()
 	_assert_equal(unsupported.reason, Types.AppOwnershipVerificationReason.UNSUPPORTED, "Missing native ownership capability stays unknown")
+
+
+func test_external_purchase_link_envelopes() -> void:
+	var errors: Array[Dictionary] = []
+	var capture = func(error: Dictionary) -> void: errors.append(error)
+	GodotIapPlugin.purchase_error.connect(capture)
+	for platform in ["Android", "iOS"]:
+		var fake = _install_android_fake() if platform == "Android" else _install_ios_fake()
+		var wire_platform = "android" if platform == "Android" else "ios"
+		fake.responses["isExternalPurchaseLinkAvailable"] = JSON.stringify({"success": true, "available": true})
+		_assert_true(await GodotIapPlugin.is_external_purchase_link_available(), "%s availability reads the native flag" % platform)
+		fake.responses["isExternalPurchaseLinkAvailable"] = JSON.stringify({"success": false, "code": "service-error", "error": "boom"})
+		_assert_false(await GodotIapPlugin.is_external_purchase_link_available(), "%s availability failures read as false" % platform)
+
+		var request = Types.ExternalPurchaseLinkRequest.from_dict({
+			"url": "https://example.com/buy",
+			"apple": {"tokenType": "link-out"},
+			"google": {"linkType": "link-to-digital-content-offer"},
+		})
+		fake.responses["openExternalPurchaseLink"] = JSON.stringify({"success": true, "resultJson": JSON.stringify({"status": "opened", "reportToken": "token-1", "platform": wire_platform})})
+		var opened = await GodotIapPlugin.open_external_purchase_link(request)
+		_assert_true(opened is Types.ExternalPurchaseLinkResult, "%s returns the generated result" % platform)
+		_assert_equal(opened.status, Types.ExternalPurchaseLinkStatus.OPENED, "%s keeps the opened status" % platform)
+		_assert_equal(opened.report_token, "token-1", "%s keeps the report token" % platform)
+		_assert_equal(JSON.parse_string(fake.last_args[0]), {
+			"url": "https://example.com/buy",
+			"apple": {"tokenType": "link-out"},
+			"google": {"linkType": "link-to-digital-content-offer"},
+		}, "%s sends the canonical request wire" % platform)
+
+		fake.responses["openExternalPurchaseLink"] = JSON.stringify({"success": true, "resultJson": JSON.stringify({"status": "unavailable", "platform": wire_platform})})
+		var unavailable = await GodotIapPlugin.open_external_purchase_link({"url": "https://example.com/buy"})
+		_assert_equal(unavailable.status, Types.ExternalPurchaseLinkStatus.UNAVAILABLE, "%s reports an unavailable store as a status" % platform)
+		_assert_equal(unavailable.report_token, null, "%s has no token without a link" % platform)
+
+		var error_count := errors.size()
+		fake.responses["openExternalPurchaseLink"] = JSON.stringify({"success": false, "code": "developer-error", "error": "bad url"})
+		_assert_equal(await GodotIapPlugin.open_external_purchase_link({"url": ""}), null, "%s failures return null" % platform)
+		_assert_equal(errors.size(), error_count + 1, "%s failures emit one purchase_error" % platform)
+		_assert_equal(errors.back().get("code"), "developer-error", "%s keeps the native error code" % platform)
+		_assert_equal(errors.back().get("method"), "openExternalPurchaseLink", "%s failures name the method" % platform)
+		_uninstall_fake()
+
+	GodotIapPlugin._platform = "Linux"
+	_assert_false(await GodotIapPlugin.is_external_purchase_link_available(), "Unsupported platforms are unavailable")
+	_assert_equal(await GodotIapPlugin.open_external_purchase_link({"url": "https://example.com/buy"}), null, "Unsupported platforms return null")
+	_assert_equal(errors.back().get("code"), "feature-not-supported", "Unsupported platforms report feature-not-supported")
+	GodotIapPlugin._platform = _original_platform
+	GodotIapPlugin.purchase_error.disconnect(capture)
 
 
 func _collect_app_ownership(results: Dictionary) -> void:

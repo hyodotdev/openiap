@@ -719,6 +719,7 @@ void main() {
 
     expect(query.fetchProducts, isNotNull);
     expect(query.getBillingChoiceInfoAndroid, isNotNull);
+    expect(query.isExternalPurchaseLinkAvailable, isNotNull);
     expect(mutation.acknowledgePurchaseAndroid, isNotNull);
     expect(mutation.beginRefundRequestIOS, isNotNull);
     expect(mutation.consumePurchaseAndroid, isNotNull);
@@ -729,6 +730,7 @@ void main() {
     expect(mutation.initConnection, isNotNull);
     expect(mutation.isBillingProgramAvailableAndroid, isNotNull);
     expect(mutation.launchExternalLinkAndroid, isNotNull);
+    expect(mutation.openExternalPurchaseLink, isNotNull);
     expect(mutation.openRedeemOfferCode, isNotNull);
     expect(mutation.requestPurchase, isNotNull);
     expect(mutation.restorePurchases, isNotNull);

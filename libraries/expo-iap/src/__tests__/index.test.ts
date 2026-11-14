@@ -37,6 +37,8 @@ import {
   getActiveSubscriptions,
   hasActiveSubscriptions,
   openRedeemOfferCode,
+  isExternalPurchaseLinkAvailable,
+  openExternalPurchaseLink,
   verifyPurchase,
   verifyPurchaseWithProvider,
   ErrorCode,
@@ -2162,6 +2164,80 @@ describe('Public API (index.ts)', () => {
       await expect(openRedeemOfferCode()).rejects.toThrow(
         /Unsupported platform: web/,
       );
+    });
+
+    it.each(['ios', 'android'])(
+      'isExternalPurchaseLinkAvailable resolves the %s native answer',
+      async (platform) => {
+        Object.assign(Platform, {OS: platform});
+        (
+          ExpoIapModule.isExternalPurchaseLinkAvailable as jest.Mock
+        ).mockResolvedValueOnce(true);
+        await expect(isExternalPurchaseLinkAvailable()).resolves.toBe(true);
+      },
+    );
+
+    it('isExternalPurchaseLinkAvailable resolves false on Vega without calling native', async () => {
+      Object.assign(Platform, {OS: 'kepler'});
+      await expect(isExternalPurchaseLinkAvailable()).resolves.toBe(false);
+      expect(
+        ExpoIapModule.isExternalPurchaseLinkAvailable,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('isExternalPurchaseLinkAvailable rejects on unsupported platform', async () => {
+      Object.assign(Platform, {OS: 'web'});
+      await expect(isExternalPurchaseLinkAvailable()).rejects.toThrow(
+        /Unsupported platform: web/,
+      );
+    });
+
+    it.each(['ios', 'android'] as const)(
+      'openExternalPurchaseLink passes the request and resolves the %s result',
+      async (platform) => {
+        Object.assign(Platform, {OS: platform});
+        const request = {
+          url: 'https://example.com/buy',
+          apple: {tokenType: 'link-out' as const},
+          google: {linkType: 'link-to-digital-content-offer' as const},
+        };
+        const result = {status: 'opened', reportToken: 'token', platform};
+        (
+          ExpoIapModule.openExternalPurchaseLink as jest.Mock
+        ).mockResolvedValueOnce(result);
+        await expect(openExternalPurchaseLink(request)).resolves.toBe(result);
+        expect(ExpoIapModule.openExternalPurchaseLink).toHaveBeenCalledWith(
+          request,
+        );
+      },
+    );
+
+    it('openExternalPurchaseLink maps native errors to PurchaseError', async () => {
+      Object.assign(Platform, {OS: 'android'});
+      (
+        ExpoIapModule.openExternalPurchaseLink as jest.Mock
+      ).mockRejectedValueOnce({
+        code: 'developer-error',
+        message: 'Invalid external purchase link request: `url` is required.',
+      });
+      await expect(openExternalPurchaseLink({url: ''})).rejects.toMatchObject({
+        code: ErrorCode.DeveloperError,
+      });
+    });
+
+    it('openExternalPurchaseLink resolves unavailable on Vega without calling native', async () => {
+      Object.assign(Platform, {OS: 'kepler'});
+      await expect(
+        openExternalPurchaseLink({url: 'https://example.com/buy'}),
+      ).resolves.toEqual({status: 'unavailable', platform: 'android'});
+      expect(ExpoIapModule.openExternalPurchaseLink).not.toHaveBeenCalled();
+    });
+
+    it('openExternalPurchaseLink rejects on unsupported platform', async () => {
+      Object.assign(Platform, {OS: 'web'});
+      await expect(
+        openExternalPurchaseLink({url: 'https://example.com/buy'}),
+      ).rejects.toThrow(/Unsupported platform: web/);
     });
 
     it('requestPurchase rejects on unsupported platform', async () => {

@@ -18,6 +18,8 @@ const operations = {
   getPromotedProductIOS: false,
   verifyAppOwnership: false,
   openRedeemOfferCode: false,
+  isExternalPurchaseLinkAvailable: false,
+  openExternalPurchaseLink: false,
   clearTransactionIOS: true,
   beginRefundRequestIOS: false,
   subscriptionStatusIOS: false,

@@ -392,6 +392,7 @@ export const deepLinkToSubscriptionsIOS = async (): Promise<void> => {
  * Check if the device can present an external purchase notice sheet (iOS 17.4+).
  * Wraps `ExternalPurchase.canPresent`.
  *
+ * @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
  * @returns Promise resolving to true if the notice sheet can be presented
  * @platform iOS
  *
@@ -411,6 +412,7 @@ export const canPresentExternalPurchaseNoticeIOS: QueryField<
  * This must be called before opening an external purchase link.
  * Returns the external purchase token when user continues.
  *
+ * @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
  * @returns Promise resolving to the result with action, token, and error if any
  * @platform iOS
  *
@@ -429,6 +431,7 @@ export const presentExternalPurchaseNoticeSheetIOS: MutationField<
 /**
  * Present an external purchase link to redirect users to your website (iOS 16.0+).
  *
+ * @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
  * @param url - The external purchase URL to open
  * @returns Promise resolving to the result with success status and error if any
  * @platform iOS
@@ -448,6 +451,7 @@ export const presentExternalPurchaseLinkIOS: MutationField<
 /**
  * Check if app is eligible for ExternalPurchaseCustomLink API (iOS 18.1+).
  *
+ * @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
  * @returns Promise resolving to true if eligible
  * @platform iOS
  * @see https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible

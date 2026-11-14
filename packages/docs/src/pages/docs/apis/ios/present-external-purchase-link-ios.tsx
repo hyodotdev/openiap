@@ -21,6 +21,15 @@ function PresentExternalPurchaseLinkIOS() {
         <span className="platform-badge platform-badge--ios">iOS</span>{' '}
         presentExternalPurchaseLinkIOS
       </h1>
+      <Callout kind="warning" title="Deprecated">
+        Use{' '}
+        <Link to="/docs/apis/open-external-purchase-link">
+          openExternalPurchaseLink
+        </Link>{' '}
+        instead. It runs the required store disclosure and opens the link in one
+        call on iOS 17.4+. Keep this API for iOS 16 to 17.3; it works until
+        client protocol 2.0.0.
+      </Callout>
       <p>Open an external purchase URL outside the app (iOS 16+).</p>
       <p>
         Opens the URL via{' '}

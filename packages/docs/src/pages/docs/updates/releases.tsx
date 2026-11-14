@@ -180,6 +180,30 @@ const REACT_NATIVE_NITRO_CAUSE_RELEASES: readonly ReleaseMetadata[] = [
   },
 ];
 
+const EXTERNAL_PURCHASE_LINK_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '1.5.0',
+    tag: 'openiap-client-protocol-1.5.0',
+  },
+  { name: 'openiap-apple', version: '4.2.0', tag: '4.2.0' },
+  { name: 'openiap-google', version: '4.2.0', tag: 'google-4.2.0' },
+  {
+    name: 'react-native-iap',
+    version: '17.4.0',
+    tag: 'react-native-iap-17.4.0',
+  },
+  { name: 'expo-iap', version: '6.5.0', tag: 'expo-iap-6.5.0' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '11.4.0',
+    tag: 'flutter-iap-11.4.0',
+  },
+  { name: 'godot-iap', version: '4.4.0', tag: 'godot-iap-4.4.0' },
+  { name: 'kmp-iap', version: '4.3.0', tag: 'kmp-iap-4.3.0' },
+  { name: 'OpenIap.Maui', version: '3.3.0', tag: 'maui-iap-3.3.0' },
+];
+
 const ALTERNATIVE_BILLING_ONLY_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: '@hyodotdev/openiap-client-protocol',
@@ -854,6 +878,126 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'external-purchase-link-2026-11-13',
+      date: new Date('2026-11-13'),
+      element: (
+        <div key="external-purchase-link-2026-11-13" style={noteCardStyle}>
+          {EXTERNAL_PURCHASE_LINK_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="external-purchase-link-2026-11-13" level="h4">
+            November 13, 2026 - One external purchase link call for iOS and
+            Android
+          </AnchorLink>
+          <p>
+            Apps can link out to a web checkout with one call on both stores.{' '}
+            <code>openExternalPurchaseLink</code> shows the store&apos;s
+            required disclosure, opens the URL only after the user continues,
+            and returns the token to report from your server. See the{' '}
+            <Link to="/docs/features/external-purchase#external-purchase-link">
+              external purchase link guide
+            </Link>{' '}
+            and{' '}
+            <a href="https://github.com/hyodotdev/openiap/issues/611">#611</a>.
+          </p>
+          <ClientProtocolChange
+            version="1.5.0"
+            source="api.graphql"
+            diff={`+ isExternalPurchaseLinkAvailable: Boolean!
++ openExternalPurchaseLink(request: ExternalPurchaseLinkRequest!): ExternalPurchaseLinkResult!
++ enum ExternalPurchaseLinkStatus { Opened, Cancelled, Unavailable }
+  canPresentExternalPurchaseNoticeIOS: Boolean! @deprecated
+  isEligibleForExternalPurchaseCustomLinkIOS: Boolean! @deprecated
+  presentExternalPurchaseNoticeSheetIOS: ExternalPurchaseNoticeResultIOS! @deprecated
+  presentExternalPurchaseLinkIOS(url: String!): ExternalPurchaseLinkResultIOS! @deprecated`}
+          >
+            Additive. Four iOS calls are deprecated and keep working until
+            client protocol 2.0.0; no value or default changes.
+          </ClientProtocolChange>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Protocols and native packages
+          </h5>
+          <ul>
+            <li>
+              <strong>openiap-apple 4.2.0</strong>: uses{' '}
+              <code>ExternalPurchaseCustomLink</code> on iOS 18.1 or later and
+              the <code>ExternalPurchase</code> notice sheet on iOS 17.4 to
+              18.0. macOS and watchOS return <code>unavailable</code>. A custom
+              provider gets the same flow from its existing external purchase
+              methods.
+            </li>
+            <li>
+              <strong>openiap-google 4.2.0</strong>: uses Play&apos;s external
+              offers program (Play Billing 8.2.1 or later). Play shows its
+              disclosure before it opens the link. Amazon Appstore and Meta
+              Horizon return <code>unavailable</code>.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul>
+            <li>
+              <strong>
+                react-native-iap 17.4.0, expo-iap 6.5.0, flutter_inapp_purchase
+                11.4.0, godot-iap 4.4.0, kmp-iap 4.3.0, and OpenIap.Maui 3.3.0
+              </strong>
+              : each exposes <code>isExternalPurchaseLinkAvailable</code> and{' '}
+              <code>openExternalPurchaseLink</code>. On Vega OS both report the
+              link as unavailable.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul>
+            <li>
+              The app still needs the store entitlement or program enrollment:
+              Apple&apos;s External Purchase Link entitlement for the
+              storefront, or Play&apos;s external offers program.
+            </li>
+            <li>
+              <code>cancelled</code> and <code>unavailable</code> are results,
+              not errors. Send <code>reportToken</code> to your backend. Apple
+              requires every token in the monthly report, even when no purchase
+              follows; Play reports it with the external transaction.
+            </li>
+            <li>
+              Deprecated, removed in client protocol 2.0.0:{' '}
+              <code>canPresentExternalPurchaseNoticeIOS</code> and{' '}
+              <code>isEligibleForExternalPurchaseCustomLinkIOS</code> (use{' '}
+              <code>isExternalPurchaseLinkAvailable</code>), and{' '}
+              <code>presentExternalPurchaseNoticeSheetIOS</code> and{' '}
+              <code>presentExternalPurchaseLinkIOS</code> (use{' '}
+              <code>openExternalPurchaseLink</code>). They still work.
+            </li>
+            <li>
+              <code>showExternalPurchaseCustomLinkNoticeIOS</code>,{' '}
+              <code>getExternalPurchaseCustomLinkTokenIOS</code>, the Android
+              billing program calls, and Play&apos;s in-app billing choice are
+              unchanged. The example apps now use the shared call.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <div
+            style={{
+              border: '1px solid var(--border-color)',
+              borderRadius: '0.5rem',
+              padding: '1rem',
+            }}
+          >
+            <ul style={{ marginBottom: 0, paddingLeft: '1.25rem' }}>
+              {EXTERNAL_PURCHASE_LINK_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  >
+                    {getReleaseLabel(release)}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
     {
       id: 'alternative-billing-only-2026-11-11',
       date: new Date('2026-11-11'),

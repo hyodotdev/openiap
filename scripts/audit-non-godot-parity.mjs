@@ -148,6 +148,7 @@ const operationParityRegistry = {
     "initConnection",
     "isBillingProgramAvailableAndroid",
     "launchExternalLinkAndroid",
+    "openExternalPurchaseLink",
     "openRedeemOfferCode",
     "presentExternalPurchaseLinkIOS",
     "presentExternalPurchaseNoticeSheetIOS",
@@ -179,6 +180,7 @@ const operationParityRegistry = {
     "getTransactionJwsIOS",
     "hasActiveSubscriptions",
     "isEligibleForExternalPurchaseCustomLinkIOS",
+    "isExternalPurchaseLinkAvailable",
     "isEligibleForIntroOfferIOS",
     "isTransactionVerifiedIOS",
     "latestTransactionIOS",
@@ -2298,6 +2300,7 @@ function checkFlutter() {
     "canPresentExternalPurchaseNoticeIOS",
     "presentExternalPurchaseNoticeSheetIOS",
     "isEligibleForExternalPurchaseCustomLinkIOS",
+    "isExternalPurchaseLinkAvailable",
     "getExternalPurchaseCustomLinkTokenIOS",
     "showExternalPurchaseCustomLinkNoticeIOS",
   ];

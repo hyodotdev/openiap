@@ -122,6 +122,18 @@ describe('Amazon Vega adapter', () => {
     }
   });
 
+  it('external purchase links are unavailable without calling the Amazon service', async () => {
+    const service = createService();
+    const module = createVegaIapModule(service);
+    await expect(module.isExternalPurchaseLinkAvailable()).resolves.toBe(false);
+    await expect(
+      module.openExternalPurchaseLink({url: 'https://example.test/checkout'}),
+    ).resolves.toEqual({platform: 'android', status: 'unavailable'});
+    for (const method of Object.values(service)) {
+      expect(method).not.toHaveBeenCalled();
+    }
+  });
+
   it('initializes without fetching Amazon user data', async () => {
     const service = createService();
     const module = createVegaIapModule(service);

@@ -1641,22 +1641,37 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             )
         }
 
-        return await MainActor.run {
-            if UIApplication.shared.canOpenURL(customLink) {
-                UIApplication.shared.open(customLink, options: [:]) { success in
-                    // Completion handler - link opened
-                }
-                return ExternalPurchaseLinkResultIOS(error: nil, success: true)
-            } else {
-                return ExternalPurchaseLinkResultIOS(
-                    error: "Cannot open URL",
-                    success: false
-                )
-            }
-        }
+        // Report success only once UIKit says the URL actually opened.
+        let opened = await Self.openURL(customLink)
+        return ExternalPurchaseLinkResultIOS(error: opened ? nil : "Cannot open URL", success: opened)
         #else
         throw PurchaseError.make(code: .featureNotSupported)
         #endif // os(iOS) || os(tvOS) || os(visionOS)
+    }
+
+    #if os(iOS) || os(tvOS) || os(visionOS)
+    @MainActor
+    private static func openURL(_ url: URL) async -> Bool {
+        guard UIApplication.shared.canOpenURL(url) else { return false }
+        return await UIApplication.shared.open(url)
+    }
+    #endif
+
+    // The link opens with UIApplication, so other platforms never show the disclosure.
+    public func isExternalPurchaseLinkAvailable() async throws -> Bool {
+        #if os(iOS) || os(tvOS) || os(visionOS)
+        return try await externalPurchaseLinkRoute() != nil
+        #else
+        return false
+        #endif
+    }
+
+    public func openExternalPurchaseLink(_ request: ExternalPurchaseLinkRequest) async throws -> ExternalPurchaseLinkResult {
+        #if os(iOS) || os(tvOS) || os(visionOS)
+        return try await openExternalPurchaseLinkFlow(request)
+        #else
+        return ExternalPurchaseLinkResult(platform: .ios, status: .unavailable)
+        #endif
     }
 
     // MARK: - ExternalPurchaseCustomLink (iOS 18.1+)

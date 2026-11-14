@@ -736,6 +736,47 @@ enum ExternalPurchaseCustomLinkTokenTypeIOS {
   String toJson() => value;
 }
 
+/// Outcome of openExternalPurchaseLink.
+/// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+enum ExternalPurchaseLinkStatus {
+  /// The user continued past the store disclosure and the link was opened
+  Opened('opened'),
+  /// The user dismissed the store disclosure; nothing was opened
+  Cancelled('cancelled'),
+  /// The store program is not enabled or the user is not eligible; nothing was shown
+  Unavailable('unavailable');
+
+  const ExternalPurchaseLinkStatus(this.value);
+  final String value;
+
+  static ExternalPurchaseLinkStatus? _fromKnownJson(String value) {
+    final normalized = value.toLowerCase().replaceAll('_', '-');
+    switch (normalized) {
+      case 'opened':
+        return ExternalPurchaseLinkStatus.Opened;
+      case 'cancelled':
+        return ExternalPurchaseLinkStatus.Cancelled;
+      case 'unavailable':
+        return ExternalPurchaseLinkStatus.Unavailable;
+    }
+    return null;
+  }
+
+  factory ExternalPurchaseLinkStatus.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown ExternalPurchaseLinkStatus value: $value');
+  }
+
+  factory ExternalPurchaseLinkStatus.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown ExternalPurchaseLinkStatus input value: $value');
+  }
+
+  String toJson() => value;
+}
+
 /// User actions on external purchase notice sheet (iOS 17.4+)
 enum ExternalPurchaseNoticeAction {
   /// User chose to continue to external purchase
@@ -2604,6 +2645,41 @@ class ExternalPurchaseCustomLinkTokenResultIOS {
       '__typename': 'ExternalPurchaseCustomLinkTokenResultIOS',
       'error': error,
       'token': token,
+    };
+  }
+}
+
+/// Result of openExternalPurchaseLink.
+/// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+class ExternalPurchaseLinkResult {
+  const ExternalPurchaseLinkResult({
+    required this.platform,
+    this.reportToken,
+    required this.status,
+  });
+
+  /// Platform that produced reportToken
+  final IapPlatform platform;
+  /// Token to report from your server: Play's externalTransactionToken or Apple's
+  /// external purchase token. Present only when status is Opened.
+  final String? reportToken;
+  /// What happened to the link
+  final ExternalPurchaseLinkStatus status;
+
+  factory ExternalPurchaseLinkResult.fromJson(Map<String, dynamic> json) {
+    return ExternalPurchaseLinkResult(
+      platform: IapPlatform.fromJson(json['platform'] as String),
+      reportToken: json['reportToken'] as String?,
+      status: ExternalPurchaseLinkStatus.fromJson(json['status'] as String),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'ExternalPurchaseLinkResult',
+      'platform': platform.toJson(),
+      'reportToken': reportToken,
+      'status': status.toJson(),
     };
   }
 }
@@ -4869,6 +4945,88 @@ class DiscountOfferInputIOS {
   }
 }
 
+/// Google options for openExternalPurchaseLink.
+/// Available in Client Protocol 1.5.0 / openiap-google 4.2.0 (requires Play Billing 8.2.1+).
+class ExternalPurchaseLinkAndroidProps {
+  const ExternalPurchaseLinkAndroidProps({
+    this.linkType,
+  });
+
+  /// Link type passed to Play. Defaults to LINK_TO_DIGITAL_CONTENT_OFFER.
+  final ExternalLinkTypeAndroid? linkType;
+
+  factory ExternalPurchaseLinkAndroidProps.fromJson(Map<String, dynamic> json) {
+    return ExternalPurchaseLinkAndroidProps(
+      linkType: json['linkType'] != null ? ExternalLinkTypeAndroid.fromJsonStrict(json['linkType'] as String) : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'linkType': linkType?.toJson(),
+    };
+  }
+}
+
+/// Apple options for openExternalPurchaseLink.
+/// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0.
+class ExternalPurchaseLinkIosProps {
+  const ExternalPurchaseLinkIosProps({
+    this.tokenType,
+  });
+
+  /// ExternalPurchaseCustomLink token type on iOS 18.1+. Defaults to Acquisition;
+  /// use LinkOut in Japan and Brazil. Ignored on iOS 17.4 to 18.0, where the
+  /// notice sheet returns the token.
+  final ExternalPurchaseCustomLinkTokenTypeIOS? tokenType;
+
+  factory ExternalPurchaseLinkIosProps.fromJson(Map<String, dynamic> json) {
+    return ExternalPurchaseLinkIosProps(
+      tokenType: json['tokenType'] != null ? ExternalPurchaseCustomLinkTokenTypeIOS.fromJsonStrict(json['tokenType'] as String) : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'tokenType': tokenType?.toJson(),
+    };
+  }
+}
+
+/// Request for openExternalPurchaseLink.
+/// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+class ExternalPurchaseLinkRequest {
+  const ExternalPurchaseLinkRequest({
+    this.apple,
+    this.google,
+    required this.url,
+  });
+
+  /// Apple-specific options
+  final ExternalPurchaseLinkIosProps? apple;
+  /// Google-specific options
+  final ExternalPurchaseLinkAndroidProps? google;
+  /// External purchase URL. On iOS 17.4 to 18.0 it must match the
+  /// SKExternalPurchase link in Info.plist.
+  final String url;
+
+  factory ExternalPurchaseLinkRequest.fromJson(Map<String, dynamic> json) {
+    return ExternalPurchaseLinkRequest(
+      apple: json['apple'] != null ? ExternalPurchaseLinkIosProps.fromJson(json['apple'] as Map<String, dynamic>) : null,
+      google: json['google'] != null ? ExternalPurchaseLinkAndroidProps.fromJson(json['google'] as Map<String, dynamic>) : null,
+      url: json['url'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'apple': apple?.toJson(),
+      'google': google?.toJson(),
+      'url': url,
+    };
+  }
+}
+
 /// Parameters for fetching Billing Choice display information (Android)
 /// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 class GetBillingChoiceInfoParamsAndroid {
@@ -6223,6 +6381,14 @@ abstract class MutationResolver {
     required ExternalLinkTypeAndroid linkType,
     required String linkUri,
   });
+  /// Show the store's required disclosure, open the external purchase link only
+  /// after the user continues, and return the token to report from your server.
+  /// The disclosure cannot be skipped. Unavailable and Cancelled are results, not
+  /// errors.
+  /// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0
+  /// (requires iOS 17.4+ or Play Billing 8.2.1+).
+  /// See: https://openiap.dev/docs/apis/open-external-purchase-link
+  Future<ExternalPurchaseLinkResult> openExternalPurchaseLink(ExternalPurchaseLinkRequest request);
   /// Open the platform's offer/promo code redemption flow.
   /// Resolves the redeemed purchase only when the store reports it synchronously;
   /// every other path resolves null, so reconcile through the purchase listeners.
@@ -6232,11 +6398,15 @@ abstract class MutationResolver {
   Future<Purchase?> openRedeemOfferCode();
   /// Present an external purchase link, StoreKit External (iOS 16+).
   /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+  /// @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
+  @Deprecated('Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.')
   Future<ExternalPurchaseLinkResultIOS> presentExternalPurchaseLinkIOS(String url);
   /// Present the external purchase notice sheet (iOS 17.4+).
   /// Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues.
   /// Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
   /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+  /// @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
+  @Deprecated('Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.')
   Future<ExternalPurchaseNoticeResultIOS> presentExternalPurchaseNoticeSheetIOS();
   /// Initiate a purchase or subscription flow; rely on events for final state.
   /// Providers emit one canonical purchase-error event before returning or throwing a request failure.
@@ -6306,6 +6476,8 @@ abstract class QueryResolver {
   /// Check eligibility for the external purchase notice sheet (iOS 17.4+).
   /// Uses ExternalPurchase.canPresent.
   /// See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+  /// @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
+  @Deprecated('Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.')
   Future<bool> canPresentExternalPurchaseNoticeIOS();
   /// Get the user's current entitlement for a product, using StoreKit 2 (iOS 15+).
   /// See: https://openiap.dev/docs/apis/ios/current-entitlement-ios
@@ -6379,10 +6551,19 @@ abstract class QueryResolver {
   /// Returns true if the app can use custom external purchase links.
   /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible
   /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+  /// @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
+  @Deprecated('Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.')
   Future<bool> isEligibleForExternalPurchaseCustomLinkIOS();
   /// Check intro-offer eligibility for a subscription group.
   /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
   Future<bool> isEligibleForIntroOfferIOS(String groupID);
+  /// Whether this device and storefront may link out to an external purchase
+  /// with openExternalPurchaseLink. Returns false instead of throwing when the
+  /// store program is not enabled or the user is not eligible.
+  /// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0
+  /// (requires iOS 17.4+ or Play Billing 8.2.1+).
+  /// See: https://openiap.dev/docs/apis/is-external-purchase-link-available
+  Future<bool> isExternalPurchaseLinkAvailable();
   /// Check whether a transaction's JWS verification passed (StoreKit 2).
   /// See: https://openiap.dev/docs/apis/ios/is-transaction-verified-ios
   Future<bool> isTransactionVerifiedIOS(String sku);
@@ -6477,6 +6658,7 @@ typedef MutationLaunchExternalLinkAndroidHandler = Future<bool> Function({
   required ExternalLinkTypeAndroid linkType,
   required String linkUri,
 });
+typedef MutationOpenExternalPurchaseLinkHandler = Future<ExternalPurchaseLinkResult> Function(ExternalPurchaseLinkRequest request);
 typedef MutationOpenRedeemOfferCodeHandler = Future<Purchase?> Function();
 typedef MutationPresentExternalPurchaseLinkIOSHandler = Future<ExternalPurchaseLinkResultIOS> Function(String url);
 typedef MutationPresentExternalPurchaseNoticeSheetIOSHandler = Future<ExternalPurchaseNoticeResultIOS> Function();
@@ -6516,6 +6698,7 @@ class MutationHandlers {
     this.initConnection,
     this.isBillingProgramAvailableAndroid,
     this.launchExternalLinkAndroid,
+    this.openExternalPurchaseLink,
     this.openRedeemOfferCode,
     this.presentExternalPurchaseLinkIOS,
     this.presentExternalPurchaseNoticeSheetIOS,
@@ -6542,8 +6725,11 @@ class MutationHandlers {
   final MutationInitConnectionHandler? initConnection;
   final MutationIsBillingProgramAvailableAndroidHandler? isBillingProgramAvailableAndroid;
   final MutationLaunchExternalLinkAndroidHandler? launchExternalLinkAndroid;
+  final MutationOpenExternalPurchaseLinkHandler? openExternalPurchaseLink;
   final MutationOpenRedeemOfferCodeHandler? openRedeemOfferCode;
+  @Deprecated('Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.')
   final MutationPresentExternalPurchaseLinkIOSHandler? presentExternalPurchaseLinkIOS;
+  @Deprecated('Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.')
   final MutationPresentExternalPurchaseNoticeSheetIOSHandler? presentExternalPurchaseNoticeSheetIOS;
   final MutationRequestPurchaseHandler? requestPurchase;
   final MutationRestorePurchasesHandler? restorePurchases;
@@ -6587,6 +6773,7 @@ typedef QueryGetTransactionJwsIOSHandler = Future<String?> Function(String sku);
 typedef QueryHasActiveSubscriptionsHandler = Future<bool> Function([List<String>? subscriptionIds]);
 typedef QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler = Future<bool> Function();
 typedef QueryIsEligibleForIntroOfferIOSHandler = Future<bool> Function(String groupID);
+typedef QueryIsExternalPurchaseLinkAvailableHandler = Future<bool> Function();
 typedef QueryIsTransactionVerifiedIOSHandler = Future<bool> Function(String sku);
 typedef QueryLatestTransactionIOSHandler = Future<PurchaseIOS?> Function(String sku);
 typedef QuerySubscriptionStatusIOSHandler = Future<List<SubscriptionStatusIOS>> Function(String sku);
@@ -6614,12 +6801,14 @@ class QueryHandlers {
     this.hasActiveSubscriptions,
     this.isEligibleForExternalPurchaseCustomLinkIOS,
     this.isEligibleForIntroOfferIOS,
+    this.isExternalPurchaseLinkAvailable,
     this.isTransactionVerifiedIOS,
     this.latestTransactionIOS,
     this.subscriptionStatusIOS,
     this.verifyAppOwnership,
   });
 
+  @Deprecated('Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.')
   final QueryCanPresentExternalPurchaseNoticeIOSHandler? canPresentExternalPurchaseNoticeIOS;
   final QueryCurrentEntitlementIOSHandler? currentEntitlementIOS;
   final QueryFetchProductsHandler? fetchProducts;
@@ -6635,8 +6824,10 @@ class QueryHandlers {
   final QueryGetStorefrontHandler? getStorefront;
   final QueryGetTransactionJwsIOSHandler? getTransactionJwsIOS;
   final QueryHasActiveSubscriptionsHandler? hasActiveSubscriptions;
+  @Deprecated('Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.')
   final QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler? isEligibleForExternalPurchaseCustomLinkIOS;
   final QueryIsEligibleForIntroOfferIOSHandler? isEligibleForIntroOfferIOS;
+  final QueryIsExternalPurchaseLinkAvailableHandler? isExternalPurchaseLinkAvailable;
   final QueryIsTransactionVerifiedIOSHandler? isTransactionVerifiedIOS;
   final QueryLatestTransactionIOSHandler? latestTransactionIOS;
   final QuerySubscriptionStatusIOSHandler? subscriptionStatusIOS;

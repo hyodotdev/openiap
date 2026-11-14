@@ -519,6 +519,30 @@ public enum ExternalPurchaseCustomLinkTokenTypeIOS: String, Codable, CaseIterabl
     }
 }
 
+/// Outcome of openExternalPurchaseLink.
+/// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+public enum ExternalPurchaseLinkStatus: String, Codable, CaseIterable {
+    /// The user continued past the store disclosure and the link was opened
+    case opened = "opened"
+    /// The user dismissed the store disclosure; nothing was opened
+    case cancelled = "cancelled"
+    /// The store program is not enabled or the user is not eligible; nothing was shown
+    case unavailable = "unavailable"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "opened", "OPENED", "Opened":
+            self = .opened
+        case "cancelled", "CANCELLED", "Cancelled":
+            self = .cancelled
+        case "unavailable", "UNAVAILABLE", "Unavailable":
+            self = .unavailable
+        default:
+            return nil
+        }
+    }
+}
+
 /// User actions on external purchase notice sheet (iOS 17.4+)
 public enum ExternalPurchaseNoticeAction: String, Codable, CaseIterable {
     /// User chose to continue to external purchase
@@ -1736,6 +1760,28 @@ public struct ExternalPurchaseCustomLinkTokenResultIOS: Codable {
     ) {
         self.error = error
         self.token = token
+    }
+}
+
+/// Result of openExternalPurchaseLink.
+/// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+public struct ExternalPurchaseLinkResult: Codable {
+    /// Platform that produced reportToken
+    public var platform: IapPlatform
+    /// Token to report from your server: Play's externalTransactionToken or Apple's
+    /// external purchase token. Present only when status is Opened.
+    public var reportToken: String? = nil
+    /// What happened to the link
+    public var status: ExternalPurchaseLinkStatus
+
+    public init(
+        platform: IapPlatform,
+        reportToken: String? = nil,
+        status: ExternalPurchaseLinkStatus
+    ) {
+        self.platform = platform
+        self.reportToken = reportToken
+        self.status = status
     }
 }
 
@@ -3361,6 +3407,56 @@ public struct DiscountOfferInputIOS: Codable {
     }
 }
 
+/// Google options for openExternalPurchaseLink.
+/// Available in Client Protocol 1.5.0 / openiap-google 4.2.0 (requires Play Billing 8.2.1+).
+public struct ExternalPurchaseLinkAndroidProps: Codable {
+    /// Link type passed to Play. Defaults to LINK_TO_DIGITAL_CONTENT_OFFER.
+    public var linkType: ExternalLinkTypeAndroid?
+
+    public init(
+        linkType: ExternalLinkTypeAndroid? = nil
+    ) {
+        self.linkType = linkType
+    }
+}
+
+/// Apple options for openExternalPurchaseLink.
+/// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0.
+public struct ExternalPurchaseLinkIosProps: Codable {
+    /// ExternalPurchaseCustomLink token type on iOS 18.1+. Defaults to Acquisition;
+    /// use LinkOut in Japan and Brazil. Ignored on iOS 17.4 to 18.0, where the
+    /// notice sheet returns the token.
+    public var tokenType: ExternalPurchaseCustomLinkTokenTypeIOS?
+
+    public init(
+        tokenType: ExternalPurchaseCustomLinkTokenTypeIOS? = nil
+    ) {
+        self.tokenType = tokenType
+    }
+}
+
+/// Request for openExternalPurchaseLink.
+/// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+public struct ExternalPurchaseLinkRequest: Codable {
+    /// Apple-specific options
+    public var apple: ExternalPurchaseLinkIosProps?
+    /// Google-specific options
+    public var google: ExternalPurchaseLinkAndroidProps?
+    /// External purchase URL. On iOS 17.4 to 18.0 it must match the
+    /// SKExternalPurchase link in Info.plist.
+    public var url: String
+
+    public init(
+        apple: ExternalPurchaseLinkIosProps? = nil,
+        google: ExternalPurchaseLinkAndroidProps? = nil,
+        url: String
+    ) {
+        self.apple = apple
+        self.google = google
+        self.url = url
+    }
+}
+
 /// Parameters for fetching Billing Choice display information (Android)
 /// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 public struct GetBillingChoiceInfoParamsAndroid: Codable {
@@ -4728,6 +4824,14 @@ public protocol MutationResolver {
     /// Throws OpenIapError.NotPrepared if billing client not ready.
     /// See: https://openiap.dev/docs/apis/android/launch-external-link-android
     func launchExternalLinkAndroid(_ params: LaunchExternalLinkParamsAndroid) async throws -> Bool
+    /// Show the store's required disclosure, open the external purchase link only
+    /// after the user continues, and return the token to report from your server.
+    /// The disclosure cannot be skipped. Unavailable and Cancelled are results, not
+    /// errors.
+    /// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0
+    /// (requires iOS 17.4+ or Play Billing 8.2.1+).
+    /// See: https://openiap.dev/docs/apis/open-external-purchase-link
+    func openExternalPurchaseLink(_ request: ExternalPurchaseLinkRequest) async throws -> ExternalPurchaseLinkResult
     /// Open the platform's offer/promo code redemption flow.
     /// Resolves the redeemed purchase only when the store reports it synchronously;
     /// every other path resolves null, so reconcile through the purchase listeners.
@@ -4737,11 +4841,15 @@ public protocol MutationResolver {
     func openRedeemOfferCode() async throws -> Purchase?
     /// Present an external purchase link, StoreKit External (iOS 16+).
     /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+    /// @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
+    @available(*, deprecated, message: "Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     func presentExternalPurchaseLinkIOS(_ url: String) async throws -> ExternalPurchaseLinkResultIOS
     /// Present the external purchase notice sheet (iOS 17.4+).
     /// Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues.
     /// Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
     /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+    /// @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
+    @available(*, deprecated, message: "Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS
     /// Initiate a purchase or subscription flow; rely on events for final state.
     /// Providers emit one canonical purchase-error event before returning or throwing a request failure.
@@ -4805,6 +4913,8 @@ public protocol QueryResolver {
     /// Check eligibility for the external purchase notice sheet (iOS 17.4+).
     /// Uses ExternalPurchase.canPresent.
     /// See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+    /// @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
+    @available(*, deprecated, message: "Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     func canPresentExternalPurchaseNoticeIOS() async throws -> Bool
     /// Get the user's current entitlement for a product, using StoreKit 2 (iOS 15+).
     /// See: https://openiap.dev/docs/apis/ios/current-entitlement-ios
@@ -4867,10 +4977,19 @@ public protocol QueryResolver {
     /// Returns true if the app can use custom external purchase links.
     /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible
     /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+    /// @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
+    @available(*, deprecated, message: "Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     func isEligibleForExternalPurchaseCustomLinkIOS() async throws -> Bool
     /// Check intro-offer eligibility for a subscription group.
     /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
     func isEligibleForIntroOfferIOS(_ groupID: String) async throws -> Bool
+    /// Whether this device and storefront may link out to an external purchase
+    /// with openExternalPurchaseLink. Returns false instead of throwing when the
+    /// store program is not enabled or the user is not eligible.
+    /// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0
+    /// (requires iOS 17.4+ or Play Billing 8.2.1+).
+    /// See: https://openiap.dev/docs/apis/is-external-purchase-link-available
+    func isExternalPurchaseLinkAvailable() async throws -> Bool
     /// Check whether a transaction's JWS verification passed (StoreKit 2).
     /// See: https://openiap.dev/docs/apis/ios/is-transaction-verified-ios
     func isTransactionVerifiedIOS(_ sku: String) async throws -> Bool
@@ -4948,6 +5067,7 @@ public typealias MutationFinishTransactionHandler = (_ purchase: PurchaseInput, 
 public typealias MutationInitConnectionHandler = (_ config: InitConnectionConfig?) async throws -> Bool
 public typealias MutationIsBillingProgramAvailableAndroidHandler = (_ program: BillingProgramAndroid) async throws -> BillingProgramAvailabilityResultAndroid
 public typealias MutationLaunchExternalLinkAndroidHandler = (_ params: LaunchExternalLinkParamsAndroid) async throws -> Bool
+public typealias MutationOpenExternalPurchaseLinkHandler = (_ request: ExternalPurchaseLinkRequest) async throws -> ExternalPurchaseLinkResult
 public typealias MutationOpenRedeemOfferCodeHandler = () async throws -> Purchase?
 public typealias MutationPresentExternalPurchaseLinkIOSHandler = (_ url: String) async throws -> ExternalPurchaseLinkResultIOS
 public typealias MutationPresentExternalPurchaseNoticeSheetIOSHandler = () async throws -> ExternalPurchaseNoticeResultIOS
@@ -4974,8 +5094,11 @@ public struct MutationHandlers {
     public var initConnection: MutationInitConnectionHandler?
     public var isBillingProgramAvailableAndroid: MutationIsBillingProgramAvailableAndroidHandler?
     public var launchExternalLinkAndroid: MutationLaunchExternalLinkAndroidHandler?
+    public var openExternalPurchaseLink: MutationOpenExternalPurchaseLinkHandler?
     public var openRedeemOfferCode: MutationOpenRedeemOfferCodeHandler?
+    @available(*, deprecated, message: "Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     public var presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIOSHandler?
+    @available(*, deprecated, message: "Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     public var presentExternalPurchaseNoticeSheetIOS: MutationPresentExternalPurchaseNoticeSheetIOSHandler?
     public var requestPurchase: MutationRequestPurchaseHandler?
     public var restorePurchases: MutationRestorePurchasesHandler?
@@ -5000,6 +5123,7 @@ public struct MutationHandlers {
         initConnection: MutationInitConnectionHandler? = nil,
         isBillingProgramAvailableAndroid: MutationIsBillingProgramAvailableAndroidHandler? = nil,
         launchExternalLinkAndroid: MutationLaunchExternalLinkAndroidHandler? = nil,
+        openExternalPurchaseLink: MutationOpenExternalPurchaseLinkHandler? = nil,
         openRedeemOfferCode: MutationOpenRedeemOfferCodeHandler? = nil,
         presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIOSHandler? = nil,
         presentExternalPurchaseNoticeSheetIOS: MutationPresentExternalPurchaseNoticeSheetIOSHandler? = nil,
@@ -5025,6 +5149,7 @@ public struct MutationHandlers {
         self.initConnection = initConnection
         self.isBillingProgramAvailableAndroid = isBillingProgramAvailableAndroid
         self.launchExternalLinkAndroid = launchExternalLinkAndroid
+        self.openExternalPurchaseLink = openExternalPurchaseLink
         self.openRedeemOfferCode = openRedeemOfferCode
         self.presentExternalPurchaseLinkIOS = presentExternalPurchaseLinkIOS
         self.presentExternalPurchaseNoticeSheetIOS = presentExternalPurchaseNoticeSheetIOS
@@ -5060,12 +5185,14 @@ public typealias QueryGetTransactionJwsIOSHandler = (_ sku: String) async throws
 public typealias QueryHasActiveSubscriptionsHandler = (_ subscriptionIds: [String]?) async throws -> Bool
 public typealias QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler = () async throws -> Bool
 public typealias QueryIsEligibleForIntroOfferIOSHandler = (_ groupID: String) async throws -> Bool
+public typealias QueryIsExternalPurchaseLinkAvailableHandler = () async throws -> Bool
 public typealias QueryIsTransactionVerifiedIOSHandler = (_ sku: String) async throws -> Bool
 public typealias QueryLatestTransactionIOSHandler = (_ sku: String) async throws -> PurchaseIOS?
 public typealias QuerySubscriptionStatusIOSHandler = (_ sku: String) async throws -> [SubscriptionStatusIOS]
 public typealias QueryVerifyAppOwnershipHandler = (_ options: VerifyAppOwnershipProps?) async throws -> AppOwnershipVerificationResult
 
 public struct QueryHandlers {
+    @available(*, deprecated, message: "Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     public var canPresentExternalPurchaseNoticeIOS: QueryCanPresentExternalPurchaseNoticeIOSHandler?
     public var currentEntitlementIOS: QueryCurrentEntitlementIOSHandler?
     public var fetchProducts: QueryFetchProductsHandler?
@@ -5081,8 +5208,10 @@ public struct QueryHandlers {
     public var getStorefront: QueryGetStorefrontHandler?
     public var getTransactionJwsIOS: QueryGetTransactionJwsIOSHandler?
     public var hasActiveSubscriptions: QueryHasActiveSubscriptionsHandler?
+    @available(*, deprecated, message: "Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     public var isEligibleForExternalPurchaseCustomLinkIOS: QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler?
     public var isEligibleForIntroOfferIOS: QueryIsEligibleForIntroOfferIOSHandler?
+    public var isExternalPurchaseLinkAvailable: QueryIsExternalPurchaseLinkAvailableHandler?
     public var isTransactionVerifiedIOS: QueryIsTransactionVerifiedIOSHandler?
     public var latestTransactionIOS: QueryLatestTransactionIOSHandler?
     public var subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler?
@@ -5106,6 +5235,7 @@ public struct QueryHandlers {
         hasActiveSubscriptions: QueryHasActiveSubscriptionsHandler? = nil,
         isEligibleForExternalPurchaseCustomLinkIOS: QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler? = nil,
         isEligibleForIntroOfferIOS: QueryIsEligibleForIntroOfferIOSHandler? = nil,
+        isExternalPurchaseLinkAvailable: QueryIsExternalPurchaseLinkAvailableHandler? = nil,
         isTransactionVerifiedIOS: QueryIsTransactionVerifiedIOSHandler? = nil,
         latestTransactionIOS: QueryLatestTransactionIOSHandler? = nil,
         subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler? = nil,
@@ -5128,6 +5258,7 @@ public struct QueryHandlers {
         self.hasActiveSubscriptions = hasActiveSubscriptions
         self.isEligibleForExternalPurchaseCustomLinkIOS = isEligibleForExternalPurchaseCustomLinkIOS
         self.isEligibleForIntroOfferIOS = isEligibleForIntroOfferIOS
+        self.isExternalPurchaseLinkAvailable = isExternalPurchaseLinkAvailable
         self.isTransactionVerifiedIOS = isTransactionVerifiedIOS
         self.latestTransactionIOS = latestTransactionIOS
         self.subscriptionStatusIOS = subscriptionStatusIOS
