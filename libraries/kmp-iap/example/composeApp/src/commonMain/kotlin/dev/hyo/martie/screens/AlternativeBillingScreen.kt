@@ -518,7 +518,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                 // Platform info
                 Text(
                     text = if (currentPlatform == "iOS")
-                        "External purchase links (iOS 16.0+)"
+                        "External purchase links (iOS 17.4+)"
                     else
                         "Google Play alternative billing",
                     style = MaterialTheme.typography.bodyMedium,
@@ -780,7 +780,7 @@ private fun InfoCard(platform: String, billingProgram: BillingProgramAndroid) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = """
-                        ⚠️ iOS 16.0+ required
+                        ⚠️ iOS 17.4+ required
                         ⚠️ Valid external URL needed
                     """.trimIndent(),
                     fontSize = 12.sp,
