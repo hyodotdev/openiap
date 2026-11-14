@@ -13,8 +13,8 @@ export const restorePurchasesNative = async (): Promise<void> => {
   const restored = usingNativeRestore
     ? await ExpoIapModule.restorePurchases?.()
     : Platform.OS === 'ios'
-      ? await syncIOS()
-      : true;
+    ? await syncIOS()
+    : true;
 
   if (restored !== true) {
     throw createPurchaseError({

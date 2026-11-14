@@ -952,8 +952,8 @@ export const verifyAppOwnership: QueryField<'verifyAppOwnership'> = async (
       storeId: isVegaOS()
         ? 'amazon'
         : ExpoIapModule.USING_ONSIDE_SDK
-          ? 'onside'
-          : 'unknown',
+        ? 'onside'
+        : 'unknown',
     };
   }
   return invokeNativeWithPurchaseError(
