@@ -68,6 +68,111 @@ function ExternalPurchase() {
             </tr>
           </tbody>
         </table>
+
+        <AnchorLink id="android-billing-programs" level="h3">
+          Android Billing Programs at a Glance
+        </AnchorLink>
+        <p>
+          A billing program is Google Play&apos;s name for any way to pay
+          outside Google Play Billing. Play Billing 8.2 put them all behind one
+          API: pick the program with <code>enableBillingProgramAndroid</code> in{' '}
+          <code>initConnection</code>, then use the calls for that program. Each
+          program needs its own enrollment in Play Console and covers different
+          countries.
+        </p>
+        <table className="error-table">
+          <thead>
+            <tr>
+              <th>Program</th>
+              <th>Where</th>
+              <th>How the user pays</th>
+              <th>OpenIAP calls</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>user-choice-billing</code>
+              </td>
+              <td>South Korea and other eligible countries</td>
+              <td>Chooses Google Play or your billing inside the app</td>
+              <td>
+                <Link to="/docs/events/android/user-choice-billing-listener-android">
+                  <code>userChoiceBillingAndroid</code>
+                </Link>{' '}
+                event
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>external-offer</code>
+              </td>
+              <td>EEA</td>
+              <td>Leaves the app for your web checkout</td>
+              <td>
+                <a href="#external-purchase-link">
+                  <code>openExternalPurchaseLink</code>
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>external-content-link</code>
+              </td>
+              <td>United States</td>
+              <td>Leaves the app for web content or an app download</td>
+              <td>
+                <Link to="/docs/apis/android/launch-external-link-android">
+                  <code>launchExternalLinkAndroid</code>
+                </Link>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>alternative-billing-only</code>
+              </td>
+              <td>Eligible countries</td>
+              <td>Pays only with your billing, without Google Play</td>
+              <td>
+                <a href="#alternative-billing-only">Alternative Billing Only</a>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>external-payments</code>
+              </td>
+              <td>Japan</td>
+              <td>Chooses Google Play or your external payment side by side</td>
+              <td>
+                <a href="#external-payments-830---japan-only">
+                  External Payments
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>billing-choice</code>
+              </td>
+              <td>Eligible countries (Play Billing 9.1+)</td>
+              <td>
+                Chooses Google Play, your billing, or a web link on Play&apos;s
+                choice screen
+              </td>
+              <td>
+                <Link to="/docs/apis/android/get-billing-choice-info-android">
+                  <code>getBillingChoiceInfoAndroid</code>
+                </Link>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Play Billing 8.2 deprecated the standalone external offer calls (
+          <code>enableExternalOffer</code>,{' '}
+          <code>isExternalOfferAvailableAsync</code> and related); OpenIAP
+          already uses the billing program calls in their place. User choice
+          billing and alternative billing only remain current Play APIs.
+        </p>
       </section>
 
       <section>
