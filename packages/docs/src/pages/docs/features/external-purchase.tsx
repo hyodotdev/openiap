@@ -1,11 +1,78 @@
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
+import DataTable from '../../../components/DataTable';
 import LanguageTabs from '../../../components/LanguageTabs';
 import PlatformTabs from '../../../components/PlatformTabs';
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
+
+interface AndroidBillingProgramRow {
+  program: string;
+  where: string;
+  pays: string;
+  calls: ReactNode;
+}
+
+const ANDROID_BILLING_PROGRAMS: AndroidBillingProgramRow[] = [
+  {
+    program: 'user-choice-billing',
+    where: 'South Korea and other eligible countries',
+    pays: 'Chooses Google Play or your billing inside the app',
+    calls: (
+      <>
+        <Link to="/docs/events/android/user-choice-billing-listener-android">
+          <code>userChoiceBillingAndroid</code>
+        </Link>{' '}
+        event
+      </>
+    ),
+  },
+  {
+    program: 'external-offer',
+    where: 'EEA',
+    pays: 'Leaves the app for your web checkout',
+    calls: (
+      <a href="#external-purchase-link">
+        <code>openExternalPurchaseLink</code>
+      </a>
+    ),
+  },
+  {
+    program: 'external-content-link',
+    where: 'United States',
+    pays: 'Leaves the app for web content or an app download',
+    calls: (
+      <Link to="/docs/apis/android/launch-external-link-android">
+        <code>launchExternalLinkAndroid</code>
+      </Link>
+    ),
+  },
+  {
+    program: 'alternative-billing-only',
+    where: 'Eligible countries',
+    pays: 'Pays only with your billing, without Google Play',
+    calls: <a href="#alternative-billing-only">Alternative Billing Only</a>,
+  },
+  {
+    program: 'external-payments',
+    where: 'Japan',
+    pays: 'Chooses Google Play or your external payment side by side',
+    calls: <a href="#external-payments-830---japan-only">External Payments</a>,
+  },
+  {
+    program: 'billing-choice',
+    where: 'Eligible countries (Play Billing 9.1+)',
+    pays: "Chooses Google Play, your billing, or a web link on Play's choice screen",
+    calls: (
+      <Link to="/docs/apis/android/get-billing-choice-info-android">
+        <code>getBillingChoiceInfoAndroid</code>
+      </Link>
+    ),
+  },
+];
 
 function ExternalPurchase() {
   useScrollToHash();
@@ -80,92 +147,20 @@ function ExternalPurchase() {
           program needs its own enrollment in Play Console and covers different
           countries.
         </p>
-        <table className="error-table">
-          <thead>
-            <tr>
-              <th>Program</th>
-              <th>Where</th>
-              <th>How the user pays</th>
-              <th>OpenIAP calls</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <code>user-choice-billing</code>
-              </td>
-              <td>South Korea and other eligible countries</td>
-              <td>Chooses Google Play or your billing inside the app</td>
-              <td>
-                <Link to="/docs/events/android/user-choice-billing-listener-android">
-                  <code>userChoiceBillingAndroid</code>
-                </Link>{' '}
-                event
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <code>external-offer</code>
-              </td>
-              <td>EEA</td>
-              <td>Leaves the app for your web checkout</td>
-              <td>
-                <a href="#external-purchase-link">
-                  <code>openExternalPurchaseLink</code>
-                </a>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <code>external-content-link</code>
-              </td>
-              <td>United States</td>
-              <td>Leaves the app for web content or an app download</td>
-              <td>
-                <Link to="/docs/apis/android/launch-external-link-android">
-                  <code>launchExternalLinkAndroid</code>
-                </Link>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <code>alternative-billing-only</code>
-              </td>
-              <td>Eligible countries</td>
-              <td>Pays only with your billing, without Google Play</td>
-              <td>
-                <a href="#alternative-billing-only">Alternative Billing Only</a>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <code>external-payments</code>
-              </td>
-              <td>Japan</td>
-              <td>Chooses Google Play or your external payment side by side</td>
-              <td>
-                <a href="#external-payments-830---japan-only">
-                  External Payments
-                </a>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <code>billing-choice</code>
-              </td>
-              <td>Eligible countries (Play Billing 9.1+)</td>
-              <td>
-                Chooses Google Play, your billing, or a web link on Play&apos;s
-                choice screen
-              </td>
-              <td>
-                <Link to="/docs/apis/android/get-billing-choice-info-android">
-                  <code>getBillingChoiceInfoAndroid</code>
-                </Link>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <DataTable
+          className="error-table"
+          rows={ANDROID_BILLING_PROGRAMS}
+          rowKey={(row) => row.program}
+          columns={[
+            {
+              header: 'Program',
+              cell: (row) => <code>{row.program}</code>,
+            },
+            { header: 'Where', cell: (row) => row.where },
+            { header: 'How the user pays', cell: (row) => row.pays },
+            { header: 'OpenIAP calls', cell: (row) => row.calls },
+          ]}
+        />
         <p>
           Play Billing 8.2 deprecated the standalone external offer calls (
           <code>enableExternalOffer</code>,{' '}
