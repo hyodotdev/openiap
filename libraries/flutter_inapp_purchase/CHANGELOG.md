@@ -1,5 +1,14 @@
 # Changelog
 
+## 11.4.0 (2026-11-15)
+
+- feat: add a shared external purchase link call (#612)
+- docs(sponsors): show past support as durations, not dates
+- docs(sponsors): record Claude in-kind support and past support periods
+- fix(deps): patch hono, @hono/node-server and addressable advisories
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-11.4.0
+
+
 ## 11.3.3 (2026-11-12)
 
 - chore(kit): remove dead legacy code and finished migrations (#607)
