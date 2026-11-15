@@ -4762,18 +4762,6 @@ public sealed record DiscountOfferInputIOS
 }
 
 /// <summary>
-/// Google options for openExternalPurchaseLink.
-/// Available in Client Protocol 1.5.0 / openiap-google 4.2.0 (requires Play Billing 8.2.1+).
-/// </summary>
-public sealed record ExternalPurchaseLinkAndroidProps
-{
-    /// <summary>Link type passed to Play. Defaults to LINK_TO_DIGITAL_CONTENT_OFFER.</summary>
-    [JsonPropertyName("linkType")]
-    [JsonConverter(typeof(StrictNullableEnumJsonConverter<ExternalLinkTypeAndroid, ExternalLinkTypeAndroidJsonConverter>))]
-    public ExternalLinkTypeAndroid? LinkType { get; init; }
-}
-
-/// <summary>
 /// Apple options for openExternalPurchaseLink.
 /// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0.
 /// </summary>
@@ -4791,6 +4779,9 @@ public sealed record ExternalPurchaseLinkIosProps
 
 /// <summary>
 /// Request for openExternalPurchaseLink.
+/// On Google Play the link opens as LINK_TO_DIGITAL_CONTENT_OFFER. For another
+/// link type, such as LINK_TO_APP_DOWNLOAD, call launchExternalLinkAndroid with
+/// the external-offer billing program instead.
 /// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
 /// </summary>
 public sealed record ExternalPurchaseLinkRequest
@@ -4804,9 +4795,6 @@ public sealed record ExternalPurchaseLinkRequest
     /// <summary>Apple-specific options</summary>
     [JsonPropertyName("apple")]
     public ExternalPurchaseLinkIosProps? Apple { get; init; }
-    /// <summary>Google-specific options</summary>
-    [JsonPropertyName("google")]
-    public ExternalPurchaseLinkAndroidProps? Google { get; init; }
 }
 
 /// <summary>

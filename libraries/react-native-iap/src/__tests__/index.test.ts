@@ -3157,7 +3157,6 @@ describe('Public API (src/index.ts)', () => {
       const request = {
         url: 'https://example.test/checkout',
         apple: {tokenType: 'link-out' as const},
-        google: {linkType: 'link-to-digital-content-offer' as const},
       };
       mockIap.openExternalPurchaseLink.mockResolvedValueOnce({
         platform: 'ios',

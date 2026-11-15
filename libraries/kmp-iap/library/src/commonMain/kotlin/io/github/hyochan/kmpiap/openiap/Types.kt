@@ -4847,29 +4847,6 @@ public data class DiscountOfferInputIOS(
 }
 
 /**
- * Google options for openExternalPurchaseLink.
- * Available in Client Protocol 1.5.0 / openiap-google 4.2.0 (requires Play Billing 8.2.1+).
- */
-public data class ExternalPurchaseLinkAndroidProps(
-    /**
-     * Link type passed to Play. Defaults to LINK_TO_DIGITAL_CONTENT_OFFER.
-     */
-    val linkType: ExternalLinkTypeAndroid? = null
-) {
-    companion object {
-        fun fromJson(json: Map<String, Any?>): ExternalPurchaseLinkAndroidProps {
-            return ExternalPurchaseLinkAndroidProps(
-                linkType = json["linkType"]?.let { raw -> (raw as? String)?.let { ExternalLinkTypeAndroid.fromJsonStrict(it) } ?: throw IllegalArgumentException("Missing or invalid enum input value for ExternalLinkTypeAndroid") },
-            )
-        }
-    }
-
-    fun toJson(): Map<String, Any?> = mapOf(
-        "linkType" to linkType?.toJson(),
-    )
-}
-
-/**
  * Apple options for openExternalPurchaseLink.
  * Available in Client Protocol 1.5.0 / openiap-apple 4.2.0.
  */
@@ -4896,6 +4873,9 @@ public data class ExternalPurchaseLinkIosProps(
 
 /**
  * Request for openExternalPurchaseLink.
+ * On Google Play the link opens as LINK_TO_DIGITAL_CONTENT_OFFER. For another
+ * link type, such as LINK_TO_APP_DOWNLOAD, call launchExternalLinkAndroid with
+ * the external-offer billing program instead.
  * Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
  */
 public data class ExternalPurchaseLinkRequest(
@@ -4903,10 +4883,6 @@ public data class ExternalPurchaseLinkRequest(
      * Apple-specific options
      */
     val apple: ExternalPurchaseLinkIosProps? = null,
-    /**
-     * Google-specific options
-     */
-    val google: ExternalPurchaseLinkAndroidProps? = null,
     /**
      * External purchase URL. On iOS 17.4 to 18.0 it must match the
      * SKExternalPurchase link in Info.plist.
@@ -4916,12 +4892,10 @@ public data class ExternalPurchaseLinkRequest(
     companion object {
         fun fromJson(json: Map<String, Any?>): ExternalPurchaseLinkRequest? {
             val apple = json["apple"]?.let { value -> (value as? Map<String, Any?>)?.let { ExternalPurchaseLinkIosProps.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for ExternalPurchaseLinkIosProps") }
-            val google = json["google"]?.let { value -> (value as? Map<String, Any?>)?.let { ExternalPurchaseLinkAndroidProps.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for ExternalPurchaseLinkAndroidProps") }
             val url = json["url"] as? String
             if (url == null) return null
             return ExternalPurchaseLinkRequest(
                 apple = apple,
-                google = google,
                 url = url,
             )
         }
@@ -4929,7 +4903,6 @@ public data class ExternalPurchaseLinkRequest(
 
     fun toJson(): Map<String, Any?> = mapOf(
         "apple" to apple?.toJson(),
-        "google" to google?.toJson(),
         "url" to url,
     )
 }

@@ -2199,7 +2199,6 @@ describe('Public API (index.ts)', () => {
         const request = {
           url: 'https://example.com/buy',
           apple: {tokenType: 'link-out' as const},
-          google: {linkType: 'link-to-digital-content-offer' as const},
         };
         const result = {status: 'opened', reportToken: 'token', platform};
         (

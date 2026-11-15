@@ -133,7 +133,6 @@ class CommunityOptionalOperationsTest {
                     assertEquals(activity, args?.get(0))
                     val request = args?.get(1) as dev.hyo.openiap.ExternalPurchaseLinkRequest
                     assertEquals("https://example.test/pay", request.url)
-                    assertEquals(dev.hyo.openiap.ExternalLinkTypeAndroid.LinkToAppDownload, request.google?.linkType)
                     dev.hyo.openiap.ExternalPurchaseLinkResult(
                         platform = dev.hyo.openiap.IapPlatform.Android,
                         reportToken = "external-token",
@@ -145,10 +144,7 @@ class CommunityOptionalOperationsTest {
         }
         val delegate = delegateFor(Store.UNKNOWN, provider, activity)
         assertTrue(delegate.isExternalPurchaseLinkAvailable())
-        val result = delegate.openExternalPurchaseLink(ExternalPurchaseLinkRequest(
-            url = "https://example.test/pay",
-            google = ExternalPurchaseLinkAndroidProps(linkType = ExternalLinkTypeAndroid.LinkToAppDownload),
-        ))
+        val result = delegate.openExternalPurchaseLink(ExternalPurchaseLinkRequest(url = "https://example.test/pay"))
         assertEquals(ExternalPurchaseLinkStatus.Opened, result.status)
         assertEquals("external-token", result.reportToken)
         assertEquals(IapPlatform.Android, result.platform)

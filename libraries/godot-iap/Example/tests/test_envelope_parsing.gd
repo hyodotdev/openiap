@@ -1956,7 +1956,6 @@ func test_external_purchase_link_envelopes() -> void:
 		var request = Types.ExternalPurchaseLinkRequest.from_dict({
 			"url": "https://example.com/buy",
 			"apple": {"tokenType": "link-out"},
-			"google": {"linkType": "link-to-digital-content-offer"},
 		})
 		fake.responses["openExternalPurchaseLink"] = JSON.stringify({"success": true, "resultJson": JSON.stringify({"status": "opened", "reportToken": "token-1", "platform": wire_platform})})
 		var opened = await GodotIapPlugin.open_external_purchase_link(request)
@@ -1966,7 +1965,6 @@ func test_external_purchase_link_envelopes() -> void:
 		_assert_equal(JSON.parse_string(fake.last_args[0]), {
 			"url": "https://example.com/buy",
 			"apple": {"tokenType": "link-out"},
-			"google": {"linkType": "link-to-digital-content-offer"},
 		}, "%s sends the canonical request wire" % platform)
 
 		fake.responses["openExternalPurchaseLink"] = JSON.stringify({"success": true, "resultJson": JSON.stringify({"status": "unavailable", "platform": wire_platform})})

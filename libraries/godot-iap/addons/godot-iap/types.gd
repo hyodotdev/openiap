@@ -4231,33 +4231,6 @@ class DiscountOfferInputIOS:
 			dict["timestamp"] = timestamp
 		return dict
 
-## Google options for openExternalPurchaseLink. Available in Client Protocol 1.5.0 / openiap-google 4.2.0 (requires Play Billing 8.2.1+).
-class ExternalPurchaseLinkAndroidProps:
-	## Link type passed to Play. Defaults to LINK_TO_DIGITAL_CONTENT_OFFER.
-	var link_type: Variant = null
-
-	static func from_dict(data: Dictionary) -> _Types.ExternalPurchaseLinkAndroidProps:
-		var obj = ExternalPurchaseLinkAndroidProps.new()
-		if data.has("linkType") and data["linkType"] != null:
-			var enum_str = data["linkType"]
-			if enum_str is String and EXTERNAL_LINK_TYPE_ANDROID_FROM_STRING.has(enum_str):
-				obj.link_type = EXTERNAL_LINK_TYPE_ANDROID_FROM_STRING[enum_str]
-			elif enum_str is int and EXTERNAL_LINK_TYPE_ANDROID_VALUES.has(enum_str):
-				obj.link_type = enum_str
-			else:
-				push_error("Invalid ExternalLinkTypeAndroid input value")
-				return null
-		return obj
-
-	func to_dict() -> Dictionary:
-		var dict = {}
-		if link_type != null:
-			if EXTERNAL_LINK_TYPE_ANDROID_VALUES.has(link_type):
-				dict["linkType"] = EXTERNAL_LINK_TYPE_ANDROID_VALUES[link_type]
-			else:
-				dict["linkType"] = link_type
-		return dict
-
 ## Apple options for openExternalPurchaseLink. Available in Client Protocol 1.5.0 / openiap-apple 4.2.0.
 class ExternalPurchaseLinkIosProps:
 	## ExternalPurchaseCustomLink token type on iOS 18.1+. Defaults to Acquisition; use LinkOut in Japan and Brazil. Ignored on iOS 17.4 to 18.0, where the notice sheet returns the token.
@@ -4285,14 +4258,12 @@ class ExternalPurchaseLinkIosProps:
 				dict["tokenType"] = token_type
 		return dict
 
-## Request for openExternalPurchaseLink. Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
+## Request for openExternalPurchaseLink. On Google Play the link opens as LINK_TO_DIGITAL_CONTENT_OFFER. For another link type, such as LINK_TO_APP_DOWNLOAD, call launchExternalLinkAndroid with the external-offer billing program instead. Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
 class ExternalPurchaseLinkRequest:
 	## External purchase URL. On iOS 17.4 to 18.0 it must match the SKExternalPurchase link in Info.plist.
 	var url: String = ""
 	## Apple-specific options
 	var apple: _Types.ExternalPurchaseLinkIosProps
-	## Google-specific options
-	var google: _Types.ExternalPurchaseLinkAndroidProps
 
 	static func from_dict(data: Dictionary) -> _Types.ExternalPurchaseLinkRequest:
 		if not data.has("url") or not data["url"] is String:
@@ -4311,16 +4282,6 @@ class ExternalPurchaseLinkRequest:
 			else:
 				push_error("Expected apple to be a ExternalPurchaseLinkIosProps dictionary")
 				return null
-		if data.has("google") and data["google"] != null:
-			if data["google"] is Dictionary:
-				var decoded_google = ExternalPurchaseLinkAndroidProps.from_dict(data["google"])
-				if decoded_google == null:
-					push_error("Invalid input ExternalPurchaseLinkAndroidProps value for google")
-					return null
-				obj.google = decoded_google
-			else:
-				push_error("Expected google to be a ExternalPurchaseLinkAndroidProps dictionary")
-				return null
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -4332,11 +4293,6 @@ class ExternalPurchaseLinkRequest:
 				dict["apple"] = apple.to_dict()
 			else:
 				dict["apple"] = apple
-		if google != null:
-			if google is Object and google.has_method("to_dict"):
-				dict["google"] = google.to_dict()
-			else:
-				dict["google"] = google
 		return dict
 
 ## Parameters for fetching Billing Choice display information (Android) Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).

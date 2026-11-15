@@ -29,12 +29,11 @@ public class RecordJsonTests
         {
             Url = "https://example.com/buy",
             Apple = new ExternalPurchaseLinkIosProps { TokenType = ExternalPurchaseCustomLinkTokenTypeIOS.LinkOut },
-            Google = new ExternalPurchaseLinkAndroidProps { LinkType = ExternalLinkTypeAndroid.LinkToAppDownload },
         };
         var json = JsonNode.Parse(JsonSerializer.Serialize(request, Options))!;
         Assert.Equal("https://example.com/buy", (string?)json["url"]);
         Assert.Equal("link-out", (string?)json["apple"]!["tokenType"]);
-        Assert.Equal("link-to-app-download", (string?)json["google"]!["linkType"]);
+        Assert.Null(json["google"]);
     }
 
     [Theory]

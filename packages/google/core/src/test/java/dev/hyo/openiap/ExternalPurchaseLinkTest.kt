@@ -68,17 +68,14 @@ class ExternalPurchaseLinkTest {
         var launched: LaunchExternalLinkParamsAndroid? = null
         val provider = provider(available = true, launch = { launched = it; true })
 
-        val result = provider.openExternalPurchaseLinkFlow(
-            activity,
-            request.copy(google = ExternalPurchaseLinkAndroidProps(linkType = ExternalLinkTypeAndroid.LinkToAppDownload)),
-        )
+        val result = provider.openExternalPurchaseLinkFlow(activity, request)
 
         assertEquals(ExternalPurchaseLinkStatus.Opened, result.status)
         assertEquals(IapPlatform.Android, result.platform)
         assertEquals("play-token", result.reportToken)
         assertEquals(BillingProgramAndroid.ExternalOffer, launched?.billingProgram)
         assertEquals(ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp, launched?.launchMode)
-        assertEquals(ExternalLinkTypeAndroid.LinkToAppDownload, launched?.linkType)
+        assertEquals(ExternalLinkTypeAndroid.LinkToDigitalContentOffer, launched?.linkType)
         assertEquals("https://example.com/checkout", launched?.linkUri)
     }
 

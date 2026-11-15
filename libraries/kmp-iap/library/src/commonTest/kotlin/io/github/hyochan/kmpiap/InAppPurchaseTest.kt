@@ -1159,7 +1159,6 @@ class InAppPurchaseTest {
         val request = ExternalPurchaseLinkRequest(
             url = "https://example.com/buy",
             apple = ExternalPurchaseLinkIosProps(tokenType = ExternalPurchaseCustomLinkTokenTypeIOS.Services),
-            google = ExternalPurchaseLinkAndroidProps(linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer),
         )
         assertEquals(request, ExternalPurchaseLinkRequest.fromJson(request.toJson()))
 

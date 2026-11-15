@@ -4945,29 +4945,6 @@ class DiscountOfferInputIOS {
   }
 }
 
-/// Google options for openExternalPurchaseLink.
-/// Available in Client Protocol 1.5.0 / openiap-google 4.2.0 (requires Play Billing 8.2.1+).
-class ExternalPurchaseLinkAndroidProps {
-  const ExternalPurchaseLinkAndroidProps({
-    this.linkType,
-  });
-
-  /// Link type passed to Play. Defaults to LINK_TO_DIGITAL_CONTENT_OFFER.
-  final ExternalLinkTypeAndroid? linkType;
-
-  factory ExternalPurchaseLinkAndroidProps.fromJson(Map<String, dynamic> json) {
-    return ExternalPurchaseLinkAndroidProps(
-      linkType: json['linkType'] != null ? ExternalLinkTypeAndroid.fromJsonStrict(json['linkType'] as String) : null,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'linkType': linkType?.toJson(),
-    };
-  }
-}
-
 /// Apple options for openExternalPurchaseLink.
 /// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0.
 class ExternalPurchaseLinkIosProps {
@@ -4994,18 +4971,18 @@ class ExternalPurchaseLinkIosProps {
 }
 
 /// Request for openExternalPurchaseLink.
+/// On Google Play the link opens as LINK_TO_DIGITAL_CONTENT_OFFER. For another
+/// link type, such as LINK_TO_APP_DOWNLOAD, call launchExternalLinkAndroid with
+/// the external-offer billing program instead.
 /// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
 class ExternalPurchaseLinkRequest {
   const ExternalPurchaseLinkRequest({
     this.apple,
-    this.google,
     required this.url,
   });
 
   /// Apple-specific options
   final ExternalPurchaseLinkIosProps? apple;
-  /// Google-specific options
-  final ExternalPurchaseLinkAndroidProps? google;
   /// External purchase URL. On iOS 17.4 to 18.0 it must match the
   /// SKExternalPurchase link in Info.plist.
   final String url;
@@ -5013,7 +4990,6 @@ class ExternalPurchaseLinkRequest {
   factory ExternalPurchaseLinkRequest.fromJson(Map<String, dynamic> json) {
     return ExternalPurchaseLinkRequest(
       apple: json['apple'] != null ? ExternalPurchaseLinkIosProps.fromJson(json['apple'] as Map<String, dynamic>) : null,
-      google: json['google'] != null ? ExternalPurchaseLinkAndroidProps.fromJson(json['google'] as Map<String, dynamic>) : null,
       url: json['url'] as String,
     );
   }
@@ -5021,7 +4997,6 @@ class ExternalPurchaseLinkRequest {
   Map<String, dynamic> toJson() {
     return {
       'apple': apple?.toJson(),
-      'google': google?.toJson(),
       'url': url,
     };
   }

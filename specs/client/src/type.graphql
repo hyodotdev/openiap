@@ -255,6 +255,9 @@ input PurchaseInput {
 
 """
 Request for openExternalPurchaseLink.
+On Google Play the link opens as LINK_TO_DIGITAL_CONTENT_OFFER. For another
+link type, such as LINK_TO_APP_DOWNLOAD, call launchExternalLinkAndroid with
+the external-offer billing program instead.
 Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
 """
 input ExternalPurchaseLinkRequest {
@@ -267,10 +270,6 @@ input ExternalPurchaseLinkRequest {
   Apple-specific options
   """
   apple: ExternalPurchaseLinkIosProps
-  """
-  Google-specific options
-  """
-  google: ExternalPurchaseLinkAndroidProps
 }
 
 """

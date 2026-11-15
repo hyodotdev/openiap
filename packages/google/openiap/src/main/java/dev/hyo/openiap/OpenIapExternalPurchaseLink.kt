@@ -25,7 +25,8 @@ internal suspend fun OpenIapProtocol.openExternalPurchaseLinkFlow(
     val params = LaunchExternalLinkParamsAndroid(
         billingProgram = BillingProgramAndroid.ExternalOffer,
         launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
-        linkType = request.google?.linkType ?: ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
+        // Other link types, such as LinkToAppDownload, go through launchExternalLink directly.
+        linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
         linkUri = request.url,
     )
     val opened = try {

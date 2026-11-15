@@ -576,15 +576,6 @@ export interface ExternalPurchaseCustomLinkTokenResultIOS {
 export type ExternalPurchaseCustomLinkTokenTypeIOS = 'acquisition' | 'services' | 'in-app' | 'link-out';
 
 /**
- * Google options for openExternalPurchaseLink.
- * Available in Client Protocol 1.5.0 / openiap-google 4.2.0 (requires Play Billing 8.2.1+).
- */
-export interface ExternalPurchaseLinkAndroidProps {
-  /** Link type passed to Play. Defaults to LINK_TO_DIGITAL_CONTENT_OFFER. */
-  linkType?: (ExternalLinkTypeAndroid | null);
-}
-
-/**
  * Apple options for openExternalPurchaseLink.
  * Available in Client Protocol 1.5.0 / openiap-apple 4.2.0.
  */
@@ -599,13 +590,14 @@ export interface ExternalPurchaseLinkIosProps {
 
 /**
  * Request for openExternalPurchaseLink.
+ * On Google Play the link opens as LINK_TO_DIGITAL_CONTENT_OFFER. For another
+ * link type, such as LINK_TO_APP_DOWNLOAD, call launchExternalLinkAndroid with
+ * the external-offer billing program instead.
  * Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
  */
 export interface ExternalPurchaseLinkRequest {
   /** Apple-specific options */
   apple?: (ExternalPurchaseLinkIosProps | null);
-  /** Google-specific options */
-  google?: (ExternalPurchaseLinkAndroidProps | null);
   /**
    * External purchase URL. On iOS 17.4 to 18.0 it must match the
    * SKExternalPurchase link in Info.plist.

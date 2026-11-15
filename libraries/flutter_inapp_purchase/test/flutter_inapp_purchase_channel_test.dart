@@ -571,9 +571,6 @@ void main() {
           apple: types.ExternalPurchaseLinkIosProps(
             tokenType: types.ExternalPurchaseCustomLinkTokenTypeIOS.Services,
           ),
-          google: types.ExternalPurchaseLinkAndroidProps(
-            linkType: types.ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
-          ),
         ),
       );
 
@@ -585,9 +582,6 @@ void main() {
       expect(call.method, 'openExternalPurchaseLink');
       expect(call.arguments, <String, dynamic>{
         'apple': <String, dynamic>{'tokenType': 'services'},
-        'google': <String, dynamic>{
-          'linkType': 'link-to-digital-content-offer',
-        },
         'url': 'https://example.com/buy',
       });
     });

@@ -107,11 +107,24 @@ function OpenExternalPurchaseLink() {
           <code>apple.tokenType</code>: the iOS 18.1+ token type. Ignored on iOS
           17.4 to 18.0.
         </li>
-        <li>
-          <code>google.linkType</code>: the Play link type. Defaults to{' '}
-          <code>link-to-digital-content-offer</code>.
-        </li>
       </ul>
+      <p>
+        On Google Play the link always opens as a digital content offer (
+        <code>link-to-digital-content-offer</code>). For another link type, such
+        as an app download, skip this call and use the Play program calls
+        directly:
+      </p>
+      <CodeBlock language="typescript">{`// Android only: a link type other than a digital content offer.
+// Check isBillingProgramAvailableAndroid('external-offer') first.
+const {externalTransactionToken} =
+  await createBillingProgramReportingDetailsAndroid('external-offer');
+await launchExternalLinkAndroid({
+  billingProgram: 'external-offer',
+  launchMode: 'launch-in-external-browser-or-app',
+  linkType: 'link-to-app-download',
+  linkUri: 'https://example.com/app',
+});
+// Send externalTransactionToken to your backend; Play needs the report within 24 hours.`}</CodeBlock>
 
       <AnchorLink id="returns" level="h2">
         Returns

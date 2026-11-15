@@ -197,8 +197,21 @@ Traps that look like code bugs:
 
 **VegaOS.** Source `~/vega/env` first. `vega exec vda devices -l` is transport
 visibility only; `kepler device list` is the install source of truth. Screen
-capture and `input` are frequently unavailable, so record app state with
+capture and `input` are unavailable, so record app state with
 `kepler device is-app-running` and log streams.
+
+- Install with the example's `run:vega:firetv` script (`yarn` for React Native,
+  `bun run` for Expo). It also pushes `amazon.sdktester.json` and
+  `amazon.config.json`. A bare `kepler device install-app` skips them: the app
+  falls back to the live store and shows no products, and the log says
+  `IAP config file not present`.
+- Drive the remote with
+  `vega exec vda -s "$VEGA_DEVICE_ID" shell inputd-cli button_press KEY_DOWN`
+  (also `KEY_UP`, `KEY_LEFT`, `KEY_RIGHT`, `KEY_ENTER`, `KEY_BACK`). Confirm
+  each step in the log stream: `[KeplerScript-JavaScript]` lines are the app's
+  console, and `purchase.core` lines are the store.
+- Only the foreground app stays alive. Launching the second example kills the
+  first, so run React Native and Expo one at a time.
 
 ## Local receipt verification
 

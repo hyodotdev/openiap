@@ -319,14 +319,9 @@ export interface NitroLaunchExternalLinkParamsAndroid {
   linkUri: string;
 }
 
-export interface NitroExternalPurchaseLinkAndroidProps {
-  linkType?: ExternalLinkTypeAndroid | null;
-}
-
 export interface NitroExternalPurchaseLinkRequest {
   url: ExternalPurchaseLinkRequest['url'];
   apple?: ExternalPurchaseLinkIosProps | null;
-  google?: NitroExternalPurchaseLinkAndroidProps | null;
 }
 
 export interface NitroGetBillingChoiceInfoParamsAndroid {

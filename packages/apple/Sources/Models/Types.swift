@@ -3407,19 +3407,6 @@ public struct DiscountOfferInputIOS: Codable {
     }
 }
 
-/// Google options for openExternalPurchaseLink.
-/// Available in Client Protocol 1.5.0 / openiap-google 4.2.0 (requires Play Billing 8.2.1+).
-public struct ExternalPurchaseLinkAndroidProps: Codable {
-    /// Link type passed to Play. Defaults to LINK_TO_DIGITAL_CONTENT_OFFER.
-    public var linkType: ExternalLinkTypeAndroid?
-
-    public init(
-        linkType: ExternalLinkTypeAndroid? = nil
-    ) {
-        self.linkType = linkType
-    }
-}
-
 /// Apple options for openExternalPurchaseLink.
 /// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0.
 public struct ExternalPurchaseLinkIosProps: Codable {
@@ -3436,23 +3423,22 @@ public struct ExternalPurchaseLinkIosProps: Codable {
 }
 
 /// Request for openExternalPurchaseLink.
+/// On Google Play the link opens as LINK_TO_DIGITAL_CONTENT_OFFER. For another
+/// link type, such as LINK_TO_APP_DOWNLOAD, call launchExternalLinkAndroid with
+/// the external-offer billing program instead.
 /// Available in Client Protocol 1.5.0 / openiap-apple 4.2.0 / openiap-google 4.2.0.
 public struct ExternalPurchaseLinkRequest: Codable {
     /// Apple-specific options
     public var apple: ExternalPurchaseLinkIosProps?
-    /// Google-specific options
-    public var google: ExternalPurchaseLinkAndroidProps?
     /// External purchase URL. On iOS 17.4 to 18.0 it must match the
     /// SKExternalPurchase link in Info.plist.
     public var url: String
 
     public init(
         apple: ExternalPurchaseLinkIosProps? = nil,
-        google: ExternalPurchaseLinkAndroidProps? = nil,
         url: String
     ) {
         self.apple = apple
-        self.google = google
         self.url = url
     }
 }
