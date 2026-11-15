@@ -327,64 +327,42 @@ struct AlternativeBillingScreen: View {
     private func purchaseProduct(_ product: OpenIapProduct) {
         print("🛒 [AlternativeBilling] Starting alternative billing purchase for: \(product.id)")
         print("🌐 [AlternativeBilling] External URL: \(externalUrl)")
-
-        if #available(iOS 17.4, *) {
-            Task { await testExternalPurchaseFlow() }
-        } else {
-            errorMessage = "The external purchase notice sheet requires iOS 17.4 or later"
-            showError = true
-        }
+        Task { await openExternalPurchase() }
     }
 
     // MARK: - External Purchase Flow
 
-    @available(iOS 17.4, *)
-    private func testExternalPurchaseFlow() async {
-        print("🔷 [AlternativeBilling] Testing external purchase flow...")
-
+    private func openExternalPurchase() async {
         do {
-            // Step 1: Check if notice sheet can be presented
-            let canPresent = try await OpenIapModule.shared.canPresentExternalPurchaseNoticeIOS()
-            print("✅ [AlternativeBilling] Can present notice sheet: \(canPresent)")
-
-            guard canPresent else {
+            guard try await OpenIapModule.shared.isExternalPurchaseLinkAvailable() else {
                 await MainActor.run {
-                    errorMessage = "External purchase notice sheet is not available on this device"
+                    errorMessage = "External purchase links are not available for this app or device"
                     showError = true
                 }
                 return
             }
 
-            // Step 2: Present notice sheet
-            let noticeResult = try await OpenIapModule.shared.presentExternalPurchaseNoticeSheetIOS()
-            print("✅ [AlternativeBilling] Notice sheet result: \(noticeResult.result)")
+            // Shows Apple's disclosure first; the URL opens only if the user continues.
+            let result = try await OpenIapModule.shared.openExternalPurchaseLink(
+                ExternalPurchaseLinkRequest(url: externalUrl)
+            )
+            print("✅ [AlternativeBilling] External purchase link: \(result.status)")
 
-            if noticeResult.result == .continue {
-                // Step 3: Present external purchase link
-                let linkResult = try await OpenIapModule.shared.presentExternalPurchaseLinkIOS(externalUrl)
-                print("✅ [AlternativeBilling] Link result: \(linkResult.success)")
-
-                await MainActor.run {
-                    if linkResult.success {
-                        purchaseResultMessage = """
-                        🌐 External purchase flow completed
-                        User was redirected to: \(externalUrl)
-                        """
-                    } else {
-                        purchaseResultMessage = """
-                        ❌ External purchase link failed
-                        Error: \(linkResult.error ?? "Unknown error")
-                        """
-                    }
-                    showPurchaseResult = true
+            await MainActor.run {
+                switch result.status {
+                case .opened:
+                    purchaseResultMessage = """
+                    🌐 External purchase flow completed
+                    User was redirected to: \(externalUrl)
+                    Report token: \(result.reportToken ?? "-")
+                    """
+                case .cancelled:
+                    purchaseResultMessage = "User dismissed the notice"
+                case .unavailable:
+                    purchaseResultMessage = "External purchase links are not available"
                 }
-            } else {
-                await MainActor.run {
-                    purchaseResultMessage = "User dismissed the notice sheet"
-                    showPurchaseResult = true
-                }
+                showPurchaseResult = true
             }
-
         } catch {
             print("❌ [AlternativeBilling] External purchase flow error: \(error)")
             await MainActor.run {

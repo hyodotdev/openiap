@@ -18,7 +18,11 @@ import ExpoIapModule from '../ExpoIapModule';
 import {ErrorCode} from '../types';
 import {useIAP, UseIAPOptions} from '../useIAP';
 import * as AndroidApi from '../modules/android';
-import {openRedeemOfferCode} from '../index';
+import {
+  isExternalPurchaseLinkAvailable,
+  openExternalPurchaseLink,
+  openRedeemOfferCode,
+} from '../index';
 import {FIRST_PURCHASE_NOTICE} from '../utils/firstPurchaseNotice';
 /* eslint-enable import/first */
 
@@ -197,6 +201,12 @@ describe('useIAP hook', () => {
         AndroidApi.showInAppMessagesAndroid,
       );
       expect(hookResult!.openRedeemOfferCode).toBe(openRedeemOfferCode);
+      expect(hookResult!.isExternalPurchaseLinkAvailable).toBe(
+        isExternalPurchaseLinkAvailable,
+      );
+      expect(hookResult!.openExternalPurchaseLink).toBe(
+        openExternalPurchaseLink,
+      );
     });
   });
 

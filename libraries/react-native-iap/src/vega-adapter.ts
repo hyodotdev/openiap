@@ -1,6 +1,7 @@
 import type {
   IapkitPurchaseState,
   NitroActiveSubscription,
+  NitroExternalPurchaseLinkResult,
   NitroProduct,
   NitroPurchase,
   NitroPurchaseResult,
@@ -1738,6 +1739,12 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     },
     async openRedeemOfferCode(): Promise<null> {
       return null;
+    },
+    async isExternalPurchaseLinkAvailable(): Promise<boolean> {
+      return false;
+    },
+    async openExternalPurchaseLink(): Promise<NitroExternalPurchaseLinkResult> {
+      return {platform: 'android', status: 'unavailable'};
     },
     async canPresentExternalPurchaseNoticeIOS(): Promise<boolean> {
       return throwUnsupportedFeature('canPresentExternalPurchaseNoticeIOS');

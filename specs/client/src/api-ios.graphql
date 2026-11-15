@@ -18,7 +18,7 @@ extend type Query {
   See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
   """
   # Future
-  canPresentExternalPurchaseNoticeIOS: Boolean!
+  canPresentExternalPurchaseNoticeIOS: Boolean! @deprecated(reason: "Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
   """
   Check eligibility for the custom-link variant of external purchase (iOS 18.1+).
   Returns true if the app can use custom external purchase links.
@@ -26,7 +26,7 @@ extend type Query {
   See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
   """
   # Future
-  isEligibleForExternalPurchaseCustomLinkIOS: Boolean!
+  isEligibleForExternalPurchaseCustomLinkIOS: Boolean! @deprecated(reason: "Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
   """
   Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+).
   Use this token to report transactions made through ExternalPurchaseCustomLink.
@@ -137,13 +137,13 @@ extend type Mutation {
   See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
   """
   # Future
-  presentExternalPurchaseNoticeSheetIOS: ExternalPurchaseNoticeResultIOS!
+  presentExternalPurchaseNoticeSheetIOS: ExternalPurchaseNoticeResultIOS! @deprecated(reason: "Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
   """
   Present an external purchase link, StoreKit External (iOS 16+).
   See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
   """
   # Future
-  presentExternalPurchaseLinkIOS(url: String!): ExternalPurchaseLinkResultIOS!
+  presentExternalPurchaseLinkIOS(url: String!): ExternalPurchaseLinkResultIOS! @deprecated(reason: "Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
   """
   Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).
   Call this after a deliberate customer interaction before linking out to external purchases.

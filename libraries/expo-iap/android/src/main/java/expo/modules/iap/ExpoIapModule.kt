@@ -2,6 +2,7 @@ package expo.modules.iap
 
 import android.content.Context
 import dev.hyo.openiap.DeepLinkOptions
+import dev.hyo.openiap.ExternalPurchaseLinkRequest
 import dev.hyo.openiap.FetchProductsResultAll
 import dev.hyo.openiap.FetchProductsResultProducts
 import dev.hyo.openiap.FetchProductsResultSubscriptions
@@ -875,6 +876,52 @@ class ExpoIapModule : Module() {
                         promise.resolve(result)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("launchExternalLinkAndroid", e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                    }
+                }
+            }
+
+            AsyncFunction("isExternalPurchaseLinkAvailable") { promise: Promise ->
+                ExpoIapLog.payload("isExternalPurchaseLinkAvailable", null)
+                scope.launch {
+                    try {
+                        val isAvailable = openIapStore.isExternalPurchaseLinkAvailable()
+                        ExpoIapLog.result("isExternalPurchaseLinkAvailable", isAvailable)
+                        promise.resolve(isAvailable)
+                    } catch (e: Exception) {
+                        ExpoIapLog.failure("isExternalPurchaseLinkAvailable", e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                    }
+                }
+            }
+
+            AsyncFunction("openExternalPurchaseLink") { params: Map<String, Any?>, promise: Promise ->
+                ExpoIapLog.payload("openExternalPurchaseLink", params)
+                scope.launch {
+                    try {
+                        val request =
+                            runCatching { ExternalPurchaseLinkRequest.fromJson(params) }
+                                .getOrNull() ?: run {
+                                promise.reject(
+                                    OpenIapError.DeveloperError.CODE,
+                                    "Invalid external purchase link request: `url` is required.",
+                                    null,
+                                )
+                                return@launch
+                            }
+                        val activity =
+                            runCatching { currentActivity }
+                                .onFailure {
+                                    ExpoIapLog.failure("openExternalPurchaseLink activity", it)
+                                }.getOrNull() ?: run {
+                                promise.reject(OpenIapError.ServiceUnavailable.CODE, "Activity not available", null)
+                                return@launch
+                            }
+                        val result = openIapStore.openExternalPurchaseLink(activity, request).toJson()
+                        ExpoIapLog.result("openExternalPurchaseLink", result)
+                        promise.resolve(result)
+                    } catch (e: Exception) {
+                        ExpoIapLog.failure("openExternalPurchaseLink", e)
                         promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
                     }
                 }

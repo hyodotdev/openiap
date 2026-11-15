@@ -74,6 +74,16 @@ class HybridRnIapProtocol: HybridRnIapProtocolSpec() {
             { NitroOpenRedeemOfferCodeOutcome(value = it, error = null) },
             { NitroOpenRedeemOfferCodeOutcome(value = null, error = it) })
 
+    override fun isExternalPurchaseLinkAvailable(): Promise<NitroBooleanOutcome> =
+        lift({ implementation.isExternalPurchaseLinkAvailable() },
+            { NitroBooleanOutcome(value = it, error = null) },
+            { NitroBooleanOutcome(value = null, error = it) })
+
+    override fun openExternalPurchaseLink(request: NitroExternalPurchaseLinkRequest): Promise<NitroExternalPurchaseLinkResultOutcome> =
+        lift({ implementation.openExternalPurchaseLink(request) },
+            { NitroExternalPurchaseLinkResultOutcome(value = it, error = null) },
+            { NitroExternalPurchaseLinkResultOutcome(value = null, error = it) })
+
     override fun restorePurchases(): Promise<NitroBooleanOutcome> =
         lift({ implementation.restorePurchases() },
             { NitroBooleanOutcome(value = it, error = null) },

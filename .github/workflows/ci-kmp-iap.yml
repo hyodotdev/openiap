@@ -118,4 +118,4 @@ jobs:
         uses: ./.github/actions/setup-xcode
 
       - name: Verify SwiftPM library, Xcode app, and Maven consumer without CocoaPods
-        run: bash scripts/verify-swiftpm-build.sh
+        run: bash scripts/verify-swiftpm-build.sh --allow-unreleased-apple

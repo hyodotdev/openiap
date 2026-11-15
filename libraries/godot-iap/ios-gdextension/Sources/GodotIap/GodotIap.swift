@@ -1176,6 +1176,43 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     }
 
     @Callable
+    public func isExternalPurchaseLinkAvailable() -> String {
+        let requestId = UUID().uuidString
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let available = try await self.openIap.isExternalPurchaseLinkAvailable()
+                await self.emitAsyncResult(method: "isExternalPurchaseLinkAvailable", requestId: requestId, ["available": available])
+            } catch {
+                await self.emitAsyncFailure(method: "isExternalPurchaseLinkAvailable", requestId: requestId, message: error.localizedDescription, code: GodotIapHelper.errorCode(error))
+            }
+        }
+        return "{\"status\":\"pending\",\"requestId\":\"\(requestId)\"}"
+    }
+
+    @Callable
+    public func openExternalPurchaseLink(requestJson: String) -> String {
+        let requestId = UUID().uuidString
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let request = try JSONDecoder().decode(ExternalPurchaseLinkRequest.self, from: Data(requestJson.utf8))
+                let result = try await self.openIap.openExternalPurchaseLink(request)
+                await self.emitAsyncResult(
+                    method: "openExternalPurchaseLink",
+                    requestId: requestId,
+                    ["resultJson": GodotIapHelper.jsonString(OpenIapSerialization.encode(result))]
+                )
+            } catch is DecodingError {
+                await self.emitAsyncFailure(method: "openExternalPurchaseLink", requestId: requestId, message: "Invalid external purchase link request", code: ErrorCode.developerError.rawValue)
+            } catch {
+                await self.emitAsyncFailure(method: "openExternalPurchaseLink", requestId: requestId, message: error.localizedDescription, code: GodotIapHelper.errorCode(error))
+            }
+        }
+        return "{\"status\":\"pending\",\"requestId\":\"\(requestId)\"}"
+    }
+
+    @Callable
     public func deepLinkToSubscriptions(optionsJson: String) -> String {
         GodotIapLog.payload("Deep linking to subscriptions", payload: nil)
         let requestId = UUID().uuidString

@@ -82,6 +82,18 @@ final class HybridRnIapProtocol: HybridRnIapProtocolSpec {
              failure: { NitroOpenRedeemOfferCodeOutcome(value: nil, error: $0) })
     }
 
+    func isExternalPurchaseLinkAvailable() -> Promise<NitroBooleanOutcome> {
+        lift({ try implementation.isExternalPurchaseLinkAvailable() },
+             success: { NitroBooleanOutcome(value: $0, error: nil) },
+             failure: { NitroBooleanOutcome(value: nil, error: $0) })
+    }
+
+    func openExternalPurchaseLink(request: NitroExternalPurchaseLinkRequest) -> Promise<NitroExternalPurchaseLinkResultOutcome> {
+        lift({ try implementation.openExternalPurchaseLink(request: request) },
+             success: { NitroExternalPurchaseLinkResultOutcome(value: $0, error: nil) },
+             failure: { NitroExternalPurchaseLinkResultOutcome(value: nil, error: $0) })
+    }
+
     func restorePurchases() -> Promise<NitroBooleanOutcome> {
         lift({ try implementation.restorePurchases() },
              success: { NitroBooleanOutcome(value: $0, error: nil) },

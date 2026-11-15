@@ -441,6 +441,24 @@ describe('hooks/useIAP (renderer)', () => {
     expect(api.openRedeemOfferCode).toBe(IAP.openRedeemOfferCode);
   });
 
+  it('exposes the external purchase link APIs from the root', async () => {
+    let api: any;
+    const Harness = () => {
+      api = useIAP();
+      return null;
+    };
+
+    await act(async () => {
+      TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {});
+
+    expect(api.isExternalPurchaseLinkAvailable).toBe(
+      IAP.isExternalPurchaseLinkAvailable,
+    );
+    expect(api.openExternalPurchaseLink).toBe(IAP.openExternalPurchaseLink);
+  });
+
   it('does not log product offer tokens', async () => {
     Object.assign(globalThis, {RN_IAP_DEV_MODE: true});
     const debug = jest.spyOn(console, 'debug').mockImplementation();

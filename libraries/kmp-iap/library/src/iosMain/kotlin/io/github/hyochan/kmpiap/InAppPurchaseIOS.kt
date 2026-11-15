@@ -389,6 +389,33 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             }
         }
 
+    /** Whether this device and storefront may link out with [openExternalPurchaseLink]. */
+    override suspend fun isExternalPurchaseLinkAvailable(): Boolean =
+        suspendCancellableCoroutine { continuation ->
+            openIapModule.isExternalPurchaseLinkAvailableWithCompletion { isAvailable, error ->
+                if (error != null) {
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
+                } else {
+                    continuation.resumeIfActive(isAvailable)
+                }
+            }
+        }
+
+    /** Shows the App Store disclosure, opens the link once the user continues, and returns the report token. */
+    override suspend fun openExternalPurchaseLink(request: ExternalPurchaseLinkRequest): ExternalPurchaseLinkResult =
+        suspendCancellableCoroutine { continuation ->
+            openIapModule.openExternalPurchaseLinkWithRequest(request.toJson().toBridgeMapIOS()) { result, error ->
+                if (error != null) {
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
+                    return@openExternalPurchaseLinkWithRequest
+                }
+                val map = (result as? Map<*, *>)?.mapKeys { it.key.toString() } ?: emptyMap()
+                runCatching { ExternalPurchaseLinkResult.fromJson(map) }
+                    .onSuccess { continuation.resumeIfActive(it) }
+                    .onFailure { continuation.resumeWithExceptionIfActive(it) }
+            }
+        }
+
     /**
      * Present the refund request sheet (iOS 15+).
      *
@@ -768,6 +795,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      *
      * @see <a href="https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios">https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios</a>
      */
+    @Deprecated("Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     override suspend fun isEligibleForExternalPurchaseCustomLinkIOS(): Boolean =
         isAtLeastIOS(18, 1) && suspendCancellableCoroutine { continuation ->
             openIapModule.isEligibleForExternalPurchaseCustomLinkIOSWithCompletion { isEligible, error ->
@@ -1419,6 +1447,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      *
      * @see <a href="https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios">https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios</a>
      */
+    @Deprecated("Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     override suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS =
         if (!isAtLeastIOS(16)) {
             ExternalPurchaseLinkResultIOS(success = false, error = "Requires iOS 16.0 or later")
@@ -1449,6 +1478,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      *
      * @see <a href="https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios">https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios</a>
      */
+    @Deprecated("Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     override suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS =
         if (!isAtLeastIOS(17, 4)) {
             ExternalPurchaseNoticeResultIOS(result = ExternalPurchaseNoticeAction.Dismissed, error = "Requires iOS 17.4 or later")
@@ -1484,6 +1514,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      *
      * @see <a href="https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios">https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios</a>
      */
+    @Deprecated("Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     override suspend fun canPresentExternalPurchaseNoticeIOS(): Boolean =
         isAtLeastIOS(17, 4) && suspendCancellableCoroutine { continuation ->
             openIapModule.canPresentExternalPurchaseNoticeIOSWithCompletion { canPresent, error ->

@@ -99,6 +99,18 @@ interface OpenIapProtocol {
      */
     suspend fun launchExternalLink(activity: Activity, params: LaunchExternalLinkParamsAndroid): Boolean
 
+    /** Whether this device and storefront may link out with [openExternalPurchaseLink]. */
+    suspend fun isExternalPurchaseLinkAvailable(): Boolean = externalPurchaseLinkAvailable()
+
+    /**
+     * Show the store disclosure, open the link only after the user continues,
+     * and return the token to report from your server.
+     */
+    suspend fun openExternalPurchaseLink(
+        activity: Activity,
+        request: ExternalPurchaseLinkRequest
+    ): ExternalPurchaseLinkResult = openExternalPurchaseLinkFlow(activity, request)
+
     /**
      * Fetch Play Billing choice display assets for developer-rendered Billing Choice.
      */

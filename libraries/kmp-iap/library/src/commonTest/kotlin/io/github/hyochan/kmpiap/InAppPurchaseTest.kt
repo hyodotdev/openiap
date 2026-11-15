@@ -1153,4 +1153,18 @@ class InAppPurchaseTest {
         assertNull(handlers.openRedeemOfferCode?.invoke())
         assertNull(MutationHandlers().openRedeemOfferCode)
     }
+
+    @Test
+    fun testExternalPurchaseLinkRequestAndResultJson() {
+        val request = ExternalPurchaseLinkRequest(
+            url = "https://example.com/buy",
+            apple = ExternalPurchaseLinkIosProps(tokenType = ExternalPurchaseCustomLinkTokenTypeIOS.Services),
+        )
+        assertEquals(request, ExternalPurchaseLinkRequest.fromJson(request.toJson()))
+
+        val result = ExternalPurchaseLinkResult.fromJson(mapOf("status" to "opened", "reportToken" to "token", "platform" to "ios"))
+        assertEquals(ExternalPurchaseLinkStatus.Opened, result.status)
+        assertEquals("token", result.reportToken)
+        assertEquals(IapPlatform.Ios, result.platform)
+    }
 }

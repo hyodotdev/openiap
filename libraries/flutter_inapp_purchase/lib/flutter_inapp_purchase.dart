@@ -1592,6 +1592,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// Check eligibility for the external purchase notice sheet (iOS 17.4+, macOS 14.4+).
   ///
   /// See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+  @Deprecated(
+      'Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.')
   gentype.QueryCanPresentExternalPurchaseNoticeIOSHandler
       get canPresentExternalPurchaseNoticeIOS => () async {
             if (!isIOS) {
@@ -2837,9 +2839,71 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
+  /// Whether this device and storefront may link out with
+  /// [openExternalPurchaseLink]. Resolves false when the store program is not
+  /// enabled, the user is not eligible, or the platform has no store link.
+  ///
+  /// See: https://openiap.dev/docs/apis/is-external-purchase-link-available
+  gentype.QueryIsExternalPurchaseLinkAvailableHandler
+      get isExternalPurchaseLinkAvailable => () async {
+            if (!isIOS && !_platform.isAndroid) return false;
+            try {
+              final available = await channel
+                  .invokeMethod<bool>('isExternalPurchaseLinkAvailable');
+              return available ?? false;
+            } on PlatformException catch (error) {
+              throw _purchaseErrorFromPlatformException(
+                error,
+                'check external purchase link availability',
+              );
+            }
+          };
+
+  /// Show the store's required disclosure, then open the external purchase
+  /// link only after the user continues. Unavailable and Cancelled resolve as
+  /// results; report the result's reportToken from your server.
+  ///
+  /// See: https://openiap.dev/docs/apis/open-external-purchase-link
+  gentype.MutationOpenExternalPurchaseLinkHandler
+      get openExternalPurchaseLink => (request) async {
+            if (!isIOS && !_platform.isAndroid) {
+              throw PurchaseError(
+                code: gentype.ErrorCode.IapNotAvailable,
+                message: 'External purchase links are only available on iOS, '
+                    'macOS and Android',
+              );
+            }
+            try {
+              final result = await channel.invokeMethod<Object?>(
+                'openExternalPurchaseLink',
+                request.toJson(),
+              );
+              final payload = normalizeDynamicMap(result);
+              if (payload == null) {
+                throw const FormatException(
+                    'Invalid external purchase link result from native store');
+              }
+              return gentype.ExternalPurchaseLinkResult.fromJson(payload);
+            } on PlatformException catch (error) {
+              throw _purchaseErrorFromPlatformException(
+                error,
+                'open external purchase link',
+              );
+            } catch (error) {
+              if (error is PurchaseError) rethrow;
+              throw PurchaseError(
+                code: gentype.ErrorCode.ServiceError,
+                message:
+                    'Failed to open external purchase link: ${error.toString()}',
+              );
+            }
+          };
+
   /// Present the external purchase notice sheet (iOS 17.4+, macOS 14.4+).
   ///
   /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+  @Deprecated(
+      'Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.')
   gentype.MutationPresentExternalPurchaseNoticeSheetIOSHandler
       get presentExternalPurchaseNoticeSheetIOS => () async {
             if (!isIOS) {
@@ -2878,6 +2942,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// Present an external purchase link (iOS 16+; unsupported on macOS).
   ///
   /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+  @Deprecated(
+      'Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.')
   gentype.MutationPresentExternalPurchaseLinkIOSHandler
       get presentExternalPurchaseLinkIOS => (String url) async {
             if (!_platform.isIOS || _platform.isMacOS) {
@@ -2919,6 +2985,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// Check eligibility for ExternalPurchaseCustomLink (iOS 18.1+, macOS 15.1+).
   ///
   /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+  @Deprecated(
+      'Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.')
   gentype.QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler
       get isEligibleForExternalPurchaseCustomLinkIOS => () async {
             if (!_platform.isIOS && !_platform.isMacOS) {
@@ -3087,6 +3155,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         isEligibleForExternalPurchaseCustomLinkIOS:
             isEligibleForExternalPurchaseCustomLinkIOS,
         isEligibleForIntroOfferIOS: isEligibleForIntroOfferIOS,
+        isExternalPurchaseLinkAvailable: isExternalPurchaseLinkAvailable,
         isTransactionVerifiedIOS: isTransactionVerifiedIOS,
         latestTransactionIOS: latestTransactionIOS,
         subscriptionStatusIOS: subscriptionStatusIOS,
@@ -3167,6 +3236,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         initConnection: initConnection,
         isBillingProgramAvailableAndroid: isBillingProgramAvailableAndroid,
         launchExternalLinkAndroid: _launchExternalLinkAndroidHandler,
+        openExternalPurchaseLink: openExternalPurchaseLink,
         openRedeemOfferCode: openRedeemOfferCode,
         requestPurchase: requestPurchase,
         restorePurchases: restorePurchases,

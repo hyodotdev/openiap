@@ -5,3 +5,4 @@ src/purchase-flow-confirmers.ts
 docs/**
 .claude/commands/**
 src/__tests__/purchaseFlow.shared.test.ts
+src/__tests__/fixtures/behavior-errors.json

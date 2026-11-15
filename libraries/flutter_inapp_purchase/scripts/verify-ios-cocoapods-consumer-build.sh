@@ -63,6 +63,15 @@ if ! grep -Fq "platform :ios, '$minimum_ios_version'" "$podfile"; then
   exit 1
 fi
 
+# Pod targets such as Flutter's own declare an older minimum that current Xcode rejects.
+perl -0pi -e \
+  "s/(\n[ \t]*flutter_additional_ios_build_settings\(target\)\n)/\$1    target.build_configurations.each { |config| config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '$minimum_ios_version' }\n/" \
+  "$podfile"
+if ! grep -Fq "config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '$minimum_ios_version'" "$podfile"; then
+  echo "Failed to set the CocoaPods pod deployment target" >&2
+  exit 1
+fi
+
 deployment_target_count="$(grep -Ec 'IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;' "$xcode_project")"
 if [ "$deployment_target_count" -eq 0 ]; then
   echo "Generated Xcode project has no deployment targets" >&2

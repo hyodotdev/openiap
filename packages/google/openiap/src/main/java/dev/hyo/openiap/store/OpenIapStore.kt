@@ -45,6 +45,8 @@ import dev.hyo.openiap.DeveloperBillingTypeAndroid
 import dev.hyo.openiap.GetBillingChoiceInfoParamsAndroid
 import dev.hyo.openiap.InAppMessageParamsAndroid
 import dev.hyo.openiap.InAppMessageResultAndroid
+import dev.hyo.openiap.ExternalPurchaseLinkRequest
+import dev.hyo.openiap.ExternalPurchaseLinkResult
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid
 import android.app.Activity
 import android.content.Context
@@ -569,6 +571,23 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      */
     suspend fun launchExternalLink(activity: Activity, params: LaunchExternalLinkParamsAndroid): Boolean =
         module.launchExternalLink(activity, params)
+
+    /**
+     * Whether this device and storefront may link out to an external purchase.
+     *
+     * @see <a href="https://openiap.dev/docs/apis/is-external-purchase-link-available">https://openiap.dev/docs/apis/is-external-purchase-link-available</a>
+     */
+    suspend fun isExternalPurchaseLinkAvailable(): Boolean = module.isExternalPurchaseLinkAvailable()
+
+    /**
+     * Show Play's disclosure, open the link only after the user continues, and return the report token.
+     *
+     * @see <a href="https://openiap.dev/docs/apis/open-external-purchase-link">https://openiap.dev/docs/apis/open-external-purchase-link</a>
+     */
+    suspend fun openExternalPurchaseLink(
+        activity: Activity,
+        request: ExternalPurchaseLinkRequest
+    ): ExternalPurchaseLinkResult = module.openExternalPurchaseLink(activity, request)
 
     /**
      * Open the Google Play offer/promo code redemption page (https://play.google.com/redeem)

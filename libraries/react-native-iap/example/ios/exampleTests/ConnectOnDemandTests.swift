@@ -920,6 +920,8 @@ final class ConnectOnDemandTests: XCTestCase {
             "verifyPurchase",
             "verifyPurchaseWithProvider",
             "getStorefront",
+            "isExternalPurchaseLinkAvailable",
+            "openExternalPurchaseLink",
             "getAppTransactionIOS",
             "getPromotedProductIOS",
             "openRedeemOfferCode",

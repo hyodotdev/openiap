@@ -616,18 +616,30 @@ public final class OpenIapStore: ObservableObject {
 
     #endif // !os(tvOS)
 
+    public func isExternalPurchaseLinkAvailable() async throws -> Bool {
+        try await module.isExternalPurchaseLinkAvailable()
+    }
+
+    public func openExternalPurchaseLink(_ request: ExternalPurchaseLinkRequest) async throws -> ExternalPurchaseLinkResult {
+        try await module.openExternalPurchaseLink(request)
+    }
+
+    @available(*, deprecated, message: "Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     public func canPresentExternalPurchaseNoticeIOS() async throws -> Bool {
         try await module.canPresentExternalPurchaseNoticeIOS()
     }
 
+    @available(*, deprecated, message: "Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     public func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS {
         try await module.presentExternalPurchaseNoticeSheetIOS()
     }
 
+    @available(*, deprecated, message: "Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")
     public func presentExternalPurchaseLinkIOS(_ url: String) async throws -> ExternalPurchaseLinkResultIOS {
         try await module.presentExternalPurchaseLinkIOS(url)
     }
 
+    @available(*, deprecated, message: "Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")
     public func isEligibleForExternalPurchaseCustomLinkIOS() async throws -> Bool {
         try await module.isEligibleForExternalPurchaseCustomLinkIOS()
     }

@@ -13,6 +13,7 @@ import dev.hyo.openiap.DeveloperBillingOptionParamsAndroid
 import dev.hyo.openiap.DeveloperBillingTypeAndroid
 import dev.hyo.openiap.ExternalLinkLaunchModeAndroid
 import dev.hyo.openiap.ExternalLinkTypeAndroid
+import dev.hyo.openiap.ExternalPurchaseLinkRequest
 import dev.hyo.openiap.FetchProductsResult
 import dev.hyo.openiap.FetchProductsResultAll
 import dev.hyo.openiap.FetchProductsResultProducts
@@ -865,6 +866,40 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler {
                         )
                         val success = iap.launchExternalLink(act, launchParams)
                         safe.success(success)
+                    } catch (e: Exception) {
+                        replyBillingError(safe, e)
+                    }
+                }
+            }
+
+            "isExternalPurchaseLinkAvailable" -> {
+                scope.launch {
+                    try {
+                        safe.success(requireOpenIap().isExternalPurchaseLinkAvailable())
+                    } catch (e: Exception) {
+                        replyBillingError(safe, e)
+                    }
+                }
+            }
+            "openExternalPurchaseLink" -> {
+                val params = (call.arguments as? Map<*, *>)?.entries?.associate { it.key.toString() to it.value } ?: emptyMap()
+                scope.launch {
+                    try {
+                        val iap = requireOpenIap()
+                        val act = activity
+                        if (act == null) {
+                            safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, "Activity not available")
+                            return@launch
+                        }
+                        val request = ExternalPurchaseLinkRequest.fromJson(params)
+                            ?.takeIf { it.url.isNotBlank() }
+                        if (request == null) {
+                            safe.error(OpenIapError.DeveloperError.CODE, "url is required for openExternalPurchaseLink", null)
+                            return@launch
+                        }
+                        safe.success(iap.openExternalPurchaseLink(act, request).toJson())
+                    } catch (e: IllegalArgumentException) {
+                        safe.error(OpenIapError.DeveloperError.CODE, e.message, null)
                     } catch (e: Exception) {
                         replyBillingError(safe, e)
                     }

@@ -189,6 +189,12 @@
   "resolutions": {
     "zod": "4.6.7",
     "nitrogen@^0.36.5": "patch:nitrogen@npm%3A0.36.5#./.yarn/patches/nitrogen-npm-0.36.5-array-equatable.patch",
-    "uuid@^7.0.3": "11.1.1"
+    "uuid@^7.0.3": "11.1.1",
+    "glob@^10.2.2": "14.0.6",
+    "glob@^13.0.0": "14.0.6",
+    "glob@^13.0.6": "14.0.6",
+    "minimatch@^9.0.4": "11.0.8",
+    "minimatch@^10.0.1": "11.0.8",
+    "minimatch@^10.2.2": "11.0.8"
   }
 }

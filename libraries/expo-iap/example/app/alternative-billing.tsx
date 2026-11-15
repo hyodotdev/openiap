@@ -14,7 +14,8 @@ import {
   useIAP,
   requestPurchase,
   initConnection,
-  presentExternalPurchaseLinkIOS,
+  isExternalPurchaseLinkAvailable,
+  openExternalPurchaseLink,
   isBillingProgramAvailableAndroid,
   launchExternalLinkAndroid,
   createBillingProgramReportingDetailsAndroid,
@@ -36,11 +37,12 @@ import {
  *
  * Demonstrates alternative billing flows for iOS and Android:
  *
- * iOS (Alternative Billing):
- * - Redirects users to external website configured in app.config.ts
- * - No onPurchaseUpdated callback when using external URL
- * - User completes purchase on external website
- * - Must implement deep link to return to app
+ * iOS (External Purchase Link - 17.4+):
+ * - Enable the external purchase entitlement in app.config.ts
+ * - Check eligibility with isExternalPurchaseLinkAvailable()
+ * - openExternalPurchaseLink() shows Apple's disclosure, then opens the URL
+ * - No onPurchaseUpdated callback; the purchase completes on your website
+ * - Report the returned reportToken from your server
  *
  * Android (Billing Programs API - 8.2.0+):
  * - Step 1: Check availability with isBillingProgramAvailableAndroid()
@@ -152,6 +154,7 @@ function AlternativeBillingScreen() {
           'external-payments': 'External Payments',
           'user-choice-billing': 'User Choice Billing',
           'billing-choice': 'Billing Choice',
+          'alternative-billing-only': 'Alternative Billing Only',
         };
 
         setPurchaseResult(
@@ -170,13 +173,9 @@ function AlternativeBillingScreen() {
     [fetchProducts],
   );
 
-  // Handle iOS alternative billing purchase (external URL)
+  // Handle iOS external purchase link
   const handleIOSAlternativeBillingPurchase = useCallback(
     async (product: Product) => {
-      console.log('[iOS] Starting alternative billing purchase:', product.id);
-      console.log('[iOS] External URL:', externalUrl);
-      console.log('[iOS] Platform.Version:', Platform.Version);
-
       if (!externalUrl || externalUrl.trim() === '') {
         Alert.alert('Error', 'Please enter a valid external purchase URL');
         return;
@@ -186,24 +185,32 @@ function AlternativeBillingScreen() {
       setPurchaseResult('🌐 Opening external purchase link...');
 
       try {
-        // Use StoreKit External Purchase Link API
-        const result = await presentExternalPurchaseLinkIOS(externalUrl);
-        console.log('[iOS] External purchase link result:', result);
-
-        if (result.error) {
-          setPurchaseResult(`❌ Error: ${result.error}`);
-          Alert.alert('Error', result.error);
-        } else if (result.success) {
+        if (!(await isExternalPurchaseLinkAvailable())) {
           setPurchaseResult(
-            `✅ External purchase link opened successfully\n\nProduct: ${product.id}\nURL: ${externalUrl}\n\nUser was redirected to external website.\n\nNote: Complete purchase on your website and implement server-side validation.`,
+            '❌ External purchase links are not available for this app or storefront',
           );
-          Alert.alert(
-            'Redirected',
-            'User was redirected to your external purchase website. Complete the purchase there.',
+          return;
+        }
+
+        // Shows Apple's disclosure sheet first, then opens the URL.
+        const result = await openExternalPurchaseLink({url: externalUrl});
+        console.log('[iOS] External purchase link status:', result.status);
+
+        if (result.status === 'opened') {
+          setPurchaseResult(
+            `✅ External purchase link opened\n\nProduct: ${
+              product.id
+            }\nURL: ${externalUrl}\nReport token: ${
+              result.reportToken ? 'Present' : 'Missing'
+            }\n\nNote: Complete purchase on your website and report the token from your server.`,
           );
+        } else if (result.status === 'cancelled') {
+          setPurchaseResult('User cancelled the external purchase link');
+        } else {
+          setPurchaseResult('❌ External purchase link unavailable');
         }
       } catch (error: any) {
-        console.log('[iOS] Alternative billing error:', error);
+        console.log('[iOS] External purchase link error:', error);
         setPurchaseResult(`❌ Error: ${error.message}`);
         Alert.alert('Error', error.message);
       } finally {
@@ -356,7 +363,7 @@ function AlternativeBillingScreen() {
           {isVega
             ? 'Not supported on Amazon Vega'
             : Platform.OS === 'ios'
-              ? 'External purchase links (iOS 16.0+)'
+              ? 'External purchase links (iOS 17.4+)'
               : 'Google Play alternative billing'}
         </Text>
       </View>
@@ -382,14 +389,15 @@ function AlternativeBillingScreen() {
             <>
               <Text style={styles.infoText}>
                 • Enter your external purchase URL{'\n'}• Tap Purchase on any
-                product{'\n'}• User will be redirected to the external URL{'\n'}
-                • Complete purchase on your website{'\n'}• No onPurchaseUpdated
-                callback{'\n'}• Implement deep link to return to app
+                product{'\n'}• The App Store disclosure sheet appears, then the
+                URL opens{'\n'}• Complete purchase on your website{'\n'}• No
+                onPurchaseUpdated callback{'\n'}• Report the returned token from
+                your server
               </Text>
               <Text style={styles.warningText}>
-                ⚠️ iOS 16.0+ required{'\n'}
+                ⚠️ iOS 17.4+ required{'\n'}
                 ⚠️ Valid external URL needed{'\n'}
-                ⚠️ Billing program mode is enabled
+                ⚠️ External purchase entitlement must be enabled
               </Text>
             </>
           ) : (

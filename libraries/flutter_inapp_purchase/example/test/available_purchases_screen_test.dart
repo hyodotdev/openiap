@@ -109,7 +109,7 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('fails the restore when a confirmation fails', (tester) async {
+  testWidgets('keeps the receipt when verification is skipped', (tester) async {
     await tester.pumpWidget(
       MaterialApp(home: AvailablePurchasesScreen(purchases: purchases)),
     );
@@ -119,10 +119,10 @@ void main() {
     await tester.tap(find.text('Restore Purchases'));
     await tester.pumpAndSettle();
 
-    // Ignore is the default method, so the flow keeps the receipt unverified.
+    // Ignore is the default method: the receipt stays unfinished, not failed.
     expect(log.where((call) => call.method == 'finishTransaction'), isEmpty);
-    expect(find.textContaining('Restore failed: '), findsOneWidget);
-    expect(find.textContaining('Receipt retained'), findsOneWidget);
+    expect(find.textContaining('Restore failed: '), findsNothing);
+    expect(find.text('Purchases restored.'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
   });

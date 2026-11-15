@@ -33,7 +33,11 @@ import {
   showInAppMessagesAndroid,
 } from '../android';
 import {syncIOS} from '../ios';
-import {openRedeemOfferCode} from '../../index';
+import {
+  isExternalPurchaseLinkAvailable,
+  openExternalPurchaseLink,
+  openRedeemOfferCode,
+} from '../../index';
 /* eslint-enable import/first */
 
 describe('Android Module Functions', () => {
@@ -166,6 +170,37 @@ describe('Android Module Functions', () => {
       await expect(openRedeemOfferCode()).rejects.toThrow(
         'Unable to launch redeem page',
       );
+    });
+  });
+
+  describe('external purchase link (Android path)', () => {
+    it('delegates availability to the native module', async () => {
+      (
+        ExpoIapModule.isExternalPurchaseLinkAvailable as jest.Mock
+      ).mockResolvedValueOnce(false);
+      await expect(isExternalPurchaseLinkAvailable()).resolves.toBe(false);
+      expect(
+        ExpoIapModule.isExternalPurchaseLinkAvailable,
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it('resolves the Unavailable result that Amazon and Horizon return', async () => {
+      const result = {status: 'unavailable', platform: 'android'};
+      (
+        ExpoIapModule.openExternalPurchaseLink as jest.Mock
+      ).mockResolvedValueOnce(result);
+      await expect(
+        openExternalPurchaseLink({url: 'https://example.com/buy'}),
+      ).resolves.toBe(result);
+    });
+
+    it('rethrows native launch failures', async () => {
+      (
+        ExpoIapModule.openExternalPurchaseLink as jest.Mock
+      ).mockRejectedValueOnce(new Error('Activity not available'));
+      await expect(
+        openExternalPurchaseLink({url: 'https://example.com/buy'}),
+      ).rejects.toThrow('Activity not available');
     });
   });
 

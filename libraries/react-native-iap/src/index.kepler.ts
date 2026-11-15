@@ -339,6 +339,14 @@ export const showManageSubscriptionsIOS: MutationField<
 export const openRedeemOfferCode: MutationField<
   'openRedeemOfferCode'
 > = async () => null;
+// Amazon Vega has no external purchase link program.
+export const isExternalPurchaseLinkAvailable: QueryField<
+  'isExternalPurchaseLinkAvailable'
+> = async () => false;
+export const openExternalPurchaseLink: MutationField<
+  'openExternalPurchaseLink'
+> = async () => ({platform: 'android', status: 'unavailable'});
+/** @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0. */
 export const presentExternalPurchaseLinkIOS: MutationField<
   'presentExternalPurchaseLinkIOS'
 > = async () => unsupported('presentExternalPurchaseLinkIOS');

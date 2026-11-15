@@ -819,3 +819,16 @@ type AdvancedCommerceRefundIOS {
   """
   jsonRepresentation: String
 }
+
+"""
+Apple options for openExternalPurchaseLink.
+Available in Client Protocol 1.5.0 / openiap-apple 4.2.0.
+"""
+input ExternalPurchaseLinkIosProps {
+  """
+  ExternalPurchaseCustomLink token type on iOS 18.1+. Defaults to Acquisition;
+  use LinkOut in Japan and Brazil. Ignored on iOS 17.4 to 18.0, where the
+  notice sheet returns the token.
+  """
+  tokenType: ExternalPurchaseCustomLinkTokenTypeIOS
+}

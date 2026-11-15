@@ -375,6 +375,11 @@ kepler device is-app-running -d "$VEGA_DEVICE_ID" -a dev.hyo.openiap.rniap.examp
 kepler device start-log-stream -d "$VEGA_DEVICE_ID"
 ```
 
+Install through the example's `run:vega:firetv` script, as the framework rows
+below do. It pushes the App Tester catalog and the sandbox config with the
+package. A bare `kepler device install-app` leaves the app on the live store
+with no products (log: `IAP config file not present`).
+
 If Vega install hangs or fails, keep build and install results separate:
 
 ```bash

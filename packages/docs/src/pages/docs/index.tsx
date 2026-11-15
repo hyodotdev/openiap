@@ -53,6 +53,8 @@ import APIsGetActiveSubscriptions from './apis/get-active-subscriptions';
 import APIsHasActiveSubscriptions from './apis/has-active-subscriptions';
 import APIsDeepLinkToSubscriptions from './apis/deep-link-to-subscriptions';
 import APIsOpenRedeemOfferCode from './apis/open-redeem-offer-code';
+import APIsIsExternalPurchaseLinkAvailable from './apis/is-external-purchase-link-available';
+import APIsOpenExternalPurchaseLink from './apis/open-external-purchase-link';
 import APIsVerifyAppOwnership from './apis/verify-app-ownership';
 import APIsClearTransactionIOS from './apis/ios/clear-transaction-ios';
 import APIsGetPendingTransactionsIOS from './apis/ios/get-pending-transactions-ios';
@@ -369,6 +371,14 @@ function Docs() {
                 {
                   to: '/docs/apis/open-redeem-offer-code',
                   label: 'openRedeemOfferCode',
+                },
+                {
+                  to: '/docs/apis/is-external-purchase-link-available',
+                  label: 'isExternalPurchaseLinkAvailable',
+                },
+                {
+                  to: '/docs/apis/open-external-purchase-link',
+                  label: 'openExternalPurchaseLink',
                 },
                 {
                   label: 'iOS Specific',
@@ -987,6 +997,14 @@ function Docs() {
         <Route
           path="apis/open-redeem-offer-code"
           element={<APIsOpenRedeemOfferCode />}
+        />
+        <Route
+          path="apis/is-external-purchase-link-available"
+          element={<APIsIsExternalPurchaseLinkAvailable />}
+        />
+        <Route
+          path="apis/open-external-purchase-link"
+          element={<APIsOpenExternalPurchaseLink />}
         />
         <Route
           path="apis/validate-receipt"

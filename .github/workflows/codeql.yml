@@ -108,7 +108,7 @@ jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     permissions:
       contents: read
       security-events: write
@@ -312,6 +312,11 @@ jobs:
             ../../../packages/google/gradlew \
             --no-daemon --no-build-cache --rerun-tasks \
             :openiap:assembleRelease -PopeniapCompileStore=play
+
+      # flutter build leaves Gradle and Kotlin daemons running; free that memory
+      # before the analysis, which otherwise starves the runner.
+      - name: Stop build daemons
+        run: pkill -f 'GradleDaemon|KotlinCompileDaemon' || true
 
       - name: Analyze
         uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1

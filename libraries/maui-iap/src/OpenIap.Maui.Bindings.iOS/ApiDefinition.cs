@@ -237,6 +237,14 @@ interface OpenIapModule
     [Introduced(PlatformName.MacCatalyst, 18, 1)]
     void ShowExternalPurchaseCustomLinkNoticeIOS(string noticeType, Action<NSObject?, NSError?> completion);
 
+    [Export("isExternalPurchaseLinkAvailableWithCompletion:")]
+    [Async]
+    void IsExternalPurchaseLinkAvailable(Action<bool, NSError?> completion);
+
+    [Export("openExternalPurchaseLinkWithRequest:completion:")]
+    [Async]
+    void OpenExternalPurchaseLink(NSDictionary request, Action<NSObject?, NSError?> completion);
+
     // -- Listeners ---------------------------------------------------------
 
     [Export("addPurchaseUpdatedListener:")]

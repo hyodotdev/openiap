@@ -201,6 +201,30 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
     }
   }
 
+  // Shows Apple's disclosure first; opens the URL only if the user continues.
+  Future<void> _openExternalPurchaseLinkIOS() async {
+    final available = await _iap.isExternalPurchaseLinkAvailable();
+    if (!mounted) return;
+    if (!available) {
+      setState(() => _status = 'External purchase link unavailable');
+      return;
+    }
+    final result = await _iap.openExternalPurchaseLink(
+      const ExternalPurchaseLinkRequest(url: 'https://openiap.dev'),
+    );
+    if (!mounted) return;
+    setState(
+      () => _status = switch (result.status) {
+        ExternalPurchaseLinkStatus.Opened =>
+          'External purchase link opened successfully',
+        ExternalPurchaseLinkStatus.Cancelled =>
+          'User cancelled external purchase',
+        ExternalPurchaseLinkStatus.Unavailable =>
+          'External purchase link unavailable',
+      },
+    );
+  }
+
   Future<void> _alternativeBillingPurchase() async {
     setState(() {
       _isProcessing = true;
@@ -209,20 +233,7 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
 
     try {
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
-        // iOS: Use external purchase link
-        final result = await _iap.presentExternalPurchaseLinkIOS(
-          'https://openiap.dev',
-        );
-
-        if (result.error != null) {
-          setState(() => _status = 'Error: ${result.error}');
-        } else if (result.success) {
-          setState(
-            () => _status = 'External purchase link opened successfully',
-          );
-        } else {
-          setState(() => _status = 'User cancelled external purchase');
-        }
+        await _openExternalPurchaseLinkIOS();
       } else if (!kIsWeb) {
         // Android: use the current Billing Programs request shape.
         await _iap.requestPurchaseWithBuilder(
@@ -242,9 +253,9 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
         setState(() => _status = 'Alternative billing not supported on web');
       }
     } catch (e) {
-      setState(() => _status = 'Error: $e');
+      if (mounted) setState(() => _status = 'Error: $e');
     } finally {
-      setState(() => _isProcessing = false);
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
@@ -256,20 +267,7 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
 
     try {
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
-        // iOS: Use external purchase link
-        final result = await _iap.presentExternalPurchaseLinkIOS(
-          'https://openiap.dev',
-        );
-
-        if (result.error != null) {
-          setState(() => _status = 'Error: ${result.error}');
-        } else if (result.success) {
-          setState(
-            () => _status = 'External purchase link opened successfully',
-          );
-        } else {
-          setState(() => _status = 'User cancelled external purchase');
-        }
+        await _openExternalPurchaseLinkIOS();
       } else if (!kIsWeb) {
         // Android: use the current Billing Programs request shape.
         await _iap.requestPurchaseWithBuilder(
@@ -289,9 +287,9 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
         setState(() => _status = 'Alternative billing not supported on web');
       }
     } catch (e) {
-      setState(() => _status = 'Error: $e');
+      if (mounted) setState(() => _status = 'Error: $e');
     } finally {
-      setState(() => _isProcessing = false);
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 

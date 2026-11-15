@@ -30,6 +30,8 @@ import {
   showAlternativeBillingOnlyInformationDialogAndroid,
   showInAppMessagesAndroid,
   openRedeemOfferCode,
+  isExternalPurchaseLinkAvailable,
+  openExternalPurchaseLink,
   userChoiceBillingListenerAndroid,
   developerProvidedBillingListenerAndroid,
   subscriptionBillingIssueListener,
@@ -267,6 +269,19 @@ type UseIap = {
    * @see {@link https://openiap.dev/docs/apis/open-redeem-offer-code}
    */
   openRedeemOfferCode: MutationField<'openRedeemOfferCode'>;
+  /**
+   * Whether the store allows linking out with `openExternalPurchaseLink`.
+   *
+   * @see {@link https://openiap.dev/docs/apis/is-external-purchase-link-available}
+   */
+  isExternalPurchaseLinkAvailable: QueryField<'isExternalPurchaseLinkAvailable'>;
+  /**
+   * Show the store disclosure, open the external purchase link, and return the
+   * token to report from your server.
+   *
+   * @see {@link https://openiap.dev/docs/apis/open-external-purchase-link}
+   */
+  openExternalPurchaseLink: MutationField<'openExternalPurchaseLink'>;
   /** Fetch assets and loyalty text for a developer-rendered Billing Choice screen. */
   getBillingChoiceInfoAndroid?: QueryField<'getBillingChoiceInfoAndroid'>;
   /** Check Billing Program availability and the configured choice renderer. */
@@ -949,6 +964,8 @@ export function useIAP(options?: UseIapOptions): UseIap {
     hasActiveSubscriptions: hasActiveSubscriptionsInternal,
     reconnect,
     openRedeemOfferCode,
+    isExternalPurchaseLinkAvailable,
+    openExternalPurchaseLink,
     // Alternative billing (Android only)
     ...(Platform.OS === 'android'
       ? {

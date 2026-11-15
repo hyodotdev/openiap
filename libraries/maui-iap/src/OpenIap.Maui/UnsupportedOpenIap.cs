@@ -39,8 +39,11 @@ internal sealed class UnsupportedOpenIap : IOpenIap, QueryResolver, MutationReso
     public Task<bool> InitConnectionAsync(InitConnectionConfig? config = null) => Unsupported<bool>();
     public Task<BillingProgramAvailabilityResultAndroid> IsBillingProgramAvailableAndroidAsync(BillingProgramAndroid program) => Unsupported<BillingProgramAvailabilityResultAndroid>();
     public Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @params) => Unsupported<bool>();
+    public Task<ExternalPurchaseLinkResult> OpenExternalPurchaseLinkAsync(ExternalPurchaseLinkRequest request) => Unsupported<ExternalPurchaseLinkResult>();
     public Task<Purchase?> OpenRedeemOfferCodeAsync() => Unsupported<Purchase?>();
+    [Obsolete("Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")]
     public Task<ExternalPurchaseLinkResultIOS> PresentExternalPurchaseLinkIOSAsync(string url) => Unsupported<ExternalPurchaseLinkResultIOS>();
+    [Obsolete("Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.")]
     public Task<ExternalPurchaseNoticeResultIOS> PresentExternalPurchaseNoticeSheetIOSAsync() => Unsupported<ExternalPurchaseNoticeResultIOS>();
     public Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps @params) => Unsupported<RequestPurchaseResult?>();
     public Task<string> RestorePurchasesAsync() => Unsupported<string>();
@@ -54,6 +57,7 @@ internal sealed class UnsupportedOpenIap : IOpenIap, QueryResolver, MutationReso
     public Task<VerifyPurchaseWithProviderResult> VerifyPurchaseWithProviderAsync(VerifyPurchaseWithProviderProps options) => Unsupported<VerifyPurchaseWithProviderResult>();
 
     // QueryResolver
+    [Obsolete("Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")]
     public Task<bool> CanPresentExternalPurchaseNoticeIOSAsync() => Unsupported<bool>();
     public Task<PurchaseIOS?> CurrentEntitlementIOSAsync(string sku) => Unsupported<PurchaseIOS?>();
     public Task<FetchProductsResult> FetchProductsAsync(ProductRequest @params) => Unsupported<FetchProductsResult>();
@@ -69,8 +73,10 @@ internal sealed class UnsupportedOpenIap : IOpenIap, QueryResolver, MutationReso
     public Task<string> GetStorefrontAsync() => Unsupported<string>();
     public Task<string?> GetTransactionJwsIOSAsync(string sku) => Unsupported<string?>();
     public Task<bool> HasActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null) => Unsupported<bool>();
+    [Obsolete("Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.")]
     public Task<bool> IsEligibleForExternalPurchaseCustomLinkIOSAsync() => Unsupported<bool>();
     public Task<bool> IsEligibleForIntroOfferIOSAsync(string groupId) => Unsupported<bool>();
+    public Task<bool> IsExternalPurchaseLinkAvailableAsync() => Unsupported<bool>();
     public Task<bool> IsTransactionVerifiedIOSAsync(string sku) => Unsupported<bool>();
     public Task<PurchaseIOS?> LatestTransactionIOSAsync(string sku) => Unsupported<PurchaseIOS?>();
     public Task<IReadOnlyList<SubscriptionStatusIOS>> SubscriptionStatusIOSAsync(string sku) => Unsupported<IReadOnlyList<SubscriptionStatusIOS>>();

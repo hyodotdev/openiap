@@ -2365,6 +2365,56 @@ export const openRedeemOfferCode: MutationField<
 };
 
 /**
+ * Whether this device and storefront may link out with
+ * `openExternalPurchaseLink`. Resolves false instead of throwing when the
+ * store program is not enabled or the user is not eligible.
+ *
+ * @see {@link https://openiap.dev/docs/apis/is-external-purchase-link-available}
+ */
+export const isExternalPurchaseLinkAvailable: QueryField<
+  'isExternalPurchaseLinkAvailable'
+> = async () => {
+  if (isVegaOS()) return false;
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+    throw unsupportedPlatformError();
+  }
+  try {
+    return await IAP.instance.isExternalPurchaseLinkAvailable();
+  } catch (error) {
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[isExternalPurchaseLinkAvailable] Failed:',
+      error,
+    );
+    throw createPurchaseError(parsedError);
+  }
+};
+
+/**
+ * Show the store's required disclosure, open the external purchase link only
+ * after the user continues, and return the token to report from your server.
+ * `cancelled` and `unavailable` are results, not errors.
+ *
+ * @see {@link https://openiap.dev/docs/apis/open-external-purchase-link}
+ */
+export const openExternalPurchaseLink: MutationField<
+  'openExternalPurchaseLink'
+> = async (request) => {
+  if (isVegaOS()) return {platform: 'android', status: 'unavailable'};
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+    throw unsupportedPlatformError();
+  }
+  try {
+    return await IAP.instance.openExternalPurchaseLink(request);
+  } catch (error) {
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[openExternalPurchaseLink] Failed:',
+      error,
+    );
+    throw createPurchaseError(parsedError);
+  }
+};
+
+/**
  * Clear unfinished transactions on iOS
  * @returns Promise<boolean>
  * @platform iOS
@@ -2930,6 +2980,7 @@ export const launchExternalLinkAndroid: MutationField<
  * Check if the device can present an external purchase notice sheet (iOS 17.4+).
  * Wraps `ExternalPurchase.canPresent`.
  *
+ * @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
  * @returns Promise<boolean> - true if notice sheet can be presented
  * @platform iOS
  *
@@ -2965,6 +3016,7 @@ export const canPresentExternalPurchaseNoticeIOS: QueryField<
  * Present an external purchase notice sheet to inform users about external purchases (iOS 17.4+).
  * This must be called before opening an external purchase link.
  *
+ * @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
  * @returns Promise<ExternalPurchaseNoticeResultIOS> - Result with action and error if any
  * @platform iOS
  *
@@ -2999,6 +3051,7 @@ export const presentExternalPurchaseNoticeSheetIOS: MutationField<
 /**
  * Present an external purchase link to redirect users to your website (iOS 16.0+).
  *
+ * @deprecated Use openExternalPurchaseLink instead. Scheduled for removal in client protocol 2.0.0.
  * @param url - The external purchase URL to open
  * @returns Promise<ExternalPurchaseLinkResultIOS> - Result with success status and error if any
  * @platform iOS
@@ -3034,6 +3087,7 @@ export const presentExternalPurchaseLinkIOS: MutationField<
 /**
  * Check if app is eligible for ExternalPurchaseCustomLink API (iOS 18.1+).
  *
+ * @deprecated Use isExternalPurchaseLinkAvailable instead. Scheduled for removal in client protocol 2.0.0.
  * @returns Promise<boolean> - true if eligible
  * @platform iOS
  * @see https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible

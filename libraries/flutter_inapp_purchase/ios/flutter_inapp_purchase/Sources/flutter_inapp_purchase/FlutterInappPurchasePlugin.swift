@@ -197,6 +197,12 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         case "openRedeemOfferCode":
             openRedeemOfferCode(result: result)
 
+        case "isExternalPurchaseLinkAvailable":
+            isExternalPurchaseLinkAvailable(result: result)
+
+        case "openExternalPurchaseLink":
+            openExternalPurchaseLink(arguments: call.arguments, result: result)
+
         case "beginRefundRequestIOS":
             if let args = call.arguments as? [String: Any],
                let sku = args["sku"] as? String {
@@ -764,6 +770,47 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         }
     }
     
+    private func isExternalPurchaseLinkAvailable(result: @escaping FlutterResult) {
+        FlutterIapLog.debug("isExternalPurchaseLinkAvailable called")
+        Task { @MainActor in
+            do {
+                let available = try await OpenIapModule.shared.isExternalPurchaseLinkAvailable()
+                FlutterIapLog.result("isExternalPurchaseLinkAvailable", value: available)
+                result(available)
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("isExternalPurchaseLinkAvailable", error: purchaseError)
+                result(flutterError(from: purchaseError))
+            } catch {
+                FlutterIapLog.failure("isExternalPurchaseLinkAvailable", error: error)
+                let code: ErrorCode = .serviceError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+            }
+        }
+    }
+
+    private func openExternalPurchaseLink(arguments: Any?, result: @escaping FlutterResult) {
+        FlutterIapLog.debug("openExternalPurchaseLink called")
+        Task { @MainActor in
+            do {
+                let request = try OpenIapSerialization.decode(object: arguments ?? [:], as: ExternalPurchaseLinkRequest.self)
+                let res = try await OpenIapModule.shared.openExternalPurchaseLink(request)
+                let payload = FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.encode(res))
+                FlutterIapLog.result("openExternalPurchaseLink", value: payload)
+                result(payload)
+            } catch is DecodingError {
+                let code: ErrorCode = .developerError
+                result(FlutterError(code: code.rawValue, message: "Invalid external purchase link request", details: nil))
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("openExternalPurchaseLink", error: purchaseError)
+                result(flutterError(from: purchaseError))
+            } catch {
+                FlutterIapLog.failure("openExternalPurchaseLink", error: error)
+                let code: ErrorCode = .serviceError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+            }
+        }
+    }
+
     private func beginRefundRequestIOS(sku: String, result: @escaping FlutterResult) {
         FlutterIapLog.debug("beginRefundRequestIOS called for sku=\(sku)")
         Task { @MainActor in

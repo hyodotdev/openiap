@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
+import Callout from '../../../../components/Callout';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -20,6 +21,14 @@ function PresentExternalPurchaseNoticeSheetIOS() {
         <span className="platform-badge platform-badge--ios">iOS</span>{' '}
         presentExternalPurchaseNoticeSheetIOS
       </h1>
+      <Callout kind="warning" title="Deprecated">
+        Use{' '}
+        <Link to="/docs/apis/open-external-purchase-link">
+          openExternalPurchaseLink
+        </Link>{' '}
+        instead. It runs the required store disclosure and opens the link in one
+        call. This API keeps working until client protocol 2.0.0.
+      </Callout>
       <p>Present Apple's compliance notice sheet (iOS 17.4+, macOS 14.4+).</p>
       <p>
         Wraps <code>ExternalPurchase.presentNoticeSheet()</code> — returns a

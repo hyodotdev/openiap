@@ -211,6 +211,7 @@ copyDirectoryWithTransform(
 
 copyFile(path.join(vegaDependencyRoot, 'package.json'), 'package.json');
 copyFile(path.join(vegaDependencyRoot, 'bun.lock'), 'bun.lock');
+copyDirectory(path.join(vegaDependencyRoot, 'patches'), 'patches');
 
 writeFile(
   'app.json',

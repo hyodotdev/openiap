@@ -111,11 +111,17 @@ type Query {
     expect(OPENIAP_REMOVAL_NOTICE_PATTERN.test(deprecations.entries[0].reason)).toBe(true);
   });
 
-  it('contains no deprecations scheduled for the published 1.0.0 contract', () => {
+  it('contains only the deprecations scheduled for client protocol 2.0.0', () => {
     const deprecations = extractSchemaDeprecations(repositorySchemaSources());
 
     expect(deprecations.issues).toEqual([]);
-    expect(deprecations.entries).toEqual([]);
+    expect(deprecations.entries.map((entry) => entry.ownerPath)).toEqual([
+      'Query.canPresentExternalPurchaseNoticeIOS',
+      'Query.isEligibleForExternalPurchaseCustomLinkIOS',
+      'Mutation.presentExternalPurchaseNoticeSheetIOS',
+      'Mutation.presentExternalPurchaseLinkIOS',
+    ]);
+    expect(deprecations.entries.every((entry) => entry.reason.endsWith('client protocol 2.0.0.'))).toBe(true);
     expect(deprecations.typeReasons).toEqual(new Map());
     expect(deprecations.operationArguments).toEqual([]);
   });
