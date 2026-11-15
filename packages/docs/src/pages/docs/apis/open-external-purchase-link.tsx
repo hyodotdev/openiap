@@ -112,19 +112,21 @@ function OpenExternalPurchaseLink() {
         On Google Play the link always opens as a digital content offer (
         <code>link-to-digital-content-offer</code>). For another link type, such
         as an app download, skip this call and use the Play program calls
-        directly:
+        directly. Play lists app downloads under the external content links
+        program, and the download link must be approved in Play Console:
       </p>
-      <CodeBlock language="typescript">{`// Android only: a link type other than a digital content offer.
-// Check isBillingProgramAvailableAndroid('external-offer') first.
+      <CodeBlock language="typescript">{`// Android only: link to an app download.
+// Check isBillingProgramAvailableAndroid('external-content-link') first.
 const {externalTransactionToken} =
-  await createBillingProgramReportingDetailsAndroid('external-offer');
+  await createBillingProgramReportingDetailsAndroid('external-content-link');
+// Save or send the token now: the user may not come back to the app.
+await api.saveExternalTransactionToken(externalTransactionToken);
 await launchExternalLinkAndroid({
-  billingProgram: 'external-offer',
+  billingProgram: 'external-content-link',
   launchMode: 'launch-in-external-browser-or-app',
   linkType: 'link-to-app-download',
   linkUri: 'https://example.com/app',
-});
-// Send externalTransactionToken to your backend; Play needs the report within 24 hours.`}</CodeBlock>
+});`}</CodeBlock>
 
       <AnchorLink id="returns" level="h2">
         Returns
