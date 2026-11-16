@@ -6,7 +6,7 @@
     "role": "maintainer",
     "name": "Hyo Jang",
     "email": "hyo@hyo.dev",
-    "description": "I am Hyo Jang (@hyochan), the sole core maintainer working full-time on OpenIAP and its cross-platform in-app purchase libraries. OpenIAP carries forward the react-native-iap community, whose original repository dates to 2017. Active development is in the hyodotdev/openiap monorepo; the original react-native-iap repository is archived as project history. Public sponsorship channels include GitHub Sponsors and OpenCollective. This request supports ongoing maintenance and paid contributor work to share the workload, improve compatibility, and help the existing ecosystem grow sustainably. Hyo Jang is the applicant responsible for this funding plan.",
+    "description": "I am Hyo Jang (@hyochan), the sole core maintainer working full-time on OpenIAP and its cross-platform in-app purchase libraries. OpenIAP carries forward the react-native-iap community, whose original repository dates to 2017. Active development is in the hyodotdev/openiap monorepo; the original react-native-iap repository is archived as project history. Public sponsorship runs through GitHub Sponsors. This request supports ongoing maintenance and paid contributor work to share the workload, improve compatibility, and help the existing ecosystem grow sustainably. Hyo Jang is the applicant responsible for this funding plan.",
     "webpageUrl": {
       "url": "https://github.com/hyochan"
     }
@@ -22,10 +22,7 @@
       "repositoryUrl": {
         "url": "https://github.com/hyodotdev/openiap"
       },
-      "licenses": [
-        "spdx:MIT",
-        "spdx:Apache-2.0"
-      ],
+      "licenses": ["spdx:MIT", "spdx:Apache-2.0"],
       "tags": [
         "developer-tools",
         "mobile",
@@ -55,9 +52,7 @@
         "amount": 100000,
         "currency": "USD",
         "frequency": "yearly",
-        "channels": [
-          "grant-arrangements"
-        ]
+        "channels": ["grant-arrangements"]
       }
     ]
   }

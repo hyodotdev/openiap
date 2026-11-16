@@ -453,7 +453,7 @@ req/sec before peak clustering, already above the default per-key steady rate.
 High-volume apps must cache stable data, coalesce refreshes, honor 429/503
 backoff, and contact hyo@hyo.dev before launch. Organizations consuming a
 meaningful share of capacity are asked to fund shared servers, monitoring, and
-security through GitHub Sponsors or OpenCollective. Sponsorship does not
+security through GitHub Sponsors. Sponsorship does not
 automatically reserve capacity; self-host for dedicated operational control.
 
 ## Input size caps

@@ -3,7 +3,6 @@ import { REQUEST_USD, SUGGESTED_RATE, suggestedSponsorshipUsd } from "./logic";
 
 const SITE = "https://kit.openiap.dev";
 const SPONSOR_URL = "https://github.com/sponsors/hyodotdev";
-const OPENCOLLECTIVE_URL = "https://opencollective.com/openiap";
 const SELF_HOST_URL =
   "https://github.com/hyodotdev/openiap/tree/main/packages/kit#deployment-convex--flyio";
 
@@ -45,7 +44,7 @@ export function sponsorshipEmail(
       ? [
           `The subscription revenue IAPKit tracks for ${organizationName} reached about ${revenue} a month. Congratulations on the growth.`,
           "We are sorry to ask. Sponsorship should be a choice to support open source, but IAPKit is one hosted pool that every project shares, and apps at this size use a large part of it. So we ask them to help cover its cost, and we appreciate your understanding.",
-          `We suggest ${suggested} a month (${SUGGESTED_RATE * 100}% of monthly revenue) through GitHub Sponsors or OpenCollective. Please sponsor or reply by ${deadline} (UTC). If we do not hear from you by then, we may pause management features: the dashboard and analytics, product sync, MCP writes and new API keys.`,
+          `We suggest ${suggested} a month (${SUGGESTED_RATE * 100}% of monthly revenue) through GitHub Sponsors. Please sponsor or reply by ${deadline} (UTC). If we do not hear from you by then, we may pause management features: the dashboard and analytics, product sync, MCP writes and new API keys.`,
           "Purchase verification, store notifications and webhooks never stop, so your users always get what they paid for. You can also self-host the MIT-licensed server.",
         ]
       : [
@@ -54,7 +53,6 @@ export function sponsorshipEmail(
         ];
   const links = [
     ["Sponsor on GitHub", SPONSOR_URL],
-    ["OpenCollective", OPENCOLLECTIVE_URL],
     ["How sponsorship works", `${SITE}/pricing`],
     ["Self-host IAPKit", SELF_HOST_URL],
   ] as const;

@@ -719,37 +719,54 @@
   top: 100%;
   left: 50%;
   width: 1px;
-  height: 3rem;
+  height: 4.75rem;
   background: linear-gradient(var(--xp-accent), var(--border-color));
   content: '';
   opacity: 0.55;
+  /* Gap for the "kept open by" label at the line's middle. */
+  mask-image: linear-gradient(
+    #000 calc(50% - 0.65rem),
+    transparent calc(50% - 0.65rem) calc(50% + 0.65rem),
+    #000 calc(50% + 0.65rem)
+  );
 }
 
-.xp-sponsor-hub > svg {
-  fill: rgba(220, 104, 67, 0.12);
+.xp-sponsor-hub > img {
+  width: 2.5rem;
+  height: 2.5rem;
+  object-fit: contain;
 }
 
 .xp-sponsor-hub strong {
-  margin-top: 0.35rem;
+  margin-top: 0.4rem;
   color: var(--text-primary);
   font-size: 0.83rem;
+  line-height: 1;
 }
 
+/* Sits in the gap of the connector line below the hub. */
 .xp-sponsor-hub span {
-  margin-top: 0.1rem;
+  position: absolute;
+  top: calc(100% + 2.375rem);
+  left: 50%;
   color: var(--text-secondary);
   font-size: 0.55rem;
   letter-spacing: 0.06em;
+  line-height: 1;
   text-transform: uppercase;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
 }
 
+/* Sponsors share one row whatever their count; the invite wraps below. */
 .xp-sponsor-node-list {
   position: relative;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   column-gap: clamp(1.5rem, 5vw, 4rem);
   row-gap: 1.75rem;
-  margin: 3rem 0 0;
+  margin: 4.75rem 0 0;
   padding: 2rem 0 0;
   list-style: none;
 }
@@ -775,6 +792,7 @@
 .xp-sponsor-node {
   position: relative;
   display: flex;
+  flex: 1 1 0;
   min-width: 0;
   min-height: 5.4rem;
   flex-direction: column;
@@ -823,10 +841,8 @@
 }
 
 .xp-sponsor-open-node {
-  grid-column: 1 / -1;
-  width: 100%;
+  flex-basis: 100%;
   min-height: 0;
-  justify-self: stretch;
 }
 
 .xp-sponsor-open-node::before {
@@ -1012,7 +1028,17 @@
   text-decoration: none;
 }
 
-.xp-support-ledger > a:nth-child(even) {
+/* GitHub Sponsors spans the first row; the rest pair up below it. */
+.xp-support-ledger > .xp-support-primary {
+  grid-column: 1 / -1;
+  padding-block: 1.5rem;
+}
+
+.xp-support-ledger > .xp-support-primary strong {
+  font-size: 1.05rem;
+}
+
+.xp-support-ledger > a:nth-child(odd):not(:first-child) {
   padding-left: 2rem;
   border-left: 1px solid var(--border-color);
 }
@@ -1079,6 +1105,11 @@
   object-fit: contain;
 }
 
+/* Claude's starburst and tall serifs fill the box; match Codemagic's ascender height. */
+.xp-supporters .claude-wordmark img {
+  height: 1.76rem;
+}
+
 .xp-supporters > div:last-child > a {
   display: flex;
   flex-direction: column;
@@ -1096,13 +1127,23 @@
 }
 
 .xp-supporters > div.xp-in-kind-list {
+  align-items: flex-start;
   opacity: 1;
 }
 
+/* Equal columns so no supporter reads as the main one. */
 .xp-supporters > div.xp-in-kind-list > a {
+  flex: 1 1 0;
+  min-width: 0;
   align-items: flex-start;
   font-size: 0.82rem;
   line-height: 1.6;
+}
+
+.xp-supporters .xp-in-kind-list small {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: 0.75;
 }
 
 @media (max-width: 900px) {
@@ -1188,7 +1229,7 @@
 
   .xp-native-rail > a + a,
   .xp-reference-shelf > section + section,
-  .xp-support-ledger > a:nth-child(even) {
+  .xp-support-ledger > a:nth-child(odd):not(:first-child) {
     border-left: 0;
   }
 
@@ -1290,7 +1331,7 @@
     gap: 2rem;
   }
 
-  .xp-support-ledger > a:nth-child(even) {
+  .xp-support-ledger > a:nth-child(odd):not(:first-child) {
     padding-left: 0;
   }
 
@@ -1303,9 +1344,13 @@
   }
 
   .xp-sponsor-node-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: 1rem;
     row-gap: 1.5rem;
+  }
+
+  /* Two per row; an odd last sponsor centers on its own row. */
+  .xp-sponsor-node:not(.xp-sponsor-open-node) {
+    flex-basis: 40%;
   }
 
   .xp-sponsor-node .sponsor-wordmark {

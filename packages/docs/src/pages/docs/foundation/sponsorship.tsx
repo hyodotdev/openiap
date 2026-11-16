@@ -2,6 +2,7 @@ import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
 import DataTable from '../../../components/DataTable';
+import SponsorTier from '../../../components/SponsorTier';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 import {
   CURRENT_SPONSORS,
@@ -174,16 +175,8 @@ function Sponsorship() {
             rel="noopener noreferrer"
           >
             GitHub Sponsors
-          </a>{' '}
-          or{' '}
-          <a
-            href={FUNDING_LINKS.openCollectiveUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            OpenCollective
           </a>
-          , which offers the same monthly tiers with a public ledger. The{' '}
+          , which carries the monthly and one-time tiers. The{' '}
           <Link to="/sponsors">Sponsors page</Link> lists every channel.
         </p>
       </section>
@@ -252,7 +245,7 @@ function Sponsorship() {
                 }}
               >
                 <Wordmark className="foundation-sponsor-wordmark" />
-                <span>{sponsor.tier}</span>
+                <SponsorTier tier={sponsor.tier} />
               </a>
             );
           })}

@@ -71,12 +71,92 @@ body {
   display: block;
 }
 
+/* Tier badge (SponsorTier): `--tier-color` sets the metal; Angel is filled. */
+.sponsor-tier {
+  --tier-color: var(--accent-color);
+
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0.3em 0.75em;
+  border: 1px solid var(--tier-color);
+  border-radius: 999px;
+  color: var(--tier-color);
+  background: color-mix(in srgb, var(--tier-color) 10%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.sponsor-tier[data-tier='gold'] {
+  --tier-color: #a8790f;
+}
+
+.sponsor-tier[data-tier='silver'] {
+  --tier-color: #6f7a86;
+}
+
+.sponsor-tier[data-tier='bronze'] {
+  --tier-color: #9a5b2c;
+}
+
+:root.dark .sponsor-tier[data-tier='gold'] {
+  --tier-color: #d4ae5c;
+}
+
+:root.dark .sponsor-tier[data-tier='silver'] {
+  --tier-color: #b8c1cc;
+}
+
+:root.dark .sponsor-tier[data-tier='bronze'] {
+  --tier-color: #cd8a55;
+}
+
+.sponsor-tier[data-tier='angel'] {
+  border-color: transparent;
+  color: #fff;
+  background: linear-gradient(90deg, #e2603c, #d63f8c);
+  box-shadow: 0 0.35rem 1rem rgba(214, 63, 140, 0.28);
+}
+
+.sponsor-tier[data-tier='angel']::before {
+  content: '✦';
+}
+
+:root.dark .sponsor-tier[data-tier='angel'] {
+  background: linear-gradient(90deg, #f0704a, #e0559f);
+  box-shadow: 0 0.35rem 1.1rem rgba(240, 112, 74, 0.35);
+}
+
 .foundation-sponsor-wordmark {
   --sponsor-wordmark-height: 3rem;
 }
 
 .announcement-sponsor-wordmark {
   --sponsor-wordmark-height: 2.75rem;
+}
+
+/* Announcement title row; the title drops doc-heading padding so icons center on it. */
+.announcement-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.announcement-header > * {
+  flex-shrink: 0;
+}
+
+/* Only the title shrinks, so the icon stays beside it; `.doc-page` outranks doc h2 spacing. */
+.doc-page .announcement-header h2 {
+  flex-shrink: 1;
+  min-width: 0;
+  padding: 0;
+  border-top: none;
 }
 
 /* Wrapped onto its own line above the title, the tiny banner reads as noise. */

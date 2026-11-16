@@ -106,14 +106,6 @@ export default function OrganizationUsagePage() {
                   {"Sponsor on GitHub"}
                 </a>
                 <a
-                  href="https://opencollective.com/openiap"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-secondary"
-                >
-                  {"OpenCollective"}
-                </a>
-                <a
                   href="https://github.com/hyodotdev/openiap/tree/main/packages/kit#deployment-convex--flyio"
                   target="_blank"
                   rel="noopener noreferrer"

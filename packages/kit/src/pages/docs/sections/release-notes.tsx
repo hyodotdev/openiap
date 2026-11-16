@@ -23,6 +23,19 @@ const CHANGE_GROUPS = [
 
 const RELEASES: ReleaseEntry[] = [
   {
+    id: "week-2026-11-16",
+    weekStart: "2026-11-16",
+    date: "2026-11-16",
+    tagline: "Sponsorship now runs through GitHub Sponsors only.",
+    items: [
+      {
+        kind: "docs",
+        topic: "Sponsorship",
+        text: "The pricing page, usage page, operations guide, terms of service, and sponsorship request email now point only to GitHub Sponsors. OpenCollective no longer takes IAPKit sponsorship.",
+      },
+    ],
+  },
+  {
     id: "week-2026-11-09",
     weekStart: "2026-11-09",
     date: "2026-11-09",

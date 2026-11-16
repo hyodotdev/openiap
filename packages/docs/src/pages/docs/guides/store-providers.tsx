@@ -289,7 +289,7 @@ export default function StoreProviders() {
         <p>
           Link the provider’s Swift package, CocoaPod, or framework in your app
           and set this Info.plist key to its Objective-C factory class name.
-          This applies to native apps and all six framework SDKs; their purchase
+          This applies to native apps and every framework SDK; their purchase
           APIs stay the same.
         </p>
         <p>

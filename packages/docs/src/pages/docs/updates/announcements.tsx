@@ -4,15 +4,55 @@ import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 import Pagination from '../../../components/Pagination';
 import { IAPKIT_URL, trackIapKitClick } from '../../../lib/config';
-import { AMAZON_SUPPORTER, META_SUPPORTER } from '../../../lib/sponsors';
+import { LIBRARIES, type FrameworkLibraryName } from '../../../lib/images';
+import {
+  AMAZON_SUPPORTER,
+  CODEMAGIC_SUPPORTER,
+  META_SUPPORTER,
+  type Supporter,
+} from '../../../lib/sponsors';
 import {
   GITHUB_DEPENDENTS_DESCRIPTION,
   GITHUB_DEPENDENTS_LABEL,
   GITHUB_DEPENDENTS_URL,
 } from '../../../lib/showcase';
 
-const { Wordmark: AmazonSponsorWordmark } = AMAZON_SUPPORTER;
 const { Wordmark: MetaSponsorWordmark } = META_SUPPORTER;
+
+/** A sponsor's wordmark, centered and linked to the sponsor's site. */
+function SponsorWordmarkLink({ supporter }: { supporter: Supporter }) {
+  const { Wordmark } = supporter;
+  return (
+    <a
+      href={supporter.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`Visit ${supporter.name}`}
+      className="no-icon"
+      style={{
+        display: 'flex',
+        width: 'fit-content',
+        margin: '0.5rem auto 2rem',
+        borderBottom: 'none',
+      }}
+    >
+      <Wordmark className="announcement-sponsor-wordmark" />
+    </a>
+  );
+}
+
+const NATIVE_PACKAGE_URL =
+  'https://github.com/hyodotdev/openiap/tree/main/packages';
+
+/** A framework library's name, linked to its source in the monorepo. */
+function LibraryLink({ name }: { name: FrameworkLibraryName }) {
+  const library = LIBRARIES.find((entry) => entry.name === name);
+  return (
+    <a href={library?.url} target="_blank" rel="noopener noreferrer">
+      <code>{name}</code>
+    </a>
+  );
+}
 
 const cardStyle = {
   background: 'var(--bg-secondary)',
@@ -25,14 +65,6 @@ const cardStyle = {
   overflowWrap: 'break-word' as const,
 };
 
-const headerStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '1rem',
-  marginBottom: '1rem',
-  flexWrap: 'wrap' as const,
-};
-
 const dateStyle = {
   fontSize: '0.9rem',
   color: 'var(--text-secondary)',
@@ -42,7 +74,9 @@ const dateStyle = {
 const linkIconStyle = {
   color: 'var(--text-secondary)',
   textDecoration: 'none',
+  borderBottom: 'none',
   fontSize: '1.2rem',
+  lineHeight: 1,
 };
 
 interface Announcement {
@@ -57,11 +91,112 @@ function Announcements() {
 
   const announcements: Announcement[] = [
     {
+      id: '2026-11-16-codemagic',
+      date: new Date('2026-11-16'),
+      element: (
+        <div key="2026-11-16-codemagic" style={cardStyle}>
+          <div className="announcement-header">
+            <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
+              We are now backed by Codemagic!
+            </h2>
+            <a
+              href="#2026-11-16-codemagic"
+              style={linkIconStyle}
+              title="Link to this announcement"
+            >
+              🔗
+            </a>
+          </div>
+          <p style={dateStyle}>November 16, 2026</p>
+          <SponsorWordmarkLink supporter={CODEMAGIC_SUPPORTER} />
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            We&apos;re thrilled to welcome{' '}
+            <a
+              href={CODEMAGIC_SUPPORTER.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              Codemagic
+            </a>{' '}
+            as a Gold sponsor of OpenIAP, joining Meta and Amazon Developer.
+            Codemagic also supports OpenIAP&apos;s infrastructure, listed under{' '}
+            <Link to="/sponsors">in-kind support</Link>.
+          </p>
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            Codemagic is CI/CD built for mobile teams: one tool that builds,
+            tests, and distributes Flutter, React Native, native iOS and
+            Android, and .NET MAUI apps. OpenIAP ships an SDK for each of those
+            stacks, from <LibraryLink name="react-native-iap" /> and{' '}
+            <LibraryLink name="expo-iap" /> to{' '}
+            <LibraryLink name="flutter_inapp_purchase" />,{' '}
+            <LibraryLink name="maui-iap" />, and the native{' '}
+            <a
+              href={`${NATIVE_PACKAGE_URL}/apple`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Apple
+            </a>{' '}
+            and{' '}
+            <a
+              href={`${NATIVE_PACKAGE_URL}/google`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Google
+            </a>{' '}
+            modules.
+          </p>
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            In-app purchases only work when every store change survives real
+            builds, signing, and releases. Codemagic&apos;s support funds the
+            work that keeps OpenIAP dependable: real-device testing, fast
+            responses to store changes, and one reviewed contract across the
+            native modules and every framework SDK.
+          </p>
+          <h3 style={{ marginTop: '1.25rem', marginBottom: '0.5rem' }}>
+            Shared infrastructure for in-app purchases
+          </h3>
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            OpenIAP is more than client SDKs.{' '}
+            <a
+              href={IAPKIT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+              onClick={trackIapKitClick}
+            >
+              IAPKit
+            </a>
+            , the open-source purchase verification and entitlement service the
+            project runs, checks Apple, Google, Amazon, and Meta Horizon
+            purchases through one endpoint and returns one response shape, so
+            your backend keeps a single path for entitlements and refunds.
+          </p>
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            The hosted service is free on shared, community-funded capacity.
+            Codemagic&apos;s infrastructure support helps keep that shared layer
+            running for every app that depends on it.
+          </p>
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            Thank you, Codemagic, for investing in open-source in-app purchase
+            infrastructure.
+          </p>
+          <Callout kind="note">
+            OpenIAP will continue to operate independently with the same
+            commitment to developer experience and cross-platform compatibility.
+            Our core libraries remain MIT licensed and free to use.
+          </Callout>
+        </div>
+      ),
+    },
+    {
       id: 'showcase-ai-submissions-2026-10-09',
       date: new Date('2026-10-09'),
       element: (
         <div key="showcase-ai-submissions-2026-10-09" style={cardStyle}>
-          <div style={headerStyle}>
+          <div className="announcement-header">
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
               Built with OpenIAP: explore the apps, share yours
             </h2>
@@ -154,7 +289,7 @@ function Announcements() {
       date: new Date('2026-07-29'),
       element: (
         <div key="2026-07-29-openiap-3" style={cardStyle}>
-          <div style={headerStyle}>
+          <div className="announcement-header">
             <div
               aria-hidden="true"
               style={{ fontSize: '2.25rem', lineHeight: 1 }}
@@ -277,7 +412,7 @@ function Announcements() {
           key="2026-07-24-major-version-deprecation-schedule"
           style={cardStyle}
         >
-          <div style={headerStyle}>
+          <div className="announcement-header">
             <div
               aria-hidden="true"
               style={{ fontSize: '2.25rem', lineHeight: 1 }}
@@ -347,7 +482,7 @@ function Announcements() {
       element: (
         <div key="2026-08-19-amazon-fireos-vega" style={cardStyle}>
           <span id="2026-06-09-amazon-fireos-vega" aria-hidden="true" />
-          <div style={headerStyle}>
+          <div className="announcement-header">
             <img
               src="/announcements/amazon-fireos-vega.webp"
               alt="Amazon Fire OS and Vega OS support"
@@ -366,20 +501,7 @@ function Announcements() {
             </a>
           </div>
           <p style={dateStyle}>August 19, 2026</p>
-          <a
-            href={AMAZON_SUPPORTER.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`Visit ${AMAZON_SUPPORTER.name}`}
-            style={{
-              display: 'flex',
-              width: 'fit-content',
-              margin: '0 auto 1.5rem',
-              textDecoration: 'none',
-            }}
-          >
-            <AmazonSponsorWordmark className="announcement-sponsor-wordmark" />
-          </a>
+          <SponsorWordmarkLink supporter={AMAZON_SUPPORTER} />
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
             Today marks a meaningful milestone for our team: We're thrilled to
             share that OpenIAP is now backed by Amazon Developer through
@@ -520,7 +642,7 @@ function Announcements() {
       date: new Date('2026-05-07'),
       element: (
         <div key="2026-05-07" style={cardStyle}>
-          <div style={headerStyle}>
+          <div className="announcement-header">
             <img
               src="/logo.webp"
               alt="maui-iap"
@@ -613,7 +735,7 @@ function Announcements() {
       date: new Date('2026-04-06'),
       element: (
         <div key="2026-04-06" style={cardStyle}>
-          <div style={headerStyle}>
+          <div className="announcement-header">
             <span style={{ fontSize: '2rem' }}>📦</span>
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
               All Framework Libraries Are Now in the OpenIAP Monorepo
@@ -826,7 +948,7 @@ function Announcements() {
       date: new Date('2025-12-31'),
       element: (
         <div key="2025-12-31" style={cardStyle}>
-          <div style={headerStyle}>
+          <div className="announcement-header">
             <img
               src="https://github.com/user-attachments/assets/cc7f363a-43a9-470c-bde7-2f63985a9f46"
               alt="godot-iap"
@@ -930,7 +1052,7 @@ function Announcements() {
       date: new Date('2025-12-09'),
       element: (
         <div key="2025-12-09" style={cardStyle}>
-          <div style={headerStyle}>
+          <div className="announcement-header">
             <img
               src="/iapkit.webp"
               alt="IAPKit"
@@ -1035,7 +1157,7 @@ function Announcements() {
       date: new Date('2025-10-01'),
       element: (
         <div key="2025-10-01" style={cardStyle}>
-          <div style={headerStyle}>
+          <div className="announcement-header">
             <MetaSponsorWordmark className="announcement-sponsor-wordmark" />
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
               Meta Horizon OS Support is Here!
@@ -1127,7 +1249,7 @@ function Announcements() {
       date: new Date('2025-09-15'),
       element: (
         <div key="2025-09-15" style={cardStyle}>
-          <div style={headerStyle}>
+          <div className="announcement-header">
             <span style={{ fontSize: '2rem' }}>📰</span>
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
               openiap-gql v1.0.0 is live
@@ -1206,7 +1328,7 @@ function Announcements() {
       date: new Date('2025-09-01'),
       element: (
         <div key="2025-09-01" style={cardStyle}>
-          <div style={headerStyle}>
+          <div className="announcement-header">
             <span style={{ fontSize: '2rem' }}>🚀</span>
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
               OpenIAP Official Modules are live
@@ -1279,7 +1401,7 @@ function Announcements() {
       date: new Date('2025-08-15'),
       element: (
         <div key="2025-08-15" style={cardStyle}>
-          <div style={headerStyle}>
+          <div className="announcement-header">
             <MetaSponsorWordmark className="announcement-sponsor-wordmark" />
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
               We are now backed by{' '}

@@ -10,7 +10,7 @@ function Ecosystem() {
     <div className="doc-page">
       <SEO
         title="Ecosystem"
-        description="OpenIAP ecosystem overview. Native modules power six framework SDKs, while the Commerce Protocol defines a portable server-side lifecycle and webhook contract."
+        description="OpenIAP ecosystem overview. Native modules power every framework SDK, while the Commerce Protocol defines a portable server-side lifecycle and webhook contract."
         path="/docs/ecosystem"
         keywords="OpenIAP ecosystem, OpenIAP Commerce Protocol, openiap-apple, openiap-google, IAP architecture, cross-platform IAP"
       />

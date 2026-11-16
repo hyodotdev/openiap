@@ -27,6 +27,18 @@
         "darkSrc": "/sponsors/amazon-dark.webp",
         "height": 44
       }
+    },
+    {
+      "id": "codemagic",
+      "name": "Codemagic",
+      "shortName": "Codemagic",
+      "tier": "Gold",
+      "url": "https://codemagic.io/",
+      "logo": {
+        "src": "/sponsors/codemagic.svg",
+        "darkSrc": "/sponsors/codemagic-dark.svg",
+        "height": 40
+      }
     }
   ],
   "inKindSupporters": [
@@ -43,6 +55,18 @@
         "darkSrc": "/sponsors/claude-dark.svg",
         "height": 32
       }
+    },
+    {
+      "id": "codemagic-infrastructure",
+      "name": "Codemagic",
+      "url": "https://codemagic.io/",
+      "program": "Codemagic",
+      "contribution": "infrastructure support for OpenIAP",
+      "logo": {
+        "src": "/sponsors/codemagic.svg",
+        "darkSrc": "/sponsors/codemagic-dark.svg",
+        "height": 32
+      }
     }
   ],
   "pastSupporters": [
@@ -50,6 +74,7 @@
       "id": "nami",
       "name": "Nami",
       "url": "https://namiml.com",
+      "tier": "Bronze",
       "supported": "30 months",
       "logo": {
         "src": "/sponsors/nami.webp",
@@ -60,6 +85,7 @@
       "id": "courier",
       "name": "Courier",
       "url": "https://www.courier.com/?utm_source=react-native-iap&utm_campaign=osssponsors",
+      "tier": "Bronze",
       "supported": "1 month",
       "logo": {
         "src": "/sponsors/courier.webp",

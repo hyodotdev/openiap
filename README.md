@@ -104,9 +104,16 @@ For bug reports, please [open an issue](https://github.com/hyodotdev/openiap/iss
       <img src="packages/docs/public/sponsors/amazon.webp" alt="Amazon Developer" height="44" align="middle">
     </picture>
   </a>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://codemagic.io/">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="packages/docs/public/sponsors/codemagic-dark.svg">
+      <img src="packages/docs/public/sponsors/codemagic.svg" alt="Codemagic" height="40" align="middle">
+    </picture>
+  </a>
 </p>
 
-Thank you to [Meta](https://meta.com) and [Amazon Developer](https://developer.amazon.com/) for supporting OpenIAP. [View sponsorship options](https://openiap.dev/sponsors).
+Thank you to [Meta](https://meta.com), [Amazon Developer](https://developer.amazon.com/), and [Codemagic](https://codemagic.io/) for supporting OpenIAP. [View sponsorship options](https://openiap.dev/sponsors).
 
 ### In-kind support
 
@@ -117,9 +124,18 @@ Thank you to [Meta](https://meta.com) and [Amazon Developer](https://developer.a
       <img src="packages/docs/public/sponsors/claude.svg" alt="Claude" height="32" align="middle">
     </picture>
   </a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://codemagic.io/">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="packages/docs/public/sponsors/codemagic-dark.svg">
+      <img src="packages/docs/public/sponsors/codemagic.svg" alt="Codemagic" height="32" align="middle">
+    </picture>
+  </a>
 </p>
 
 [Claude for Open Source](https://claude.com/contact-sales/claude-for-oss) provides the Claude Ultra plan for the maintainer from July 20, 2026 to January 19, 2027.
+
+[Codemagic](https://codemagic.io/) provides infrastructure support for OpenIAP.
 
 ### OpenCollective
 

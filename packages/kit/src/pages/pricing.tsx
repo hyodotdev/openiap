@@ -158,14 +158,6 @@ export default function PricingPage() {
           >
             {"GitHub Sponsors"}
           </a>
-          <a
-            href="https://opencollective.com/openiap"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-secondary"
-          >
-            {"OpenCollective"}
-          </a>
         </div>
       </Section>
 

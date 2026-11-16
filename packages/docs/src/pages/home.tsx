@@ -22,8 +22,9 @@ import {
   GITHUB_DEPENDENTS_URL,
   GITHUB_DEPENDENTS_DESCRIPTION,
 } from '../lib/showcase';
-import { CURRENT_SPONSORS } from '../lib/sponsors';
+import { CURRENT_SPONSORS, CURRENT_SPONSOR_NAMES } from '../lib/sponsors';
 import SEO from '../components/SEO';
+import SponsorTier from '../components/SponsorTier';
 import { useShowcaseApps } from '../hooks/useShowcaseApps';
 
 interface IapKitFeature {
@@ -669,7 +670,10 @@ function Home() {
                       aria-label={`Visit ${sponsor.name}`}
                     >
                       <Wordmark />
-                      <span className="home-sponsor-tier">{sponsor.tier}</span>
+                      <SponsorTier
+                        tier={sponsor.tier}
+                        className="home-sponsor-tier"
+                      />
                     </a>
                   );
                 })}
@@ -679,7 +683,7 @@ function Home() {
             <div
               className="home-sponsor-flow"
               role="img"
-              aria-label={`${CURRENT_SPONSORS.map((sponsor) => sponsor.name).join(' and ')} sponsor OpenIAP, helping maintain ${LIBRARIES.length} framework SDKs`}
+              aria-label={`${CURRENT_SPONSOR_NAMES} sponsor OpenIAP, helping maintain ${LIBRARIES.length} framework SDKs`}
             >
               <span>
                 {CURRENT_SPONSORS.map((sponsor) => sponsor.shortName).join(

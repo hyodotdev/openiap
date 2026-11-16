@@ -72,6 +72,7 @@ const registry = {
       id: "past",
       name: "Past",
       url: "https://past.example",
+      tier: "Bronze",
       supported: "1 year",
       logo: { src: "/past.webp", height: 32 },
     },
@@ -127,6 +128,42 @@ test("renders current, collective, and past supporters from one registry", () =>
   assert.match(block, /\[openiap-company-contact\]/);
   assert.ok(block.startsWith(sponsorBlockStart));
   assert.ok(block.endsWith(sponsorBlockEnd));
+});
+
+test("renders open-ended in-kind support without dates", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "openiap-open-ended-"));
+  try {
+    writeSponsorAssets(root);
+    const openEnded = structuredClone(registry);
+    delete openEnded.inKindSupporters[0].since;
+    delete openEnded.inKindSupporters[0].until;
+
+    validateRegistry(root, openEnded);
+    assert.match(
+      renderSponsorBlock(openEnded),
+      /\[Tool for Open Source\]\(https:\/\/tool\.example\) provides a free plan for the maintainer\./u,
+    );
+
+    // Each supporter is its own paragraph, or Markdown and Prettier join them.
+    const twoSupporters = structuredClone(registry);
+    twoSupporters.inKindSupporters.push({
+      ...openEnded.inKindSupporters[0],
+      id: "tool-two",
+    });
+    assert.match(
+      renderSponsorBlock(twoSupporters),
+      /January 19, 2027\.\n\n\[Tool for Open Source\]/u,
+    );
+
+    const startOnly = structuredClone(registry);
+    delete startOnly.inKindSupporters[0].until;
+    assert.throws(
+      () => validateRegistry(root, startOnly),
+      /inKindSupporters\.tool\.until must be a YYYY-MM-DD date/u,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("keeps the blank lines Prettier adds around the block comments", () => {
@@ -303,6 +340,13 @@ test("rejects duplicate supporter ids and missing logo assets", () => {
     assert.throws(
       () => validateRegistry(root, missingPeriod),
       /pastSupporters\.past\.supported must be a non-empty string/u,
+    );
+
+    const missingTier = structuredClone(registry);
+    delete missingTier.pastSupporters[0].tier;
+    assert.throws(
+      () => validateRegistry(root, missingTier),
+      /pastSupporters\.past\.tier must be a non-empty string/u,
     );
 
     const missingAsset = structuredClone(registry);
@@ -614,7 +658,7 @@ test("renders GitHub funding configuration from the registry", () => {
   const funding = renderFundingConfig(registry);
 
   assert.match(funding, /github: hyodotdev/);
-  assert.match(funding, /open_collective: openiap/);
+  assert.doesNotMatch(funding, /open_collective/);
   assert.match(funding, /https:\/\/paypal\.example/);
 });
 

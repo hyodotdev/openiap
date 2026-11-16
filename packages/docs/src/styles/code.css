@@ -155,8 +155,8 @@ pre.code-block {
   border-color: rgba(152, 195, 121, 0.3);
 }
 
-/* Inline code */
-code:not([class*='language-']) {
+/* Inline code; `:where(:not(pre))` keeps the tint out of code blocks without raising specificity. */
+:where(:not(pre)) > code:not([class*='language-']) {
   font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
   font-size: 0.85em;
   padding: 0.15em 0.35em;
@@ -165,7 +165,7 @@ code:not([class*='language-']) {
   color: #8b6545;
 }
 
-:root.dark code:not([class*='language-']) {
+:root.dark :where(:not(pre)) > code:not([class*='language-']) {
   background: rgba(197, 177, 159, 0.15);
   color: #c5b19f;
 }
@@ -208,12 +208,22 @@ pre code {
   overflow-y: visible;
 }
 
+/* Rows run edge to edge; wrapped lines hang under the text, past the 2ch marker. */
+pre.client-protocol-diff {
+  padding-inline: 0 !important;
+}
+
 .client-protocol-diff code {
+  display: block;
+  padding: 0;
+  background: none;
   white-space: normal;
 }
 
 .client-protocol-diff span {
   display: block;
+  padding-inline: calc(var(--spacing-lg) + 2ch) var(--spacing-lg);
+  text-indent: -2ch;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

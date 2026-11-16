@@ -1590,12 +1590,7 @@ a.spec-item:hover code {
 }
 
 .home-sponsor-tier {
-  color: var(--accent-color);
-  font-family: var(--font-mono);
-  font-size: 0.58rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  margin-top: 0.4rem;
 }
 
 .home-sponsor-flow {

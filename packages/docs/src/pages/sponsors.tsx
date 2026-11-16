@@ -7,6 +7,8 @@ import {
   Smartphone,
 } from 'lucide-react';
 import SEO from '../components/SEO';
+import SponsorTier from '../components/SponsorTier';
+import { LOGO_PATH } from '../lib/config';
 import { LIBRARIES, LIBRARY_IMAGES } from '../lib/images';
 import {
   CURRENT_SPONSORS,
@@ -37,7 +39,7 @@ const FUNDING_LINES = [
     icon: Gauge,
     title: 'SDK parity',
     description:
-      'One reviewed contract across native modules and six frameworks.',
+      'One reviewed contract across native modules and every framework.',
   },
 ] as const;
 
@@ -66,21 +68,15 @@ function Sponsors() {
               </p>
               <div className="xp-hero-actions">
                 <a
-                  href={FUNDING_LINKS.openCollectiveUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Support the project
-                  <ArrowUpRight size={15} aria-hidden="true" />
-                </a>
-                <a
                   href={FUNDING_LINKS.githubUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
                   <Heart size={15} aria-hidden="true" />
-                  Sponsor the maintainer
+                  Sponsor on GitHub
+                  <ArrowUpRight size={15} aria-hidden="true" />
                 </a>
+                <a href={FUNDING_LINKS.companyContactUrl}>Contact us</a>
               </div>
             </div>
 
@@ -97,7 +93,7 @@ function Sponsors() {
             aria-label="Current OpenIAP sponsors"
           >
             <div className="xp-sponsor-hub">
-              <Heart size={19} strokeWidth={1.6} aria-hidden="true" />
+              <img src={LOGO_PATH} alt="" aria-hidden="true" />
               <strong>OpenIAP</strong>
               <span>kept open by</span>
             </div>
@@ -108,7 +104,7 @@ function Sponsors() {
 
                 return (
                   <li key={sponsor.id} className="xp-sponsor-node">
-                    <small>{sponsor.tier}</small>
+                    <SponsorTier tier={sponsor.tier} />
                     <a
                       href={sponsor.url}
                       target="_blank"
@@ -254,30 +250,23 @@ function Sponsors() {
               <h2 id="support-channel">Fund the work</h2>
             </div>
             <p>
-              Project funding stays transparent and separate from maintainer
-              support.
+              GitHub Sponsors is the main channel; PayPal and direct contact
+              cover the rest.
             </p>
           </div>
 
           <div className="xp-support-ledger">
             <a
-              href={FUNDING_LINKS.openCollectiveUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <span>Project fund</span>
-              <strong>OpenCollective</strong>
-              <small>Infrastructure and corporate sponsorship</small>
-              <ArrowUpRight size={16} aria-hidden="true" />
-            </a>
-            <a
+              className="xp-support-primary"
               href={FUNDING_LINKS.githubUrl}
               target="_blank"
               rel="noopener noreferrer"
             >
-              <span>Maintainer</span>
+              <span>Sponsor</span>
               <strong>GitHub Sponsors</strong>
-              <small>Direct support for ongoing maintenance</small>
+              <small>
+                Monthly and one-time tiers for individuals and companies
+              </small>
               <ArrowUpRight size={16} aria-hidden="true" />
             </a>
             <a
@@ -304,7 +293,7 @@ function Sponsors() {
             <div>
               <p>Tools for the work</p>
               <h2 id="in-kind-support">In-kind support</h2>
-              <p>Services donated to the maintainer, not cash sponsorship.</p>
+              <p>Services donated to the project, not cash sponsorship.</p>
             </div>
             <div className="xp-in-kind-list">
               {IN_KIND_SUPPORTERS.map(({ Wordmark, ...supporter }) => (
@@ -317,7 +306,10 @@ function Sponsors() {
                   <Wordmark />
                   <span>
                     <strong>{supporter.program}</strong>:{' '}
-                    {supporter.contribution}, {supporter.period}
+                    {supporter.contribution}
+                    {supporter.period ? (
+                      <small> · {supporter.period}</small>
+                    ) : null}
                   </span>
                 </a>
               ))}
@@ -344,7 +336,9 @@ function Sponsors() {
                   alt={supporter.name}
                   style={{ height: supporter.logo.height }}
                 />
-                <small>Supported for {supporter.supported}</small>
+                <small>
+                  {supporter.tier} sponsor for {supporter.supported}
+                </small>
               </a>
             ))}
           </div>

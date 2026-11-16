@@ -7,7 +7,6 @@ homepage: https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp
 repository: https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase
 funding:
   - https://github.com/sponsors/hyodotdev
-  - https://opencollective.com/openiap
   - https://www.paypal.me/dooboolab
 environment:
   sdk: ">=3.0.0 <4.0.0"

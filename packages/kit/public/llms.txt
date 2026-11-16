@@ -12,7 +12,7 @@ and React SPA deployed behind one origin.
 The official hosted service is free under fair-use safeguards on shared,
 community-funded capacity. It is best-effort, not unlimited or SLA-backed.
 High-volume apps should contact hyo@hyo.dev before launch, help fund shared
-capacity through GitHub Sponsors or OpenCollective, or self-host the
+capacity through GitHub Sponsors, or self-host the
 MIT-licensed server for dedicated capacity.
 
 ## API quick reference

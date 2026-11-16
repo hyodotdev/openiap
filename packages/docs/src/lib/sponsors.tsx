@@ -30,13 +30,15 @@ export interface Supporter extends RegistrySupporter {
 export interface InKindSupporter extends Supporter {
   program: string;
   contribution: string;
-  since: string;
-  until: string;
-  /** Readable support window, e.g. "July 20, 2026 to January 19, 2027". */
-  period: string;
+  /** Both dates are absent for open-ended support. */
+  since?: string;
+  until?: string;
+  /** Compact support window, e.g. "Jul 2026 – Jan 2027". */
+  period?: string;
 }
 
 export interface PastSupporter extends RegistrySupporter {
+  tier: string;
   supported: string;
 }
 
@@ -84,9 +86,22 @@ function toSponsor(entry: RegistrySponsor): Sponsor {
 export const CURRENT_SPONSORS: readonly Sponsor[] =
   sponsorRegistry.currentSponsors.map(toSponsor);
 
-function formatSupportDate(value: string): string {
+function formatNameList(names: readonly string[]): string {
+  if (names.length < 3) {
+    return names.join(' and ');
+  }
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+}
+
+/** Sponsor names as a sentence list, e.g. "Meta, Amazon Developer, and Codemagic". */
+export const CURRENT_SPONSOR_NAMES = formatNameList(
+  CURRENT_SPONSORS.map((sponsor) => sponsor.name)
+);
+
+function formatSupportMonth(value: string): string {
   return new Intl.DateTimeFormat('en-US', {
-    dateStyle: 'long',
+    month: 'short',
+    year: 'numeric',
     timeZone: 'UTC',
   }).format(new Date(`${value}T00:00:00Z`));
 }
@@ -94,7 +109,10 @@ function formatSupportDate(value: string): string {
 export const IN_KIND_SUPPORTERS: readonly InKindSupporter[] =
   sponsorRegistry.inKindSupporters.map((entry) => ({
     ...entry,
-    period: `${formatSupportDate(entry.since)} to ${formatSupportDate(entry.until)}`,
+    period:
+      entry.since && entry.until
+        ? `${formatSupportMonth(entry.since)} – ${formatSupportMonth(entry.until)}`
+        : undefined,
     Wordmark: createWordmark(entry),
   }));
 
@@ -112,9 +130,8 @@ function requireSupporter(id: string): Supporter {
 }
 
 export const AMAZON_SUPPORTER = requireSupporter('amazon');
+export const CODEMAGIC_SUPPORTER = requireSupporter('codemagic');
 export const META_SUPPORTER = requireSupporter('meta');
-
-const openCollectiveUrl = `https://opencollective.com/${sponsorRegistry.funding.openCollectiveSlug}`;
 
 export interface SponsorTier {
   name: string;
@@ -133,5 +150,4 @@ export const FUNDING_LINKS = {
   ...sponsorRegistry.funding,
   companyContactUrl: `mailto:${sponsorRegistry.funding.companyContactEmail}`,
   githubUrl: `https://github.com/sponsors/${sponsorRegistry.funding.githubHandle}`,
-  openCollectiveUrl,
 } as const;

@@ -109,15 +109,6 @@ export default function OperationsPage() {
           rel="noopener noreferrer"
         >
           GitHub Sponsors
-        </a>{" "}
-        or{" "}
-        <a
-          className="text-primary underline"
-          href="https://opencollective.com/openiap"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          OpenCollective
         </a>
         ; otherwise, self-host the MIT-licensed server, which also gives
         predictable scaling. Sponsorship does not reserve capacity or create an
