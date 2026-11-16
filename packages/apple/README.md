@@ -141,9 +141,9 @@ We also recognize sponsors and backers through OpenCollective. The original reac
 Supported the project before the OpenIAP sponsor program: Nami for 30 months and Courier for 1 month.
 
 <p align="center">
-  <a href="https://namiml.com"><img src="https://openiap.dev/sponsors/nami.webp" alt="Nami" height="40" align="middle"></a>
+  <a href="https://namiml.com"><img src="https://openiap.dev/sponsors/nami.webp" alt="Nami" height="20" align="middle"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://www.courier.com/?utm_source=react-native-iap&utm_campaign=osssponsors"><img src="https://openiap.dev/sponsors/courier.webp" alt="Courier" height="24" align="middle"></a>
+  <a href="https://www.courier.com/?utm_source=react-native-iap&utm_campaign=osssponsors"><img src="https://openiap.dev/sponsors/courier.webp" alt="Courier" height="15" align="middle"></a>
 </p>
 
 [openiap-sponsors]: https://openiap.dev/sponsors

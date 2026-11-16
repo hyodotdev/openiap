@@ -78,7 +78,7 @@
       "supported": "30 months",
       "logo": {
         "src": "/sponsors/nami.webp",
-        "height": 40
+        "height": 20
       }
     },
     {
@@ -89,7 +89,7 @@
       "supported": "1 month",
       "logo": {
         "src": "/sponsors/courier.webp",
-        "height": 24
+        "height": 15
       }
     }
   ],
