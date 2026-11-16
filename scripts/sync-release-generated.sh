@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Regenerate and stage every generated file that embeds release version
-# metadata: the openiap-versions.json mirror and its copies, docs
-# version-metadata.json (sync-versions.sh), and llms.txt / llms-full.txt /
-# context.md (scripts/agent compile:ai). Release workflows
-# call this inside their version-bump commit step so the bump and its derived
-# files land in the same commit; otherwise CI's clean-worktree audits
+# metadata: the openiap-versions.json mirror and its copies and docs
+# version-metadata.json (sync-versions.sh), the workspace versions in bun.lock,
+# and llms.txt / llms-full.txt / context.md (scripts/agent compile:ai). Release
+# workflows call this inside their version-bump commit step so the bump and
+# its derived files land in the same commit; otherwise CI's clean-worktree audits
 # (Audit SDK Parity, Test Agent Scripts) fail on every later PR.
 # Requires node, python3, and bun on PATH.
 
@@ -18,6 +18,8 @@ cd "$REPO_ROOT"
 
 bun install --frozen-lockfile --ignore-scripts
 ./scripts/sync-versions.sh
+# The frozen install keeps a bumped workspace's old version; record the new one.
+bun install --lockfile-only --ignore-scripts
 node scripts/generate-store-registry.mjs
 
 (cd packages/conformance && bun run generate:ids)
@@ -25,6 +27,7 @@ node scripts/generate-store-registry.mjs
 (cd scripts/agent && bun install --frozen-lockfile && bun run compile:ai)
 
 git add \
+  bun.lock \
   openiap-versions.json \
   packages/docs/openiap-versions.json \
   packages/apple/Sources/OpenIapGeneratedVersion.swift \

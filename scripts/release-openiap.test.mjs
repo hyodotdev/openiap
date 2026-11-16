@@ -306,7 +306,13 @@ test("the release commit stages the mirror the bump moves", () => {
     join(root, "scripts/sync-release-generated.sh"),
     "utf8",
   );
+  // sync-versions.sh bumps the native workspace manifests the lockfile lists.
+  const refresh = script.indexOf(
+    "\nbun install --lockfile-only --ignore-scripts\n",
+  );
+  assert.ok(refresh > script.indexOf("\n./scripts/sync-versions.sh\n"));
   for (const generated of [
+    "bun.lock",
     "openiap-versions.json",
     "packages/docs/openiap-versions.json",
     "packages/apple/Sources/OpenIapGeneratedVersion.swift",
@@ -328,7 +334,7 @@ test("the release commit stages the mirror the bump moves", () => {
   );
   assert.ok(
     workflow.indexOf("./scripts/sync-release-generated.sh") <
-      workflow.indexOf('git add "$PACKAGE_MANIFEST" bun.lock'),
+      workflow.indexOf('git add "$PACKAGE_MANIFEST"'),
     "the workflow must regenerate before staging the bumped manifest",
   );
 });

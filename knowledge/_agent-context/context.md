@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-11-16T04:38:59.934Z
+> Last updated: 2026-11-16T08:38:38.544Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -3257,8 +3257,9 @@ Version ownership is split:
 - The docs site has no version: it deploys whatever `main` holds.
 
 Record the intended next versions in the release card and select the matching
-GitHub Actions release inputs. Release workflows refresh the lockfile and run
-`./scripts/sync-release-generated.sh` in the same version-bump commit. Use
+GitHub Actions release inputs. Release workflows run
+`./scripts/sync-release-generated.sh`, which refreshes the lockfile and every
+generated version file, in the same version-bump commit. Use
 `version=current` only to publish or retry a version already established by CI.
 Do not run a local bump as a substitute for a release dispatch.
 

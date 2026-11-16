@@ -313,9 +313,8 @@ jobs:
           VERSION: ${{ steps.bump.outputs.version }}
         run: |
           TAG="$TAG_PREFIX-$VERSION"
-          bun install --lockfile-only --ignore-scripts
           ./scripts/sync-release-generated.sh
-          git add "$PACKAGE_MANIFEST" bun.lock
+          git add "$PACKAGE_MANIFEST"
           git commit -m "chore(release): $PACKAGE_NAME@$VERSION"
           git tag -a "$TAG" -m "Release $TAG"
 
