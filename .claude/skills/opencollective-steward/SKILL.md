@@ -1,6 +1,6 @@
 ---
 name: opencollective-steward
-description: Manage OpenIAP's OpenCollective presence, including profile copy, slug/link migrations, sponsor/backer recognition, update posts, and README/docs sponsor assets. Use when the user asks to draft or publish OpenCollective updates, maintain OpenCollective tiers/profile content, migrate react-native-iap OpenCollective links to openiap, or make supporters feel informed and appreciated.
+description: Maintain OpenIAP's OpenCollective presence now that it no longer takes sponsorship, including the notice that points new sponsors to GitHub Sponsors, profile copy, update posts, past sponsor/backer recognition, and the README OpenCollective record. Use when the user asks to draft or publish OpenCollective updates, edit the OpenCollective profile or tiers, or thank past OpenCollective supporters.
 ---
 
 # OpenCollective Steward (Claude Code)

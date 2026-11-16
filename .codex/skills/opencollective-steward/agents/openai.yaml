@@ -1,4 +1,4 @@
 interface:
   display_name: "OpenCollective Steward"
-  short_description: "Manage OpenIAP OpenCollective updates"
-  default_prompt: "Use $opencollective-steward to draft and publish an OpenCollective update for OpenIAP supporters."
+  short_description: "Maintain the OpenIAP OpenCollective record and notices"
+  default_prompt: "Use $opencollective-steward to draft an OpenCollective update that thanks past OpenIAP supporters and points new sponsors to GitHub Sponsors."

@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-11-16T03:14:31.388Z
+> Last updated: 2026-11-16T04:25:06.086Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -3851,7 +3851,7 @@ in `headers.Authorization`. That file then holds a secret in plaintext:
 | `$rebase-main`              | Pull main and safely rebase the current branch                  | `$rebase-main`                        |
 | `$generate-doc`             | Write OpenIAP docs and pre-release release notes                | `$generate-doc`                       |
 | `$add-showcase-app`         | Add apps to the "Apps built with OpenIAP" showcase              | `$add-showcase-app`                   |
-| `$opencollective-steward`   | Manage OpenCollective profile and updates                       | `$opencollective-steward`             |
+| `$opencollective-steward`   | Maintain the OpenCollective record and notices                  | `$opencollective-steward`             |
 | `$iapkit-e2e-petgu`         | IAPKit product-sync E2E with the Petgu app                      | `$iapkit-e2e-petgu`                   |
 | `$iapkit-e2e-martie`        | IAPKit local receipt-validation E2E with Martie                 | `$iapkit-e2e-martie`                  |
 | `$e2e-matrix-runner`        | Full device matrix: 6 frameworks x iOS/Play/Amazon/Horizon/Vega | `$e2e-matrix-runner`                  |
