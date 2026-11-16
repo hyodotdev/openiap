@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-11-16T02:51:29.740Z
+> Generated: 2026-11-16T03:14:31.420Z
 
 ## Reading instructions for coding assistants
 
@@ -2482,10 +2482,14 @@ if await ExternalPurchase.canPresent {
 try await ExternalPurchaseLink.open(url: externalURL)
 ```
 
-> **OpenIAP Note**: `presentExternalPurchaseNoticeSheetIOS` is available on
-> iOS 17.4+ and macOS 14.4+. The current
-> `presentExternalPurchaseLinkIOS` implementation uses `UIApplication` and is
-> not supported on macOS.
+> **OpenIAP Note**: Apps link out with `openExternalPurchaseLink` (Client
+> Protocol 1.5.0, openiap-apple 4.2.0). It uses `ExternalPurchaseCustomLink` on
+> iOS 18.1+ and the notice sheet on iOS 17.4 to 18.0, opens the URL only after
+> the user continues, and returns `unavailable` on macOS and watchOS. The step
+> calls `canPresentExternalPurchaseNoticeIOS`,
+> `isEligibleForExternalPurchaseCustomLinkIOS`,
+> `presentExternalPurchaseNoticeSheetIOS` and `presentExternalPurchaseLinkIOS`
+> are deprecated until client protocol 2.0.0.
 
 
 ---

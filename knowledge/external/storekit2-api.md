@@ -573,7 +573,11 @@ if await ExternalPurchase.canPresent {
 try await ExternalPurchaseLink.open(url: externalURL)
 ```
 
-> **OpenIAP Note**: `presentExternalPurchaseNoticeSheetIOS` is available on
-> iOS 17.4+ and macOS 14.4+. The current
-> `presentExternalPurchaseLinkIOS` implementation uses `UIApplication` and is
-> not supported on macOS.
+> **OpenIAP Note**: Apps link out with `openExternalPurchaseLink` (Client
+> Protocol 1.5.0, openiap-apple 4.2.0). It uses `ExternalPurchaseCustomLink` on
+> iOS 18.1+ and the notice sheet on iOS 17.4 to 18.0, opens the URL only after
+> the user continues, and returns `unavailable` on macOS and watchOS. The step
+> calls `canPresentExternalPurchaseNoticeIOS`,
+> `isEligibleForExternalPurchaseCustomLinkIOS`,
+> `presentExternalPurchaseNoticeSheetIOS` and `presentExternalPurchaseLinkIOS`
+> are deprecated until client protocol 2.0.0.
