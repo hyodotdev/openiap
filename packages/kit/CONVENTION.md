@@ -18,6 +18,9 @@ function runner, not from `npx convex run --prod`, not from anywhere. The
 dashboard runner reopens with the last function selected, which has included
 `drainAccountDeletionBatch`; check what is selected before running anything.
 
+The one exception is `sponsorship/internal:setSponsorshipLink`, which
+`$link-sponsor` runs after Hyo confirms the organization and GitHub account.
+
 Reads are fine when asked for. Report counts and aggregates rather than copying
 customer emails or other personal data anywhere. Use the dev deployment for
 anything that needs a new function.

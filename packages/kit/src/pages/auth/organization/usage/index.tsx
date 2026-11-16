@@ -4,6 +4,8 @@ import { Heart } from "lucide-react";
 
 import { api } from "@/convex";
 
+import { SponsorshipLink } from "./SponsorshipLink";
+
 export default function OrganizationUsagePage() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
 
@@ -76,6 +78,8 @@ export default function OrganizationUsagePage() {
             </div>
           </div>
         </section>
+
+        <SponsorshipLink organizationId={organization._id} />
 
         <section className="bg-card border border-border rounded-md p-6">
           <div className="flex items-start gap-4">

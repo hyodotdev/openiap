@@ -1614,6 +1614,18 @@ const schema = defineSchema({
     sponsoredAt: v.optional(v.number()),
     updatedAt: v.number(),
   }).index("by_organization", ["organizationId"]),
+  // A GitHub sponsorship the maintainer linked to an organization
+  // ($link-sponsor). While it exists, IAPKit sends the organization no
+  // sponsorship emails, and its Usage page shows the sponsorship.
+  sponsorshipLinks: defineTable({
+    organizationId: v.id("organizations"),
+    // GitHub's numeric account id; a login can be renamed, this cannot.
+    githubId: v.number(),
+    login: v.string(),
+    monthlyUsd: v.number(),
+    isOneTime: v.boolean(),
+    linkedAt: v.number(),
+  }).index("by_organization", ["organizationId"]),
 });
 
 export default schema;

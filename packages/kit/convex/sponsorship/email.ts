@@ -51,6 +51,9 @@ export function sponsorshipEmail(
           `The subscription revenue IAPKit tracks for ${organizationName} reached about ${revenue} a month. Congratulations.`,
           `IAPKit is free and sustained by sponsors. Because every project shares one hosted pool, organizations from ${usdFormat.format(REQUEST_USD)} a month are asked, with apologies, to help cover its cost. Nothing changes for you today. If you can, please consider sponsoring now, or self-host the MIT-licensed server.`,
         ];
+  paragraphs.push(
+    `Already sponsoring on GitHub? Reply with the sponsoring account, and we will link it to ${organizationName} so these emails stop.`,
+  );
   const links = [
     ["Sponsor on GitHub", SPONSOR_URL],
     ["How sponsorship works", `${SITE}/pricing`],

@@ -40,8 +40,7 @@ instances you don't control.
 > self-host from `packages/kit/` (single binary) or contact the maintainers
 > before launch. An organization whose load strains the shared servers may be
 > removed from the shared pool; to continue, it can sponsor through
-> [OpenCollective][openiap-opencollective] or
-> [GitHub Sponsors][openiap-github-sponsors], or self-host.
+> [GitHub Sponsors][openiap-github-sponsors] or self-host.
 
 ## What's Inside
 
@@ -367,11 +366,23 @@ hosted service, [contact the maintainers][openiap-company-contact] before produc
 launch. If its load strains the shared servers, it may be removed from the
 shared pool. To keep using the hosted service at that volume, it may be
 required to sponsor the capacity it uses through
-[OpenCollective][openiap-opencollective] or
 [GitHub Sponsors][openiap-github-sponsors]; otherwise, it can self-host this
 MIT-licensed server, which also gives predictable scaling, dedicated resources,
 and full operational control. Sponsorship does not reserve capacity or create an
 SLA. The plan is to share the service's costs openly as usage grows.
+
+### GitHub sponsorship links
+
+When an organization sponsors OpenIAP on GitHub, the maintainer links the
+sponsorship to it with the `$link-sponsor` skill, and from then on IAPKit sends
+that organization no sponsorship requests. Any tier or amount counts, and the
+organization does nothing: the request email asks it to reply with the
+sponsoring account. The link shows on the organization's **Usage** page. When
+the sponsorship ends, the maintainer removes the link and the organization is
+back on the normal schedule.
+
+A written arrangement outside GitHub Sponsors is still recorded with
+`internal.sponsorship.internal.markSponsored`.
 
 ### Health check
 

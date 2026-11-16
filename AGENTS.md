@@ -161,6 +161,10 @@ Report unavailable checks as `BLOCKED` (unverified), never as passed.
   not a plain read. The dashboard runner preselects the last function used,
   which has included `drainAccountDeletionBatch`; confirm the selection before
   pressing Run, and prefer not opening it.
+- One exception: `$link-sponsor` runs
+  `sponsorship/internal:setSponsorshipLink` with `npx convex run --prod` after
+  Hyo confirms the organization and GitHub account in the conversation.
+  No other production write, `markSponsored` included.
 - Never edit, insert, or delete documents in the production data browser.
   Schema and data changes ship through a reviewed deploy.
 - Read production only when asked (tables, counts, logs, health), report

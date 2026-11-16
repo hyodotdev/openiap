@@ -26,8 +26,14 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-11-16",
     weekStart: "2026-11-16",
     date: "2026-11-16",
-    tagline: "Sponsorship now runs through GitHub Sponsors only.",
+    tagline:
+      "Sponsorship now runs through GitHub Sponsors only, and a linked GitHub sponsorship stops sponsorship requests.",
     items: [
+      {
+        kind: "feature",
+        topic: "Sponsorship links",
+        text: "When an organization sponsors OpenIAP on GitHub, the maintainer links the sponsorship to it, and IAPKit then sends that organization no sponsorship requests. Any tier or amount counts. The Usage page shows the linked sponsorship, and the request email now says to reply with the sponsoring account.",
+      },
       {
         kind: "docs",
         topic: "Sponsorship",

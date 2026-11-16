@@ -27,6 +27,17 @@ export type SponsorshipStage = "advisory" | "request";
 export interface SponsorshipState {
   stage?: SponsorshipStage;
   sponsoredAt?: number;
+  /** Set while a GitHub sponsorship is linked to the organization. */
+  linked?: boolean;
+}
+
+// 1-39 letters, digits, or single hyphens between them.
+const GITHUB_LOGIN = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/;
+
+/** A GitHub login in the form GitHub stores it, or null if it cannot be one. */
+export function normalizeGitHubLogin(input: string): string | null {
+  const login = input.trim().replace(/^@/, "").toLowerCase();
+  return GITHUB_LOGIN.test(login) ? login : null;
 }
 
 export interface CurrencyAmount {
@@ -96,7 +107,7 @@ export function nextNotice(
   usd: number,
   state: SponsorshipState | null,
 ): SponsorshipStage | null {
-  if (state?.sponsoredAt !== undefined) return null;
+  if (state?.sponsoredAt !== undefined || state?.linked) return null;
   if (usd >= REQUEST_USD && state?.stage !== "request") return "request";
   if (usd >= ADVISORY_USD && state?.stage === undefined) return "advisory";
   return null;

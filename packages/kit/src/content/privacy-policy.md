@@ -2,7 +2,7 @@
 
 **Service:** Purchase validation and entitlement infrastructure for the Apple App Store, Google Play, Amazon Appstore, and Meta Horizon
 
-**Last updated:** 2026-11-04
+**Last updated:** 2026-11-16
 
 Hyo Dev (“we”, “our”, “us”) provides purchase validation and entitlement infrastructure for app-store purchases. We are committed to protecting your privacy and handling your information responsibly. This Privacy Policy explains what information we collect, how we use it, and your rights.
 
@@ -38,6 +38,10 @@ We may collect technical information such as:
 - Usage metadata
 
 This is used for security, debugging, and performance.
+
+### 1.4. Sponsorship Links
+
+If your organization sponsors OpenIAP on GitHub and we link that sponsorship to it, we store the sponsoring GitHub account, the sponsorship amount, and when we linked it. We use them only to stop sponsorship notices to your organization and to show the sponsorship on its Usage page. We store nothing about sponsorships that are not linked to an organization.
 
 ---
 
@@ -120,6 +124,7 @@ We retain:
 
 - **Account data** for as long as your account is active
 - **Transaction data** as required to operate the service
+- **Sponsorship links** until the link is removed or the organization is deleted
 - **Logs and diagnostics** for a limited time for security and debugging
 
 You may request deletion of your account at any time.

@@ -4,9 +4,100 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { countsTowardMrr } from "../subscriptions/monthlyMicros";
 import { statsAreCurrent, statsContributionFor } from "../subscriptions/stats";
-import { GRACE_PERIOD_MS } from "./logic";
+import type { Id } from "../_generated/dataModel";
+import { getLink } from "./links";
+import { GRACE_PERIOD_MS, normalizeGitHubLogin } from "./logic";
 
 const stageValidator = v.union(v.literal("advisory"), v.literal("request"));
+
+/**
+ * Maintainer-only, run by $link-sponsor: links a GitHub sponsorship to an
+ * organization, replacing any earlier link, or removes it with
+ * `sponsor: null`. The one production write the agent guardrail allows, and
+ * only after Hyo confirms the pair.
+ */
+export const setSponsorshipLink = internalMutation({
+  args: {
+    organizationId: v.id("organizations"),
+    sponsor: v.union(
+      v.null(),
+      v.object({
+        login: v.string(),
+        githubId: v.number(),
+        monthlyUsd: v.number(),
+        isOneTime: v.boolean(),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const organization = await ctx.db.get(args.organizationId);
+    if (!organization || organization.pendingDeletion)
+      throw new Error("Organization not found");
+    const existing = await getLink(ctx, args.organizationId);
+    if (existing) await ctx.db.delete(existing._id);
+    if (!args.sponsor) return { organization: organization.name, linked: null };
+
+    const { githubId, monthlyUsd, isOneTime } = args.sponsor;
+    const login = normalizeGitHubLogin(args.sponsor.login);
+    if (!login || !Number.isSafeInteger(githubId) || githubId <= 0)
+      throw new Error("Pass the sponsor's GitHub login and numeric id");
+    if (!Number.isFinite(monthlyUsd) || monthlyUsd <= 0)
+      throw new Error("Pass the sponsorship amount in US dollars");
+    await ctx.db.insert("sponsorshipLinks", {
+      organizationId: args.organizationId,
+      githubId,
+      login,
+      monthlyUsd,
+      isOneTime,
+      linkedAt: Date.now(),
+    });
+    return { organization: organization.name, linked: login };
+  },
+});
+
+/**
+ * What $link-sponsor shows the maintainer to pick an organization: those that
+ * reached a sponsorship notice or already have a link, plus `slug` if given.
+ * Names, slugs and figures only; never member emails.
+ */
+export const listLinkCandidates = internalQuery({
+  args: { slug: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const ids = new Set<Id<"organizations">>();
+    for (const state of await ctx.db.query("sponsorshipStates").take(500))
+      ids.add(state.organizationId);
+    for (const link of await ctx.db.query("sponsorshipLinks").take(500))
+      ids.add(link.organizationId);
+    const { slug } = args;
+    if (slug) {
+      const bySlug = await ctx.db
+        .query("organizations")
+        .withIndex("by_slug", (q) => q.eq("slug", slug))
+        .first();
+      if (bySlug) ids.add(bySlug._id);
+    }
+    const candidates = [];
+    for (const id of ids) {
+      const organization = await ctx.db.get(id);
+      if (!organization || organization.pendingDeletion) continue;
+      const state = await ctx.db
+        .query("sponsorshipStates")
+        .withIndex("by_organization", (q) => q.eq("organizationId", id))
+        .unique();
+      const link = await getLink(ctx, id);
+      candidates.push({
+        organizationId: id,
+        name: organization.name,
+        slug: organization.slug,
+        stage: state?.stage,
+        lastUsdMrr: state?.lastUsdMrr,
+        sponsoredAt: state?.sponsoredAt,
+        link: link && { login: link.login, monthlyUsd: link.monthlyUsd },
+      });
+    }
+    return candidates;
+  },
+});
 
 /** One page of organizations with their sponsorship state. */
 export const listOrganizations = internalQuery({
@@ -24,12 +115,18 @@ export const listOrganizations = internalQuery({
           q.eq("organizationId", organization._id),
         )
         .unique();
+      const link = await getLink(ctx, organization._id);
       organizations.push({
         organizationId: organization._id,
         name: organization.name,
-        state: state
-          ? { stage: state.stage, sponsoredAt: state.sponsoredAt }
-          : null,
+        state:
+          state || link
+            ? {
+                stage: state?.stage,
+                sponsoredAt: state?.sponsoredAt,
+                linked: Boolean(link),
+              }
+            : null,
       });
     }
     return {

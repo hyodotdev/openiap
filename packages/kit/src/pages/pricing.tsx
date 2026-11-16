@@ -149,6 +149,11 @@ export default function PricingPage() {
             "Sponsorship pays for servers, monitoring and security. It does not reserve capacity or add an SLA."
           }
         </p>
+        <p className="mt-3">
+          {
+            "Already sponsoring on GitHub? Reply to the sponsorship email or write to hyo@hyo.dev with the sponsoring account, and we link it to your organization so the requests stop. Any tier or amount counts."
+          }
+        </p>
         <div className="mt-5 flex flex-col gap-3 sm:flex-row">
           <a
             href="https://github.com/sponsors/hyodotdev"

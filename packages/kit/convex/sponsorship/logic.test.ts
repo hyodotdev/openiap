@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   collectPages,
   nextNotice,
+  normalizeGitHubLogin,
   revenueWindowDays,
   suggestedSponsorshipUsd,
   toUsd,
@@ -53,6 +54,30 @@ describe("nextNotice", () => {
 
   it("never emails a sponsor", () => {
     expect(nextNotice(20_000, { sponsoredAt: 1 })).toBeNull();
+  });
+
+  it("never emails an organization with a linked GitHub sponsorship", () => {
+    expect(nextNotice(20_000, { linked: true })).toBeNull();
+    expect(nextNotice(9_000, { linked: false })).toBe("request");
+  });
+});
+
+describe("normalizeGitHubLogin", () => {
+  it("accepts a login with or without @, in any case", () => {
+    expect(normalizeGitHubLogin(" @Acme-Inc ")).toBe("acme-inc");
+    expect(normalizeGitHubLogin("a".repeat(39))).toBe("a".repeat(39));
+  });
+
+  it("rejects what GitHub would not accept as an account name", () => {
+    for (const input of [
+      "",
+      "-acme",
+      "acme-",
+      "ac--me",
+      "acme inc",
+      "a".repeat(40),
+    ])
+      expect(normalizeGitHubLogin(input)).toBeNull();
   });
 });
 

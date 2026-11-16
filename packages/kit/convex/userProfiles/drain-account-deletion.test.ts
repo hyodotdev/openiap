@@ -317,6 +317,24 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     expect(await ctx.db.get(orgId)).toBeNull();
   });
 
+  it("deletes a sponsorship link before its organization", async () => {
+    const orgId = await ctx.db.insert("organizations", {
+      name: "deleting",
+      pendingDeletion: true,
+    });
+    await ctx.db.insert("sponsorshipLinks", {
+      organizationId: orgId,
+      githubId: 7,
+      login: "aws",
+      monthlyUsd: 1000,
+      isOneTime: false,
+      linkedAt: 1,
+    });
+    for (let i = 0; i < 5; i++) await drainPendingDeletionOrganizations(ctx);
+    expect(ctx.db.countRows("sponsorshipLinks")).toBe(0);
+    expect(await ctx.db.get(orgId)).toBeNull();
+  });
+
   it("flags orphaned orgs in the membership phase and the separate cron drains them", async () => {
     const orgId = await ctx.db.insert("organizations", {
       name: "acme",

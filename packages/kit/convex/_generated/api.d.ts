@@ -69,7 +69,6 @@ import type * as projects_internal from "../projects/internal.js";
 import type * as projects_mutation from "../projects/mutation.js";
 import type * as projects_query from "../projects/query.js";
 import type * as projects_setupStatus from "../projects/setupStatus.js";
-import type * as projects_unusedBucketFields from "../projects/unusedBucketFields.js";
 import type * as projects_writable from "../projects/writable.js";
 import type * as purchaseIssues_evidence from "../purchaseIssues/evidence.js";
 import type * as purchaseIssues_internal from "../purchaseIssues/internal.js";
@@ -104,7 +103,9 @@ import type * as purchases_verificationVerdict from "../purchases/verificationVe
 import type * as sponsorship_action from "../sponsorship/action.js";
 import type * as sponsorship_email from "../sponsorship/email.js";
 import type * as sponsorship_internal from "../sponsorship/internal.js";
+import type * as sponsorship_links from "../sponsorship/links.js";
 import type * as sponsorship_logic from "../sponsorship/logic.js";
+import type * as sponsorship_query from "../sponsorship/query.js";
 import type * as subscriptions_accessHistory from "../subscriptions/accessHistory.js";
 import type * as subscriptions_action from "../subscriptions/action.js";
 import type * as subscriptions_amazon from "../subscriptions/amazon.js";
@@ -214,7 +215,6 @@ declare const fullApi: ApiFromModules<{
   "projects/mutation": typeof projects_mutation;
   "projects/query": typeof projects_query;
   "projects/setupStatus": typeof projects_setupStatus;
-  "projects/unusedBucketFields": typeof projects_unusedBucketFields;
   "projects/writable": typeof projects_writable;
   "purchaseIssues/evidence": typeof purchaseIssues_evidence;
   "purchaseIssues/internal": typeof purchaseIssues_internal;
@@ -249,7 +249,9 @@ declare const fullApi: ApiFromModules<{
   "sponsorship/action": typeof sponsorship_action;
   "sponsorship/email": typeof sponsorship_email;
   "sponsorship/internal": typeof sponsorship_internal;
+  "sponsorship/links": typeof sponsorship_links;
   "sponsorship/logic": typeof sponsorship_logic;
+  "sponsorship/query": typeof sponsorship_query;
   "subscriptions/accessHistory": typeof subscriptions_accessHistory;
   "subscriptions/action": typeof subscriptions_action;
   "subscriptions/amazon": typeof subscriptions_amazon;
