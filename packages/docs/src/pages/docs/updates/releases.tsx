@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
@@ -24,10 +25,15 @@ function ClientProtocolChange({
   children,
 }: {
   version: string;
-  source: string;
+  /** One path under specs/client/src, or one per file the diff touches. */
+  source: string | readonly string[];
   diff?: string;
   children: React.ReactNode;
 }): React.JSX.Element {
+  const sources = typeof source === 'string' ? [source] : source;
+  const sourceUrl = (path: string) =>
+    `https://github.com/hyodotdev/openiap/blob/openiap-client-protocol-${version}/specs/client/src/${path}`;
+
   return (
     <>
       <h5>Client Protocol {version}</h5>
@@ -45,11 +51,19 @@ function ClientProtocolChange({
       )}
       <p>
         {children}{' '}
-        <a
-          href={`https://github.com/hyodotdev/openiap/blob/openiap-client-protocol-${version}/specs/client/src/${source}`}
-        >
-          View contract source
-        </a>
+        {sources.length === 1 ? (
+          <a href={sourceUrl(sources[0])}>View contract source</a>
+        ) : (
+          <>
+            Contract sources:{' '}
+            {sources.map((path, index) => (
+              <Fragment key={path}>
+                {index > 0 && ', '}
+                <a href={sourceUrl(path)}>{path.split('#')[0]}</a>
+              </Fragment>
+            ))}
+          </>
+        )}
       </p>
     </>
   );
@@ -1021,7 +1035,11 @@ function Releases() {
           </p>
           <ClientProtocolChange
             version="1.4.0"
-            source="api-android.graphql#L94-L101"
+            source={[
+              'type-android.graphql#L636',
+              'api-android.graphql#L94-L101',
+              'type-ios.graphql#L667-L686',
+            ]}
             diff={`+ enum BillingProgramAndroid { ALTERNATIVE_BILLING_ONLY }
 + showAlternativeBillingOnlyInformationDialogAndroid: BillingResultAndroid!
 + enum ExternalPurchaseCustomLinkTokenTypeIOS { InApp, LinkOut }`}
