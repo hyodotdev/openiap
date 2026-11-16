@@ -10,10 +10,251 @@
   "ignoreCommand": "node scripts/vercel-ignore-build.mjs",
   "outputDirectory": "dist",
   "cleanUrls": true,
+  "trailingSlash": false,
   "redirects": [
     {
       "source": "/docs",
       "destination": "/docs/getting-started",
+      "permanent": true
+    },
+    {
+      "source": "/docs/commerce-protocol",
+      "destination": "/commerce-protocol",
+      "permanent": true
+    },
+    {
+      "source": "/docs/commerce-protocol/:path*",
+      "destination": "/commerce-protocol/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/docs/types/ios/discount-offer-ios",
+      "destination": "/docs/types/subscription-offer",
+      "permanent": true
+    },
+    {
+      "source": "/docs/types/ios/discount-ios",
+      "destination": "/docs/types/subscription-offer",
+      "permanent": true
+    },
+    {
+      "source": "/docs/types/android/one-time-purchase-offer-detail-android",
+      "destination": "/docs/types/discount-offer",
+      "permanent": true
+    },
+    {
+      "source": "/docs/types/android/subscription-offer-android",
+      "destination": "/docs/types/subscription-offer",
+      "permanent": true
+    },
+    {
+      "source": "/docs/types/request",
+      "destination": "/docs/types",
+      "permanent": true
+    },
+    {
+      "source": "/docs/types/alternative",
+      "destination": "/docs/types",
+      "permanent": true
+    },
+    {
+      "source": "/docs/types/verification",
+      "destination": "/docs/types",
+      "permanent": true
+    },
+    {
+      "source": "/docs/types/ios",
+      "destination": "/docs/types",
+      "permanent": true
+    },
+    {
+      "source": "/docs/types/android",
+      "destination": "/docs/types",
+      "permanent": true
+    },
+    {
+      "source": "/docs/types/offer",
+      "destination": "/docs/types",
+      "permanent": true
+    },
+    {
+      "source": "/docs/apis/validate-receipt",
+      "destination": "/docs/features/validation#verify-purchase",
+      "permanent": true
+    },
+    {
+      "source": "/docs/apis/ios/get-storefront-ios",
+      "destination": "/docs/apis/get-storefront",
+      "permanent": true
+    },
+    {
+      "source": "/docs/apis/ios/present-code-redemption-sheet-ios",
+      "destination": "/docs/apis/open-redeem-offer-code",
+      "permanent": true
+    },
+    {
+      "source": "/docs/apis/ios/request-purchase-on-promoted-product-ios",
+      "destination": "/docs/events/ios/promoted-product-listener-ios",
+      "permanent": true
+    },
+    {
+      "source": "/docs/apis/ios/validate-receipt-ios",
+      "destination": "/docs/features/validation#verify-purchase",
+      "permanent": true
+    },
+    {
+      "source": "/docs/apis/android/check-alternative-billing-availability-android",
+      "destination": "/docs/apis/android/is-billing-program-available-android",
+      "permanent": true
+    },
+    {
+      "source": "/docs/apis/android/show-alternative-billing-dialog-android",
+      "destination": "/docs/apis/android/launch-external-link-android",
+      "permanent": true
+    },
+    {
+      "source": "/docs/apis/android/create-alternative-billing-token-android",
+      "destination": "/docs/apis/android/create-billing-program-reporting-details-android",
+      "permanent": true
+    },
+    {
+      "source": "/docs/apis/android/open-redeem-offer-code-android",
+      "destination": "/docs/apis/open-redeem-offer-code",
+      "permanent": true
+    },
+    {
+      "source": "/docs/apis/connection",
+      "destination": "/docs/apis",
+      "permanent": true
+    },
+    {
+      "source": "/docs/apis/products",
+      "destination": "/docs/apis",
+      "permanent": true
+    },
+    {
+      "source": "/docs/apis/purchase",
+      "destination": "/docs/apis",
+      "permanent": true
+    },
+    {
+      "source": "/docs/apis/subscription",
+      "destination": "/docs/apis",
+      "permanent": true
+    },
+    {
+      "source": "/docs/apis/ios",
+      "destination": "/docs/apis",
+      "permanent": true
+    },
+    {
+      "source": "/docs/apis/android",
+      "destination": "/docs/apis",
+      "permanent": true
+    },
+    {
+      "source": "/docs/apis/validation",
+      "destination": "/docs/features/validation",
+      "permanent": true
+    },
+    {
+      "source": "/docs/apis/debugging",
+      "destination": "/docs/features/debugging",
+      "permanent": true
+    },
+    {
+      "source": "/docs/apis/refund",
+      "destination": "/docs/features/refund",
+      "permanent": true
+    },
+    {
+      "source": "/docs/webhooks",
+      "destination": "/commerce-protocol/webhooks",
+      "permanent": true
+    },
+    {
+      "source": "/docs/features/store-integrations",
+      "destination": "/docs/setup/store",
+      "permanent": true
+    },
+    {
+      "source": "/docs/features/runtime-integrations",
+      "destination": "/docs/setup/store",
+      "permanent": true
+    },
+    {
+      "source": "/docs/features/alternative-marketplace",
+      "destination": "/docs/setup/store/onside",
+      "permanent": true
+    },
+    {
+      "source": "/docs/features/alternative-marketplace/onside",
+      "destination": "/docs/setup/store/onside",
+      "permanent": true
+    },
+    {
+      "source": "/docs/features/horizon-os",
+      "destination": "/docs/setup/store/horizon",
+      "permanent": true
+    },
+    {
+      "source": "/docs/features/fire-os",
+      "destination": "/docs/setup/store/amazon#fire-os",
+      "permanent": true
+    },
+    {
+      "source": "/docs/features/vega-os",
+      "destination": "/docs/setup/store/amazon#vega-os",
+      "permanent": true
+    },
+    {
+      "source": "/docs/horizon-setup",
+      "destination": "/docs/setup/store/horizon",
+      "permanent": true
+    },
+    {
+      "source": "/docs/fireos-setup",
+      "destination": "/docs/setup/store/amazon#fire-os",
+      "permanent": true
+    },
+    {
+      "source": "/docs/example/ios",
+      "destination": "/docs/example",
+      "permanent": true
+    },
+    {
+      "source": "/docs/example/android",
+      "destination": "/docs/example",
+      "permanent": true
+    },
+    {
+      "source": "/docs/example/horizon",
+      "destination": "/docs/example",
+      "permanent": true
+    },
+    {
+      "source": "/docs/example/fireos",
+      "destination": "/docs/example",
+      "permanent": true
+    },
+    {
+      "source": "/docs/example/amazon",
+      "destination": "/docs/example",
+      "permanent": true
+    },
+    {
+      "source": "/docs/guides/android-providers",
+      "destination": "/docs/guides/store-providers",
+      "permanent": true
+    },
+    {
+      "source": "/docs/updates/notes",
+      "destination": "/docs/updates/releases",
+      "permanent": true
+    },
+    {
+      "source": "/docs/updates/deprecations",
+      "destination": "/docs/updates/migration",
       "permanent": true
     }
   ],
@@ -42,8 +283,16 @@
       "destination": "/api/:path*"
     },
     {
-      "source": "/(.*)",
-      "destination": "/_app.html"
+      "source": "/docs/kit-backend",
+      "destination": "/_app"
+    },
+    {
+      "source": "/docs/kit-compatibility",
+      "destination": "/_app"
+    },
+    {
+      "source": "/docs/guides/mcp-server",
+      "destination": "/_app"
     }
   ]
 }

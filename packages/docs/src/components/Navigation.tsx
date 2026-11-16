@@ -60,7 +60,7 @@ function Navigation() {
 
           <li>
             <NavLink
-              to="/docs"
+              to="/docs/getting-started"
               className={() =>
                 location.pathname.startsWith('/docs') ? 'active' : ''
               }
@@ -185,7 +185,7 @@ function Navigation() {
 
             <li>
               <NavLink
-                to="/docs"
+                to="/docs/getting-started"
                 className={() =>
                   location.pathname.startsWith('/docs') ? 'active' : ''
                 }

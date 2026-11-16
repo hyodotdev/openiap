@@ -177,8 +177,8 @@ async function prerender() {
         );
       }
     }
-    // Unknown and client-redirected routes fall back to the bare shell, not
-    // to the prerendered homepage with its canonical URL and body.
+    // vercel.json rewrites hash-routed redirects to this bare shell, not to the
+    // prerendered homepage with its canonical URL and body.
     await writeFile(join(root, 'dist/_app.html'), template);
     for (const { path, html } of pages) {
       const destination = join(

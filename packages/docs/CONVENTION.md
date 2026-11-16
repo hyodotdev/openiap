@@ -10,6 +10,12 @@ a separate sitemap or a second copy of a page for crawlers. A `<noscript>`
 fallback that renders the same content for readers without JavaScript is not a
 second copy.
 
+Vercel serves only those prerendered pages, so a moved page gets a permanent
+redirect in `vercel.json`, not a client route. A redirect that picks its target
+from the URL hash keeps its client route and gets a `/_app` rewrite there
+instead. In-app links use the new address. `scripts/vercel-routes.test.mjs`
+enforces all three.
+
 ## Enum Values
 
 - Use the generated target-language member name and wire value exactly as

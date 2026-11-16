@@ -576,7 +576,7 @@ jobs:
           ### Documentation
 
           - [API reference](https://openiap.dev/docs/apis)
-          - [Android provider guide](https://openiap.dev/docs/guides/android-providers)
+          - [Android provider guide](https://openiap.dev/docs/guides/store-providers)
           - [Release notes](https://openiap.dev/docs/updates/releases#google-$VERSION)
           - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/google-$VERSION/packages/google)
 

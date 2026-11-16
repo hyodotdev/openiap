@@ -40,8 +40,7 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
   'get-transaction-jws-ios': '/docs/apis/ios/get-transaction-jws-ios',
   'get-receipt-data-ios': '/docs/apis/ios/get-receipt-data-ios',
   'begin-refund-request-ios': '/docs/apis/ios/begin-refund-request-ios',
-  'present-code-redemption-sheet-ios':
-    '/docs/apis/ios/present-code-redemption-sheet-ios',
+  'present-code-redemption-sheet-ios': '/docs/apis/open-redeem-offer-code',
   'get-app-transaction-ios': '/docs/apis/ios/get-app-transaction-ios',
   'can-present-external-purchase-notice-ios':
     '/docs/apis/ios/can-present-external-purchase-notice-ios',
@@ -83,8 +82,7 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
     '/docs/apis/android/show-alternative-billing-only-information-dialog-android',
   'show-in-app-messages-android':
     '/docs/apis/android/show-in-app-messages-android',
-  'open-redeem-offer-code-android':
-    '/docs/apis/android/open-redeem-offer-code-android',
+  'open-redeem-offer-code-android': '/docs/apis/open-redeem-offer-code',
   // Validation/Refund/Debugging moved to Features
   'verify-purchase': '/docs/features/validation#verify-purchase',
   'verify-purchase-with-provider':

@@ -8437,7 +8437,7 @@ npx --yes @hyodotdev/openiap kit schema keys create --json`}</CodeBlock>
             }}
           >
             Publishes the coordinated stable package train for{' '}
-            <Link to="/docs/apis/android/open-redeem-offer-code-android">
+            <Link to="/docs/apis/open-redeem-offer-code">
               <code>openRedeemOfferCodeAndroid</code>
             </Link>{' '}
             from{' '}
@@ -12594,7 +12594,7 @@ npx --yes @hyodotdev/openiap kit schema keys create --json`}</CodeBlock>
                 <code>getStorefront()</code>
               </Link>{' '}
               protocol/store/module path and ObjC bridge wrappers, with{' '}
-              <Link to="/docs/apis/ios/get-storefront-ios">
+              <Link to="/docs/apis/get-storefront">
                 <code>getStorefrontIOS()</code>
               </Link>{' '}
               delegating to the unified method for backward compatibility.
@@ -14561,7 +14561,7 @@ product.priceFormatStyle.locale.currencyCode`}</CodeBlock>
               }}
             >
               <a
-                href="/docs/types/android/one-time-purchase-offer-detail-android"
+                href="/docs/types/discount-offer"
                 style={{ fontSize: '0.85rem', minWidth: 0 }}
               >
                 <code>
@@ -14605,7 +14605,7 @@ product.priceFormatStyle.locale.currencyCode`}</CodeBlock>
               }}
             >
               <a
-                href="/docs/types/android/subscription-offer-android"
+                href="/docs/types/subscription-offer"
                 style={{ fontSize: '0.85rem', minWidth: 0 }}
               >
                 <code>
@@ -15454,11 +15454,11 @@ result.error                  // optional error`}</CodeBlock>
               <li>
                 Replaces deprecated{' '}
                 <code>ProductSubscriptionAndroidOfferDetails</code>,{' '}
-                <Link to="/docs/types/ios/discount-offer-ios">
+                <Link to="/docs/types/subscription-offer">
                   <code>DiscountOfferIOS</code>
                 </Link>
                 ,{' '}
-                <Link to="/docs/types/ios/discount-ios">
+                <Link to="/docs/types/subscription-offer">
                   <code>DiscountIOS</code>
                 </Link>
               </li>
@@ -15567,7 +15567,7 @@ result.error                  // optional error`}</CodeBlock>
               }}
             >
               <li>
-                <a href="/docs/types/offer">Offer Types Documentation</a>
+                <a href="/docs/types">Offer Types Documentation</a>
               </li>
               <li>
                 <a href="/docs/features/discount">Discount Feature Guide</a>
@@ -16130,7 +16130,7 @@ result.error                  // optional error`}</CodeBlock>
           <div style={{ marginBottom: '1.25rem' }}>
             <h5 style={{ margin: '0 0 0.25rem 0' }}>
               2. Deprecated{' '}
-              <Link to="/docs/apis/ios/request-purchase-on-promoted-product-ios">
+              <Link to="/docs/events/ios/promoted-product-listener-ios">
                 <code>requestPurchaseOnPromotedProductIOS()</code>
               </Link>
             </h5>

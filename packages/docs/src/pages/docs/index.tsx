@@ -1,12 +1,4 @@
-import {
-  Route,
-  Routes,
-  Navigate,
-  NavLink,
-  parsePath,
-  useLocation,
-  useParams,
-} from 'react-router-dom';
+import { Route, Routes, NavLink } from 'react-router-dom';
 import DocsShell from '../../components/DocsShell';
 import { MenuDropdown } from '../../components/MenuDropdown';
 import ExternalRedirect from '../../components/ExternalRedirect';
@@ -70,7 +62,6 @@ import APIsIsTransactionVerifiedIOS from './apis/ios/is-transaction-verified-ios
 import APIsGetTransactionJwsIOS from './apis/ios/get-transaction-jws-ios';
 import APIsGetReceiptDataIOS from './apis/ios/get-receipt-data-ios';
 import APIsBeginRefundRequestIOS from './apis/ios/begin-refund-request-ios';
-import APIsPresentCodeRedemptionSheetIOS from './apis/ios/present-code-redemption-sheet-ios';
 import APIsGetAppTransactionIOS from './apis/ios/get-app-transaction-ios';
 import APIsCanPresentExternalPurchaseNoticeIOS from './apis/ios/can-present-external-purchase-notice-ios';
 import APIsPresentExternalPurchaseNoticeSheetIOS from './apis/ios/present-external-purchase-notice-sheet-ios';
@@ -88,7 +79,6 @@ import APIsCreateBillingProgramReportingDetailsAndroid from './apis/android/crea
 import APIsShowBillingProgramInformationDialogAndroid from './apis/android/show-billing-program-information-dialog-android';
 import APIsShowAlternativeBillingOnlyInformationDialogAndroid from './apis/android/show-alternative-billing-only-information-dialog-android';
 import APIsShowInAppMessagesAndroid from './apis/android/show-in-app-messages-android';
-import APIsOpenRedeemOfferCodeAndroid from './apis/android/open-redeem-offer-code-android';
 import Events from './events';
 import EventsPurchaseUpdatedListener from './events/purchase-updated-listener';
 import EventsPurchaseErrorListener from './events/purchase-error-listener';
@@ -140,44 +130,6 @@ import FoundationFoundingSupporters from './foundation/founding-supporters';
 import FoundationResearch from './foundation/research';
 import FoundationWhitepapers from './foundation/whitepapers';
 import NotFound from '../404';
-
-/* Preserve the URL hash when redirecting away from a deprecated path so
-   downstream pages (apis/index, types/index) can still translate the
-   anchor into a flat per-symbol page. Without this, a link like
-   /docs/types/request#request-purchase-props would land on /docs/types
-   minus the hash, defeating LEGACY_ANCHOR_REDIRECTS. */
-function NavigatePreservingHash({ to }: { to: string }) {
-  const { search, hash } = useLocation();
-  // Whatever the target names, it keeps; the rest carries over from the URL the
-  // visitor arrived on. Hand-splitting on '#' mis-parses a target with a query.
-  const target = parsePath(to);
-  return (
-    <Navigate
-      to={{
-        pathname: target.pathname,
-        search: target.search ?? search,
-        hash: target.hash ?? hash,
-      }}
-      replace
-    />
-  );
-}
-
-/** `/docs/commerce-protocol/rest` -> `/commerce-protocol/rest`, intact. */
-function CommerceProtocolRedirect() {
-  const { search, hash } = useLocation();
-  const subPath = useParams()['*'] ?? '';
-  return (
-    <Navigate
-      to={{
-        pathname: `/commerce-protocol${subPath ? `/${subPath}` : ''}`,
-        search,
-        hash,
-      }}
-      replace
-    />
-  );
-}
 
 function Docs() {
   return (
@@ -821,18 +773,8 @@ function Docs() {
       )}
     >
       <Routes>
-        <Route
-          index
-          element={<Navigate to="/docs/getting-started" replace />}
-        />
         <Route path="getting-started" element={<GettingStarted />} />
         <Route path="ecosystem" element={<Ecosystem />} />
-        {/* the specification became its own section in 2026-09; these two
-              keep every published /docs link working */}
-        <Route
-          path="commerce-protocol/*"
-          element={<CommerceProtocolRedirect />}
-        />
         <Route path="lifecycle" element={<LifeCycle />} />
         <Route path="lifecycle/subscription" element={<Subscription />} />
         <Route path="types" element={<TypesIndex />} />
@@ -882,18 +824,6 @@ function Docs() {
           element={<TypesAppOwnershipVerification />}
         />
         <Route
-          path="types/ios/discount-offer-ios"
-          element={
-            <NavigatePreservingHash to="/docs/types/subscription-offer" />
-          }
-        />
-        <Route
-          path="types/ios/discount-ios"
-          element={
-            <NavigatePreservingHash to="/docs/types/subscription-offer" />
-          }
-        />
-        <Route
           path="types/ios/subscription-period-ios"
           element={<TypesSubscriptionPeriodIOS />}
         />
@@ -918,16 +848,6 @@ function Docs() {
           element={<TypesRenewalInfoIOS />}
         />
         <Route
-          path="types/android/one-time-purchase-offer-detail-android"
-          element={<NavigatePreservingHash to="/docs/types/discount-offer" />}
-        />
-        <Route
-          path="types/android/subscription-offer-android"
-          element={
-            <NavigatePreservingHash to="/docs/types/subscription-offer" />
-          }
-        />
-        <Route
           path="types/android/pricing-phase-android"
           element={<TypesPricingPhaseAndroid />}
         />
@@ -935,30 +855,6 @@ function Docs() {
         <Route
           path="types/subscription-offer"
           element={<TypesSubscriptionOffer />}
-        />
-        <Route
-          path="types/request"
-          element={<NavigatePreservingHash to="/docs/types" />}
-        />
-        <Route
-          path="types/alternative"
-          element={<NavigatePreservingHash to="/docs/types" />}
-        />
-        <Route
-          path="types/verification"
-          element={<NavigatePreservingHash to="/docs/types" />}
-        />
-        <Route
-          path="types/ios"
-          element={<NavigatePreservingHash to="/docs/types" />}
-        />
-        <Route
-          path="types/android"
-          element={<NavigatePreservingHash to="/docs/types" />}
-        />
-        <Route
-          path="types/offer"
-          element={<NavigatePreservingHash to="/docs/types" />}
         />
         <Route path="apis" element={<APIsIndex />} />
         <Route path="apis/init-connection" element={<APIsInitConnection />} />
@@ -1007,12 +903,6 @@ function Docs() {
           element={<APIsOpenExternalPurchaseLink />}
         />
         <Route
-          path="apis/validate-receipt"
-          element={
-            <NavigatePreservingHash to="/docs/features/validation#verify-purchase" />
-          }
-        />
-        <Route
           path="apis/ios/clear-transaction-ios"
           element={<APIsClearTransactionIOS />}
         />
@@ -1025,10 +915,6 @@ function Docs() {
           element={<APIsGetAllTransactionsIOS />}
         />
         <Route path="apis/ios/sync-ios" element={<APIsSyncIOS />} />
-        <Route
-          path="apis/ios/get-storefront-ios"
-          element={<NavigatePreservingHash to="/docs/apis/get-storefront" />}
-        />
         <Route
           path="apis/ios/get-promoted-product-ios"
           element={<APIsGetPromotedProductIOS />}
@@ -1070,10 +956,6 @@ function Docs() {
           element={<APIsBeginRefundRequestIOS />}
         />
         <Route
-          path="apis/ios/present-code-redemption-sheet-ios"
-          element={<APIsPresentCodeRedemptionSheetIOS />}
-        />
-        <Route
           path="apis/ios/get-app-transaction-ios"
           element={<APIsGetAppTransactionIOS />}
         />
@@ -1102,42 +984,12 @@ function Docs() {
           element={<APIsShowExternalPurchaseCustomLinkNoticeIOS />}
         />
         <Route
-          path="apis/ios/request-purchase-on-promoted-product-ios"
-          element={
-            <NavigatePreservingHash to="/docs/events/ios/promoted-product-listener-ios" />
-          }
-        />
-        <Route
-          path="apis/ios/validate-receipt-ios"
-          element={
-            <NavigatePreservingHash to="/docs/features/validation#verify-purchase" />
-          }
-        />
-        <Route
           path="apis/android/acknowledge-purchase-android"
           element={<APIsAcknowledgePurchaseAndroid />}
         />
         <Route
           path="apis/android/consume-purchase-android"
           element={<APIsConsumePurchaseAndroid />}
-        />
-        <Route
-          path="apis/android/check-alternative-billing-availability-android"
-          element={
-            <NavigatePreservingHash to="/docs/apis/android/is-billing-program-available-android" />
-          }
-        />
-        <Route
-          path="apis/android/show-alternative-billing-dialog-android"
-          element={
-            <NavigatePreservingHash to="/docs/apis/android/launch-external-link-android" />
-          }
-        />
-        <Route
-          path="apis/android/create-alternative-billing-token-android"
-          element={
-            <NavigatePreservingHash to="/docs/apis/android/create-billing-program-reporting-details-android" />
-          }
         />
         <Route
           path="apis/android/enable-billing-program-android"
@@ -1171,51 +1023,7 @@ function Docs() {
           path="apis/android/show-in-app-messages-android"
           element={<APIsShowInAppMessagesAndroid />}
         />
-        <Route
-          path="apis/android/open-redeem-offer-code-android"
-          element={<APIsOpenRedeemOfferCodeAndroid />}
-        />
-        <Route
-          path="apis/connection"
-          element={<NavigatePreservingHash to="/docs/apis" />}
-        />
-        <Route
-          path="apis/products"
-          element={<NavigatePreservingHash to="/docs/apis" />}
-        />
-        <Route
-          path="apis/purchase"
-          element={<NavigatePreservingHash to="/docs/apis" />}
-        />
-        <Route
-          path="apis/subscription"
-          element={<NavigatePreservingHash to="/docs/apis" />}
-        />
-        <Route
-          path="apis/ios"
-          element={<NavigatePreservingHash to="/docs/apis" />}
-        />
-        <Route
-          path="apis/android"
-          element={<NavigatePreservingHash to="/docs/apis" />}
-        />
-        <Route
-          path="apis/validation"
-          element={<NavigatePreservingHash to="/docs/features/validation" />}
-        />
-        <Route
-          path="apis/debugging"
-          element={<NavigatePreservingHash to="/docs/features/debugging" />}
-        />
-        <Route
-          path="apis/refund"
-          element={<NavigatePreservingHash to="/docs/features/refund" />}
-        />
         <Route path="events" element={<Events />} />
-        <Route
-          path="webhooks"
-          element={<NavigatePreservingHash to="/commerce-protocol/webhooks" />}
-        />
         <Route
           path="kit-backend"
           element={
@@ -1319,44 +1127,8 @@ function Docs() {
         <Route path="features/refund" element={<Refund />} />
         <Route path="features/validation" element={<Validation />} />
         <Route path="features/debugging" element={<Debugging />} />
-        <Route
-          path="features/store-integrations"
-          element={<NavigatePreservingHash to="/docs/setup/store" />}
-        />
-        <Route
-          path="features/runtime-integrations"
-          element={<NavigatePreservingHash to="/docs/setup/store" />}
-        />
-        <Route
-          path="features/alternative-marketplace"
-          element={<NavigatePreservingHash to="/docs/setup/store/onside" />}
-        />
-        <Route
-          path="features/alternative-marketplace/onside"
-          element={<NavigatePreservingHash to="/docs/setup/store/onside" />}
-        />
-        <Route
-          path="features/horizon-os"
-          element={<NavigatePreservingHash to="/docs/setup/store/horizon" />}
-        />
-        <Route
-          path="features/fire-os"
-          element={<Navigate to="/docs/setup/store/amazon#fire-os" replace />}
-        />
-        <Route
-          path="features/vega-os"
-          element={<Navigate to="/docs/setup/store/amazon#vega-os" replace />}
-        />
         <Route path="ios-setup" element={<IOSSetup />} />
         <Route path="android-setup" element={<AndroidSetup />} />
-        <Route
-          path="horizon-setup"
-          element={<NavigatePreservingHash to="/docs/setup/store/horizon" />}
-        />
-        <Route
-          path="fireos-setup"
-          element={<Navigate to="/docs/setup/store/amazon#fire-os" replace />}
-        />
         <Route path="setup" element={<SetupIndex />} />
         <Route path="setup/store" element={<StoreSetup />} />
         <Route path="setup/store/horizon" element={<HorizonStoreSetup />} />
@@ -1369,26 +1141,6 @@ function Docs() {
         <Route path="setup/kmp" element={<KmpSetup />} />
         <Route path="setup/maui" element={<MauiSetup />} />
         <Route path="example" element={<Example />} />
-        <Route
-          path="example/ios"
-          element={<Navigate to="/docs/example" replace />}
-        />
-        <Route
-          path="example/android"
-          element={<Navigate to="/docs/example" replace />}
-        />
-        <Route
-          path="example/horizon"
-          element={<Navigate to="/docs/example" replace />}
-        />
-        <Route
-          path="example/fireos"
-          element={<Navigate to="/docs/example" replace />}
-        />
-        <Route
-          path="example/amazon"
-          element={<Navigate to="/docs/example" replace />}
-        />
         <Route path="guides/ai-assistants" element={<AIAssistants />} />
         <Route
           path="guides/mcp-server"
@@ -1416,7 +1168,6 @@ function Docs() {
         />
         <Route path="guides/testing" element={<Testing />} />
         <Route path="guides/store-providers" element={<StoreProviders />} />
-        <Route path="guides/android-providers" element={<StoreProviders />} />
         <Route path="security/overview" element={<SecurityOverview />} />
         <Route path="security/sbom" element={<SecuritySbom />} />
         <Route path="security/compliance" element={<SecurityCompliance />} />
@@ -1443,18 +1194,8 @@ function Docs() {
           element={<FoundationWhitepapers />}
         />
         <Route path="updates/announcements" element={<Announcements />} />
-        <Route
-          path="updates/notes"
-          element={<Navigate to="/docs/updates/releases" replace />}
-        />
         <Route path="updates/releases" element={<Releases />} />
         <Route path="updates/migration" element={<Migration />} />
-        {/* the page was published at updates/deprecations until 2026-08;
-              keep the old path working for existing links and search results */}
-        <Route
-          path="updates/deprecations"
-          element={<NavigatePreservingHash to="/docs/updates/migration" />}
-        />
         <Route path="updates/versions" element={<Versions />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
