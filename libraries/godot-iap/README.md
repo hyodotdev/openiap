@@ -186,23 +186,11 @@ If godot-iap saves you time, a ⭐ on [hyodotdev/openiap](https://github.com/hyo
 ## Sponsors
 
 <p align="center">
-  <a href="https://meta.com">
-    <img src="https://openiap.dev/meta.svg" alt="Meta" height="80" align="middle">
-  </a>
+  <a href="https://meta.com"><img src="https://openiap.dev/meta.svg" alt="Meta" height="80" align="middle"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://developer.amazon.com/">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://openiap.dev/sponsors/amazon-dark.webp">
-      <img src="https://openiap.dev/sponsors/amazon.webp" alt="Amazon Developer" height="44" align="middle">
-    </picture>
-  </a>
+  <a href="https://developer.amazon.com/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://openiap.dev/sponsors/amazon-dark.webp"><img src="https://openiap.dev/sponsors/amazon.webp" alt="Amazon Developer" height="44" align="middle"></picture></a>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://codemagic.io/">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://openiap.dev/sponsors/codemagic-dark.svg">
-      <img src="https://openiap.dev/sponsors/codemagic.svg" alt="Codemagic" height="40" align="middle">
-    </picture>
-  </a>
+  <a href="https://codemagic.io/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://openiap.dev/sponsors/codemagic-dark.svg"><img src="https://openiap.dev/sponsors/codemagic.svg" alt="Codemagic" height="22" align="middle"></picture></a>
 </p>
 
 Thank you to [Meta](https://meta.com), [Amazon Developer](https://developer.amazon.com/), and [Codemagic](https://codemagic.io/) for supporting OpenIAP. [View sponsorship options](https://openiap.dev/sponsors).
@@ -210,24 +198,12 @@ Thank you to [Meta](https://meta.com), [Amazon Developer](https://developer.amaz
 ### In-kind support
 
 <p align="center">
-  <a href="https://claude.com/contact-sales/claude-for-oss">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://openiap.dev/sponsors/claude-dark.svg">
-      <img src="https://openiap.dev/sponsors/claude.svg" alt="Claude" height="32" align="middle">
-    </picture>
-  </a>
+  <a href="https://claude.com/contact-sales/claude-for-oss"><picture><source media="(prefers-color-scheme: dark)" srcset="https://openiap.dev/sponsors/claude-dark.svg"><img src="https://openiap.dev/sponsors/claude.svg" alt="Claude" height="17" align="middle"></picture></a>
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://codemagic.io/">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://openiap.dev/sponsors/codemagic-dark.svg">
-      <img src="https://openiap.dev/sponsors/codemagic.svg" alt="Codemagic" height="32" align="middle">
-    </picture>
-  </a>
+  <a href="https://codemagic.io/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://openiap.dev/sponsors/codemagic-dark.svg"><img src="https://openiap.dev/sponsors/codemagic.svg" alt="Codemagic" height="19" align="middle"></picture></a>
 </p>
 
-[Claude for Open Source](https://claude.com/contact-sales/claude-for-oss) provides the Claude Ultra plan for the maintainer from July 20, 2026 to January 19, 2027.
-
-[Codemagic](https://codemagic.io/) provides infrastructure support for OpenIAP.
+[Claude for Open Source](https://claude.com/contact-sales/claude-for-oss) provides the Claude Ultra plan for the maintainer for 6 months.<br>[Codemagic](https://codemagic.io/) provides infrastructure support for OpenIAP.
 
 ### OpenCollective
 
@@ -244,13 +220,9 @@ We also recognize sponsors and backers through OpenCollective. The original reac
 Supported the project before the OpenIAP sponsor program: Nami for 30 months and Courier for 1 month.
 
 <p align="center">
-  <a href="https://namiml.com">
-    <img src="https://openiap.dev/sponsors/nami.webp" alt="Nami" height="40" align="middle">
-  </a>
+  <a href="https://namiml.com"><img src="https://openiap.dev/sponsors/nami.webp" alt="Nami" height="40" align="middle"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://www.courier.com/?utm_source=react-native-iap&utm_campaign=osssponsors">
-    <img src="https://openiap.dev/sponsors/courier.webp" alt="Courier" height="24" align="middle">
-  </a>
+  <a href="https://www.courier.com/?utm_source=react-native-iap&utm_campaign=osssponsors"><img src="https://openiap.dev/sponsors/courier.webp" alt="Courier" height="24" align="middle"></a>
 </p>
 
 [openiap-sponsors]: https://openiap.dev/sponsors

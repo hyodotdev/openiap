@@ -115,11 +115,21 @@ function isIsoDate(value) {
   return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
 }
 
-export function formatSupportDate(value) {
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "long",
-    timeZone: "UTC",
-  }).format(new Date(`${value}T00:00:00Z`));
+// Whole months from since to an inclusive until, e.g. 2026-07-20..2027-01-19 is 6.
+function supportMonths(since, until) {
+  const start = new Date(`${since}T00:00:00Z`);
+  const end = new Date(`${until}T00:00:00Z`);
+  end.setUTCDate(end.getUTCDate() + 1);
+  return (
+    (end.getUTCFullYear() - start.getUTCFullYear()) * 12 +
+    (end.getUTCMonth() - start.getUTCMonth()) -
+    (end.getUTCDate() < start.getUTCDate() ? 1 : 0)
+  );
+}
+
+export function formatSupportDuration(since, until) {
+  const months = supportMonths(since, until);
+  return months === 1 ? "1 month" : `${months} months`;
 }
 
 export function validateRegistry(root, registry, { staged = false } = {}) {
@@ -171,8 +181,8 @@ export function validateRegistry(root, registry, { staged = false } = {}) {
             throw new Error(`${label}.${field} must be a YYYY-MM-DD date`);
           }
         }
-        if (entry.until <= entry.since) {
-          throw new Error(`${label}.until must be after since`);
+        if (supportMonths(entry.since, entry.until) < 1) {
+          throw new Error(`${label} must span at least one whole month`);
         }
       }
 
@@ -260,31 +270,13 @@ function repositoryAssetUrl(assetPath) {
 function renderLogo(entry, { repositoryAssets = false } = {}) {
   const logo = entry.logo.readme ?? entry.logo;
   const assetUrl = repositoryAssets ? repositoryAssetUrl : absoluteAssetUrl;
+  const image = `<img src="${assetUrl(logo.src)}" alt="${entry.name}" height="${logo.height}" align="middle">`;
+  const content = logo.darkSrc
+    ? `<picture><source media="(prefers-color-scheme: dark)" srcset="${assetUrl(logo.darkSrc)}">${image}</picture>`
+    : image;
 
-  if (!logo.darkSrc) {
-    return [
-      `  <a href="${entry.url}">`,
-      `    <img src="${assetUrl(logo.src)}" alt="${entry.name}" height="${logo.height}" align="middle">`,
-      "  </a>",
-    ].join("\n");
-  }
-
-  return [
-    `  <a href="${entry.url}">`,
-    "    <picture>",
-    `      <source media="(prefers-color-scheme: dark)" srcset="${assetUrl(logo.darkSrc)}">`,
-    `      <img src="${assetUrl(logo.src)}" alt="${entry.name}" height="${logo.height}" align="middle">`,
-    "    </picture>",
-    "  </a>",
-  ].join("\n");
-}
-
-function renderSupporterLogo(entry) {
-  return [
-    `  <a href="${entry.url}">`,
-    `    <img src="${absoluteAssetUrl(entry.logo.src)}" alt="${entry.name}" height="${entry.logo.height}" align="middle">`,
-    "  </a>",
-  ].join("\n");
+  // One line per logo: whitespace inside the link renders as an underlined space.
+  return `  <a href="${entry.url}">${content}</a>`;
 }
 
 function renderInKindSection(inKindSupporters, options) {
@@ -301,13 +293,16 @@ function renderInKindSection(inKindSupporters, options) {
       .join("\n  &nbsp;&nbsp;&nbsp;&nbsp;\n"),
     "</p>",
     "",
-    // One paragraph per supporter, so Markdown and Prettier keep them apart.
-    ...inKindSupporters.flatMap((supporter) => [
-      supporter.since === undefined
-        ? `[${supporter.program}](${supporter.url}) provides ${supporter.contribution}.`
-        : `[${supporter.program}](${supporter.url}) provides ${supporter.contribution} from ${formatSupportDate(supporter.since)} to ${formatSupportDate(supporter.until)}.`,
-      "",
-    ]),
+    // One source line split by `<br>`: no paragraph gap, and stable under the
+    // `preserve` and `never` proseWrap the READMEs use (`never` joins lines).
+    inKindSupporters
+      .map((supporter) =>
+        supporter.since === undefined
+          ? `[${supporter.program}](${supporter.url}) provides ${supporter.contribution}.`
+          : `[${supporter.program}](${supporter.url}) provides ${supporter.contribution} for ${formatSupportDuration(supporter.since, supporter.until)}.`,
+      )
+      .join("<br>"),
+    "",
   ];
 }
 
@@ -328,7 +323,7 @@ export function renderSponsorBlock(
     .map((sponsor) => renderLogo(sponsor, { repositoryAssets }))
     .join("\n  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\n");
   const pastLogos = pastSupporters
-    .map(renderSupporterLogo)
+    .map((supporter) => renderLogo(supporter))
     .join("\n  &nbsp;&nbsp;&nbsp;&nbsp;\n");
   const pastPeriods = new Intl.ListFormat("en", {
     style: "long",

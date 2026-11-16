@@ -1,6 +1,8 @@
 /* CSS Variables */
 :root {
-  color-scheme: light;
+  /* `only` stops browser forced dark (Samsung Internet, Android Chrome) from
+     darkening the light theme, which hides dark-on-light sponsor logos. */
+  color-scheme: only light;
 
   /* Light mode colors */
   --primary-color: #a47465;

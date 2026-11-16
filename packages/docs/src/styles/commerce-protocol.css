@@ -459,37 +459,19 @@
 }
 
 .doc-page .commerce-hero h1 {
-  margin: 1.75rem 0 var(--spacing-lg);
+  margin: var(--spacing-lg) 0;
   font-family: var(--font-family-display);
-  font-size: clamp(2.5rem, 6.3cqi, 4.5rem);
+  font-size: clamp(2.1rem, 4.4cqi, 3.25rem);
   font-weight: 800;
   line-height: 1.08;
   letter-spacing: var(--tracking-display-tight);
 }
 
-.commerce-hero h1 > span {
-  display: block;
-  width: fit-content;
-  color: var(--commerce-highlight);
-  background: linear-gradient(
-    105deg,
-    var(--commerce-highlight),
-    var(--primary-color) 60%,
-    var(--text-secondary)
-  );
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
 .doc-page .commerce-hero-copy > p {
   max-width: 540px;
-  margin-bottom: var(--spacing-xl);
-  font-size: var(--font-size-md);
+  margin-bottom: var(--spacing-lg);
+  font-size: var(--font-size-sm);
   line-height: 1.7;
-}
-
-.commerce-hero .btn {
-  min-height: 44px;
 }
 
 .commerce-hero-footer {
@@ -504,6 +486,51 @@
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-sm);
+}
+
+/* Two columns: the pitch beside the one verify call it describes. */
+.commerce-hero-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(1.5rem, 4cqi, 2.5rem);
+  align-items: center;
+}
+
+.commerce-hero-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-weight: 600;
+}
+
+.commerce-hero-example {
+  min-width: 0;
+}
+
+.doc-page .commerce-hero-example > p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--spacing-xs) var(--spacing-sm);
+  margin: 0 0 var(--spacing-sm);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.commerce-hero-example pre.code-block {
+  margin: 0;
+}
+
+.commerce-hero-example pre.code-block code {
+  font-size: var(--font-size-sm);
+}
+
+.doc-page .commerce-hero-provider {
+  max-width: 720px;
+  margin: var(--spacing-xl) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
 }
 
 .commerce-ecosystem-heading {
@@ -2194,6 +2221,7 @@
 }
 
 @container commerce-page (max-width: 720px) {
+  .commerce-hero-body,
   .commerce-ecosystem-roles {
     grid-template-columns: 1fr;
   }
@@ -2219,10 +2247,6 @@
   }
   .doc-page .commerce-hero h1 {
     font-size: clamp(2rem, 9cqi, 2.5rem);
-  }
-  .commerce-hero .commerce-actions {
-    align-items: stretch;
-    flex-direction: column;
   }
   .commerce-ecosystem .commerce-businesses {
     grid-template-columns: repeat(2, minmax(0, 1fr));

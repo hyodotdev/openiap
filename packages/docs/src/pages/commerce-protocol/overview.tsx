@@ -7,12 +7,16 @@ import {
   useNavigationType,
 } from 'react-router-dom';
 import { ArrowRight, BookOpen } from 'lucide-react';
+import httpBinding from '@hyodotdev/openiap-commerce-protocol/generated/bindings/http-binding.json';
+import verifyRequest from '@hyodotdev/openiap-commerce-protocol/examples/verify-purchase-request.json';
+import verifyResult from '@hyodotdev/openiap-commerce-protocol/examples/verify-purchase-result.json';
+import CodeBlock from '../../components/CodeBlock';
 import SEO from '../../components/SEO';
 import CommerceEcosystem from '../../components/CommerceEcosystem';
 import CommerceProtocolDiagram from '../../components/CommerceProtocolDiagram';
 import CommerceBuildWalkthrough from '../../components/CommerceBuildWalkthrough';
 import { keepsScroll } from '../../hooks/useScrollToHash';
-import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
+import { COMMERCE_PROTOCOL_LINKS, IAPKIT_URL } from '../../lib/config';
 import '../../styles/commerce-protocol.css';
 
 interface RolePath {
@@ -21,10 +25,11 @@ interface RolePath {
   to: string;
 }
 
+// The sidebar lists every guide; the landing page links the three common starts.
 const ROLE_PATHS: RolePath[] = [
   {
     title: 'From your app',
-    body: 'what the app sends and why your backend should call the protocol',
+    body: 'what the app sends to your backend',
     to: '/commerce-protocol/client',
   },
   {
@@ -34,20 +39,26 @@ const ROLE_PATHS: RolePath[] = [
   },
   {
     title: 'Receive events',
-    body: 'verify and store signed lifecycle events',
+    body: 'verify and store signed renewal, refund, and revocation events',
     to: '/commerce-protocol/webhooks',
   },
-  {
-    title: 'Build your backend',
-    body: 'use a managed service or run your own, then check the result',
-    to: '/commerce-protocol/implementation',
-  },
-  {
-    title: 'Join the ecosystem',
-    body: 'roles, composition, and how to contribute',
-    to: '/commerce-protocol/ecosystem',
-  },
 ];
+
+const VERIFY = httpBinding.operations.find(
+  (operation) => operation.name === 'verifyPurchase'
+)!;
+
+// The JWS is shortened; Call a provider shows the request for each store.
+const VERIFY_REQUEST = {
+  ...verifyRequest,
+  apple: { jws: `${verifyRequest.apple.jws.slice(0, 10)}…` },
+};
+
+const VERIFY_EXAMPLE = `// Request
+${JSON.stringify(VERIFY_REQUEST, null, 2)}
+
+// Response
+${JSON.stringify(verifyResult, null, 2)}`;
 
 function CommerceProtocol(): React.JSX.Element {
   const location = useLocation();
@@ -95,7 +106,7 @@ function CommerceProtocol(): React.JSX.Element {
     <div className="doc-page commerce-protocol-page commerce-overview">
       <SEO
         title="OpenIAP Commerce Protocol"
-        description="The open server API for in-app purchases: a backend verifies purchases, reads access, and receives lifecycle events from any conforming provider, such as IAPKit or your own."
+        description="One server API for purchases across stores: a backend verifies purchases, reads access, and receives signed lifecycle events from any conforming provider, such as IAPKit or your own."
         path="/commerce-protocol"
       />
       <header className="commerce-hero">
@@ -103,17 +114,46 @@ function CommerceProtocol(): React.JSX.Element {
           <span className="commerce-eyebrow">OpenIAP Commerce Protocol</span>
           <span className="commerce-standard-badge">Open standard</span>
         </div>
-        <div className="commerce-hero-copy">
-          <h1>The open server API for in-app purchases</h1>
-          <p>
-            OpenIAP client libraries run the purchase in your app. The Commerce
-            Protocol is the open server API a backend uses to verify that
-            purchase, read access, and receive lifecycle events. IAPKit is one
-            service that implements it; other providers and your own backend
-            implement the same operations, so compare capability descriptors for
-            the stores and profiles you need.
-          </p>
+        <div className="commerce-hero-body">
+          <div className="commerce-hero-copy">
+            <h1>One server API for purchases across stores</h1>
+            <p>
+              Each store verifies purchases and reports subscription changes in
+              its own format. The Commerce Protocol gives your backend one
+              verify call, one way to read access, and one signed event format
+              for all of them, instead of separate integrations with the App
+              Store Server API, Google Play Developer API, Amazon Receipt
+              Verification Service, and Meta Horizon&apos;s server API.
+            </p>
+            <Link className="commerce-hero-cta" to="#build-step-1">
+              See a subscription in action
+              <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+          </div>
+          <div className="commerce-hero-example">
+            <p>
+              <code>
+                {VERIFY.method} {VERIFY.path}
+              </code>
+              <span>
+                Same call and result shape for each supported store; only the
+                evidence changes.
+              </span>
+            </p>
+            <CodeBlock language="json">{VERIFY_EXAMPLE}</CodeBlock>
+          </div>
         </div>
+        <p className="commerce-hero-provider">
+          <a href={IAPKIT_URL}>IAPKit</a>, which OpenIAP runs, is the reference
+          implementation today. Use it hosted, host it yourself, or implement
+          the protocol in your own backend and check it with the{' '}
+          <Link to="/commerce-protocol/conformance">conformance runner</Link>.
+          The checks are a floor, not proof that a provider is correct. Compare{' '}
+          <Link to="/commerce-protocol/capabilities">
+            capability descriptors
+          </Link>{' '}
+          for the stores and profiles you need.
+        </p>
         <div className="commerce-hero-footer">
           <span>Your infrastructure. Your partners. No central account.</span>
           <Link to="/commerce-protocol/whitepaper">
@@ -131,39 +171,23 @@ function CommerceProtocol(): React.JSX.Element {
             </li>
           ))}
         </ul>
-        <h3>Do I need this?</h3>
+        <h3>When it helps</h3>
         <ul>
           <li>
-            Adopt it when a server verifies purchases from more than one store
-            and you want one access decision across them, written in a
-            specification your provider does not own.
+            Your server verifies purchases from more than one store and needs
+            one access decision across them.
           </li>
           <li>
-            Selling in-app purchases does not require it: the client libraries
-            work with a store&apos;s own server API, your backend, or a
-            verification service.
-          </li>
-          <li>
-            It runs nothing for you. A provider, hosted or your own backend,
-            implements it, and the conformance checks are a floor, not proof
-            that a provider is correct.
+            You want that contract in a specification your provider does not
+            own, so you can switch providers or run your own.
           </li>
         </ul>
         <p>
-          <Link to="#architecture">Explore the architecture</Link> ·{' '}
-          <Link to="#build-step-1">See a subscription working</Link>
+          It is optional: the client libraries also work with a store&apos;s own
+          server API, your backend, or another verification service.
         </p>
       </section>
       <CommerceProtocolDiagram onShowExample={showExample} />
-      <details className="commerce-explore-section">
-        <summary>
-          <span>Explore the wider ecosystem</span>
-          <small>Paywalls, commerce services, and data platforms</small>
-        </summary>
-        <div className="commerce-explore-content">
-          <CommerceEcosystem />
-        </div>
-      </details>
       <details
         id="build-walkthrough"
         className="commerce-explore-section"
@@ -190,6 +214,15 @@ function CommerceProtocol(): React.JSX.Element {
             />
           </div>
         )}
+      </details>
+      <details className="commerce-explore-section">
+        <summary>
+          <span>Explore the wider ecosystem</span>
+          <small>Paywalls, commerce services, and data platforms</small>
+        </summary>
+        <div className="commerce-explore-content">
+          <CommerceEcosystem />
+        </div>
       </details>
       <section aria-labelledby="commerce-spec-links">
         <h2 id="commerce-spec-links">Specification</h2>

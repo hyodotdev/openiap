@@ -13,6 +13,7 @@ import {
   communityReadmes,
   discoverFundingManifests,
   discoverReadmes,
+  formatSupportDuration,
   renderCommunityBlock,
   renderFundingConfig,
   renderPackageFunding,
@@ -120,7 +121,7 @@ test("renders current, collective, and past supporters from one registry", () =>
   assert.match(block, /### In-kind support/u);
   assert.match(
     block,
-    /\[Tool for Open Source\]\(https:\/\/tool\.example\) provides a free plan for the maintainer from July 20, 2026 to January 19, 2027\./u,
+    /\[Tool for Open Source\]\(https:\/\/tool\.example\) provides a free plan for the maintainer for 6 months\./u,
   );
   assert.match(block, /tool-dark\.svg/u);
   assert.match(block, /\[openiap-github-sponsors\]/);
@@ -128,6 +129,13 @@ test("renders current, collective, and past supporters from one registry", () =>
   assert.match(block, /\[openiap-company-contact\]/);
   assert.ok(block.startsWith(sponsorBlockStart));
   assert.ok(block.endsWith(sponsorBlockEnd));
+});
+
+test("counts in-kind support in whole months, with an inclusive end", () => {
+  assert.equal(formatSupportDuration("2026-07-20", "2027-01-19"), "6 months");
+  assert.equal(formatSupportDuration("2026-07-20", "2026-08-19"), "1 month");
+  assert.equal(formatSupportDuration("2026-07-20", "2026-09-18"), "1 month");
+  assert.equal(formatSupportDuration("2026-01-01", "2026-12-31"), "12 months");
 });
 
 test("renders open-ended in-kind support without dates", () => {
@@ -144,7 +152,7 @@ test("renders open-ended in-kind support without dates", () => {
       /\[Tool for Open Source\]\(https:\/\/tool\.example\) provides a free plan for the maintainer\./u,
     );
 
-    // Each supporter is its own paragraph, or Markdown and Prettier join them.
+    // Each supporter keeps its own line, or Markdown and Prettier join them.
     const twoSupporters = structuredClone(registry);
     twoSupporters.inKindSupporters.push({
       ...openEnded.inKindSupporters[0],
@@ -152,7 +160,7 @@ test("renders open-ended in-kind support without dates", () => {
     });
     assert.match(
       renderSponsorBlock(twoSupporters),
-      /January 19, 2027\.\n\n\[Tool for Open Source\]/u,
+      /for 6 months\.<br>\[Tool for Open Source\]/u,
     );
 
     const startOnly = structuredClone(registry);
@@ -207,6 +215,10 @@ test("preserves the balanced sponsor layout across READMEs", () => {
     rootBlock,
     /src="packages\/docs\/public\/amazon\.webp" alt="Amazon" height="44"/u,
   );
+  // Whitespace inside a logo link renders as an underlined space on GitHub.
+  for (const block of [packageBlock, rootBlock]) {
+    assert.doesNotMatch(block, /<a href="[^"]*">\s|\s<\/a>/u);
+  }
 });
 
 test("derives funding URLs from the canonical account names", () => {
@@ -314,12 +326,14 @@ test("rejects duplicate supporter ids and missing logo assets", () => {
       /duplicate supporter id: meta/u,
     );
 
-    const reversed = structuredClone(registry);
-    reversed.inKindSupporters[0].until = "2026-07-01";
-    assert.throws(
-      () => validateRegistry(root, reversed),
-      /inKindSupporters\.tool\.until must be after since/u,
-    );
+    for (const until of ["2026-07-01", "2026-08-05"]) {
+      const short = structuredClone(registry);
+      short.inKindSupporters[0].until = until;
+      assert.throws(
+        () => validateRegistry(root, short),
+        /inKindSupporters\.tool must span at least one whole month/u,
+      );
+    }
 
     const invalidDate = structuredClone(registry);
     invalidDate.inKindSupporters[0].since = "2026-02-30";
