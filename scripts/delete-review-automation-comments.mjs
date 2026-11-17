@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 
 // Deletes top-level PR comments that only record review automation activity:
-// a `@coderabbitai review` trigger, CodeRabbit's "Action performed"
+// a review trigger such as `@coderabbitai review @gitdog review`, CodeRabbit's "Action performed"
 // replies to it, and CodeRabbit's terminal skipped/unavailable notices. This
 // was an inline jq loop inside `.claude/commands/review-pr.md`; prose cannot
 // be tested, and an untested deletion filter is a loaded footgun. This can.
+// With --hide-reviews it also hides bot reviews that report nothing, which
+// GitHub does not let anyone delete.
 //
-//   node scripts/delete-review-automation-comments.mjs <pr> [--dry-run]
+//   node scripts/delete-review-automation-comments.mjs <pr> [--dry-run] [--hide-reviews]
 //
-// Prints one `deleted <id>` (or `would delete <id>`) per match, and exits
+// Prints one `deleted <id>` (or `would delete <id>`, `hid <id>`) per match, and exits
 // non-zero with a reason if any page is missing or malformed, or a deletion
 // fails. A partial sweep must never pass as a complete one.
 
@@ -26,7 +28,8 @@ const PER_PAGE = 100;
 const MAX_PAGES = 50;
 
 const BOT_LOGIN = "coderabbitai[bot]";
-const TRIGGER = "@coderabbitai review";
+// The current trigger, and the CodeRabbit-only one older PRs still carry.
+const TRIGGERS = new Set(["@coderabbitai review @gitdog review", "@coderabbitai review"]);
 const INVOCATION_MARKER = "CodeRabbit review command invocation";
 // What bot noise looks like ...
 const NOISE =
@@ -35,11 +38,27 @@ const NOISE =
 const SUBSTANCE =
   /analysis chain|script executed|actionable comments posted|walkthrough|<!-- (cr-|fingerprinting)/i;
 
+// Bot reviews that say only that nothing was found or nothing could run.
+const EMPTY_REVIEWS = [
+  { login: "gitdogbot", body: /^Gitdog (found no supported defects|could not review) / },
+  { login: "copilot-pull-request-reviewer", body: /^Copilot was unable to review this pull request / },
+];
+
+/** True when the review is a bot's empty result with no inline comments. */
+export function isEmptyBotReview(review) {
+  if (review?.isMinimized || review?.comments?.totalCount !== 0) return false;
+  const body = review?.body;
+  if (typeof body !== "string") return false;
+  return EMPTY_REVIEWS.some(
+    ({ login, body: pattern }) => review.author?.login === login && pattern.test(body),
+  );
+}
+
 /** True when the comment is review-automation noise with nothing worth keeping. */
 export function isAutomationNoise(comment) {
   const body = comment?.body;
   if (typeof body !== "string") return false;
-  if (body === TRIGGER) return true;
+  if (TRIGGERS.has(body)) return true;
   if (comment?.user?.login !== BOT_LOGIN) return false;
   const noise = body.includes(INVOCATION_MARKER) || NOISE.test(body);
   return noise && !SUBSTANCE.test(body);
@@ -110,15 +129,90 @@ export function sweep(pr, { dryRun = false, fetch = fetchPage, remove = deleteCo
   return matched.length;
 }
 
+const REVIEWS_QUERY = `query($pr: Int!, $after: String) {
+  repository(owner: "${OWNER}", name: "${NAME}") {
+    pullRequest(number: $pr) {
+      reviews(first: ${PER_PAGE}, after: $after) {
+        pageInfo { hasNextPage endCursor }
+        nodes { id isMinimized body author { login } comments { totalCount } }
+      }
+    }
+  }
+}`;
+
+function fetchReviewPage(pr, after) {
+  const args = ["api", "graphql", "-f", `query=${REVIEWS_QUERY}`, "-F", `pr=${pr}`];
+  if (after) args.push("-f", `after=${after}`);
+  return execFileSync("gh", args, { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+}
+
+/** Every review on the PR; any page that cannot be trusted aborts the sweep. */
+export function listReviews(pr, { fetch = fetchReviewPage } = {}) {
+  const all = [];
+  let after;
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    let reviews;
+    try {
+      reviews = JSON.parse(fetch(pr, after))?.data?.repository?.pullRequest?.reviews;
+    } catch {
+      throw new Error("review page was not JSON");
+    }
+    if (!Array.isArray(reviews?.nodes)) throw new Error("review list was missing");
+    if (typeof reviews.pageInfo?.hasNextPage !== "boolean") {
+      throw new Error("review page has no paging information");
+    }
+    all.push(...reviews.nodes);
+    if (!reviews.pageInfo?.hasNextPage) return all;
+    after = reviews.pageInfo.endCursor;
+    if (typeof after !== "string" || !after) {
+      throw new Error("a next review page has no cursor");
+    }
+  }
+  throw new Error(`still paging reviews after ${MAX_PAGES} pages — refusing a partial sweep`);
+}
+
+function hideReview(id) {
+  execFileSync(
+    "gh",
+    [
+      "api",
+      "graphql",
+      "-f",
+      "query=mutation($id: ID!) { minimizeComment(input: {subjectId: $id, classifier: OUTDATED}) { minimizedComment { isMinimized } } }",
+      "-f",
+      `id=${id}`,
+    ],
+    { encoding: "utf8" },
+  );
+}
+
+export function hideEmptyBotReviews(pr, { dryRun = false, fetch = (n) => listReviews(n), hide = hideReview } = {}) {
+  const matched = fetch(pr).filter(isEmptyBotReview);
+  for (const review of matched) {
+    if (!dryRun) {
+      try {
+        hide(review.id);
+      } catch (error) {
+        throw new Error(`hiding review ${review.id} failed: ${error.message}`);
+      }
+    }
+    console.log(`${dryRun ? "would hide" : "hid"} ${review.id}`);
+  }
+  return matched.length;
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   const pr = Number(process.argv[2]);
   const dryRun = process.argv.includes("--dry-run");
   if (!Number.isInteger(pr) || pr <= 0) {
-    console.error("usage: node scripts/delete-review-automation-comments.mjs <pr> [--dry-run]");
+    console.error(
+      "usage: node scripts/delete-review-automation-comments.mjs <pr> [--dry-run] [--hide-reviews]",
+    );
     process.exit(2);
   }
   try {
     sweep(pr, { dryRun });
+    if (process.argv.includes("--hide-reviews")) hideEmptyBotReviews(pr, { dryRun });
   } catch (error) {
     console.error(`comment sweep incomplete: ${error.message}`);
     process.exit(1);

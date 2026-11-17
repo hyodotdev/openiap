@@ -187,9 +187,16 @@ names.
 OPENIAP_REPO="${OPENIAP_REPO:-$(git rev-parse --show-toplevel)}"
 cd "$OPENIAP_REPO/packages/kit"
 : "${CONVEX_URL:?Set the real Martie Convex deployment URL}"
-CONVEX_NAME="${CONVEX_URL#https://}"
-CONVEX_NAME="${CONVEX_NAME%%.*}"
-if grep -Fq "://$CONVEX_NAME." production.env; then
+CONVEX_HOST="$(printf '%s' "${CONVEX_URL#*://}" | cut -d/ -f1 | cut -d: -f1 | tr '[:upper:]' '[:lower:]')"
+CONVEX_NAME="${CONVEX_HOST%%.*}"
+[ -f production.env ] || {
+  echo 'BLOCKED: packages/kit/production.env is missing; production cannot be ruled out' >&2
+  exit 1
+}
+source production.env
+PRODUCTION_HOST="${IAPKIT_PRODUCTION_CONVEX_URL#https://}"
+if [ "$CONVEX_NAME" = "$IAPKIT_PRODUCTION_CONVEX_DEPLOYMENT" ] ||
+  [ "$CONVEX_HOST" = "$PRODUCTION_HOST" ]; then
   echo 'BLOCKED: CONVEX_URL is the production deployment' >&2
   exit 1
 fi

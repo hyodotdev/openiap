@@ -124,15 +124,19 @@ jobs:
         run: node scripts/audit-security.mjs dependencies
 
       - name: Test production Convex target guard
+        env:
+          IAPKIT_PRODUCTION_CONVEX_URL: https://production.example
         run: |
-          set -a
-          source production.env
-          set +a
           VITE_KIT_CONVEX_URL="$IAPKIT_PRODUCTION_CONVEX_URL" \
             ./scripts/verify-production-convex-target.sh
           if VITE_KIT_CONVEX_URL=https://invalid-dev.convex.cloud \
             ./scripts/verify-production-convex-target.sh; then
             echo "::error::Production target guard accepted a development deployment."
+            exit 1
+          fi
+          if env -u IAPKIT_PRODUCTION_CONVEX_URL VITE_KIT_CONVEX_URL=https://production.example \
+            ./scripts/verify-production-convex-target.sh; then
+            echo "::error::Production target guard ran without a production target."
             exit 1
           fi
 
@@ -318,12 +322,14 @@ jobs:
           CONVEX_DEPLOY_KEY: ${{ secrets.KIT_CONVEX_DEPLOY_KEY }}
           FLY_API_TOKEN: ${{ secrets.KIT_FLY_API_TOKEN }}
           IAPKIT_VERIFICATION_SOURCE_SECRET: ${{ secrets.KIT_VERIFICATION_SOURCE_SECRET }}
+          IAPKIT_PRODUCTION_CONVEX_URL: ${{ vars.IAPKIT_PRODUCTION_CONVEX_URL }}
         run: |
           # Convex resolves the canonical URL for the deployment selected by
           # CONVEX_DEPLOY_KEY. Abort before pushing functions if it does not
-          # match the committed production SSOT. Configure the shared runtime
-          # source credential before publishing guards, then pass the resolved
-          # URL to the later Fly build through GITHUB_ENV.
+          # match the kit-production environment's IAPKIT_PRODUCTION_CONVEX_URL.
+          # Configure the shared runtime source credential before publishing
+          # guards, then pass the resolved URL to the later Fly build through
+          # GITHUB_ENV.
           bunx convex deploy --yes \
             --cmd 'bash ./scripts/provision-verification-source.sh && printf "VITE_KIT_CONVEX_URL=%s\n" "$VITE_KIT_CONVEX_URL" >> "$GITHUB_ENV"' \
             --cmd-url-env-var-name VITE_KIT_CONVEX_URL

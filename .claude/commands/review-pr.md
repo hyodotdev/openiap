@@ -82,23 +82,25 @@ For each comment:
 4. **Reply directly to the inline review comment** (NOT a general PR comment)
 5. **Resolve the conversation** via GraphQL API
 
-After the fix batch is pushed (once per round, not per comment), trigger a fresh
-CodeRabbit review:
+After the fix batch is pushed (once per round, not per comment), request a
+fresh review from CodeRabbit and Gitdog in one comment:
 
 ```bash
-gh pr comment "$PR_NUMBER" --body "@coderabbitai review"
+gh pr comment "$PR_NUMBER" --body "@coderabbitai review @gitdog review"
 ```
 
-CodeRabbit is the only reviewer that posts to the PR, and Codex is the fallback
-when CodeRabbit cannot review a head. No other reviewer is configured: do not
-request other review bots or post their trigger comments. An accepted CodeRabbit
+CodeRabbit and Gitdog are the reviewers that post to the PR, and Codex is the
+fallback when CodeRabbit cannot review a head. No other reviewer is configured:
+do not request other review bots or post their trigger comments. Handle Gitdog
+findings like CodeRabbit's. Gitdog is not part of the clean gate, so a Gitdog
+review that is skipped or fails needs no fallback. An accepted CodeRabbit
 command can still return a terminal availability failure, so inspect the
 response instead of treating the trigger comment itself as review success.
 
 ### Never Post Round Summaries to the PR Conversation
 
-**The `@coderabbitai review` trigger is the ONLY comment this workflow may add to
-the PR conversation, and it is temporary — delete it in the same round.** Never
+**The review trigger is the ONLY comment this workflow may add to the PR
+conversation, and it is temporary — delete it in the same round.** Never
 post a per-round status update, findings table, CI classification, verification
 log, merge-readiness report, or "here is what I fixed" summary as a top-level PR
 comment. Those belong in exactly two places:
@@ -207,7 +209,7 @@ When fallback is required:
    word.
 
 4. Fix and verify every validated finding using the normal response rules. If a
-   fix changes the head, request CodeRabbit again after the fix batch and run
+   fix changes the head, post the review trigger again after the fix batch and run
    fallback again only if it remains unavailable for the new head.
 5. Mark CodeRabbit's unavailable coverage as satisfied only after the fallback
    round is clean and its required checks pass.
@@ -229,7 +231,7 @@ fixes and posting its trigger, schedule a wake-up in **~300 seconds (5 minutes)*
 0. Run the review-automation comment cleanup below, so spent triggers and bot
    acknowledgements never pile up across rounds.
 1. Re-fetch unresolved review threads (`gh api repos/{owner}/{repo}/pulls/$PR_NUMBER/comments`) and reviewer request/status/review evidence.
-2. If new unresolved threads exist → fix them, push, request CodeRabbit again,
+2. If new unresolved threads exist → fix them, push, post the review trigger again,
    and schedule another 5-minute wake-up.
 3. If CodeRabbit is unavailable for the current head → run or reuse the
    head-specific Codex fallback above.
@@ -268,18 +270,26 @@ maintainer instead of approving.
 ### Cleanup Review Automation Comments
 
 **Run this cleanup at the START of every polling round, not only at loop end.**
-Once CodeRabbit has responded to a trigger, that trigger and its bot
+Once the reviewers have responded to a trigger, that trigger and its bot
 acknowledgement have served their purpose and become noise. Deleting them each
 round keeps the PR timeline readable instead of accumulating one trigger pair per
-round. Run it again as the final step when the loop ends.
+round. When the loop ends, and again immediately before merging, run it with
+`--hide-reviews` and confirm `--dry-run --hide-reviews` lists nothing; the
+merge-time workflow is a backstop, not the cleanup.
 
 Delete temporary top-level comments that only record review automation activity:
 
-- Top-level comments whose body is exactly `@coderabbitai review` (whoever
-  posted it — a trigger is spent once CodeRabbit answers)
+- Top-level comments whose body is exactly the review trigger,
+  `@coderabbitai review @gitdog review` or the older `@coderabbitai review`
+  (whoever posted it — a trigger is spent once the reviewers answer)
 - CodeRabbit top-level "Action performed" replies created by those commands (`CodeRabbit review command invocation`)
 - CodeRabbit top-level terminal notices that explicitly say the review was
   skipped or unavailable, including file-limit skips
+
+With `--hide-reviews`, also hide (GitHub cannot delete a submitted review) bot
+reviews that only say nothing was found or the review could not run, including
+a clean result for the head being merged; the script lists which bots qualify.
+A review with inline comments or findings stays visible.
 
 Do **not** delete human comments, inline review replies, actual reviewer summaries, CodeRabbit walkthrough comments, or any comment containing substantive review feedback. The cleanup is only for command and terminal unavailability noise left in the PR timeline.
 

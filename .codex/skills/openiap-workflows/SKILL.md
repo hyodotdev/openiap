@@ -30,13 +30,14 @@ You do not need Claude slash-command syntax. If the user says any of these
 natural-language requests, execute the matching workflow:
 
 - Review PR comments, fix review feedback, or "review-pr": read
-  `.claude/commands/review-pr.md`. CodeRabbit is the only external reviewer that
-  posts to the PR; do not invoke other review bots. If CodeRabbit cannot review
+  `.claude/commands/review-pr.md`. CodeRabbit and Gitdog are the external
+  reviewers that post to the PR, requested together; do not invoke other review
+  bots. If CodeRabbit cannot review
   the current head, run the single-round Codex fallback that command defines;
   read `.codex/skills/review-self/SKILL.md` and run its single-round `review-pr`
   fallback only when Codex is unavailable too. At the clean end of the loop, remove the
-  temporary CodeRabbit trigger and terminal skip/unavailable top-level comments
-  exactly as defined by the command workflow.
+  temporary review trigger and terminal skip/unavailable top-level comments
+  exactly as defined by the command workflow, before merging.
 - Audit code, check latest APIs, or "audit-code": read
   `.claude/commands/audit-code.md`.
 - Audit SBOM quality, release provenance, workflow permissions, or

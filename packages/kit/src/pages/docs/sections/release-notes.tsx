@@ -25,9 +25,10 @@ const RELEASES: ReleaseEntry[] = [
   {
     id: "week-2026-11-16",
     weekStart: "2026-11-16",
-    date: "2026-11-16",
+    date: "2026-11-17",
+    pullRequests: [618],
     tagline:
-      "Sponsorship now runs through GitHub Sponsors only, and a linked GitHub sponsorship stops sponsorship requests.",
+      "Sponsorship now runs through GitHub Sponsors only, a linked GitHub sponsorship stops sponsorship requests, and the backend moved to openiap.dev domains.",
     items: [
       {
         kind: "feature",
@@ -38,6 +39,11 @@ const RELEASES: ReleaseEntry[] = [
         kind: "docs",
         topic: "Sponsorship",
         text: "The pricing page, usage page, operations guide, terms of service, and sponsorship request email now point only to GitHub Sponsors. OpenCollective no longer takes IAPKit sponsorship.",
+      },
+      {
+        kind: "ops",
+        topic: "Backend domains",
+        text: "The hosted Convex backend now serves its API at `api.openiap.dev` and sign-in at `auth.openiap.dev` instead of its default `convex.cloud` and `convex.site` addresses. Dashboard and CLI sessions from before the switch may need to sign in once more. Apps and SDKs are unaffected because they call `kit.openiap.dev`.",
       },
     ],
   },

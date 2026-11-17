@@ -56,3 +56,4 @@ bun-debug.log*
 .claude/settings.local.json
 .claude/commands/
 .claude/skills/
+production.env

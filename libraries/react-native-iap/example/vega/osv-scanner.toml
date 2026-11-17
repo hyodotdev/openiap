@@ -1,4 +1,0 @@
-[[IgnoredVulns]]
-id = "GHSA-gcqx-w48m-w2h4"
-ignoreUntil = 2026-12-04
-reason = "No patched deepmerge release exists. This lock reaches it only through Jest, Expo configuration, or React Native/Kepler CLI configuration used for trusted local builds and tests; mobile entry points and the published SDK runtime do not import those tools. Do not load untrusted project configuration. Revisit the upstream fix before expiry: https://github.com/advisories/GHSA-gcqx-w48m-w2h4. Rechecked 2026-11-04: still no patched release."

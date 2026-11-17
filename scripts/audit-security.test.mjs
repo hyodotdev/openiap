@@ -739,97 +739,107 @@ test("exception usage remains isolated to its owning lock", () => {
   }
 });
 
-test("Yarn-only OSV exceptions cannot become stale or expired", () => {
-  const yarnLock = "libraries/react-native-iap/yarn.lock";
-  // Ids and expiry both come from the real exception file, so adding or
-  // retiring one needs no edit here. This covers the expiry lifecycle, not
-  // which advisories are excepted: a stale or bogus entry surfaces in the
-  // auditor itself, asserted below as unused and unaccepted findings.
-  const exceptions = parseOsvIgnoredVulnerabilities(
-    readFileSync(
-      resolve(
-        import.meta.dirname,
-        "..",
-        "libraries/react-native-iap/osv-scanner.toml",
-      ),
-      "utf8",
-    ),
-  );
-  assert.ok(exceptions.size > 0, "the fixture needs at least one exception");
-  const expiries = [...exceptions.values()].map((entry) =>
-    Date.parse(`${entry.ignoreUntil}T00:00:00Z`),
-  );
-  const firstExpiry = Math.min(...expiries);
-  const lastExpiry = Math.max(...expiries);
-  const dayAfterLastExpiry = new Date(lastExpiry + 24 * 60 * 60 * 1000);
-  const activeReport = JSON.stringify({
-    results: [
-      {
-        packages: [
-          {
-            vulnerabilities: [...exceptions.keys()].map((id) => ({ id })),
-          },
-        ],
-      },
-    ],
-  });
-  const scanner = (command, args) => {
-    assert.equal(command, "osv-scanner");
-    assert.ok(args.includes(`--lockfile=${yarnLock}`));
-    assert.ok(args.includes("--config=/dev/null"));
-    return { status: 1, stdout: activeReport, stderr: "" };
-  };
+test("OSV-only exceptions cannot become stale or expired", () => {
+  // A lock that only OSV-Scanner reads, such as a Yarn lock, with its own
+  // exception file. The fixture keeps the expiry lifecycle covered when the
+  // repository has no live exception of this kind.
+  const fixture = mkdtempSync(resolve(tmpdir(), "openiap-osv-exceptions-"));
+  const yarnLock = resolve(fixture, "yarn.lock");
+  writeFileSync(
+    resolve(fixture, "osv-scanner.toml"),
+    `[[IgnoredVulns]]
+id = "GHSA-test-first-expiry"
+ignoreUntil = 2026-09-01
+reason = "Fixture."
 
-  assert.doesNotThrow(() =>
-    auditDependencies(scanner, [], new Date("2026-08-15T00:00:00Z"), [
-      yarnLock,
-    ]),
+[[IgnoredVulns]]
+id = "GHSA-test-last-expiry"
+ignoreUntil = 2026-10-01
+reason = "Fixture."
+`,
   );
-  assert.throws(
-    () =>
-      auditDependencies(
-        () => ({
-          status: 0,
-          stdout: JSON.stringify({ results: [] }),
-          stderr: "",
-        }),
-        [],
-        new Date("2026-08-15T00:00:00Z"),
-        [yarnLock],
-      ),
-    /unused dependency exception/u,
-  );
-  assert.throws(
-    () => auditDependencies(scanner, [], dayAfterLastExpiry, [yarnLock]),
-    /expired dependency exception/u,
-  );
-  // OSV-Scanner stops honouring a window on the ignoreUntil date itself. This
-  // audit once called that same day live, so a lapsed exception failed CI while
-  // this stayed silent; the boundary is pinned rather than left to a comparison.
-  // It pins the earliest entry: at the latest one every entry is already
-  // expired, so that assertion cannot catch an off-by-one.
-  assert.doesNotThrow(() =>
-    auditDependencies(scanner, [], new Date(firstExpiry - 1), [yarnLock]),
-  );
-  assert.throws(
-    () => auditDependencies(scanner, [], new Date(firstExpiry), [yarnLock]),
-    /expired dependency exception/u,
-  );
-  const unaccepted = JSON.parse(activeReport);
-  unaccepted.results[0].packages[0].vulnerabilities.push({
-    id: "GHSA-new-unaccepted-test",
-    summary: "new Yarn advisory",
-  });
-  assert.throws(
-    () =>
-      auditDependencies(
-        () => ({ status: 1, stdout: JSON.stringify(unaccepted), stderr: "" }),
-        [],
-        new Date("2026-08-15T00:00:00Z"),
-        [yarnLock],
-      ),
-    /GHSA-new-unaccepted-test/u,
-  );
+  try {
+    const exceptions = parseOsvIgnoredVulnerabilities(
+      readFileSync(resolve(fixture, "osv-scanner.toml"), "utf8"),
+    );
+    assert.equal(exceptions.size, 2);
+    const expiries = [...exceptions.values()].map((entry) =>
+      Date.parse(`${entry.ignoreUntil}T00:00:00Z`),
+    );
+    const firstExpiry = Math.min(...expiries);
+    const lastExpiry = Math.max(...expiries);
+    const dayAfterLastExpiry = new Date(lastExpiry + 24 * 60 * 60 * 1000);
+    const activeReport = JSON.stringify({
+      results: [
+        {
+          packages: [
+            {
+              vulnerabilities: [...exceptions.keys()].map((id) => ({ id })),
+            },
+          ],
+        },
+      ],
+    });
+    const scanner = (command, args) => {
+      assert.equal(command, "osv-scanner");
+      assert.ok(args.includes(`--lockfile=${yarnLock}`));
+      assert.ok(args.includes("--config=/dev/null"));
+      return { status: 1, stdout: activeReport, stderr: "" };
+    };
+
+    assert.doesNotThrow(() =>
+      auditDependencies(scanner, [], new Date("2026-08-15T00:00:00Z"), [
+        yarnLock,
+      ]),
+    );
+    assert.throws(
+      () =>
+        auditDependencies(
+          () => ({
+            status: 0,
+            stdout: JSON.stringify({ results: [] }),
+            stderr: "",
+          }),
+          [],
+          new Date("2026-08-15T00:00:00Z"),
+          [yarnLock],
+        ),
+      /unused dependency exception/u,
+    );
+    assert.throws(
+      () => auditDependencies(scanner, [], dayAfterLastExpiry, [yarnLock]),
+      /expired dependency exception/u,
+    );
+    // OSV-Scanner stops honouring a window on the ignoreUntil date itself. This
+    // audit once called that same day live, so a lapsed exception failed CI while
+    // this stayed silent; the boundary is pinned rather than left to a comparison.
+    // It pins the earliest entry: at the latest one every entry is already
+    // expired, so that assertion cannot catch an off-by-one.
+    assert.doesNotThrow(() =>
+      auditDependencies(scanner, [], new Date(firstExpiry - 1), [yarnLock]),
+    );
+    assert.throws(
+      () => auditDependencies(scanner, [], new Date(firstExpiry), [yarnLock]),
+      /expired dependency exception/u,
+    );
+    const unaccepted = JSON.parse(activeReport);
+    unaccepted.results[0].packages[0].vulnerabilities.push({
+      id: "GHSA-new-unaccepted-test",
+      summary: "new Yarn advisory",
+    });
+    assert.throws(
+      () =>
+        auditDependencies(
+          () => ({ status: 1, stdout: JSON.stringify(unaccepted), stderr: "" }),
+          [],
+          new Date("2026-08-15T00:00:00Z"),
+          [yarnLock],
+        ),
+      /GHSA-new-unaccepted-test/u,
+    );
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
 });
 
 test("OSV scans non-Bun locks without exception files", () => {

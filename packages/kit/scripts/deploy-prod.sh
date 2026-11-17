@@ -6,8 +6,8 @@
 # handles production deploys. This script is only for the rare case where CI
 # is unavailable (billing pause, emergency revert, etc.) and a human has to
 # deploy from their laptop. Both paths ask the Convex CLI for the canonical URL
-# selected by its deploy key, compare it with the committed `production.env`
-# SSOT, and pass that exact URL to Fly. `.env.production` is optional and may
+# selected by its deploy key, compare it with the production target (the
+# gitignored `production.env` here), and pass that exact URL to Fly. `.env.production` is optional and may
 # contain only credentials or optional analytics settings; it never chooses
 # the production Convex deployment.
 #
