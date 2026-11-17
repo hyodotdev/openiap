@@ -253,9 +253,9 @@ public sealed record PurchaseError
           code should compare the generated <code>ErrorCode.UserCancelled</code>{' '}
           enum value or the <code>user-cancelled</code> wire value. The Amazon
           Appstore reports a cancelled purchase as a failed one, so on Amazon a
-          cancel arrives as <code>purchase-error</code>; only a purchase that
-          returns without any Appstore answer arrives as{' '}
-          <code>user-cancelled</code>.
+          cancel arrives as <code>purchase-error</code>. It arrives as{' '}
+          <code>user-cancelled</code> only when the app comes back with no
+          Appstore answer.
         </div>
 
         <div className="info-note">
