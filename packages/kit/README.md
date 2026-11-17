@@ -821,6 +821,13 @@ App callback is `https://auth.openiap.dev/api/auth/callback/github`.
 Development deployments keep their default `convex.cloud` and `convex.site`
 URLs.
 
+Change either override only right before a production deploy. Convex Auth
+signs tokens with the new `CONVEX_SITE_URL` at once, but `auth.config.ts`
+accepts the new issuer only after the next `convex deploy`, so sign-in fails
+until that deploy finishes. Keep the old callback in the GitHub OAuth App until
+sign-in works on the new domain. To roll back, clear both overrides and deploy
+a commit whose `production.env` names the default URL.
+
 ### Verification source cutover
 
 `IAPKIT_VERIFICATION_SOURCE_SECRET` is a service-to-service credential, separate

@@ -270,12 +270,12 @@ maintainer instead of approving.
 ### Cleanup Review Automation Comments
 
 **Run this cleanup at the START of every polling round, not only at loop end.**
-Once CodeRabbit has responded to a trigger, that trigger and its bot
+Once the reviewers have responded to a trigger, that trigger and its bot
 acknowledgement have served their purpose and become noise. Deleting them each
 round keeps the PR timeline readable instead of accumulating one trigger pair per
-round. Run it again immediately before merging with `--hide-reviews`, and
-confirm `--dry-run --hide-reviews` lists nothing; the merge-time workflow is a
-backstop, not the cleanup.
+round. When the loop ends, and again immediately before merging, run it with
+`--hide-reviews` and confirm `--dry-run --hide-reviews` lists nothing; the
+merge-time workflow is a backstop, not the cleanup.
 
 Delete temporary top-level comments that only record review automation activity:
 
@@ -286,9 +286,10 @@ Delete temporary top-level comments that only record review automation activity:
 - CodeRabbit top-level terminal notices that explicitly say the review was
   skipped or unavailable, including file-limit skips
 
-Before merging, also hide (GitHub cannot delete a submitted review) bot reviews
-that only say nothing was found or the review could not run; the script lists
-which bots qualify. A review with inline comments or findings stays visible.
+With `--hide-reviews`, also hide (GitHub cannot delete a submitted review) bot
+reviews that only say nothing was found or the review could not run, including
+a clean result for the head being merged; the script lists which bots qualify.
+A review with inline comments or findings stays visible.
 
 Do **not** delete human comments, inline review replies, actual reviewer summaries, CodeRabbit walkthrough comments, or any comment containing substantive review feedback. The cleanup is only for command and terminal unavailability noise left in the PR timeline.
 

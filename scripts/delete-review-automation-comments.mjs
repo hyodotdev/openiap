@@ -129,29 +129,43 @@ export function sweep(pr, { dryRun = false, fetch = fetchPage, remove = deleteCo
   return matched.length;
 }
 
-const REVIEWS_QUERY = `query($pr: Int!) {
+const REVIEWS_QUERY = `query($pr: Int!, $after: String) {
   repository(owner: "${OWNER}", name: "${NAME}") {
     pullRequest(number: $pr) {
-      reviews(first: 100) {
-        pageInfo { hasNextPage }
+      reviews(first: ${PER_PAGE}, after: $after) {
+        pageInfo { hasNextPage endCursor }
         nodes { id isMinimized body author { login } comments { totalCount } }
       }
     }
   }
 }`;
 
-function fetchReviews(pr) {
-  const raw = execFileSync(
-    "gh",
-    ["api", "graphql", "-f", `query=${REVIEWS_QUERY}`, "-F", `pr=${pr}`],
-    { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 },
-  );
-  const reviews = JSON.parse(raw)?.data?.repository?.pullRequest?.reviews;
-  if (!Array.isArray(reviews?.nodes)) throw new Error("review list was missing");
-  if (reviews.pageInfo?.hasNextPage) {
-    throw new Error("more than 100 reviews — refusing a partial sweep");
+function fetchReviewPage(pr, after) {
+  const args = ["api", "graphql", "-f", `query=${REVIEWS_QUERY}`, "-F", `pr=${pr}`];
+  if (after) args.push("-f", `after=${after}`);
+  return execFileSync("gh", args, { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+}
+
+/** Every review on the PR; any page that cannot be trusted aborts the sweep. */
+export function listReviews(pr, { fetch = fetchReviewPage } = {}) {
+  const all = [];
+  let after;
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    let reviews;
+    try {
+      reviews = JSON.parse(fetch(pr, after))?.data?.repository?.pullRequest?.reviews;
+    } catch {
+      throw new Error("review page was not JSON");
+    }
+    if (!Array.isArray(reviews?.nodes)) throw new Error("review list was missing");
+    all.push(...reviews.nodes);
+    if (!reviews.pageInfo?.hasNextPage) return all;
+    after = reviews.pageInfo.endCursor;
+    if (typeof after !== "string" || !after) {
+      throw new Error("a next review page has no cursor");
+    }
   }
-  return reviews.nodes;
+  throw new Error(`still paging reviews after ${MAX_PAGES} pages — refusing a partial sweep`);
 }
 
 function hideReview(id) {
@@ -169,7 +183,7 @@ function hideReview(id) {
   );
 }
 
-export function hideEmptyBotReviews(pr, { dryRun = false, fetch = fetchReviews, hide = hideReview } = {}) {
+export function hideEmptyBotReviews(pr, { dryRun = false, fetch = (n) => listReviews(n), hide = hideReview } = {}) {
   const matched = fetch(pr).filter(isEmptyBotReview);
   for (const review of matched) {
     if (!dryRun) {

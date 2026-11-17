@@ -6,6 +6,7 @@ import {
   isAutomationNoise,
   isEmptyBotReview,
   listNoise,
+  listReviews,
   parsePage,
   sweep,
 } from "./delete-review-automation-comments.mjs";
@@ -228,4 +229,47 @@ test("a failed hide names the review and aborts", () => {
       }),
     /hiding review A failed/,
   );
+});
+
+const reviewPage = (nodes, next) =>
+  JSON.stringify({
+    data: {
+      repository: {
+        pullRequest: {
+          reviews: { pageInfo: { hasNextPage: Boolean(next), endCursor: next ?? null }, nodes },
+        },
+      },
+    },
+  });
+
+test("reviews are listed across pages by cursor", () => {
+  const calls = [];
+  const fetch = (pr, after) => {
+    calls.push(after);
+    return after ? reviewPage([review({ id: "B" })]) : reviewPage([review({ id: "A" })], "cursor-1");
+  };
+  assert.deepEqual(
+    listReviews(618, { fetch }).map((entry) => entry.id),
+    ["A", "B"],
+  );
+  assert.deepEqual(calls, [undefined, "cursor-1"]);
+});
+
+for (const [name, body] of [
+  ["a non-JSON page", "<html>"],
+  ["a page with no review list", JSON.stringify({ data: { repository: null } })],
+  [
+    "a next page with no cursor",
+    JSON.stringify({
+      data: { repository: { pullRequest: { reviews: { pageInfo: { hasNextPage: true }, nodes: [] } } } },
+    }),
+  ],
+]) {
+  test(`${name} aborts the review listing`, () => {
+    assert.throws(() => listReviews(618, { fetch: () => body }));
+  });
+}
+
+test("review listing refuses to page forever", () => {
+  assert.throws(() => listReviews(618, { fetch: () => reviewPage([], "again") }), /partial sweep/);
 });
