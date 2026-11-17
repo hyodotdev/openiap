@@ -43,7 +43,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "fix",
         topic: "Webhooks",
-        text: "A receiver whose host resolves to several addresses gets the full 10 seconds to answer once connected. Commerce events caused by Amazon RVS reconciliation no longer carry sourceStoreEventId; events caused by a store notification still do.",
+        text: "A receiver whose host resolves to several addresses keeps the rest of the 10-second deadline to answer once connected, instead of the short per-address connect slice. Commerce events caused by Amazon RVS reconciliation no longer carry sourceStoreEventId; events caused by a store notification still do.",
       },
       {
         kind: "ops",

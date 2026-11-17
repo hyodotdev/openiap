@@ -282,8 +282,11 @@ and App Tester's transaction table.
 ## Local receipt verification
 
 Rows verify against a local IAPKit server, not the hosted one. When
-`curl -s http://127.0.0.1:3100/health` already answers, reuse that server and
-leave it running; only the session that started a server stops it. Otherwise
+`curl -s http://127.0.0.1:3100/health` already answers, reuse that server only
+when you know it was built from the revision under test (you or the briefing
+session started it from this checkout after the last code change); otherwise
+ask its owner, or start your own on another port. Leave a reused server
+running; only the session that started a server stops it. Otherwise
 start it from `packages/kit` as `.claude/commands/e2e-tests.md` describes. Give
 each Android device `adb -s <serial> reverse --no-rebind tcp:3100 tcp:3100`
 and the Vega device

@@ -388,6 +388,7 @@ openiap/horizon_app_id="YOUR_HORIZON_APP_ID"`}</CodeBlock>
         <CodeBlock language="typescript">{`const { iapkit } = await verifyPurchaseWithProvider({
   provider: 'iapkit',
   iapkit: {
+    apiKey: 'openiap-kit_pk_<your-publishable-key>',
     horizon: { sku: purchase.productId },
   },
 });

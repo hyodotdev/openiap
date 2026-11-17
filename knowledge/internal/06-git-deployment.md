@@ -383,7 +383,9 @@ inside a push step uses `--no-verify`. This keeps the token out of the hook's
 environment; it is not a boundary against code that earlier steps of the same
 job already ran. The `Main required CI checks` ruleset lets two actors bypass
 main's required checks: this App, for validated release version commits, and
-the repository admin role, for the maintainer's direct `main` commits. Keep
+the repository admin role, for the maintainer's direct `main` commits. The
+admin bypass is not a permission: a direct commit still runs the checks this
+document requires for its paths. Keep
 the checks active for everyone else and give the App no exception to tag
 immutability. Registry publication and workflow dispatch keep their existing
 OIDC and `GITHUB_TOKEN` authentication.

@@ -251,7 +251,11 @@ public sealed record PurchaseError
           <code>user-cancelled</code>. Some wrappers still normalize legacy{' '}
           <code>E_USER_CANCELLED</code> aliases for compatibility, but new app
           code should compare the generated <code>ErrorCode.UserCancelled</code>{' '}
-          enum value or the <code>user-cancelled</code> wire value.
+          enum value or the <code>user-cancelled</code> wire value. The Amazon
+          Appstore reports a cancelled purchase as a failed one, so on Amazon a
+          cancel arrives as <code>purchase-error</code>; only a purchase that
+          returns without any Appstore answer arrives as{' '}
+          <code>user-cancelled</code>.
         </div>
 
         <div className="info-note">
