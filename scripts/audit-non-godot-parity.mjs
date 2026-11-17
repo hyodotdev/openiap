@@ -4726,7 +4726,10 @@ function checkFrameworkDependencyHygiene() {
   );
   expectIncludes(
     "packages/kit/production.env",
-    ["IAPKIT_PRODUCTION_CONVEX_URL=https://healthy-kudu-836.convex.cloud"],
+    [
+      "IAPKIT_PRODUCTION_CONVEX_DEPLOYMENT=healthy-kudu-836",
+      "IAPKIT_PRODUCTION_CONVEX_URL=https://api.openiap.dev",
+    ],
     "Kit production Convex target must have one committed public SSOT",
   );
   expectIncludes(

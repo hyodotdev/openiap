@@ -189,7 +189,9 @@ cd "$OPENIAP_REPO/packages/kit"
 : "${CONVEX_URL:?Set the real Martie Convex deployment URL}"
 CONVEX_NAME="${CONVEX_URL#https://}"
 CONVEX_NAME="${CONVEX_NAME%%.*}"
-if grep -Fq "://$CONVEX_NAME." production.env; then
+source production.env
+if [ "$CONVEX_NAME" = "$IAPKIT_PRODUCTION_CONVEX_DEPLOYMENT" ] ||
+  [ "${CONVEX_URL%/}" = "$IAPKIT_PRODUCTION_CONVEX_URL" ]; then
   echo 'BLOCKED: CONVEX_URL is the production deployment' >&2
   exit 1
 fi

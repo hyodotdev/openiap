@@ -813,6 +813,14 @@ before any remote setting changes. It then provisions the service credential,
 deploys Convex functions and Fly, and verifies every retained Fly machine.
 A development deploy key cannot publish a production Fly bundle.
 
+The production deployment uses custom domains: `api.openiap.dev` for the
+Convex API and `auth.openiap.dev` for HTTP actions, with `CONVEX_CLOUD_URL` and
+`CONVEX_SITE_URL` overridden to match in the Convex dashboard. The Convex CLI
+therefore reports `https://api.openiap.dev`, and the production GitHub OAuth
+App callback is `https://auth.openiap.dev/api/auth/callback/github`.
+Development deployments keep their default `convex.cloud` and `convex.site`
+URLs.
+
 ### Verification source cutover
 
 `IAPKIT_VERIFICATION_SOURCE_SECRET` is a service-to-service credential, separate
