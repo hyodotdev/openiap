@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  hideEmptyBotReviews,
   isAutomationNoise,
+  isEmptyBotReview,
   listNoise,
   parsePage,
   sweep,
@@ -165,5 +167,65 @@ test("a failed deletion names the comment and aborts", () => {
         },
       }),
     /deletion of comment 11 failed/,
+  );
+});
+
+const review = (over = {}) => ({
+  id: "PRR_1",
+  isMinimized: false,
+  author: { login: "gitdogbot" },
+  body: "Gitdog found no supported defects in `c1c2533dfe2c`. Reviewed the 8 files affected since `167967cd1b33`.",
+  comments: { totalCount: 0 },
+  ...over,
+});
+
+for (const [name, over] of [
+  ["Gitdog with no defects", {}],
+  ["Gitdog that could not review", { body: "Gitdog could not review the 5 changed files in `10fa44a6f082`." }],
+  [
+    "Copilot out of quota",
+    {
+      author: { login: "copilot-pull-request-reviewer" },
+      body: "Copilot was unable to review this pull request because the user who requested the review has insufficient remaining quota.",
+    },
+  ],
+]) {
+  test(`an empty bot review is hidden: ${name}`, () => {
+    assert.equal(isEmptyBotReview(review(over)), true);
+  });
+}
+
+for (const [name, over] of [
+  ["a review with inline comments", { comments: { totalCount: 1 } }],
+  ["an already hidden review", { isMinimized: true }],
+  ["a Gitdog review with findings", { body: "Gitdog found 2 defects in `c1c2533dfe2c`." }],
+  ["the same words from a person", { author: { login: "hyochan" } }],
+  ["a CodeRabbit review", { author: { login: "coderabbitai" }, body: "**Actionable comments posted: 1**" }],
+  ["a review with no body", { body: undefined }],
+]) {
+  test(`a review is kept: ${name}`, () => {
+    assert.equal(isEmptyBotReview(review(over)), false);
+  });
+}
+
+test("hiding touches only empty bot reviews and honours a dry run", () => {
+  const reviews = [review({ id: "A" }), review({ id: "B", comments: { totalCount: 2 } })];
+  const hidden = [];
+  assert.equal(hideEmptyBotReviews(618, { dryRun: true, fetch: () => reviews, hide: (id) => hidden.push(id) }), 1);
+  assert.deepEqual(hidden, []);
+  assert.equal(hideEmptyBotReviews(618, { fetch: () => reviews, hide: (id) => hidden.push(id) }), 1);
+  assert.deepEqual(hidden, ["A"]);
+});
+
+test("a failed hide names the review and aborts", () => {
+  assert.throws(
+    () =>
+      hideEmptyBotReviews(618, {
+        fetch: () => [review({ id: "A" })],
+        hide: () => {
+          throw new Error("boom");
+        },
+      }),
+    /hiding review A failed/,
   );
 });

@@ -5,10 +5,12 @@
 // replies to it, and CodeRabbit's terminal skipped/unavailable notices. This
 // was an inline jq loop inside `.claude/commands/review-pr.md`; prose cannot
 // be tested, and an untested deletion filter is a loaded footgun. This can.
+// With --hide-reviews it also hides bot reviews that report nothing, which
+// GitHub does not let anyone delete.
 //
-//   node scripts/delete-review-automation-comments.mjs <pr> [--dry-run]
+//   node scripts/delete-review-automation-comments.mjs <pr> [--dry-run] [--hide-reviews]
 //
-// Prints one `deleted <id>` (or `would delete <id>`) per match, and exits
+// Prints one `deleted <id>` (or `would delete <id>`, `hid <id>`) per match, and exits
 // non-zero with a reason if any page is missing or malformed, or a deletion
 // fails. A partial sweep must never pass as a complete one.
 
@@ -35,6 +37,22 @@ const NOISE =
 // ... and what must never be deleted.
 const SUBSTANCE =
   /analysis chain|script executed|actionable comments posted|walkthrough|<!-- (cr-|fingerprinting)/i;
+
+// Bot reviews that say only that nothing was found or nothing could run.
+const EMPTY_REVIEWS = [
+  { login: "gitdogbot", body: /^Gitdog (found no supported defects|could not review) / },
+  { login: "copilot-pull-request-reviewer", body: /^Copilot was unable to review this pull request / },
+];
+
+/** True when the review is a bot's empty result with no inline comments. */
+export function isEmptyBotReview(review) {
+  if (review?.isMinimized || review?.comments?.totalCount !== 0) return false;
+  const body = review?.body;
+  if (typeof body !== "string") return false;
+  return EMPTY_REVIEWS.some(
+    ({ login, body: pattern }) => review.author?.login === login && pattern.test(body),
+  );
+}
 
 /** True when the comment is review-automation noise with nothing worth keeping. */
 export function isAutomationNoise(comment) {
@@ -111,15 +129,73 @@ export function sweep(pr, { dryRun = false, fetch = fetchPage, remove = deleteCo
   return matched.length;
 }
 
+const REVIEWS_QUERY = `query($pr: Int!) {
+  repository(owner: "${OWNER}", name: "${NAME}") {
+    pullRequest(number: $pr) {
+      reviews(first: 100) {
+        pageInfo { hasNextPage }
+        nodes { id isMinimized body author { login } comments { totalCount } }
+      }
+    }
+  }
+}`;
+
+function fetchReviews(pr) {
+  const raw = execFileSync(
+    "gh",
+    ["api", "graphql", "-f", `query=${REVIEWS_QUERY}`, "-F", `pr=${pr}`],
+    { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 },
+  );
+  const reviews = JSON.parse(raw)?.data?.repository?.pullRequest?.reviews;
+  if (!Array.isArray(reviews?.nodes)) throw new Error("review list was missing");
+  if (reviews.pageInfo?.hasNextPage) {
+    throw new Error("more than 100 reviews — refusing a partial sweep");
+  }
+  return reviews.nodes;
+}
+
+function hideReview(id) {
+  execFileSync(
+    "gh",
+    [
+      "api",
+      "graphql",
+      "-f",
+      "query=mutation($id: ID!) { minimizeComment(input: {subjectId: $id, classifier: OUTDATED}) { minimizedComment { isMinimized } } }",
+      "-f",
+      `id=${id}`,
+    ],
+    { encoding: "utf8" },
+  );
+}
+
+export function hideEmptyBotReviews(pr, { dryRun = false, fetch = fetchReviews, hide = hideReview } = {}) {
+  const matched = fetch(pr).filter(isEmptyBotReview);
+  for (const review of matched) {
+    if (!dryRun) {
+      try {
+        hide(review.id);
+      } catch (error) {
+        throw new Error(`hiding review ${review.id} failed: ${error.message}`);
+      }
+    }
+    console.log(`${dryRun ? "would hide" : "hid"} ${review.id}`);
+  }
+  return matched.length;
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   const pr = Number(process.argv[2]);
   const dryRun = process.argv.includes("--dry-run");
   if (!Number.isInteger(pr) || pr <= 0) {
-    console.error("usage: node scripts/delete-review-automation-comments.mjs <pr> [--dry-run]");
+    console.error(
+      "usage: node scripts/delete-review-automation-comments.mjs <pr> [--dry-run] [--hide-reviews]",
+    );
     process.exit(2);
   }
   try {
     sweep(pr, { dryRun });
+    if (process.argv.includes("--hide-reviews")) hideEmptyBotReviews(pr, { dryRun });
   } catch (error) {
     console.error(`comment sweep incomplete: ${error.message}`);
     process.exit(1);

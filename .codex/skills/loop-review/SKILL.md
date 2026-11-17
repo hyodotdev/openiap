@@ -177,8 +177,9 @@ release/security tooling does not need device regression.
 
 Immediately before merging, refetch the PR and confirm its head still equals the
 clean reviewed SHA. Then remove the temporary review-trigger and
-terminal-unavailability comments as required by `review-pr` and confirm none
-remain, so the merged PR's conversation holds only real review. Use the
+terminal-unavailability comments and hide empty bot reviews as required by
+`review-pr`, and confirm none remain, so the merged PR's conversation holds
+only real review. Use the
 repository-supported merge method, defaulting to a squash merge with branch
 deletion when no stricter policy applies. Never bypass branch protection or
 merge a stale, pending, or failing head.
