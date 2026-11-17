@@ -26,7 +26,7 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-11-16",
     weekStart: "2026-11-16",
     date: "2026-11-17",
-    pullRequests: [618],
+    pullRequests: [618, 619],
     tagline:
       "Purchase rows no store recognized are deleted after 30 days, an unknown Google subscription state no longer counts as entitled, the backend moved to openiap.dev domains, and sponsorship runs through GitHub Sponsors only.",
     items: [
