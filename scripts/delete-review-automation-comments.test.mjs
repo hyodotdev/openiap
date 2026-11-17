@@ -18,12 +18,16 @@ const bot = (over = {}) =>
   comment({ user: { login: "coderabbitai[bot]" }, ...over });
 const page = (comments) => JSON.stringify(comments);
 
-test("the exact trigger is noise", () => {
-  assert.equal(isAutomationNoise(comment({ body: "@coderabbitai review" })), true);
-});
+for (const body of ["@coderabbitai review @gitdog review", "@coderabbitai review"]) {
+  test(`the exact trigger is noise: ${JSON.stringify(body)}`, () => {
+    assert.equal(isAutomationNoise(comment({ body })), true);
+  });
+}
 
 for (const body of [
   "@coderabbitai review\n",
+  "@gitdog review",
+  "@coderabbitai review @gitdog review please",
   "@coderabbitai review please",
   "please @coderabbitai review",
   "@coderabbitai",

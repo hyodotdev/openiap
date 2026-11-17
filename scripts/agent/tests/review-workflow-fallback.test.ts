@@ -47,7 +47,7 @@ describe("review workflow fallback contract", () => {
       "A terminal clean CodeRabbit result is successful reviewer coverage",
     );
     expect(reviewPr).toContain(
-      "CodeRabbit is the only reviewer that posts to the PR, and Codex is the fallback",
+      "CodeRabbit and Gitdog are the reviewers that post to the PR, and Codex is the fallback",
     );
     expect(reviewPr).not.toContain("/gemini review");
     expect(reviewPr).not.toContain("Copilot");
@@ -136,7 +136,7 @@ console.log(JSON.stringify(JSON.parse(raw).filter(isAutomationNoise).map((c) => 
       "run its single-round `review-pr` fallback",
     );
     expect(codexWorkflow).toContain(
-      "CodeRabbit is the only external reviewer that posts to the PR",
+      "CodeRabbit and Gitdog are the external reviewers that post to the PR",
     );
     expect(codexWorkflow).toContain("run the single-round Codex fallback");
     expect(claudeWorkflow).toContain("including its single-round Codex fallback");

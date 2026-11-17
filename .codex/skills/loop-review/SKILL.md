@@ -118,7 +118,8 @@ For every round:
    publication: a reply saying "fixed" must already have evidence behind it.
 3. Push, reply to the exact inline comments, and resolve only fixed or outdated
    threads under the command rules.
-4. Request CodeRabbit again after a head change.
+4. Post the review trigger again after a head change; it requests CodeRabbit
+   and Gitdog together.
 5. If CodeRabbit is unavailable, use the exact-head one-pass Codex fallback
    defined by `review-pr`, and `$review-self` only if Codex is unavailable too;
    never substitute a review bot that posts to the PR.
@@ -175,24 +176,25 @@ release/security tooling does not need device regression.
 ## 7. Merge And Close The Loop
 
 Immediately before merging, refetch the PR and confirm its head still equals the
-clean reviewed SHA. Use the repository-supported merge method, defaulting to a
-squash merge with branch deletion when no stricter policy applies. Never bypass
-branch protection or merge a stale, pending, or failing head.
+clean reviewed SHA. Then remove the temporary review-trigger and
+terminal-unavailability comments as required by `review-pr` and confirm none
+remain, so the merged PR's conversation holds only real review. Use the
+repository-supported merge method, defaulting to a squash merge with branch
+deletion when no stricter policy applies. Never bypass branch protection or
+merge a stale, pending, or failing head.
 
 After merge:
 
 1. Confirm the PR state is `MERGED` and record the merge commit.
-2. Remove temporary review-trigger and terminal-unavailability comments as
-   required by `review-pr`.
-3. Confirm the remote topic branch was deleted; if merge cleanup missed it,
+2. Confirm the remote topic branch was deleted; if merge cleanup missed it,
    delete only that exact merged PR branch. Delete the local topic branch after
    proving its tip is merged or its tree is represented by the recorded squash
    merge. A squash merge may require `git branch -D` after that proof; never use
    it for an unverified branch or discard unrelated work.
-4. Switch to `main`, fetch `origin/main`, and run
+3. Switch to `main`, fetch `origin/main`, and run
    `git pull --ff-only --no-tags origin main` only when doing so cannot disturb
    other work.
-5. Verify `HEAD` equals `origin/main` and the worktree is clean before any
+4. Verify `HEAD` equals `origin/main` and the worktree is clean before any
    release action.
 
 ## 8. Ship The Verified Change

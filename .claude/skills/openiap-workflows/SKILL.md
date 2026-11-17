@@ -18,8 +18,9 @@ reading the command file (or invoke the slash command directly when available):
   (`/review-pr`), including its single-round Codex fallback when CodeRabbit
   cannot review the current head, and its
   `.claude/skills/review-self/SKILL.md` fallback when Codex is unavailable too;
-  do not invoke other review bots, and remove temporary CodeRabbit trigger and terminal
-  skip/unavailable top-level comments when the loop is clean
+  request CodeRabbit and Gitdog together, do not invoke other review bots, and
+  remove the temporary review trigger and terminal skip/unavailable top-level
+  comments before merging
 - Audit code against knowledge rules → `.claude/commands/audit-code.md` (`/audit-code`)
 - Audit supply-chain security / SBOM → `.claude/commands/audit-security.md` (`/audit-security`)
 - Reconcile IAPKit with OpenIAP → `.claude/commands/audit-iapkit.md` (`/audit-iapkit`)

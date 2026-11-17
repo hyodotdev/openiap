@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Deletes top-level PR comments that only record review automation activity:
-// a `@coderabbitai review` trigger, CodeRabbit's "Action performed"
+// a review trigger such as `@coderabbitai review @gitdog review`, CodeRabbit's "Action performed"
 // replies to it, and CodeRabbit's terminal skipped/unavailable notices. This
 // was an inline jq loop inside `.claude/commands/review-pr.md`; prose cannot
 // be tested, and an untested deletion filter is a loaded footgun. This can.
@@ -26,7 +26,8 @@ const PER_PAGE = 100;
 const MAX_PAGES = 50;
 
 const BOT_LOGIN = "coderabbitai[bot]";
-const TRIGGER = "@coderabbitai review";
+// The current trigger, and the CodeRabbit-only one older PRs still carry.
+const TRIGGERS = new Set(["@coderabbitai review @gitdog review", "@coderabbitai review"]);
 const INVOCATION_MARKER = "CodeRabbit review command invocation";
 // What bot noise looks like ...
 const NOISE =
@@ -39,7 +40,7 @@ const SUBSTANCE =
 export function isAutomationNoise(comment) {
   const body = comment?.body;
   if (typeof body !== "string") return false;
-  if (body === TRIGGER) return true;
+  if (TRIGGERS.has(body)) return true;
   if (comment?.user?.login !== BOT_LOGIN) return false;
   const noise = body.includes(INVOCATION_MARKER) || NOISE.test(body);
   return noise && !SUBSTANCE.test(body);
