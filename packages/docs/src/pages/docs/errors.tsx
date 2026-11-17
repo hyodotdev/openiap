@@ -251,7 +251,11 @@ public sealed record PurchaseError
           <code>user-cancelled</code>. Some wrappers still normalize legacy{' '}
           <code>E_USER_CANCELLED</code> aliases for compatibility, but new app
           code should compare the generated <code>ErrorCode.UserCancelled</code>{' '}
-          enum value or the <code>user-cancelled</code> wire value.
+          enum value or the <code>user-cancelled</code> wire value. The Amazon
+          Appstore reports a cancelled purchase as a failed one, so on Amazon a
+          cancel arrives as <code>purchase-error</code>. It arrives as{' '}
+          <code>user-cancelled</code> only when the app comes back with no
+          Appstore answer.
         </div>
 
         <div className="info-note">
@@ -331,7 +335,9 @@ public sealed record PurchaseError
                 Request reached the billing service timeout (Google Play 8.x+),
                 or a launched Android purchase reported no result: Google Play
                 after 15 minutes and an owned-purchase check, Meta Horizon after
-                about 5 minutes
+                about 5 minutes. On iOS, kmp-iap throws it when{' '}
+                <code>initConnection</code> or <code>endConnection</code> gets
+                no answer within 15 seconds
               </td>
               <td>
                 Retry the call after a short delay; before retrying a purchase,

@@ -29,7 +29,9 @@ function RestorePurchases() {
           <code>getAvailablePurchases</code>
         </Link>{' '}
         (or directly via <code>Transaction.currentEntitlements</code>). Asks the
-        user to authenticate.{' '}
+        user to authenticate. On iOS and macOS, Godot also emits one{' '}
+        <code>purchase_updated</code> per active owned purchase once the restore
+        succeeds.{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/appstore/sync()"
           target="_blank"

@@ -130,7 +130,7 @@ type FetchProductsResult =
             <CodeBlock language="gdscript">{`# Returns Array[Product] for IN_APP, Array[ProductSubscription] for SUBS,
 # or a mixed Array for ALL — typed as Array because GDScript can't express
 # heterogeneous element types.
-func fetch_products(request: ProductRequest) -> Array`}</CodeBlock>
+func fetch_products(request: Types.ProductRequest) -> Array`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`Task<FetchProductsResult> FetchProductsAsync(ProductRequest @params);
@@ -313,13 +313,13 @@ for (final item in items) {
 }`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`var request = ProductRequest.new()
+            <CodeBlock language="gdscript">{`var request = Types.ProductRequest.new()
 request.skus.assign(["com.app.coins_100", "com.app.monthly"])
-request.type = ProductQueryType.ALL
+request.type = Types.ProductQueryType.ALL
 var items = await iap.fetch_products(request)
 
 for item in items:
-    if item.type == ProductType.SUBS:
+    if item.type == Types.ProductType.SUBS:
         print("subscription ", item.id)
     else:
         print("in-app product ", item.id)`}</CodeBlock>
@@ -439,9 +439,9 @@ for (final product in products) {
 }`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`var request = ProductRequest.new()
+            <CodeBlock language="gdscript">{`var request = Types.ProductRequest.new()
 request.skus.assign(["com.app.coins_100", "com.app.premium"])
-request.type = ProductQueryType.IN_APP
+request.type = Types.ProductQueryType.IN_APP
 var products = await iap.fetch_products(request)`}</CodeBlock>
           ),
           csharp: (

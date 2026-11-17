@@ -78,7 +78,9 @@ function GetTransactionJwsIOS() {
       </AnchorLink>
       <p>
         <code>Promise&lt;string | null&gt;</code> — Signed JWS for the latest
-        transaction, or <code>null</code>.
+        transaction, or <code>null</code>. Godot&apos;s{' '}
+        <code>get_transaction_jws_ios</code> runs on iOS only and returns an
+        empty string on macOS.
       </p>
 
       <h2>Example</h2>

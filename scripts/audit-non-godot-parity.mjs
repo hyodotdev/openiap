@@ -2211,8 +2211,8 @@ function checkFlutter() {
     "libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Package.swift",
   ];
 
-  // Oldest openiap-apple with VerifyAppOwnershipProps.
-  const flutterSwiftPackageFloor = "4.0.1";
+  // The plugin compiles against this openiap-apple; an older pin fails in Swift.
+  const flutterSwiftPackageFloor = readJson("openiap-versions.json").apple;
   for (const flutterSwiftPackage of flutterSwiftPackagePaths) {
     expectFile(flutterSwiftPackage);
     if (!exists(flutterSwiftPackage)) continue;
@@ -2230,7 +2230,7 @@ function checkFlutter() {
       fail(`${flutterSwiftPackage} OpenIAP dependency version must be semver`);
     } else if (openIapDependencyVersion !== flutterSwiftPackageFloor) {
       fail(
-        `${flutterSwiftPackage} OpenIAP dependency floor must be ${flutterSwiftPackageFloor}, the first openiap-apple with VerifyAppOwnershipProps`,
+        `${flutterSwiftPackage} OpenIAP dependency floor must be ${flutterSwiftPackageFloor}, the apple version in openiap-versions.json; run ./scripts/sync-versions.sh`,
       );
     }
     if (

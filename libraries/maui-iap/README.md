@@ -15,7 +15,7 @@ macCatalyst from a single C# API.
 
 ## Install
 
-OpenIap.Maui 2.x requires the supported .NET 10 SDK and MAUI workload:
+OpenIap.Maui 2.0 and later require the supported .NET 10 SDK and MAUI workload:
 
 ```bash
 dotnet workload install maui
@@ -32,11 +32,10 @@ apps can deduplicate them with their own package graph. The store SDK itself
 (Google Play Billing, the Horizon billing library, or the Amazon Appstore SDK)
 is linked when the app builds; see [Android store](#android-store).
 
-Stable NuGet releases rebuild the embedded Apple XCFramework with the current
-App Store-accepted toolchain (Xcode 26.6 / SDK 26.5) and verify every packaged
-Mach-O slice before publishing. Xcode 27 remains a source-compatibility CI lane
-until Apple accepts it for App Store submissions, so its guarded StoreKit 27
-paths are not included in stable release artifacts yet.
+Stable NuGet releases rebuild the embedded Apple XCFramework with Xcode 26.6
+(SDK 26.5) and verify every packaged Mach-O slice before publishing. The
+StoreKit 27 paths compile only with Xcode 27, which CI covers for source
+compatibility, so stable release artifacts do not include them yet.
 
 ## Usage
 
@@ -87,7 +86,7 @@ Listener streams arrive on the store's thread; `ObserveOnCurrentContext()`
 delivers them on the UI thread when subscribed from UI code. Set
 `OpenIapClient.DebugLogging = true` to trace iOS and Mac Catalyst bridge calls.
 
-OpenIap.Maui 2.x exposes `OpenIapClient`; the deprecated `Iap` compatibility
+OpenIap.Maui 2.0 and later expose `OpenIapClient`; the deprecated `Iap` compatibility
 facade was removed. Replace `Iap` calls before upgrading from 1.x.
 
 ## IAPKit API and webhooks

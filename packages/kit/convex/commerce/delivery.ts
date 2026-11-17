@@ -59,10 +59,13 @@ export type DeliveryRequest = {
   body: string;
 };
 
+/** `connectMs` bounds reaching one address; `totalMs` bounds its response. */
+export type AttemptBudget = { connectMs: number; totalMs: number };
+
 type AddressPoster = (
   request: DeliveryRequest,
   selected: ResolvedAddress,
-  timeoutMs: number,
+  budget: AttemptBudget,
 ) => Promise<number>;
 
 async function withinTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -79,13 +82,15 @@ async function withinTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   }
 }
 
-async function postJsonToAddress(
+export async function postJsonToAddress(
   request: DeliveryRequest,
   selected: ResolvedAddress,
-  timeoutMs: number,
+  budget: AttemptBudget,
+  send: typeof httpsRequest = httpsRequest,
 ): Promise<number> {
   return await new Promise<number>((resolve, reject) => {
-    const outgoing = httpsRequest(
+    const startedAt = Date.now();
+    const outgoing = send(
       buildPinnedRequestOptions(request, selected),
       (response) => {
         clearTimeout(timer);
@@ -94,9 +99,18 @@ async function postJsonToAddress(
         resolve(status);
       },
     );
-    const timer = setTimeout(() => {
-      outgoing.destroy(new Error("request timed out"));
-    }, timeoutMs);
+    const timeOut = () => outgoing.destroy(new Error("request timed out"));
+    let timer = setTimeout(timeOut, budget.connectMs);
+    // A connected receiver keeps the whole deadline; only an address that
+    // cannot be reached gives its time to the next one.
+    const awaitResponse = () => {
+      clearTimeout(timer);
+      timer = setTimeout(timeOut, budget.totalMs - (Date.now() - startedAt));
+    };
+    outgoing.once("socket", (socket) => {
+      if (socket.connecting) socket.once("secureConnect", awaitResponse);
+      else awaitResponse();
+    });
     outgoing.once("error", (error) => {
       clearTimeout(timer);
       reject(error);
@@ -150,12 +164,15 @@ export async function postJsonPinned(
     const remaining = REQUEST_TIMEOUT_MS - (Date.now() - startedAt);
     if (remaining <= 0) break;
     const addressesLeft = addresses.length - index;
-    const attemptBudget =
+    const connectMs =
       addressesLeft === 1
         ? remaining
         : Math.max(1, Math.min(3_000, Math.floor(remaining / addressesLeft)));
     try {
-      return await postToAddress(request, addresses[index], attemptBudget);
+      return await postToAddress(request, addresses[index], {
+        connectMs,
+        totalMs: remaining,
+      });
     } catch (error) {
       lastError = error;
     }

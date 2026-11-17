@@ -605,8 +605,8 @@ function Announcements() {
             </li>
             <li>
               <strong>Catalog identity</strong>: Product IDs stay aligned across
-              Amazon Appstore, Amazon App Tester, app code, and Kit entitlement
-              checks.
+              Amazon Appstore, Amazon App Tester, app code, and IAPKit
+              entitlement checks.
             </li>
           </ul>
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>

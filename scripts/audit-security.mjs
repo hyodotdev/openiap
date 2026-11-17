@@ -3,6 +3,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { isAlias, parse as parseYaml, parseDocument, visit } from "yaml";
 
@@ -118,6 +119,20 @@ export function findUnpinnedDockerBases(source) {
   return findings;
 }
 
+// xcode-27 is the hosted larger runner declared in .github/actionlint.yaml.
+const HOSTED_RUNNER = /^(?:(?:ubuntu|macos|windows)-[\w.]+|xcode-27)$/u;
+
+// Every label a job can run on; a matrix reference resolves to its values.
+function jobRunnerLabels(job) {
+  const runsOn = job["runs-on"];
+  const matrixKey = /^\$\{\{\s*matrix\.([\w-]+)\s*\}\}$/u.exec(runsOn)?.[1];
+  if (!matrixKey) return [runsOn].flat();
+  const matrix = job.strategy?.matrix;
+  return [matrix?.[matrixKey] ?? [], matrix?.include ?? []]
+    .flat()
+    .map((value) => value?.[matrixKey] ?? value);
+}
+
 export function findWorkflowDependencyFindings(
   source,
   filename = "workflow.yml",
@@ -189,7 +204,34 @@ export function findWorkflowDependencyFindings(
       "pull_request_target",
     );
   for (const [jobName, job] of Object.entries(jobs)) {
+    // A self-hosted runner runs the job on the maintainer's machine.
+    if (job?.["runs-on"] !== undefined) {
+      const labels = jobRunnerLabels(job);
+      if (
+        labels.length === 0 ||
+        labels.some((label) => !HOSTED_RUNNER.test(String(label)))
+      ) {
+        findings.push(
+          `${filename}: job ${jobName} must run on a GitHub-hosted runner`,
+        );
+      }
+    }
     for (const step of job?.steps ?? []) {
+      // Without both flags any workflow or runner in the repository satisfies it.
+      const verifications = String(step?.run ?? "")
+        .split("gh attestation verify")
+        .slice(1);
+      if (
+        verifications.some(
+          (command) =>
+            !command.includes("--cert-identity") ||
+            !command.includes("--deny-self-hosted-runners"),
+        )
+      ) {
+        findings.push(
+          `${filename}: job ${jobName} must pin gh attestation verify to a workflow identity and hosted runners`,
+        );
+      }
       const action = String(step?.uses ?? "").toLowerCase();
       if (!action.startsWith("actions/checkout@")) continue;
       if (String(step?.with?.["persist-credentials"]) !== "false") {
@@ -748,6 +790,31 @@ export async function auditWorkflowFiles(paths) {
   );
 }
 
+export const URL_ATTEMPTS = 3;
+
+// Returns the failure line for a URL, or undefined when it resolves.
+export async function checkUrl(url, { request = fetch, sleep = delay } = {}) {
+  for (let attempt = 1; ; attempt += 1) {
+    let response;
+    try {
+      response = await request(url, {
+        redirect: "follow",
+        signal: AbortSignal.timeout(20_000),
+      });
+      await response.body?.cancel();
+    } catch (error) {
+      return `ERROR ${url} (${error.message})`;
+    }
+    if (response.ok) return undefined;
+    // 429 and 503 mean "ask again later"; every other status is a verdict.
+    if (![429, 503].includes(response.status) || attempt === URL_ATTEMPTS) {
+      return `${response.status} ${url}`;
+    }
+    const retryAfter = Number(response.headers.get("retry-after"));
+    await sleep(Math.min(retryAfter > 0 ? retryAfter : 5 * attempt, 30) * 1000);
+  }
+}
+
 async function auditUrls(paths) {
   const urls = [
     ...new Set(
@@ -762,21 +829,8 @@ async function auditUrls(paths) {
     );
   }
 
-  const failures = [];
-  await Promise.all(
-    urls.map(async (url) => {
-      try {
-        const response = await fetch(url, {
-          redirect: "follow",
-          signal: AbortSignal.timeout(20_000),
-        });
-        await response.body?.cancel();
-        if (!response.ok) failures.push(`${response.status} ${url}`);
-      } catch (error) {
-        failures.push(`ERROR ${url} (${error.message})`);
-      }
-    }),
-  );
+  const results = await Promise.all(urls.map((url) => checkUrl(url)));
+  const failures = results.filter(Boolean);
 
   process.stdout.write(
     failures.length > 0

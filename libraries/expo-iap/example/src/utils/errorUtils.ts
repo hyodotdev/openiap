@@ -1,4 +1,7 @@
-import {getUserFriendlyErrorMessage} from 'expo-iap';
+import {
+  getUserFriendlyErrorMessage,
+  type ExpoPurchaseError as PurchaseError,
+} from 'expo-iap';
 
 /**
  * Extract error message from various error formats
@@ -60,6 +63,13 @@ export function extractErrorCode(error: unknown, fallbackCode: string): string {
   }
 
   return fallbackCode;
+}
+
+export function formatPurchaseErrorDetails(error: PurchaseError): string {
+  const details = `Code: ${error.code}\nMessage: ${error.message}`;
+  return error.debugMessage
+    ? `${details}\nDebug: ${error.debugMessage}`
+    : details;
 }
 
 export function formatErrorForDisplay(

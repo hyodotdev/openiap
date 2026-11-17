@@ -1,6 +1,6 @@
 import {
   SETUP_FRAMEWORKS,
-  renderSetupSnippet,
+  renderSetupGuide,
   simulatePurchaseSteps,
 } from "../../cli/src/kit/guides.mjs";
 import {
@@ -112,7 +112,7 @@ function validateApiKey(apiKey: string): string | null {
 
 export interface IapKitMcpServerOptions {
   /**
-   * Kit endpoint every tool calls. When set, the per-call `baseUrl` argument
+   * IAPKit endpoint every tool calls. When set, the per-call `baseUrl` argument
    * is ignored, so a tool call cannot point the server at another host.
    */
   kitBaseUrl?: string;
@@ -161,6 +161,20 @@ function createKitAccess(options: IapKitMcpServerOptions): KitAccess {
     }
     if (!isSecretApiKey(apiKey)) {
       throw new Error(INSUFFICIENT_API_KEY_SCOPE_MESSAGE);
+    }
+    // A tool call must not send the operator's environment key to a host it names.
+    const usesEnvApiKey =
+      opts.apiKey === undefined && extra?.authInfo?.token === undefined;
+    if (
+      usesEnvApiKey &&
+      options.kitBaseUrl === undefined &&
+      opts.baseUrl !== undefined &&
+      normalizeKitBaseUrl(opts.baseUrl) !==
+        normalizeKitBaseUrl(process.env.IAPKIT_BASE_URL)
+    ) {
+      throw new Error(
+        "baseUrl cannot redirect the IAPKIT_API_KEY fallback. Set IAPKIT_BASE_URL, or pass apiKey with baseUrl.",
+      );
     }
     return kitClient({ apiKey, baseUrl: kitBaseUrl(opts.baseUrl) });
   };
@@ -305,15 +319,12 @@ function registerIapKitTools(
     },
     READ_ONLY_TOOL,
     async (args) => {
-      const productId = args.productId ?? "com.example.premium_monthly";
-      const snippet = renderSetupSnippet(
-        args.framework,
-        PUBLISHABLE_KEY_PLACEHOLDER,
-        productId,
-      );
       return ok({
-        framework: args.framework,
-        snippet,
+        ...renderSetupGuide(
+          args.framework,
+          PUBLISHABLE_KEY_PLACEHOLDER,
+          args.productId ?? "com.example.premium_monthly",
+        ),
         note: "Insert an openiap-kit_pk_ publishable key in the IAPKIT_PUBLISHABLE_KEY placeholder. Never put the MCP openiap-kit_sk_ secret key in an app.",
       });
     },

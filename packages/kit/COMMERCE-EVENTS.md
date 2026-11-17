@@ -284,6 +284,9 @@ signature header carries both values comma-separated; accept if either matches.
 Exponential backoff from 30s, capped at 6h, 14 attempts. `408`, `429` and `5xx`
 retry; other `4xx` are permanent. Twenty consecutive failures park the
 destination for manual review rather than hammering a dead endpoint forever.
+A disabled destination queues nothing: an event emitted while it is disabled
+gets no delivery row for it, so it is not sent after re-enabling and cannot be
+re-sent.
 
 ### Safety
 

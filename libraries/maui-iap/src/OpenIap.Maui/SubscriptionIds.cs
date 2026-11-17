@@ -1,5 +1,5 @@
-// Native matches an empty subscription filter against nothing; an empty or
-// missing list means "all", so normalize it to null before calling native.
+// An empty or missing subscription filter means "all"; older native releases
+// matched an empty list against nothing, so normalize it to null.
 
 #nullable enable
 

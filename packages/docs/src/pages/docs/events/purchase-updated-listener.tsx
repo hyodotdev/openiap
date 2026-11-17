@@ -294,7 +294,7 @@ subscription.Dispose();`}</CodeBlock>
             <CodeBlock language="gdscript">{`# Connect to the typed signal
 iap.purchase_received.connect(_on_purchase_received)
 
-func _on_purchase_received(purchase: Purchase):
+func _on_purchase_received(purchase: Variant):
     print("Purchase updated: %s" % purchase.product_id)
 
     # Verify with your backend or IAPKit before granting content.

@@ -53,6 +53,12 @@ function PaymentModeIos() {
           <tbody>
             <tr>
               <td>
+                <code>Empty</code>
+              </td>
+              <td>No payment mode</td>
+            </tr>
+            <tr>
+              <td>
                 <code>FreeTrial</code>
               </td>
               <td>Free trial period</td>

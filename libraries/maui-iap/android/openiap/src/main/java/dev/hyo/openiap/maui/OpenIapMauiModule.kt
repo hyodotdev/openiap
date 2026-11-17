@@ -146,9 +146,8 @@ class OpenIapMauiModule(private val context: Context) {
         // PurchaseInput is `typealias PurchaseInput = Purchase`; reuse the union dispatcher
         val purchase: PurchaseInput = decode("Purchase") { dev.hyo.openiap.Purchase.fromJson(parseMap(purchaseJson)) }
         module.finishTransaction(purchase, isConsumable)
-        // Consumers expect a string token-ish result on iOS; Android side has no token,
-        // surface an empty string so the C# Task<string> resolves cleanly.
-        wrapString("")
+        // The store returns nothing; answer with the purchase id, as iOS does.
+        wrapString(purchase.id)
     }
 
     fun restorePurchases(callback: ResultCallback) = run(callback) {

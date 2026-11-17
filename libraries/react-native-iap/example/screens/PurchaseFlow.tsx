@@ -22,7 +22,10 @@ import {
   NON_CONSUMABLE_PRODUCT_IDS,
   PRODUCT_IDS,
 } from '../src/utils/constants';
-import {getErrorMessage} from '../src/utils/errorUtils';
+import {
+  formatPurchaseErrorDetails,
+  getErrorMessage,
+} from '../src/utils/errorUtils';
 import {useVerificationMethod} from '../src/hooks/useVerificationMethod';
 import {
   alertPurchaseOutcome,
@@ -495,6 +498,19 @@ function PurchaseFlowContainer() {
     showVerificationMethodSelector,
   } = useVerificationMethod();
 
+  const showPurchaseError = useCallback((error: PurchaseError) => {
+    setProcessingProductId(null);
+    const details = formatPurchaseErrorDetails(error);
+    console.log(`[PurchaseFlow] purchase error\n${details}`);
+    setPurchaseResult(
+      `${
+        error.code === ErrorCode.UserCancelled
+          ? 'Purchase cancelled by user'
+          : 'Purchase failed'
+      }\n${details}`,
+    );
+  }, []);
+
   const {connected, products, fetchProducts} = useIAP({
     purchaseFlow,
     onPurchaseFlowOutcome: ({purchase, status}) => {
@@ -506,14 +522,7 @@ function PurchaseFlowContainer() {
       setPurchaseResult(describePurchaseOutcome(status));
       alertPurchaseOutcome(status);
     },
-    onPurchaseError: (error: PurchaseError) => {
-      setProcessingProductId(null);
-      setPurchaseResult(
-        error.code === ErrorCode.UserCancelled
-          ? 'Purchase cancelled by user'
-          : `Purchase failed: ${error.message} (code: ${error.code})`,
-      );
-    },
+    onPurchaseError: showPurchaseError,
   });
 
   const fetchStorefront = useCallback(async () => {
@@ -551,15 +560,8 @@ function PurchaseFlowContainer() {
         google: {skus: [productId]},
       },
       type: 'in-app',
-    }).catch((error: PurchaseError) => {
-      setProcessingProductId(null);
-      setPurchaseResult(
-        error.code === ErrorCode.UserCancelled
-          ? 'Purchase cancelled by user'
-          : `Purchase failed: ${error.message}`,
-      );
-    });
-  }, []);
+    }).catch(showPurchaseError);
+  }, [showPurchaseError]);
 
   return (
     <>

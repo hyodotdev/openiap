@@ -299,23 +299,6 @@ for sub in subscriptions {
     }
 }`}</CodeBlock>
                       ),
-                      kotlin: (
-                        <CodeBlock language="kotlin">{`// Detecting upgrades with pendingUpgradeProductId (KMP)
-val subscriptions = kmpIapInstance.getActiveSubscriptions()
-
-for (sub in subscriptions) {
-    val renewalInfo = sub.renewalInfoIOS
-    val pendingUpgrade = renewalInfo?.pendingUpgradeProductId
-
-    if (pendingUpgrade != null && pendingUpgrade != sub.productId) {
-        println("⚠️ UPGRADE IN PROGRESS")
-        println("  Current: \${sub.productId}")
-        println("  Upgrading to: $pendingUpgrade")
-
-        // Show UI: "Upgrade processing..."
-    }
-}`}</CodeBlock>
-                      ),
                       kmp: (
                         <CodeBlock language="kotlin">{`// Detecting upgrades with pendingUpgradeProductId (KMP)
 val subscriptions = kmpIAP.getActiveSubscriptions()
@@ -472,23 +455,6 @@ for sub in subscriptions {
     }
 }`}</CodeBlock>
                       ),
-                      kotlin: (
-                        <CodeBlock language="kotlin">{`// Detecting downgrades (KMP)
-val subscriptions = kmpIapInstance.getActiveSubscriptions()
-
-for (sub in subscriptions) {
-    val renewalInfo = sub.renewalInfoIOS
-    val autoRenewPref = renewalInfo?.autoRenewPreference
-
-    if (autoRenewPref != null && autoRenewPref != sub.productId && renewalInfo?.willAutoRenew == true) {
-        println("⚠️ DOWNGRADE SCHEDULED")
-        println("  Current (until \${sub.expirationDateIOS}): \${sub.productId}")
-        println("  Next: $autoRenewPref")
-
-        // Show UI: "Your plan will change to [tier] on [date]"
-    }
-}`}</CodeBlock>
-                      ),
                       kmp: (
                         <CodeBlock language="kotlin">{`// Detecting downgrades (KMP)
 val subscriptions = kmpIAP.getActiveSubscriptions()
@@ -637,23 +603,6 @@ for sub in subscriptions {
     }
 }`}</CodeBlock>
                       ),
-                      kotlin: (
-                        <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.requestPurchase
-
-val subscriptions = kmpIapInstance.getActiveSubscriptions()
-
-for (sub in subscriptions) {
-    sub.renewalInfoIOS?.pendingUpgradeProductId?.let { pending ->
-        val current = sub.productId
-
-        println("Upgrading from $current to $pending")
-
-        // Show upgrade-in-progress UI
-        showUpgradeInProgressUI(current, pending)
-    }
-}`}</CodeBlock>
-                      ),
                       kmp: (
                         <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.kmpIapInstance
 
@@ -769,13 +718,6 @@ let effectiveTier = renewalInfo.pendingUpgradeProductId ?? subscription.productI
 // ❌ Wrong - may show outdated tier immediately after upgrade
 let currentTier = subscription.productId`}</CodeBlock>
                       ),
-                      kotlin: (
-                        <CodeBlock language="kotlin">{`// ✅ Correct approach
-val effectiveTier = renewalInfo?.pendingUpgradeProductId ?: subscription.productId
-
-// ❌ Wrong - may show outdated tier immediately after upgrade
-val currentTier = subscription.productId`}</CodeBlock>
-                      ),
                       kmp: (
                         <CodeBlock language="kotlin">{`// ✅ Correct approach
 val effectiveTier = renewalInfo?.pendingUpgradeProductId ?: subscription.productId
@@ -870,11 +812,11 @@ function SubscriptionStatus() {
     loadSubscription();
 
     // Listen for updates
-    const unsubscribe = addPurchaseListener((purchase) => {
+    const listener = purchaseUpdatedListener(() => {
       loadSubscription(); // Refresh when productId updates
     });
 
-    return unsubscribe;
+    return () => listener.remove();
   }, []);
 
   if (!subscription) return null;
@@ -965,48 +907,6 @@ struct SubscriptionStatusView: View {
         let subs = try? await OpenIapModule.shared.getActiveSubscriptions(nil)
         subscription = subs?.first
     }
-}`}</CodeBlock>
-                      ),
-                      kotlin: (
-                        <CodeBlock language="kotlin">{`// Complete example: Subscription status (Compose Multiplatform)
-@Composable
-fun SubscriptionStatus() {
-    var subscription by remember { mutableStateOf<ActiveSubscription?>(null) }
-
-    LaunchedEffect(Unit) {
-        val subs = kmpIapInstance.getActiveSubscriptions()
-        subscription = subs.firstOrNull()
-    }
-
-    subscription?.let { sub ->
-        val renewalInfo = sub.renewalInfoIOS
-        val pending = renewalInfo?.pendingUpgradeProductId
-
-        when {
-            pending != null && pending != sub.productId -> {
-                // Upgrade in progress
-                Column {
-                    Text("⏳ Upgrading to $pending...")
-                    Text("Current: \${sub.productId}")
-                }
-            }
-            renewalInfo?.autoRenewPreference != sub.productId &&
-            renewalInfo?.willAutoRenew == true -> {
-                // Downgrade scheduled
-                Column {
-                    Text("Current: \${sub.productId}")
-                    Text("Will change to \${renewalInfo.autoRenewPreference} on \${formatDate(sub.expirationDateIOS)}")
-                }
-            }
-            else -> {
-                // Normal active subscription
-                Column {
-                    Text("Active: \${sub.productId}")
-                    Text("Renews: \${formatDate(renewalInfo?.renewalDate)}")
-                }
-            }
-        }
-    } ?: Text("Loading...")
 }`}</CodeBlock>
                       ),
                       kmp: (
@@ -1155,7 +1055,7 @@ static string FormatDate(double? timestamp) =>
                         <CodeBlock language="gdscript">{`# Complete example: Subscription status (Godot)
 extends Control
 
-var subscription: ActiveSubscription = null
+var subscription: Types.ActiveSubscription = null
 
 func _ready() -> void:
     load_subscription()
@@ -1461,9 +1361,11 @@ func format_date(timestamp: int) -> String:
                   </p>
 
                   <p>
-                    <strong>Note:</strong> If you don't specify a replacement
-                    mode, the system uses the default configured in your Google
-                    Play Console subscription settings.
+                    <strong>Note:</strong> A change that passes only{' '}
+                    <code>purchaseToken</code> uses{' '}
+                    <code>CHARGE_FULL_PRICE</code>. Pass{' '}
+                    <code>subscriptionProductReplacementParams</code> to choose
+                    another mode.
                   </p>
                 </Accordion>
 
@@ -1603,29 +1505,32 @@ if (currentSub) {
                       ),
                       kotlin: (
                         <CodeBlock language="kotlin">{`// Android upgrade with proration
-import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.requestPurchase
-import io.github.hyochan.kmpiap.openiap.*
-import io.github.hyochan.kmpiap.openiap.*
+import dev.hyo.openiap.*
+import dev.hyo.openiap.store.OpenIapStore
 
 // Get current subscription
-val purchases = kmpIapInstance.getAvailablePurchases()
+val iapStore = OpenIapStore(context)
+val purchases = iapStore.getAvailablePurchases(null)
 val currentSub = purchases.find { it.productId == "basic_monthly" }
 
 currentSub?.let { sub ->
-    // Upgrade to premium with time proration
-    kmpIapInstance.requestPurchase {
-        type = ProductType.Subs
-        google {
-            skus = listOf("premium_monthly")
-            purchaseToken = sub.purchaseToken
-            subscriptionProductReplacementParams =
-                SubscriptionProductReplacementParamsAndroid(
-                    oldProductId = sub.productId,
-                    replacementMode = SubscriptionReplacementModeAndroid.WithTimeProration
+    iapStore.requestPurchase(
+        RequestPurchaseProps(
+            type = ProductQueryType.Subs,
+            request = RequestPurchaseProps.Request.Subscription(
+                RequestSubscriptionPropsByPlatforms(
+                    google = RequestSubscriptionAndroidProps(
+                        skus = listOf("premium_monthly"),
+                        purchaseToken = sub.purchaseToken,
+                        subscriptionProductReplacementParams = SubscriptionProductReplacementParamsAndroid(
+                            oldProductId = sub.productId,
+                            replacementMode = SubscriptionReplacementModeAndroid.WithTimeProration
+                        )
+                    )
                 )
-        }
-    }
+            )
+        )
+    )
 
     println("✅ Upgrade initiated")
 }`}</CodeBlock>
@@ -1737,16 +1642,16 @@ for p in purchases:
 
 if current_sub:
     # Upgrade to premium with time proration
-    var props = RequestPurchaseProps.new()
-    props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
-    props.request_subscription.google = RequestSubscriptionAndroidProps.new()
+    var props = Types.RequestPurchaseProps.new()
+    props.request_subscription = Types.RequestSubscriptionPropsByPlatforms.new()
+    props.request_subscription.google = Types.RequestSubscriptionAndroidProps.new()
     props.request_subscription.google.skus.assign(["premium_monthly"])
     props.request_subscription.google.purchase_token = current_sub.purchase_token
-    var replacement = SubscriptionProductReplacementParamsAndroid.new()
+    var replacement = Types.SubscriptionProductReplacementParamsAndroid.new()
     replacement.old_product_id = current_sub.product_id
-    replacement.replacement_mode = SubscriptionReplacementModeAndroid.WITH_TIME_PRORATION
+    replacement.replacement_mode = Types.SubscriptionReplacementModeAndroid.WITH_TIME_PRORATION
     props.request_subscription.google.subscription_product_replacement_params = replacement
-    props.type = ProductQueryType.SUBS
+    props.type = Types.ProductQueryType.SUBS
 
     await iap.request_purchase(props)
 
@@ -1857,27 +1762,32 @@ if (premiumPurchase) {
                       ),
                       kotlin: (
                         <CodeBlock language="kotlin">{`// Android downgrade with deferred replacement
-import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.requestPurchase
+import dev.hyo.openiap.*
+import dev.hyo.openiap.store.OpenIapStore
 
 // Get current subscription
-val purchases = kmpIapInstance.getAvailablePurchases()
+val iapStore = OpenIapStore(context)
+val purchases = iapStore.getAvailablePurchases(null)
 val premiumPurchase = purchases.find { it.productId == "premium_monthly" }
 
-premiumPurchase?.let { purchase ->
-    // Downgrade - takes effect at next billing cycle
-    kmpIapInstance.requestPurchase {
-        type = ProductType.Subs
-        google {
-            skus = listOf("basic_monthly")
-            purchaseToken = purchase.purchaseToken
-            subscriptionProductReplacementParams =
-                SubscriptionProductReplacementParamsAndroid(
-                    oldProductId = purchase.productId,
-                    replacementMode = SubscriptionReplacementModeAndroid.Deferred
+premiumPurchase?.let { sub ->
+    iapStore.requestPurchase(
+        RequestPurchaseProps(
+            type = ProductQueryType.Subs,
+            request = RequestPurchaseProps.Request.Subscription(
+                RequestSubscriptionPropsByPlatforms(
+                    google = RequestSubscriptionAndroidProps(
+                        skus = listOf("basic_monthly"),
+                        purchaseToken = sub.purchaseToken,
+                        subscriptionProductReplacementParams = SubscriptionProductReplacementParamsAndroid(
+                            oldProductId = sub.productId,
+                            replacementMode = SubscriptionReplacementModeAndroid.Deferred
+                        )
+                    )
                 )
-        }
-    }
+            )
+        )
+    )
 
     println("✅ Downgrade scheduled for next billing cycle")
     // Track the scheduled change on your backend until it takes effect.
@@ -1992,16 +1902,16 @@ for p in purchases:
 
 if premium_purchase:
     # Downgrade - takes effect at next billing cycle
-    var props = RequestPurchaseProps.new()
-    props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
-    props.request_subscription.google = RequestSubscriptionAndroidProps.new()
+    var props = Types.RequestPurchaseProps.new()
+    props.request_subscription = Types.RequestSubscriptionPropsByPlatforms.new()
+    props.request_subscription.google = Types.RequestSubscriptionAndroidProps.new()
     props.request_subscription.google.skus.assign(["basic_monthly"])
     props.request_subscription.google.purchase_token = premium_purchase.purchase_token
-    var replacement = SubscriptionProductReplacementParamsAndroid.new()
+    var replacement = Types.SubscriptionProductReplacementParamsAndroid.new()
     replacement.old_product_id = premium_purchase.product_id
-    replacement.replacement_mode = SubscriptionReplacementModeAndroid.DEFERRED
+    replacement.replacement_mode = Types.SubscriptionReplacementModeAndroid.DEFERRED
     props.request_subscription.google.subscription_product_replacement_params = replacement
-    props.type = ProductQueryType.SUBS
+    props.type = Types.ProductQueryType.SUBS
 
     await iap.request_purchase(props)
 
@@ -2194,15 +2104,15 @@ for p in purchases:
 
 if current_sub:
     # Upgrade using the new per-product replacement params
-    var props = RequestPurchaseProps.new()
-    props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
-    props.request_subscription.google = RequestSubscriptionAndroidProps.new()
+    var props = Types.RequestPurchaseProps.new()
+    props.request_subscription = Types.RequestSubscriptionPropsByPlatforms.new()
+    props.request_subscription.google = Types.RequestSubscriptionAndroidProps.new()
     props.request_subscription.google.skus.assign(["premium_yearly"])
-    props.request_subscription.google.subscription_product_replacement_params = SubscriptionProductReplacementParamsAndroid.new()
+    props.request_subscription.google.subscription_product_replacement_params = Types.SubscriptionProductReplacementParamsAndroid.new()
     props.request_subscription.google.subscription_product_replacement_params.old_product_id = current_sub.product_id
-    props.request_subscription.google.subscription_product_replacement_params.replacement_mode = SubscriptionReplacementModeAndroid.WITH_TIME_PRORATION
+    props.request_subscription.google.subscription_product_replacement_params.replacement_mode = Types.SubscriptionReplacementModeAndroid.WITH_TIME_PRORATION
     # or SubscriptionReplacementModeAndroid.KEEP_EXISTING (8.1.0+ only)
-    props.type = ProductQueryType.SUBS
+    props.type = Types.ProductQueryType.SUBS
 
     await iap.request_purchase(props)
 
@@ -2247,9 +2157,10 @@ for (const purchase of purchases) {
                       ),
                       kotlin: (
                         <CodeBlock language="kotlin">{`// Android - check if subscription will change
-import io.github.hyochan.kmpiap.kmpIapInstance
+import dev.hyo.openiap.store.OpenIapStore
 
-val purchases = kmpIapInstance.getAvailablePurchases()
+val iapStore = OpenIapStore(context)
+val purchases = iapStore.getAvailablePurchases(null)
 
 for (purchase in purchases) {
     // On Android, the current purchase reflects the active subscription
@@ -2363,12 +2274,11 @@ for purchase in purchases:
 
                 <ol>
                   <li>
-                    <strong>Specify replacement mode when needed</strong>: Pass{' '}
+                    <strong>Specify the replacement mode</strong>: Pass{' '}
                     <code>
                       subscriptionProductReplacementParams.replacementMode
                     </code>{' '}
-                    when you want to override the default configured in Google
-                    Play Console
+                    unless charging the full price at once is what you want
                   </li>
                   <li>
                     <strong>Use WITH_TIME_PRORATION for upgrades</strong> to
@@ -2704,21 +2614,21 @@ func change_subscription(new_sku: String, is_upgrade: bool) -> void:
 
     # Choose appropriate replacement mode.
     var replacement_mode = (
-        SubscriptionReplacementModeAndroid.WITH_TIME_PRORATION
+        Types.SubscriptionReplacementModeAndroid.WITH_TIME_PRORATION
         if is_upgrade
-        else SubscriptionReplacementModeAndroid.DEFERRED
+        else Types.SubscriptionReplacementModeAndroid.DEFERRED
     )
 
-    var props = RequestPurchaseProps.new()
-    props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
-    props.request_subscription.google = RequestSubscriptionAndroidProps.new()
+    var props = Types.RequestPurchaseProps.new()
+    props.request_subscription = Types.RequestSubscriptionPropsByPlatforms.new()
+    props.request_subscription.google = Types.RequestSubscriptionAndroidProps.new()
     props.request_subscription.google.skus.assign([new_sku])
     props.request_subscription.google.purchase_token = current_sub.purchase_token
-    var replacement = SubscriptionProductReplacementParamsAndroid.new()
+    var replacement = Types.SubscriptionProductReplacementParamsAndroid.new()
     replacement.old_product_id = current_sub.product_id
     replacement.replacement_mode = replacement_mode
     props.request_subscription.google.subscription_product_replacement_params = replacement
-    props.type = ProductQueryType.SUBS
+    props.type = Types.ProductQueryType.SUBS
 
     await iap.request_purchase(props)
 

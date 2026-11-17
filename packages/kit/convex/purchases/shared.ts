@@ -401,15 +401,9 @@ export function mapGooglePlayPurchaseState(
           ? HarmonizedPurchaseState.ENTITLED
           : HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT;
       default:
-        break;
+        // A state this switch does not list never entitles, acknowledged or not.
+        return HarmonizedPurchaseState.UNKNOWN;
     }
-
-    // If we have an acknowledgement state but no clear subscription state
-    if (isAcknowledged(receipt.acknowledgementState)) {
-      return HarmonizedPurchaseState.ENTITLED;
-    }
-
-    return HarmonizedPurchaseState.UNKNOWN;
   }
 
   const purchaseState = receipt.purchaseState?.toUpperCase();

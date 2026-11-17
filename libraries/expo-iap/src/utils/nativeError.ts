@@ -87,6 +87,10 @@ const parseNativeErrorEnvelope = (
   }
 };
 
+// The envelope is transport: its raw text never becomes message or debugMessage.
+const withoutEnvelope = (text: string | undefined): string | undefined =>
+  text?.includes(OPENIAP_ERROR_ENVELOPE_PREFIX) ? undefined : text;
+
 /**
  * Rebuild a canonical PurchaseError from an Expo Modules Promise rejection,
  * read from the message envelope (see OPENIAP_ERROR_ENVELOPE_PREFIX). Direct
@@ -124,11 +128,14 @@ export const createPurchaseErrorFromNativeException = (
         asNumber(direct.code) ??
         fallback.code ??
         ErrorCode.Unknown,
-      message: asString(envelope.message) ?? fallback.message ?? nativeMessage,
+      message:
+        asString(envelope.message) ??
+        fallback.message ??
+        withoutEnvelope(nativeMessage),
       debugMessage:
         asString(envelope.debugMessage) ??
-        asString(direct.debugMessage) ??
-        fallback.debugMessage,
+        withoutEnvelope(asString(direct.debugMessage)) ??
+        withoutEnvelope(fallback.debugMessage),
       responseCode:
         asNumber(envelope.responseCode) ??
         asNumber(direct.responseCode) ??

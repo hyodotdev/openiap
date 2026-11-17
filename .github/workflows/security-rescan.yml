@@ -10,9 +10,14 @@ permissions:
 
 jobs:
   release-sboms:
-    name: Rescan published release SBOMs
+    name: Rescan published release SBOMs (${{ matrix.shard }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # One runner needs about five seconds per SBOM, and every release adds one.
+        shard: [0, 1, 2, 3]
     permissions:
       attestations: read
       contents: read
@@ -38,6 +43,7 @@ jobs:
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHARD: ${{ matrix.shard }}
         run: |
           gh api --paginate --slurp \
             "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
@@ -72,6 +78,9 @@ jobs:
           SCAN_STATUS=0
           while IFS=$'\t' read -r COMPONENT VERSION RELEASE_TAG SBOM_NAME SBOM_DIGEST; do
             [ -n "$RELEASE_TAG" ] || continue
+            # The tag picks the shard, so a release published mid-run moves no other SBOM.
+            TAG_HASH=$(printf '%s' "$RELEASE_TAG" | cksum | cut -d ' ' -f 1)
+            [ $((TAG_HASH % 4)) -eq "$SHARD" ] || continue
             node scripts/assert-release-tag.mjs \
               "$COMPONENT" "$DEFAULT_BRANCH" "$RELEASE_TAG" "$VERSION"
             RELEASE_DIR="$PUBLISHED_DIR/$RELEASE_TAG"
@@ -80,8 +89,15 @@ jobs:
             mkdir -p "$RELEASE_DIR" "$SCAN_RELEASE_DIR" "$REPORT_RELEASE_DIR"
             SBOM_FILE="$RELEASE_DIR/$SBOM_NAME"
             SCAN_FILE="$SCAN_RELEASE_DIR/$SBOM_NAME"
-            gh release download "$RELEASE_TAG" \
-              --pattern "$SBOM_NAME" --dir "$RELEASE_DIR" --clobber
+            # A transient asset API error must not fail the weekly run.
+            for ATTEMPT in 1 2 3; do
+              if gh release download "$RELEASE_TAG" \
+                --pattern "$SBOM_NAME" --dir "$RELEASE_DIR" --clobber; then
+                break
+              fi
+              [ "$ATTEMPT" -lt 3 ] || exit 1
+              sleep $((ATTEMPT * 10))
+            done
             node scripts/generate-sbom.mjs verify-file "$SBOM_FILE" \
               --tag "$RELEASE_TAG" --digest "$SBOM_DIGEST"
             "$RUNNER_TEMP/cyclonedx" validate \
@@ -120,7 +136,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: published-release-sbom-reports
+          name: published-release-sbom-reports-${{ matrix.shard }}
           path: ${{ runner.temp }}/release-sbom-reports
           if-no-files-found: error
           retention-days: 30

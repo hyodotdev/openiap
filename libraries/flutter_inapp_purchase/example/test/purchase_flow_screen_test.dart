@@ -259,6 +259,38 @@ void main() {
     }
   });
 
+  testWidgets('shows a purchase error code, message, and debug message',
+      (tester) async {
+    await tester.pumpWidget(screen());
+    await tester.pumpAndSettle();
+    await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .handlePlatformMessage(
+      channel.name,
+      const StandardMethodCodec().encodeMethodCall(
+        MethodCall(
+          'purchase-error',
+          jsonEncode({
+            'code': 'user-cancelled',
+            'message': 'User cancelled the purchase',
+            'debugMessage': 'Response code 1',
+          }),
+        ),
+      ),
+      (_) {},
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        '❌ Purchase Error\n'
+        'Code: user-cancelled\n'
+        'Message: User cancelled the purchase\n'
+        'Debug: Response code 1',
+      ),
+      findsOneWidget,
+    );
+    await closeScreen(tester);
+  });
+
   testWidgets('unsupported recovery does not show a recovery failure',
       (tester) async {
     recoveryFailure = PlatformException(

@@ -368,8 +368,9 @@ openiap/horizon_app_id="YOUR_HORIZON_APP_ID"`}</CodeBlock>
         <p>
           Client purchase calls stay the same on Quest —{' '}
           <code>fetchProducts</code> and <code>requestPurchase</code> work
-          unchanged. For server validation, pass the Horizon receipt context to{' '}
-          <Link to="/docs/features/validation">Validation</Link> or to{' '}
+          unchanged. Server validation has two paths.
+        </p>
+        <p>
           <a
             href="https://kit.openiap.dev/docs/verification/horizon"
             target="_blank"
@@ -377,21 +378,45 @@ openiap/horizon_app_id="YOUR_HORIZON_APP_ID"`}</CodeBlock>
           >
             IAPKit
           </a>
-          , OpenIAP's hosted verification backend, using the{' '}
-          <code>horizon</code> payload:
+          , OpenIAP's hosted verification backend, holds the Meta credential for
+          you. The app sends only the SKU, and may add the Meta user ID, through{' '}
+          <Link to="/docs/features/validation#verify-purchase-with-provider">
+            verifyPurchaseWithProvider
+          </Link>
+          :
         </p>
-        <CodeBlock language="typescript">{`await verifyPurchase({
+        <CodeBlock language="typescript">{`const { iapkit } = await verifyPurchaseWithProvider({
+  provider: 'iapkit',
+  iapkit: {
+    apiKey: 'openiap-kit_pk_<your-publishable-key>',
+    horizon: { sku: purchase.productId },
+  },
+});
+
+if (iapkit?.isValid && iapkit.productId === purchase.productId) {
+  await grantEntitlement(purchase.productId);
+}`}</CodeBlock>
+        <p>
+          <Link to="/docs/features/validation#verify-purchase">
+            verifyPurchase
+          </Link>{' '}
+          with the <code>horizon</code> payload calls Meta directly and needs a
+          Meta access token. The token is a Meta app credential: use this call
+          only on trusted infrastructure, never with a token embedded in the
+          shipped app. An entitlement Meta does not confirm throws{' '}
+          <code>purchase-verification-failed</code>.
+        </p>
+        <CodeBlock language="typescript">{`const result = await verifyPurchase({
   horizon: {
     sku: purchase.productId,
     userId: metaUserId,
     accessToken: horizonAccessToken, // Meta app credential
   },
-});`}</CodeBlock>
-        <p>
-          The access token is a Meta app credential. Keep Horizon verification
-          on trusted infrastructure — your backend or IAPKit — rather than
-          embedding the token in the shipped app.
-        </p>
+});
+
+if ('isValid' in result && result.isValid) {
+  await grantEntitlement(purchase.productId);
+}`}</CodeBlock>
       </section>
     </div>
   );

@@ -137,7 +137,7 @@ describe("generated LLM references", () => {
     expect(fullReference).toContain("val products = iap.fetchProducts {");
   });
 
-  test("finishes the non-consumable premium sample only after verify and grant", () => {
+  test("finishes the non-consumable premium samples only after verify and grant", () => {
     const minimalUsage = fullReference
       .split("## Minimal Usage by Framework")[1]
       ?.split("\n---\n")[0];
@@ -151,15 +151,26 @@ describe("generated LLM references", () => {
       /await verifyOnServer\(purchase\)[\s\S]*await grantPremium\(purchase\)[\s\S]*finishTransaction\(purchase: purchase, isConsumable: false\)/,
       /verifyOnServer\(purchase\)[\s\S]*grantPremium\(purchase\)[\s\S]*finishTransaction\(purchase = purchase, isConsumable = false\)/,
       /VerifyOnServerAsync\(purchase\)[\s\S]*GrantPremiumAsync\(purchase\)[\s\S]*isConsumable: false/,
+      /verify_on_server\(purchase\)[\s\S]*grant_premium\(purchase\)[\s\S]*finish_transaction_dict\(purchase, false\)/,
     ]) {
       expect(minimalUsage).toMatch(step);
     }
+
+    const quickListener = quickReference
+      .split("## Events (React Native/Expo)")[1]
+      ?.split("## Core Types")[0];
+    expect(quickListener).toMatch(
+      /if \(!\(await verifyOnServer\(purchase\)\)\) return;\s*await grantPremium\(purchase\);\s*await finishTransaction\(\{ purchase, isConsumable: false \}\)/,
+    );
+    expect(quickListener?.match(/finishTransaction\(/g)).toHaveLength(1);
   });
 
   test("names current APIs and the full purchase identity", () => {
     expect(quickReference).not.toContain("getStorefrontIOS");
     expect(quickReference).toContain("getPromotedProductIOS");
-    expect(quickReference).toContain("const evidence = await verifyAppOwnership(");
+    expect(quickReference).toContain(
+      "const evidence = await verifyAppOwnership(",
+    );
     const purchaseCommon = quickReference.match(
       /interface PurchaseCommon \{([\s\S]*?)\n\}/,
     )?.[1];

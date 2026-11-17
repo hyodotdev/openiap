@@ -51,6 +51,11 @@ class FakeAndroidPlugin:
 	func getStorefrontAndroid() -> String:
 		return storefront_result
 
+	var fetch_result := JSON.stringify({"products": []})
+
+	func fetchProducts(_request_json: String) -> String:
+		return fetch_result
+
 
 class FakeIOSRestorePlugin:
 	extends RefCounted
@@ -317,6 +322,7 @@ func _run_all_tests() -> void:
 
 	# Product tests
 	await test_fetch_products_mock()
+	await test_android_fetch_products_failure_signal()
 	test_product_variant_mapping()
 
 	# Purchase tests
@@ -334,6 +340,7 @@ func _run_all_tests() -> void:
 	await test_ios_transaction_lists_report_invalid_store_identities()
 	await test_ios_single_purchase_reads_report_invalid_store_identities()
 	test_request_purchase_reports_invalid_store_identities()
+	test_apple_purchase_before_init_emits_not_prepared()
 	test_freed_object_options_are_ignored()
 	test_sensitive_values_are_not_logged()
 
@@ -869,6 +876,34 @@ func test_request_purchase_reports_invalid_store_identities() -> void:
 	GodotIapPlugin._platform = ""
 
 
+func test_apple_purchase_before_init_emits_not_prepared() -> void:
+	var fake := FakePurchasePayloadPlugin.new()
+	# What the Apple plugin answers before init_connection, as Android does.
+	fake.responses["requestPurchaseWithPayload"] = JSON.stringify({
+		"success": false, "code": "not-prepared", "error": "IAP connection is not initialized",
+	})
+	GodotIapPlugin._native_plugin = fake
+	GodotIapPlugin._platform = "iOS"
+	var errors: Array[Dictionary] = []
+	var capture_error = func(error: Dictionary) -> void:
+		errors.append(error)
+	GodotIapPlugin.purchase_error.connect(capture_error)
+
+	var purchase = GodotIapPlugin.request_purchase({
+		"requestPurchase": {"apple": {"sku": "apple.sku"}},
+		"type": "in-app",
+	})
+
+	_assert_equal(purchase, null, "An Apple purchase before init should return null")
+	_assert_equal(errors.size(), 1, "An Apple purchase before init should emit one purchase_error")
+	_assert_equal(errors[0].get("code"), "not-prepared", "An Apple purchase before init should report not-prepared")
+	_assert_false(GodotIapPlugin._requested_skus.has("apple.sku"), "A refused purchase should not stay marked as requested")
+
+	GodotIapPlugin.purchase_error.disconnect(capture_error)
+	GodotIapPlugin._native_plugin = null
+	GodotIapPlugin._platform = ""
+
+
 func test_freed_object_options_are_ignored() -> void:
 	var freed = Node.new()
 	freed.free()
@@ -922,6 +957,40 @@ func test_fetch_products_mock() -> void:
 
 	# In mock mode, returns mock products
 	_assert_true(products.size() >= 0, "fetch_products should return an array")
+
+
+func test_android_fetch_products_failure_signal() -> void:
+	var fake = FakeAndroidPlugin.new()
+	GodotIapPlugin._native_plugin = fake
+	GodotIapPlugin._platform = "Android"
+	var results: Array[Dictionary] = []
+	var capture = func(result: Dictionary) -> void:
+		results.append(result)
+	GodotIapPlugin.products_fetched.connect(capture)
+	var request = Types.ProductRequest.new()
+	var skus: Array[String] = ["coins"]
+	request.skus = skus
+
+	# Native emits the successful signal itself, so the wrapper adds none.
+	_assert_equal((await GodotIapPlugin.fetch_products(request)).size(), 0, "An empty Android fetch should return no products")
+	_assert_equal(results.size(), 0, "A successful Android fetch should not emit a second products_fetched")
+
+	fake.fetch_result = JSON.stringify({
+		"success": false, "products": [], "code": "not-prepared", "error": "IAP connection is not initialized",
+	})
+	_assert_equal((await GodotIapPlugin.fetch_products(request)).size(), 0, "A failed Android fetch should return no products")
+	_assert_equal(results, [{
+		"method": "fetchProducts", "success": false, "code": "not-prepared", "error": "IAP connection is not initialized",
+	}], "A failed Android fetch should emit the failure on products_fetched")
+
+	fake.fetch_result = "not json"
+	await GodotIapPlugin.fetch_products(request)
+	_assert_equal(results.size(), 2, "An unreadable Android fetch response should emit a failure")
+	_assert_equal(results[1].get("code"), "service-error", "An unreadable Android fetch response should use service-error")
+
+	GodotIapPlugin.products_fetched.disconnect(capture)
+	GodotIapPlugin._native_plugin = null
+	GodotIapPlugin._platform = ""
 
 
 func test_product_variant_mapping() -> void:

@@ -242,23 +242,23 @@ await OpenIapClient.Mutation.RequestPurchaseAsync(
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Standard in-app purchase
-var props = RequestPurchaseProps.new()
-props.request = RequestPurchasePropsByPlatforms.new()
-props.request.apple = RequestPurchaseIosProps.new()
+var props = Types.RequestPurchaseProps.new()
+props.request = Types.RequestPurchasePropsByPlatforms.new()
+props.request.apple = Types.RequestPurchaseIosProps.new()
 props.request.apple.sku = "premium"
-props.request.google = RequestPurchaseAndroidProps.new()
+props.request.google = Types.RequestPurchaseAndroidProps.new()
 props.request.google.skus.assign(["premium"])
-props.type = ProductQueryType.IN_APP
+props.type = Types.ProductQueryType.IN_APP
 await iap.request_purchase(props)
 
 # Subscription purchase
-var subs_props = RequestPurchaseProps.new()
-subs_props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
-subs_props.request_subscription.apple = RequestSubscriptionIosProps.new()
+var subs_props = Types.RequestPurchaseProps.new()
+subs_props.request_subscription = Types.RequestSubscriptionPropsByPlatforms.new()
+subs_props.request_subscription.apple = Types.RequestSubscriptionIosProps.new()
 subs_props.request_subscription.apple.sku = "monthly_sub"
-subs_props.request_subscription.google = RequestSubscriptionAndroidProps.new()
+subs_props.request_subscription.google = Types.RequestSubscriptionAndroidProps.new()
 subs_props.request_subscription.google.skus.assign(["monthly_sub"])
-subs_props.type = ProductQueryType.SUBS
+subs_props.type = Types.ProductQueryType.SUBS
 await iap.request_purchase(subs_props)`}</CodeBlock>
             ),
           }}
@@ -435,7 +435,9 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                         Offer token for one-time purchase discounts (8.0+).
                         Select an entry from <code>discountOffers</code>, then
                         pass its <code>offerTokenAndroid</code> value here as{' '}
-                        <code>offerToken</code>.
+                        <code>offerToken</code>. Google Play only: Amazon
+                        Appstore and Meta Horizon fail the request with{' '}
+                        <code>feature-not-supported</code>.
                       </td>
                     </tr>
                     <tr>
@@ -465,7 +467,9 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                         Billing Choice. Billing Choice is available in OpenIAP
                         2.1.0 / openiap-google 2.3.0 and requires Play Billing
                         9.1.0+. In-app flows require only{' '}
-                        <code>billingProgram</code>. See{' '}
+                        <code>billingProgram</code>. Google Play only: Amazon
+                        Appstore and Meta Horizon fail the request with{' '}
+                        <code>feature-not-supported</code>. See{' '}
                         <Link to="/docs/types/billing-programs#developer-billing-option-params">
                           DeveloperBillingOptionParamsAndroid
                         </Link>
@@ -509,8 +513,10 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                         <code>winBackOffer</code>
                       </td>
                       <td>
-                        Win-back offer to re-engage churned subscribers (iOS
-                        18+).
+                        <a href="#win-back-offer-input-ios">
+                          <code>WinBackOfferInputIOS</code>
+                        </a>{' '}
+                        to re-engage churned subscribers (iOS 18+).
                       </td>
                     </tr>
                     <tr>
@@ -518,7 +524,11 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                         <code>promotionalOfferJWS</code>
                       </td>
                       <td>
-                        JWS-signed promotional offer (iOS 15+, WWDC 2025).
+                        JWS-signed promotional offer as a{' '}
+                        <a href="#promotional-offer-jws-input-ios">
+                          <code>PromotionalOfferJWSInputIOS</code>
+                        </a>{' '}
+                        (iOS 15+, WWDC 2025).
                       </td>
                     </tr>
                     <tr>
@@ -545,6 +555,70 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                         Compact JWS string for overriding introductory offer
                         eligibility (iOS 15+, WWDC 2025). Generate it on your
                         server and omit it to let the system decide.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <AnchorLink id="win-back-offer-input-ios" level="h4">
+                  WinBackOfferInputIOS
+                </AnchorLink>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Type</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <code>offerId</code>
+                      </td>
+                      <td>
+                        <code>string</code>
+                      </td>
+                      <td>Win-back offer ID from App Store Connect</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <AnchorLink id="promotional-offer-jws-input-ios" level="h4">
+                  PromotionalOfferJWSInputIOS
+                </AnchorLink>
+                <p>
+                  TypeScript names this type{' '}
+                  <code>PromotionalOfferJwsInputIOS</code>.
+                </p>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Type</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <code>offerId</code>
+                      </td>
+                      <td>
+                        <code>string</code>
+                      </td>
+                      <td>Promotional offer ID from App Store Connect</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>jws</code>
+                      </td>
+                      <td>
+                        <code>string</code>
+                      </td>
+                      <td>
+                        Compact JWS (<code>header.payload.signature</code>)
+                        signed by your server
                       </td>
                     </tr>
                   </tbody>
@@ -582,6 +656,8 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                         Original transaction ID when replacing a subscription
                         purchased through developer billing (9.1.0+). Use this
                         instead of <code>purchaseToken</code> for that flow.
+                        Google Play only: Amazon Appstore and Meta Horizon fail
+                        the request with <code>feature-not-supported</code>.
                       </td>
                     </tr>
                     <tr>
@@ -608,7 +684,8 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                       </td>
                       <td>
                         Developer billing option params for External Payments
-                        (8.3.0+) or Billing Choice (9.1.0+). See{' '}
+                        (8.3.0+) or Billing Choice (9.1.0+). Google Play only,
+                        as for one-time purchases. See{' '}
                         <Link to="/docs/types/billing-programs#developer-billing-option-params">
                           DeveloperBillingOptionParamsAndroid
                         </Link>

@@ -635,6 +635,12 @@ enum StoreKitTypesBridge {
         }
     }
 
+    /// Whether the id filter selects this product; a nil or empty list selects all, as on Android.
+    static func isSelected(_ productId: String, by productIds: [String]?) -> Bool {
+        guard let productIds, !productIds.isEmpty else { return true }
+        return productIds.contains(productId)
+    }
+
     static func renewalOfferInfoIOS(from info: StoreKit.Product.SubscriptionInfo.RenewalInfo) -> (id: String?, type: String?)? {
         #if compiler(>=6.1)
         if #available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *) {

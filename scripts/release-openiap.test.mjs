@@ -224,6 +224,8 @@ test("version sync preserves the npm versions that are independent", (t) => {
     "libraries/expo-iap/package.json",
     "libraries/react-native-iap/package.json",
     "libraries/flutter_inapp_purchase/pubspec.yaml",
+    "libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase/Package.swift",
+    "libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Package.swift",
     "libraries/godot-iap/addons/godot-iap/plugin.cfg",
     "libraries/kmp-iap/gradle.properties",
     "libraries/kmp-iap/gradle/libs.versions.toml",

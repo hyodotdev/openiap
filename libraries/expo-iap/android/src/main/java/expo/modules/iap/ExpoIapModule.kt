@@ -201,14 +201,7 @@ class ExpoIapModule : Module() {
                             if (!ok) {
                                 // Clear any buffered events from a failed init
                                 pendingEvents.clear()
-                                ExpoIapLog.failure("initConnection", IllegalStateException("Failed to initialize connection"))
-                                val error = OpenIapError.InitConnection.forProvider(context)
-                                promise.reject(
-                                    error.code,
-                                    error.message,
-                                    null,
-                                )
-                                return@withLock
+                                throw OpenIapError.InitConnection.forProvider(context)
                             }
 
                             // Mark ready then flush any buffered events
@@ -224,7 +217,7 @@ class ExpoIapModule : Module() {
                             promise.resolve(true)
                         } catch (e: Exception) {
                             ExpoIapLog.failure("initConnection", e)
-                            promise.reject((e as? OpenIapError)?.code ?: OpenIapError.InitConnection.CODE, e.message, e)
+                            ExpoIapHelper.rejectWithErrorEnvelope(promise, e, OpenIapError.InitConnection.CODE)
                         }
                     }
                 }
@@ -250,11 +243,7 @@ class ExpoIapModule : Module() {
                             promise.resolve(result)
                         } catch (error: Exception) {
                             ExpoIapLog.failure("endConnection", error)
-                            promise.reject(
-                                endConnectionErrorCode(error),
-                                error.message,
-                                error,
-                            )
+                            ExpoIapHelper.rejectWithErrorEnvelope(promise, error, endConnectionErrorCode(error))
                         }
                     }
                 }
@@ -315,7 +304,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(payload)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("getAvailableItems", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, null)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e)
                     }
                 }
             }
@@ -333,7 +322,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(null)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("deepLinkToSubscriptionsAndroid", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, null)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e)
                     }
                 }
             }
@@ -378,7 +367,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(code)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("getStorefront", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e)
                     }
                 }
             }
@@ -510,7 +499,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(true)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("restorePurchases", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, null)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e)
                     }
                 }
             }
@@ -522,7 +511,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(null)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("finishTransaction", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.DeveloperError.CODE, e.message, null)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e, OpenIapError.DeveloperError.CODE)
                     }
                 }
             }
@@ -573,12 +562,13 @@ class ExpoIapModule : Module() {
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
-                        val code = when (e) {
-                            is OpenIapError -> e.code
-                            is IllegalArgumentException -> OpenIapError.DeveloperError.CODE
-                            else -> OpenIapError.ServiceUnavailable.CODE
-                        }
-                        promise.reject(code, e.message, e)
+                        val fallbackCode =
+                            if (e is IllegalArgumentException) {
+                                OpenIapError.DeveloperError.CODE
+                            } else {
+                                OpenIapError.ServiceUnavailable.CODE
+                            }
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e, fallbackCode)
                     }
                 }
             }
@@ -600,7 +590,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(resultMap)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("verifyPurchase", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.VerificationFailed.CODE, e.message, e)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e, OpenIapError.VerificationFailed.CODE)
                     }
                 }
             }
@@ -624,7 +614,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(resultMap)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("verifyPurchaseWithProvider", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.VerificationFailed.CODE, e.message, e)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e, OpenIapError.VerificationFailed.CODE)
                     }
                 }
             }
@@ -642,7 +632,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(result)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("getActiveSubscriptions", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e)
                     }
                 }
             }
@@ -659,7 +649,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(hasActive)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("hasActiveSubscriptions", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e)
                     }
                 }
             }
@@ -685,7 +675,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(response)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("isBillingProgramAvailableAndroid", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e)
                     }
                 }
             }
@@ -711,7 +701,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(result.toJson())
                     } catch (e: Exception) {
                         ExpoIapLog.failure("getBillingChoiceInfoAndroid", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e)
                     }
                 }
             }
@@ -743,7 +733,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(response)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("createBillingProgramReportingDetailsAndroid", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e)
                     }
                 }
             }
@@ -759,7 +749,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(openIapStore.showAlternativeBillingOnlyInformationDialog(activity).toJson())
                     } catch (e: Exception) {
                         ExpoIapLog.failure("showAlternativeBillingOnlyInformationDialogAndroid", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e)
                     }
                 }
             }
@@ -793,7 +783,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(result.toJson())
                     } catch (e: Exception) {
                         ExpoIapLog.failure("showBillingProgramInformationDialogAndroid", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e)
                     }
                 }
             }
@@ -828,7 +818,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(result.toJson())
                     } catch (e: Exception) {
                         ExpoIapLog.failure("showInAppMessagesAndroid", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e)
                     }
                 }
             }
@@ -876,7 +866,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(result)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("launchExternalLinkAndroid", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e)
                     }
                 }
             }
@@ -890,7 +880,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(isAvailable)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("isExternalPurchaseLinkAvailable", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e)
                     }
                 }
             }
@@ -922,7 +912,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(result)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("openExternalPurchaseLink", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e)
                     }
                 }
             }

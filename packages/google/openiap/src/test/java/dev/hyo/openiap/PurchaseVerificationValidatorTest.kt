@@ -105,6 +105,7 @@ class PurchaseVerificationValidatorTest {
               "cancelReason": null,
               "deferredDate": null,
               "deferredSku": null,
+              "expiryTimeMillis": "4102444800000",
               "freeTrialEndDate": 1.0,
               "gracePeriodEndDate": 2.0,
               "parentProductId": "parent",
@@ -130,9 +131,84 @@ class PurchaseVerificationValidatorTest {
         assertEquals(true, result.autoRenewing)
         assertEquals(false, result.betaProduct)
         assertEquals(1, result.quantity)
-        // Play sends no validity field; a parsed 2xx purchase record is the
-        // signal, and gson would otherwise leave this false.
+        // Play sends no validity field, and gson would otherwise leave this false.
         assertTrue(result.isValid)
+    }
+
+    @Test
+    fun `verifyPurchaseWithGooglePlay reports cancelled, pending, and expired purchases as invalid`() = runTest {
+        suspend fun isValid(isSub: Boolean, body: String, playDateMillis: Long = 0): Boolean =
+            verifyPurchaseWithGooglePlay(
+                VerifyPurchaseProps(
+                    google = VerifyPurchaseGoogleOptions(
+                        accessToken = "token",
+                        isSub = isSub,
+                        packageName = "dev.hyo.app",
+                        purchaseToken = "purchaseToken",
+                        sku = "premium"
+                    )
+                ),
+                "TEST_TAG"
+            ) { _ -> FakeHttpURLConnection(200, body, playDateMillis) }.isValid
+
+        assertTrue(isValid(isSub = false, body = """{"orderId":"GPA.1"}"""))
+        assertFalse(isValid(isSub = false, body = """{"purchaseState":1}"""))
+        assertFalse(isValid(isSub = false, body = """{"purchaseState":2}"""))
+        assertFalse(isValid(isSub = true, body = """{"expiryTimeMillis":"1000"}"""))
+        assertFalse(isValid(isSub = true, body = """{"autoRenewing":true}"""))
+        // Play's Date header decides, not the device clock.
+        assertTrue(isValid(isSub = true, body = """{"expiryTimeMillis":"2000"}""", playDateMillis = 1000))
+        val future = System.currentTimeMillis() + 60_000
+        assertFalse(
+            isValid(isSub = true, body = """{"expiryTimeMillis":"$future"}""", playDateMillis = future + 1)
+        )
+        assertTrue(
+            isValid(
+                isSub = true,
+                body = """{"expiryTimeMillis":"${System.currentTimeMillis() + 60_000}"}"""
+            )
+        )
+    }
+
+    @Test
+    fun `verifyPurchaseWithGooglePlay maps Play purchase fields onto the result`() = runTest {
+        suspend fun verify(isSub: Boolean, body: String) =
+            verifyPurchaseWithGooglePlay(
+                VerifyPurchaseProps(
+                    google = VerifyPurchaseGoogleOptions(
+                        accessToken = "token",
+                        isSub = isSub,
+                        packageName = "dev.hyo.app",
+                        purchaseToken = "purchaseToken",
+                        sku = "premium"
+                    )
+                ),
+                "TEST_TAG"
+            ) { _ -> FakeHttpURLConnection(200, body) }
+
+        val product = verify(
+            isSub = false,
+            body = """{"purchaseState":0,"purchaseTimeMillis":"1700000000000","orderId":"GPA.1","purchaseType":0,"quantity":2}"""
+        )
+        assertEquals("premium", product.productId)
+        assertEquals("inapp", product.productType)
+        assertEquals(1700000000000.0, product.purchaseDate, 0.0)
+        assertEquals("GPA.1", product.receiptId)
+        assertEquals(2, product.quantity)
+        assertTrue(product.testTransaction)
+
+        val expiry = System.currentTimeMillis() + 60_000
+        val subscription = verify(
+            isSub = true,
+            body = """{"startTimeMillis":"1700000000000","expiryTimeMillis":"$expiry","userCancellationTimeMillis":"1700000001000","cancelReason":0,"autoRenewing":false,"orderId":"GPA.2"}"""
+        )
+        assertEquals("subs", subscription.productType)
+        assertEquals(1700000000000.0, subscription.purchaseDate, 0.0)
+        assertEquals(expiry.toDouble(), subscription.renewalDate, 0.0)
+        assertEquals(1700000001000.0, subscription.cancelDate)
+        assertEquals("0", subscription.cancelReason)
+        assertEquals(1, subscription.quantity)
+        assertFalse(subscription.testTransaction)
     }
 
     @Test
@@ -154,8 +230,8 @@ class PurchaseVerificationValidatorTest {
 
         assertTrue(result.isValid)
         assertEquals("", result.parentProductId)
-        assertEquals("", result.productId)
         assertEquals("", result.receiptId)
+        assertEquals(0.0, result.purchaseDate, 0.0)
     }
 
     @Test
@@ -992,12 +1068,15 @@ class PurchaseVerificationValidatorTest {
 
 private class FakeHttpURLConnection(
     private val statusCode: Int,
-    private val body: String
+    private val body: String,
+    private val dateMillis: Long = 0
 ) : HttpURLConnection(URL("https://example.com")) {
     val headers: MutableMap<String, String> = mutableMapOf()
     var writtenBody: String? = null
 
     override fun getResponseCode(): Int = statusCode
+
+    override fun getDate(): Long = dateMillis
 
     override fun getInputStream(): InputStream = ByteArrayInputStream(body.toByteArray())
 

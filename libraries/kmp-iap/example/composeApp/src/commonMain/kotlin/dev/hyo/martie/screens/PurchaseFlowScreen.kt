@@ -29,7 +29,6 @@ import io.github.hyochan.kmpiap.openiap.RequestPurchasePropsByPlatforms
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseIosProps
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseAndroidProps
 import io.github.hyochan.kmpiap.openiap.ProductQueryType
-import io.github.hyochan.kmpiap.openiap.ErrorCode
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.filter
 
@@ -67,10 +66,8 @@ fun PurchaseFlowScreen(navController: NavController) {
         launch {
             kmpIapInstance.purchaseErrorListener.collect { error ->
                 isProcessing = false
-                purchaseResult = when (error.code) {
-                    ErrorCode.UserCancelled -> "⚠️ Purchase cancelled by user"
-                    else -> "❌ Error: ${error.message}\nCode: ${error.code}"
-                }
+                purchaseResult = error.resultText("Purchase")
+                println("[KMP-IAP Example] $purchaseResult")
             }
         }
     }
@@ -346,9 +343,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                                         )
                                     )
                                 } catch (e: PurchaseException) {
-                                    if (e.error.code != ErrorCode.UserCancelled) {
-                                        purchaseResult = "Purchase failed: ${e.message}"
-                                    }
+                                    purchaseResult = e.error.resultText("Purchase")
                                     isProcessing = false
                                 } catch (e: Exception) {
                                     purchaseResult = "Purchase failed: ${e.message}"

@@ -177,3 +177,58 @@ test("a Google version bump stages MAUI's regenerated core version", (t) => {
   );
   assert.equal(git("diff", "--name-only", "--", props).trim(), "");
 });
+
+test("an Apple version bump stages Flutter's SwiftPM floor", (t) => {
+  const scratch = mkdtempSync(join(tmpdir(), "openiap-release-staging-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const stage = toLogicalLines(
+    readFileSync(join(REPO_ROOT, "scripts/sync-release-generated.sh"), "utf8"),
+  )
+    .find((line) => line.text.trim().startsWith("git add "))
+    .text.trim()
+    .split(/\s+/u)
+    .slice(2);
+  for (const path of stage) {
+    mkdirSync(dirname(join(scratch, path)), { recursive: true });
+    writeFileSync(join(scratch, path), "");
+  }
+  const manifests = ["ios", "macos"].map(
+    (platform) =>
+      `libraries/flutter_inapp_purchase/${platform}/flutter_inapp_purchase/Package.swift`,
+  );
+  for (const path of [...manifests, "openiap-versions.json"]) {
+    copyFileSync(join(REPO_ROOT, path), join(scratch, path));
+  }
+  const git = (...args) =>
+    execFileSync("git", args, { cwd: scratch, encoding: "utf8" });
+  git("init", "-q");
+  git("add", ".");
+  const versions = JSON.parse(
+    readFileSync(join(scratch, "openiap-versions.json"), "utf8"),
+  );
+  versions.apple = "99.0.0";
+  writeFileSync(
+    join(scratch, "openiap-versions.json"),
+    JSON.stringify(versions),
+  );
+  const sync = readFileSync(
+    join(REPO_ROOT, "scripts/sync-versions.sh"),
+    "utf8",
+  );
+  const marker = "sync_flutter_swiftpm_floor() {";
+  const start = sync.indexOf("<<'PY'\n", sync.indexOf(marker)) + 7;
+  const end = sync.indexOf("\nPY\n", start);
+  assert.ok(sync.includes(marker) && end > start);
+  execFileSync("python3", ["-", ...manifests], {
+    cwd: scratch,
+    input: sync.slice(start, end),
+  });
+  git("add", ...stage);
+  for (const manifest of manifests) {
+    assert.match(
+      git("show", `:${manifest}`),
+      /openiap\.git", from: "99\.0\.0"\),/u,
+    );
+    assert.equal(git("diff", "--name-only", "--", manifest).trim(), "");
+  }
+});

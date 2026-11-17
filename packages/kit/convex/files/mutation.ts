@@ -801,6 +801,10 @@ export const generateUploadUrl = mutation({
     if (!membership) {
       throw new ConvexError("Not a member of this organization");
     }
+    // Every save path needs an admin, so a member's upload could only be discarded.
+    if (membership.role === "member") {
+      throw new ConvexError("Insufficient permissions");
+    }
 
     const organization = await getOrganizationById(ctx, args.organizationId);
     if (!organization) {

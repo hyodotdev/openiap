@@ -5,9 +5,34 @@ description: Use when the user wants their AI coding agent (Codex, Claude Code, 
 
 # OpenIAP
 
-Use the bundled `openiap` MCP server for OpenIAP and IAPKit-backed in-app
-purchase workflows. The current hosted MCP endpoint is IAPKit-backed by default
-and exposes `iapkit_*` tools for live project operations.
+## Start With the Task
+
+Choose the route that matches the request. Only the second needs the bundled
+MCP server or an IAPKit key; OpenIAP SDKs work without an IAPKit account.
+
+- **Add or fix purchases in an app** (SDK install, purchase flow, verification
+  on the app's own backend): read https://openiap.dev/llms.txt and follow its
+  reading instructions, then the target framework's guide under
+  https://openiap.dev/docs/setup. Implement in the app's existing framework:
+  verify on a server (https://openiap.dev/docs/features/validation), grant
+  access only on a valid result, then finish the transaction
+  (https://openiap.dev/docs/lifecycle). Before reporting, run `openiap doctor`
+  (below) and check the sandbox outcomes listed at
+  https://openiap.dev/docs/guides/ai-assistants#acceptance; name every outcome
+  you could not test.
+- **Inspect or operate an IAPKit project** (products, subscribers, deliveries,
+  store sync, client payloads): follow Authentication and Operating Rules
+  below.
+- **Connect a purchase backend, paywall, or event receiver**: read
+  https://openiap.dev/commerce-example/integration-brief.md and the role guide
+  at https://openiap.dev/commerce-protocol/ecosystem. To build the purchase
+  backend itself, also read
+  https://openiap.dev/commerce-example/build-brief.md.
+
+## IAPKit MCP Server
+
+The bundled `openiap` MCP server is IAPKit-backed and exposes `iapkit_*` tools
+for live project operations.
 
 ## Authentication
 
@@ -49,19 +74,24 @@ any file. Do not report those as passing.
 - Use read-only tools first, including `iapkit_inspect_state`,
   `iapkit_list_products`, `iapkit_revenue_analytics`, `iapkit_check_status`,
   `iapkit_user_timeline`, `iapkit_list_purchase_issues`,
-  `iapkit_list_deliveries`, `iapkit_list_inbound_notifications`, and
-  `iapkit_setup`.
-- Treat product management, store sync, delivery re-send, and store re-sync
-  tools as real writes.
+  `iapkit_list_deliveries`, `iapkit_list_inbound_notifications`,
+  `iapkit_get_client_payload`, `iapkit_get_client_payload_draft`,
+  `iapkit_get_client_payload_history`, and `iapkit_setup`.
+- Treat product management, store sync, delivery re-send, store re-sync, and
+  client payload tools as real writes. `iapkit_set_client_payload`,
+  `iapkit_remove_client_payload`, `iapkit_publish_client_payload`, and
+  `iapkit_rollback_client_payload` change what shipped apps receive at once;
+  `iapkit_set_client_payload_draft` saves a draft apps do not see.
 - Use `dryRun: true` for store sync previews first.
 - Do not create products, start non-dry-run sync jobs, simulate webhooks,
-  re-send deliveries, re-sync from the store, or edit app code unless the user
-  explicitly asks for that action in the current thread.
+  re-send deliveries, re-sync from the store, write, publish, roll back, or
+  remove a client payload, or edit app code unless the user explicitly asks
+  for that action in the current thread.
 - Keep IAPKit secret admin keys out of code snippets, app bundles, and final
   responses. Mobile code must use a separate `openiap-kit_pk_...` publishable
   key.
-- Administrative REST examples must send the secret in an `Authorization:
-  Bearer` header, never in a URL path or query string.
+- Administrative REST examples must send the secret in an
+  `Authorization: Bearer` header, never in a URL path or query string.
 
 ## Feedback and showcase
 

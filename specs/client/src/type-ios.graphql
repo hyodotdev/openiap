@@ -7,11 +7,11 @@ enum ProductTypeIOS {
   AutoRenewableSubscription
   NonRenewingSubscription
   """
-  A group of independently purchasable subscriptions sold together (Apple 27+ beta).
+  A group of independently purchasable subscriptions sold together (Apple 27+).
   """
   SubscriptionBundle
   """
-  A group of subscriptions that are available only as one suite (Apple 27+ beta).
+  A group of subscriptions that are available only as one suite (Apple 27+).
   """
   SubscriptionSuite
 }
@@ -83,7 +83,7 @@ type SubscriptionPricingTermsIOS {
 
 """
 Metadata for one auto-renewable subscription included in an Apple
-subscription bundle (Apple 27+ beta).
+subscription bundle (Apple 27+).
 """
 type BundledSubscriptionIOS {
   id: ID!
@@ -170,7 +170,7 @@ type ProductSubscriptionIOS implements ProductCommon {
 
   """
   Subscriptions included in this Apple subscription bundle. Empty or null for
-  every other product type (Apple 27+ beta).
+  every other product type (Apple 27+).
   """
   bundledSubscriptionsIOS: [BundledSubscriptionIOS!]
 
@@ -599,7 +599,7 @@ type AppTransaction {
   originalPlatform: String
   """
   Store channel of the original app purchase: consumer, education, enterprise,
-  or another future StoreKit value (Apple 27+ beta).
+  or another future StoreKit value (Apple 27+).
   """
   storeType: String
 }

@@ -28,8 +28,61 @@ private const val DEFAULT_IAPKIT_ENDPOINT = "https://kit.openiap.dev/v1/purchase
 private const val IAPKIT_VERIFY_PATH = "/v1/purchase/verify"
 private val gson = Gson()
 
+private const val CONNECT_TIMEOUT_MS = 15_000
+private const val READ_TIMEOUT_MS = 30_000
+
+// Without timeouts a stalled network blocks verification forever.
 private fun openConnection(url: String): HttpURLConnection {
-    return URL(url).openConnection() as HttpURLConnection
+    return (URL(url).openConnection() as HttpURLConnection).apply {
+        connectTimeout = CONNECT_TIMEOUT_MS
+        readTimeout = READ_TIMEOUT_MS
+    }
+}
+
+// Play sends int64 timestamps as strings.
+private fun playMillis(raw: Any?): Double? = when (raw) {
+    is Number -> raw.toDouble()
+    is String -> raw.toDoubleOrNull()
+    else -> null
+}
+
+// Play answers 2xx for cancelled and pending products and for expired subscriptions.
+private fun isActivePlayPurchase(
+    record: Map<String, Any?>,
+    isSubscription: Boolean,
+    nowMillis: Long
+): Boolean {
+    // JSON may omit a zero state, which is "purchased".
+    if (!isSubscription) return ((record["purchaseState"] as? Number)?.toInt() ?: 0) == 0
+    // A subscription record without a readable expiry proves nothing.
+    val expiryTimeMillis = playMillis(record["expiryTimeMillis"]) ?: return false
+    return expiryTimeMillis > nowMillis
+}
+
+// Play names these fields differently from the result type; its own keys win.
+private fun playResult(
+    record: Map<String, Any?>,
+    sku: String,
+    isSubscription: Boolean,
+    nowMillis: Long
+): Map<String, Any?> {
+    val mapped = mapOf(
+        "productId" to sku,
+        "productType" to if (isSubscription) "subs" else "inapp",
+        "purchaseDate" to playMillis(record["purchaseTimeMillis"] ?: record["startTimeMillis"]),
+        // Play omits a quantity of one.
+        "quantity" to 1,
+        "receiptId" to record["orderId"],
+        "renewalDate" to playMillis(record["expiryTimeMillis"]),
+        "cancelDate" to playMillis(record["userCancellationTimeMillis"]),
+        "testTransaction" to ((record["purchaseType"] as? Number)?.toInt() == 0)
+    ).filterValues { it != null }
+    return mapped + record + mapOf(
+        // Play's reason is a numeric code; the result carries it as text.
+        "cancelReason" to
+            ((record["cancelReason"] as? Number)?.toInt()?.toString() ?: record["cancelReason"]),
+        "isValid" to isActivePlayPurchase(record, isSubscription, nowMillis)
+    )
 }
 
 private fun encodePathSegment(value: String): String =
@@ -81,14 +134,13 @@ suspend fun verifyPurchaseWithGooglePlay(
         }
 
         try {
-            // Play returns the purchase record only on 2xx; every other status
-            // threw above. Parse through the generated decoder so omitted Play
-            // fields receive their Kotlin defaults instead of Gson leaving
-            // non-null constructor properties as JVM nulls.
+            // Play omits fields; the generated decoder fills defaults where Gson leaves nulls.
             val mapType = object : TypeToken<Map<String, Any?>>() {}.type
             val parsed = gson.fromJson<Map<String, Any?>>(responseBody, mapType)
                 ?: throw OpenIapError.InvalidPurchaseVerification
-            VerifyPurchaseResultAndroid.fromJson(parsed + ("isValid" to true))
+            // Play's clock, when it sends one: the device clock can be set back.
+            val nowMillis = connection.date.takeIf { it > 0 } ?: System.currentTimeMillis()
+            VerifyPurchaseResultAndroid.fromJson(playResult(parsed, sku, isSub == true, nowMillis))
         } catch (jsonError: JsonSyntaxException) {
             OpenIapLog.warn("Failed to parse purchase verification response: ${jsonError.message}", tag)
             throw OpenIapError.InvalidPurchaseVerification

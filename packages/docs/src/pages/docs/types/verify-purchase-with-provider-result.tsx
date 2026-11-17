@@ -184,12 +184,12 @@ function VerifyPurchaseWithProviderResult() {
               <td>
                 Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 /
                 openiap-google 3.3.0. Opaque, provider-defined store
-                environment. Handled Amazon responses currently report{' '}
-                <code>'Sandbox'</code> or <code>'Production'</code>, and other
-                stores omit it today, but the value space belongs to the
-                provider — App Store Server also names <code>'Xcode'</code> and{' '}
-                <code>'LocalTesting'</code>. Forward it and never fail a
-                verification because the value is unrecognised.
+                environment. IAPKit currently reports <code>'Sandbox'</code> or{' '}
+                <code>'Production'</code> for Apple, Google, and Amazon, but the
+                value space belongs to the provider — App Store Server also
+                names <code>'Xcode'</code> and <code>'LocalTesting'</code>.
+                Forward it and never fail a verification because the value is
+                unrecognised.
               </td>
             </tr>
             <tr>
@@ -424,6 +424,14 @@ function VerifyPurchaseWithProviderResult() {
                 <code>'amazon'</code>
               </td>
               <td>Amazon Appstore for Fire OS and Vega OS.</td>
+            </tr>
+            <tr>
+              <td>
+                <code>'unknown'</code>
+              </td>
+              <td>
+                A community store provider; <code>storeId</code> carries its id.
+              </td>
             </tr>
           </tbody>
         </table>

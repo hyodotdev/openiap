@@ -602,10 +602,14 @@ struct PurchaseFlowScreen: View {
     }
     
     private func handlePurchaseError(_ error: OpenIapError) {
-        print("❌ [PurchaseFlow] Purchase error: \(error.message)")
+        var details = "Code: \(error.code.rawValue)\nMessage: \(error.message)"
+        if let debugMessage = error.debugMessage {
+            details += "\nDebug: \(debugMessage)"
+        }
+        print("❌ [PurchaseFlow] Purchase error\n\(details)")
         
         // Update UI state
-        purchaseResultMessage = "❌ Purchase failed: \(error.message)"
+        purchaseResultMessage = "❌ Purchase failed\n\(details)"
         showPurchaseResult = true
         
         // Show error alert for non-cancellation errors

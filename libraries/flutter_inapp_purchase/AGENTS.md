@@ -35,7 +35,7 @@ for (final product in products) {
 
 ### getAvailablePurchases API (v6.4.6+)
 
-The `getAvailablePurchases` method now supports `PurchaseOptions` for OpenIAP compliance:
+The `getAvailablePurchases` method takes the `PurchaseOptions` fields as named arguments:
 
 ```dart
 // Get active purchases only (default behavior)
@@ -43,10 +43,8 @@ final activePurchases = await iap.getAvailablePurchases();
 
 // Get all purchases including expired subscriptions (iOS)
 final allPurchases = await iap.getAvailablePurchases(
-  PurchaseOptions(
-    onlyIncludeActiveItemsIOS: false,  // Include expired subscriptions
-    alsoPublishToEventListenerIOS: true,  // Optional: publish to event listener
-  ),
+  onlyIncludeActiveItemsIOS: false,  // Include expired subscriptions
+  alsoPublishToEventListenerIOS: true,  // Optional: publish to event listener
 );
 ```
 
@@ -75,6 +73,11 @@ final allPurchases = await iap.getAvailablePurchases(
   `flutter_inapp_purchase` 9.x only. Keep the canonical generated key
   authoritative, add an explicit removal comment to each fallback, and remove
   the fallback together in 10.0.0 rather than piecemeal in patch releases.
+
+### Android Kotlin Version
+
+- `android/build.gradle` takes the Kotlin plugin version from `packages/google` (2.2.0) inside the monorepo and from `openIapKotlinVersion` in `android/gradle.properties` (2.4.10) when the package is installed standalone.
+- The two differ on purpose: `packages/google` compiles the published AAR, which must stay readable by Kotlin 2.1.20 consumers (Google critical rule 6 in `knowledge/internal/04-platform-packages.md`), while the fallback only compiles this plugin against that AAR. `bun audit:parity` pins it at 2.4.10 and rejects 2.0.21, 2.1.0, and 2.1.20.
 
 ### Documentation Style
 

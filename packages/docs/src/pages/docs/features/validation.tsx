@@ -822,7 +822,7 @@ if (
               <CodeBlock language="csharp">{`Task<VerifyPurchaseResult> VerifyPurchaseAsync(VerifyPurchaseProps options);`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`func verify_purchase(options: VerifyPurchaseProps) -> VerifyPurchaseResult`}</CodeBlock>
+              <CodeBlock language="gdscript">{`func verify_purchase(props: Types.VerifyPurchaseProps) -> Variant`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -901,13 +901,13 @@ var result = await OpenIapClient.Mutation.VerifyPurchaseAsync(
     });`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`var options = VerifyPurchaseProps.new()
-options.apple = VerifyPurchaseAppleOptions.new()
+              <CodeBlock language="gdscript">{`var options = Types.VerifyPurchaseProps.new()
+options.apple = Types.VerifyPurchaseAppleOptions.new()
 options.apple.sku = purchase.product_id
 
 var result = await iap.verify_purchase(options)
 
-if result is VerifyPurchaseResultIOS and result.is_valid:
+if result is Types.VerifyPurchaseResultIOS and result.is_valid:
     await grant_entitlement(purchase.product_id)
     await iap.finish_transaction(purchase, false)`}</CodeBlock>
             ),

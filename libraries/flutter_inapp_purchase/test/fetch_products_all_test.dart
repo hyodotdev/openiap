@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
@@ -115,6 +116,54 @@ void main() {
     expect(products.whereType<types.ProductSubscription>(), hasLength(1));
     expect(products.whereType<types.Product>(), hasLength(1));
   });
+
+  for (final undecodable in <String, Object>{
+    'a product with a wrong field type': <String, dynamic>{
+      'platform': 'ios',
+      'id': 'coin_pack',
+      'type': 'in-app',
+      'isFamilyShareableIOS': 'yes',
+    },
+    'an item that is not a product map': 7,
+  }.entries) {
+    test('fetchProducts skips ${undecodable.key} and returns the rest',
+        () async {
+      final skipWarnings = <String>[];
+      final previousDebugPrint = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {
+        if (message != null && message.contains('Skipping product')) {
+          skipWarnings.add(message);
+        }
+      };
+      addTearDown(() => debugPrint = previousDebugPrint);
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        if (call.method == 'initConnection') return true;
+        return <Object>[
+          undecodable.value,
+          <String, dynamic>{
+            'platform': 'ios',
+            'id': 'gem_pack',
+            'type': 'in-app',
+          },
+        ];
+      });
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+      await iap.initConnection();
+
+      final products = await iap.fetchProducts<types.Product>(
+        skus: const ['coin_pack', 'gem_pack'],
+      );
+
+      expect(products.map((product) => product.id), <String>['gem_pack']);
+      expect(
+        skipWarnings.single,
+        contains(undecodable.value is Map ? 'coin_pack' : '(unknown id)'),
+      );
+    });
+  }
 
   test('queryHandlers fetchProducts preserves all result union', () async {
     final platform = FakePlatform(operatingSystem: 'ios');

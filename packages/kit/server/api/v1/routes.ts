@@ -276,10 +276,10 @@ const verifyPurchaseRouteDescription = describeRoute({
     "before the rate-limit middleware and do not include those " +
     "headers. A 429 also carries `X-RateLimit-Scope` (`key`, `ip`, or " +
     "`global`).\n\n" +
-    "Input size caps: request body ≤ 32 KB, `jws` ≤ 16 KB, " +
-    "`purchaseToken` ≤ 2 KB, `expectedProductId` ≤ 256 chars, " +
+    "Input size caps: request body ≤ 32 KB, `jws` ≤ 16,000 chars, " +
+    "`purchaseToken` ≤ 2,000 chars, `expectedProductId` ≤ 256 chars, " +
     "Meta `userId` ≤ 256 chars, `sku` ≤ 256 chars. " +
-    "Amazon `userId` ≤ 512 chars and `receiptId` ≤ 4 KB. " +
+    "Amazon `userId` ≤ 512 chars and `receiptId` ≤ 4,096 chars. " +
     "Oversized fields return `400 INVALID_INPUT`; oversized request " +
     "bodies return `413 PAYLOAD_TOO_LARGE`. Neither hits the upstream store.",
   security: [{ apiKey: [] }],

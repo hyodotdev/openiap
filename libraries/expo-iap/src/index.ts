@@ -941,20 +941,16 @@ function validateAndroidPurchaseBranchOptions(
 export const verifyAppOwnership: QueryField<'verifyAppOwnership'> = async (
   options,
 ) => {
-  if (
-    isVegaOS() ||
-    ExpoIapModule.USING_ONSIDE_SDK ||
-    (Platform.OS !== 'ios' && Platform.OS !== 'android')
-  ) {
+  // Checked before the module is read: web has no native module to resolve.
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
     return {
       status: 'unknown',
       reason: 'unsupported',
-      storeId: isVegaOS()
-        ? 'amazon'
-        : ExpoIapModule.USING_ONSIDE_SDK
-        ? 'onside'
-        : 'unknown',
+      storeId: isVegaOS() ? 'amazon' : 'unknown',
     };
+  }
+  if (ExpoIapModule.USING_ONSIDE_SDK) {
+    return {status: 'unknown', reason: 'unsupported', storeId: 'onside'};
   }
   return invokeNativeWithPurchaseError(
     () => ExpoIapModule.verifyAppOwnership(options ?? {}),

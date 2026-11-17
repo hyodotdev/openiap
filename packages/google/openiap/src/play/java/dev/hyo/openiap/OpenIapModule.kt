@@ -2310,7 +2310,11 @@ class OpenIapModule(
             Uri.parse("https://play.google.com/store/account/subscriptions?package=$pkg")
         }
         val intent = Intent(Intent.ACTION_VIEW, uri).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
-        context.startActivity(intent)
+        try {
+            context.startActivity(intent)
+        } catch (error: RuntimeException) {
+            throw OpenIapError.UnknownError("Failed to open the subscription management page: ${error.message}")
+        }
     }
 
     override val restorePurchases: MutationRestorePurchasesHandler = {
@@ -3070,7 +3074,7 @@ class OpenIapModule(
                     }
                 } catch (e: Exception) {
                     OpenIapLog.warn("✗ Failed to enable user choice billing: ${e.javaClass.simpleName}: ${e.message}", TAG)
-                    OpenIapLog.warn("User choice billing requires Billing Library 7.0+ and Google Play Console setup", TAG)
+                    OpenIapLog.warn("User choice billing requires Billing Library 6.1.0+ and Google Play Console setup", TAG)
                     throw e
                 }
                 OpenIapLog.debug("=== END USER CHOICE BILLING INITIALIZATION ===", TAG)

@@ -473,6 +473,8 @@ func _apply_purchase_updated_listener_options_apple() -> void:
 ## Returns an Array — typed as [Array] because GDScript can't express heterogeneous element
 ## types. The wrapper maps one-time products to [Types.ProductAndroid] / [Types.ProductIOS]
 ## and subscriptions to [Types.ProductSubscriptionAndroid] / [Types.ProductSubscriptionIOS].
+## A failed fetch returns an empty Array and emits [signal products_fetched] with
+## [code]success = false[/code], [code]code[/code], and [code]error[/code].
 ##
 ## [codeblock]
 ## var request = ProductRequest.new()
@@ -554,9 +556,17 @@ func _fetch_products_raw(request: Dictionary) -> Dictionary:
 			_log("Calling fetchProducts with: %s" % request_json)
 			var result_json = _native_plugin.call("fetchProducts", request_json)
 			var result = JSON.parse_string(result_json)
-			if result is Dictionary:
-				return result
-			return { "products": [], "error": "Parse error" }
+			if not result is Dictionary:
+				result = { "success": false, "products": [], "error": "Parse error" }
+			# Native signals only a fetch that worked; a failed one reports here, as on Apple.
+			if not result.get("success", true):
+				products_fetched.emit({
+					"method": "fetchProducts",
+					"success": false,
+					"code": String(result.get("code", "service-error")),
+					"error": String(result.get("error", "Failed to fetch products")),
+				})
+			return result
 		elif _is_apple():
 			_log("Calling fetchProducts with: %s" % request_json)
 			var signal_result = await _call_native_async("fetchProducts", [request_json])

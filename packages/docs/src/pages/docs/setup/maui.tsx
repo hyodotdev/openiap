@@ -150,13 +150,14 @@ function MauiSetup() {
 </ItemGroup>`}
         </CodeBlock>
         <p>
-          Building the Apple library from source requires Xcode 27; the
-          published package already embeds a prebuilt XCFramework, so NuGet
-          consumers do not need Xcode 27 — their normal toolchain is enough.
+          The published package embeds an XCFramework built with Xcode 26.6, so
+          NuGet consumers build with their usual toolchain. That build does not
+          contain the StoreKit 27 paths; a source build compiles them only with
+          Xcode 27.
         </p>
 
         <Callout kind="warning" title="Upgrading from OpenIap.Maui 1.x?">
-          OpenIap.Maui 2.x supports .NET 10 only. Retarget every{' '}
+          OpenIap.Maui 2.0 and later support .NET 10 only. Retarget every{' '}
           <code>net9.0-*</code> TFM to the matching <code>net10.0-*</code> TFM
           and update the MAUI workload before upgrading the package.
         </Callout>
@@ -435,11 +436,11 @@ var products = result is FetchProductsResultProducts { Value: { } list }
         bool verified = await VerifyOnServerAsync(purchase);
         if (!verified) return;
 
+        GrantEntitlement(purchase.ProductId);
+
         await OpenIapClient.Mutation.FinishTransactionAsync(
             purchase: new PurchaseInput(purchase),
             isConsumable: true);
-
-        GrantEntitlement(purchase.ProductId);
     }
     catch (Exception error)
     {

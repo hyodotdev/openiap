@@ -194,6 +194,26 @@ const REACT_NATIVE_NITRO_CAUSE_RELEASES: readonly ReleaseMetadata[] = [
   },
 ];
 
+const PLAY_VERIFICATION_STATE_RELEASES: readonly ReleaseMetadata[] = [
+  { name: '@hyodotdev/openiap', version: '0.3.1', tag: 'openiap-0.3.1' },
+  { name: 'openiap-apple', version: '4.2.1', tag: '4.2.1' },
+  { name: 'openiap-google', version: '4.2.1', tag: 'google-4.2.1' },
+  {
+    name: 'react-native-iap',
+    version: '17.4.1',
+    tag: 'react-native-iap-17.4.1',
+  },
+  { name: 'expo-iap', version: '6.5.1', tag: 'expo-iap-6.5.1' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '11.4.1',
+    tag: 'flutter-iap-11.4.1',
+  },
+  { name: 'godot-iap', version: '4.4.1', tag: 'godot-iap-4.4.1' },
+  { name: 'kmp-iap', version: '4.3.1', tag: 'kmp-iap-4.3.1' },
+  { name: 'OpenIap.Maui', version: '3.3.1', tag: 'maui-iap-3.3.1' },
+];
+
 const EXTERNAL_PURCHASE_LINK_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: '@hyodotdev/openiap-client-protocol',
@@ -892,6 +912,256 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'play-verification-state-2026-11-17',
+      date: new Date('2026-11-17'),
+      element: (
+        <div key="play-verification-state-2026-11-17" style={noteCardStyle}>
+          {PLAY_VERIFICATION_STATE_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="play-verification-state-2026-11-17" level="h4">
+            November 17, 2026 - Google Play verification reads the purchase
+            state
+          </AnchorLink>
+          <p>
+            <code>verifyPurchase</code> with Google Play no longer reports a
+            cancelled, pending, or expired purchase as valid. Apps that grant
+            access on <code>isValid</code> from this call should update.
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Protocols and native packages
+          </h5>
+          <ul>
+            <li>
+              <strong>openiap-google 4.2.1</strong>
+              <ul>
+                <li>
+                  <code>verifyPurchase</code> sets <code>isValid</code> from
+                  Play&apos;s purchase state and subscription expiry. Before,
+                  any successful Play response read as valid.
+                </li>
+                <li>
+                  The result fills <code>productId</code>,{' '}
+                  <code>productType</code>, <code>purchaseDate</code>,{' '}
+                  <code>receiptId</code> (the order ID),{' '}
+                  <code>renewalDate</code>, <code>cancelDate</code>, and{' '}
+                  <code>testTransaction</code> from the Play record, and{' '}
+                  <code>cancelReason</code> carries Play&apos;s numeric code as
+                  text. They were empty before.
+                </li>
+                <li>
+                  Verification requests fail with <code>network-error</code>{' '}
+                  after 15 seconds without a connection or 30 seconds without a
+                  response, instead of waiting forever.
+                </li>
+                <li>
+                  On Amazon Appstore, <code>requestPurchase</code> fails with{' '}
+                  <code>feature-not-supported</code> for a one-time{' '}
+                  <code>offerToken</code>, <code>developerBillingOption</code>,
+                  or <code>originalExternalTransactionId</code>, instead of
+                  buying at the regular price.
+                </li>
+                <li>
+                  <code>deepLinkToSubscriptions</code> throws{' '}
+                  <code>unknown</code> when Google Play or Amazon Appstore
+                  cannot open the page; Amazon reported success before.
+                </li>
+                <li>
+                  On Meta Horizon, <code>verifyPurchase</code> without{' '}
+                  <code>horizon</code> options throws{' '}
+                  <code>developer-error</code> instead of asking Google Play to
+                  verify a Quest purchase.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>openiap-apple 4.2.1</strong>
+              <ul>
+                <li>
+                  <code>getActiveSubscriptions([])</code> and{' '}
+                  <code>hasActiveSubscriptions([])</code> check every
+                  subscription, as on Android. Before, an empty list matched
+                  none.
+                </li>
+                <li>
+                  The Objective-C <code>requestSubscriptionWithSku</code> bridge
+                  fails with <code>developer-error</code> when{' '}
+                  <code>offer</code> or <code>promotionalOfferJWS</code> is
+                  incomplete, instead of buying at full price.
+                </li>
+                <li>
+                  The Objective-C <code>requestPurchaseWithSku</code> bridge
+                  sends <code>type: &quot;subs&quot;</code> as a subscription
+                  request instead of a one-time purchase request.
+                </li>
+                <li>
+                  On iOS 15 to 16.3, creating the module off the main thread no
+                  longer waits for the main thread, which could deadlock at
+                  startup.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>OpenIAP CLI 0.3.1</strong>: <code>openiap kit login</code>{' '}
+              opens only an <code>http</code> or <code>https</code> address in
+              the browser. <code>openiap kit setup</code> accepts{' '}
+              <code>--framework maui</code>, and every setup example finishes
+              the transaction after the grant and returns a{' '}
+              <code>coverage</code> sentence that links the lifecycle guide.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul>
+            <li>
+              <strong>react-native-iap 17.4.1</strong>: warnings that linked to
+              the retired <code>react-native-iap.hyo.dev</code> site link to{' '}
+              <code>openiap.dev</code>.
+            </li>
+            <li>
+              <strong>expo-iap 6.5.1</strong>
+              <ul>
+                <li>
+                  Android errors raised by the store carry{' '}
+                  <code>debugMessage</code> and{' '}
+                  <code>subResponseCodeAndroid</code> on every operation.
+                </li>
+                <li>
+                  Billing-program, in-app-message, deep-link, and restore
+                  failures reject with <code>PurchaseError</code>. A failed iOS
+                  restore or <code>getStorefront</code> no longer carries raw{' '}
+                  <code>OPENIAP_ERROR_JSON</code> text.
+                </li>
+                <li>
+                  The config plugin fails prebuild on an unexpected error,
+                  instead of printing a warning and skipping its setup.
+                </li>
+                <li>
+                  <code>verifyAppOwnership</code> on web returns{' '}
+                  <code>unknown</code> with reason <code>unsupported</code>{' '}
+                  instead of throwing.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 11.4.1</strong>
+              <ul>
+                <li>
+                  <code>finishTransaction</code>, the Android billing-program
+                  and in-app-message methods, <code>beginRefundRequestIOS</code>
+                  , and <code>showManageSubscriptionsIOS</code> throw{' '}
+                  <code>PurchaseError</code> instead of a raw{' '}
+                  <code>PlatformException</code>.
+                </li>
+                <li>
+                  The iOS podspec requires tvOS 16.0, the version openiap-apple
+                  already needs.
+                </li>
+                <li>
+                  The Swift Package Manager manifests require the openiap-apple
+                  version the plugin is built against, so a stale lock
+                  re-resolves instead of failing to compile.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>godot-iap 4.4.1</strong>
+              <ul>
+                <li>
+                  A failed <code>fetch_products</code> on Android emits{' '}
+                  <code>products_fetched</code> with{' '}
+                  <code>success = false</code>, <code>code</code>, and{' '}
+                  <code>error</code>, as on Apple platforms.
+                </li>
+                <li>
+                  On iOS and macOS, <code>request_purchase</code> before{' '}
+                  <code>init_connection</code> emits <code>purchase_error</code>{' '}
+                  with <code>not-prepared</code>, instead of starting a purchase
+                  that reported nothing.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>kmp-iap 4.3.1</strong>
+              <ul>
+                <li>
+                  <code>verifyPurchase</code> with <code>horizon</code> options
+                  works on Meta Horizon builds.
+                </li>
+                <li>
+                  On iOS, a stalled <code>initConnection</code> or{' '}
+                  <code>endConnection</code> throws{' '}
+                  <code>PurchaseException</code> with{' '}
+                  <code>ServiceTimeout</code> after 15 seconds, instead of
+                  cancelling the calling coroutine without an error.
+                </li>
+                <li>
+                  On iOS, <code>fetchProducts</code> skips a product it cannot
+                  decode and logs a warning, instead of returning an empty list.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>OpenIap.Maui 3.3.1</strong>
+              <ul>
+                <li>
+                  On iOS and Mac Catalyst, a purchase event that cannot be
+                  decoded is logged and skipped instead of ending the replayable
+                  purchase stream with an error.
+                </li>
+                <li>
+                  <code>FetchProductsAsync</code> with a null <code>Type</code>{' '}
+                  returns <code>FetchProductsResultProducts</code> on iOS, as on
+                  Android.
+                </li>
+                <li>
+                  <code>FinishTransactionAsync</code> returns the purchase ID on
+                  Android, as on iOS, instead of an empty string.
+                </li>
+              </ul>
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul>
+            <li>
+              expo-iap: rebuild the native Android app to receive the new error
+              fields.
+            </li>
+            <li>
+              flutter_inapp_purchase: catch <code>PurchaseError</code> where you
+              caught <code>PlatformException</code> from the methods above.
+            </li>
+          </ul>
+          <p>
+            Hosted IAPKit and the local IAPKit MCP server also changed; see the{' '}
+            <a href="https://kit.openiap.dev/docs/release-notes#week-2026-11-16">
+              IAPKit weekly history
+            </a>
+            .
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <div
+            style={{
+              border: '1px solid var(--border-color)',
+              borderRadius: '0.5rem',
+              padding: '1rem',
+            }}
+          >
+            <ul style={{ marginBottom: 0, paddingLeft: '1.25rem' }}>
+              {PLAY_VERIFICATION_STATE_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  >
+                    {getReleaseLabel(release)}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
     {
       id: 'external-purchase-link-2026-11-13',
       date: new Date('2026-11-13'),
@@ -2505,7 +2775,7 @@ npx --yes @hyodotdev/openiap kit schema keys create --json`}</CodeBlock>
             Never put a secret key in the app. Self-hosted IAPKit also requires
             a shared private verification source credential and coordinated
             server rollout. Subscription metrics include freshness and
-            scan-limit flags, exposed by the JavaScript Kit API types. Live
+            scan-limit flags, exposed by the JavaScript IAPKit API types. Live
             dashboard updates keep a stable query range as those metrics
             refresh. The IAPKit changes this flow relies on are in the{' '}
             <a href="https://kit.openiap.dev/docs/release-notes#week-2026-10-12">
@@ -12923,7 +13193,7 @@ npx --yes @hyodotdev/openiap kit schema keys create --json`}</CodeBlock>
 
           <div style={{ marginTop: '0.75rem', marginBottom: '1.5rem' }}>
             <h5 style={{ margin: '0 0 0.5rem 0' }}>
-              Kit CI and BuildKit hardening
+              IAPKit CI and BuildKit hardening
             </h5>
             <p
               style={{

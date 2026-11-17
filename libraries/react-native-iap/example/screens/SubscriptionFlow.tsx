@@ -25,7 +25,10 @@ import {
 } from 'react-native-iap';
 import Loading from '../src/components/Loading';
 import {SUBSCRIPTION_PRODUCT_IDS} from '../src/utils/constants';
-import {getErrorMessage} from '../src/utils/errorUtils';
+import {
+  formatPurchaseErrorDetails,
+  getErrorMessage,
+} from '../src/utils/errorUtils';
 import {useVerificationMethod} from '../src/hooks/useVerificationMethod';
 import {
   alertPurchaseOutcome,
@@ -1498,6 +1501,18 @@ function SubscriptionFlowContainer() {
     showVerificationMethodSelector,
   } = useVerificationMethod();
 
+  const showPurchaseError = useCallback((error: PurchaseError) => {
+    setProcessingProductId(null);
+    const details = formatPurchaseErrorDetails(error);
+    console.log(`[SubscriptionFlow] purchase error\n${details}`);
+    if (error.code === ErrorCode.UserCancelled) {
+      setPurchaseResult(`Subscription cancelled by user\n${details}`);
+      return;
+    }
+    setPurchaseResult(`❌ Subscription failed\n${details}`);
+    showNativeAlert('Subscription Failed', error.message);
+  }, []);
+
   const {
     connected,
     subscriptions,
@@ -1526,15 +1541,7 @@ function SubscriptionFlowContainer() {
       setPurchaseResult(describePurchaseOutcome(status));
       alertPurchaseOutcome(status);
     },
-    onPurchaseError: (error: PurchaseError) => {
-      setProcessingProductId(null);
-      if (error.code === ErrorCode.UserCancelled) {
-        setPurchaseResult('Subscription cancelled by user');
-        return;
-      }
-      setPurchaseResult(`❌ Subscription failed: ${error.message}`);
-      showNativeAlert('Subscription Failed', error.message);
-    },
+    onPurchaseError: showPurchaseError,
   });
 
   // A requested upgrade, downgrade, or prepaid top-up the store has not
@@ -1755,29 +1762,23 @@ function SubscriptionFlowContainer() {
   // link the purchase to an account; StoreKit handles offer eligibility.
   // Android: pass subscriptionOffers, each with the offerToken of a base plan
   // (monthly/yearly) or promotional offer from the product's subscriptionOffers.
-  const handleSubscription = useCallback((itemId: string) => {
-    setProcessingProductId(itemId);
-    setPurchaseResult('Processing subscription...');
+  const handleSubscription = useCallback(
+    (itemId: string) => {
+      setProcessingProductId(itemId);
+      setPurchaseResult('Processing subscription...');
 
-    requestPurchase({
-      request: {
-        apple: {sku: itemId},
-        // Without subscriptionOffers the store picks the default offer;
-        // Amazon subscriptions have none.
-        google: {skus: [itemId]},
-      },
-      type: 'subs',
-    }).catch((err: PurchaseError) => {
-      setProcessingProductId(null);
-      if (err.code === ErrorCode.UserCancelled) {
-        setPurchaseResult('Subscription cancelled by user');
-        return;
-      }
-
-      setPurchaseResult(`❌ Subscription failed: ${err.message}`);
-      Alert.alert('Subscription Failed', err.message);
-    });
-  }, []);
+      requestPurchase({
+        request: {
+          apple: {sku: itemId},
+          // Without subscriptionOffers the store picks the default offer;
+          // Amazon subscriptions have none.
+          google: {skus: [itemId]},
+        },
+        type: 'subs',
+      }).catch(showPurchaseError);
+    },
+    [showPurchaseError],
+  );
 
   // Retry loading subscriptions (useful when products fail to load initially)
   const handleRetryLoadSubscriptions = useCallback(() => {

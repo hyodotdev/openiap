@@ -442,7 +442,13 @@ void main() {
 
       await expectLater(
         androidIap.showManageSubscriptionsIOS(),
-        throwsA(isA<PlatformException>()),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            ErrorCode.IapNotAvailable,
+          ),
+        ),
       );
     });
 
@@ -546,7 +552,13 @@ void main() {
       );
       await expectLater(
         macIap.showManageSubscriptionsIOS(),
-        throwsA(isA<PlatformException>()),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            ErrorCode.FeatureNotSupported,
+          ),
+        ),
       );
       await expectLater(
         macIap.deepLinkToSubscriptions(),
@@ -653,13 +665,19 @@ void main() {
       expect(calls.last.method, 'beginRefundRequestIOS');
     });
 
-    test('beginRefundRequestIOS throws PlatformException on non-iOS', () async {
+    test('beginRefundRequestIOS throws PurchaseError on non-iOS', () async {
       final androidIap = FlutterInappPurchase.private(
         FakePlatform(operatingSystem: 'android'),
       );
       await expectLater(
         androidIap.beginRefundRequestIOS('com.example.prod1'),
-        throwsA(isA<PlatformException>()),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            ErrorCode.IapNotAvailable,
+          ),
+        ),
       );
     });
 

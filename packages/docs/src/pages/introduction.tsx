@@ -369,9 +369,9 @@ function Introduction() {
               ),
               gdscript: (
                 <CodeBlock language="gdscript">{`func display_label(product) -> String:
-    if product is ProductIOS:
+    if product is Types.ProductIOS:
         return "%s %s" % [product.title, product.display_name_ios]
-    if product is ProductAndroid:
+    if product is Types.ProductAndroid:
         return "%s %s" % [product.title, product.name_android]
     return product.title`}</CodeBlock>
               ),

@@ -286,6 +286,54 @@ export default function ProductsPage() {
 curl "https://kit.openiap.dev/v1/products/sync/jobs/<jobId>" \\
   -H "Authorization: Bearer openiap-kit_sk_<your-secret-key>"`}
       </CodeBlock>
+      <p>The catalog and sync routes, all with a secret key:</p>
+      <div className="my-4 overflow-x-auto rounded-lg border border-border">
+        <table className="min-w-[36rem] w-full text-sm">
+          <thead className="bg-muted/40">
+            <tr>
+              <th scope="col" className="px-3 py-2 text-left font-medium">
+                Route
+              </th>
+              <th scope="col" className="px-3 py-2 text-left font-medium">
+                Effect
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {[
+              [
+                "POST /v1/products",
+                "Creates or updates one catalog row. productId, platform, type, and title are required.",
+              ],
+              [
+                "POST /v1/products/state",
+                "{ productId, platform, state } sets only the state (Draft, Ready, Active, Removed) and returns { id, state }. A missing row returns PRODUCT_NOT_FOUND.",
+              ],
+              [
+                "DELETE /v1/products/{productId}?platform=IOS|Android",
+                "Marks the row Removed and returns { ok }; ok is false when no row matches. The next push sync deletes the store product where the store allows it.",
+              ],
+              [
+                "POST /v1/products/sync/{ios|android}?direction=&dryRun=",
+                "Queues a sync and returns 202 { jobId, deduped }. direction is pull, push, both (default), or purge-local; dryRun defaults to false.",
+              ],
+              [
+                "GET /v1/products/sync/jobs/{jobId}",
+                "Returns the job's status, progress, and result.",
+              ],
+              [
+                "POST /v1/products/sync/jobs/{jobId}/cancel",
+                'Returns { ok: true }. A queued job ends at once; a running job stops at its next step. A finished job returns { ok: false, reason: "not active" }.',
+              ],
+            ].map(([route, effect]) => (
+              <tr key={route}>
+                <td className="px-3 py-2 font-mono text-xs">{route}</td>
+                <td className="px-3 py-2">{effect}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <CodeBlock title="Set a payload from CI" language="bash">
         {`curl -X PUT \\
   "https://kit.openiap.dev/v1/products/client-payload/premium_monthly?platform=IOS" \\

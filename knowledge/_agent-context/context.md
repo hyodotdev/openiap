@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-11-16T08:38:38.544Z
+> Last updated: 2026-11-17T17:19:47.202Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2920,8 +2920,11 @@ Google mints a fresh token again after its artifact build. The pre-commit hook
 never sees the token: hooked commits happen before it is minted, and any commit
 inside a push step uses `--no-verify`. This keeps the token out of the hook's
 environment; it is not a boundary against code that earlier steps of the same
-job already ran. Only this App may
-bypass main's required CI checks for validated release version commits. Keep
+job already ran. The `Main required CI checks` ruleset lets two actors bypass
+main's required checks: this App, for validated release version commits, and
+the repository admin role, for the maintainer's direct `main` commits. The
+admin bypass is not a permission: a direct commit still runs the checks
+`$loop-review-self` requires for the touched paths. Keep
 the checks active for everyone else and give the App no exception to tag
 immutability. Registry publication and workflow dispatch keep their existing
 OIDC and `GITHUB_TOKEN` authentication.
@@ -3812,6 +3815,10 @@ claude plugin install openiap@openiap
 `plugins/openiap` carries two manifests: `.codex-plugin/plugin.json` (MCP
 config in `.codex-plugin/mcp.json`) and `.claude-plugin/plugin.json` (inline
 MCP config). Both agents share `skills/`, so keep its wording agent-neutral.
+`skills/openiap/SKILL.md` opens by routing the task: SDK integration reads
+`llms.txt` and the framework setup guide, IAPKit operations use the MCP tools,
+and backend, paywall or event-receiver work follows the Commerce Protocol role
+guides. Keep those links on published pages.
 Installed plugins stay on their manifest version, and both manifests carry
 `openiap-versions.json`'s `plugin` version (`bun run audit:plugins`). Never bump
 them by hand: after a skills change lands, run the `P1. Release: OpenIAP plugin`
@@ -5391,21 +5398,21 @@ This document provides external API reference for Apple's StoreKit 2 framework.
 | External purchase notice token                                 | iOS 17.4                              | `ExternalPurchase.canPresent`; `presentNoticeSheet()` returns a token                               |
 | `appTransactionID`                                             | iOS 18.4                              | Globally unique app transaction identifier (back-deployed to iOS 15)                                |
 | `originalPlatform`                                             | iOS 18.4                              | Original purchase platform (back-deployed to iOS 15)                                                |
-| `Transaction.offerPeriod`                                      | iOS 18.4                              | Offer period information on Transaction                                                             |
+| `Transaction.offer.period`                                     | iOS 18.4                              | Offer duration on `Transaction.Offer`; `offerPeriodStringRepresentation` is deprecated              |
 | `Transaction.advancedCommerceInfo`                             | iOS 18.4                              | Advanced Commerce API data on Transaction                                                           |
 | `Transaction.appTransactionID`                                 | iOS 18.4                              | Per-Apple-Account identifier on Transaction                                                         |
 | Expanded offer codes                                           | iOS 18.4                              | Offer codes for consumables/non-consumables                                                         |
-| JWS promotional offers                                         | WWDC 2025                             | New `promotionalOffer` purchase option with JWS format                                              |
+| JWS promotional offers                                         | WWDC 2025                             | `promotionalOffer(_:compactJWS:)`; the signature-based option is deprecated in iOS 26               |
 | `introductoryOfferEligibility`                                 | WWDC 2025                             | Set eligibility via purchase option                                                                 |
 | `SubscriptionStatus` by Transaction ID                         | WWDC 2025                             | `status(for: transactionID:)`                                                                       |
 | Monthly subscriptions with a 12-month commitment               | iOS 26.4+ runtime / Xcode 26.5 SDK    | Monthly billing option for annual auto-renewable subscriptions                                      |
-| Subscription Bundles and Suites                                | Apple 27 / Xcode 27 beta SDK          | Read-only product, bundled-subscription, transaction, and renewal metadata                          |
-| Bundle ownership and revocation metadata                       | Xcode 27 beta SDK                     | Back-deployed assigned ownership, bundle-upgrade reason, assignment revocation, and unbundling data |
-| `AppTransaction.storeType`, `revocationDate`                   | Xcode 27 beta SDK                     | App-acquisition channel and back-deployed revocation timestamp                                      |
-| `AppTransaction.all`                                           | Apple 27 / Xcode 27 beta SDK          | Async sequence of app-acquisition records; not exported as an OpenIAP 3 operation                   |
-| `AppStore.Platform.managed`                                    | Xcode 27 beta SDK                     | Back-deployed managed-distribution acquisition platform                                             |
-| Advanced Commerce item partners                                | Apple 27 / Xcode 27 beta SDK          | Partner identifiers and names in each item-details JSON payload                                     |
-| Group purchases and volume purchasing                          | Announced at WWDC 2026                | Group Purchases are planned for later in 2026; Xcode 27 beta 4 has no public StoreKit group API     |
+| Subscription Bundles and Suites                                | Apple 27 / Xcode 27 SDK               | Read-only product, bundled-subscription, transaction, and renewal metadata                          |
+| Bundle ownership and revocation metadata                       | Xcode 27 SDK                          | Back-deployed assigned ownership, bundle-upgrade reason, assignment revocation, and unbundling data |
+| `AppTransaction.storeType`, `revocationDate`                   | Xcode 27 SDK                          | App-acquisition channel and back-deployed revocation timestamp                                      |
+| `AppTransaction.all`                                           | Apple 27 / Xcode 27 SDK               | Async sequence of app-acquisition records; not exported as an OpenIAP 3 operation                   |
+| `AppStore.Platform.managed`                                    | Xcode 27 SDK                          | Back-deployed managed-distribution acquisition platform                                             |
+| Advanced Commerce item partners                                | Apple 27 / Xcode 27 SDK               | Partner identifiers and names in each item-details JSON payload                                     |
+| Group purchases and volume purchasing                          | Xcode 27.3 SDK (beta)                 | `Product.PurchaseOption.seats(_:)` and multiseat metadata; OpenIAP does not map them yet            |
 | Retention Messaging                                            | WWDC 2026                             | Cancellation-flow messaging and offers, including real-time server decisioning                      |
 | Retention offer type                                           | WWDC 2026                             | Signed transaction / renewal info can report offer type `5` for retention offers                    |
 | Offer codes for all IAP types                                  | 2026                                  | Offer codes expand beyond auto-renewable subscriptions; IAP promo-code creation ends March 26, 2026 |
@@ -5423,19 +5430,19 @@ issue event.
 ### WWDC 2025 Updates
 
 - **SubscriptionStatus by Transaction ID**: `SubscriptionInfo.Status.status(for: transactionID:)` accepts any transaction ID, not just SKU.
-- **JWS-based promotional offers**: New `promotionalOffer` purchase option with compact JWS string.
+- **JWS-based promotional offers**: `promotionalOffer(_:compactJWS:)` takes a compact JWS string. It replaces the signature-based `promotionalOffer(offerID:keyID:nonce:signature:timestamp:)`, which is deprecated in iOS 26.
 - **Introductory offer eligibility**: Override eligibility check with `introductoryOfferEligibility` purchase option.
 - Both new purchase options are back-deployed to iOS 15.
 
 ### WWDC 2026 Updates
 
 - **Monthly subscriptions with a 12-month commitment**: The Xcode 26.5 SDK adds a monthly billing plan for one-year auto-renewable subscriptions. Customers can subscribe on iOS, iPadOS, macOS, tvOS, and visionOS 26.4+.
-- **Subscription Bundles and Suites**: The Xcode 27 beta SDK exposes read-only product types, component-subscription metadata, bundle transaction identifiers, and renewal unbundling state. OpenIAP maps these fields without inventing enrollment, seat, or management operations.
+- **Subscription Bundles and Suites**: The Xcode 27 SDK exposes read-only product types, component-subscription metadata, bundle transaction identifiers, and renewal unbundling state. OpenIAP maps these fields without inventing enrollment, seat, or management operations.
 - **Bundle ownership and revocation metadata**: StoreKit can report assigned ownership, a bundle-upgrade revocation reason, assignment revocation type, and an unbundled expiration reason. OpenIAP preserves these values without adding assignment-management operations.
 - **App acquisition and Advanced Commerce metadata**: `AppTransaction.storeType` reports the acquisition channel, `revocationDate` reports a revoked app acquisition, `AppStore.Platform.managed` identifies managed distribution, and Advanced Commerce item details expose partner identifiers and names.
 - **App-acquisition history**: StoreKit exposes `AppTransaction.all` as an async sequence. OpenIAP 3 does not export it because app-acquisition history is a different contract from the in-app transaction history returned by `getAllTransactionsIOS`.
 - **Presentation and refund errors**: The Xcode 27 SDK adds `StoreKitError.invalidPresentationContext` and `RefundRequestError.ineligible`. OpenIAP keeps these inside its canonical `PurchaseError` boundary instead of expanding the cross-platform error enum with Apple-only cases.
-- **Group purchases and volume purchasing**: Apple announced multi-seat subscriptions and an Apple-managed invitation flow. Group Purchases are scheduled for later in 2026 and Xcode 27 beta 4 does not expose a public StoreKit group-purchase contract. Volume purchasing is managed through Apple Business Manager and Apple School Manager.
+- **Group purchases and volume purchasing**: Multiseat subscriptions with an Apple-managed invitation flow require Xcode 27.3, which is in beta as of November 2026. See [Group Purchases and Volume Purchasing](#group-purchases-and-volume-purchasing-wwdc-2026). Volume purchasing is managed through Apple Business Manager and Apple School Manager.
 - **Volume pricing**: App Store Connect can configure up to five seat-count price bands for larger subscription purchases.
 - **Retention Messaging**: App Store Connect can show cancellation-flow retention messages and offers. Real-time Retention Messaging adds a server-to-server decision point and supports a switch-plan view for monthly subscriptions with a 12-month commitment.
 - **Offer-code expansion**: Offer codes now support consumables, non-consumables, non-renewing subscriptions, and broader auto-renewable subscription scenarios. Starting March 26, 2026, App Store Connect no longer creates new promo codes for In-App Purchases.
@@ -5454,9 +5461,10 @@ let result = try await AppStore.presentOfferCodeRedeemSheet(
 
 SwiftUI exposes the same result through
 `offerCodeRedemption(options:isPresented:onCompletion:)`. These APIs require the
-Xcode 27 beta SDK and are currently beta. Xcode 26.x SDKs expose the StoreKit 2
+Xcode 27 SDK and Apple 27 runtimes. Xcode 26.x SDKs expose the StoreKit 2
 scene-based `AppStore.presentOfferCodeRedeemSheet(in:)` API, which presents the
-sheet but does not return the redeemed transaction.
+sheet but does not return the redeemed transaction; Apple deprecates it in
+iOS 27 in favor of the new API.
 
 OpenIAP exposes this flow through the cross-platform `openRedeemOfferCode`
 (openiap-apple 3.3.0+). Client Protocol 1.0.0 removes the
@@ -5467,12 +5475,11 @@ scene API on iOS 16+ and visionOS 1+ and return `nil` after presentation; iOS 15
 retains the StoreKit 1 fallback. In Mac Catalyst apps, the scene API's
 `StoreKitError.unknown` reaches callers as OpenIAP error code `unknown`. The
 Catalyst 15 StoreKit 1 call has no effect and returns `nil`. Nil results from an actually presented sheet rely on the
-transaction listener or explicit purchase reconciliation. Xcode 27 beta 4
-declares `RedeemOption`,
-but its public symbol graph exposes no constructible option values, so OpenIAP
-currently passes an empty set.
+transaction listener or explicit purchase reconciliation. The Xcode 27.2 SDK
+declares `RedeemOption` without public option values, so OpenIAP passes an
+empty set.
 
-### Subscription Bundles and Suites (Xcode 27 beta)
+### Subscription Bundles and Suites (Xcode 27 SDK)
 
 StoreKit 27 introduces two subscription product kinds:
 
@@ -5507,7 +5514,7 @@ These fields are compiled only with the Xcode 27 SDK. StoreKit back-deploys the
 transaction and renewal bundle metadata where Apple declares it available, but
 the new product kinds and bundled-product catalog require Apple 27 runtimes.
 Test the catalog and transaction mappings with an Xcode 27 StoreKit
-configuration before using beta metadata in production logic.
+configuration before using this metadata in production logic.
 
 StoreKit 27 also exposes `AppTransaction.all`. OpenIAP 3 intentionally keeps
 `getAppTransactionIOS` as the current verified app-acquisition record and
@@ -5799,17 +5806,16 @@ iOS 18.4 added three new read-only properties to `Transaction` (not just `AppTra
 ```swift
 let transaction: Transaction
 
-// iOS 18.4+ — all back-deployed to iOS 15
-let txAppTransactionID = transaction.appTransactionID        // Apple Account identifier
-let offerPeriod = transaction.offerPeriod                    // Offer.Period?
-let advancedCommerce = transaction.advancedCommerceInfo      // AdvancedCommerceInfo?
+let txAppTransactionID = transaction.appTransactionID        // Back-deployed to iOS 15
+let offerPeriod = transaction.offer?.period                  // iOS 18.4+
+let advancedCommerce = transaction.advancedCommerceInfo      // iOS 18.4+
 ```
 
-| Property               | Type                  | Notes                                   |
-| ---------------------- | --------------------- | --------------------------------------- |
-| `appTransactionID`     | String                | Mirrors AppTransaction's identifier     |
-| `offerPeriod`          | Offer.Period?         | Phase of the promotional/intro offer    |
-| `advancedCommerceInfo` | AdvancedCommerceInfo? | Present for Advanced Commerce SKUs only |
+| Property               | Type                        | Notes                                                                 |
+| ---------------------- | --------------------------- | --------------------------------------------------------------------- |
+| `appTransactionID`     | String                      | Mirrors AppTransaction's identifier                                   |
+| `offer.period`         | Product.SubscriptionPeriod? | Offer duration; replaces deprecated `offerPeriodStringRepresentation` |
+| `advancedCommerceInfo` | AdvancedCommerceInfo?       | Present for Advanced Commerce SKUs only                               |
 
 ## Advanced Commerce API (iOS 18.4+)
 
@@ -5844,16 +5850,20 @@ let result = try await product.purchase(options: [
 
 ## Group Purchases and Volume Purchasing (WWDC 2026)
 
-Apple announced multi-seat auto-renewable subscriptions for groups or
+Group Purchases are multiseat auto-renewable subscriptions for groups or
 organizations, with an Apple-managed invitation flow. Volume purchasing is
 handled by Apple Business Manager and Apple School Manager.
 
-Group Purchases are planned for later in 2026. The Xcode 27 beta 4 StoreKit
-module and its public symbol graph expose no group-purchase request option,
-seat-count field, transaction property, or group-management identifier.
-OpenIAP must not invent a schema contract before Apple publishes one. Add the
-feature only after a public SDK symbol can be compiled, exercised with StoreKit
-Testing, and mapped consistently across every OpenIAP language target.
+Group Purchases require Xcode 27.3, which is in beta as of November 2026.
+`Product.PurchaseOption.seats(_:)` sets the total seat count and is
+back-deployed to iOS 15 and macOS 12. `Product.supportsMultiSeatPurchase`,
+seat-based pricing terms, `Transaction.multiSeatInfo`, and the invitation
+sheets require iOS, iPadOS, or macOS 27.3. The Xcode 27.2 SDK contains none of
+these symbols.
+
+OpenIAP does not map them yet. Add the feature only after the released SDK
+symbols can be compiled, exercised with StoreKit Testing, and mapped
+consistently across every OpenIAP language target.
 
 ## Retention Messaging (WWDC 2026)
 

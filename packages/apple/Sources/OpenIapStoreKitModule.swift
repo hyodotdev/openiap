@@ -1141,7 +1141,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                 continue
             }
 
-            if let ids = subscriptionIds, ids.contains(transaction.productID) == false {
+            guard StoreKitTypesBridge.isSelected(transaction.productID, by: subscriptionIds) else {
                 continue
             }
             let expiration = transaction.expirationDate
@@ -1959,22 +1959,24 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
 
         guard shouldRegister else { return }
 
-        let addObserver = {
-            SKPaymentQueue.default().add(self)
-        }
-
         if Thread.isMainThread {
-            addObserver()
+            addPromotedPurchaseObserver()
         } else {
-            DispatchQueue.main.sync(execute: addObserver)
+            // Not main.sync: init can run inside OpenIapModule.shared's initializer while main waits on it.
+            DispatchQueue.main.async { [weak self] in self?.addPromotedPurchaseObserver() }
         }
+        #endif // os(iOS)
+    }
 
+    #if os(iOS)
+    private func addPromotedPurchaseObserver() {
+        SKPaymentQueue.default().add(self)
         promotedPurchaseObserverLock.lock()
         didRegisterPromotedPurchaseObserver = true
         isPromotedPurchaseObserverTransitionInFlight = false
         promotedPurchaseObserverLock.unlock()
-        #endif // os(iOS)
     }
+    #endif // os(iOS)
 
     private func unregisterPromotedPurchaseObserverIfNeeded() {
         #if os(iOS)

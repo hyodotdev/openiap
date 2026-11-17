@@ -1,3 +1,5 @@
+import { LIBRARIES } from './images';
+
 export interface ApiItem {
   id: string;
   title: string;
@@ -418,8 +420,8 @@ export const apiData: ApiItem[] = [
     category: 'Android Specific',
     description:
       'Step 0 of Billing Programs API. Enable a billing program before initConnection() (Billing Library 8.2.0+)',
-    parameters: 'config: EnableBillingProgramConfigAndroid!',
-    returns: 'Boolean!',
+    parameters:
+      'InitConnectionConfig.enableBillingProgramAndroid: BillingProgramAndroid',
     path: '/docs/apis/android/enable-billing-program-android',
   },
   {
@@ -602,6 +604,94 @@ export const apiData: ApiItem[] = [
     description:
       'Enable OpenIapLog and understand common warnings such as Android basePlanId limitation',
     path: '/docs/features/debugging',
+  },
+  {
+    id: 'purchase-page',
+    title: 'Purchase',
+    category: 'Documentation',
+    description:
+      'Purchase flow: setup, request, validation, and finishing the transaction',
+    path: '/docs/features/purchase',
+  },
+  {
+    id: 'active-subscriptions-page',
+    title: 'Active Subscriptions',
+    category: 'Subscription',
+    description:
+      'Check active subscription state across Apple, Google Play, Meta Horizon, and Amazon',
+    path: '/docs/features/subscription/active-subscriptions',
+  },
+  {
+    id: 'subscription-upgrade-downgrade',
+    title: 'Subscription Upgrade & Downgrade',
+    category: 'Subscription',
+    description:
+      'Subscription tier changes on iOS and Android: proration and replacement modes',
+    path: '/docs/features/subscription/upgrade-downgrade',
+  },
+  {
+    id: 'subscription-billing-issue-page',
+    title: 'Subscription Billing Issue Event',
+    category: 'Subscription',
+    description:
+      'Cross-platform event for a subscription that needs the user to fix a billing problem',
+    path: '/docs/features/subscription-billing-issue',
+  },
+  {
+    id: 'subscription-lifecycle',
+    title: 'Subscription Lifecycle',
+    category: 'Subscription',
+    description:
+      'Renewal info, expiration, grace periods, and platform differences',
+    path: '/docs/lifecycle/subscription',
+  },
+  {
+    id: 'discounts-page',
+    title: 'Discounts',
+    category: 'Documentation',
+    description:
+      'Google Play one-time product discounts: original prices, badges, and offers',
+    path: '/docs/features/discount',
+  },
+  {
+    id: 'offer-code-redemption-page',
+    title: 'Offer Code Redemption',
+    category: 'Documentation',
+    description:
+      'Offer code and promo code redemption on iOS and Android with openRedeemOfferCode',
+    path: '/docs/features/offer-code-redemption',
+  },
+  {
+    id: 'lifecycle-page',
+    title: 'Life Cycle',
+    category: 'Documentation',
+    description:
+      'Purchase lifecycle: initialization, product discovery, purchase, verification, and completion',
+    path: '/docs/lifecycle',
+  },
+  {
+    id: 'testing-page',
+    title: 'Testing & Sandbox',
+    category: 'Guides',
+    description:
+      'Test purchases with sandbox accounts, StoreKit testing, and license testers',
+    path: '/docs/guides/testing',
+  },
+  {
+    id: 'store-providers-page',
+    title: 'Community Store Providers',
+    category: 'Guides',
+    description:
+      'Build, verify, register, and select an independent Apple or Android store provider',
+    path: '/docs/guides/store-providers',
+  },
+  {
+    id: 'ecosystem-page',
+    title: 'Ecosystem',
+    category: 'Documentation',
+    description:
+      'How the native modules, framework SDKs, and the Commerce Protocol fit together',
+    path: '/docs/ecosystem',
   },
   {
     id: 'types-page',
@@ -976,6 +1066,104 @@ export const apiData: ApiItem[] = [
     description: 'Meta Quest verification result: isValid and grantTime',
     path: '/docs/types/verify-purchase#verify-purchase-result-horizon',
   },
+  {
+    id: 'product-request',
+    title: 'ProductRequest',
+    category: 'Types',
+    description: 'fetchProducts request: skus and product type',
+    path: '/docs/types/product-request',
+  },
+  {
+    id: 'verify-purchase-with-provider-props',
+    title: 'VerifyPurchaseWithProviderProps',
+    category: 'Types',
+    description:
+      'verifyPurchaseWithProvider request, including the IAPKit store payloads',
+    path: '/docs/types/verify-purchase-with-provider-props',
+  },
+  {
+    id: 'verify-purchase-with-provider-result',
+    title: 'VerifyPurchaseWithProviderResult',
+    category: 'Types',
+    description:
+      'verifyPurchaseWithProvider result: IAPKit state, store, and verified product ID',
+    path: '/docs/types/verify-purchase-with-provider-result',
+  },
+  {
+    id: 'external-purchase-link-request',
+    title: 'ExternalPurchaseLinkRequest',
+    category: 'Types',
+    description: 'openExternalPurchaseLink request: url and Apple token type',
+    path: '/docs/types/external-purchase-link#external-purchase-link-request',
+  },
+  {
+    id: 'external-purchase-link-result',
+    title: 'ExternalPurchaseLinkResult',
+    category: 'Types',
+    description:
+      'openExternalPurchaseLink result: status, reportToken, and platform',
+    path: '/docs/types/external-purchase-link#external-purchase-link-result',
+  },
+  {
+    id: 'product-type-ios',
+    title: 'ProductTypeIOS',
+    category: 'Types (iOS)',
+    description:
+      'Detailed StoreKit product type, including subscription bundles and suites',
+    path: '/docs/types/product#product-type-ios',
+  },
+  {
+    id: 'bundled-subscription-ios',
+    title: 'BundledSubscriptionIOS',
+    category: 'Types (iOS)',
+    description:
+      'Component subscription of an Apple Subscription Bundle or Suite',
+    path: '/docs/types/subscription-product#bundled-subscription-ios',
+  },
+  {
+    id: 'purchase-offer-ios',
+    title: 'PurchaseOfferIOS',
+    category: 'Types (iOS)',
+    description: 'Offer applied to an iOS purchase: id, type, and paymentMode',
+    path: '/docs/types/purchase#purchase-offer-ios',
+  },
+  {
+    id: 'advanced-commerce-info-ios',
+    title: 'AdvancedCommerceInfoIOS',
+    category: 'Types (iOS)',
+    description:
+      'Advanced Commerce API transaction metadata: items, period, and tax (iOS 18.4+)',
+    path: '/docs/types/purchase#advanced-commerce-info-ios',
+  },
+  {
+    id: 'subscription-period-value-ios',
+    title: 'SubscriptionPeriodValueIOS',
+    category: 'Types (iOS)',
+    description: 'Subscription period as a unit and a count',
+    path: '/docs/types/ios/subscription-period-ios#subscription-period-value-ios',
+  },
+  {
+    id: 'win-back-offer-input-ios',
+    title: 'WinBackOfferInputIOS',
+    category: 'Types (iOS)',
+    description: 'Win-back offer ID for a subscription purchase (iOS 18+)',
+    path: '/docs/types/request-purchase-props#win-back-offer-input-ios',
+  },
+  {
+    id: 'promotional-offer-jws-input-ios',
+    title: 'PromotionalOfferJWSInputIOS',
+    category: 'Types (iOS)',
+    description: 'JWS-signed promotional offer: offerId and compact JWS',
+    path: '/docs/types/request-purchase-props#promotional-offer-jws-input-ios',
+  },
+  {
+    id: 'product-status-android',
+    title: 'ProductStatusAndroid',
+    category: 'Types (Android)',
+    description:
+      'Per-product fetch status: ok, not-found, no-offers-available, unknown',
+    path: '/docs/types/product#product-status-android',
+  },
 
   {
     id: 'apis-page',
@@ -990,6 +1178,53 @@ export const apiData: ApiItem[] = [
     category: 'Documentation',
     description: 'Event listeners and callbacks',
     path: '/docs/events',
+  },
+  {
+    id: 'purchase-updated-listener',
+    title: 'purchaseUpdatedListener',
+    category: 'Events',
+    description:
+      'Fires when a purchase succeeds or a pending purchase completes',
+    path: '/docs/events/purchase-updated-listener',
+  },
+  {
+    id: 'purchase-error-listener',
+    title: 'purchaseErrorListener',
+    category: 'Events',
+    description: 'Fires when a purchase fails or the user cancels it',
+    path: '/docs/events/purchase-error-listener',
+  },
+  {
+    id: 'subscription-billing-issue-listener',
+    title: 'subscriptionBillingIssueListener',
+    category: 'Events',
+    description:
+      'Fires when a subscription enters a billing issue state (iOS 16.4+, Play Billing 8.1+)',
+    path: '/docs/events/subscription-billing-issue-listener',
+  },
+  {
+    id: 'promoted-product-listener-ios',
+    title: 'promotedProductListenerIOS',
+    category: 'Events',
+    description:
+      'Fires when a user selects a promoted in-app purchase in the App Store',
+    path: '/docs/events/ios/promoted-product-listener-ios',
+  },
+  {
+    id: 'user-choice-billing-listener-android',
+    title: 'userChoiceBillingListenerAndroid',
+    category: 'Events',
+    description:
+      'Fires when a user selects alternative billing in the User Choice Billing dialog',
+    path: '/docs/events/android/user-choice-billing-listener-android',
+  },
+  {
+    id: 'developer-provided-billing-listener-android',
+    title: 'developerProvidedBillingListenerAndroid',
+    category: 'Events',
+    description:
+      'Fires when a user selects developer-provided billing in an External Payments or Billing Choice flow',
+    path: '/docs/events/android/developer-provided-billing-listener-android',
   },
   {
     id: 'commerce-protocol',
@@ -1125,6 +1360,151 @@ export const apiData: ApiItem[] = [
     description:
       'Per-major migration trains: removal schedule and canonical replacements for OpenIAP and each framework library',
     path: '/docs/updates/migration',
+  },
+  {
+    id: 'getting-started',
+    title: 'Getting Started',
+    category: 'Setup Guide',
+    description:
+      'Add in-app purchases with AI, or follow the store and framework setup guides',
+    path: '/docs/getting-started',
+  },
+  {
+    id: 'framework-setup',
+    title: 'Framework Setup',
+    category: 'Setup Guide',
+    description: 'Choose a framework SDK and follow its install guide',
+    path: '/docs/setup',
+  },
+  ...LIBRARIES.map((library) => ({
+    id: `setup-${library.name}`,
+    title: `${library.frameworkName} Setup`,
+    category: 'Setup Guide',
+    description: `Install and configure ${library.displayName}`,
+    path: library.setupPath,
+  })),
+  {
+    id: 'ios-setup',
+    title: 'iOS Setup',
+    category: 'Setup Guide',
+    description:
+      'Xcode configuration, App Store Connect, StoreKit 2, and sandbox testing',
+    path: '/docs/ios-setup',
+  },
+  {
+    id: 'android-setup',
+    title: 'Android Setup',
+    category: 'Setup Guide',
+    description:
+      'Google Play Console, Play Billing Library, products, and license testers',
+    path: '/docs/android-setup',
+  },
+  {
+    id: 'examples-page',
+    title: 'Examples',
+    category: 'Guides',
+    description:
+      'Recorded purchase, subscription, restore, and verification walkthroughs per store',
+    path: '/docs/example',
+  },
+  {
+    id: 'security-overview',
+    title: 'Supply Chain Security',
+    category: 'Security',
+    description:
+      'SBOMs, build provenance, release integrity, and vulnerability reporting',
+    path: '/docs/security/overview',
+  },
+  {
+    id: 'security-sbom',
+    title: 'SBOM',
+    category: 'Security',
+    description:
+      'Download, verify, and reproduce the CycloneDX SBOM of each release',
+    path: '/docs/security/sbom',
+  },
+  {
+    id: 'security-compliance',
+    title: 'Compliance',
+    category: 'Security',
+    description:
+      'CRA readiness, OpenChain self-assessment, and behavioral conformance',
+    path: '/docs/security/compliance',
+  },
+  {
+    id: 'announcements',
+    title: 'Announcements',
+    category: 'Updates',
+    description: 'News about new features, deprecations, and ecosystem changes',
+    path: '/docs/updates/announcements',
+  },
+  {
+    id: 'releases',
+    title: 'Releases',
+    category: 'Updates',
+    description: 'Release notes for OpenIAP packages and framework libraries',
+    path: '/docs/updates/releases',
+  },
+  {
+    id: 'versions',
+    title: 'Versions',
+    category: 'Updates',
+    description:
+      'Latest versions of openiap-apple, openiap-google, and the Client Protocol',
+    path: '/docs/updates/versions',
+  },
+  {
+    id: 'foundation-about',
+    title: 'About OpenIAP',
+    category: 'Foundation',
+    description:
+      'A neutral interoperability layer for in-app purchase APIs and verification',
+    path: '/docs/foundation/about',
+  },
+  {
+    id: 'foundation-governance',
+    title: 'Governance',
+    category: 'Foundation',
+    description:
+      'Decision-making, maintainer structure, and steering committee',
+    path: '/docs/foundation/governance',
+  },
+  {
+    id: 'foundation-sponsorship',
+    title: 'Sponsorship',
+    category: 'Foundation',
+    description: 'Why and how to sponsor OpenIAP',
+    path: '/docs/foundation/sponsorship',
+  },
+  {
+    id: 'foundation-roadmap-budget',
+    title: 'Roadmap & Budget',
+    category: 'Foundation',
+    description: 'Project roadmap and how sponsorship funds are allocated',
+    path: '/docs/foundation/roadmap-budget',
+  },
+  {
+    id: 'foundation-founding-supporters',
+    title: 'Become a Founding Supporter',
+    category: 'Foundation',
+    description: 'Join OpenIAP as a Founding Supporter',
+    path: '/docs/foundation/founding-supporters',
+  },
+  {
+    id: 'foundation-research',
+    title: 'Research Foundations',
+    category: 'Foundation',
+    description:
+      'Peer-reviewed research behind the design, mapped to where the project applies it',
+    path: '/docs/foundation/research',
+  },
+  {
+    id: 'foundation-whitepapers',
+    title: 'Whitepapers',
+    category: 'Foundation',
+    description:
+      'The reasoning behind the specification, published as citable PDFs',
+    path: '/docs/foundation/whitepapers',
   },
   {
     id: 'store-setup',

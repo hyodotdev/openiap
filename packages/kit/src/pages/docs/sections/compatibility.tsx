@@ -69,7 +69,7 @@ export default function CompatibilityPage() {
         </li>
         <li>
           An unreadable <code>clientPayload</code> is omitted by strongly typed
-          SDKs; JavaScript Kit clients can preserve its format and body as
+          SDKs; JavaScript IAPKit clients can preserve its format and body as
           opaque data.
         </li>
         <li>

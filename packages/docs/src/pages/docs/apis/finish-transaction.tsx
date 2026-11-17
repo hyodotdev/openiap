@@ -119,7 +119,9 @@ interface MutationFinishTransactionArgs {
       </AnchorLink>
       <p>
         <code>Promise&lt;void&gt;</code> — Resolves once the platform finalizes
-        the transaction.
+        the transaction. In MAUI/C#, <code>FinishTransactionAsync</code> returns{' '}
+        <code>Task&lt;string&gt;</code> carrying the finished purchase&apos;s{' '}
+        <code>Id</code> on every platform.
       </p>
 
       <AnchorLink id="throws" level="h2">

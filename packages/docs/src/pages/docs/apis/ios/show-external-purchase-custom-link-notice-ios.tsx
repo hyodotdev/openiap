@@ -118,6 +118,10 @@ function ShowExternalPurchaseCustomLinkNoticeIOS() {
           — Populated when the sheet fails to present.
         </li>
       </ul>
+      <p>
+        Godot&apos;s <code>show_external_purchase_custom_link_notice_ios</code>{' '}
+        runs on iOS only and returns <code>null</code> on macOS.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

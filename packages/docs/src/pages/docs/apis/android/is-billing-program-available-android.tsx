@@ -79,7 +79,7 @@ Task<BillingProgramAvailabilityResultAndroid> IsBillingProgramAvailableAndroidAs
           gdscript: (
             <CodeBlock language="gdscript">{`func is_billing_program_available_android(
     program: int
-) -> BillingProgramAvailabilityResultAndroid`}</CodeBlock>
+) -> Types.BillingProgramAvailabilityResultAndroid`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -193,7 +193,7 @@ var result = await OpenIapClient.Mutation.IsBillingProgramAvailableAndroidAsync(
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
     var result = await iap.is_billing_program_available_android(
-        BillingProgramAndroid.EXTERNAL_OFFER
+        Types.BillingProgramAndroid.EXTERNAL_OFFER
     )`}</CodeBlock>
           ),
         }}

@@ -67,7 +67,8 @@ function GetReceiptDataIOS() {
       </AnchorLink>
       <p>
         <code>Promise&lt;string | null&gt;</code> — Base64-encoded receipt data
-        (legacy StoreKit 1 path).
+        (legacy StoreKit 1 path). Godot&apos;s <code>get_receipt_data_ios</code>{' '}
+        runs on iOS only and returns an empty string on macOS.
       </p>
 
       <h2>Example</h2>

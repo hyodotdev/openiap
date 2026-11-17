@@ -243,7 +243,25 @@ npm install react-native-iap react-native-nitro-modules`}
         <CodeBlock language="typescript">
           {`import React, { useEffect } from 'react';
 import { Alert, Button, FlatList } from 'react-native';
-import { useIAP, ErrorCode, finishTransaction } from 'react-native-iap';
+import {
+  useIAP,
+  ErrorCode,
+  finishTransaction,
+  type Purchase,
+} from 'react-native-iap';
+
+async function handlePurchase(purchase: Purchase) {
+  // Your backend or IAPKit verifies the purchase.
+  const { isValid } = await yourBackend.verifyPurchase(purchase);
+  if (!isValid) return;
+
+  await grantEntitlement(purchase.productId);
+  // Android refunds a purchase left unfinished for 3 days.
+  await finishTransaction({
+    purchase,
+    isConsumable: false, // true for consumables
+  });
+}
 
 function Store() {
   const {
@@ -253,15 +271,8 @@ function Store() {
     requestPurchase,
   } = useIAP({
     onPurchaseSuccess: (purchase) => {
-      // 1. Validate receipt with your backend or IAPKit
-      // 2. Grant entitlement
-      // 3. CRITICAL: Finish the transaction
-      //    (Android auto-refunds after 3 days if not called!)
-      void finishTransaction({
-        purchase,
-        isConsumable: false, // true for consumables
-      }).catch((error) => {
-        console.warn('Transaction finalization failed:', error);
+      void handlePurchase(purchase).catch((error) => {
+        console.warn('Purchase handling failed:', error);
       });
     },
     onPurchaseError: (error) => {
@@ -394,6 +405,7 @@ function Store() {
   purchaseUpdatedListener,
   purchaseErrorListener,
   ErrorCode,
+  type Purchase,
 } from 'react-native-iap';
 
 // Initialize
@@ -401,12 +413,20 @@ const connected = await initConnection();
 if (!connected) throw new Error('Store connection failed');
 
 // Listen for events BEFORE requesting purchases
-const purchaseSub = purchaseUpdatedListener((purchase) => {
-  // Validate on server, then finish transaction.
-  // CRITICAL: Android auto-refunds after 3 days if not called!
+async function handlePurchase(purchase: Purchase) {
+  // Your backend or IAPKit verifies the purchase.
+  const { isValid } = await yourBackend.verifyPurchase(purchase);
+  if (!isValid) return;
+
+  await grantEntitlement(purchase.productId);
+  // Android refunds a purchase left unfinished for 3 days.
   // Use isConsumable: true for consumables.
-  void finishTransaction({ purchase, isConsumable: false }).catch((error) => {
-    console.warn('Transaction finalization failed:', error);
+  await finishTransaction({ purchase, isConsumable: false });
+}
+
+const purchaseSub = purchaseUpdatedListener((purchase) => {
+  void handlePurchase(purchase).catch((error) => {
+    console.warn('Purchase handling failed:', error);
   });
 });
 

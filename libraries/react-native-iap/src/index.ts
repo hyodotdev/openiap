@@ -1426,7 +1426,7 @@ export const getReceiptDataIOS: QueryField<'getReceiptDataIOS'> = async () => {
   RnIapConsole.warn(
     '[getReceiptDataIOS] ⚠️ iOS receipts contain ALL transactions, not just the latest one. ' +
       'For individual purchase validation, use getTransactionJwsIOS(productId) instead. ' +
-      'See: https://react-native-iap.hyo.dev/docs/guides/receipt-validation',
+      'See: https://openiap.dev/docs/features/validation',
   );
 
   try {
@@ -1448,7 +1448,7 @@ export const requestReceiptRefreshIOS = async (): Promise<string> => {
   RnIapConsole.warn(
     '[requestReceiptRefreshIOS] ⚠️ iOS receipts contain ALL transactions, not just the latest one. ' +
       'For individual purchase validation, use getTransactionJwsIOS(productId) instead. ' +
-      'See: https://react-native-iap.hyo.dev/docs/guides/receipt-validation',
+      'See: https://openiap.dev/docs/features/validation',
   );
 
   try {

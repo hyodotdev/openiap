@@ -184,13 +184,11 @@ function Product() {
                         <code>typeIOS</code>
                       </td>
                       <td>
-                        Detailed product-type wire value:{' '}
-                        <code>consumable</code>, <code>non-consumable</code>,{' '}
-                        <code>auto-renewable-subscription</code>,{' '}
-                        <code>non-renewing-subscription</code>,{' '}
-                        <code>subscription-bundle</code>, or{' '}
-                        <code>subscription-suite</code>. The final two values
-                        require an Xcode 27 build and Apple 27 runtime.
+                        Detailed product type as a{' '}
+                        <a href="#product-type-ios">
+                          <code>ProductTypeIOS</code>
+                        </a>{' '}
+                        wire value.
                       </td>
                     </tr>
                     <tr>
@@ -235,12 +233,13 @@ function Product() {
                         <code>bundledSubscriptionsIOS</code>
                       </td>
                       <td>
-                        Component subscriptions for an Apple Subscription Bundle
-                        or Suite, including product identity, display metadata,
-                        price, Family Sharing state, and subscription-group
-                        metadata. Available on{' '}
-                        <code>ProductSubscriptionIOS</code> with Xcode 27 and
-                        Apple 27; otherwise <code>null</code>.
+                        Only on <code>ProductSubscriptionIOS</code>: the
+                        component subscriptions of an Apple Subscription Bundle
+                        or Suite. See{' '}
+                        <Link to="/docs/types/subscription-product#bundled-subscription-ios">
+                          <code>BundledSubscriptionIOS</code>
+                        </Link>
+                        .
                       </td>
                     </tr>
                     <tr>
@@ -248,6 +247,62 @@ function Product() {
                         <code>jsonRepresentationIOS</code>
                       </td>
                       <td>Raw StoreKit 2 JWS payload as a JSON string.</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <AnchorLink id="product-type-ios" level="h4">
+                  ProductTypeIOS
+                </AnchorLink>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Value</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <code>'consumable'</code>
+                      </td>
+                      <td>Consumable in-app purchase</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>'non-consumable'</code>
+                      </td>
+                      <td>Non-consumable in-app purchase</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>'auto-renewable-subscription'</code>
+                      </td>
+                      <td>Auto-renewable subscription</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>'non-renewing-subscription'</code>
+                      </td>
+                      <td>Non-renewing subscription</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>'subscription-bundle'</code>
+                      </td>
+                      <td>
+                        Independently purchasable subscriptions sold together.
+                        Requires an Xcode 27 build and Apple 27 runtime
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>'subscription-suite'</code>
+                      </td>
+                      <td>
+                        Subscriptions available only as one suite. Requires an
+                        Xcode 27 build and Apple 27 runtime
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -289,10 +344,11 @@ function Product() {
                         <code>productStatusAndroid</code>
                       </td>
                       <td>
-                        Product fetch status code. Wire values: <code>ok</code>{' '}
-                        (success), <code>not-found</code> (SKU doesn't exist),{' '}
-                        <code>no-offers-available</code> (user not eligible for
-                        any offers), <code>unknown</code>. Requires{' '}
+                        Product fetch status as a{' '}
+                        <a href="#product-status-android">
+                          <code>ProductStatusAndroid</code>
+                        </a>{' '}
+                        wire value. Requires{' '}
                         <a
                           href="https://developer.android.com/google/play/billing/release-notes#8-0-0"
                           target="_blank"
@@ -315,6 +371,47 @@ function Product() {
                         entries. Populated from Google Play Billing 8.0+{' '}
                         <code>OneTimePurchaseOfferDetails</code>.
                       </td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <AnchorLink id="product-status-android" level="h4">
+                  ProductStatusAndroid
+                </AnchorLink>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Value</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <code>'ok'</code>
+                      </td>
+                      <td>Product was fetched</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>'not-found'</code>
+                      </td>
+                      <td>The SKU does not exist in Play Console</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>'no-offers-available'</code>
+                      </td>
+                      <td>
+                        The product exists but the user is not eligible for any
+                        offer
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>'unknown'</code>
+                      </td>
+                      <td>The fetch failed for an unknown reason</td>
                     </tr>
                   </tbody>
                 </table>

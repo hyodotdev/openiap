@@ -68,7 +68,7 @@ IDisposable subscription = OpenIapClient.Instance.SubscriptionBillingIssue.Subsc
 });`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`signal subscription_billing_issue(purchase: Purchase)`}</CodeBlock>
+            <CodeBlock language="gdscript">{`signal subscription_billing_issue(purchase: Dictionary)`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -196,8 +196,8 @@ subscription.Dispose();`}</CodeBlock>
           gdscript: (
             <CodeBlock language="gdscript">{`iap.subscription_billing_issue.connect(_on_billing_issue)
 
-func _on_billing_issue(purchase: Purchase):
-    print("Billing issue on %s" % purchase.product_id)
+func _on_billing_issue(purchase: Dictionary):
+    print("Billing issue on %s" % purchase.get("productId", ""))
     show_billing_issue_banner(purchase)
 
 # Cleanup when leaving the scene

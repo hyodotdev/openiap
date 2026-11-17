@@ -4,11 +4,23 @@ export const SETUP_FRAMEWORKS = [
   "flutter",
   "kmp",
   "godot",
+  "maui",
   "ios",
   "android",
 ];
 
-export function renderSetupSnippet(framework, apiKey, productId) {
+const SETUP_COVERAGE =
+  "The example covers one purchase: verify with IAPKit, grant on a valid result, then finish the transaction; follow https://openiap.dev/docs/lifecycle for when to finish, restore and duplicate deliveries.";
+
+export function renderSetupGuide(framework, apiKey, productId) {
+  return {
+    framework,
+    snippet: renderSetupSnippet(framework, apiKey, productId),
+    coverage: SETUP_COVERAGE,
+  };
+}
+
+function renderSetupSnippet(framework, apiKey, productId) {
   const apiKeyLiteral = codeStringLiteral(apiKey);
   const productIdLiteral = codeStringLiteral(productId);
   switch (framework) {
@@ -16,6 +28,7 @@ export function renderSetupSnippet(framework, apiKey, productId) {
     case "react-native":
       return `import { Platform } from 'react-native';
 import {
+  finishTransaction,
   verifyPurchaseWithProvider,
   type Purchase,
 } from '${framework === "expo" ? "expo-iap" : "react-native-iap"}';
@@ -49,6 +62,7 @@ export async function verifyAndGrant(purchase: Purchase) {
   ) {
     grantEntitlement(verified.productId);
     if (verified.clientPayload) applyPublicRules(verified.clientPayload);
+    await finishTransaction({ purchase, isConsumable: false });
   }
 }`;
     case "flutter":
@@ -90,6 +104,10 @@ Future<void> verifyAndGrant(Purchase purchase) async {
     if (verified.clientPayload != null) {
       applyPublicRules(verified.clientPayload!);
     }
+    await FlutterInappPurchase.instance.finishTransaction(
+      purchase: purchase,
+      isConsumable: false,
+    );
   }
 }`;
     case "kmp":
@@ -127,7 +145,8 @@ suspend fun verifyAndGrant(purchase: Purchase, isIos: Boolean) {
         verifiedProductId == purchase.productId &&
         verifiedProductId == ${productIdLiteral}) {
         grantEntitlement(verifiedProductId)
-        verified?.clientPayload?.let(::applyPublicRules)
+        verified.clientPayload?.let(::applyPublicRules)
+        kmpIapInstance.finishTransaction(purchase = purchase, isConsumable = false)
     }
 }`;
     case "godot":
@@ -168,7 +187,54 @@ func verify_and_grant(purchase: Variant) -> void:
     ):
         grant_entitlement(verified.product_id)
         if verified.client_payload != null:
-            apply_public_rules(verified.client_payload)`;
+            apply_public_rules(verified.client_payload)
+        await GodotIapPlugin.finish_transaction_dict(purchase, false)`;
+    case "maui":
+      return `using OpenIap;
+using OpenIap.Maui;
+
+const string IapkitPublishableKey = ${apiKeyLiteral};
+const string ExpectedProductId = ${productIdLiteral};
+
+async Task VerifyAndGrantAsync(Purchase purchase)
+{
+    var token = purchase.PurchaseToken ?? "";
+    var isApple = purchase.Store == IapStore.Apple;
+    var result = await OpenIapClient.Mutation.VerifyPurchaseWithProviderAsync(
+        new VerifyPurchaseWithProviderProps
+        {
+            Provider = PurchaseVerificationProvider.Iapkit,
+            Iapkit = new RequestVerifyPurchaseWithIapkitProps
+            {
+                ApiKey = IapkitPublishableKey,
+                IncludeClientPayload = true,
+                Apple = isApple
+                    ? new RequestVerifyPurchaseWithIapkitAppleProps { Jws = token }
+                    : null,
+                Google = isApple
+                    ? null
+                    : new RequestVerifyPurchaseWithIapkitGoogleProps { PurchaseToken = token },
+            },
+        });
+
+    var verified = result.Iapkit;
+    var verifiedProductId = verified?.ProductId;
+    var allowedState =
+        verified?.State == IapkitPurchaseState.Entitled ||
+        (!isApple && verified?.State == IapkitPurchaseState.PendingAcknowledgment);
+    if (verified is { IsValid: true } &&
+        allowedState &&
+        verifiedProductId is not null &&
+        verifiedProductId == purchase.ProductId &&
+        verifiedProductId == ExpectedProductId)
+    {
+        GrantEntitlement(verifiedProductId);
+        if (verified.ClientPayload is { } payload) ApplyPublicRules(payload);
+        await OpenIapClient.Mutation.FinishTransactionAsync(
+            new PurchaseInput(purchase),
+            isConsumable: false);
+    }
+}`;
     case "ios":
       return `import OpenIAP
 
@@ -200,6 +266,7 @@ if let purchase = try await iapStore.requestPurchase(sku: productId, type: .inAp
         if let payload = verification?.clientPayload {
             applyPublicRules(payload)
         }
+        try await iapStore.finishTransaction(purchase: purchase, isConsumable: false)
     }
 }`;
     case "android":
@@ -253,7 +320,8 @@ class MainActivity : AppCompatActivity() {
                     verifiedProductId == purchase.productId &&
                     verifiedProductId == productId) {
                     grantEntitlement(verifiedProductId)
-                    verification?.clientPayload?.let(::applyPublicRules)
+                    verification.clientPayload?.let(::applyPublicRules)
+                    openIap.finishTransaction(purchase, false)
                 }
             }
         })

@@ -272,7 +272,7 @@ export async function prunePurchaseIssuesHandler(
     await ctx.db.delete(issue._id);
   }
 
-  if (expired.length === batchSize) {
+  if (expired.length > 0 && expired.length === batchSize) {
     await ctx.scheduler.runAfter(
       0,
       internal.purchaseIssues.internal.prunePurchaseIssues,

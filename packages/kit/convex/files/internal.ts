@@ -306,7 +306,7 @@ export const pruneUploadReservations = internalMutation({
 
     // A full batch means more rows may be expired. Continue now instead of
     // waiting an hour for the cron while an abuse backlog grows.
-    if (expired.length === batchSize) {
+    if (expired.length > 0 && expired.length === batchSize) {
       await ctx.scheduler.runAfter(
         0,
         internal.files.internal.pruneUploadReservations,

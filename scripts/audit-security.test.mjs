@@ -17,8 +17,10 @@ import { parseDocument } from "yaml";
 
 import {
   BUN_AUDIT_ATTEMPTS,
+  URL_ATTEMPTS,
   auditDependencies,
   auditWorkflowFiles,
+  checkUrl,
   extractExternalUrls,
   LOCKSTEP_EXEMPT,
   findActionFamilyDrift,
@@ -257,6 +259,46 @@ jobs:
     ),
     ["fixture.yml: job test checkout must disable persisted credentials"],
   );
+  const runners = (runsOn, strategy = "") =>
+    findWorkflowDependencyFindings(
+      `permissions: read-all\njobs:\n  build:\n${strategy}    runs-on: ${runsOn}\n`,
+      "fixture.yml",
+    );
+  const matrix = (value) =>
+    `    strategy:\n      matrix:\n        include:\n          - runner: ${value}\n`;
+  for (const hosted of ["macos-26", "ubuntu-latest", "xcode-27"]) {
+    assert.deepEqual(runners(hosted), []);
+    assert.deepEqual(runners("${{ matrix.runner }}", matrix(hosted)), []);
+  }
+  for (const [runsOn, strategy] of [
+    ["[self-hosted, ssd-ci]"],
+    ["[macOS, ARM64]"],
+    ["Self-Hosted"],
+    ["{ group: Default }"],
+    ["${{ inputs.runner }}"],
+    ["${{ matrix.runner }}"],
+    ["${{ matrix.runner }}", matrix("ssd-ci")],
+  ]) {
+    assert.deepEqual(
+      runners(runsOn, strategy),
+      ["fixture.yml: job build must run on a GitHub-hosted runner"],
+      runsOn,
+    );
+  }
+  const verify = (flags) =>
+    findWorkflowDependencyFindings(
+      `permissions: read-all\njobs:\n  check:\n    steps:\n      - run: |\n          gh attestation verify a.zip --repo o/r --cert-identity "$ID" --deny-self-hosted-runners\n          gh attestation verify b.zip --repo o/r ${flags}\n`,
+      "fixture.yml",
+    );
+  assert.deepEqual(
+    verify('--cert-identity "$ID" --deny-self-hosted-runners'),
+    [],
+  );
+  for (const flags of ['--cert-identity "$ID"', "--deny-self-hosted-runners"]) {
+    assert.deepEqual(verify(flags), [
+      "fixture.yml: job check must pin gh attestation verify to a workflow identity and hosted runners",
+    ]);
+  }
   assert.deepEqual(
     findWorkflowDependencyFindings(
       `permissions: read-all\nsteps:\n  - uses: actions/checkout@${"b".repeat(40)}\n`,
@@ -458,6 +500,60 @@ test("workflow scans fail on direct run interpolation", async (t) => {
 
 test("empty URL extraction is explicit", () => {
   assert.deepEqual(extractExternalUrls("no links"), []);
+});
+
+test("a rate-limited URL is retried, a dead link is not", async () => {
+  const url = "https://example.com/page";
+  const check = async (statuses, retryAfter = null) => {
+    const slept = [];
+    let calls = 0;
+    const failure = await checkUrl(url, {
+      request: async () => {
+        const status = statuses[Math.min(calls, statuses.length - 1)];
+        calls += 1;
+        return {
+          ok: status === 200,
+          status,
+          headers: new Headers(retryAfter ? { "retry-after": retryAfter } : {}),
+        };
+      },
+      sleep: async (milliseconds) => slept.push(milliseconds),
+    });
+    return { calls, failure, slept };
+  };
+
+  assert.deepEqual(await check([200]), {
+    calls: 1,
+    failure: undefined,
+    slept: [],
+  });
+  assert.deepEqual(await check([429, 503, 200]), {
+    calls: 3,
+    failure: undefined,
+    slept: [5_000, 10_000],
+  });
+  assert.deepEqual((await check([429, 200], "2")).slept, [2_000]);
+  assert.deepEqual((await check([429, 200], "3600")).slept, [30_000]);
+  assert.deepEqual(await check([429]), {
+    calls: URL_ATTEMPTS,
+    failure: `429 ${url}`,
+    slept: [5_000, 10_000],
+  });
+  for (const status of [404, 410, 500]) {
+    assert.deepEqual(await check([status]), {
+      calls: 1,
+      failure: `${status} ${url}`,
+      slept: [],
+    });
+  }
+  assert.equal(
+    await checkUrl(url, {
+      request: async () => {
+        throw new Error("getaddrinfo ENOTFOUND example.com");
+      },
+    }),
+    `ERROR ${url} (getaddrinfo ENOTFOUND example.com)`,
+  );
 });
 
 test("bun audit parsing tolerates the CLI banner", () => {

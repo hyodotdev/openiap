@@ -29,6 +29,7 @@ public partial class SubscriptionFlowPage : ContentPage
     private bool _isCheckingStatus;
     private bool _didFetch;
     private int _tapCount;
+    private IDisposable? _errorSub;
 
     public SubscriptionFlowPage()
     {
@@ -40,6 +41,8 @@ public partial class SubscriptionFlowPage : ContentPage
         base.OnAppearing();
         VerificationButton.Text = IapLifecycle.Label(IapLifecycle.Verification);
         IapLifecycle.Flow.OutcomePublished += OnOutcome;
+        // Android reports a cancelled or failed purchase here, not from RequestPurchaseAsync.
+        _errorSub ??= OpenIapClient.Instance.PurchaseError.ObserveOnCurrentContext().Subscribe(OnPurchaseError);
         await ConnectAndFetchAsync();
     }
 
@@ -47,6 +50,8 @@ public partial class SubscriptionFlowPage : ContentPage
     {
         base.OnDisappearing();
         IapLifecycle.Flow.OutcomePublished -= OnOutcome;
+        _errorSub?.Dispose();
+        _errorSub = null;
     }
 
     private async Task ConnectAndFetchAsync()
@@ -506,7 +511,7 @@ public partial class SubscriptionFlowPage : ContentPage
         }
         catch (Exception ex)
         {
-            UpdateResult(ErrorUtils.FormatPurchaseFailure(ex, "Subscription"));
+            OnPurchaseError(ex);
         }
         finally
         {
@@ -553,6 +558,13 @@ public partial class SubscriptionFlowPage : ContentPage
         Console.WriteLine($"[SubscriptionFlow] {text}");
         TapStatusPanel.IsVisible = true;
         TapStatusLabel.Text = text;
+    }
+
+    private void OnPurchaseError(object error)
+    {
+        var failure = ErrorUtils.FormatPurchaseFailure(error, "Subscription");
+        Console.WriteLine($"[SubscriptionFlow] {failure}");
+        UpdateResult(failure);
     }
 
     private void UpdateResult(string text)

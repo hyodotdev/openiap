@@ -264,7 +264,11 @@ describe('SubscriptionFlow Screen', () => {
       code: RNIap.ErrorCode.UserCancelled,
       message: 'Cancelled',
     });
-    expect(screen.getByText('Subscription cancelled by user')).toBeTruthy();
+    expect(
+      screen.getByText(
+        `Subscription cancelled by user\nCode: ${RNIap.ErrorCode.UserCancelled}\nMessage: Cancelled`,
+      ),
+    ).toBeTruthy();
     expect(screen.getByText(planChange)).toBeTruthy();
 
     mockIapState({availablePurchases: [{...premium, store: 'google'}]});
@@ -303,7 +307,9 @@ describe('SubscriptionFlow Screen', () => {
 
     await waitFor(() => {
       expect(
-        getByText('❌ Subscription failed: Subscription failed'),
+        getByText(
+          `❌ Subscription failed\nCode: ${RNIap.ErrorCode.Unknown}\nMessage: Subscription failed`,
+        ),
       ).toBeTruthy();
     });
   });
@@ -320,7 +326,9 @@ describe('SubscriptionFlow Screen', () => {
 
     expect(screen.queryByText('Processing...')).toBeNull();
     expect(
-      screen.getByText('❌ Subscription failed: Store unavailable'),
+      screen.getByText(
+        `❌ Subscription failed\nCode: ${RNIap.ErrorCode.ServiceError}\nMessage: Store unavailable`,
+      ),
     ).toBeTruthy();
     expect(alertSpy).toHaveBeenCalledWith(
       'Subscription Failed',

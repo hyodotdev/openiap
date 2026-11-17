@@ -62,7 +62,7 @@ function ShowAlternativeBillingOnlyInformationDialogAndroid() {
             <CodeBlock language="csharp">{`Task<BillingResultAndroid> ShowAlternativeBillingOnlyInformationDialogAndroidAsync();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func show_alternative_billing_only_information_dialog_android() -> BillingResultAndroid`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func show_alternative_billing_only_information_dialog_android() -> Types.BillingResultAndroid`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

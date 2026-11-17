@@ -72,6 +72,10 @@ claude plugin install openiap@openiap
 `plugins/openiap` carries two manifests: `.codex-plugin/plugin.json` (MCP
 config in `.codex-plugin/mcp.json`) and `.claude-plugin/plugin.json` (inline
 MCP config). Both agents share `skills/`, so keep its wording agent-neutral.
+`skills/openiap/SKILL.md` opens by routing the task: SDK integration reads
+`llms.txt` and the framework setup guide, IAPKit operations use the MCP tools,
+and backend, paywall or event-receiver work follows the Commerce Protocol role
+guides. Keep those links on published pages.
 Installed plugins stay on their manifest version, and both manifests carry
 `openiap-versions.json`'s `plugin` version (`bun run audit:plugins`). Never bump
 them by hand: after a skills change lands, run the `P1. Release: OpenIAP plugin`

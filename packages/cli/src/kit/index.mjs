@@ -12,7 +12,7 @@ import { requiresConfirmation } from "./effects.mjs";
 import { redactStoreEvidence } from "./output.mjs";
 import {
   SETUP_FRAMEWORKS,
-  renderSetupSnippet,
+  renderSetupGuide,
   simulatePurchaseSteps,
 } from "./guides.mjs";
 import { readLocalFile } from "./files.mjs";
@@ -196,6 +196,8 @@ async function readStdin() {
 }
 
 function openBrowser(url) {
+  // The URL comes from the server; only a web page may reach the OS opener.
+  if (!/^https?:\/\//i.test(url)) return;
   const command =
     process.platform === "darwin"
       ? "open"
@@ -546,8 +548,7 @@ async function runLocal(command, client, origin, args, options) {
         `framework must be ${SETUP_FRAMEWORKS.join(", ")}.`,
       );
     return {
-      framework: args.framework,
-      snippet: renderSetupSnippet(
+      ...renderSetupGuide(
         args.framework,
         "<IAPKIT_PUBLISHABLE_KEY>",
         args.productId ?? "com.example.premium_monthly",

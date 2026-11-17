@@ -4,14 +4,19 @@ import {isVegaOS} from '../vega';
 import {syncIOS} from '../modules/ios';
 import {ErrorCode} from '../types';
 import {createPurchaseError} from './errorMapping';
+import {invokeNativeWithPurchaseError} from './nativeError';
 
 /** Restore through the selected provider before querying ownership. */
 export const restorePurchasesNative = async (): Promise<void> => {
   if (isVegaOS()) return;
+  const platform = Platform.OS === 'ios' ? 'ios' : 'android';
   const usingNativeRestore =
     typeof ExpoIapModule.restorePurchases === 'function';
   const restored = usingNativeRestore
-    ? await ExpoIapModule.restorePurchases?.()
+    ? await invokeNativeWithPurchaseError(
+        async () => await ExpoIapModule.restorePurchases?.(),
+        platform,
+      )
     : Platform.OS === 'ios'
     ? await syncIOS()
     : true;
@@ -22,7 +27,7 @@ export const restorePurchasesNative = async (): Promise<void> => {
       message: usingNativeRestore
         ? 'Store purchase restore did not complete'
         : 'App Store purchase sync did not complete',
-      platform: Platform.OS === 'ios' ? 'ios' : 'android',
+      platform,
     });
   }
 };

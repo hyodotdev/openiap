@@ -70,10 +70,14 @@ export const deepLinkToSubscriptionsAndroid = async (
 
   // Prefer native deep link implementation via OpenIAP module
   if (ExpoIapModule.deepLinkToSubscriptionsAndroid) {
-    return ExpoIapModule.deepLinkToSubscriptionsAndroid({
-      skuAndroid: sku,
-      packageNameAndroid: packageName,
-    });
+    return invokeNativeWithPurchaseError(
+      async () =>
+        ExpoIapModule.deepLinkToSubscriptionsAndroid?.({
+          skuAndroid: sku,
+          packageNameAndroid: packageName,
+        }),
+      'android',
+    );
   }
 
   // Fallback to Linking if native method unavailable
@@ -187,7 +191,10 @@ export const isBillingProgramAvailableAndroid: MutationField<
   'isBillingProgramAvailableAndroid'
 > = async (program) => {
   requireAndroidPlatform('isBillingProgramAvailableAndroid');
-  return ExpoIapModule.isBillingProgramAvailableAndroid(program);
+  return invokeNativeWithPurchaseError(
+    () => ExpoIapModule.isBillingProgramAvailableAndroid(program),
+    'android',
+  );
 };
 
 /**
@@ -205,12 +212,16 @@ export const getBillingChoiceInfoAndroid: QueryField<
   params: GetBillingChoiceInfoParamsAndroid = {},
 ): Promise<BillingChoiceInfoAndroid> => {
   requireAndroidPlatform('getBillingChoiceInfoAndroid');
-  return ExpoIapModule.getBillingChoiceInfoAndroid({
-    billingProgram: params.billingProgram ?? 'billing-choice',
-    playBillingChoiceImageLayout:
-      params.playBillingChoiceImageLayout ?? 'rectangular-four-by-one',
-    userLocale: params.userLocale ?? null,
-  });
+  return invokeNativeWithPurchaseError(
+    () =>
+      ExpoIapModule.getBillingChoiceInfoAndroid({
+        billingProgram: params.billingProgram ?? 'billing-choice',
+        playBillingChoiceImageLayout:
+          params.playBillingChoiceImageLayout ?? 'rectangular-four-by-one',
+        userLocale: params.userLocale ?? null,
+      }),
+    'android',
+  );
 };
 
 /**
@@ -238,7 +249,10 @@ export const launchExternalLinkAndroid: MutationField<
   'launchExternalLinkAndroid'
 > = async (params) => {
   requireAndroidPlatform('launchExternalLinkAndroid');
-  return ExpoIapModule.launchExternalLinkAndroid(params);
+  return invokeNativeWithPurchaseError(
+    () => ExpoIapModule.launchExternalLinkAndroid(params),
+    'android',
+  );
 };
 
 /**
@@ -266,9 +280,13 @@ const createBillingProgramReportingDetailsAndroidField: MutationField<
   args: MutationCreateBillingProgramReportingDetailsAndroidArgs,
 ): Promise<BillingProgramReportingDetailsAndroid> => {
   requireAndroidPlatform('createBillingProgramReportingDetailsAndroid');
-  return ExpoIapModule.createBillingProgramReportingDetailsAndroid(
-    args.program,
-    args.developerBillingType ?? null,
+  return invokeNativeWithPurchaseError(
+    () =>
+      ExpoIapModule.createBillingProgramReportingDetailsAndroid(
+        args.program,
+        args.developerBillingType ?? null,
+      ),
+    'android',
   );
 };
 
@@ -308,10 +326,14 @@ export const showBillingProgramInformationDialogAndroid: MutationField<
   params: BillingProgramInformationDialogParamsAndroid,
 ): Promise<BillingResultAndroid> => {
   requireAndroidPlatform('showBillingProgramInformationDialogAndroid');
-  return ExpoIapModule.showBillingProgramInformationDialogAndroid({
-    billingProgram: params.billingProgram ?? 'billing-choice',
-    externalTransactionToken: params.externalTransactionToken,
-  });
+  return invokeNativeWithPurchaseError(
+    () =>
+      ExpoIapModule.showBillingProgramInformationDialogAndroid({
+        billingProgram: params.billingProgram ?? 'billing-choice',
+        externalTransactionToken: params.externalTransactionToken,
+      }),
+    'android',
+  );
 };
 
 /** Show the mandatory Google Play Alternative Billing Only notice before checkout. */
@@ -319,7 +341,10 @@ export const showAlternativeBillingOnlyInformationDialogAndroid: MutationField<
   'showAlternativeBillingOnlyInformationDialogAndroid'
 > = async () => {
   requireAndroidPlatform('showAlternativeBillingOnlyInformationDialogAndroid');
-  return ExpoIapModule.showAlternativeBillingOnlyInformationDialogAndroid();
+  return invokeNativeWithPurchaseError(
+    () => ExpoIapModule.showAlternativeBillingOnlyInformationDialogAndroid(),
+    'android',
+  );
 };
 
 /**
@@ -337,5 +362,8 @@ export const showInAppMessagesAndroid: MutationField<
   params?: InAppMessageParamsAndroid | null,
 ): Promise<InAppMessageResultAndroid> => {
   requireAndroidPlatform('showInAppMessagesAndroid');
-  return ExpoIapModule.showInAppMessagesAndroid(params ?? null);
+  return invokeNativeWithPurchaseError(
+    () => ExpoIapModule.showInAppMessagesAndroid(params ?? null),
+    'android',
+  );
 };

@@ -58,8 +58,10 @@ coverage/
 
 # Environment
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.*.example
+*.pem
 
 # Signing keys and store configs. The RN example re-includes its public debug.keystore.
 *.jks

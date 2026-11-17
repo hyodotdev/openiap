@@ -58,20 +58,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
 
     public OpenIapIOS()
     {
-        _purchaseUpdatedCallback = dict =>
-        {
-            try
-            {
-                var node = NSObjectJsonBridge.DictToObject(dict);
-                if (node is null) return;
-                var p = node.Deserialize<Purchase>(JsonOptions.Default);
-                if (p is not null) _purchaseUpdated.OnNext(p);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[OpenIapIOS] purchaseUpdated listener failed: {ex.Message}");
-            }
-        };
+        _purchaseUpdatedCallback = PurchaseCallback(_purchaseUpdated.OnNext, "purchaseUpdated");
 
         _purchaseErrorCallback = dict =>
         {
@@ -99,20 +86,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
             }
         };
 
-        _billingIssueCallback = dict =>
-        {
-            try
-            {
-                var node = NSObjectJsonBridge.DictToObject(dict);
-                if (node is null) return;
-                var p = node.Deserialize<Purchase>(JsonOptions.Default);
-                if (p is not null) _subscriptionBillingIssue.OnNext(p);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[OpenIapIOS] billingIssue listener failed: {ex.Message}");
-            }
-        };
+        _billingIssueCallback = PurchaseCallback(_subscriptionBillingIssue.OnNext, "billingIssue");
 
         WireListeners();
     }
@@ -133,20 +107,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         return new DelegateObservable<Purchase>(observer =>
         {
             if (observer is null) throw new ArgumentNullException(nameof(observer));
-            Action<NSDictionary> callback = dict =>
-            {
-                try
-                {
-                    var node = NSObjectJsonBridge.DictToObject(dict);
-                    if (node is null) return;
-                    var p = node.Deserialize<Purchase>(JsonOptions.Default);
-                    if (p is not null) observer.OnNext(p);
-                }
-                catch (Exception ex)
-                {
-                    observer.OnError(ex);
-                }
-            };
+            var callback = PurchaseCallback(observer.OnNext, "purchaseUpdated");
 
             NSObject token;
             lock (_listenerLock)
@@ -173,6 +134,9 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
             });
         });
     }
+
+    private static Action<NSDictionary> PurchaseCallback(Action<Purchase> deliver, string listener) =>
+        dict => PurchaseEvents.Deliver(() => NSObjectJsonBridge.DictToObject(dict), deliver, listener);
 
     private void WireListeners()
     {
@@ -438,8 +402,9 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     public Task<FetchProductsResult> FetchProductsAsync(ProductRequest @params)
     {
         var tcs = new TaskCompletionSource<FetchProductsResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        LogDebug($"[OpenIapIOS] FetchProductsAsync dispatch: skus={@params.Skus.Count}, type={@params.Type?.ToJson() ?? "null"}");
-        _module.FetchProducts(@params.Skus.ToArray(), @params.Type?.ToJson(), (arr, err) =>
+        var type = @params.Type ?? ProductQueryType.InApp;
+        LogDebug($"[OpenIapIOS] FetchProductsAsync dispatch: skus={@params.Skus.Count}, type={type.ToJson()}");
+        _module.FetchProducts(@params.Skus.ToArray(), type.ToJson(), (arr, err) =>
         {
             try
             {
@@ -459,7 +424,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
                 // The Swift bridge tags every encoded dict with `__typename` (the
                 // leaf type name) so polymorphic deserialization picks the right
                 // concrete record at any abstract ancestor in the union chain.
-                FetchProductsResult result = @params.Type switch
+                FetchProductsResult result = type switch
                 {
                     ProductQueryType.Subs => new FetchProductsResultSubscriptions(DeserializeArray<ProductSubscription>(array)),
                     ProductQueryType.InApp => new FetchProductsResultProducts(DeserializeArray<Product>(array)),

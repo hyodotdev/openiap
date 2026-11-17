@@ -527,6 +527,10 @@ const schema = defineSchema({
     // X-Correlation-Id of the latest /v1 verify that wrote this row. Writes
     // without one (rechecks, Commerce verify, webhooks) leave it unchanged.
     correlationId: v.optional(v.string()),
+    // When a store last answered INAUTHENTIC, on a row that has held no other
+    // verdict since its insert. `pruneUnrecognizedPurchases` deletes by it;
+    // rows from before the field never have it.
+    unrecognizedAt: v.optional(v.number()),
   })
     .index("by_project", ["projectId"])
     .index("by_project_and_store", ["projectId", "store"])
@@ -557,6 +561,7 @@ const schema = defineSchema({
       "isValid",
       "nextAmazonReconcileAt",
     ])
+    .index("by_unrecognizedAt", ["unrecognizedAt"])
     .searchIndex("search_request_ip_by_project", {
       searchField: "requestIp",
       filterFields: ["projectId"],

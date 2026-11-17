@@ -289,10 +289,10 @@ void main() {
           types.BillingProgramAndroid.AlternativeBillingOnly,
         ),
         throwsA(
-          isA<PlatformException>().having(
+          isA<PurchaseError>().having(
             (error) => error.code,
             'code',
-            'developer-error',
+            ErrorCode.DeveloperError,
           ),
         ),
       );

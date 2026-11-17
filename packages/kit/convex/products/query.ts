@@ -701,9 +701,9 @@ function assertProductPageArgs(args: {
   }
 }
 
+/** Whole catalog for signed-in project members; API keys use listProductsPage. */
 export const listProducts = query({
   args: {
-    apiKey: v.optional(v.string()),
     projectId: v.optional(v.id("projects")),
     platform: v.optional(platformValidator),
   },
@@ -712,17 +712,9 @@ export const listProducts = query({
     await assertCliScope(ctx, "read");
     const resolved = args.projectId
       ? await resolveProjectByIdForCurrentUserFromDb(ctx, args.projectId)
-      : args.apiKey
-        ? await resolveProjectByApiKeyFromDb(ctx, args.apiKey)
-        : null;
+      : null;
     const project = resolved?.project ?? null;
     if (!project) return [];
-    // The projectId branch is an authenticated dashboard read; the apiKey
-    // branch can be a publishable key shipped inside an app.
-    const keyType = args.projectId
-      ? ("secret" as const)
-      : ((resolved as { keyType?: "publishable" | "secret" }).keyType ??
-        "publishable");
 
     const rows = args.platform
       ? await ctx.db
@@ -738,9 +730,7 @@ export const listProducts = query({
           )
           .collect();
 
-    return rows
-      .filter((row) => isCatalogRowVisibleTo(keyType, row))
-      .map((row) => shape(row));
+    return rows.map((row) => shape(row));
   },
 });
 

@@ -16,6 +16,7 @@ import {
 } from "./internal";
 import {
   drainGoogleServiceAccountFiles as registeredDrainGoogleServiceAccountFiles,
+  generateUploadUrl as registeredGenerateUploadUrl,
   GOOGLE_SERVICE_ACCOUNT_CLEANUP_BATCH_SIZE,
   GOOGLE_SERVICE_ACCOUNT_RECOVERY_PROJECT_BATCH_SIZE,
   insertAppleP8Key as registeredInsertAppleP8Key,
@@ -63,6 +64,7 @@ const resumeGoogleServiceAccountCleanup = testableFunction(
   registeredResumeGoogleServiceAccountCleanup,
 );
 const removeFile = testableFunction(registeredRemove);
+const generateUploadUrl = testableFunction(registeredGenerateUploadUrl);
 const rejectValidation = testableFunction(registeredRejectValidation);
 const validateUpload = testableFunction(
   registeredValidateUpload,
@@ -1042,6 +1044,26 @@ describe("App Review screenshot private storage", () => {
     expect(tables.files?.[0]?._id).toBe("files_old");
     expect(storage.delete).toHaveBeenCalledWith("storage_new");
     expect(tables.fileUploadReservations).toHaveLength(0);
+  });
+
+  it("does not issue an upload URL to a member", async () => {
+    const { ctx, tables } = makeSaveCtx({});
+    const membership = tables.organizationMembers?.[0];
+    if (!membership) throw new Error("membership fixture missing");
+    membership.role = "member";
+    const generate = vi.fn(async () => "https://upload.example.test");
+
+    await expect(
+      generateUploadUrl._handler(
+        { ...ctx, storage: { generateUploadUrl: generate } },
+        {
+          organizationId: "organizations_a" as never,
+          projectId: "projects_a" as never,
+        },
+      ),
+    ).rejects.toThrow("Insufficient permissions");
+    expect(generate).not.toHaveBeenCalled();
+    expect(tables.fileUploadReservations).toHaveLength(1);
   });
 
   it("looks up only the newest screenshot for the exact project", async () => {

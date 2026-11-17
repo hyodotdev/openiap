@@ -147,6 +147,32 @@ create_symlink "libraries/godot-iap/openiap-versions.json" "../../openiap-versio
 create_symlink "libraries/kmp-iap/openiap-versions.json" "../../openiap-versions.json"
 create_symlink "libraries/maui-iap/openiap-versions.json" "../../openiap-versions.json"
 
+# Flutter's Package.swift holds the openiap-apple floor as a literal; the podspec reads the JSON.
+sync_flutter_swiftpm_floor() {
+    python3 - \
+        "libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase/Package.swift" \
+        "libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Package.swift" <<'PY'
+import json
+import re
+import sys
+
+apple = json.load(open("openiap-versions.json", encoding="utf-8"))["apple"]
+dependency = re.compile(
+    r'(\.package\(url: "https://github\.com/hyodotdev/openiap\.git", from: ")[^"]+'
+)
+for path in sys.argv[1:]:
+    text = open(path, encoding="utf-8").read()
+    synced, count = dependency.subn(lambda match: match.group(1) + apple, text)
+    if count != 1:
+        raise SystemExit(f"{path}: expected one OpenIAP SwiftPM dependency")
+    if synced != text:
+        open(path, "w", encoding="utf-8").write(synced)
+PY
+    echo "  ✓ libraries/flutter_inapp_purchase SwiftPM floor -> apple"
+}
+
+sync_flutter_swiftpm_floor
+
 sync_maui_android_versions() {
     local google_build="packages/google/openiap/build.gradle.kts"
     local maui_props="libraries/maui-iap/src/Directory.Build.props"

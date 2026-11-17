@@ -57,11 +57,11 @@ function VerifyPurchase() {
           </a>
           {' · '}
           <a
-            href="https://developers.google.com/android-publisher/api-ref/rest/v3/purchases.subscriptionsv2"
+            href="https://developers.google.com/android-publisher/api-ref/rest/v3/purchases.subscriptions"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Google Play Developer API · purchases.subscriptionsv2
+            Google Play Developer API · purchases.subscriptions
           </a>
           {' · '}
           <a
@@ -207,7 +207,7 @@ function VerifyPurchase() {
                       <td>
                         <code>cancelReason</code>
                       </td>
-                      <td>Reason for cancellation</td>
+                      <td>Play&apos;s cancellation reason code, as text</td>
                     </tr>
                     <tr>
                       <td>
@@ -279,7 +279,7 @@ function VerifyPurchase() {
                       <td>
                         <code>renewalDate</code>
                       </td>
-                      <td>Next renewal timestamp</td>
+                      <td>Subscription expiry timestamp</td>
                     </tr>
                     <tr>
                       <td>

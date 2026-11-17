@@ -271,24 +271,15 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     public func requestPurchaseWithPayload(argsJson: String) -> String {
         GodotIapLog.payload("requestPurchaseWithPayload", payload: argsJson)
 
-        guard let data = argsJson.data(using: .utf8),
-              let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return jsonString([
-                "success": false,
-                "code": ErrorCode.developerError.rawValue,
-                "error": "Invalid request payload"
-            ])
-        }
-
         let purchaseProps: RequestPurchaseProps
-        do {
-            purchaseProps = try GodotIapHelper.decodeRequestPurchaseProps(from: payload)
-        } catch {
-            return jsonString([
-                "success": false,
-                "code": ErrorCode.developerError.rawValue,
-                "error": error.localizedDescription
-            ])
+        switch GodotIapHelper.purchaseDispatch(
+            argsJson: argsJson,
+            connection: withLifecycleLock { connection }
+        ) {
+        case .reply(let reply):
+            return jsonString(reply)
+        case .request(let props):
+            purchaseProps = props
         }
         Task { [weak self] in
             do {

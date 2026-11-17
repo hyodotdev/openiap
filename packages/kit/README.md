@@ -120,8 +120,8 @@ Missing or mismatched values defer verification instead of granting access.
 
 > **Git worktrees:** `.env.local` and `.env.production` are intentionally
 > ignored, so Git does not copy them into a new worktree. Provision them from
-> the maintainer's secure local copy before launching Kit, and never commit
-> either file. The VS Code Kit launcher stops with an explicit message when
+> the maintainer's secure local copy before launching IAPKit, and never commit
+> either file. The VS Code `Kit: Dev` launcher stops with an explicit message when
 > `.env.local` is missing instead of silently configuring an unrelated
 > anonymous deployment.
 
@@ -489,8 +489,8 @@ Every request that passes the auth-header shape check on
 `/v1/purchase/verify` or its `/api/v1/purchase/verify` compatibility
 alias emits one structured JSON log line to stdout with `{ corrId,
 method, path, statusCode, durationMs, apiKeyHash, store, isValid,
-state }`. The hashed API key is the same 16-hex SHA-256 prefix the rate
-limiter uses — the plaintext key is never logged.
+state }`. The hashed API key is the same 16-hex keyed hash the rate
+limiter uses, keyed per server process — the plaintext key is never logged.
 
 Those logged responses also carry an `X-Correlation-Id` header so
 customer support tickets can cross-reference logs. Missing or malformed
@@ -513,6 +513,17 @@ The 64 KB product-management limit is for the **entire HTTP request**
 before JSON parsing; it is not per-product metadata capacity. A
 `clientPayload.body` is separately limited to **16 KiB of UTF-8**, must be
 nonblank, and—when its format is JSON or TOML—must pass syntax validation.
+
+### Unrecognized evidence retention
+
+A purchase row is deleted 30 days after a store last answered that it does not
+know the evidence: a Google token Play cannot find or that belongs to another
+package, a receipt Amazon RVS calls invalid, or Meta `success: false`. The
+dashboard's Total and Invalid counts drop with the row. A row is kept
+indefinitely once it holds any other verdict, an owner, a Google order ID, or a
+subscription, and rows written before the `unrecognizedAt` field existed are
+never pruned. Monthly usage is not lowered; evidence presented again after its
+row is gone counts as a new verification.
 
 ### Subscription lifecycle refresh without a stream
 

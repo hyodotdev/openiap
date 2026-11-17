@@ -14,10 +14,12 @@ import io.github.hyochan.kmpiap.confirmWithIapkit
 import io.github.hyochan.kmpiap.createPurchaseFlow
 import io.github.hyochan.kmpiap.describePurchaseFlowStatus
 import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.openiap.ErrorCode
 import io.github.hyochan.kmpiap.openiap.IapStore
 import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
 import io.github.hyochan.kmpiap.openiap.Purchase
 import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
+import io.github.hyochan.kmpiap.openiap.PurchaseError
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
@@ -133,6 +135,13 @@ internal object ExamplePurchaseFlow {
         )
     )
 }
+
+internal fun PurchaseError.resultText(operation: String): String = listOfNotNull(
+    if (code == ErrorCode.UserCancelled) "⚠️ $operation cancelled by user" else "❌ $operation failed",
+    "Code: ${code.rawValue}",
+    "Message: $message",
+    debugMessage?.let { "Debug: $it" },
+).joinToString("\n")
 
 // Example copy for each guidance key; an app supplies its own.
 internal fun PurchaseFlowOutcome.resultText(): String {

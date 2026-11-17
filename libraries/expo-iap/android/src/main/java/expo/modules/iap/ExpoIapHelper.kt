@@ -49,9 +49,16 @@ object ExpoIapHelper {
     internal fun rejectWithErrorEnvelope(
         promise: Promise,
         error: Exception,
+        fallbackCode: String = OpenIapError.ServiceUnavailable.CODE,
     ) {
-        val openIapError = error as? OpenIapError ?: OpenIapError.ServiceUnavailable(error.message)
-        promise.reject(openIapError.code, serializeErrorEnvelope(serializeOpenIapError(openIapError)), null)
+        val payload =
+            (error as? OpenIapError)?.let(::serializeOpenIapError)
+                ?: mapOf(
+                    "code" to fallbackCode,
+                    "message" to (error.message ?: OpenIapError.defaultMessage(fallbackCode)),
+                    "platform" to "android",
+                )
+        promise.reject(payload["code"] as String, serializeErrorEnvelope(payload), null)
     }
 
     fun emitOrQueue(

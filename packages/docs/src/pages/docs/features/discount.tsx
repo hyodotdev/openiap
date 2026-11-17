@@ -218,7 +218,7 @@ public sealed record DiscountOffer
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`class ProductAndroid:
-    var discount_offers: Array[DiscountOffer] = []
+    var discount_offers: Array[Types.DiscountOffer] = []
     # ...
 
 class DiscountOffer:
@@ -226,17 +226,17 @@ class DiscountOffer:
     var display_price: String = ""                  # "$4.99"
     var price: float = 0.0                          # 4.99
     var currency: String = ""                       # "USD"
-    var type: DiscountOfferType
+    var type: Types.DiscountOfferType
     var offer_token_android: Variant = null
     var offer_tags_android: Array[String] = []
     var full_price_micros_android: Variant = null   # "9990000"
     var percentage_discount_android: Variant = null
     var discount_amount_micros_android: Variant = null
     var formatted_discount_amount_android: Variant = null
-    var valid_time_window_android: ValidTimeWindowAndroid
-    var limited_quantity_info_android: LimitedQuantityInfoAndroid
-    var preorder_details_android: PreorderDetailsAndroid
-    var rental_details_android: RentalDetailsAndroid
+    var valid_time_window_android: Types.ValidTimeWindowAndroid
+    var limited_quantity_info_android: Types.LimitedQuantityInfoAndroid
+    var preorder_details_android: Types.PreorderDetailsAndroid
+    var rental_details_android: Types.RentalDetailsAndroid
     var purchase_option_id_android: Variant = null`}</CodeBlock>
             ),
           }}
@@ -465,9 +465,9 @@ foreach (var product in products)
 }`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`var request = ProductRequest.new()
+              <CodeBlock language="gdscript">{`var request = Types.ProductRequest.new()
 request.skus.assign(["premium_feature", "coins_100"])
-request.type = ProductQueryType.IN_APP
+request.type = Types.ProductQueryType.IN_APP
 var products = await iap.fetch_products(request)
 
 for product in products:
@@ -881,9 +881,9 @@ extends PanelContainer
 @onready var discount_badge = $VBox/PriceContainer/DiscountBadge
 @onready var buy_button = $VBox/BuyButton
 
-var product: ProductAndroid
+var product: Types.ProductAndroid
 
-func setup(p: ProductAndroid) -> void:
+func setup(p: Types.ProductAndroid) -> void:
     product = p
 
     var offers = product.discount_offers
@@ -1089,7 +1089,7 @@ OfferValidity CheckOfferValidity(DiscountOffer offer)
 }`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`func check_offer_validity(offer: DiscountOffer) -> Dictionary:
+              <CodeBlock language="gdscript">{`func check_offer_validity(offer: Types.DiscountOffer) -> Dictionary:
     var time_window = offer.valid_time_window_android
 
     if not time_window:
@@ -1244,7 +1244,7 @@ QuantityAvailability CheckQuantityAvailability(DiscountOffer offer)
 }`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`func check_quantity_availability(offer: DiscountOffer) -> Dictionary:
+              <CodeBlock language="gdscript">{`func check_quantity_availability(offer: Types.DiscountOffer) -> Dictionary:
     var quantity_info = offer.limited_quantity_info_android
 
     if not quantity_info:
@@ -1402,7 +1402,7 @@ async Task PurchaseWithOfferAsync(ProductAndroid product, int offerIndex = 0)
 }`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`func purchase_with_offer(product: ProductAndroid, offer_index: int = 0) -> void:
+              <CodeBlock language="gdscript">{`func purchase_with_offer(product: Types.ProductAndroid, offer_index: int = 0) -> void:
     var offers = product.discount_offers
 
     if not offers or offers.size() == 0:
@@ -1418,10 +1418,10 @@ async Task PurchaseWithOfferAsync(ProductAndroid product, int offerIndex = 0)
         push_error("Selected offer has no Android offer token")
         return
 
-    var props = RequestPurchaseProps.new()
-    props.type = ProductQueryType.IN_APP
-    props.request = RequestPurchasePropsByPlatforms.new()
-    props.request.google = RequestPurchaseAndroidProps.new()
+    var props = Types.RequestPurchaseProps.new()
+    props.type = Types.ProductQueryType.IN_APP
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
     props.request.google.skus.assign([product.id])
     props.request.google.offer_token = selected_offer.offer_token_android
 

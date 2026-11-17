@@ -73,7 +73,7 @@ enum BillingChoiceScreenTypeAndroid {
 enum BillingProgramAndroid {
 	## No billing program. In InitConnectionConfig, it selects the standard client, and programs queued with enableBillingProgramAndroid stay.
 	UNSPECIFIED = 0,
-	## User Choice Billing program. User can select between Google Play Billing or alternative billing. Available in Google Play Billing Library 7.0+
+	## User Choice Billing program. User can select between Google Play Billing or alternative billing. Available in Google Play Billing Library 6.1.0+
 	USER_CHOICE_BILLING = 1,
 	## External Content Links program. Allows linking to external content outside the app. Available in Google Play Billing Library 8.2.0+
 	EXTERNAL_CONTENT_LINK = 2,
@@ -329,9 +329,9 @@ enum ProductTypeIOS {
 	NON_CONSUMABLE = 1,
 	AUTO_RENEWABLE_SUBSCRIPTION = 2,
 	NON_RENEWING_SUBSCRIPTION = 3,
-	## A group of independently purchasable subscriptions sold together (Apple 27+ beta).
+	## A group of independently purchasable subscriptions sold together (Apple 27+).
 	SUBSCRIPTION_BUNDLE = 4,
-	## A group of subscriptions that are available only as one suite (Apple 27+ beta).
+	## A group of subscriptions that are available only as one suite (Apple 27+).
 	SUBSCRIPTION_SUITE = 5,
 }
 
@@ -744,7 +744,7 @@ class AppTransaction:
 	var app_transaction_id: Variant = null
 	## Original App Store platform raw value. Xcode 27 adds the back-deployed managed acquisition-platform value.
 	var original_platform: Variant = null
-	## Store channel of the original app purchase: consumer, education, enterprise, or another future StoreKit value (Apple 27+ beta).
+	## Store channel of the original app purchase: consumer, education, enterprise, or another future StoreKit value (Apple 27+).
 	var store_type: Variant = null
 
 	static func from_dict(data: Dictionary) -> _Types.AppTransaction:
@@ -953,7 +953,7 @@ class BillingResultAndroid:
 				dict["subResponseCode"] = sub_response_code
 		return dict
 
-## Metadata for one auto-renewable subscription included in an Apple subscription bundle (Apple 27+ beta).
+## Metadata for one auto-renewable subscription included in an Apple subscription bundle (Apple 27+).
 class BundledSubscriptionIOS:
 	var id: String = ""
 	var display_name: String = ""
@@ -2166,7 +2166,7 @@ class ProductSubscriptionIOS:
 	var subscription_offers: Array[_Types.SubscriptionOffer] = []
 	## iOS 26.4+ subscription pricing terms, including billing plan metadata for monthly subscriptions with a 12-month commitment.
 	var pricing_terms_ios: Array[_Types.SubscriptionPricingTermsIOS] = []
-	## Subscriptions included in this Apple subscription bundle. Empty or null for every other product type (Apple 27+ beta).
+	## Subscriptions included in this Apple subscription bundle. Empty or null for every other product type (Apple 27+).
 	var bundled_subscriptions_ios: Array[_Types.BundledSubscriptionIOS] = []
 	## App Store subscription group identifier for intro-offer eligibility checks.
 	var subscription_group_id_ios: Variant = null

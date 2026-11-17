@@ -78,8 +78,8 @@ function ShowInAppMessagesAndroid() {
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func show_in_app_messages_android(
-    params: InAppMessageParamsAndroid = null
-) -> InAppMessageResultAndroid`}</CodeBlock>
+    params: Types.InAppMessageParamsAndroid = null
+) -> Types.InAppMessageResultAndroid`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -189,8 +189,8 @@ if (Platform.OS === 'android') {
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
-    var params = InAppMessageParamsAndroid.new()
-    params.categories = [InAppMessageCategoryAndroid.TRANSACTIONAL]
+    var params = Types.InAppMessageParamsAndroid.new()
+    params.categories = [Types.InAppMessageCategoryAndroid.TRANSACTIONAL]
     var result = await iap.show_in_app_messages_android(params)`}</CodeBlock>
           ),
         }}

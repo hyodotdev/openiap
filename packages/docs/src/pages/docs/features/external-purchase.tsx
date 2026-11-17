@@ -905,8 +905,8 @@ async Task HandleExternalPurchaseWithBillingProgramsAsync(string productId)
                     gdscript: (
                       <CodeBlock language="gdscript">{`# Enable the program while constructing the BillingClient.
 func _ready() -> void:
-    var config = InitConnectionConfig.new()
-    config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_OFFER
+    var config = Types.InitConnectionConfig.new()
+    config.enable_billing_program_android = Types.BillingProgramAndroid.EXTERNAL_OFFER
     var connected = await iap.init_connection(config)
     if not connected:
         push_error("Store connection failed")
@@ -916,7 +916,7 @@ func _ready() -> void:
 func handle_external_purchase_with_billing_programs(product_id: String) -> void:
     # Step 1: Check if billing program is available
     var result = await iap.is_billing_program_available_android(
-        BillingProgramAndroid.EXTERNAL_OFFER
+        Types.BillingProgramAndroid.EXTERNAL_OFFER
     )
     if not result.is_available:
         print("External offer program not available")
@@ -924,14 +924,14 @@ func handle_external_purchase_with_billing_programs(product_id: String) -> void:
 
     # Step 2: Create reporting details immediately before redirecting.
     var reporting_details = await iap.create_billing_program_reporting_details_android(
-        BillingProgramAndroid.EXTERNAL_OFFER
+        Types.BillingProgramAndroid.EXTERNAL_OFFER
     )
 
     # Step 3: Let Google Play disclose and launch the external destination.
-    var params = LaunchExternalLinkParamsAndroid.new()
-    params.billing_program = BillingProgramAndroid.EXTERNAL_OFFER
-    params.launch_mode = ExternalLinkLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
-    params.link_type = ExternalLinkTypeAndroid.LINK_TO_DIGITAL_CONTENT_OFFER
+    var params = Types.LaunchExternalLinkParamsAndroid.new()
+    params.billing_program = Types.BillingProgramAndroid.EXTERNAL_OFFER
+    params.launch_mode = Types.ExternalLinkLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
+    params.link_type = Types.ExternalLinkTypeAndroid.LINK_TO_DIGITAL_CONTENT_OFFER
     params.link_uri = "https://your-payment-site.com/checkout"
 
     var launched = await iap.launch_external_link_android(params)
@@ -1346,8 +1346,8 @@ if (availability.IsAvailable)
                     gdscript: (
                       <CodeBlock language="gdscript">{`# Enable External Payments while constructing the BillingClient.
 func _ready() -> void:
-    var config = InitConnectionConfig.new()
-    config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_PAYMENTS
+    var config = Types.InitConnectionConfig.new()
+    config.enable_billing_program_android = Types.BillingProgramAndroid.EXTERNAL_PAYMENTS
     var connected = await iap.init_connection(config)
     if not connected:
         push_error("Store connection failed")
@@ -1355,9 +1355,8 @@ func _ready() -> void:
 
     # Step 1: Set up listener for when user selects developer billing
     iap.developer_provided_billing_android.connect(_on_developer_provided_billing)
-    iap.purchase_updated.connect(_on_purchase_updated)
 
-func _on_developer_provided_billing(details: DeveloperProvidedBillingDetailsAndroid) -> void:
+func _on_developer_provided_billing(details: Dictionary) -> void:
     print("User selected developer billing")
     print("External transaction token received; send it to your backend without logging it.")
 
@@ -1372,7 +1371,7 @@ func _on_developer_provided_billing(details: DeveloperProvidedBillingDetailsAndr
         # Step 3: Report the external transaction token to Google
         # This must be done within 24 hours
         await your_backend.report_external_transaction(
-            details.external_transaction_token,
+            details.get("externalTransactionToken", ""),
             payment_result.order_id,
             current_product_id
         )
@@ -1382,7 +1381,7 @@ func _on_developer_provided_billing(details: DeveloperProvidedBillingDetailsAndr
 func handle_purchase_with_external_payments(product_id: String) -> void:
     # Check if External Payments is available (Japan only)
     var result = await iap.is_billing_program_available_android(
-        BillingProgramAndroid.EXTERNAL_PAYMENTS
+        Types.BillingProgramAndroid.EXTERNAL_PAYMENTS
     )
     if not result.is_available:
         print("External Payments not available (not in Japan)")
@@ -1391,15 +1390,15 @@ func handle_purchase_with_external_payments(product_id: String) -> void:
 
     # Launch purchase with developer billing option
     # User will see side-by-side choice dialog
-    var props = RequestPurchaseProps.new()
-    props.request = RequestPurchasePropsByPlatforms.new()
-    props.request.google = RequestPurchaseAndroidProps.new()
+    var props = Types.RequestPurchaseProps.new()
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
     props.request.google.skus.assign([product_id])
-    props.request.google.developer_billing_option = DeveloperBillingOptionParamsAndroid.new()
-    props.request.google.developer_billing_option.billing_program = BillingProgramAndroid.EXTERNAL_PAYMENTS
+    props.request.google.developer_billing_option = Types.DeveloperBillingOptionParamsAndroid.new()
+    props.request.google.developer_billing_option.billing_program = Types.BillingProgramAndroid.EXTERNAL_PAYMENTS
     props.request.google.developer_billing_option.link_uri = "https://your-payment-site.com/checkout"
-    props.request.google.developer_billing_option.launch_mode = DeveloperBillingLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
-    props.type = ProductQueryType.IN_APP
+    props.request.google.developer_billing_option.launch_mode = Types.DeveloperBillingLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
+    props.type = Types.ProductQueryType.IN_APP
 
     await iap.request_purchase(props)
 
@@ -1621,16 +1620,16 @@ if (!connected) throw new InvalidOperationException("Store connection failed");`
                     gdscript: (
                       <CodeBlock language="gdscript">{`# External Offer (recommended)
 func _ready_external_offer() -> void:
-    var config = InitConnectionConfig.new()
-    config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_OFFER
+    var config = Types.InitConnectionConfig.new()
+    config.enable_billing_program_android = Types.BillingProgramAndroid.EXTERNAL_OFFER
     var success = await iap.init_connection(config)
     if not success:
         push_error("Store connection failed")
 
 # Or User Choice mode
 func _ready_user_choice() -> void:
-    var config = InitConnectionConfig.new()
-    config.enable_billing_program_android = BillingProgramAndroid.USER_CHOICE_BILLING
+    var config = Types.InitConnectionConfig.new()
+    config.enable_billing_program_android = Types.BillingProgramAndroid.USER_CHOICE_BILLING
     var success = await iap.init_connection(config)
     if not success:
         push_error("Store connection failed")`}</CodeBlock>

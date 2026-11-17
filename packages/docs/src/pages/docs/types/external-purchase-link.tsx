@@ -66,8 +66,109 @@ function ExternalPurchaseLink() {
           </p>
         </blockquote>
 
+        <AnchorLink id="external-purchase-link-request" level="h3">
+          ExternalPurchaseLinkRequest
+        </AnchorLink>
+        <p>
+          Request for{' '}
+          <Link to="/docs/apis/open-external-purchase-link">
+            <code>openExternalPurchaseLink</code>
+          </Link>{' '}
+          on iOS and Google Play.
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>url</code>
+              </td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>
+                External purchase URL. On iOS 17.4 to 18.0 it must match the{' '}
+                <code>SKExternalPurchase</code> link in Info.plist.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>apple</code>
+              </td>
+              <td>
+                <code>ExternalPurchaseLinkIosProps?</code>
+              </td>
+              <td>
+                Apple options. Its <code>tokenType</code> is the{' '}
+                <code>ExternalPurchaseCustomLinkTokenTypeIOS</code> for iOS
+                18.1+; it defaults to <code>acquisition</code>, takes{' '}
+                <code>link-out</code> in Japan and Brazil, and is ignored on iOS
+                17.4 to 18.0.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink id="external-purchase-link-result" level="h3">
+          ExternalPurchaseLinkResult
+        </AnchorLink>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>status</code>
+              </td>
+              <td>
+                <code>ExternalPurchaseLinkStatus</code>
+              </td>
+              <td>
+                <code>opened</code> (the user continued and the link opened),{' '}
+                <code>cancelled</code> (the user dismissed the disclosure), or{' '}
+                <code>unavailable</code> (the program is not enabled or the user
+                is not eligible; nothing was shown)
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>reportToken</code>
+              </td>
+              <td>
+                <code>string?</code>
+              </td>
+              <td>
+                Token to report from your server: Play&apos;s{' '}
+                <code>externalTransactionToken</code> or Apple&apos;s external
+                purchase token. Present only when <code>status</code> is{' '}
+                <code>opened</code>.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>platform</code>
+              </td>
+              <td>
+                <code>IapPlatform</code>
+              </td>
+              <td>Platform that produced the token</td>
+            </tr>
+          </tbody>
+        </table>
+
         <AnchorLink id="external-purchase-types" level="h3">
-          Types
+          iOS Result Types
         </AnchorLink>
 
         <h4>ExternalPurchaseNoticeResultIOS</h4>

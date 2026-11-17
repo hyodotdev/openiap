@@ -67,7 +67,8 @@ function GetAppTransactionIOS() {
         </Link>{' '}
         — JWS-verified record of how the app was acquired. Returns{' '}
         <code>null</code> when no app transaction is available. Requires iOS 16+
-        or macOS 14+.
+        or macOS 14+. Godot&apos;s <code>get_app_transaction_ios</code> runs on
+        iOS only and returns <code>null</code> on macOS.
       </p>
 
       <h2>Example</h2>

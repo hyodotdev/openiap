@@ -1,9 +1,10 @@
 #!/bin/bash
 
 # Regenerate and stage every generated file that embeds release version
-# metadata: the openiap-versions.json mirror and its copies and docs
-# version-metadata.json (sync-versions.sh), the workspace versions in bun.lock,
-# and llms.txt / llms-full.txt / context.md (scripts/agent compile:ai). Release
+# metadata: the openiap-versions.json mirror and its copies, Flutter's SwiftPM
+# floor and docs version-metadata.json (sync-versions.sh), the workspace
+# versions in bun.lock, and llms.txt / llms-full.txt / context.md
+# (scripts/agent compile:ai). Release
 # workflows call this inside their version-bump commit step so the bump and
 # its derived files land in the same commit; otherwise CI's clean-worktree audits
 # (Audit SDK Parity, Test Agent Scripts) fail on every later PR.
@@ -31,6 +32,8 @@ git add \
   openiap-versions.json \
   packages/docs/openiap-versions.json \
   packages/apple/Sources/OpenIapGeneratedVersion.swift \
+  libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase/Package.swift \
+  libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Package.swift \
   libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.props \
   packages/conformance/src/spec/generated-spec.mjs \
   packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance/ConformanceBehaviors.kt \

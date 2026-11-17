@@ -204,18 +204,18 @@ npx expo run:android`}
           {`// app.json
 {
   "expo": {
-    "ios": {
-      "deploymentTarget": "16.4"
-    }
+    "plugins": [
+      ["expo-build-properties", { "ios": { "deploymentTarget": "16.4" } }]
+    ]
   }
 }
 
 // or app.config.ts
 export default {
   expo: {
-    ios: {
-      deploymentTarget: '16.4',
-    },
+    plugins: [
+      ['expo-build-properties', { ios: { deploymentTarget: '16.4' } }],
+    ],
   },
 };`}
         </CodeBlock>
@@ -415,7 +415,25 @@ cd ios && pod install`}
         <CodeBlock language="typescript">
           {`import React, { useEffect } from 'react';
 import { Alert, Button, FlatList } from 'react-native';
-import { useIAP, ErrorCode, finishTransaction } from 'expo-iap';
+import {
+  useIAP,
+  ErrorCode,
+  finishTransaction,
+  type Purchase,
+} from 'expo-iap';
+
+async function handlePurchase(purchase: Purchase) {
+  // Your backend or IAPKit verifies the purchase.
+  const { isValid } = await yourBackend.verifyPurchase(purchase);
+  if (!isValid) return;
+
+  await grantEntitlement(purchase.productId);
+  // Android refunds a purchase left unfinished for 3 days.
+  await finishTransaction({
+    purchase,
+    isConsumable: false, // true for consumables
+  });
+}
 
 function Store() {
   const {
@@ -425,15 +443,8 @@ function Store() {
     requestPurchase,
   } = useIAP({
     onPurchaseSuccess: (purchase) => {
-      // 1. Validate receipt with your backend or IAPKit
-      // 2. Grant entitlement
-      // 3. CRITICAL: Finish the transaction
-      //    (Android auto-refunds after 3 days if not called!)
-      void finishTransaction({
-        purchase,
-        isConsumable: false, // true for consumables
-      }).catch((error) => {
-        console.warn('Transaction finalization failed:', error);
+      void handlePurchase(purchase).catch((error) => {
+        console.warn('Purchase handling failed:', error);
       });
     },
     onPurchaseError: (error) => {

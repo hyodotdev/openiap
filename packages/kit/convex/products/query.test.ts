@@ -233,12 +233,23 @@ describe("product client payload queries", () => {
       productClientPayloads: [payload("m1", "IOS", "premium", "secret")],
     });
 
-    const rows = await listProducts._handler({ db }, { apiKey: "key" });
+    const rows = await listProducts._handler({ db }, { projectId: PROJECT_ID });
 
     expect(rows).toHaveLength(1);
     expect(rows[0]).not.toHaveProperty("clientPayload");
     expect(db.queryCounts.get("products")).toBe(1);
     expect(db.queryCounts.get("productClientPayloads")).toBeUndefined();
+  });
+
+  it("keeps the unpaged catalog away from API keys", async () => {
+    const db = new TestDb({ products: [product("p1", "IOS", "premium")] });
+
+    await expect(
+      // @ts-expect-error The argument validator must not accept an API key.
+      listProducts._handler({ db }, { apiKey: "key" }),
+    ).resolves.toEqual([]);
+    expect(projectMocks.byApiKey).not.toHaveBeenCalled();
+    expect(db.queryCounts.get("products")).toBeUndefined();
   });
 
   it("bounds the app-facing default catalog without payload body reads", async () => {

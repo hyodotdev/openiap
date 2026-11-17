@@ -174,9 +174,9 @@ if (!connected) throw new InvalidOperationException("Store connection failed");`
             gdscript: (
               <CodeBlock language="gdscript">{`# Choose one configuration. On Google Play, connecting again with another program switches to it.
 
-var config = InitConnectionConfig.new()
+var config = Types.InitConnectionConfig.new()
 # Also supported: USER_CHOICE_BILLING, EXTERNAL_PAYMENTS, or BILLING_CHOICE.
-config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_OFFER
+config.enable_billing_program_android = Types.BillingProgramAndroid.EXTERNAL_OFFER
 # For developer-rendered Billing Choice, also set billing_choice_screen_type_android.
 
 # Pass no config instead for standard billing.
@@ -191,8 +191,8 @@ if not success:
           User Choice Billing Complete Example
         </AnchorLink>
         <p>
-          With User Choice Billing (7.0+), users see a dialog to choose between
-          Google Play or your alternative payment. Handle both paths:
+          With User Choice Billing (6.1.0+), users see a dialog to choose
+          between Google Play or your alternative payment. Handle both paths:
         </p>
         <LanguageTabs>
           {{
@@ -450,15 +450,15 @@ void DisposeUserChoiceListener() => userChoiceSubscription.Dispose();`}</CodeBlo
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Step 1: Set up listener for when user selects alternative billing
-func _on_user_choice_billing(details: UserChoiceBillingDetails):
+func _on_user_choice_billing(details: Dictionary):
     print("User chose alternative billing")
-    print("Products: %s" % str(details.products))
+    print("Products: %s" % str(details.get("products", [])))
     print("External transaction token received; send it to your backend without logging it.")
 
     # Process payment with your backend using the token
     var payment_result = await your_backend.process_payment(
-        details.products,
-        details.external_transaction_token
+        details.get("products", []),
+        details.get("externalTransactionToken", "")
     )
 
     if payment_result.success:
@@ -467,25 +467,25 @@ func _on_user_choice_billing(details: UserChoiceBillingDetails):
 iap.user_choice_billing_android.connect(_on_user_choice_billing)
 
 # Step 2: Initialize with user choice billing (recommended)
-var config = InitConnectionConfig.new()
-config.enable_billing_program_android = BillingProgramAndroid.USER_CHOICE_BILLING
+var config = Types.InitConnectionConfig.new()
+config.enable_billing_program_android = Types.BillingProgramAndroid.USER_CHOICE_BILLING
 var connected = await iap.init_connection(config)
 if not connected:
     push_error("Store connection failed")
     return
 
 # Step 3: Fetch products and purchase as normal
-var request = ProductRequest.new()
+var request = Types.ProductRequest.new()
 request.skus.assign(["premium_subscription"])
-request.type = ProductQueryType.SUBS
+request.type = Types.ProductQueryType.SUBS
 var products = await iap.fetch_products(request)
 
 # Step 4: Request purchase - dialog will show both options
-var props = RequestPurchaseProps.new()
-props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
-props.request_subscription.google = RequestSubscriptionAndroidProps.new()
+var props = Types.RequestPurchaseProps.new()
+props.request_subscription = Types.RequestSubscriptionPropsByPlatforms.new()
+props.request_subscription.google = Types.RequestSubscriptionAndroidProps.new()
 props.request_subscription.google.skus.assign(["premium_subscription"])
-props.type = ProductQueryType.SUBS
+props.type = Types.ProductQueryType.SUBS
 await iap.request_purchase(props)
 
 # If user selects Google Play → purchase_updated signal fires
@@ -742,8 +742,8 @@ if (paymentResult.Success)
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Step 1: Initialize with external offer (recommended)
-var config = InitConnectionConfig.new()
-config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_OFFER
+var config = Types.InitConnectionConfig.new()
+config.enable_billing_program_android = Types.BillingProgramAndroid.EXTERNAL_OFFER
 var connected = await iap.init_connection(config)
 if not connected:
     push_error("Store connection failed")
@@ -751,28 +751,28 @@ if not connected:
 
 # Step 2: Check whether External Offer is available for this user.
 var availability = await iap.is_billing_program_available_android(
-    BillingProgramAndroid.EXTERNAL_OFFER
+    Types.BillingProgramAndroid.EXTERNAL_OFFER
 )
 if not availability.is_available:
     print("External Offer is not available in this region")
     return
 
 # Step 3: Fetch products (still needed to show prices)
-var request = ProductRequest.new()
+var request = Types.ProductRequest.new()
 request.skus.assign(["premium_subscription"])
-request.type = ProductQueryType.SUBS
+request.type = Types.ProductQueryType.SUBS
 var products = await iap.fetch_products(request)
 
 # Step 4: Create reporting details immediately before redirecting.
 var reporting_details = await iap.create_billing_program_reporting_details_android(
-    BillingProgramAndroid.EXTERNAL_OFFER
+    Types.BillingProgramAndroid.EXTERNAL_OFFER
 )
 
 # Step 5: Play shows the disclosure and launches the checkout URL.
-var params = LaunchExternalLinkParamsAndroid.new()
-params.billing_program = BillingProgramAndroid.EXTERNAL_OFFER
-params.launch_mode = ExternalLinkLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
-params.link_type = ExternalLinkTypeAndroid.LINK_TO_DIGITAL_CONTENT_OFFER
+var params = Types.LaunchExternalLinkParamsAndroid.new()
+params.billing_program = Types.BillingProgramAndroid.EXTERNAL_OFFER
+params.launch_mode = Types.ExternalLinkLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
+params.link_type = Types.ExternalLinkTypeAndroid.LINK_TO_DIGITAL_CONTENT_OFFER
 params.link_uri = "https://your-payment-site.com/checkout"
 var launched = await iap.launch_external_link_android(params)
 if not launched:

@@ -92,7 +92,7 @@ export default function ApiReferencePage() {
       <CodeBlock language="javascript">
         {`{
   "store": "apple",
-  "jws": "eyJhbGciOi...",      // JWS token from StoreKit 2 (≤ 16 KB)
+  "jws": "eyJhbGciOi...",      // JWS token from StoreKit 2 (≤ 16,000 chars)
   "expectedProductId": "premium_monthly" // optional match guard
 }`}
       </CodeBlock>
@@ -101,7 +101,7 @@ export default function ApiReferencePage() {
       <CodeBlock language="javascript">
         {`{
   "store": "google",
-  "purchaseToken": "ljhjpg...", // Play purchase token (≤ 2 KB)
+  "purchaseToken": "ljhjpg...", // Play purchase token (≤ 2,000 chars)
   "expectedProductId": "premium_monthly" // optional match guard
 }`}
       </CodeBlock>
@@ -120,7 +120,7 @@ export default function ApiReferencePage() {
         {`{
   "store": "amazon",
   "userId": "amzn1.account.ABC123",        // Amazon user id   (≤ 512 chars)
-  "receiptId": "amzn1.receipt.ABC123",     // Amazon receipt id (≤ 4 KB)
+  "receiptId": "amzn1.receipt.ABC123",     // Amazon receipt id (≤ 4,096 chars)
   "sandbox": true,                         // requires project opt-in
   "expectedProductId": "premium_monthly"  // optional match guard
 }`}
@@ -603,6 +603,20 @@ export default function ApiReferencePage() {
             </tr>
             <tr>
               <td className="px-3 py-2 font-mono text-xs">
+                GET /v2/subscriptions/user-erasure/&#123;jobId&#125;
+              </td>
+              <td className="px-3 py-2">Secret</td>
+              <td className="px-3 py-2">
+                Returns the job&apos;s <code>status</code> (<code>queued</code>,{" "}
+                <code>running</code>, <code>completed</code>) and the{" "}
+                <code>subscriptionsErased</code> and{" "}
+                <code>commerceEventsErased</code> counts. A completed job stays
+                readable for seven days; after that the read returns{" "}
+                <code>404 NOT_FOUND</code>.
+              </td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 font-mono text-xs">
                 GET /v1/subscriptions/list
               </td>
               <td className="px-3 py-2">Secret</td>
@@ -656,6 +670,38 @@ export default function ApiReferencePage() {
       <CodeBlock title="Secret-key bind-user response" language="json">
         {`{ "ok": true, "bound": false, "reason": "bound_to_other_user" }`}
       </CodeBlock>
+
+      <h2 id="external-checkouts" className="mt-10 text-2xl font-semibold">
+        External checkouts
+      </h2>
+      <p>
+        Your backend can register a Stripe checkout paid outside the stores.
+        IAPKit verifies the payment from Stripe&apos;s signed webhook, grants
+        the entitlement, and reports it to Apple or Google. The routes work only
+        for a project whose deployment has enabled a reporting profile, and take
+        a secret key. The{" "}
+        <a
+          href="https://github.com/hyodotdev/openiap/blob/main/packages/kit/README.md#external-checkouts"
+          className="text-primary underline"
+        >
+          IAPKit README
+        </a>{" "}
+        covers the request bodies, plan changes, and profile setup.
+      </p>
+      <CodeBlock language="text">{`POST /v1/external-purchase-tokens                {profileId, userId, token} → 201 {tokenId}
+POST /v1/external-checkouts                      Idempotency-Key header → 201 {checkoutId}
+POST /v1/external-checkouts/{checkoutId}/verify  → 202 {checkoutId}
+GET  /v1/external-checkouts/{checkoutId}         → {paymentStatus, reportingStatus, entitlement}
+POST /v1/webhooks/stripe/{integrationId}         Stripe's signed events; no API key`}</CodeBlock>
+      <p>
+        <code>entitlement</code> is <code>{"{ active, expiresAt? }"}</code>; use
+        it to gate access while <code>reportingStatus</code> is still{" "}
+        <code>queued</code> or <code>retrying</code>. A repeated{" "}
+        <code>Idempotency-Key</code> or order with a different body returns{" "}
+        <code>409 IDEMPOTENCY_CONFLICT</code>, an unknown profile or checkout{" "}
+        <code>404 NOT_FOUND</code>, and an unavailable service{" "}
+        <code>503 SERVICE_BUSY</code>.
+      </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Response headers</h2>
       <p>
@@ -721,7 +767,8 @@ export default function ApiReferencePage() {
               <td className="px-3 py-2 font-mono text-xs">400</td>
               <td className="px-3 py-2 font-mono text-xs">INVALID_API_KEY</td>
               <td className="px-3 py-2">
-                Well-formed key that fails project lookup (unknown or rotated).
+                Well-formed key that fails project lookup (unknown or rotated),
+                on verification, product, and subscription routes.
               </td>
             </tr>
             <tr>
@@ -749,7 +796,10 @@ export default function ApiReferencePage() {
               <td className="px-3 py-2 font-mono text-xs">403</td>
               <td className="px-3 py-2 font-mono text-xs">INVALID_API_KEY</td>
               <td className="px-3 py-2">
-                Wrong scheme or malformed key (format check only).
+                Wrong scheme or malformed key, on every route. The
+                verification-job, external-checkout, webhook-delivery,
+                purchase-issue, and subscription resync and timeline routes also
+                return it for a well-formed key that fails project lookup.
               </td>
             </tr>
             <tr>
@@ -763,7 +813,8 @@ export default function ApiReferencePage() {
               </td>
               <td className="px-3 py-2">
                 RATE_LIMITED names the rejecting API-key, source-IP, or process
-                bucket in X-RateLimit-Scope. DUPLICATE_PAYLOAD and
+                bucket in X-RateLimit-Scope; the per-project verification budget
+                returns it without that header. DUPLICATE_PAYLOAD and
                 REPEATED_FAILURE are per-(key, payload) replay guards; check
                 Retry-After. A receipt with a final rejection in the last 5
                 minutes gets the same verdict again instead of REPEATED_FAILURE.
@@ -805,8 +856,7 @@ export default function ApiReferencePage() {
   "errors": [
     {
       "code": "META_HORIZON_APP_SECRET_NOT_CONFIGURED",
-      "message": "Meta Horizon App Secret is not set for this project.",
-      "path": "horizon.appSecret"
+      "message": "Meta Horizon App Secret is not set for this project."
     }
   ]
 }`}

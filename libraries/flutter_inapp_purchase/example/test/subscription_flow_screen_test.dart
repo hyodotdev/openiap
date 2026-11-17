@@ -18,6 +18,7 @@ void main() {
   late List<Map<String, dynamic>> ownership;
   late List<Map<String, dynamic>> active;
   PlatformException? recoveryFailure;
+  PlatformException? manageFailure;
   final flows = <AppPurchaseFlow>[];
 
   Widget screen(String operatingSystem) {
@@ -46,6 +47,7 @@ void main() {
     ownership = [];
     active = [];
     recoveryFailure = null;
+    manageFailure = null;
     dotenv.loadFromString(isOptional: true);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (MethodCall call) async {
@@ -86,6 +88,9 @@ void main() {
           return ownership;
         case 'getActiveSubscriptions':
           return active;
+        case 'deepLinkToSubscriptions':
+          if (manageFailure != null) throw manageFailure!;
+          return null;
         case 'verifyPurchaseWithProvider':
           return {
             'provider': 'iapkit',
@@ -153,6 +158,40 @@ void main() {
       }
     });
   }
+
+  testWidgets('opens subscription management and shows its error',
+      (tester) async {
+    await tester.pumpWidget(screen('ios'));
+    await tester.pumpAndSettle();
+    final manage = find.text('Manage Subscriptions');
+    await tester.ensureVisible(manage);
+    await tester.tap(manage);
+    await tester.pumpAndSettle();
+    expect(
+      log.where((call) => call.method == 'deepLinkToSubscriptions'),
+      hasLength(1),
+    );
+
+    manageFailure = PlatformException(
+      code: 'service-error',
+      message: 'Store unavailable',
+      details: 'Response code 2',
+    );
+    await tester.ensureVisible(manage);
+    await tester.tap(manage);
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        '❌ Purchase Error\n'
+        'Code: service-error\n'
+        'Message: Failed to open subscription management [service-error]: '
+        'Store unavailable\n'
+        'Debug: Response code 2',
+      ),
+      findsOneWidget,
+    );
+    await closeScreen(tester);
+  });
 
   testWidgets('an inactive subscription grants no access', (tester) async {
     active = [

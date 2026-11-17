@@ -411,11 +411,11 @@ await iap.requestPurchaseWithBuilder(
     push_error("Store connection failed")
     return
 
-var props = RequestPurchaseProps.new()
-props.request = RequestPurchasePropsByPlatforms.new()
-props.request.apple = RequestPurchaseIosProps.new()
+var props = Types.RequestPurchaseProps.new()
+props.request = Types.RequestPurchasePropsByPlatforms.new()
+props.request.apple = Types.RequestPurchaseIosProps.new()
 props.request.apple.sku = "com.app.premium"
-props.type = ProductQueryType.IN_APP
+props.type = Types.ProductQueryType.IN_APP
 await iap.request_purchase(props)`}</CodeBlock>
           ),
           csharp: (

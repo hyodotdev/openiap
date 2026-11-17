@@ -110,7 +110,10 @@ struct ExternalPurchaseNoticeResultIOS {
       </ul>
       <p>
         When the sheet fails, Godot returns <code>DISMISSED</code> with{' '}
-        <code>error</code> set and emits <code>purchase_error</code>.
+        <code>error</code> set and emits <code>purchase_error</code>. Its{' '}
+        <code>present_external_purchase_notice_sheet_ios</code> runs on iOS
+        only; on macOS it fails this way with <code>feature-not-supported</code>
+        .
       </p>
 
       <h2>Example</h2>

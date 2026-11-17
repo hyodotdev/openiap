@@ -54,7 +54,9 @@ function DeepLinkToSubscriptions() {
         >
           Google docs
         </a>
-        .
+        . On Amazon Appstore, opens the app&apos;s Appstore page (
+        <code>amzn://apps/android?p=&lt;pkg&gt;</code>) and ignores both
+        options.
       </p>
 
       <h2>Signature</h2>
@@ -135,7 +137,12 @@ interface DeepLinkOptions {
         Throws
       </AnchorLink>
       <p>
-        <strong>iOS:</strong> When no <code>UIWindowScene</code> is available.
+        <strong>iOS:</strong> When no <code>UIWindowScene</code> is available.{' '}
+        <strong>Android:</strong> <code>unknown</code> when Google Play or
+        Amazon Appstore cannot open the page, and{' '}
+        <code>feature-not-supported</code> on Meta Horizon, which has no
+        subscription management deep link. Godot returns the failure in its{' '}
+        <code>Types.VoidResult</code> instead of throwing.
       </p>
 
       <h2>Example</h2>
@@ -211,7 +218,7 @@ await OpenIapClient.Mutation.DeepLinkToSubscriptionsAsync(
     });`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`var options = DeepLinkOptions.new()
+            <CodeBlock language="gdscript">{`var options = Types.DeepLinkOptions.new()
 options.sku_android = "com.app.premium"
 options.package_name_android = "com.yourcompany.app"
 var result = await iap.deep_link_to_subscriptions(options)`}</CodeBlock>

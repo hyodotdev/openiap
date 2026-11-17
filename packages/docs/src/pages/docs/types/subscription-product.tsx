@@ -215,8 +215,12 @@ function SubscriptionProduct() {
                         <code>typeIOS</code>
                       </td>
                       <td>
-                        Detailed product type — for subscriptions this is almost
-                        always <code>auto-renewable-subscription</code> (or{' '}
+                        Detailed{' '}
+                        <Link to="/docs/types/product#product-type-ios">
+                          <code>ProductTypeIOS</code>
+                        </Link>{' '}
+                        — for subscriptions this is almost always{' '}
+                        <code>auto-renewable-subscription</code> (or{' '}
                         <code>non-renewing-subscription</code>).
                       </td>
                     </tr>
@@ -234,9 +238,123 @@ function SubscriptionProduct() {
                     </tr>
                     <tr>
                       <td>
+                        <code>bundledSubscriptionsIOS</code>
+                      </td>
+                      <td>
+                        Component subscriptions of an Apple Subscription Bundle
+                        or Suite as{' '}
+                        <a href="#bundled-subscription-ios">
+                          <code>BundledSubscriptionIOS</code>
+                        </a>{' '}
+                        entries. Requires an Xcode 27 build and Apple 27
+                        runtime; otherwise <code>null</code>.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
                         <code>jsonRepresentationIOS</code>
                       </td>
                       <td>Raw StoreKit 2 JWS payload</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <AnchorLink id="bundled-subscription-ios" level="h4">
+                  BundledSubscriptionIOS
+                </AnchorLink>
+                <p>
+                  One auto-renewable subscription inside an Apple Subscription
+                  Bundle or Suite:
+                </p>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Type</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <code>id</code>
+                      </td>
+                      <td>
+                        <code>string</code>
+                      </td>
+                      <td>Product identifier of the component subscription</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>displayName</code>
+                      </td>
+                      <td>
+                        <code>string</code>
+                      </td>
+                      <td>Localized name</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>description</code>
+                      </td>
+                      <td>
+                        <code>string</code>
+                      </td>
+                      <td>Localized description</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>price</code>
+                      </td>
+                      <td>
+                        <code>number</code>
+                      </td>
+                      <td>Price as a number</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>displayPrice</code>
+                      </td>
+                      <td>
+                        <code>string</code>
+                      </td>
+                      <td>Localized price string</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>isFamilyShareable</code>
+                      </td>
+                      <td>
+                        <code>boolean</code>
+                      </td>
+                      <td>Whether the subscription supports Family Sharing</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>subscriptionGroupId</code>
+                      </td>
+                      <td>
+                        <code>string</code>
+                      </td>
+                      <td>Subscription group identifier</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>subscriptionGroupLevel</code>
+                      </td>
+                      <td>
+                        <code>number</code>
+                      </td>
+                      <td>Service level within the subscription group</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>subscriptionGroupDisplayName</code>
+                      </td>
+                      <td>
+                        <code>string</code>
+                      </td>
+                      <td>Localized subscription group name</td>
                     </tr>
                   </tbody>
                 </table>
@@ -267,9 +385,11 @@ function SubscriptionProduct() {
                         <code>productStatusAndroid</code>
                       </td>
                       <td>
-                        Product fetch status wire value (<code>ok</code>,{' '}
-                        <code>not-found</code>, <code>no-offers-available</code>
-                        , <code>unknown</code>) — Billing Library 8.0+
+                        Product fetch status as a{' '}
+                        <Link to="/docs/types/product#product-status-android">
+                          <code>ProductStatusAndroid</code>
+                        </Link>{' '}
+                        wire value — Billing Library 8.0+
                       </td>
                     </tr>
                     <tr>

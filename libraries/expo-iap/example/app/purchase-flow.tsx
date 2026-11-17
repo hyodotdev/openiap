@@ -36,7 +36,10 @@ import {
 } from '../src/utils/constants';
 import PurchaseDetails from '../src/components/PurchaseDetails';
 import PurchaseSummaryRow from '../src/components/PurchaseSummaryRow';
-import {formatErrorForDisplay} from '../src/utils/errorUtils';
+import {
+  formatErrorForDisplay,
+  formatPurchaseErrorDetails,
+} from '../src/utils/errorUtils';
 import {useVegaTvSelection} from '../src/hooks/useVegaTvSelection';
 import {
   alertPurchaseOutcome,
@@ -710,15 +713,16 @@ function PurchaseFlowContainer() {
       // A late error from an older request leaves the current one alone.
       if (!storeError(error.code, request)) return;
       setProcessingProductId(null);
+      const details = formatPurchaseErrorDetails(error);
+      console.log(`[PurchaseFlow] purchase error\n${details}`);
       setPurchaseResult(
-        error.code === ErrorCode.UserCancelled
-          ? 'Purchase cancelled by user'
-          : error.code === ErrorCode.DeferredPayment
-          ? 'Payment is pending at the store.'
-          : `Purchase failed: ${formatErrorForDisplay(
-              error,
-              ErrorCode.PurchaseError,
-            )}`,
+        `${
+          error.code === ErrorCode.UserCancelled
+            ? 'Purchase cancelled by user'
+            : error.code === ErrorCode.DeferredPayment
+            ? 'Payment is pending at the store.'
+            : 'Purchase failed'
+        }\n${details}`,
       );
     },
     [storeError],

@@ -6,9 +6,11 @@ description: Run the full OpenIAP device matrix — six frameworks across iOS, G
 # E2E Matrix Runner
 
 Run every cell of the matrix below on real hardware and report a row for each.
-`.claude/commands/e2e-tests.md` is the authority on what a row means and how to
-verify one; read it before starting and follow it. This file adds only what a
-delegated agent needs: the matrix, the devices, and the rules for reporting.
+`.claude/commands/e2e-tests.md` owns what a row means and how to verify one:
+preflight, build and install commands, and VegaOS device setup. Read it before
+starting and follow it. This file owns how a delegated agent runs the matrix:
+the devices, driving them, builds, local receipt verification, credentials, and
+reporting.
 
 For a parallel run, delegate `$e2e-matrix-runner-google` (Play, Amazon,
 Horizon, VegaOS) and `$e2e-matrix-runner-apple` (iOS) instead; both follow
@@ -23,7 +25,7 @@ Six frameworks: `react-native-iap`, `expo-iap`, `flutter_inapp_purchase`,
 | Store        | Frameworks                         | Device            | Depth                                                                                                             |
 | ------------ | ---------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------- |
 | iOS          | all six + `packages/apple`         | iPhone (physical) | device purchase flow each                                                                                         |
-| Google Play  | all six + `packages/google`        | Pixel             | device purchase flow each                                                                                         |
+| Google Play  | all six + `packages/google`        | Play phone        | device purchase flow each                                                                                         |
 | Amazon       | all six + `packages/google`        | Fire tablet       | device purchase flow each                                                                                         |
 | Meta Horizon | all six + `packages/google`        | Quest 3           | build + install + launch + normal checkout navigation; apply the canonical Horizon payment gate before confirming |
 | VegaOS       | react-native-iap and expo-iap only | Vega device       | build + install + launch; purchase attempt when device input allows                                               |
@@ -45,11 +47,13 @@ cell.
 ## Devices attached to this machine
 
 Discover them rather than trusting this list, with `adb devices -l` and
-`xcrun devicectl list devices`. At the time of writing:
+`xcrun devicectl list devices`. `adb` lists the Vega device too, with no
+product or model; drive that one only through `vega` and `kepler`. At the time
+of writing:
 
 | Role        | Serial / UDID               |
 | ----------- | --------------------------- |
-| Pixel       | `HT79F1A00473`              |
+| Play phone  | `R3CW80G1ZCX` (Samsung)     |
 | Fire tablet | `GN43T503515200BA`          |
 | Quest 3     | `2G0YC5ZG480381`            |
 | Vega device | `G0733M085512021G`          |
@@ -195,33 +199,118 @@ Traps that look like code bugs:
   delete `bin/` and `obj/` for that target framework or the device keeps running
   the old plist.
 
-**VegaOS.** Source `~/vega/env` first. `vega exec vda devices -l` is transport
-visibility only; `kepler device list` is the install source of truth. Screen
-capture and `input` are unavailable, so record app state with
-`kepler device is-app-running` and log streams.
+**VegaOS.** Set up, install, and record app state as `## VegaOS Device Checks`
+in `.claude/commands/e2e-tests.md` shows. Purchase evidence is the log stream
+and App Tester's transaction table.
 
-- Install with the example's `run:vega:firetv` script (`yarn` for React Native,
-  `bun run` for Expo). It also pushes `amazon.sdktester.json` and
-  `amazon.config.json`. A bare `kepler device install-app` skips them: the app
-  falls back to the live store and shows no products, and the log says
-  `IAP config file not present`.
 - Drive the remote with
   `vega exec vda -s "$VEGA_DEVICE_ID" shell inputd-cli button_press KEY_DOWN`
   (also `KEY_UP`, `KEY_LEFT`, `KEY_RIGHT`, `KEY_ENTER`, `KEY_BACK`). Confirm
   each step in the log stream: `[KeplerScript-JavaScript]` lines are the app's
   console, and `purchase.core` lines are the store.
-- Only the foreground app stays alive. Launching the second example kills the
-  first, so run React Native and Expo one at a time.
+- Keep the device awake. Idle, it starts the screensaver and then goes to
+  standby (`display_off` in the log), which looks like the device switching
+  itself off. Send `inputd-cli button_press KEY_LEFTSHIFT` every 45 seconds (a
+  modifier moves no focus), pause it while a checkout is open, and stop it
+  when you finish.
+- Free memory before each purchase. The device has about 1 GB and App Tester
+  takes the foreground at checkout; when memory runs out the example vanishes
+  mid-purchase and `lcm_service` logs `memory-high` or `memory-critical`. In
+  this order:
+  1. Install the Release package, as `## VegaOS Device Checks` says.
+  2. Keep one example installed: `vpm uninstall` the other example and any
+     probe build before installing the next.
+  3. Stop background apps with
+     `vega exec vda -s "$VEGA_DEVICE_ID" shell vlcm terminate-app --pkg-id <id> --force`:
+     `com.netflix.kepler`, `com.amazon.appstorevegatv`,
+     `com.amazon.screensaver`, `com.amazon.smplighthouse.launcher`. The OS
+     may restart them.
+  4. Only if a purchase still fails for memory after steps 1 to 3: uninstall
+     apps the maintainer installed. This is a standing permission. Never remove
+     a system or preinstalled package, or App Tester, and list every removed
+     package in the report so it can be reinstalled.
+- Before each purchase, confirm App Tester holds no unfulfilled transaction.
+  With one, it refuses the next purchase with "a previous purchase has not been
+  fulfilled", and the log says `Unfulfilled Transactions are present` and
+  `Navigating to MESSAGE_SCREEN`. That screen is neither a PIN prompt nor a
+  catalog error: an earlier purchase was never verified, usually for the
+  missing reverse mapping in `## Local receipt verification`. Restore the
+  route, relaunch the example, and open Purchase Flow; its recovery verifies
+  and fulfils the leftover. Do not delete the Vega device's tester rows by hand.
+  Read the table while App Tester is running (use
+  `com.amazon.iap.tester.service` when its UI component is not):
+
+  ```bash
+  vega exec vda -s "$VEGA_DEVICE_ID" shell -c com.amazonappstore.iap.tester.ui \
+    'base64 /data/Transactions.db' 2>/dev/null |
+    grep -E '^[A-Za-z0-9+/=]+$' | base64 -d > tester.db
+  sqlite3 tester.db \
+    "select count(*) from Transactions where FULFILLMENT_RESULT != 'FULFILLED'"
+  ```
+
+- A purchase passes when the local server logs `isValid: true`, the app grants
+  it, and the log shows `notifyFulfillment` `SUCCESSFUL` with the tester row
+  `FULFILLED`. If the device killed the example during checkout, relaunch it:
+  a purchase its recovery then verifies and fulfils still passes, with the
+  kill recorded.
+- If the shell and input stop answering while USB still lists the device, and
+  the last log lines show a `lifecycle-manager.service` watchdog timeout, the
+  device is frozen. Stop sending input, which cannot recover it, and ask the
+  maintainer to restart it. A restart drops the reverse mapping, so run the
+  pre-purchase checks again.
+
+## Builds
+
+- Run device builds one at a time and give each up to 90 minutes. On a loaded
+  machine a cold React Native, Expo, or KMP iOS build runs past 20 minutes
+  without an error; a build that is still compiling is not `BLOCKED`. Reuse the
+  previous build output and DerivedData.
+- In a parallel run, embed the JS bundle so no half needs Metro. Android: pass
+  Gradle an init script outside the repository containing
+  `allprojects { p -> p.plugins.withId('com.facebook.react') { p.extensions.getByName('react').debuggableVariants.set([]) } }`.
+  iOS: build Release; Expo's Debug build with an embedded bundle fails at
+  startup on its devtools WebSocket.
+- `Waiting for Watchman watch-project` repeating, then
+  `createBundleDebugJsAndAssets` exiting 143, or an iOS bundling step that goes
+  silent: Watchman is stuck. Bundle with a Metro config outside the repository
+  that loads the example's config and sets `resolver.useWatchman = false`;
+  leave the shared Watchman alone while another session builds.
+- Gradle `... is located outside the root directory`: the project's
+  `.gradle/<version>/executionHistory` was written under another path to this
+  checkout. Move that directory aside and rebuild.
 
 ## Local receipt verification
 
-Rows verify against a local IAPKit server, not the hosted one. Start it from
-`packages/kit` as `.claude/commands/e2e-tests.md` describes, give each Android
-device `adb -s <serial> reverse --no-rebind tcp:3100 tcp:3100`, and point the
-example at `http://127.0.0.1:3100`; a physical iPhone needs the Mac's LAN
-address instead. **Re-check the reverse mapping immediately before each
-purchase** — it is dropped whenever a device reconnects, and the symptom is a
-verification failure that looks like a code bug.
+Rows verify against a local IAPKit server, not the hosted one. When
+`curl -s http://127.0.0.1:3100/health` already answers, reuse that server only
+when you know it was built from the revision under test (you or the briefing
+session started it from this checkout after the last code change), and ask
+its owner otherwise. When nothing answers, start it from `packages/kit` as
+`.claude/commands/e2e-tests.md` describes. Leave a reused server running; only
+the session that started a server stops it. Give
+each Android device `adb -s <serial> reverse --no-rebind tcp:3100 tcp:3100`
+and the Vega device
+`vega exec vda -s "$VEGA_DEVICE_ID" reverse --no-rebind tcp:3100 tcp:3100`,
+and point the example at `http://127.0.0.1:3100`; a physical iPhone needs the
+Mac's LAN address instead. **Re-check the reverse mapping (`reverse --list`)
+immediately before each purchase** — it is gone after a reconnect or a device
+restart, and the symptom is a verification failure that looks like a code bug:
+the store purchase succeeds, the app reports `Network connection error`, and
+the transaction stays unfinished. On Vega,
+`vega exec vda -s "$VEGA_DEVICE_ID" shell curl -s --max-time 5 http://127.0.0.1:3100/health`
+proves the route from the device side.
+
+Each example bakes its IAPKit base URL and Amazon sandbox flag in at build
+time, from the untracked local config its README names. Check both before
+building; a leftover value fails only after the store purchase went through.
+
+- A LAN address in an Android build, or loopback in an iPhone build, gives the
+  same `Network connection error`. MAUI takes
+  `-p:IapkitBaseUrl=http://127.0.0.1:3100` on the build.
+- Under Amazon App Tester the sandbox flag must be true, or the server answers
+  `INAUTHENTIC` for a real tester receipt: `amazon_rvs_sandbox=true` in Godot's
+  `Example/iapkit.cfg`, `-p:AmazonRvsSandbox=true` for MAUI, and the
+  `AMAZON_RVS_SANDBOX` value in the other examples' env files.
 
 A row passes only when the server logs a matching `verify_request` with
 `isValid: true` and the app finishes the transaction. Record the `corrId`.

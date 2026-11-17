@@ -1788,6 +1788,27 @@ describe('Public API (index.ts)', () => {
       expect(ExpoIapModule.getAvailableItems).not.toHaveBeenCalled();
     });
 
+    it('restorePurchases rethrows a native envelope as a PurchaseError', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      (ExpoIapModule.restorePurchases as jest.Mock) = jest
+        .fn()
+        .mockRejectedValue(
+          Object.assign(
+            new Error(
+              'OPENIAP_ERROR_JSON:{"code":"sync-error","message":"Sync failed","debugMessage":"offline"} (at ExpoIapModule.swift:340)',
+            ),
+            {code: 'sync-error'},
+          ),
+        );
+
+      await expect(restorePurchases()).rejects.toMatchObject({
+        code: 'sync-error',
+        message: 'Sync failed',
+        debugMessage: 'offline',
+        platform: 'ios',
+      });
+    });
+
     it('restorePurchases rejects a false iOS sync result', async () => {
       Object.assign(Platform, {OS: 'ios'});
       (ExpoIapModule.restorePurchases as jest.Mock) = jest
@@ -2047,6 +2068,34 @@ describe('Public API (index.ts)', () => {
       });
 
       delete ExpoIapModule.getStorefront;
+    });
+
+    it('getStorefront decodes the Android envelope without leaking it', async () => {
+      const originalOs = Platform.OS;
+      Object.assign(Platform, {OS: 'android'});
+      const envelope = JSON.stringify({
+        code: 'service-disconnected',
+        message: 'Billing service disconnected',
+        debugMessage: null,
+        platform: 'android',
+      });
+      ExpoIapModule.getStorefront = jest.fn().mockRejectedValue(
+        Object.assign(new Error(`OPENIAP_ERROR_JSON:${envelope}`), {
+          code: 'service-disconnected',
+        }),
+      );
+
+      const error = await getStorefront().catch((thrown: unknown) => thrown);
+
+      expect(error).toMatchObject({
+        code: ErrorCode.ServiceDisconnected,
+        message: 'Billing service disconnected',
+        platform: 'android',
+      });
+      expect((error as {debugMessage?: string}).debugMessage).toBeUndefined();
+
+      delete ExpoIapModule.getStorefront;
+      Object.assign(Platform, {OS: originalOs});
     });
 
     it('getStorefront rejects unsupported platforms', async () => {

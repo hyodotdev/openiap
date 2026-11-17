@@ -77,7 +77,9 @@ function IsTransactionVerifiedIOS() {
       </AnchorLink>
       <p>
         <code>Promise&lt;boolean&gt;</code> — Whether the latest transaction for{' '}
-        <code>sku</code> passed JWS verification.
+        <code>sku</code> passed JWS verification. Godot&apos;s{' '}
+        <code>is_transaction_verified_ios</code> runs on iOS only; on macOS it
+        returns <code>false</code> without checking.
       </p>
 
       <h2>Example</h2>

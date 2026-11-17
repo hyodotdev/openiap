@@ -90,7 +90,9 @@ function BeginRefundRequestIOS() {
         <code>Promise&lt;string | null&gt;</code> — Refund request status
         string, or <code>null</code> for an unknown StoreKit result. The macOS
         browser fallback also returns <code>null</code> because the refund is
-        completed outside the app.
+        completed outside the app. Godot&apos;s{' '}
+        <code>begin_refund_request_ios</code> runs on iOS only; on macOS it
+        returns an empty string and opens nothing.
       </p>
 
       <h2>Example</h2>

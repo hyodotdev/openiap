@@ -109,6 +109,11 @@ function SubscriptionStatusIOS() {
           May be <code>null</code>.
         </li>
       </ul>
+      <p>
+        Godot&apos;s <code>subscription_status_ios</code> runs on iOS only and
+        returns an empty array on macOS; read subscriptions there with{' '}
+        <code>get_active_subscriptions</code>.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

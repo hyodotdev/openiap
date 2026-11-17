@@ -102,8 +102,9 @@ Retry-After: 2
         repeated-evidence limits return <code>429 RATE_LIMITED</code>. Queueing
         absorbs bursts and does not guarantee unlimited throughput. Evidence and
         encrypted credentials are removed from the queue at completion or
-        expiry; verified purchase records follow their existing retention
-        policy.
+        expiry. Purchase records are kept, except that a record no store ever
+        recognized is deleted 30 days after its last <code>INAUTHENTIC</code>{" "}
+        verdict.
       </p>
     </section>
   );

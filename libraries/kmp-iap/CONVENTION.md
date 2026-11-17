@@ -22,11 +22,11 @@ When "IAP" (In-App Purchase) appears in names, it should follow these rules:
 ## API Design Patterns
 
 ### Singleton Pattern
-The main API uses a singleton pattern for simplicity:
+The main API is the shared `kmpIapInstance`:
 ```kotlin
-// Good - Singleton pattern
-KmpIAP.initConnection()
-KmpIAP.fetchProducts(...)
+// Good - shared instance
+kmpIapInstance.initConnection()
+kmpIapInstance.fetchProducts(...)
 
 // Avoid - Instance creation
 val iapHelper = UseIap(scope, options)
@@ -36,27 +36,27 @@ val iapHelper = UseIap(scope, options)
 Use Flow-based listeners with clear naming:
 ```kotlin
 // Good - Clear listener naming
-KmpIAP.purchaseUpdatedListener  // For successful purchases
-KmpIAP.purchaseErrorListener    // For errors
+kmpIapInstance.purchaseUpdatedListener  // For successful purchases
+kmpIapInstance.purchaseErrorListener    // For errors
 
 // Avoid - Ambiguous naming
-KmpIAP.purchaseFlow
-KmpIAP.errorFlow
+kmpIapInstance.purchaseFlow
+kmpIapInstance.errorFlow
 ```
 
 ### Async Operations
 Avoid arbitrary delays; use proper async/await patterns:
 ```kotlin
 // Good - Proper async chaining
-val connectionResult = KmpIAP.initConnection()
+val connectionResult = kmpIapInstance.initConnection()
 if (connectionResult) {
-    val products = KmpIAP.fetchProducts(...)
+    val products = kmpIapInstance.fetchProducts(...)
 }
 
 // Avoid - Arbitrary delays
-KmpIAP.initConnection()
+kmpIapInstance.initConnection()
 delay(500)  // Don't do this
-val products = KmpIAP.fetchProducts(...)
+val products = kmpIapInstance.fetchProducts(...)
 ```
 
 ## Error Handling
@@ -85,15 +85,15 @@ Provide clear, actionable error messages:
 Use typed request objects instead of multiple parameters:
 ```kotlin
 // Good
-KmpIAP.fetchProducts(
+kmpIapInstance.fetchProducts(
     ProductRequest(
         skus = listOf("product_id"),
-        type = ProductType.INAPP
+        type = ProductQueryType.InApp
     )
 )
 
 // Avoid
-KmpIAP.fetchProducts(listOf("product_id"), "inapp")
+kmpIapInstance.fetchProducts(listOf("product_id"), "inapp")
 ```
 
 ### Platform-Specific Code
@@ -123,13 +123,13 @@ suspend fun initConnection(): Boolean
 Include practical examples in documentation:
 ```kotlin
 // Initialize connection
-KmpIAP.initConnection()
+kmpIapInstance.initConnection()
 
 // Load products
-val products = KmpIAP.fetchProducts(
+val products = kmpIapInstance.fetchProducts(
     ProductRequest(
         skus = listOf("product_id"),
-        type = ProductType.INAPP
+        type = ProductQueryType.InApp
     )
 )
 ```
@@ -153,7 +153,7 @@ Mark test-only code clearly:
 ```kotlin
 // TEST ONLY: Auto-consume for testing
 if (BuildConfig.DEBUG) {
-    KmpIAP.finishTransaction(purchase, isConsumable = true)
+    kmpIapInstance.finishTransaction(purchase, isConsumable = true)
 }
 ```
 
@@ -170,7 +170,7 @@ io.github.hyochan.kmpiap/
 ```
 
 ### File Naming
-- Use PascalCase for class files: `KmpIAP.kt`, `IapPlatform.kt`
+- Use PascalCase for class files: `KmpIap.kt`, `Platform.kt`
 - Use lowercase for utility files: `utils.kt`, `extensions.kt`
 
 ## Version Management
