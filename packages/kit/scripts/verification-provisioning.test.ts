@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,11 +6,7 @@ import { describe, expect, it } from "vitest";
 
 const secret = "a".repeat(64);
 const kit = join(import.meta.dirname, "..");
-const canonicalUrl = execFileSync(
-  "bash",
-  ["-c", 'source production.env; printf "%s" "$IAPKIT_PRODUCTION_CONVEX_URL"'],
-  { cwd: kit, encoding: "utf8" },
-);
+const canonicalUrl = "https://production.example";
 
 function provision(overrides: Record<string, string | undefined> = {}) {
   const directory = mkdtempSync(join(tmpdir(), "verification-provision-"));
@@ -44,6 +40,7 @@ fi
           CONVEX_DEPLOY_KEY: "synthetic-deployment-key",
           FLY_API_TOKEN: "synthetic-fly-token",
           IAPKIT_VERIFICATION_SOURCE_SECRET: secret,
+          IAPKIT_PRODUCTION_CONVEX_URL: canonicalUrl,
           VITE_KIT_CONVEX_URL: canonicalUrl,
           ...overrides,
         },

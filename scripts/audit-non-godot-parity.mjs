@@ -4725,17 +4725,24 @@ function checkFrameworkDependencyHygiene() {
     "Kit production deploy must neither skip Convex nor disable its typecheck",
   );
   expectIncludes(
-    "packages/kit/production.env",
-    [
-      "IAPKIT_PRODUCTION_CONVEX_DEPLOYMENT=healthy-kudu-836",
-      "IAPKIT_PRODUCTION_CONVEX_URL=https://api.openiap.dev",
-    ],
-    "Kit production Convex target must have one committed public SSOT",
+    ".github/workflows/deploy-kit.yml",
+    ["IAPKIT_PRODUCTION_CONVEX_URL: ${{ vars.IAPKIT_PRODUCTION_CONVEX_URL }}"],
+    "Kit production deploy must take its Convex target from the kit-production environment",
+  );
+  expectNotIncludes(
+    ".github/workflows/deploy-kit.yml",
+    ["source production.env"],
+    "Kit CI must not depend on the gitignored local production.env",
+  );
+  expectIncludes(
+    "packages/kit/.gitignore",
+    ["production.env"],
+    "Kit production target file must stay local",
   );
   expectIncludes(
     "packages/kit/scripts/verify-production-convex-target.sh",
     ['source "$SCRIPT_DIR/../production.env"', "$IAPKIT_PRODUCTION_CONVEX_URL"],
-    "Kit deploy target guard must use the committed production SSOT",
+    "Kit deploy target guard must check the production target",
   );
   expectIncludes(
     "packages/kit/scripts/deploy-prod.sh",

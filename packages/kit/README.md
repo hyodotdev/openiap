@@ -808,9 +808,17 @@ bun run deploy:prod
 ```
 
 The script asks the Convex CLI for the canonical URL selected by the deploy
-key and checks it against the committed [`production.env`](production.env)
-before any remote setting changes. It then provisions the service credential,
-deploys Convex functions and Fly, and verifies every retained Fly machine.
+key and checks it against `IAPKIT_PRODUCTION_CONVEX_URL` in the gitignored
+`production.env` before any remote setting changes. It then provisions the
+service credential, deploys Convex functions and Fly, and verifies every
+retained Fly machine. Create that file locally from the Convex dashboard's
+production deployment:
+
+```bash
+IAPKIT_PRODUCTION_CONVEX_DEPLOYMENT=<production deployment name>
+IAPKIT_PRODUCTION_CONVEX_URL=<its CONVEX_CLOUD_URL>
+```
+
 A development deploy key cannot publish a production Fly bundle.
 
 The production deployment uses custom domains: `api.openiap.dev` for the
@@ -825,8 +833,8 @@ Change either override only right before a production deploy. Convex Auth
 signs tokens with the new `CONVEX_SITE_URL` at once, but `auth.config.ts`
 accepts the new issuer only after the next `convex deploy`, so sign-in fails
 until that deploy finishes. Keep the old callback in the GitHub OAuth App until
-sign-in works on the new domain. To roll back, clear both overrides and deploy
-a commit whose `production.env` names the default URL.
+sign-in works on the new domain. To roll back, clear both overrides, set the
+production target back to the default URL, and deploy again.
 
 ### Verification source cutover
 
@@ -1099,8 +1107,8 @@ Manual workflow dispatches from non-`main` refs run verification only. Select
 
 The production Convex URL is public Vite configuration, so it is not stored in
 a GitHub secret. The workflow obtains the canonical URL from the Convex CLI and
-requires it to match [`production.env`](production.env) before deploying either
-surface. Optional `VITE_KIT_*` integrations are also inlined into the SPA and
+requires it to match the `IAPKIT_PRODUCTION_CONVEX_URL` variable of the
+`kit-production` environment before deploying either surface. Optional `VITE_KIT_*` integrations are also inlined into the SPA and
 must be treated as public configuration even though Actions stores them as
 secrets for injection convenience.
 

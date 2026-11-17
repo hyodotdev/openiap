@@ -189,6 +189,10 @@ cd "$OPENIAP_REPO/packages/kit"
 : "${CONVEX_URL:?Set the real Martie Convex deployment URL}"
 CONVEX_HOST="$(printf '%s' "${CONVEX_URL#*://}" | cut -d/ -f1 | tr '[:upper:]' '[:lower:]')"
 CONVEX_NAME="${CONVEX_HOST%%.*}"
+[ -f production.env ] || {
+  echo 'BLOCKED: packages/kit/production.env is missing; production cannot be ruled out' >&2
+  exit 1
+}
 source production.env
 PRODUCTION_HOST="${IAPKIT_PRODUCTION_CONVEX_URL#https://}"
 if [ "$CONVEX_NAME" = "$IAPKIT_PRODUCTION_CONVEX_DEPLOYMENT" ] ||
