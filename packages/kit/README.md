@@ -833,7 +833,8 @@ Change either override only right before a production deploy. Convex Auth
 signs tokens with the new `CONVEX_SITE_URL` at once, but `auth.config.ts`
 accepts the new issuer only after the next `convex deploy`, so sign-in fails
 until that deploy finishes. Keep the old callback in the GitHub OAuth App until
-sign-in works on the new domain. To roll back, clear both overrides, set the
+sign-in works on the new domain. To roll back, first make sure the old callback
+is registered in the GitHub OAuth App, then clear both overrides, set the
 production target back to the default URL, and deploy again.
 
 ### Verification source cutover

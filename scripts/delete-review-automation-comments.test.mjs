@@ -259,6 +259,14 @@ for (const [name, body] of [
   ["a non-JSON page", "<html>"],
   ["a page with no review list", JSON.stringify({ data: { repository: null } })],
   [
+    "a page with no paging information",
+    JSON.stringify({ data: { repository: { pullRequest: { reviews: { nodes: [] } } } } }),
+  ],
+  [
+    "a page with no next-page flag",
+    JSON.stringify({ data: { repository: { pullRequest: { reviews: { pageInfo: {}, nodes: [] } } } } }),
+  ],
+  [
     "a next page with no cursor",
     JSON.stringify({
       data: { repository: { pullRequest: { reviews: { pageInfo: { hasNextPage: true }, nodes: [] } } } },

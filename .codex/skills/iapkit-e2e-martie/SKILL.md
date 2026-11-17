@@ -187,7 +187,7 @@ names.
 OPENIAP_REPO="${OPENIAP_REPO:-$(git rev-parse --show-toplevel)}"
 cd "$OPENIAP_REPO/packages/kit"
 : "${CONVEX_URL:?Set the real Martie Convex deployment URL}"
-CONVEX_HOST="$(printf '%s' "${CONVEX_URL#*://}" | cut -d/ -f1 | tr '[:upper:]' '[:lower:]')"
+CONVEX_HOST="$(printf '%s' "${CONVEX_URL#*://}" | cut -d/ -f1 | cut -d: -f1 | tr '[:upper:]' '[:lower:]')"
 CONVEX_NAME="${CONVEX_HOST%%.*}"
 [ -f production.env ] || {
   echo 'BLOCKED: packages/kit/production.env is missing; production cannot be ruled out' >&2

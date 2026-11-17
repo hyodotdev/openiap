@@ -158,6 +158,9 @@ export function listReviews(pr, { fetch = fetchReviewPage } = {}) {
       throw new Error("review page was not JSON");
     }
     if (!Array.isArray(reviews?.nodes)) throw new Error("review list was missing");
+    if (typeof reviews.pageInfo?.hasNextPage !== "boolean") {
+      throw new Error("review page has no paging information");
+    }
     all.push(...reviews.nodes);
     if (!reviews.pageInfo?.hasNextPage) return all;
     after = reviews.pageInfo.endCursor;
