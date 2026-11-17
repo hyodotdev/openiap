@@ -26,6 +26,7 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-11-16",
     weekStart: "2026-11-16",
     date: "2026-11-17",
+    pullRequests: [618],
     tagline:
       "Sponsorship now runs through GitHub Sponsors only, a linked GitHub sponsorship stops sponsorship requests, and the backend moved to openiap.dev domains.",
     items: [
