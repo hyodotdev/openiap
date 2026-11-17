@@ -474,7 +474,7 @@ class BillingLibraryClassPathTest {
     }
 
     // ============================================================================
-    // MARK: - UserChoiceBillingListener (Billing Library 5.0+)
+    // MARK: - UserChoiceBillingListener (Billing Library 6.1.0+)
     // Used in: OpenIapModule alternative billing mode USER_CHOICE
     // ============================================================================
 
@@ -482,7 +482,7 @@ class BillingLibraryClassPathTest {
     fun `UserChoiceBillingListener class exists`() {
         assertClassExists(
             "com.android.billingclient.api.UserChoiceBillingListener",
-            "5.0+"
+            "6.1.0+"
         )
     }
 
@@ -720,7 +720,7 @@ class BillingLibraryClassPathTest {
         } catch (e: ClassNotFoundException) {
             fail("Class not found: ${e.message}")
         } catch (e: NoSuchMethodException) {
-            fail("enableUserChoiceBilling method not found. Requires Billing Library 5.0+")
+            fail("enableUserChoiceBilling method not found. Requires Billing Library 6.1.0+")
         }
     }
 

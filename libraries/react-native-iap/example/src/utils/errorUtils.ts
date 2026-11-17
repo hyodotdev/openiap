@@ -1,3 +1,12 @@
+import type {PurchaseError} from 'react-native-iap';
+
+export function formatPurchaseErrorDetails(error: PurchaseError): string {
+  const details = `Code: ${error.code}\nMessage: ${error.message}`;
+  return error.debugMessage
+    ? `${details}\nDebug: ${error.debugMessage}`
+    : details;
+}
+
 /**
  * Extract error message from various error formats
  * Handles Error objects, objects with errors array, and other formats

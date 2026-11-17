@@ -61,6 +61,15 @@ struct GodotIapConnectionGenerations {
     func isActive(_ generation: UInt64) -> Bool {
         generation == self.generation && isConnected
     }
+
+    /// Refuses a purchase made while not connected: no listener would signal its result.
+    var purchaseRefusal: [String: Any]? {
+        isConnected ? nil : [
+            "success": false,
+            "code": ErrorCode.notPrepared.rawValue,
+            "error": "IAP connection is not initialized",
+        ]
+    }
 }
 
 enum GodotIapHelper {
@@ -310,6 +319,38 @@ enum GodotIapHelper {
         }
 
         throw PurchaseError.emptySkuList()
+    }
+
+    enum PurchaseDispatch {
+        case request(RequestPurchaseProps)
+        case reply([String: Any])
+    }
+
+    /// The purchase to dispatch, or the reply that rejects it; a dead connection is checked first.
+    static func purchaseDispatch(
+        argsJson: String,
+        connection: GodotIapConnectionGenerations
+    ) -> PurchaseDispatch {
+        if let refusal = connection.purchaseRefusal {
+            return .reply(refusal)
+        }
+        guard let data = argsJson.data(using: .utf8),
+              let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return .reply([
+                "success": false,
+                "code": ErrorCode.developerError.rawValue,
+                "error": "Invalid request payload"
+            ])
+        }
+        do {
+            return .request(try decodeRequestPurchaseProps(from: payload))
+        } catch {
+            return .reply([
+                "success": false,
+                "code": ErrorCode.developerError.rawValue,
+                "error": error.localizedDescription
+            ])
+        }
     }
 
     /// Decode RequestPurchaseProps from JSON dictionary.

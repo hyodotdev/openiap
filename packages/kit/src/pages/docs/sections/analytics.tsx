@@ -292,7 +292,9 @@ export default function AnalyticsPage() {
       <h2 className="mt-10 text-2xl font-semibold">API and MCP</h2>
       <p>
         <code>GET /v1/subscriptions/revenue?fromDay=&amp;toDay=</code> with a
-        secret key returns the daily rows. Optional{" "}
+        secret key returns the daily rows. Both days are UTC{" "}
+        <code>YYYY-MM-DD</code> and the range covers at most 92 days, both ends
+        included; a longer one returns <code>400 INVALID_INPUT</code>. Optional{" "}
         <code>environment=sandbox</code> and <code>cohorts=true</code> add the
         sandbox series and the cohort rows. Each response echoes its{" "}
         <code>environment</code>, <code>definitionsFromDay</code>, and{" "}

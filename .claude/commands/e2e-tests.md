@@ -111,7 +111,9 @@ Notes:
   earlier, timed-out attempt can still be open with its Confirm button, even
   after the app restarts, so tap its `Close` button (or BACK) without
   confirming. After a timed-out checkout, force-stop and relaunch the app
-  before trying again.
+  before trying again. A checkout that timed out after Confirm may still have
+  completed: relaunch, let the example's recovery verify and consume the
+  pending purchase, and never tap Confirm a second time for that example.
 - Onside is Expo-only and build-only; do not require Onside purchase approval.
 - Every framework must appear in the final report for FireOS and Horizon. Do
   not count the Play build as FireOS or Horizon coverage; each row's store line
@@ -137,9 +139,8 @@ Notes:
 - For VegaOS, `vega exec vda devices -l` is transport visibility only. Treat
   `kepler device list` or `vega device list` as the install/launch source of
   truth because plain VDA can also list Android and FireOS devices.
-- For VegaOS, do not assume Android `screencap`, `input`, or `scrcpy` works.
-  Prefer `kepler device launch-app`, `is-app-running`, `running-apps`, and logs;
-  require user/capture-device visual confirmation for screen-only purchase UI.
+- For VegaOS, drive the remote and take purchase evidence as the VegaOS notes
+  in `.codex/skills/e2e-matrix-runner/SKILL.md` describe.
 - For Expo Vega, verify normal Expo iOS/Android manifests do not require
   Vega-only dependencies unless `amazon.vegaOS=true` or a generated Vega temp
   target requires them.
@@ -245,8 +246,9 @@ prerequisite. A server health check, build, mocked receipt, or HTTP 400 route
 probe does not count as a live receipt PASS. A purchase row written to a
 different Convex deployment is also a failure.
 
-Always after the row, including `PASS`, `FAIL`, or `BLOCKED`, stop the local
-server and log streams. Remove the reverse rule only when this run created it:
+Always after the row, including `PASS`, `FAIL`, or `BLOCKED`, stop the log
+streams, and the local server when this run started it. Remove the reverse rule
+only when this run created it:
 
 ```bash
 if [ "${IAPKIT_REVERSE_CREATED:-0}" = "1" ]; then
@@ -358,15 +360,9 @@ vega exec vda devices -l
 kepler device list || vega device list
 ```
 
-VegaOS screen and input caveat:
-
-```bash
-# These may fail on VegaOS. Failure does not block build/install/run checks.
-vega exec vda -s "$VEGA_DEVICE_ID" shell screencap -p > /tmp/vega.png || true
-scrcpy -s "$VEGA_DEVICE_ID" --no-audio --time-limit=5 || true
-```
-
-If screen capture is unavailable, record app state with:
+Screen capture does not work on VegaOS: `screenshooter` fails with
+`creating a buffer file ... Permission denied`, and `screencap` and `scrcpy`
+are Android tools. Record app state with:
 
 ```bash
 kepler device running-apps -d "$VEGA_DEVICE_ID"
@@ -376,9 +372,26 @@ kepler device start-log-stream -d "$VEGA_DEVICE_ID"
 ```
 
 Install through the example's `run:vega:firetv` script, as the framework rows
-below do. It pushes the App Tester catalog and the sandbox config with the
-package. A bare `kepler device install-app` leaves the app on the live store
-with no products (log: `IAP config file not present`).
+below do, with `Release` for a purchase: the device kills the Debug package for
+memory during checkout. The script pushes the App Tester catalog and the
+sandbox config with the package. A bare `kepler device install-app` leaves the
+app on the live store with no products (log: `IAP config file not present`).
+
+The script copies those two files through `vega device copy-to`, which can
+stall; it then stops with `spawnSync vega ETIMEDOUT` after 60 seconds. Push
+them directly from the example root and install the package by hand as shown
+below. Any package installed by hand needs the same two pushes (React Native's
+app id is `dev.hyo.openiap.rniap.example.main`):
+
+```bash
+vega exec vda -s "$VEGA_DEVICE_ID" shell mkdir -p \
+  /tmp/scratch/com.amazonappstore.iap.tester \
+  /tmp/scratch/dev.hyo.openiap.expo.example.main
+vega exec vda -s "$VEGA_DEVICE_ID" push amazon.sdktester.json \
+  /tmp/scratch/com.amazonappstore.iap.tester/amazon.sdktester.json
+vega exec vda -s "$VEGA_DEVICE_ID" push amazon.config.json \
+  /tmp/scratch/dev.hyo.openiap.expo.example.main/amazon.config.json
+```
 
 If Vega install hangs or fails, keep build and install results separate:
 
@@ -522,6 +535,12 @@ Normal iOS physical-device build and launch smoke:
 cd libraries/expo-iap/example
 : "${IOS_UDID:?Set IOS_UDID to the target iOS device UDID}"
 : "${TEAM_ID:?Set TEAM_ID to the Apple development team ID}"
+# A Podfile generated before the local OpenIAP wiring builds the published
+# package and fails on newer symbols (`has no member ...`). Regenerate it.
+grep -Fq "ENV['OPENIAP_APPLE_PATH']" ios/Podfile || {
+  bunx expo prebuild --platform ios --clean
+  bunx pod-install ios
+}
 xcodebuild \
   -workspace ios/expoiapexample.xcworkspace \
   -configuration Debug \
@@ -617,7 +636,7 @@ bun run build:vega:debug
 bun run build:vega:release
 # Build-only regression can stop here.
 : "${VEGA_DEVICE_ID:?Set VEGA_DEVICE_ID to the target Vega device ID}"
-VEGA_DEVICE_ID="$VEGA_DEVICE_ID" bun run run:vega:firetv
+VEGA_DEVICE_ID="$VEGA_DEVICE_ID" bun run run:vega:firetv Release
 kepler device is-app-running \
   -d "$VEGA_DEVICE_ID" \
   -a dev.hyo.openiap.expo.example.main
@@ -633,6 +652,10 @@ yarn specs
 yarn lint:tsc
 yarn test:library --runInBand
 ```
+
+`yarn specs` regenerates the ignored Nitro bindings, so run it before every
+device row. Stale bindings fail the Android build in `compileDebugKotlin` with
+`overrides nothing`, and the iOS build with `cannot find type 'Nitro...'`.
 
 Normal Android build and launch smoke:
 
@@ -712,7 +735,7 @@ yarn build:vega:debug
 yarn build:vega:release
 # Build-only regression can stop here.
 : "${VEGA_DEVICE_ID:?Set VEGA_DEVICE_ID to the target Vega device ID}"
-VEGA_DEVICE_ID="$VEGA_DEVICE_ID" yarn run:vega:firetv
+VEGA_DEVICE_ID="$VEGA_DEVICE_ID" yarn run:vega:firetv Release
 kepler device is-app-running \
   -d "$VEGA_DEVICE_ID" \
   -a dev.hyo.openiap.rniap.example.main
@@ -777,6 +800,9 @@ iOS physical-device build and launch smoke:
 
 ```bash
 cd libraries/flutter_inapp_purchase/example
+# The ignored Package.resolved keeps an older OpenIAP than the plugin now
+# requires; the build then fails with `has no member ...`. Resolve again.
+find ios -path '*xcshareddata/swiftpm/Package.resolved' -delete
 flutter build ios --debug --no-codesign
 # Build-only regression can stop here.
 : "${IOS_UDID:?Set IOS_UDID to the target iOS device UDID}"
@@ -897,7 +923,10 @@ without hardware.
 iOS physical-device build and launch smoke. Install the .NET iOS workload
 matching the selected Xcode version; do not disable Xcode version validation.
 Use the [official workload releases](https://github.com/dotnet/macios/releases)
-to select a compatible pair.
+to select a compatible pair. Compare `dotnet workload list` with
+`xcodebuild -version` before building: a mismatch stops the build with
+`requires Xcode <version>`. Do not install or upgrade either during a run;
+report the row `BLOCKED` with the required and installed versions.
 
 ```bash
 cd libraries/maui-iap/example/OpenIap.Maui.Example
@@ -944,14 +973,15 @@ A headless Godot export runs `adb kill-server` on exit (editor setting
 `export/android/shutdown_adb_on_exit`, on by default). That drops every
 `adb reverse` rule and scrcpy session on every device, so re-create the
 `tcp:3100` rule before verifying, and run the Godot rows before the other
-Android rows.
+Android rows. The setting belongs to the editor, not to the Android preset: in
+a parallel run, set it to `false` before the iOS export too.
 
 iOS build and launch smoke:
 
 ```bash
 cd libraries/godot-iap
-# export-ios already runs setup and builds the iOS plugin. Do not invoke
-# `make ios` first; the export target owns that prerequisite.
+# export-ios runs setup and a clean build of the iOS plugin first; do not
+# invoke `make ios` before it.
 make export-ios
 : "${IOS_UDID:?Set IOS_UDID to the target iOS device UDID}"
 : "${TEAM_ID:?Set TEAM_ID to the Apple development team ID}"
@@ -977,7 +1007,11 @@ Run these on each connected platform requested:
 - FireOS tablet / Amazon Appstore tester: install the Amazon/FireOS build, copy
   tester catalog/config if needed, launch, fetch products, buy a consumable,
   approve tester purchase if authorized, verify no crash on success, cancel, or
-  timeout/error paths.
+  timeout/error paths. The examples share one application id, so App Tester
+  still holds the previous framework's subscription: the next subscription
+  purchase becomes a plan change and fails with `feature-not-supported`. On the
+  Fire tablet, reset App Tester's purchase data, not its catalog, before each
+  framework.
 - iPhone / StoreKit sandbox: drive the physical device directly as required by
   [AGENTS.md](../../AGENTS.md#physical-iphone-testing); never use iPhone Mirroring.
   Follow `.codex/skills/iapkit-e2e-martie/SKILL.md` to distinguish a
@@ -1019,9 +1053,15 @@ and [Test Users](https://developers.meta.com/vr/resources/test-users/) procedure
    not switch the headset account. Preserve the owner's account and apps; do
    not factory-reset the device to add a test account.
 4. Before Confirm, verify the active Test User and selected test payment method.
-   A displayed price or missing sandbox badge alone does not establish whether
-   a checkout charges money. If the test setup is unverified, cancel unless the
-   user explicitly authorized that real purchase.
+   The checkout dialog shows an ordinary card (brand and last four digits) with
+   no test or no-charge label, so the headset cannot prove the preset; an
+   active Test User is not enough either. The payment method is verified only
+   when the developer dashboard shows the **Always pass** card saved as that
+   Test User's default. Otherwise cancel, and report the row `BLOCKED` with the
+   item, total, and payment line from the dump, so the user can authorize that
+   exact dialog: one Confirm per example, no retry, and cancel if any of the
+   three differs. Report a purchase confirmed that way with its charge status
+   unverified.
 5. Record purchase, local verification, and consume results separately. Keep
    payment details and credentials out of evidence; report missing login or
    payment setup as a concrete prerequisite.

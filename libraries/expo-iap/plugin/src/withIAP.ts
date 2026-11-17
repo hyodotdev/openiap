@@ -906,7 +906,6 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
   const envFlagsUsed: string[] = [];
   const {isFireOsEnabled, vegaOverride, isHorizonEnabled} =
     resolveAmazonPlatformFlags(options, envFlagsUsed);
-  // Outside the try, whose catch would turn this error into a warning.
   const legacyPin = resolvePinnedAndroidStore({
     isFireOsEnabled,
     isHorizonEnabled,
@@ -916,137 +915,128 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
     legacyPin,
   );
 
-  try {
-    // Add iapkitApiKey to extra if provided
-    if (options?.iapkitApiKey) {
-      config.extra = {
-        ...config.extra,
-        iapkitApiKey: options.iapkitApiKey,
-      };
-      logOnce('🔑 [expo-iap] Added iapkitApiKey to config.extra');
-    }
-
-    const horizonAppId = resolveHorizonAppId(options);
-    const amazonAppstoreKey = resolveAmazonAppstoreKey(options);
-    if (pinnedStore === 'horizon') {
-      WarningAggregator.addWarningAndroid('expo-iap', DEPRECATED_HORIZON_PIN);
-    }
-    const iosAlternativeBilling = resolveAlternativeBillingIOS(options);
-
-    const {includeExpoIap, includeOnside} = resolveModuleSelection(
-      config as ExpoConfig,
-      options,
-      envFlagsUsed,
-    );
-    logOnce(
-      `🔍 [expo-iap] Config values: horizonAppId=${horizonAppId}, pinnedStore=${
-        pinnedStore ?? 'auto'
-      }, amazonAppstoreKey=${amazonAppstoreKey ?? 'none'}, vega=${
-        vegaOverride ?? 'auto'
-      }, onside=${includeOnside}`,
-    );
-    for (const name of envFlagsUsed) {
-      const flag = DEPRECATED_ENV_FLAGS[name];
-      if (!flag) continue;
-      const warn = flag.ios
-        ? WarningAggregator.addWarningIOS
-        : WarningAggregator.addWarningAndroid;
-      warn(
-        'expo-iap',
-        `${name}=1 is deprecated and will be ${REMOVED_IN}; ${flag.replacement} instead. ` +
-          'An app.config.js can read the EAS profile env to set a plugin option per build.',
-      );
-    }
-
-    const autolinkState: AutolinkState = {
-      expoIap: includeExpoIap,
-      onside: includeOnside,
+  // Add iapkitApiKey to extra if provided
+  if (options?.iapkitApiKey) {
+    config.extra = {
+      ...config.extra,
+      iapkitApiKey: options.iapkitApiKey,
     };
-
-    if (includeOnside) {
-      config.ios = {
-        ...config.ios,
-        onside: {
-          ...(config.ios?.onside ?? {}),
-          enabled: true,
-        },
-      } as typeof config.ios;
-    } else if (config.ios?.onside?.enabled) {
-      config.ios.onside.enabled = false;
-    }
-
-    // Respect explicit flag; fall back to presence of localPath only when flag is unset
-    const isLocalDev = options?.enableLocalDev ?? !!options?.localPath;
-    let result = withIapAndroid(config, {
-      horizonAppId,
-      pinnedStore,
-      provider,
-      amazonAppstoreKey,
-    });
-
-    // One path per prebuild: the local checkout, or the published packages.
-    const localPath = isLocalDev ? options?.localPath : undefined;
-    if (isLocalDev && !localPath) {
-      WarningAggregator.addWarningIOS(
-        'expo-iap',
-        'enableLocalDev is true but no localPath provided. Using the published OpenIAP instead.',
-      );
-    }
-    if (localPath) {
-      const resolved =
-        typeof localPath === 'string'
-          ? path.resolve(localPath)
-          : {
-              ios: localPath.ios ? path.resolve(localPath.ios) : undefined,
-              android: localPath.android
-                ? path.resolve(localPath.android)
-                : undefined,
-            };
-
-      const preview =
-        typeof resolved === 'string'
-          ? resolved
-          : `ios=${resolved.ios ?? 'auto'}, android=${
-              resolved.android ?? 'auto'
-            }`;
-      logOnce(`🔧 [expo-iap] Enabling local OpenIAP: ${preview}`);
-      if (includeOnside) {
-        result = withOnsideInfoPlist(result);
-      }
-      result = withLocalOpenIAP(result, {
-        localPath: resolved,
-        iosAlternativeBilling,
-        enableOnside: includeOnside,
-      });
-    } else {
-      // Published OpenIAP: the Swift package on iOS, Maven on Android
-      result = withIapIOS(result, {
-        enableOnside: includeOnside,
-        iosAlternativeBilling,
-      });
-      result = withoutLocalOpenIAPAndroid(result);
-      if (includeExpoIap) {
-        logOnce('📦 [expo-iap] Using the published OpenIAP packages');
-      }
-    }
-
-    syncAutolinking(autolinkState);
-
-    // withVega auto-detects a Vega project unless the config overrides it.
-    result = withVega(result, {
-      ...resolveVegaProjectOptions(options),
-      enabled: vegaOverride,
-    });
-
-    return result;
-  } catch (error) {
-    WarningAggregator.addWarningAndroid(
-      'expo-iap',
-      `expo-iap plugin encountered an error: ${error}`,
-    );
-    console.error('expo-iap plugin error:', error);
-    return config;
+    logOnce('🔑 [expo-iap] Added iapkitApiKey to config.extra');
   }
+
+  const horizonAppId = resolveHorizonAppId(options);
+  const amazonAppstoreKey = resolveAmazonAppstoreKey(options);
+  if (pinnedStore === 'horizon') {
+    WarningAggregator.addWarningAndroid('expo-iap', DEPRECATED_HORIZON_PIN);
+  }
+  const iosAlternativeBilling = resolveAlternativeBillingIOS(options);
+
+  const {includeExpoIap, includeOnside} = resolveModuleSelection(
+    config as ExpoConfig,
+    options,
+    envFlagsUsed,
+  );
+  logOnce(
+    `🔍 [expo-iap] Config values: horizonAppId=${horizonAppId}, pinnedStore=${
+      pinnedStore ?? 'auto'
+    }, amazonAppstoreKey=${amazonAppstoreKey ?? 'none'}, vega=${
+      vegaOverride ?? 'auto'
+    }, onside=${includeOnside}`,
+  );
+  for (const name of envFlagsUsed) {
+    const flag = DEPRECATED_ENV_FLAGS[name];
+    if (!flag) continue;
+    const warn = flag.ios
+      ? WarningAggregator.addWarningIOS
+      : WarningAggregator.addWarningAndroid;
+    warn(
+      'expo-iap',
+      `${name}=1 is deprecated and will be ${REMOVED_IN}; ${flag.replacement} instead. ` +
+        'An app.config.js can read the EAS profile env to set a plugin option per build.',
+    );
+  }
+
+  const autolinkState: AutolinkState = {
+    expoIap: includeExpoIap,
+    onside: includeOnside,
+  };
+
+  if (includeOnside) {
+    config.ios = {
+      ...config.ios,
+      onside: {
+        ...(config.ios?.onside ?? {}),
+        enabled: true,
+      },
+    } as typeof config.ios;
+  } else if (config.ios?.onside?.enabled) {
+    config.ios.onside.enabled = false;
+  }
+
+  // Respect explicit flag; fall back to presence of localPath only when flag is unset
+  const isLocalDev = options?.enableLocalDev ?? !!options?.localPath;
+  let result = withIapAndroid(config, {
+    horizonAppId,
+    pinnedStore,
+    provider,
+    amazonAppstoreKey,
+  });
+
+  // One path per prebuild: the local checkout, or the published packages.
+  const localPath = isLocalDev ? options?.localPath : undefined;
+  if (isLocalDev && !localPath) {
+    WarningAggregator.addWarningIOS(
+      'expo-iap',
+      'enableLocalDev is true but no localPath provided. Using the published OpenIAP instead.',
+    );
+  }
+  if (localPath) {
+    const resolved =
+      typeof localPath === 'string'
+        ? path.resolve(localPath)
+        : {
+            ios: localPath.ios ? path.resolve(localPath.ios) : undefined,
+            android: localPath.android
+              ? path.resolve(localPath.android)
+              : undefined,
+          };
+
+    const preview =
+      typeof resolved === 'string'
+        ? resolved
+        : `ios=${resolved.ios ?? 'auto'}, android=${
+            resolved.android ?? 'auto'
+          }`;
+    logOnce(`🔧 [expo-iap] Enabling local OpenIAP: ${preview}`);
+    if (includeOnside) {
+      result = withOnsideInfoPlist(result);
+    }
+    result = withLocalOpenIAP(result, {
+      localPath: resolved,
+      iosAlternativeBilling,
+      enableOnside: includeOnside,
+    });
+  } else {
+    // Published OpenIAP: the Swift package on iOS, Maven on Android
+    result = withIapIOS(result, {
+      enableOnside: includeOnside,
+      iosAlternativeBilling,
+    });
+    result = withoutLocalOpenIAPAndroid(result);
+    if (includeExpoIap) {
+      logOnce('📦 [expo-iap] Using the published OpenIAP packages');
+    }
+  }
+
+  syncAutolinking(autolinkState);
+
+  // withVega auto-detects a Vega project unless the config overrides it.
+  result = withVega(result, {
+    ...resolveVegaProjectOptions(options),
+    enabled: vegaOverride,
+  });
+
+  return result;
 };
 
 export {withIosAlternativeBilling, withIap};

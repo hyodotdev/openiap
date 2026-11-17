@@ -30,12 +30,13 @@ Bearer header and out of URLs.
 - [GET /v1/products/{apiKey}?platform=IOS&includeClientPayload=true&limit=25](https://kit.openiap.dev/docs/products) — list public product payloads in bounded cursor pages (platform required, limit 1-50, follow `nextCursor` while `hasMore`)
 - [GET /v1/products/{apiKey}/{productId}/client-payload?platform=IOS](https://kit.openiap.dev/docs/products) — fetch `{ clientPayload }`; returns 404 when the product is missing/Draft/Removed or no payload exists
 - [GET/PUT/DELETE /v1/products/client-payload/{productId}?platform=IOS](https://kit.openiap.dev/docs/products) — read durable editor state or create/update/remove a payload from CI or MCP with `Authorization: Bearer <secret-key>`; publishable keys receive 403
-- [GET /v1/products and catalog/store-sync writes](https://kit.openiap.dev/docs/products) — header-authenticated GET is client-safe; POST/DELETE and `/v1/products/sync/{ios|android}` require `Authorization: Bearer <secret-key>`; secret-key-in-path requests receive 410
+- [GET /v1/products and catalog/store-sync writes](https://kit.openiap.dev/docs/products) — header-authenticated GET is client-safe; `POST /v1/products`, `POST /v1/products/state`, `DELETE /v1/products/{productId}?platform=` (marks the row Removed), `POST /v1/products/sync/{ios|android}`, `GET /v1/products/sync/jobs/{jobId}` and `POST /v1/products/sync/jobs/{jobId}/cancel` require `Authorization: Bearer <secret-key>`; secret-key-in-path requests receive 410
 - [GET /v2/subscriptions/status?userId=...](https://kit.openiap.dev/docs/api) — secret-only, tokenless account status selected by an authenticated developer backend
 - [GET /v2/subscriptions/entitlements?userId=...](https://kit.openiap.dev/docs/api) — secret-only, tokenless active product snapshot; supports up to 200 indexed subscription rows and fails closed on overflow
-- [POST /v2/subscriptions/user-erasure](https://kit.openiap.dev/docs/api) — schedule durable removal of an app user ID from IAPKit subscription and commerce-event rows; erase downstream copies separately
-- [GET /v1/subscriptions/{list|metrics|revenue}](https://kit.openiap.dev/docs/api) — administrative subscription data with `Authorization: Bearer <secret-key>`
-- [GET /v1/webhooks/{deliveries|notifications}, POST /v1/webhooks/deliveries/{deliveryId}/resend](https://kit.openiap.dev/docs/webhooks) — secret-key outbound delivery history with attempts, re-send with the same `eventId` (30 per project per minute), and inbound store notification history without raw payloads
+- [POST /v2/subscriptions/user-erasure](https://kit.openiap.dev/docs/api) — schedule durable removal of an app user ID from IAPKit subscription and commerce-event rows; poll `GET /v2/subscriptions/user-erasure/{jobId}` (completed jobs stay readable for seven days); erase downstream copies separately
+- [GET /v1/subscriptions/{list|metrics|revenue}](https://kit.openiap.dev/docs/api) — administrative subscription data with `Authorization: Bearer <secret-key>`; `revenue` takes `fromDay`/`toDay` (UTC `YYYY-MM-DD`) spanning at most 92 days inclusive
+- [POST /v1/external-checkouts and POST /v1/external-purchase-tokens](https://kit.openiap.dev/docs/api#external-checkouts) — secret-key registration of a Stripe checkout paid outside the stores, with `POST /v1/external-checkouts/{checkoutId}/verify` and `GET /v1/external-checkouts/{checkoutId}` for `paymentStatus`, `reportingStatus` and `entitlement`; needs a reporting profile enabled by the deployment
+- [GET /v1/webhooks/{deliveries|notifications}, POST /v1/webhooks/deliveries/{deliveryId}/resend](https://kit.openiap.dev/docs/webhooks) — secret-key outbound delivery history with attempts, re-send with the same `eventId` (30 per project per minute), and inbound store notification history without raw payloads. While a destination is disabled, new events get no delivery row for it and cannot be re-sent later
 - [POST /v1/subscriptions/resync, GET /v1/subscriptions/timeline?userId=...](https://kit.openiap.dev/docs/operations) — secret-key Apple/Google re-sync of one purchase or subscription, and one app user's purchases, subscriptions, commerce events, and purchase issues
 - [GET /v1/purchase/issues](https://kit.openiap.dev/docs/operations#purchase-issues) — secret-key log of failed verifications and links from the last 30 days, with cause, count, products, and correlation ID; filters `cause`, `store`, `productId`, `appUserId`, `from`/`to` (epoch ms). Only per-purchase causes (product mismatch, pending payment, bind conflict or limit) carry a keyed evidence fingerprint; other causes are counted per store and cause, at most once a minute, so their count is a lower bound. Never the token, JWS, or receipt
 - [POST /v1/webhooks/{apiKey}](https://kit.openiap.dev/docs/webhooks) — lifecycle webhook receiver. Paste this URL into App Store Connect (Production + Sandbox) AND Google Cloud Pub/Sub push subscription. Auto-detects ASN v2 vs Pub/Sub by payload shape. **POST-only**; opening in a browser returns 404 — that's expected.
@@ -86,8 +87,8 @@ limits, statuses and fulfillment requirements.
 
 ## Request shapes (discriminated on `store`)
 
-- Apple — `{ store: "apple", jws, expectedProductId?, includeClientPayload? }` where `jws` is a StoreKit 2 JWS (≤ 16 KB)
-- Google — `{ store: "google", purchaseToken, expectedProductId?, includeClientPayload? }` (token ≤ 2 KB)
+- Apple — `{ store: "apple", jws, expectedProductId?, includeClientPayload? }` where `jws` is a StoreKit 2 JWS (≤ 16,000 chars)
+- Google — `{ store: "google", purchaseToken, expectedProductId?, includeClientPayload? }` (token ≤ 2,000 chars)
 - Horizon — `{ store: "horizon", userId, sku }` (≤ 256 chars each). IAPKit
   holds the App ID + App Secret server-side and composes the
   `OC|APP_ID|APP_SECRET` access token per-request.
@@ -178,11 +179,11 @@ unknown.
 
 - `200` — verification ran; require `isValid`, an operation-appropriate `state`, and an exact store-verified `productId` match
 - `400 INVALID_INPUT` — malformed body / unknown store / oversized field
-- `400 INVALID_API_KEY` — well-formed key that fails project lookup (unknown or rotated)
+- `400 INVALID_API_KEY` — well-formed key that fails project lookup (unknown or rotated), on verification, product, and subscription routes
 - `413 PAYLOAD_TOO_LARGE` — request body exceeds the 32 KB edge cap
 - `401 MISSING_API_KEY` — no `Authorization` header
 - `403 INSUFFICIENT_SCOPE` — publishable key used for an administrative operation
-- `403 INVALID_API_KEY` — wrong scheme or malformed key (format check only)
+- `403 INVALID_API_KEY` — wrong scheme or malformed key on every route; verification-job, external-checkout, webhook-delivery, purchase-issue, and subscription resync and timeline routes also return it for a well-formed key that fails project lookup
 - `410 SECRET_API_KEY_IN_URL` — move the secret to `Authorization: Bearer ...` on the canonical route
 - `429 RATE_LIMITED` — API-key, source-IP, or process bucket empty; inspect `X-RateLimit-Scope` and honor `Retry-After`
 - `503 SERVICE_BUSY` — the API-key, source-IP, or process verification share is full; inspect `X-Concurrency-Scope` and retry with jittered backoff

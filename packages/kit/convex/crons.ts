@@ -3,6 +3,7 @@ import { internal } from "./_generated/api";
 import { WEBHOOK_RETENTION_MS } from "./webhooks/internal";
 import { COMMERCE_EVENT_RETENTION_MS } from "./commerce/signing";
 import { PURCHASE_ISSUE_RETENTION_MS } from "./purchaseIssues/internal";
+import { UNRECOGNIZED_PURCHASE_RETENTION_MS } from "./purchases/cleanup";
 
 const crons = cronJobs();
 
@@ -98,6 +99,15 @@ crons.interval(
   { hours: 1 },
   internal.purchaseIssues.internal.prunePurchaseIssues,
   { olderThanMs: PURCHASE_ISSUE_RETENTION_MS },
+);
+
+// 30 days after a store last failed to recognize the evidence. Rows that were
+// ever valid, owned, or tied to an order or subscription are never pruned.
+crons.interval(
+  "prune unrecognized purchases past retention",
+  { hours: 1 },
+  internal.purchases.cleanup.pruneUnrecognizedPurchases,
+  { olderThanMs: UNRECOGNIZED_PURCHASE_RETENTION_MS },
 );
 
 // Outbound delivery of normalized commerce events to developer-registered

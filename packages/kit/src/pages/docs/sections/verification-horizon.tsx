@@ -147,6 +147,14 @@ access_token=OC%7C{APP_ID}%7C{APP_SECRET}&user_id={userId}&sku={sku}
         ambiguous response shapes return an error without replacing the last
         confirmed result.
       </p>
+      <p>
+        A row that has only ever held <code>INAUTHENTIC</code> is deleted 30
+        days after the last <code>success: false</code> answer, and the
+        dashboard&apos;s Total and Invalid counts drop with it. A row is kept
+        once it has been <code>ENTITLED</code> or is linked to a user. Rows
+        saved before this rule shipped (week of November 16, 2026) are kept, and
+        monthly usage is not lowered.
+      </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Error codes</h2>
       <div className="my-4 overflow-hidden rounded-lg border border-border">

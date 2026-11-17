@@ -62,7 +62,9 @@ function SyncIOS() {
       </AnchorLink>
       <p>
         <code>Promise&lt;boolean&gt;</code> — <code>true</code> once the App
-        Store sync completes.
+        Store sync completes. Godot&apos;s <code>sync_ios</code> runs on iOS
+        only; on macOS it returns <code>false</code> without syncing, so use{' '}
+        <code>restore_purchases</code> there.
       </p>
 
       <h2>Example</h2>

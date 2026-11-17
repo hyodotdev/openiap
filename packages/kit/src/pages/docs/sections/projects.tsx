@@ -196,8 +196,8 @@ export default function ProjectsPage() {
           Never place a secret key in a URL.
         </li>
         <li>
-          Hashed before logging — the server only retains the SHA-256 prefix in
-          structured logs, never the plaintext.
+          Hashed before logging — structured logs carry a 16-hex keyed hash,
+          never the plaintext.
         </li>
         <li>
           Regenerable if the one-time full value was missed or leaked. The old

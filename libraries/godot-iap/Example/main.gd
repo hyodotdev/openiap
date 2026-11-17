@@ -31,7 +31,7 @@ var difficulty_timer: float = 0.0
 @onready var status_label: Label = $UI/StatusLabel
 
 var verification_picker: OptionButton
-var restore_status_label: Label
+var store_status_label: Label
 var ownership_project_number: LineEdit
 var ownership_request_hash: LineEdit
 var ownership_result_label: Label
@@ -106,11 +106,22 @@ func _setup_store_panel() -> void:
 	var restore_btn = store_contents.get_node_or_null("RestoreButton")
 	if restore_btn:
 		restore_btn.pressed.connect(_on_restore_pressed)
-		# The store panel covers the HUD status, so restore reports here too.
-		restore_status_label = Label.new()
-		restore_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		restore_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		store_contents.add_child(restore_status_label)
+		var manage_btn := Button.new()
+		manage_btn.text = "Manage Subscriptions"
+		manage_btn.custom_minimum_size.y = 70
+		manage_btn.pressed.connect(_on_manage_subscriptions_pressed)
+		store_contents.add_child(manage_btn)
+		var fetch_failure_btn := Button.new()
+		fetch_failure_btn.text = "Debug: fetch with no SKUs"
+		fetch_failure_btn.custom_minimum_size.y = 70
+		fetch_failure_btn.pressed.connect(_on_fetch_without_skus_pressed)
+		store_contents.add_child(fetch_failure_btn)
+		# The store panel covers the HUD status, so store results report here too.
+		store_status_label = Label.new()
+		store_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		store_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		store_contents.add_child(store_status_label)
+		GodotIapPlugin.products_fetched.connect(_on_products_fetched)
 
 	_setup_verification_picker()
 	_update_store_panel_buttons()
@@ -324,15 +335,31 @@ func _on_buy_premium_year_pressed() -> void:
 
 
 func _on_restore_pressed() -> void:
-	_show_restore_status("Restoring purchases...")
+	_show_store_status("Restoring purchases...")
 	var failure: String = await IapManager.restore_purchases()
-	_show_restore_status("Purchases restored." if failure.is_empty() else "Restore failed: " + failure)
+	_show_store_status("Purchases restored." if failure.is_empty() else "Restore failed: " + failure)
 
 
-func _show_restore_status(text: String) -> void:
+func _on_manage_subscriptions_pressed() -> void:
+	var result: Types.VoidResult = await GodotIapPlugin.deep_link_to_subscriptions()
+	if not result.success:
+		_show_store_status("Manage subscriptions failed")
+
+
+## An empty SKU list is a request every store rejects, so the fetch fails.
+func _on_fetch_without_skus_pressed() -> void:
+	await GodotIapPlugin.fetch_products(Types.ProductRequest.new())
+
+
+func _on_products_fetched(result: Dictionary) -> void:
+	if result.get("method", "fetchProducts") == "fetchProducts" and not result.get("success", true):
+		_show_store_status("Product fetch failed\nCode: %s\nMessage: %s" % [result.get("code", ""), result.get("error", "")])
+
+
+func _show_store_status(text: String) -> void:
 	status_label.text = text
-	if restore_status_label:
-		restore_status_label.text = text
+	if store_status_label:
+		store_status_label.text = text
 
 
 func _on_purchase_completed(product_id: String) -> void:
@@ -350,9 +377,8 @@ func _on_purchase_completed(product_id: String) -> void:
 	_update_store_panel_buttons()
 
 
-func _on_purchase_failed(product_id: String, error: String) -> void:
-	print("Purchase failed: %s - %s" % [product_id, error])
-	status_label.text = "Purchase failed: %s" % error
+func _on_purchase_failed(_product_id: String, error: String) -> void:
+	_show_store_status("Purchase failed\n%s" % error)
 
 
 func _on_products_loaded() -> void:

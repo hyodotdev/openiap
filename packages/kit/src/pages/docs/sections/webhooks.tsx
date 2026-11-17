@@ -76,7 +76,7 @@ export default function WebhooksPage() {
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
           Return any <code>2xx</code> within 10 seconds, after you have stored
-          the event.
+          the event. The 10 seconds include the DNS lookup and connection.
         </li>
         <li>
           <code>408</code>, <code>429</code>, <code>5xx</code>, a timeout, or a
@@ -92,6 +92,15 @@ export default function WebhooksPage() {
             Delivery history and re-send
           </a>
           .
+        </li>
+        <li>
+          While a destination is disabled, new events get no delivery row for
+          it, so they are not delivered after you re-enable it and cannot be
+          re-sent. Read current state from the{" "}
+          <Link to="/docs/api" className="text-primary underline">
+            status and entitlement endpoints
+          </Link>{" "}
+          to catch up.
         </li>
       </ul>
       <CodeBlock language="text">{`content-type: application/json

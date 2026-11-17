@@ -433,7 +433,7 @@ var id: Variant = null
 var display_price: String = ""
 var price: float = 0.0
 var currency: String = ""
-var type: DiscountOfferType
+var type: Types.DiscountOfferType
 
 # Android-specific fields
 var offer_token_android: Variant = null
@@ -442,10 +442,10 @@ var full_price_micros_android: Variant = null
 var percentage_discount_android: Variant = null
 var discount_amount_micros_android: Variant = null
 var formatted_discount_amount_android: Variant = null
-var valid_time_window_android: ValidTimeWindowAndroid
-var limited_quantity_info_android: LimitedQuantityInfoAndroid
-var preorder_details_android: PreorderDetailsAndroid
-var rental_details_android: RentalDetailsAndroid
+var valid_time_window_android: Types.ValidTimeWindowAndroid
+var limited_quantity_info_android: Types.LimitedQuantityInfoAndroid
+var preorder_details_android: Types.PreorderDetailsAndroid
+var rental_details_android: Types.RentalDetailsAndroid
 var purchase_option_id_android: Variant = null
 
 enum DiscountOfferType {

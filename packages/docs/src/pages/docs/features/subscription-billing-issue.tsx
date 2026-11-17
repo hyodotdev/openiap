@@ -231,10 +231,11 @@ using var subscription = OpenIapClient.Instance.SubscriptionBillingIssue.Subscri
             gdscript: (
               <CodeBlock language="gdscript">{`# godot-iap signal
 var godot_iap := preload("res://addons/godot-iap/godot_iap.gd").new()
-godot_iap.subscription_billing_issue.connect(func(purchase: Purchase) -> void:
-    print("Needs attention: ", purchase.product_id)
-    var options = DeepLinkOptions.new()
-    options.sku_android = purchase.product_id
+godot_iap.subscription_billing_issue.connect(func(purchase: Dictionary) -> void:
+    var product_id: String = purchase.get("productId", "")
+    print("Needs attention: ", product_id)
+    var options = Types.DeepLinkOptions.new()
+    options.sku_android = product_id
     options.package_name_android = "com.example.app"
     godot_iap.deep_link_to_subscriptions(options)
 )`}</CodeBlock>

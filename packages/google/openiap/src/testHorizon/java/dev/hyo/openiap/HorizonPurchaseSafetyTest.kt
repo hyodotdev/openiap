@@ -76,7 +76,6 @@ class HorizonPurchaseSafetyTest {
     fun `unsupported Horizon purchase options fail before launch`() {
         assertTrue(
             horizonUnsupportedPurchaseError(
-                type = ProductQueryType.InApp,
                 offerToken = "one-time-offer",
                 originalExternalTransactionId = null,
                 hasDeveloperBillingOption = false,
@@ -84,7 +83,6 @@ class HorizonPurchaseSafetyTest {
         )
         assertTrue(
             horizonUnsupportedPurchaseError(
-                type = ProductQueryType.Subs,
                 offerToken = null,
                 originalExternalTransactionId = "external-transaction",
                 hasDeveloperBillingOption = false,
@@ -92,7 +90,6 @@ class HorizonPurchaseSafetyTest {
         )
         assertTrue(
             horizonUnsupportedPurchaseError(
-                type = ProductQueryType.Subs,
                 offerToken = null,
                 originalExternalTransactionId = null,
                 hasDeveloperBillingOption = true,

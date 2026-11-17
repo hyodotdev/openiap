@@ -1,7 +1,13 @@
 import { v } from "convex/values";
 
+import { internal } from "../_generated/api";
 import { internalMutation, MutationCtx } from "../_generated/server";
-import { Id } from "../_generated/dataModel";
+import { Doc, Id } from "../_generated/dataModel";
+import { amazonSubscriptionToken } from "../subscriptions/amazon";
+import {
+  findSubscriptionByToken,
+  findSupersedingSubscription,
+} from "../subscriptions/internal";
 import { inheritPurchaseOwner } from "./internal";
 import {
   applyPurchaseStatsDelta,
@@ -196,4 +202,90 @@ export const collapseDuplicatePurchasesByOrderId = internalMutation({
   }),
   handler: async (ctx, args) =>
     collapseDuplicatePurchasesByOrderIdHandler(ctx, args),
+});
+
+export const UNRECOGNIZED_PURCHASE_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;
+const PRUNE_BATCH_SIZE = 100;
+
+/**
+ * Deletes purchase rows no store has recognized for `olderThanMs` and lowers
+ * `purchaseStats` by them. Organization usage counts calls, so it stays.
+ */
+export async function pruneUnrecognizedPurchasesHandler(
+  ctx: MutationCtx,
+  olderThanMs: number,
+  batchSize: number,
+): Promise<{ deleted: number }> {
+  // Any verdict other than INAUTHENTIC clears the marker for good, so only
+  // never-recognized rows get here. A row something else points at is kept,
+  // and so is one whose lookup throws, such as two subscription rows for one token.
+  async function isReferenced(row: Doc<"purchases">): Promise<boolean> {
+    if (row.isValid || row.appUserId || row.accountErased || row.orderId)
+      return true;
+    if (!row.remoteId) return false;
+    const token =
+      row.store === "amazon"
+        ? amazonSubscriptionToken(row.remoteId)
+        : row.remoteId;
+    return (
+      (await findSubscriptionByToken(ctx, row.projectId, token)) !== null ||
+      (await findSupersedingSubscription(ctx, row.projectId, token)).aliased
+    );
+  }
+
+  const cutoff = Date.now() - olderThanMs;
+  const expired = await ctx.db
+    .query("purchases")
+    // Rows without the marker sort first; the lower bound skips them.
+    .withIndex("by_unrecognizedAt", (q) =>
+      q.gt("unrecognizedAt", 0).lt("unrecognizedAt", cutoff),
+    )
+    .take(batchSize);
+
+  const projectDeltas = new Map<Id<"projects">, PurchaseStatsDelta>();
+  let deleted = 0;
+  for (const row of expired) {
+    if (await isReferenced(row).catch(() => true)) {
+      await ctx.db.patch(row._id, { unrecognizedAt: undefined });
+      continue;
+    }
+    await ctx.db.delete(row._id);
+    deleted += 1;
+    projectDeltas.set(
+      row.projectId,
+      mergePurchaseStatsDeltas(
+        projectDeltas.get(row.projectId) ?? {},
+        deltaForCountedPurchaseRemoval(
+          row.store,
+          false,
+          false,
+          row.statsCounted === true,
+          row.storeStatsCounted === true,
+        ),
+      ),
+    );
+  }
+  for (const [projectId, delta] of projectDeltas) {
+    await applyPurchaseStatsDelta(ctx, projectId, delta);
+  }
+
+  if (expired.length > 0 && expired.length === batchSize) {
+    await ctx.scheduler.runAfter(
+      0,
+      internal.purchases.cleanup.pruneUnrecognizedPurchases,
+      { olderThanMs, batchSize },
+    );
+  }
+  return { deleted };
+}
+
+export const pruneUnrecognizedPurchases = internalMutation({
+  args: { olderThanMs: v.number(), batchSize: v.optional(v.number()) },
+  returns: v.object({ deleted: v.number() }),
+  handler: (ctx, args) =>
+    pruneUnrecognizedPurchasesHandler(
+      ctx,
+      args.olderThanMs,
+      args.batchSize ?? PRUNE_BATCH_SIZE,
+    ),
 });

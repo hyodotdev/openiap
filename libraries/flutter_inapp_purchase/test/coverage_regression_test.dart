@@ -260,34 +260,97 @@ void main() {
         isFalse,
       );
       await expectLater(
-        iap.createBillingProgramReportingDetailsAndroid(
-          types.BillingProgramAndroid.ExternalOffer,
-        ),
-        throwsA(isA<PlatformException>()),
-      );
-      await expectLater(
-        iap.getBillingChoiceInfoAndroid(
-          const types.GetBillingChoiceInfoParamsAndroid(),
-        ),
-        throwsA(isA<PlatformException>()),
-      );
-      await expectLater(
-        iap.showBillingProgramInformationDialogAndroid(
-          const types.BillingProgramInformationDialogParamsAndroid(
-            externalTransactionToken: 'opaque',
-          ),
-        ),
-        throwsA(isA<PlatformException>()),
-      );
-      await expectLater(
-        iap.showInAppMessagesAndroid(),
-        throwsA(isA<PlatformException>()),
-      );
-      await expectLater(
         iap.openRedeemOfferCode(),
         throwsA(isA<PurchaseError>()),
       );
     });
+
+    final androidFailureCases = <_FailureCase>[
+      _FailureCase(
+        'Alternative Billing Only availability',
+        (iap) => iap.isBillingProgramAvailableAndroid(
+          types.BillingProgramAndroid.AlternativeBillingOnly,
+        ),
+      ),
+      _FailureCase(
+        'reporting details',
+        (iap) => iap.createBillingProgramReportingDetailsAndroid(
+          types.BillingProgramAndroid.ExternalOffer,
+        ),
+      ),
+      _FailureCase(
+        'Billing Choice info',
+        (iap) => iap.getBillingChoiceInfoAndroid(
+          const types.GetBillingChoiceInfoParamsAndroid(),
+        ),
+      ),
+      _FailureCase(
+        'billing program dialog',
+        (iap) => iap.showBillingProgramInformationDialogAndroid(
+          const types.BillingProgramInformationDialogParamsAndroid(
+            externalTransactionToken: 'opaque',
+          ),
+        ),
+      ),
+      _FailureCase(
+        'Alternative Billing Only dialog',
+        (iap) => iap.showAlternativeBillingOnlyInformationDialogAndroid(),
+      ),
+      _FailureCase(
+        'in-app messages',
+        (iap) => iap.showInAppMessagesAndroid(),
+      ),
+      _FailureCase(
+        'external link',
+        (iap) => iap.launchExternalLinkAndroid(_externalLinkParams()),
+      ),
+      _FailureCase(
+        'active subscription check',
+        (iap) => iap.hasActiveSubscriptions(),
+      ),
+      _FailureCase(
+        'external purchase link availability',
+        (iap) => iap.isExternalPurchaseLinkAvailable(),
+      ),
+    ];
+
+    for (final testCase in androidFailureCases) {
+      test('${testCase.name} converts PlatformException', () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (_) async {
+          throw PlatformException(
+            code: 'service-error',
+            message: '${testCase.name} failed',
+          );
+        });
+        final iap = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: 'android'),
+        );
+
+        await expectLater(
+          testCase.call(iap),
+          throwsA(
+            isA<PurchaseError>().having(
+              (error) => error.code,
+              'code',
+              ErrorCode.ServiceError,
+            ),
+          ),
+        );
+      });
+
+      test('${testCase.name} converts unexpected exceptions', () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (_) async {
+          return testCase.invalidResponse;
+        });
+        final iap = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: 'android'),
+        );
+
+        await expectLater(testCase.call(iap), throwsA(isA<PurchaseError>()));
+      });
+    }
 
     test('null native results take documented defaults', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -380,7 +443,13 @@ void main() {
       // A rejected acknowledgement throws and is retried on the next finish.
       await expectLater(
         iap.finishTransaction(purchase: _androidPurchase('ack')),
-        throwsA(isA<PlatformException>()),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            ErrorCode.ServiceError,
+          ),
+        ),
       );
       reject = false;
       await iap.finishTransaction(purchase: _androidPurchase('ack'));
@@ -445,13 +514,50 @@ void main() {
       expect(calls.single.method, 'finishTransaction');
       await expectLater(
         linux.finishTransaction(purchase: _iosPurchase()),
-        throwsA(isA<PlatformException>()),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            ErrorCode.IapNotAvailable,
+          ),
+        ),
       );
     });
   });
 
   group('native event coverage', () {
     const codec = StandardMethodCodec();
+
+    test('a failed listener-options call reaches the stream as PurchaseError',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (_) async {
+        throw PlatformException(code: 'service-error');
+      });
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+      final streamErrors = <Object>[];
+
+      final subscription = iap
+          .purchaseUpdatedListenerWithOptions(
+            const types.PurchaseUpdatedListenerOptions(
+              dedupeTransactionIOS: true,
+            ),
+          )
+          .listen((_) {}, onError: streamErrors.add);
+      await pumpEventQueue();
+      await subscription.cancel();
+
+      expect(
+        streamErrors.single,
+        isA<PurchaseError>().having(
+          (error) => error.code,
+          'code',
+          ErrorCode.ServiceError,
+        ),
+      );
+    });
 
     Future<void> send(String method, Object? arguments) async {
       await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

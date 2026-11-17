@@ -81,7 +81,9 @@ function CanPresentExternalPurchaseNoticeIOS() {
       <p>
         <code>Promise&lt;boolean&gt;</code> — <code>true</code> if the
         external-purchase notice sheet can be presented (iOS 17.4+, macOS
-        14.4+).
+        14.4+). Godot&apos;s{' '}
+        <code>can_present_external_purchase_notice_ios</code> runs on iOS only;
+        on macOS it returns <code>false</code> without checking.
       </p>
 
       <h2>Example</h2>

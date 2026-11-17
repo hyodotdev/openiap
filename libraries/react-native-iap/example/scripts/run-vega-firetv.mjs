@@ -6,9 +6,11 @@ import {fileURLToPath} from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const exampleRoot = path.resolve(__dirname, '..');
+// Pass `Release` for purchases: a 1 GB device kills the Debug package.
+const buildType = process.argv[2] === 'Release' ? 'release' : 'debug';
 const packageFile = path.join(
   exampleRoot,
-  'build/armv7-debug/rniapvegaexample_armv7.vpkg',
+  `build/armv7-${buildType}/rniapvegaexample_armv7.vpkg`,
 );
 const packageId = 'dev.hyo.openiap.rniap.example';
 const appId = 'dev.hyo.openiap.rniap.example.main';
@@ -141,6 +143,7 @@ const pushToDevice = (deviceId, source, destination) => {
   run(['exec', 'vda', '-s', deviceId, 'push', source, destination]);
 };
 
+// The Kepler copy can stall; time out instead of hanging the run.
 const copyToDevice = (deviceId, source, destinationDirectory, options = {}) => {
   run(
     [
@@ -153,13 +156,13 @@ const copyToDevice = (deviceId, source, destinationDirectory, options = {}) => {
       '-o',
       destinationDirectory,
     ],
-    options,
+    {timeout: 60000, ...options},
   );
 };
 
 if (!fs.existsSync(packageFile)) {
   throw new Error(
-    `Missing ${path.relative(exampleRoot, packageFile)}. Run yarn build:vega:debug first.`,
+    `Missing ${path.relative(exampleRoot, packageFile)}. Run yarn build:vega:${buildType} first.`,
   );
 }
 

@@ -96,7 +96,7 @@ Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @param
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func launch_external_link_android(
-    params: LaunchExternalLinkParamsAndroid
+    params: Types.LaunchExternalLinkParamsAndroid
 ) -> bool`}</CodeBlock>
           ),
         }}
@@ -238,11 +238,11 @@ await OpenIapClient.Mutation.LaunchExternalLinkAndroidAsync(
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
-    var params = LaunchExternalLinkParamsAndroid.new()
-    params.billing_program = BillingProgramAndroid.BILLING_CHOICE
+    var params = Types.LaunchExternalLinkParamsAndroid.new()
+    params.billing_program = Types.BillingProgramAndroid.BILLING_CHOICE
     params.external_transaction_token = reporting_details.external_transaction_token
-    params.launch_mode = ExternalLinkLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
-    params.link_type = ExternalLinkTypeAndroid.LINK_TO_DIGITAL_CONTENT_OFFER
+    params.launch_mode = Types.ExternalLinkLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
+    params.link_type = Types.ExternalLinkTypeAndroid.LINK_TO_DIGITAL_CONTENT_OFFER
     params.link_uri = "https://example.com/offer"
     await iap.launch_external_link_android(params)`}</CodeBlock>
           ),

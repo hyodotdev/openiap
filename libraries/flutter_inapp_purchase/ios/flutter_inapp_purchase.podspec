@@ -28,7 +28,7 @@ In App Purchase plugin for flutter. This project has been forked by react-native
   s.dependency 'openiap', openiap_versions['apple']
 
   s.ios.deployment_target = '15.0'
-  s.tvos.deployment_target = '15.0'
+  s.tvos.deployment_target = '16.0'
   s.swift_version = '5.5'
 
   # Swift/Objective-C compatibility

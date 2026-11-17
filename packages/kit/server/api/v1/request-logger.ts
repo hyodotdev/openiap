@@ -7,7 +7,7 @@ import { hashApiKey } from "./rate-limit";
 // Structured per-request log for the verify endpoints. Emits a single
 // JSON line to stdout so Fly.io's log shipper and any downstream
 // aggregator (Sentry, Loki, BetterStack…) can parse without regex. We
-// never log the plaintext API key — only the SHA-256 prefix the rate
+// never log the plaintext API key — only the keyed hash the rate
 // limiter already uses — so log leaks don't become credential leaks.
 
 export type VerifyStore = "apple" | "google" | "horizon" | "amazon";

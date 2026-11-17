@@ -28,8 +28,33 @@ const RELEASES: ReleaseEntry[] = [
     date: "2026-11-17",
     pullRequests: [618],
     tagline:
-      "Sponsorship now runs through GitHub Sponsors only, a linked GitHub sponsorship stops sponsorship requests, and the backend moved to openiap.dev domains.",
+      "Purchase rows no store recognized are deleted after 30 days, an unknown Google subscription state no longer counts as entitled, the backend moved to openiap.dev domains, and sponsorship runs through GitHub Sponsors only.",
     items: [
+      {
+        kind: "fix",
+        topic: "Verification",
+        text: "An acknowledged Google subscription in a state IAPKit does not know returns isValid false with state UNKNOWN. Before, it returned ENTITLED.",
+      },
+      {
+        kind: "ops",
+        topic: "Verification",
+        text: "A purchase row for evidence no store recognized is deleted 30 days after the last such verdict: a Google token Play cannot find or that belongs to another package, an invalid Amazon receipt, or Meta success false. The dashboard's Total and Invalid counts drop with it. A row that held any other verdict, or is linked to a user, a Google order, or a subscription, is kept, as are rows saved before this change. Monthly usage is not lowered.",
+      },
+      {
+        kind: "fix",
+        topic: "Webhooks",
+        text: "A receiver whose host resolves to several addresses gets the full 10 seconds to answer once connected. Commerce events caused by Amazon RVS reconciliation no longer carry sourceStoreEventId; events caused by a store notification still do.",
+      },
+      {
+        kind: "ops",
+        topic: "Webhooks",
+        text: "Inbound store notification history is pruned to 30 days even when one hour brings more rows than a single cleanup batch.",
+      },
+      {
+        kind: "security",
+        topic: "Organization roles",
+        text: "Organization members can no longer request upload URLs for project credentials and review screenshots. Owners and admins are unaffected.",
+      },
       {
         kind: "feature",
         topic: "Sponsorship links",
@@ -44,6 +69,26 @@ const RELEASES: ReleaseEntry[] = [
         kind: "ops",
         topic: "Backend domains",
         text: "The hosted Convex backend now serves its API at `api.openiap.dev` and sign-in at `auth.openiap.dev` instead of its default `convex.cloud` and `convex.site` addresses. Dashboard and CLI sessions from before the switch may need to sign in once more. Apps and SDKs are unaffected because they call `kit.openiap.dev`.",
+      },
+      {
+        kind: "security",
+        topic: "MCP server",
+        text: "A local MCP server sends the IAPKIT_API_KEY fallback only to IAPKIT_BASE_URL. A tool call that names another baseUrl must pass its own apiKey. The hosted endpoint is unchanged.",
+      },
+      {
+        kind: "feature",
+        topic: "MCP server",
+        text: "iapkit_setup accepts maui and returns an OpenIap.Maui example. Every setup example finishes the transaction after the grant, and the result adds a coverage sentence that links the purchase lifecycle guide.",
+      },
+      {
+        kind: "docs",
+        topic: "Verification",
+        text: "The verification guides list the project-setup error codes for Apple and Google, the Amazon rejections that return 200 with isValid false, and the per-project verification budget of 600 burst and 10 requests per second.",
+      },
+      {
+        kind: "docs",
+        topic: "API reference",
+        text: "The API reference covers the product state, delete, and sync-cancel routes, the user-erasure job read, the external checkout routes, the 92-day revenue range, and which routes return 400 or 403 INVALID_API_KEY for an unknown key.",
       },
     ],
   },

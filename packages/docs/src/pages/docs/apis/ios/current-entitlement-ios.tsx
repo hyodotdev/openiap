@@ -86,7 +86,9 @@ function CurrentEntitlementIOS() {
           <code>Promise&lt;PurchaseIOS | null&gt;</code>
         </Link>{' '}
         — iOS purchase shape, or <code>null</code> if the SKU has no matching
-        transaction.
+        transaction. Godot&apos;s <code>current_entitlement_ios</code> runs on
+        iOS only and returns <code>null</code> on macOS; read owned purchases
+        there with <code>get_available_purchases_result</code>.
       </p>
 
       <h2>Example</h2>

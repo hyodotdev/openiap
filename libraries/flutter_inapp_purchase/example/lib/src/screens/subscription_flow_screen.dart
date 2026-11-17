@@ -65,16 +65,28 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
   void initState() {
     super.initState();
     _outcomeSubscription = _purchases.flow.outcomes.listen(_showOutcome);
-    _purchaseErrorSubscription = _iap.purchaseErrorListener.listen((error) {
-      debugPrint('Purchase error: ${error.code} - ${error.message}');
-      setState(() {
-        _isProcessing = false;
-        _purchaseResult = error.code == ErrorCode.UserCancelled
-            ? '⚠️ Purchase cancelled'
-            : '❌ Error: ${error.message}';
-      });
-    });
+    _purchaseErrorSubscription =
+        _iap.purchaseErrorListener.listen(_showPurchaseError);
     _awaitConnection(_purchases.connected);
+  }
+
+  void _showPurchaseError(PurchaseError error) {
+    final details = describePurchaseError(error);
+    debugPrint('[SubscriptionFlow] purchase error\n$details');
+    setState(() {
+      _isProcessing = false;
+      _purchaseResult = error.code == ErrorCode.UserCancelled
+          ? '⚠️ Purchase cancelled\n$details'
+          : '❌ Purchase Error\n$details';
+    });
+  }
+
+  Future<void> _manageSubscriptions() async {
+    try {
+      await _iap.deepLinkToSubscriptions();
+    } on PurchaseError catch (error) {
+      if (mounted) _showPurchaseError(error);
+    }
   }
 
   @override
@@ -1337,6 +1349,14 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
                                   _isProcessing ? null : _restorePurchases,
                               icon: const Icon(Icons.restore),
                               label: const Text('Restore Purchases'),
+                            ),
+                          ),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _manageSubscriptions,
+                              icon: const Icon(Icons.settings),
+                              label: const Text('Manage Subscriptions'),
                             ),
                           ),
 

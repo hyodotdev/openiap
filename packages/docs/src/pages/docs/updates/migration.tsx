@@ -1130,7 +1130,11 @@ purchaseUpdatedListener((purchase) => {
           <code>products_fetched</code> failure payloads for{' '}
           <code>fetch_products</code>, and the failure results of the iOS-only
           methods now carry OpenIAP&apos;s code instead of{' '}
-          <code>service-error</code> or no code.
+          <code>service-error</code> or no code. Since godot-iap 4.4.1, a failed{' '}
+          <code>fetch_products</code> on Android emits the same{' '}
+          <code>products_fetched</code> failure payload (
+          <code>success = false</code>, <code>code</code>, <code>error</code>);
+          before, Android emitted nothing.
         </p>
         <p>
           <strong>Who is affected:</strong> Godot apps that count restore

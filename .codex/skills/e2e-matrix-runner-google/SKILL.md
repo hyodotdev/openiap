@@ -21,7 +21,7 @@ apply unchanged. This file adds only the narrowed matrix.
 
 | Store        | Frameworks                         | Device      | Depth                                                                                                             |
 | ------------ | ---------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------- |
-| Google Play  | all six + `packages/google`        | Pixel       | device purchase flow each                                                                                         |
+| Google Play  | all six + `packages/google`        | Play phone  | device purchase flow each                                                                                         |
 | Amazon       | all six + `packages/google`        | Fire tablet | device purchase flow each                                                                                         |
 | Meta Horizon | all six + `packages/google`        | Quest 3     | build + install + launch + normal checkout navigation; apply the canonical Horizon payment gate before confirming |
 | VegaOS       | react-native-iap and expo-iap only | Vega device | build + install + launch; purchase attempt when device input allows                                               |

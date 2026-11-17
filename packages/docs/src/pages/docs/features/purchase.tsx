@@ -397,7 +397,7 @@ sealed class PurchaseManager : IDisposable
             gdscript: (
               <CodeBlock language="gdscript">{`extends Node
 
-var iap: OpenIap
+@onready var iap = $GodotIapWrapper
 
 func _ready() -> void:
     setup_listeners()
@@ -416,12 +416,12 @@ func setup_listeners() -> void:
         return
     print("Store connection established")
 
-func _on_purchase_received(purchase: Purchase) -> void:
+func _on_purchase_received(purchase: Variant) -> void:
     print("Purchase received: %s" % purchase.product_id)
     handle_purchase(purchase)
 
-func _on_purchase_error(error: PurchaseError) -> void:
-    print("Purchase error: %s" % error.message)
+func _on_purchase_error(error: Dictionary) -> void:
+    print("Purchase error: %s" % error.get("message", ""))
     handle_purchase_error(error)
 
 func _exit_tree() -> void:
@@ -640,14 +640,14 @@ await PurchaseProductAsync("com.app.coins_100");`}</CodeBlock>
             gdscript: (
               <CodeBlock language="gdscript">{`# Purchase a one-time product (consumable or non-consumable)
 func purchase_product(product_id: String) -> void:
-    var props = RequestPurchaseProps.new()
-    props.request = RequestPurchasePropsByPlatforms.new()
-    props.request.apple = RequestPurchaseIosProps.new()
+    var props = Types.RequestPurchaseProps.new()
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+    props.request.apple = Types.RequestPurchaseIosProps.new()
     props.request.apple.sku = product_id
-    props.request.google = RequestPurchaseAndroidProps.new()
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
     var skus: Array[String] = [product_id]
     props.request.google.skus = skus
-    props.type = ProductQueryType.IN_APP  # IN_APP for consumables/non-consumables
+    props.type = Types.ProductQueryType.IN_APP  # IN_APP for consumables/non-consumables
 
     # Purchase result will be delivered to the purchase_received signal
     await iap.request_purchase(props)
@@ -904,7 +904,7 @@ async Task HandlePurchaseAsync(Purchase purchase)
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Complete purchase flow in listener
-func handle_purchase(purchase: Purchase) -> void:
+func handle_purchase(purchase: Variant) -> void:
     # 1. Verify on server
     var is_valid = await verify_on_server(purchase)
     if not is_valid:
@@ -1560,8 +1560,8 @@ extends Node
 signal products_loaded
 signal processing_changed
 
-var iap: OpenIap
-var products: Array[Product] = []
+@onready var iap = $GodotIapWrapper
+var products: Array = []
 var _is_processing: bool = false
 var is_processing: bool:
     get:
@@ -1577,9 +1577,9 @@ func _ready() -> void:
         return
 
     # Fetch products directly
-    var request = ProductRequest.new()
+    var request = Types.ProductRequest.new()
     request.skus = PRODUCT_IDS
-    request.type = ProductQueryType.IN_APP
+    request.type = Types.ProductQueryType.IN_APP
     products = await iap.fetch_products(request)
     products_loaded.emit()
 
@@ -1595,18 +1595,18 @@ func setup_listeners() -> bool:
 func purchase(product_id: String) -> void:
     is_processing = true
 
-    var props = RequestPurchaseProps.new()
-    props.request = RequestPurchasePropsByPlatforms.new()
-    props.request.apple = RequestPurchaseIosProps.new()
+    var props = Types.RequestPurchaseProps.new()
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+    props.request.apple = Types.RequestPurchaseIosProps.new()
     props.request.apple.sku = product_id
-    props.request.google = RequestPurchaseAndroidProps.new()
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
     var skus: Array[String] = [product_id]
     props.request.google.skus = skus
-    props.type = ProductQueryType.IN_APP
+    props.type = Types.ProductQueryType.IN_APP
 
     await iap.request_purchase(props)
 
-func _on_purchase_received(purchase: Purchase) -> void:
+func _on_purchase_received(purchase: Variant) -> void:
     # Step 1: Verify
     var is_valid = await verify_on_server(purchase)
     if not is_valid:
@@ -1623,8 +1623,8 @@ func _on_purchase_received(purchase: Purchase) -> void:
     print("Purchase completed!")
     is_processing = false
 
-func _on_purchase_error(error: PurchaseError) -> void:
-    print("Purchase error: %s" % error.message)
+func _on_purchase_error(error: Dictionary) -> void:
+    print("Purchase error: %s" % error.get("message", ""))
     is_processing = false
 
 func _exit_tree() -> void:

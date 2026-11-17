@@ -1,3 +1,4 @@
+import { internal } from "../_generated/api";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { v, ConvexError, type Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -280,15 +281,15 @@ export const recordWebhookEvent = internalMutation({
   handler: recordWebhookEventHandler,
 });
 
-// Prune events older than the configured retention window. Run on a
-// daily cron — `crons.ts` registers the schedule.
+// Prunes one batch past retention; the hourly cron in `crons.ts` starts it and
+// a full batch schedules the next, so a backlog drains in one run.
 export const pruneWebhookEvents = internalMutation({
   args: {
     olderThanMs: v.number(),
     batchSize: v.optional(v.number()),
   },
   returns: v.object({ deletedEvents: v.number() }),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{ deletedEvents: number }> => {
     const cutoff = Date.now() - args.olderThanMs;
     const limit = args.batchSize ?? 200;
 
@@ -333,6 +334,13 @@ export const pruneWebhookEvents = internalMutation({
       await ctx.db.delete(event._id);
     }
 
+    if (oldEvents.length > 0 && oldEvents.length === limit) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.webhooks.internal.pruneWebhookEvents,
+        args,
+      );
+    }
     return { deletedEvents: oldEvents.length };
   },
 });

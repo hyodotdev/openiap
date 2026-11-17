@@ -106,7 +106,9 @@ function GetExternalPurchaseCustomLinkTokenIOS() {
         </Link>{' '}
         — an optional opaque <code>token</code> plus an optional{' '}
         <code>error</code>. Send a returned token to Apple&apos;s External
-        Purchase Server API.
+        Purchase Server API. Godot&apos;s{' '}
+        <code>get_external_purchase_custom_link_token_ios</code> runs on iOS
+        only and returns <code>null</code> on macOS.
       </p>
 
       <h2>Example</h2>

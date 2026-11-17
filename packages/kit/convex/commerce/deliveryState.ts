@@ -25,6 +25,7 @@ import {
   type QueryCtx,
 } from "../_generated/server";
 import { getWritableProject } from "../projects/writable";
+import { AMAZON_RVS_EVENT_ID_PREFIX } from "../webhooks/amazonShared";
 import {
   resolveOperatorAccess,
   resolveOperatorProject,
@@ -140,7 +141,9 @@ export function buildEventPayload(event: Doc<"commerceEvents">): CommerceEvent {
           },
         }
       : {}),
-    ...(event.sourceStoreNotificationId
+    // An RVS reconciliation id is IAPKit's own, not a store event id (SPEC 9.3).
+    ...(event.sourceStoreNotificationId &&
+    !event.sourceStoreNotificationId.startsWith(AMAZON_RVS_EVENT_ID_PREFIX)
       ? { sourceStoreEventId: event.sourceStoreNotificationId }
       : {}),
     ...(event.extensions ? { extensions: event.extensions } : {}),
@@ -935,7 +938,7 @@ export async function pruneCommerceHistoryHandler(
   }
 
   if (
-    delivered.length === batchSize ||
+    (delivered.length > 0 && delivered.length === batchSize) ||
     (oldEvents.length === batchSize && deletedEvents > 0)
   ) {
     await ctx.scheduler.runAfter(

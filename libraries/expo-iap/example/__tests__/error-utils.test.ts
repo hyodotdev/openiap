@@ -1,4 +1,9 @@
-import {extractErrorCode, formatErrorForDisplay} from '../src/utils/errorUtils';
+import type {ExpoPurchaseError} from 'expo-iap';
+import {
+  extractErrorCode,
+  formatErrorForDisplay,
+  formatPurchaseErrorDetails,
+} from '../src/utils/errorUtils';
 
 describe('errorUtils', () => {
   const wrappedNetworkError = new Error(
@@ -34,5 +39,18 @@ describe('errorUtils', () => {
         true,
       ),
     ).toContain('FunctionCallException');
+  });
+
+  it('lists a purchase error code, message, and debug message', () => {
+    const error = {
+      code: 'user-cancelled',
+      message: 'Cancelled',
+    } as ExpoPurchaseError;
+    expect(formatPurchaseErrorDetails(error)).toBe(
+      'Code: user-cancelled\nMessage: Cancelled',
+    );
+    expect(
+      formatPurchaseErrorDetails({...error, debugMessage: 'Response code 1'}),
+    ).toBe('Code: user-cancelled\nMessage: Cancelled\nDebug: Response code 1');
   });
 });

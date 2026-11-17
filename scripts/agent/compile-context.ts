@@ -760,6 +760,15 @@ final products = await iap.fetchProducts<Product>(
 
 ### Godot
 \`\`\`gdscript
+# verify_on_server and grant_premium are your game's functions.
+func _on_purchase_updated(purchase: Dictionary) -> void:
+    # Verify on your backend, grant access, then finish.
+    if not await verify_on_server(purchase):
+        return
+    await grant_premium(purchase)
+    # premium is a non-consumable; finishing must not consume it.
+    await GodotIapPlugin.finish_transaction_dict(purchase, false)
+
 GodotIapPlugin.purchase_updated.connect(_on_purchase_updated)
 var connected = await GodotIapPlugin.init_connection()
 if not connected:
@@ -1004,7 +1013,7 @@ await requestPurchase({
 
 ### Finish Transaction
 \`\`\`typescript
-// CRITICAL: Must call after verification
+// Call only after verification succeeded and access was granted (see Events).
 // Android: purchases auto-refund after 3 days if not acknowledged
 await finishTransaction({ purchase, isConsumable });
 \`\`\`
@@ -1048,15 +1057,22 @@ const purchase = await openRedeemOfferCode();
 \`\`\`typescript
 import {
   ErrorCode,
+  finishTransaction,
   purchaseUpdatedListener,
   purchaseErrorListener,
 } from 'expo-iap';
 
+// verifyOnServer and grantPremium are your app's functions.
 // Set up before any purchase request
 const purchaseUpdateSubscription = purchaseUpdatedListener((purchase) => {
-  // After server verification and entitlement grant, finish the transaction.
-  void finishTransaction({ purchase, isConsumable: false }).catch((error) => {
-    console.warn('Transaction finalization failed:', error);
+  void (async () => {
+    // Verify with your backend or IAPKit. A pending or invalid result
+    // grants nothing and finishes nothing.
+    if (!(await verifyOnServer(purchase))) return;
+    await grantPremium(purchase);
+    await finishTransaction({ purchase, isConsumable: false });
+  })().catch((error) => {
+    console.warn('Purchase handling failed:', error);
   });
 });
 

@@ -36,6 +36,7 @@ import PurchaseSummaryRow from '../src/components/PurchaseSummaryRow';
 import {
   extractErrorMessage,
   formatErrorForDisplay,
+  formatPurchaseErrorDetails,
 } from '../src/utils/errorUtils';
 import {useVegaTvSelection} from '../src/hooks/useVegaTvSelection';
 import {
@@ -1435,15 +1436,16 @@ function SubscriptionFlowContainer() {
       // A late error from an older request leaves the current one alone.
       if (!storeError(error.code, request)) return;
       setProcessingProductId(null);
+      const details = formatPurchaseErrorDetails(error);
+      console.log(`[SubscriptionFlow] purchase error\n${details}`);
       setPurchaseResult(
-        error.code === ErrorCode.UserCancelled
-          ? 'Subscription cancelled by user'
-          : error.code === ErrorCode.DeferredPayment
-          ? 'Payment is pending at the store.'
-          : `Subscription failed: ${formatErrorForDisplay(
-              error,
-              ErrorCode.PurchaseError,
-            )}`,
+        `${
+          error.code === ErrorCode.UserCancelled
+            ? 'Subscription cancelled by user'
+            : error.code === ErrorCode.DeferredPayment
+            ? 'Payment is pending at the store.'
+            : 'Subscription failed'
+        }\n${details}`,
       );
     },
     [storeError],

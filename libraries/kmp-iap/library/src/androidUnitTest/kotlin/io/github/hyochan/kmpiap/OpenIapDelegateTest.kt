@@ -28,7 +28,9 @@ import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitGooglePro
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitHorizonProps
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitProps
 import io.github.hyochan.kmpiap.openiap.SubResponseCodeAndroid
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseHorizonOptions
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseProps
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultHorizon
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseWithProviderProps
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
@@ -405,6 +407,26 @@ class OpenIapDelegateTest {
         }
 
         assertEquals(ErrorCode.PurchaseVerificationFailed, failure.error.code)
+    }
+
+    @Test
+    fun `Horizon verifyPurchase sends horizon options to its module`() = runBlocking {
+        var forwarded: dev.hyo.openiap.VerifyPurchaseProps? = null
+        val verify: dev.hyo.openiap.MutationVerifyPurchaseHandler = { props ->
+            forwarded = props
+            dev.hyo.openiap.VerifyPurchaseResultHorizon(grantTime = 1744148687.0, isValid = true)
+        }
+        val module = fakeModule { method, _ ->
+            if (method == "getVerifyPurchase") verify else error("Unexpected call: $method")
+        }
+        val request = VerifyPurchaseProps(
+            horizon = VerifyPurchaseHorizonOptions(accessToken = "token", sku = "dev.hyo.martie.10bulbs", userId = "meta-user"),
+        )
+
+        val result = delegateFor(Store.HORIZON, module).verifyPurchase(request)
+
+        assertEquals(request.toJson(), assertNotNull(forwarded, "Horizon skipped its module").toJson())
+        assertEquals(VerifyPurchaseResultHorizon(grantTime = 1744148687.0, isValid = true), result)
     }
 
     @Test

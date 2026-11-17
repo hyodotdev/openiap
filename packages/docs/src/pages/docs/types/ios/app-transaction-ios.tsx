@@ -179,7 +179,7 @@ function AppTransactionIos() {
 
         <Callout kind="important" title="Xcode 27 boundary">
           StoreKit also exposes <code>AppTransaction.all</code>, an async
-          sequence of app-acquisition records. OpenIAP 3 does not export that
+          sequence of app-acquisition records. OpenIAP does not export that
           sequence. <code>getAppTransactionIOS</code> returns the current
           verified app transaction, while <code>getAllTransactionsIOS</code>{' '}
           remains in-app purchase history; the two histories are not

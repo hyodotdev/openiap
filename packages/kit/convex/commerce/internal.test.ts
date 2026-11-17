@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { Doc, Id } from "../_generated/dataModel";
 import {
@@ -972,6 +972,24 @@ describe("pruneCommerceHistory", () => {
       { _id: unassignedEvent },
     ]);
   });
+
+  it("does not reschedule itself for an empty batch size", async () => {
+    const db = new Db();
+    const runAfter = vi.fn();
+    await db.insert("outboundDeliveries", {
+      status: "delivered",
+      updatedAt: 0,
+    });
+
+    await expect(
+      pruneCommerceHistoryHandler(
+        { db, scheduler: { runAfter } } as never,
+        1,
+        0,
+      ),
+    ).resolves.toEqual({ deletedDeliveries: 0, deletedEvents: 0 });
+    expect(runAfter).not.toHaveBeenCalled();
+  });
 });
 
 describe("buildEventPayload", () => {
@@ -1044,5 +1062,12 @@ describe("buildEventPayload", () => {
     expect(payload.subscriptionId).toBeUndefined();
     expect(payload.sourceEventId).toBeUndefined();
     expect(payload.entitlementActive).toBeUndefined();
+  });
+
+  it("sends no store event id for an Amazon RVS reconciliation row", () => {
+    const stored = { ...(row as object), sourceStoreNotificationId: "rvs:7" };
+    expect(buildEventPayload(stored as never)).not.toHaveProperty(
+      "sourceStoreEventId",
+    );
   });
 });

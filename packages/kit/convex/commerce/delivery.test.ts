@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { EventEmitter } from "node:events";
 import type { LookupFunction } from "node:net";
 
 import {
@@ -6,13 +7,16 @@ import {
   deliverPendingEventsHandler,
   MAX_FALLBACK_ADDRESSES,
   postJsonPinned,
+  postJsonToAddress,
   resolvePublicAddresses,
+  type AttemptBudget,
   type DeliveryRequest,
 } from "./delivery";
 import { recordDeliveryResultHandler } from "./deliveryState";
 import {
   DELIVERY_ID_HEADER,
   EVENT_ID_HEADER,
+  REQUEST_TIMEOUT_MS,
   SIGNATURE_HEADER,
   signPayload,
   TIMESTAMP_HEADER,
@@ -326,15 +330,39 @@ describe("resolvePublicAddresses", () => {
         { address: "93.184.216.34", family: 4 },
         { address: "2606:4700:4700::1111", family: 6 },
       ],
-      async (_request, address, timeoutMs) => {
+      async (_request, address, budget) => {
         attempted.push(address.address);
-        expect(timeoutMs).toBeGreaterThan(0);
+        expect(budget.connectMs).toBeGreaterThan(0);
         if (attempted.length === 1) throw new Error("network unreachable");
         return 204;
       },
     );
     expect(status).toBe(204);
     expect(attempted).toEqual(["93.184.216.34", "2606:4700:4700::1111"]);
+  });
+
+  it("shares only the connect time between addresses, not the response deadline", async () => {
+    vi.useFakeTimers();
+    const budgets: AttemptBudget[] = [];
+    await postJsonPinned(
+      {
+        url: new URL("https://hooks.example.com/iapkit"),
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      },
+      async () =>
+        Array.from({ length: MAX_FALLBACK_ADDRESSES }, (_, index) => ({
+          address: `93.184.216.${index + 1}`,
+          family: 4,
+        })),
+      async (_request, _address, budget) => {
+        budgets.push(budget);
+        return 204;
+      },
+    );
+    expect(budgets).toEqual([
+      { connectMs: 2_500, totalMs: REQUEST_TIMEOUT_MS },
+    ]);
   });
 
   it("pins lookup while preserving TLS SNI and the full request path", () => {
@@ -366,5 +394,69 @@ describe("resolvePublicAddresses", () => {
       },
     );
     expect(pinned).toEqual({ address: "93.184.216.34", family: 4 });
+  });
+});
+
+describe("postJsonToAddress", () => {
+  const request: DeliveryRequest = {
+    url: new URL("https://hooks.example.com/iapkit"),
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  };
+  const address = { address: "93.184.216.34", family: 4 };
+  const budget: AttemptBudget = { connectMs: 2_500, totalMs: 10_000 };
+
+  function fakeSend() {
+    const outgoing = Object.assign(new EventEmitter(), {
+      end: vi.fn(),
+      destroy: (error: Error) => outgoing.emit("error", error),
+    });
+    const socket = Object.assign(new EventEmitter(), { connecting: true });
+    let respond: (statusCode: number) => void = () => undefined;
+    const send = ((
+      _options: unknown,
+      onResponse: (response: unknown) => void,
+    ) => {
+      respond = (statusCode) => onResponse({ statusCode, destroy: vi.fn() });
+      return outgoing;
+    }) as unknown as Parameters<typeof postJsonToAddress>[3];
+    return {
+      send,
+      socket,
+      assignSocket: () => outgoing.emit("socket", socket),
+      respond: (statusCode: number) => respond(statusCode),
+    };
+  }
+
+  it("lets a connected receiver answer within the whole deadline", async () => {
+    vi.useFakeTimers();
+    const { send, socket, assignSocket, respond } = fakeSend();
+    const posted = postJsonToAddress(request, address, budget, send);
+    assignSocket();
+    socket.emit("secureConnect");
+    await vi.advanceTimersByTimeAsync(9_000);
+    respond(204);
+    await expect(posted).resolves.toBe(204);
+  });
+
+  it("gives up on an address that does not connect within its share", async () => {
+    vi.useFakeTimers();
+    const { send, assignSocket } = fakeSend();
+    const posted = postJsonToAddress(request, address, budget, send);
+    const rejected = expect(posted).rejects.toThrow("request timed out");
+    assignSocket();
+    await vi.advanceTimersByTimeAsync(budget.connectMs);
+    await rejected;
+  });
+
+  it("times out a connected receiver at the deadline", async () => {
+    vi.useFakeTimers();
+    const { send, socket, assignSocket } = fakeSend();
+    const posted = postJsonToAddress(request, address, budget, send);
+    const rejected = expect(posted).rejects.toThrow("request timed out");
+    assignSocket();
+    socket.emit("secureConnect");
+    await vi.advanceTimersByTimeAsync(budget.totalMs);
+    await rejected;
   });
 });

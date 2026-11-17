@@ -373,7 +373,11 @@ describe('PurchaseFlow Component', () => {
     await fireEvent.press(screen.getByText('Purchase'));
 
     expect(screen.queryByText('Processing...')).toBeNull();
-    expect(screen.getByText(/Purchase failed:/)).toBeTruthy();
+    expect(
+      screen.getByText(
+        `Purchase failed\nCode: ${ErrorCode.NetworkError}\nMessage: Store unavailable`,
+      ),
+    ).toBeTruthy();
   });
 
   it('releases processing on a purchase error', async () => {
@@ -385,11 +389,16 @@ describe('PurchaseFlow Component', () => {
       mockOptions?.onPurchaseError?.({
         code: ErrorCode.UserCancelled,
         message: 'Cancelled',
+        debugMessage: 'Response code 1',
       } as ExpoPurchaseError);
     });
 
     expect(screen.queryByText('Processing...')).toBeNull();
-    expect(screen.getByText('Purchase cancelled by user')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Purchase cancelled by user\nCode: user-cancelled\nMessage: Cancelled\nDebug: Response code 1',
+      ),
+    ).toBeTruthy();
   });
 
   it('keeps the selected method across a remount', async () => {

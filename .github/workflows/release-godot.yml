@@ -685,7 +685,9 @@ jobs:
             echo "::error::published asset digest $ACTUAL does not match the built artifact $EXPECTED"
             exit 1
           fi
-          gh attestation verify "$PUBLISHED" --repo "$GITHUB_REPOSITORY"
+          gh attestation verify "$PUBLISHED" --repo "$GITHUB_REPOSITORY" \
+            --cert-identity "https://github.com/$GITHUB_WORKFLOW_REF" \
+            --deny-self-hosted-runners
           echo "Published godot-iap-$VERSION.zip verified: sha256:$ACTUAL"
 
       - name: Dispatch SBOM

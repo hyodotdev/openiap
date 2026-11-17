@@ -90,6 +90,19 @@ describe('errorMapping utils', () => {
     expect(error.debugMessage).toBe('StoreKit said "declined}"');
   });
 
+  it('never surfaces the raw envelope as message or debugMessage', () => {
+    const raw = `${OPENIAP_ERROR_ENVELOPE_PREFIX}{"code":"service-error","message":null}`;
+    const error = createPurchaseErrorFromNativeException(
+      {code: ErrorCode.ServiceError, message: raw, debugMessage: raw},
+      'android',
+      {debugMessage: raw},
+    );
+
+    expect(error.code).toBe(ErrorCode.ServiceError);
+    expect(error.message).toBe('Unknown error occurred');
+    expect(error.debugMessage).toBeUndefined();
+  });
+
   it.each([
     ['a closed but invalid object', '{not json} (at A.swift:1)'],
     ['an object that is never closed', '{"code":"x" (at A.swift:1)'],

@@ -215,12 +215,21 @@ export default function App() {
           Purchase calls stay on the normal <code>expo-iap</code> API. The
           runtime chooses Onside or Apple under the hood:
         </p>
-        <CodeBlock language="typescript">{`import { finishTransaction, useIAP } from 'expo-iap';
+        <CodeBlock language="typescript">{`import { finishTransaction, useIAP, type Purchase } from 'expo-iap';
+
+async function handlePurchase(purchase: Purchase) {
+  // Your backend verifies the purchase.
+  const { isValid } = await yourBackend.verifyPurchase(purchase);
+  if (!isValid) return;
+
+  await grantEntitlement(purchase.productId);
+  await finishTransaction({ purchase, isConsumable: false });
+}
 
 function StoreScreen() {
   const { products, fetchProducts, requestPurchase } = useIAP({
     onPurchaseSuccess: (purchase) => {
-      void finishTransaction({ purchase, isConsumable: false }).catch((error) => {
+      void handlePurchase(purchase).catch((error) => {
         reportPurchaseError(error);
       });
     },

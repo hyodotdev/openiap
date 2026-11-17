@@ -105,11 +105,11 @@ void main() {
 
     await expectLater(
       app('android').finishTransaction(purchase: _android()),
-      throwsA(isA<PlatformException>()),
+      throwsA(isA<PurchaseError>()),
     );
     await expectLater(
       app('ios').finishTransaction(purchase: _apple()),
-      throwsA(isA<PlatformException>()),
+      throwsA(isA<PurchaseError>()),
     );
     await settle();
 
@@ -125,7 +125,7 @@ void main() {
       await expectLater(
         app('android')
             .finishTransaction(purchase: _android(), isConsumable: consumable),
-        throwsA(isA<PlatformException>()),
+        throwsA(isA<PurchaseError>()),
       );
       await settle();
 

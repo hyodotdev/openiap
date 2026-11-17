@@ -29,6 +29,8 @@ import dev.hyo.openiap.ProductSubscriptionAndroid
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.store.PurchaseResultStatus
+import dev.hyo.openiap.ErrorCode
+import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.ProductRequest
 import dev.hyo.openiap.RequestPurchaseProps
 import dev.hyo.openiap.RequestPurchaseAndroidProps
@@ -825,6 +827,32 @@ fun SubscriptionFlowScreen(
                             }
                         }
                     }
+                }
+            }
+
+            item {
+                OutlinedButton(
+                    onClick = {
+                        uiScope.launch {
+                            try {
+                                iapStore.deepLinkToSubscriptions(dev.hyo.openiap.DeepLinkOptions())
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                val error = e as? OpenIapError
+                                iapStore.postStatusMessage(
+                                    message = listOfNotNull(
+                                        "${error?.code ?: ErrorCode.ServiceError.rawValue}: ${e.message ?: "Failed to open subscription management"}",
+                                        error?.debugMessage
+                                    ).joinToString("\n"),
+                                    status = PurchaseResultStatus.Error
+                                )
+                            }
+                        }
+                    },
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                ) {
+                    Text("Manage Subscriptions")
                 }
             }
 

@@ -44,7 +44,6 @@ import dev.hyo.openiap.utils.HorizonBillingConverters.toActiveSubscription
 import dev.hyo.openiap.utils.HorizonBillingConverters.toInAppProduct
 import dev.hyo.openiap.utils.HorizonBillingConverters.toPurchase
 import dev.hyo.openiap.utils.HorizonBillingConverters.toSubscriptionProduct
-import dev.hyo.openiap.utils.verifyPurchaseWithGooglePlay
 import dev.hyo.openiap.utils.verifyPurchaseWithHorizon
 import dev.hyo.openiap.MutationVerifyPurchaseHandler
 import dev.hyo.openiap.MutationVerifyPurchaseWithProviderHandler
@@ -126,7 +125,6 @@ internal suspend fun <T> pollHorizonPurchases(
 }
 
 internal fun horizonUnsupportedPurchaseError(
-    type: ProductQueryType,
     offerToken: String?,
     originalExternalTransactionId: String?,
     hasDeveloperBillingOption: Boolean,
@@ -137,10 +135,9 @@ internal fun horizonUnsupportedPurchaseError(
     hasDeveloperBillingOption -> OpenIapError.FeatureNotSupported(
         "developerBillingOption is only supported by Google Play Billing 8.3+"
     )
-    type == ProductQueryType.InApp && !offerToken.isNullOrBlank() ->
-        OpenIapError.FeatureNotSupported(
-            "One-time product offer tokens are not supported by Meta Horizon Billing"
-        )
+    !offerToken.isNullOrBlank() -> OpenIapError.FeatureNotSupported(
+        "One-time product offer tokens are not supported by Meta Horizon Billing"
+    )
     else -> null
 }
 
@@ -1007,7 +1004,6 @@ class OpenIapModule(
             }
 
             horizonUnsupportedPurchaseError(
-                type = androidArgs.type,
                 offerToken = androidArgs.offerToken,
                 originalExternalTransactionId = androidArgs.originalExternalTransactionId,
                 hasDeveloperBillingOption = androidArgs.developerBillingOption != null,
@@ -1434,19 +1430,20 @@ class OpenIapModule(
     }
 
     override val verifyPurchase: MutationVerifyPurchaseHandler = { props ->
-        // Use Horizon API if horizon options provided, otherwise fallback to Google Play
-        if (props.horizon != null) {
-            val horizonAppId = appId ?: throw OpenIapError.DeveloperError(
-                "Horizon verifyPurchase requires appId to be set during initConnection"
+        // A Quest purchase is not a Play purchase, so Google cannot verify it.
+        if (props.horizon == null) {
+            throw OpenIapError.DeveloperError(
+                "Horizon verifyPurchase requires horizon options (sku, userId, accessToken)"
             )
-            val horizonResult = verifyPurchaseWithHorizon(props, horizonAppId, TAG)
-            if (!horizonResult.isValid) {
-                throw OpenIapError.InvalidPurchaseVerification
-            }
-            horizonResult
-        } else {
-            verifyPurchaseWithGooglePlay(props, TAG)
         }
+        val horizonAppId = appId ?: throw OpenIapError.DeveloperError(
+            "Horizon verifyPurchase requires the $HORIZON_APP_ID_META_DATA manifest meta-data"
+        )
+        val horizonResult = verifyPurchaseWithHorizon(props, horizonAppId, TAG)
+        if (!horizonResult.isValid) {
+            throw OpenIapError.InvalidPurchaseVerification
+        }
+        horizonResult
     }
 
     override val verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler = { props ->

@@ -606,10 +606,10 @@ var id: String
 var display_price: String
 var price: float
 var currency: String
-var type: DiscountOfferType
-var period: SubscriptionPeriod
+var type: Types.DiscountOfferType
+var period: Types.SubscriptionPeriod
 var period_count: int
-var payment_mode: PaymentMode
+var payment_mode: Types.PaymentMode
 
 # iOS-specific fields
 var key_identifier_ios: String
@@ -623,15 +623,15 @@ var localized_price_ios: String
 var base_plan_id_android: String
 var offer_token_android: String
 var offer_tags_android: Array[String]
-var pricing_phases_android: PricingPhasesAndroid
-var installment_plan_details_android: InstallmentPlanDetailsAndroid
+var pricing_phases_android: Types.PricingPhasesAndroid
+var installment_plan_details_android: Types.InstallmentPlanDetailsAndroid
 
 class InstallmentPlanDetailsAndroid:
     var commitment_payments_count: int
     var subsequent_commitment_payments_count: int
 
 class SubscriptionPeriod:
-    var unit: SubscriptionPeriodUnit
+    var unit: Types.SubscriptionPeriodUnit
     var value: int
 
 enum SubscriptionPeriodUnit { DAY, WEEK, MONTH, YEAR, UNKNOWN }

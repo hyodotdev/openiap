@@ -51,6 +51,18 @@ final class StoreKitValueMappingTests: XCTestCase {
     }
 }
 
+final class SubscriptionIdFilterTests: XCTestCase {
+    func testNilOrEmptyFilterSelectsEveryProduct() {
+        XCTAssertTrue(StoreKitTypesBridge.isSelected("premium", by: nil))
+        XCTAssertTrue(StoreKitTypesBridge.isSelected("premium", by: []))
+    }
+
+    func testNonEmptyFilterSelectsOnlyItsMembers() {
+        XCTAssertTrue(StoreKitTypesBridge.isSelected("premium", by: ["basic", "premium"]))
+        XCTAssertFalse(StoreKitTypesBridge.isSelected("premium", by: ["basic"]))
+    }
+}
+
 final class SubscriptionStatusCacheTests: XCTestCase {
     private struct TransientFailure: Error {}
 

@@ -197,20 +197,20 @@ var allProducts = await OpenIapClient.Query.FetchProductsAsync(
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Fetch in-app purchases (default)
-var request = ProductRequest.new()
+var request = Types.ProductRequest.new()
 request.skus.assign(["product1", "product2"])
 var inapp_products = await iap.fetch_products(request)
 
 # Fetch only subscriptions
-var subs_request = ProductRequest.new()
+var subs_request = Types.ProductRequest.new()
 subs_request.skus.assign(["sub1", "sub2"])
-subs_request.type = ProductQueryType.SUBS
+subs_request.type = Types.ProductQueryType.SUBS
 var subscriptions = await iap.fetch_products(subs_request)
 
 # Fetch all products (both in-app and subscriptions)
-var all_request = ProductRequest.new()
+var all_request = Types.ProductRequest.new()
 all_request.skus.assign(["product1", "sub1"])
-all_request.type = ProductQueryType.ALL
+all_request.type = Types.ProductQueryType.ALL
 var all_products = await iap.fetch_products(all_request)`}</CodeBlock>
             ),
           }}

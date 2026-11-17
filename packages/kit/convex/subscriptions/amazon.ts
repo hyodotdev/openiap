@@ -4,7 +4,10 @@ import {
   parseAmazonReceiptResponse,
   type AmazonReceiptData,
 } from "../purchases/amazonReceipt";
-import type { AmazonLifecycleNotice } from "../webhooks/amazonShared";
+import {
+  AMAZON_RVS_EVENT_ID_PREFIX,
+  type AmazonLifecycleNotice,
+} from "../webhooks/amazonShared";
 import { recordWebhookEventHandler } from "../webhooks/internal";
 import { emitCommerceEvent } from "../commerce/internal";
 import {
@@ -176,7 +179,7 @@ export async function syncAmazonSubscription(
     source: notice ? "amazon" : "amazon-rvs",
     sourceNotificationId:
       notice?.messageId ??
-      `rvs:${purchase.lastAmazonRvsSequence ?? purchase.updatedAt ?? purchase._creationTime}`,
+      `${AMAZON_RVS_EVENT_ID_PREFIX}${purchase.lastAmazonRvsSequence ?? purchase.updatedAt ?? purchase._creationTime}`,
     event: {
       type: snapshot.type,
       sourceFull: notice

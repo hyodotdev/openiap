@@ -82,7 +82,9 @@ function IsEligibleForIntroOfferIOS() {
       </AnchorLink>
       <p>
         <code>Promise&lt;boolean&gt;</code> — <code>true</code> if the user is
-        eligible for the group's introductory offer.
+        eligible for the group's introductory offer. Godot&apos;s{' '}
+        <code>is_eligible_for_intro_offer_ios</code> runs on iOS only; on macOS
+        it returns <code>false</code> without checking.
       </p>
 
       <h2>Example</h2>

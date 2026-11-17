@@ -215,7 +215,7 @@ describe('SubscriptionFlow Component', () => {
       expect(
         within(screen.getByTestId('purchase-step-store')).getByText('Waiting'),
       ).toBeDefined();
-      expect(screen.queryByText(/Subscription failed:/)).toBeNull();
+      expect(screen.queryByText(/Subscription failed/)).toBeNull();
     },
   );
 
@@ -665,7 +665,11 @@ describe('SubscriptionFlow Component', () => {
         message: 'Cancelled',
       } as ExpoPurchaseError);
     });
-    expect(screen.getByText('Subscription cancelled by user')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Subscription cancelled by user\nCode: user-cancelled\nMessage: Cancelled',
+      ),
+    ).toBeTruthy();
     expect(screen.getByText(planChange)).toBeTruthy();
 
     mockUseIAP.mockReturnValue({

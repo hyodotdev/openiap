@@ -189,6 +189,12 @@ Future<VerificationMethod?> pickVerificationMethod(
   return picked;
 }
 
+String describePurchaseError(PurchaseError error) => [
+      'Code: ${error.code?.value}',
+      'Message: ${error.message}',
+      if (error.debugMessage != null) 'Debug: ${error.debugMessage}',
+    ].join('\n');
+
 /// The result text for an outcome: the guidance key as the example's copy.
 String describeOutcome(PurchaseFlowOutcome outcome) {
   final PurchaseFlowOutcome(:purchase, :status) = outcome;

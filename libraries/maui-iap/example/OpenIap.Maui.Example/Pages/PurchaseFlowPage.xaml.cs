@@ -16,6 +16,7 @@ public partial class PurchaseFlowPage : ContentPage
     private bool _refreshingPurchases;
     private bool _storefrontLoading;
     private bool _didFetch;
+    private IDisposable? _errorSub;
 
     public PurchaseFlowPage()
     {
@@ -30,6 +31,8 @@ public partial class PurchaseFlowPage : ContentPage
         base.OnAppearing();
         VerificationButton.Text = IapLifecycle.Label(IapLifecycle.Verification);
         IapLifecycle.Flow.OutcomePublished += OnOutcome;
+        // Android reports a cancelled or failed purchase here, not from RequestPurchaseAsync.
+        _errorSub ??= OpenIapClient.Instance.PurchaseError.ObserveOnCurrentContext().Subscribe(OnPurchaseError);
         await ConnectAndFetchAsync();
     }
 
@@ -37,6 +40,8 @@ public partial class PurchaseFlowPage : ContentPage
     {
         base.OnDisappearing();
         IapLifecycle.Flow.OutcomePublished -= OnOutcome;
+        _errorSub?.Dispose();
+        _errorSub = null;
     }
 
     private async Task ConnectAndFetchAsync()
@@ -316,7 +321,7 @@ public partial class PurchaseFlowPage : ContentPage
         }
         catch (Exception ex)
         {
-            UpdateResult(ErrorUtils.FormatPurchaseFailure(ex));
+            OnPurchaseError(ex);
         }
         finally
         {
@@ -351,6 +356,13 @@ public partial class PurchaseFlowPage : ContentPage
         _ = status is PurchaseFlowStatus.Entitled { FinishError: { } finishError }
             ? DisplayAlertAsync("Finish Failed", finishError.Message, "OK")
             : DisplayAlertAsync("Success", "Purchase completed successfully!", "OK");
+    }
+
+    private void OnPurchaseError(object error)
+    {
+        var failure = ErrorUtils.FormatPurchaseFailure(error);
+        Console.WriteLine($"[PurchaseFlow] {failure}");
+        UpdateResult(failure);
     }
 
     private void UpdateResult(string text)

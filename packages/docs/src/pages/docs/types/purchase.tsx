@@ -399,12 +399,9 @@ function Purchase() {
                         <code>offerIOS</code>
                       </td>
                       <td>
-                        Applied offer details. Contains: <code>id</code>,{' '}
-                        <code>type</code>, <code>paymentMode</code>.{' '}
-                        <code>type</code> is <code>introductory</code>,{' '}
-                        <code>promotional</code>,{' '}
-                        <code>subscription-offer-code</code>,{' '}
-                        <code>win-back</code>, or <code>unknown</code>
+                        Applied offer details (see{' '}
+                        <a href="#purchase-offer-ios">PurchaseOfferIOS</a>{' '}
+                        below)
                       </td>
                     </tr>
                     <tr>
@@ -526,6 +523,61 @@ function Purchase() {
                   — see that page for the full field reference.
                 </p>
 
+                <AnchorLink id="purchase-offer-ios" level="h4">
+                  PurchaseOfferIOS
+                </AnchorLink>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Type</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <code>id</code>
+                      </td>
+                      <td>
+                        <code>string</code>
+                      </td>
+                      <td>
+                        Offer identifier; empty when StoreKit reports none
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>type</code>
+                      </td>
+                      <td>
+                        <code>string</code>
+                      </td>
+                      <td>
+                        <code>introductory</code>, <code>promotional</code>,{' '}
+                        <code>subscription-offer-code</code>,{' '}
+                        <code>win-back</code>, or <code>unknown</code>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>paymentMode</code>
+                      </td>
+                      <td>
+                        <code>string</code>
+                      </td>
+                      <td>
+                        A{' '}
+                        <Link to="/docs/types/ios/payment-mode-ios">
+                          <code>PaymentModeIOS</code>
+                        </Link>{' '}
+                        wire value; <code>empty</code> when StoreKit reports
+                        none
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+
                 <div style={{ marginTop: '1rem' }}>
                   <AnchorLink id="advanced-commerce-info-ios" level="h4">
                     AdvancedCommerceInfoIOS{' '}
@@ -560,13 +612,25 @@ function Purchase() {
                         <td>
                           <code>items</code>
                         </td>
-                        <td>Items purchased in this transaction</td>
+                        <td>
+                          Items purchased in this transaction, as{' '}
+                          <a href="#advanced-commerce-item-ios">
+                            <code>AdvancedCommerceItemIOS</code>
+                          </a>{' '}
+                          entries
+                        </td>
                       </tr>
                       <tr>
                         <td>
                           <code>period</code>
                         </td>
-                        <td>Subscription period unit and value (optional)</td>
+                        <td>
+                          Subscription period as a{' '}
+                          <Link to="/docs/types/ios/subscription-period-ios#subscription-period-value-ios">
+                            <code>SubscriptionPeriodValueIOS</code>
+                          </Link>{' '}
+                          (optional)
+                        </td>
                       </tr>
                       <tr>
                         <td>
@@ -611,6 +675,57 @@ function Purchase() {
                           <code>description</code>
                         </td>
                         <td>Optional description</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <AnchorLink id="advanced-commerce-item-ios" level="h4">
+                    AdvancedCommerceItemIOS
+                  </AnchorLink>
+                  <table className="doc-table" style={{ marginTop: '0.5rem' }}>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Summary</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>
+                          <code>details</code>
+                        </td>
+                        <td>
+                          <code>AdvancedCommerceItemDetailsIOS?</code>
+                        </td>
+                        <td>
+                          Item details; its <code>jsonRepresentation</code> is
+                          the JSON string StoreKit reports
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <code>refunds</code>
+                        </td>
+                        <td>
+                          <code>AdvancedCommerceRefundIOS[]?</code>
+                        </td>
+                        <td>
+                          Refunds issued for this item; each carries its own{' '}
+                          <code>jsonRepresentation</code> string
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <code>revocationDate</code>
+                        </td>
+                        <td>
+                          <code>number?</code>
+                        </td>
+                        <td>
+                          When access to this item was revoked, in milliseconds
+                          since epoch
+                        </td>
                       </tr>
                     </tbody>
                   </table>

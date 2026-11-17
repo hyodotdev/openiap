@@ -158,8 +158,12 @@ export async function savePurchaseInternal({
         existing.state === state &&
         (existing.isValid ?? false) === isValid &&
         (existing.productId ?? null) === productId
-      )
+      ) {
+        // A repeat unrecognized verdict restarts the row's retention window.
+        if (existing.unrecognizedAt !== undefined)
+          await ctx.db.patch(existing._id, { unrecognizedAt: now });
         return existing._id;
+      }
       // At most one row may own an orderId per (projectId, applicationId), or
       // googleOrders drifts. The race: token T1 is saved pre-ack without an
       // orderId, Google reissues it as T2 and that call inserts a row with O1,
@@ -308,6 +312,9 @@ export async function savePurchaseInternal({
     ...(verificationDurationMs !== undefined ? { verificationDurationMs } : {}),
     ...(requestIp !== undefined ? { requestIp } : {}),
     ...(correlationId !== undefined ? { correlationId } : {}),
+    ...(state === HarmonizedPurchaseState.INAUTHENTIC
+      ? { unrecognizedAt: now }
+      : {}),
   });
 
   const result = await applyPurchaseStatsDelta(
@@ -408,6 +415,7 @@ async function patchExistingPurchase(
     orderId?: string;
     statsCounted?: boolean;
     storeStatsCounted?: boolean;
+    unrecognizedAt?: number;
   },
   args: PurchasePatchArgs,
   extraDelta: PurchaseStatsDelta = {},
@@ -462,6 +470,12 @@ async function patchExistingPurchase(
     ...(args.correlationId !== undefined
       ? { correlationId: args.correlationId }
       : {}),
+    // Any other verdict removes the marker for good; see the schema.
+    unrecognizedAt:
+      existing.unrecognizedAt !== undefined &&
+      args.state === HarmonizedPurchaseState.INAUTHENTIC
+        ? args.updatedAt
+        : undefined,
   });
   // Merge every delta so purchaseStats is read and written once per save.
   const patchDelta = deltaForUpdate(

@@ -112,8 +112,8 @@ Compare current implementation against latest platform APIs:
 | appTransactionID               | iOS 18.4                           | In AppTransaction type?                  |
 | Expanded offer codes           | iOS 18.4                           | For consumables/non-consumables?         |
 | Monthly annual commitments     | iOS 26.4+ runtime / Xcode 26.5 SDK | Pricing terms and purchase option wired? |
-| Verified offer-code redemption | Xcode 27 beta                      | New result/options API represented?      |
-| Group purchase seats           | WWDC 26                            | Seat-count request support or roadmap?   |
+| Verified offer-code redemption | Xcode 27 SDK                       | New result/options API represented?      |
+| Group purchase seats           | Xcode 27.3 SDK (beta)              | Seat-count request support or roadmap?   |
 
 **Meta Horizon (check packages/google/openiap/src/horizon/):**
 

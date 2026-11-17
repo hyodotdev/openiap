@@ -407,9 +407,9 @@ if not await iap.init_connection():
     return
 
 # 2. Fetch products by SKU.
-var request = ProductRequest.new()
+var request = Types.ProductRequest.new()
 request.skus.assign(["com.app.premium"])
-request.type = ProductQueryType.IN_APP
+request.type = Types.ProductQueryType.IN_APP
 var products = await iap.fetch_products(request)
 
 # 3. Listen for purchase results.
@@ -419,11 +419,11 @@ iap.purchase_received.connect(func(purchase):
 )
 
 # 4. Initiate a purchase.
-var props = RequestPurchaseProps.new()
-props.request = RequestPurchasePropsByPlatforms.new()
-props.request.apple = RequestPurchaseIosProps.new()
+var props = Types.RequestPurchaseProps.new()
+props.request = Types.RequestPurchasePropsByPlatforms.new()
+props.request.apple = Types.RequestPurchaseIosProps.new()
 props.request.apple.sku = "com.app.premium"
-props.type = ProductQueryType.IN_APP
+props.type = Types.ProductQueryType.IN_APP
 await iap.request_purchase(props)`}</CodeBlock>
               ),
             }}

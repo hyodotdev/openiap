@@ -389,7 +389,7 @@ const invalidateReads = (order: ReadOrder): void => {
 
 /**
  * React Hook for managing In-App Purchases.
- * See documentation at https://react-native-iap.hyo.dev/docs/hooks/useIAP
+ * See documentation at https://openiap.dev/docs/setup/react-native#useIAP-hook
  */
 export function useIAP(options?: UseIapOptions): UseIap {
   const [connected, setConnected] = useState<boolean>(false);

@@ -93,7 +93,7 @@ public sealed record InitConnectionConfig
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`# InitConnectionConfig.enable_billing_program_android: BillingProgramAndroid
-func init_connection(config: InitConnectionConfig) -> bool`}</CodeBlock>
+func init_connection(config: Types.InitConnectionConfig) -> bool`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -183,8 +183,8 @@ if (!connected) throw new InvalidOperationException("Store connection failed");`
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
-    var config = InitConnectionConfig.new()
-    config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_OFFER
+    var config = Types.InitConnectionConfig.new()
+    config.enable_billing_program_android = Types.BillingProgramAndroid.EXTERNAL_OFFER
     var connected = await iap.init_connection(config)
     if not connected:
         push_error("Store connection failed")`}</CodeBlock>

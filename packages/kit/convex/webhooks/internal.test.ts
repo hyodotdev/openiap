@@ -502,4 +502,53 @@ describe("pruneWebhookEvents", () => {
     });
     vi.useRealTimers();
   });
+
+  it("schedules the next batch while a full one remains past retention", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(10_000));
+    const db = createWritableDb({
+      webhookEvents: ["event_a", "event_b", "event_c"].map((_id) => ({
+        _id,
+        projectId: "project_a",
+        receivedAt: 1_000,
+      })),
+      subscriptions: [],
+    });
+    const scheduler = { runAfter: vi.fn() };
+    const args = { olderThanMs: 5_000, batchSize: 2 };
+
+    await expect(
+      pruneWebhookEvents._handler({ db, scheduler }, args),
+    ).resolves.toEqual({ deletedEvents: 2 });
+    expect(scheduler.runAfter).toHaveBeenCalledWith(0, expect.anything(), args);
+
+    scheduler.runAfter.mockClear();
+    await expect(
+      pruneWebhookEvents._handler({ db, scheduler }, args),
+    ).resolves.toEqual({ deletedEvents: 1 });
+    expect(scheduler.runAfter).not.toHaveBeenCalled();
+    expect(db.rows("webhookEvents")).toHaveLength(0);
+    vi.useRealTimers();
+  });
+
+  it("does not reschedule itself for an empty batch size", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(10_000));
+    const db = createWritableDb({
+      webhookEvents: [
+        { _id: "event_a", projectId: "project_a", receivedAt: 1_000 },
+      ],
+      subscriptions: [],
+    });
+    const scheduler = { runAfter: vi.fn() };
+
+    await expect(
+      pruneWebhookEvents._handler(
+        { db, scheduler },
+        { olderThanMs: 5_000, batchSize: 0 },
+      ),
+    ).resolves.toEqual({ deletedEvents: 0 });
+    expect(scheduler.runAfter).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
 });

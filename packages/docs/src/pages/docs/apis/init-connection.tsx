@@ -82,7 +82,7 @@ function InitConnection() {
             <CodeBlock language="csharp">{`Task<bool> InitConnectionAsync(InitConnectionConfig? config = null);`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func init_connection(config: InitConnectionConfig = null) -> bool`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func init_connection(config: Types.InitConnectionConfig = null) -> bool`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -171,7 +171,14 @@ function InitConnection() {
       <AnchorLink id="throws" level="h2">
         Throws
       </AnchorLink>
-      <p>When the platform billing client fails to initialize.</p>
+      <p>
+        When the platform billing client fails to initialize. The native Android
+        module resolves <code>false</code> instead, and react-native-iap on iOS
+        resolves <code>false</code> after sending the error to the purchase
+        error listener, so check the result too. On iOS, kmp-iap throws{' '}
+        <code>ServiceTimeout</code> when the App Store connection does not
+        answer within 15 seconds.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>
@@ -270,9 +277,9 @@ if (!connected) throw new InvalidOperationException("Store connection failed");`
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`# Choose one call. Omit the config for a standard connection.
-var config = InitConnectionConfig.new()
-config.enable_billing_program_android = BillingProgramAndroid.BILLING_CHOICE
-config.billing_choice_screen_type_android = BillingChoiceScreenTypeAndroid.DEVELOPER_RENDERED
+var config = Types.InitConnectionConfig.new()
+config.enable_billing_program_android = Types.BillingProgramAndroid.BILLING_CHOICE
+config.billing_choice_screen_type_android = Types.BillingChoiceScreenTypeAndroid.DEVELOPER_RENDERED
 var success = await iap.init_connection(config)
 if not success:
     push_error("Store connection failed")`}</CodeBlock>

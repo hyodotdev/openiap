@@ -108,15 +108,11 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
   }
 
   void _handlePurchaseError(PurchaseError error) {
+    final details = describePurchaseError(error);
+    debugPrint('[PurchaseFlow] purchase error\n$details');
     setState(() {
       _isProcessing = false;
-
-      _purchaseResult = '''
-❌ Purchase Error
-Code: ${error.code}
-Message: ${error.message}
-      '''
-          .trim();
+      _purchaseResult = '❌ Purchase Error\n$details';
     });
   }
 

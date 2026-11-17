@@ -98,7 +98,7 @@ func _on_products_fetched(result: Dictionary) -> void:
 				products[product_dict.get("id", "")] = product_dict
 		products_loaded.emit()
 	elif result.has("error"):
-		push_error("[IAPManager] Failed to fetch products: %s" % result.get("error", "Unknown"))
+		push_error("[IAPManager] Failed to fetch products: %s (code: %s)" % [result.get("error", "Unknown"), result.get("code", "")])
 
 
 func _process_products(products_array: Array) -> void:
@@ -179,16 +179,18 @@ func _on_purchase_processed(purchase: Dictionary, status: PurchaseFlow.Status) -
 func _on_purchase_error(error: Dictionary) -> void:
 	if error.get("method") == "verifyAppOwnership":
 		return
-	var message = error.get("message", "Unknown error")
 	var code = error.get("code", "")
+	var details := "Code: %s\nMessage: %s" % [code, error.get("message", "Unknown error")]
+	if error.get("debugMessage"):
+		details += "\nDebug: %s" % error["debugMessage"]
 
 	# User cancellation is not a real error, just log it
 	if code == "user-cancelled" or code == "USER_CANCELLED":
-		print("[IAPManager] Purchase cancelled by user")
+		print("[IAPManager] Purchase cancelled by user\n%s" % details)
 	else:
-		push_error("[IAPManager] Purchase error: %s (code: %s)" % [message, code])
+		push_error("[IAPManager] Purchase error\n%s" % details)
 
-	purchase_failed.emit("", message)
+	purchase_failed.emit("", details)
 
 
 # ============================================

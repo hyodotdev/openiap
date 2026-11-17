@@ -32,7 +32,6 @@ import io.github.hyochan.kmpiap.openiap.ProductQueryType
 import io.github.hyochan.kmpiap.openiap.ProductRequest
 import io.github.hyochan.kmpiap.openiap.ProductSubscription
 import io.github.hyochan.kmpiap.openiap.QueryResolver
-import io.github.hyochan.kmpiap.openiap.ErrorCode
 import io.github.hyochan.kmpiap.openiap.ActiveSubscription
 import io.github.hyochan.kmpiap.openiap.SubscriptionOffer
 import io.github.hyochan.kmpiap.openiap.ProductSubscriptionAndroid
@@ -104,10 +103,8 @@ fun SubscriptionFlowScreen(navController: NavController) {
         launch {
             kmpIapInstance.purchaseErrorListener.collect { error ->
                 isProcessing = false
-                purchaseResult = when (error.code) {
-                    ErrorCode.UserCancelled -> "⚠️ Subscription cancelled by user"
-                    else -> "❌ Error: ${error.message}\nCode: ${error.code}"
-                }
+                purchaseResult = error.resultText("Subscription")
+                println("[KMP-IAP Example] $purchaseResult")
             }
         }
     }
@@ -600,6 +597,19 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 fontWeight = FontWeight.Bold,
                 color = AppColors.OnSurface
             )
+            OutlinedButton(
+                onClick = {
+                    scope.launch {
+                        try {
+                            kmpIapInstance.deepLinkToSubscriptions()
+                        } catch (e: PurchaseException) {
+                            purchaseResult = e.error.resultText("Manage subscriptions")
+                        }
+                    }
+                }
+            ) {
+                Text("Manage Subscriptions")
+            }
             
             Spacer(modifier = Modifier.height(12.dp))
             
@@ -662,9 +672,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                             )
                                         )
                                     } catch (e: PurchaseException) {
-                                        if (e.error.code != ErrorCode.UserCancelled) {
-                                            purchaseResult = "Subscription failed: ${e.message}"
-                                        }
+                                        purchaseResult = e.error.resultText("Subscription")
                                         isProcessing = false
                                     } catch (e: Exception) {
                                         purchaseResult = "Subscription failed: ${e.message}"

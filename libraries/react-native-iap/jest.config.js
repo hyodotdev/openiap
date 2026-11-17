@@ -15,6 +15,7 @@ module.exports = {
   ],
   setupFilesAfterEnv: [],
   testEnvironment: 'node',
+  watchman: false,
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',
     '!src/**/*.d.ts',

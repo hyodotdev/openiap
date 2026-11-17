@@ -420,7 +420,7 @@ describe('PurchaseFlow Screen', () => {
     expect(screen.queryByText('Processing...')).toBeNull();
     expect(
       screen.getByText(
-        `Purchase failed: Something went wrong (code: ${ErrorCode.NetworkError})`,
+        `Purchase failed\nCode: ${ErrorCode.NetworkError}\nMessage: Something went wrong`,
       ),
     ).toBeTruthy();
   });
@@ -431,9 +431,14 @@ describe('PurchaseFlow Screen', () => {
     await fail({
       code: ErrorCode.UserCancelled,
       message: 'User cancelled the purchase',
+      debugMessage: 'Response code 1',
     });
 
-    expect(getByText('Purchase cancelled by user')).toBeTruthy();
+    expect(
+      getByText(
+        `Purchase cancelled by user\nCode: ${ErrorCode.UserCancelled}\nMessage: User cancelled the purchase\nDebug: Response code 1`,
+      ),
+    ).toBeTruthy();
   });
 
   it('releases processing when the request itself fails', async () => {
@@ -446,7 +451,11 @@ describe('PurchaseFlow Screen', () => {
     await fireEvent.press(screen.getAllByText('Purchase')[0]!);
 
     expect(screen.queryByText('Processing...')).toBeNull();
-    expect(screen.getByText('Purchase failed: Store unavailable')).toBeTruthy();
+    expect(
+      screen.getByText(
+        `Purchase failed\nCode: ${ErrorCode.ServiceError}\nMessage: Store unavailable`,
+      ),
+    ).toBeTruthy();
   });
 
   // Android discount offers tests (cross-platform)

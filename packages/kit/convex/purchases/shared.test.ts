@@ -142,6 +142,22 @@ describe("mapGooglePlayPurchaseState", () => {
     expect(state).toBe(HarmonizedPurchaseState.ENTITLED);
   });
 
+  it.each([
+    undefined,
+    "SUBSCRIPTION_STATE_UNSPECIFIED",
+    "SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED",
+    "SUBSCRIPTION_STATE_FUTURE",
+  ])("does not entitle an acknowledged subscription in state %s", (state) => {
+    expect(
+      mapGooglePlayPurchaseState({
+        type: "Subscription",
+        subscriptionState: state,
+        acknowledgementState: "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
+        expiryTime: Date.now() + 60_000,
+      }),
+    ).toBe(HarmonizedPurchaseState.UNKNOWN);
+  });
+
   it("marks in-app purchases as consumed when Google Play reports it", () => {
     const state = mapGooglePlayPurchaseState({
       type: "InApp",

@@ -40,7 +40,7 @@ internal fun isAtLeastIOS(major: Int, minor: Int = 0): Boolean =
         cValue { majorVersion = major.toLong(); minorVersion = minor.toLong(); patchVersion = 0 }
     )
 
-// Native matches an empty filter against nothing; empty means "all" here.
+// An empty filter means "all"; older native releases matched it against nothing.
 internal fun List<String>?.normalizeSubscriptionIdsIOS(): List<String>? =
     if (isNullOrEmpty()) null else this
 
@@ -51,8 +51,14 @@ internal class IosConnectionLifecycle(
 ) {
     private val mutex = Mutex()
 
-    suspend fun <T> run(block: suspend () -> T): T = mutex.withLock {
-        withTimeout(timeoutMillis) { block() }
+    // A timeout thrown as a CancellationException would end the caller's coroutine without an error.
+    suspend fun <T : Any> run(block: suspend () -> T): T = mutex.withLock {
+        withTimeoutOrNull(timeoutMillis) { block() } ?: throw PurchaseException(
+            PurchaseError(
+                code = ErrorCode.ServiceTimeout,
+                message = "App Store connection request timed out"
+            )
+        )
     }
 }
 
@@ -1180,146 +1186,83 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         return decodePurchaseListPayloadIOS(data)
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun convertAnyListToProducts(data: Any?): List<Product> {
-        if (data == null) {
-            return emptyList()
-        }
-
-        return try {
-            val list = data as? List<*>
-            if (list == null) {
-                return emptyList()
-            }
-
-            list.mapNotNull { item ->
-                val dict = (item as? Map<*, *>)
-                if (dict == null) {
-                    return@mapNotNull null
-                }
-
-                val map = normalizeProductPayloadIOS(dict) ?: return@mapNotNull null
-                runCatching { ProductIOS.fromJson(map) }.getOrNull()?.let {
-                    return@mapNotNull mergeNativeSubscriptionOffers(it, map)
-                }
-
-                // Parse subscription offers from the data (if product has subscription info)
-                val subscriptionOffers = subscriptionOffersFrom(map)
-
-                ProductIOS(
-                    currency = map["currency"] as? String ?: "",
-                    debugDescription = map["debugDescription"] as? String,
-                    description = map["description"] as? String ?: "",
-                    displayName = map["displayName"] as? String,
-                    displayNameIOS = map["displayNameIOS"] as? String ?: "",
-                    displayPrice = map["displayPrice"] as? String ?: "",
-                    id = map["id"] as? String ?: "",
-                    isFamilyShareableIOS = map["isFamilyShareableIOS"] as? Boolean ?: false,
-                    jsonRepresentationIOS = map["jsonRepresentationIOS"] as? String ?: "",
-                    platform = IapPlatform.Ios,
-                    price = (map["price"] as? Number)?.toDouble(),
-                    pricingTermsIOS = convertAnyListToSubscriptionPricingTermsIOS(
-                        map["pricingTermsIOS"]
-                    ),
-                    subscriptionOffers = subscriptionOffers.ifEmpty { null },
-                    title = map["title"] as? String ?: "",
-                    type = (map["type"] as? String)?.let { ProductType.fromJson(it) }
-                        ?: ProductType.InApp,
-                    typeIOS = (map["typeIOS"] as? String)?.let {
-                        ProductTypeIOS.fromJson(it)
-                    } ?: ProductTypeIOS.Consumable
-                )
-            }
-        } catch (e: Exception) {
-            emptyList()
-        }
+    // One product this SDK cannot read must not hide the rest of the store.
+    private fun skipUndecodableProductIOS(data: Any?): Nothing? {
+        val id = (data as? Map<*, *>)?.get("id") as? String
+        NSLog("%s", "[kmp-iap] Skipped a product that could not be decoded: ${id ?: "unknown id"}")
+        return null
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun convertAnyListToProductSubscriptions(data: Any?): List<ProductSubscription> {
-        if (data == null) return emptyList()
+    internal fun convertAnyListToProducts(list: List<*>): List<Product> =
+        list.mapNotNull(::convertAnyToProductIOS)
 
-        return try {
-            val list = data as? List<*> ?: return emptyList()
-            list.mapNotNull { item ->
-                val dict = (item as? Map<*, *>) ?: return@mapNotNull null
-                val map = normalizeProductPayloadIOS(dict) ?: return@mapNotNull null
-                runCatching { ProductSubscriptionIOS.fromJson(map) }.getOrNull()?.let {
-                    return@mapNotNull mergeNativeSubscriptionOffers(it, map)
-                }
+    internal fun convertAnyListToProductSubscriptions(list: List<*>): List<ProductSubscription> =
+        list.mapNotNull(::convertAnyToProductSubscriptionIOS)
 
-                // Parse subscription offers from the data
-                val subscriptionOffers = subscriptionOffersFrom(map)
-
-                ProductSubscriptionIOS(
-                    currency = map["currency"] as? String ?: "",
-                    debugDescription = map["debugDescription"] as? String,
-                    description = map["description"] as? String ?: "",
-                    displayName = map["displayName"] as? String,
-                    displayNameIOS = map["displayNameIOS"] as? String ?: "",
-                    displayPrice = map["displayPrice"] as? String ?: "",
-                    id = map["id"] as? String ?: "",
-                    introductoryPriceAsAmountIOS = map["introductoryPriceAsAmountIOS"] as? String,
-                    introductoryPriceIOS = map["introductoryPriceIOS"] as? String,
-                    introductoryPriceNumberOfPeriodsIOS = map["introductoryPriceNumberOfPeriodsIOS"] as? String,
-                    introductoryPricePaymentModeIOS = (map["introductoryPricePaymentModeIOS"] as? String)
-                        ?.let { runCatching { PaymentModeIOS.fromJson(it) }.getOrNull() }
-                        ?: PaymentModeIOS.Empty,
-                    introductoryPriceSubscriptionPeriodIOS =
-                        (map["introductoryPriceSubscriptionPeriodIOS"] as? String)
-                            ?.let { runCatching { SubscriptionPeriodIOS.fromJson(it) }.getOrNull() },
-                    isFamilyShareableIOS = map["isFamilyShareableIOS"] as? Boolean ?: false,
-                    jsonRepresentationIOS = map["jsonRepresentationIOS"] as? String ?: "",
-                    platform = IapPlatform.Ios,
-                    price = (map["price"] as? Number)?.toDouble(),
-                    pricingTermsIOS = convertAnyListToSubscriptionPricingTermsIOS(
-                        map["pricingTermsIOS"]
-                    ),
-                    subscriptionOffers = subscriptionOffers.ifEmpty { null },
-                    subscriptionGroupIdIOS = map["subscriptionGroupIdIOS"] as? String,
-                    subscriptionPeriodNumberIOS = map["subscriptionPeriodNumberIOS"] as? String,
-                    subscriptionPeriodUnitIOS = (map["subscriptionPeriodUnitIOS"] as? String)
-                        ?.let { runCatching { SubscriptionPeriodIOS.fromJson(it) }.getOrNull() },
-                    title = map["title"] as? String ?: "",
-                    type = ProductType.Subs,
-                    typeIOS = (map["typeIOS"] as? String)
-                        ?.let { runCatching { ProductTypeIOS.fromJson(it) }.getOrNull() }
-                        ?: ProductTypeIOS.AutoRenewableSubscription
-                )
-            }
-        } catch (e: Exception) {
-            emptyList()
+    private fun convertAnyToProductSubscriptionIOS(data: Any?): ProductSubscription? {
+        val map = normalizeProductPayloadIOS(data) ?: return skipUndecodableProductIOS(data)
+        runCatching { ProductSubscriptionIOS.fromJson(map) }.getOrNull()?.let {
+            return mergeNativeSubscriptionOffers(it, map)
         }
+
+        return ProductSubscriptionIOS(
+            currency = map["currency"] as? String ?: "",
+            debugDescription = map["debugDescription"] as? String,
+            description = map["description"] as? String ?: "",
+            displayName = map["displayName"] as? String,
+            displayNameIOS = map["displayNameIOS"] as? String ?: "",
+            displayPrice = map["displayPrice"] as? String ?: "",
+            id = map["id"] as? String ?: "",
+            introductoryPriceAsAmountIOS = map["introductoryPriceAsAmountIOS"] as? String,
+            introductoryPriceIOS = map["introductoryPriceIOS"] as? String,
+            introductoryPriceNumberOfPeriodsIOS = map["introductoryPriceNumberOfPeriodsIOS"] as? String,
+            introductoryPricePaymentModeIOS = (map["introductoryPricePaymentModeIOS"] as? String)
+                ?.let { runCatching { PaymentModeIOS.fromJson(it) }.getOrNull() }
+                ?: PaymentModeIOS.Empty,
+            introductoryPriceSubscriptionPeriodIOS =
+                (map["introductoryPriceSubscriptionPeriodIOS"] as? String)
+                    ?.let { runCatching { SubscriptionPeriodIOS.fromJson(it) }.getOrNull() },
+            isFamilyShareableIOS = map["isFamilyShareableIOS"] as? Boolean ?: false,
+            jsonRepresentationIOS = map["jsonRepresentationIOS"] as? String ?: "",
+            platform = IapPlatform.Ios,
+            price = (map["price"] as? Number)?.toDouble(),
+            pricingTermsIOS = convertAnyListToSubscriptionPricingTermsIOS(
+                map["pricingTermsIOS"]
+            ),
+            subscriptionOffers = subscriptionOffersFrom(map).ifEmpty { null },
+            subscriptionGroupIdIOS = map["subscriptionGroupIdIOS"] as? String,
+            subscriptionPeriodNumberIOS = map["subscriptionPeriodNumberIOS"] as? String,
+            subscriptionPeriodUnitIOS = (map["subscriptionPeriodUnitIOS"] as? String)
+                ?.let { runCatching { SubscriptionPeriodIOS.fromJson(it) }.getOrNull() },
+            title = map["title"] as? String ?: "",
+            type = ProductType.Subs,
+            typeIOS = (map["typeIOS"] as? String)
+                ?.let { runCatching { ProductTypeIOS.fromJson(it) }.getOrNull() }
+                ?: ProductTypeIOS.AutoRenewableSubscription
+        )
     }
 
-    private fun convertAnyListToProductOrSubscriptions(data: Any?): List<ProductOrSubscription> {
-        if (data == null) return emptyList()
+    internal fun convertAnyListToProductOrSubscriptions(list: List<*>): List<ProductOrSubscription> =
+        list.mapNotNull { item ->
+            val map = normalizeProductPayloadIOS(item) ?: return@mapNotNull skipUndecodableProductIOS(item)
 
-        val list = data as? List<*> ?: return emptyList()
-        return list.mapNotNull { item ->
-            runCatching {
-                val dict = (item as? Map<*, *>) ?: return@runCatching null
-                val map = normalizeProductPayloadIOS(dict) ?: return@runCatching null
-
-                // Native iOS may return either generated union JSON or raw StoreKit maps;
-                // decode the union first, then recover by product type for legacy payloads.
-                runCatching { ProductOrSubscription.fromJson(map) }
-                    .map { mergeNativeSubscriptionOffers(it, map) }
-                    .getOrElse {
+            // Native iOS may return either generated union JSON or raw StoreKit maps;
+            // decode the union first, then recover by product type for legacy payloads.
+            runCatching { ProductOrSubscription.fromJson(map) }
+                .map { mergeNativeSubscriptionOffers(it, map) }
+                .getOrElse {
                     val type = map["type"] as? String
                     if (type?.equals(ProductType.Subs.rawValue, ignoreCase = true) == true) {
-                        convertAnyListToProductSubscriptions(listOf(item)).firstOrNull()?.let {
+                        convertAnyToProductSubscriptionIOS(item)?.let {
                             ProductOrSubscription.ProductSubscriptionItem(it)
                         }
                     } else {
-                        convertAnyListToProducts(listOf(item)).firstOrNull()?.let {
+                        convertAnyToProductIOS(item)?.let {
                             ProductOrSubscription.ProductItem(it)
                         }
                     }
                 }
-            }.getOrNull()
         }
-    }
 
     private fun subscriptionOffersFrom(map: Map<String, Any?>): List<SubscriptionOffer> {
         // normalizeProductPayloadIOS owns native `offers` compatibility and
@@ -1373,17 +1316,13 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             )
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun convertAnyToProductIOS(data: Any?): ProductIOS? {
-        if (data == null) return null
+    internal fun convertAnyToProductIOS(data: Any?): ProductIOS? {
+        val map = normalizeProductPayloadIOS(data) ?: return skipUndecodableProductIOS(data)
+        runCatching { ProductIOS.fromJson(map) }.getOrNull()?.let {
+            return mergeNativeSubscriptionOffers(it, map) as? ProductIOS ?: it
+        }
 
-        return try {
-            val dict = (data as? Map<*, *>) ?: return null
-            val map = normalizeProductPayloadIOS(dict) ?: return null
-            runCatching { ProductIOS.fromJson(map) }.getOrNull()?.let {
-                return mergeNativeSubscriptionOffers(it, map) as? ProductIOS ?: it
-            }
-
+        return runCatching {
             ProductIOS(
                 currency = map["currency"] as? String ?: "",
                 debugDescription = map["debugDescription"] as? String,
@@ -1407,9 +1346,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     ProductTypeIOS.fromJson(it)
                 } ?: ProductTypeIOS.Consumable
             )
-        } catch (e: Exception) {
-            null
-        }
+        }.getOrElse { skipUndecodableProductIOS(map) }
     }
 
     // -------------------------------------------------------------------------

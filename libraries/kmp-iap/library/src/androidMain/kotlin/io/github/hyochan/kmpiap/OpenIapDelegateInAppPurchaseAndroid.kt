@@ -370,7 +370,18 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
                 verifyPurchaseWithGooglePlayAndroid(options.toOpenIap(), "kmp-iap-android-$storeName").toJson()
             )
         }
-        else -> failUnsupported("verifyPurchase is not supported on Android. Use verifyPurchaseWithProvider for server-side verification via IAPKit.")
+        // Calls Meta's verify_entitlement with the app ID from the manifest, so it needs no billing connection.
+        Store.HORIZON -> if (options.horizon == null) {
+            failWith(
+                PurchaseError(
+                    code = ErrorCode.DeveloperError,
+                    message = "Horizon verifyPurchase requires horizon options (sku, userId, accessToken).",
+                )
+            )
+        } else verifyOrFail {
+            VerifyPurchaseResult.fromJson(ensureModule().verifyPurchase(options.toOpenIap()).toJson())
+        }
+        else -> failUnsupported("verifyPurchase is not supported on $storeName. Use verifyPurchaseWithProvider for server-side verification via IAPKit.")
     }
 
     override suspend fun isBillingProgramAvailableAndroid(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid =

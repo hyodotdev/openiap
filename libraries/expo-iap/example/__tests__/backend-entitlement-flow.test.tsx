@@ -699,9 +699,7 @@ describe('BackendEntitlementFlow', () => {
       expect(
         within(screen.getByTestId('purchase-step-store')).getByText('Running'),
       ).toBeTruthy();
-      expect(
-        screen.queryByText('Purchase failed: Old request failed'),
-      ).toBeNull();
+      expect(screen.queryByText(/Old request failed/)).toBeNull();
     },
   );
 

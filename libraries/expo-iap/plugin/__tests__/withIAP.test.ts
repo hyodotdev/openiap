@@ -394,6 +394,16 @@ describe('android configuration', () => {
     ).toThrow(/both enabled/u);
   });
 
+  it('fails the prebuild on an unexpected error instead of skipping every mod', () => {
+    expect(() =>
+      plugin({name: 'app', slug: 'app'} as ExpoConfig, {
+        enableLocalDev: true,
+        // @ts-expect-error a non-string path reaches path.resolve
+        localPath: {ios: 5},
+      }),
+    ).toThrow(/must be of type string/u);
+  });
+
   it('keeps the published iOS setup when enableLocalDev has no localPath', () => {
     const result = plugin({name: 'app', slug: 'app'} as ExpoConfig, {
       enableLocalDev: true,

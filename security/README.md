@@ -77,7 +77,8 @@ contributors look for it.
 
 CI installs and scans every committed dependency lock: the root Bun workspace,
 the standalone Expo package and example, the Expo and React Native Vega
-examples, the agent toolchain, and the React Native Yarn and Ruby projects. The
+examples, the agent toolchain, and the React Native Yarn and Ruby projects.
+OSV-Scanner also covers the Apple package's Bundler lock. The
 six Bun graphs are also submitted as exact GitHub dependency snapshots.
 Dependabot version-update pull requests cover `packages/kit`, GitHub Actions,
 the kit Dockerfile, and the React Native CocoaPods toolchain:
@@ -142,11 +143,19 @@ gates remain independent of that hosted view.
 
 ## Deliberate remaining boundaries
 
-- `main` is not protected by a generic branch-protection rule. Stable release
-  workflows make verified version commits directly to `main`; enabling a
-  blanket rule without a tested, narrowly scoped automation bypass would break
-  those release lanes. The repository instead defaults workflow tokens to
-  read-only and grants write permissions per job.
+- `main` has no pull-request or review requirement. The
+  `Main required CI checks` ruleset requires its status checks, and the release
+  App and the admin role bypass it: stable release workflows make verified
+  version commits directly to `main`. Branch protection also requires linear
+  history and blocks force pushes and deletion, for administrators too. Workflow
+  tokens default to read-only and write permissions are granted per job.
+- Two self-hosted runners, `mac-mini-hyo` and `mac-mini-hyo-2` (label
+  `ssd-ci`), are registered on the maintainer's machine and idle. No workflow
+  in this tree may target them: `audit-security.mjs workflows` accepts only
+  GitHub-hosted `runs-on` labels. A fork pull request can still add one, so
+  every outside contributor's run waits for approval; read the fork's workflow
+  changes before approving. Check the setting with
+  `gh api repos/hyodotdev/openiap/actions/permissions/fork-pr-contributor-approval`.
 - CodeQL's traced Kotlin jobs build the Google and KMP Android cores plus the
   React Native, Expo, Flutter, Godot, and MAUI JVM wrappers. Its traced Swift
   jobs build the Apple core and the React Native, Expo, Flutter, and Godot
@@ -159,9 +168,9 @@ gates remain independent of that hosted view.
 - CodeQL's Kotlin extractor traces JVM compilation, so it cannot analyse
   Kotlin/Native. This is a CodeQL platform limitation, not an OpenIAP
   configuration gap: no CodeQL setting reaches this code. The uncovered shipped
-  surface is exactly `libraries/kmp-iap/library/src/iosMain` — 4 files, 1,931
-  lines, 13% of the library's main-source Kotlin. `commonMain` (7,337 lines) is
-  covered, because it compiles into the traced Android target.
+  surface is exactly `libraries/kmp-iap/library/src/iosMain`, about a sixth of
+  the library's main-source Kotlin. `commonMain` is covered, because it
+  compiles into the traced Android target.
   Three things bound the residual risk, each independently checkable:
   - The uncovered code performs no security-relevant operation. Searching
     `iosMain` for URL loading, Keychain or `SecItem`, file and defaults writes,
@@ -287,26 +296,23 @@ verifying an existing SBOM's attestation before it would replace one.
 
 ### What "immutable tag" means here
 
-`knowledge/internal/06-git-deployment.md` calls release tags immutable. That
-describes what the tag is _used for_ — npm provenance binds to the workflow run
-and the commit SHA behind the tag, so a published attestation cannot be changed
-by anything done to the tag afterwards. It does not describe an enforced
-protection: this repository has no rulesets and `main` carries no branch
-protection, so a maintainer with write access can move or delete a tag.
+`knowledge/internal/06-git-deployment.md` calls release tags immutable. The
+`Immutable tags` ruleset enforces it: no tag can be updated or deleted, and the
+ruleset has no bypass actor. npm provenance also binds to the workflow run and
+the commit SHA behind the tag, so a published attestation cannot be changed by
+anything done to the tag afterwards.
 
-The consequence is bounded but real. Published provenance stays true, and the
-post-publication checks on the lanes that have them compare against what the
-release actually serves. What a moved tag would break is the repository's own
-record agreeing with that attestation. Tag protection is a repository setting,
-not a file in this tree, so it is recorded here rather than changed by a pull
-request.
+The ruleset is a repository setting, not a file in this tree, so a pull request
+cannot show it. `gh api repos/hyodotdev/openiap/rulesets` lists the rulesets and
+`gh api repos/hyodotdev/openiap/rulesets/<id>` shows one's rules and bypass
+actors.
 
 ## Scanning posture
 
 Every pull request installs all committed Bun locks plus the React Native Yarn
 and Ruby locks without mutation. It then runs Bun's advisory audit across all
-Bun graphs and OSV-Scanner across all eight locks. Unaccepted findings fail the
-build.
+Bun graphs and OSV-Scanner across every lock in `OSV_LOCKFILES`
+(`scripts/dependency-projects.mjs`). Unaccepted findings fail the build.
 Temporary exceptions for advisories the lock does not clear yet (no fixed
 release, a fix outside the dependents' ranges, or a clearing dependency bump
 that has not been tested yet) may be accepted only in the owning project's

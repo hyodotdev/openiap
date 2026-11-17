@@ -371,6 +371,48 @@ describe("Amazon canonical lifecycle", () => {
     ]);
   });
 
+  test("only an Amazon notification id is emitted as the store event id", async () => {
+    const { db, ctx } = setup();
+    const token = amazonSubscriptionToken("production:user:receipt");
+    const sent = () =>
+      rows(db, "commerceEvents").map((row) => {
+        const payload = buildEventPayload(row as never);
+        return [payload.eventType, payload.sourceStoreEventId];
+      });
+    await saveAmazonVerdictHandler(ctx, verdict(1));
+    await bindSubscriptionToUserHandler(ctx, {
+      projectId: "projects_test" as never,
+      purchaseToken: token,
+      userId: "alice",
+    });
+    await rebindSubscriptionToUserHandler(ctx, {
+      projectId: "projects_test" as never,
+      purchaseToken: token,
+      userId: "bob",
+    });
+    // RVS reconciliation, and a bind or rebind reusing its row, have no store id.
+    expect(sent()).toEqual([
+      ["subscription.started", undefined],
+      ["entitlement.granted", undefined],
+      ["entitlement.revoked", undefined],
+      ["entitlement.granted", undefined],
+    ]);
+    await applyAmazonRtnVerdictHandler(ctx, {
+      ...verdict(2, { cancelReason: 1 }, false),
+      amazonNotice: {
+        messageId: "sns-cancel",
+        notificationType: "SUBSCRIPTION_CANCELLED",
+        occurredAt: 100_000,
+        rawSignedPayload: "signed-fixture",
+      },
+    });
+    expect(sent().slice(4)).toEqual([
+      ["subscription.revoked", "sns-cancel"],
+      ["entitlement.revoked", "sns-cancel"],
+    ]);
+    expectValidEvents(db);
+  });
+
   test("an explicit cancellation notice preserves revocation when the reason is unavailable", async () => {
     const { db, ctx } = setup();
     await applyAmazonRtnVerdictHandler(ctx, {

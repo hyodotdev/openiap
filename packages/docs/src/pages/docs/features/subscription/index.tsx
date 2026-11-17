@@ -215,12 +215,12 @@ await OpenIapClient.Mutation.RequestPurchaseAsync(
     });`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`var props = RequestPurchaseProps.new()
-props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
-props.request_subscription.apple = RequestSubscriptionIosProps.new()
+              <CodeBlock language="gdscript">{`var props = Types.RequestPurchaseProps.new()
+props.request_subscription = Types.RequestSubscriptionPropsByPlatforms.new()
+props.request_subscription.apple = Types.RequestSubscriptionIosProps.new()
 props.request_subscription.apple.sku = "premium_annual"
-props.request_subscription.apple.billing_plan_type = SubscriptionBillingPlanTypeIOS.MONTHLY
-props.type = ProductQueryType.SUBS
+props.request_subscription.apple.billing_plan_type = Types.SubscriptionBillingPlanTypeIOS.MONTHLY
+props.type = Types.ProductQueryType.SUBS
 
 await iap.request_purchase(props)`}</CodeBlock>
             ),
@@ -522,9 +522,9 @@ foreach (var offer in subscription?.SubscriptionOffers?
                     ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`# Fetch subscription products
-var request = ProductRequest.new()
+var request = Types.ProductRequest.new()
 request.skus.assign(["premium_monthly"])
-request.type = ProductQueryType.SUBS
+request.type = Types.ProductQueryType.SUBS
 var subscriptions = await iap.fetch_products(request)
 
 var subscription = null
@@ -536,9 +536,9 @@ for s in subscriptions:
 # Read standardized iOS subscription offers
 if subscription:
     for offer in subscription.subscription_offers:
-        if offer.type == DiscountOfferType.INTRODUCTORY:
+        if offer.type == Types.DiscountOfferType.INTRODUCTORY:
             print("Intro offer: %s" % offer.display_price)
-        elif offer.type == DiscountOfferType.PROMOTIONAL:
+        elif offer.type == Types.DiscountOfferType.PROMOTIONAL:
             var price = offer.localized_price_ios if offer.localized_price_ios else offer.display_price
             print("Promo: %s - %s" % [offer.id, price])`}</CodeBlock>
                     ),
@@ -671,9 +671,9 @@ if (isEligible && subscription is not null)
 }`}</CodeBlock>
                     ),
                     gdscript: (
-                      <CodeBlock language="gdscript">{`func display_intro_offer(subscription: ProductSubscriptionIOS) -> String:
+                      <CodeBlock language="gdscript">{`func display_intro_offer(subscription: Types.ProductSubscriptionIOS) -> String:
     for offer in subscription.subscription_offers:
-        if offer.type == DiscountOfferType.INTRODUCTORY:
+        if offer.type == Types.DiscountOfferType.INTRODUCTORY:
             return offer.display_price
     return ""
 
@@ -920,17 +920,17 @@ async Task PurchaseWithPromoOfferAsync(string subscriptionId, string offerId)
     var signature = JSON.parse_string(response[3].get_string_from_utf8())
 
     # 2. Purchase with the promotional offer
-    var props = RequestPurchaseProps.new()
-    props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
-    props.request_subscription.apple = RequestSubscriptionIosProps.new()
+    var props = Types.RequestPurchaseProps.new()
+    props.request_subscription = Types.RequestSubscriptionPropsByPlatforms.new()
+    props.request_subscription.apple = Types.RequestSubscriptionIosProps.new()
     props.request_subscription.apple.sku = subscription_id
-    props.request_subscription.apple.with_offer = DiscountOfferInputIOS.new()
+    props.request_subscription.apple.with_offer = Types.DiscountOfferInputIOS.new()
     props.request_subscription.apple.with_offer.identifier = offer_id
     props.request_subscription.apple.with_offer.key_identifier = signature["keyIdentifier"]
     props.request_subscription.apple.with_offer.nonce = nonce
     props.request_subscription.apple.with_offer.signature = signature["signature"]
     props.request_subscription.apple.with_offer.timestamp = timestamp
-    props.type = ProductQueryType.SUBS
+    props.type = Types.ProductQueryType.SUBS
 
     await iap.request_purchase(props)`}</CodeBlock>
                     ),
@@ -1037,11 +1037,11 @@ async Task PurchaseSubscriptionAsync(string subscriptionId)
                       <CodeBlock language="gdscript">{`func purchase_subscription(subscription_id: String) -> void:
     # iOS: Simply request purchase
     # Intro offer is applied automatically when eligible
-    var props = RequestPurchaseProps.new()
-    props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
-    props.request_subscription.apple = RequestSubscriptionIosProps.new()
+    var props = Types.RequestPurchaseProps.new()
+    props.request_subscription = Types.RequestSubscriptionPropsByPlatforms.new()
+    props.request_subscription.apple = Types.RequestSubscriptionIosProps.new()
     props.request_subscription.apple.sku = subscription_id
-    props.type = ProductQueryType.SUBS
+    props.type = Types.ProductQueryType.SUBS
 
     await iap.request_purchase(props)`}</CodeBlock>
                     ),
@@ -1187,11 +1187,11 @@ public sealed record PricingPhaseAndroid
                     gdscript: (
                       <CodeBlock language="gdscript">{`class SubscriptionOffer:
     var base_plan_id_android: Variant
-    var installment_plan_details_android: InstallmentPlanDetailsAndroid
+    var installment_plan_details_android: Types.InstallmentPlanDetailsAndroid
     var id: String # Offer ID, or the base plan ID
     var offer_tags_android: Array[String]
     var offer_token_android: Variant
-    var pricing_phases_android: PricingPhasesAndroid
+    var pricing_phases_android: Types.PricingPhasesAndroid
 
 class PricingPhaseAndroid:
     var formatted_price: String       # e.g., "$9.99"
@@ -1406,9 +1406,9 @@ foreach (var offer in subscription?.SubscriptionOffers
                     ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`# Fetch subscription products
-var request = ProductRequest.new()
+var request = Types.ProductRequest.new()
 request.skus.assign(["premium_monthly"])
-request.type = ProductQueryType.SUBS
+request.type = Types.ProductQueryType.SUBS
 var subscriptions = await iap.fetch_products(request)
 
 var subscription = null
@@ -1642,9 +1642,9 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
                     ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`func purchase_subscription(subscription_id: String) -> void:
-    var request = ProductRequest.new()
+    var request = Types.ProductRequest.new()
     request.skus.assign([subscription_id])
-    request.type = ProductQueryType.SUBS
+    request.type = Types.ProductQueryType.SUBS
     var subscriptions = await iap.fetch_products(request)
 
     var subscription = null
@@ -1657,11 +1657,11 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
         return
 
     # Build subscription_offers from fetched data
-    var subscription_offers: Array[AndroidSubscriptionOfferInput] = []
+    var subscription_offers: Array[Types.AndroidSubscriptionOfferInput] = []
     if subscription.subscription_offers:
         for offer in subscription.subscription_offers:
             if offer.offer_token_android:
-                var offer_input = AndroidSubscriptionOfferInput.new()
+                var offer_input = Types.AndroidSubscriptionOfferInput.new()
                 offer_input.sku = subscription_id
                 offer_input.offer_token = offer.offer_token_android
                 subscription_offers.append(offer_input)
@@ -1670,12 +1670,12 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
         print("No subscription offers available")
         return
 
-    var props = RequestPurchaseProps.new()
-    props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
-    props.request_subscription.google = RequestSubscriptionAndroidProps.new()
+    var props = Types.RequestPurchaseProps.new()
+    props.request_subscription = Types.RequestSubscriptionPropsByPlatforms.new()
+    props.request_subscription.google = Types.RequestSubscriptionAndroidProps.new()
     props.request_subscription.google.skus.assign([subscription_id])
     props.request_subscription.google.subscription_offers = subscription_offers  # Recommended; Play uses the first offer if omitted
-    props.type = ProductQueryType.SUBS
+    props.type = Types.ProductQueryType.SUBS
 
     await iap.request_purchase(props)`}</CodeBlock>
                     ),
@@ -2068,20 +2068,20 @@ func handle_purchase(base_plan_id_android: String) -> void:
     # Store it before purchase
     purchased_base_plan_id = base_plan_id_android
 
-    var props = RequestPurchaseProps.new()
-    props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
-    props.request_subscription.google = RequestSubscriptionAndroidProps.new()
+    var props = Types.RequestPurchaseProps.new()
+    props.request_subscription = Types.RequestSubscriptionPropsByPlatforms.new()
+    props.request_subscription.google = Types.RequestSubscriptionAndroidProps.new()
     props.request_subscription.google.skus.assign([subscription_group_id])
-    var offer_input = AndroidSubscriptionOfferInput.new()
+    var offer_input = Types.AndroidSubscriptionOfferInput.new()
     offer_input.sku = subscription_group_id
     offer_input.offer_token = offer.offer_token_android
     props.request_subscription.google.subscription_offers.assign([offer_input])
-    props.type = ProductQueryType.SUBS
+    props.type = Types.ProductQueryType.SUBS
 
     await iap.request_purchase(props)
 
 # 2. Use YOUR tracked value in purchase callback
-func _on_purchase_success(purchase: PurchaseAndroid) -> void:
+func _on_purchase_success(purchase: Types.PurchaseAndroid) -> void:
     # DON'T use purchase.current_plan_id - it may be wrong!
     var actual_base_plan_id = purchased_base_plan_id
 
@@ -2504,7 +2504,7 @@ async Task PurchaseWithOfferAsync(
                     gdscript: (
                       <CodeBlock language="gdscript">{`enum OfferType { BASE, INTRODUCTORY, PROMOTIONAL }
 
-func select_offer(subscription: ProductSubscriptionAndroid, offer_type: int) -> SubscriptionOffer:
+func select_offer(subscription: Types.ProductSubscriptionAndroid, offer_type: int) -> Types.SubscriptionOffer:
     var offers = subscription.subscription_offers
     if not offers:
         return null
@@ -2536,9 +2536,9 @@ func select_offer(subscription: ProductSubscriptionAndroid, offer_type: int) -> 
 
 # Purchase with selected offer
 func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
-    var request = ProductRequest.new()
+    var request = Types.ProductRequest.new()
     request.skus.assign([subscription_id])
-    request.type = ProductQueryType.SUBS
+    request.type = Types.ProductQueryType.SUBS
     var subscriptions = await iap.fetch_products(request)
 
     var subscription = null
@@ -2552,15 +2552,15 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
         print("Selected offer not found")
         return
 
-    var props = RequestPurchaseProps.new()
-    props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
-    props.request_subscription.google = RequestSubscriptionAndroidProps.new()
+    var props = Types.RequestPurchaseProps.new()
+    props.request_subscription = Types.RequestSubscriptionPropsByPlatforms.new()
+    props.request_subscription.google = Types.RequestSubscriptionAndroidProps.new()
     props.request_subscription.google.skus.assign([subscription_id])
-    var offer_input = AndroidSubscriptionOfferInput.new()
+    var offer_input = Types.AndroidSubscriptionOfferInput.new()
     offer_input.sku = subscription_id
     offer_input.offer_token = selected_offer.offer_token_android
     props.request_subscription.google.subscription_offers.assign([offer_input])
-    props.type = ProductQueryType.SUBS
+    props.type = Types.ProductQueryType.SUBS
 
     await iap.request_purchase(props)`}</CodeBlock>
                     ),
@@ -3975,8 +3975,8 @@ const manageSubscriptions = async () => {
 let iapStore = OpenIapStore()
 
 // Open subscription management page
-func manageSubscriptions() async {
-    try await iapStore.deepLinkToSubscriptionsIOS()
+func manageSubscriptions() async throws {
+    try await iapStore.deepLinkToSubscriptions()
 }`}</CodeBlock>
             ),
             kotlin: (

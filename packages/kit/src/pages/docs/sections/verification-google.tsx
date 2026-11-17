@@ -170,6 +170,15 @@ export default function VerificationGooglePage() {
         <code>isValid: false</code> and <code>state: INAUTHENTIC</code>. Gate
         entitlement on <code>isValid</code>, not on the HTTP status.
       </p>
+      <p>
+        A receipt-history row saved as <code>INAUTHENTIC</code>, for a token
+        from another package or one Play cannot find, is deleted 30 days after
+        the last such answer, and the dashboard&apos;s Total and Invalid counts
+        drop with it. A row is kept once it has held any other verdict or is
+        linked to a user, an order, or a subscription. Rows saved before this
+        rule shipped (week of November 16, 2026) are kept, and monthly usage is
+        not lowered.
+      </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Error codes</h2>
       <div className="my-4 overflow-hidden rounded-lg border border-border">
@@ -181,6 +190,23 @@ export default function VerificationGooglePage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
+            <tr>
+              <td className="px-3 py-2 font-mono text-xs">
+                PROJECT_ANDROID_PACKAGE_NAME_NOT_CONFIGURED
+              </td>
+              <td className="px-3 py-2">
+                The project has no Android package name in its settings.
+              </td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 font-mono text-xs">
+                PLAY_STORE_FILE_CONTENT_NOT_READABLE
+              </td>
+              <td className="px-3 py-2">
+                The stored service account file could not be read. Upload it
+                again.
+              </td>
+            </tr>
             <tr>
               <td className="px-3 py-2 font-mono text-xs">
                 PLAY_STORE_SERVICE_ACCOUNT_NOT_FOUND

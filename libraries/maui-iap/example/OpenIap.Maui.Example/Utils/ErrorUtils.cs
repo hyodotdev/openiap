@@ -28,8 +28,17 @@ public static class ErrorUtils
         _ => false,
     };
 
-    public static string FormatPurchaseFailure(object error, string operation = "Purchase") =>
-        IsUserCancelled(error)
-            ? $"{operation} cancelled by user"
-            : $"{operation} failed: {ExtractErrorMessage(error)}";
+    public static string FormatPurchaseFailure(object error, string operation = "Purchase")
+    {
+        var headline = IsUserCancelled(error) ? $"{operation} cancelled by user" : $"{operation} failed";
+        var purchaseError = error switch
+        {
+            OpenIapException ex => ex.Error,
+            PurchaseError e => e,
+            _ => null,
+        };
+        if (purchaseError is null) return $"{headline}: {ExtractErrorMessage(error)}";
+        var details = $"{headline}\nCode: {purchaseError.Code.ToJson()}\nMessage: {purchaseError.Message}";
+        return purchaseError.DebugMessage is null ? details : $"{details}\nDebug: {purchaseError.DebugMessage}";
+    }
 }

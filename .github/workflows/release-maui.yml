@@ -128,7 +128,7 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Install MAUI workload
-        run: dotnet workload install maui --skip-sign-check
+        run: dotnet workload install maui
 
       - name: Install xcodegen
         run: bash scripts/install-xcodegen.sh
@@ -176,9 +176,9 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       is_prerelease: ${{ steps.version.outputs.is_prerelease }}
       package_exists: ${{ steps.check_nuget.outputs.exists }}
-    # Rebuild the exact native sidecar packed into NuGet with an App Store
-    # submission toolchain. Xcode 27 remains validation-only until Apple
-    # accepts its SDK for App Store uploads.
+    # Rebuild the exact native sidecar packed into NuGet with the pinned
+    # Xcode that stable releases ship. Xcode 27 stays a validation lane: only
+    # it compiles the StoreKit 27 paths, which releases do not include yet.
     runs-on: macos-26
     timeout-minutes: 60
     steps:
@@ -203,7 +203,7 @@ jobs:
         uses: ./.github/actions/setup-xcode
 
       - name: Install MAUI workload
-        run: dotnet workload install maui --skip-sign-check
+        run: dotnet workload install maui
 
       - name: Install xcodegen
         run: bash scripts/install-xcodegen.sh

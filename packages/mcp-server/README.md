@@ -38,10 +38,11 @@ bun run start:http
 elsewhere, list the names clients use in `IAPKIT_MCP_ALLOWED_HOSTS`, because
 other `Host` headers are rejected. `PORT` / `IAPKIT_MCP_PORT` override the HTTP
 port and `IAPKIT_MCP_ALLOWED_ORIGINS` overrides the CORS allow-list.
-`IAPKIT_BASE_URL` selects the Kit API endpoint, while
+`IAPKIT_BASE_URL` selects the IAPKit API endpoint, while
 `IAPKIT_PUBLIC_BASE_URL` keeps generated webhook URLs public when API calls use
 a loopback address. The hosted endpoint always calls its own kit and ignores
-a tool's `baseUrl` argument.
+a tool's `baseUrl` argument. A local server sends the `IAPKIT_API_KEY`
+fallback only to `IAPKIT_BASE_URL`; a tool's `baseUrl` needs its own `apiKey`.
 
 ## Client configuration
 

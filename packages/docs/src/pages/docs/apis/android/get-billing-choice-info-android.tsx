@@ -69,8 +69,8 @@ function GetBillingChoiceInfoAndroid() {
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func get_billing_choice_info_android(
-    params: GetBillingChoiceInfoParamsAndroid
-) -> BillingChoiceInfoAndroid`}</CodeBlock>
+    params: Types.GetBillingChoiceInfoParamsAndroid
+) -> Types.BillingChoiceInfoAndroid`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -191,9 +191,9 @@ if (Platform.OS === 'android') {
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
-    var params = GetBillingChoiceInfoParamsAndroid.new()
-    params.billing_program = BillingProgramAndroid.BILLING_CHOICE
-    params.play_billing_choice_image_layout = BillingChoiceImageLayoutAndroid.RECTANGULAR_FOUR_BY_ONE
+    var params = Types.GetBillingChoiceInfoParamsAndroid.new()
+    params.billing_program = Types.BillingProgramAndroid.BILLING_CHOICE
+    params.play_billing_choice_image_layout = Types.BillingChoiceImageLayoutAndroid.RECTANGULAR_FOUR_BY_ONE
     var info = await iap.get_billing_choice_info_android(params)`}</CodeBlock>
           ),
         }}

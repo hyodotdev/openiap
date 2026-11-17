@@ -170,9 +170,17 @@ function IOSSetup() {
         </h2>
 
         <p>
-          Use Xcode 16.4 or later. Compile with Xcode 27 when you need the
-          StoreKit 27 fields documented by OpenIAP 3, and complete the UIScene
-          migration below before shipping that build.
+          Use Xcode 26 or later, which{' '}
+          <a
+            href="https://developer.apple.com/news/upcoming-requirements/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            App Store Connect requires for uploads
+          </a>
+          . Compile with Xcode 27 when you need the StoreKit 27 fields OpenIAP
+          maps, and complete the UIScene migration below before shipping that
+          build.
         </p>
 
         <h3 id="xcode-27-scene-lifecycle" className="anchor-heading">

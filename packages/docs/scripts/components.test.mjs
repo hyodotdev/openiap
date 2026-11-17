@@ -7,6 +7,7 @@ import { createServer, transformWithEsbuild } from 'vite';
 import { createElement as h } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Route, Routes, StaticRouter } from 'react-router-dom';
+import { canonicalPaths } from './prerender.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 let vite;
@@ -237,7 +238,6 @@ test('search signatures match the client schema', async () => {
       .map((item) => item.title),
     [
       'iOS External Purchase',
-      'enableBillingProgramAndroid',
       'Debugging & Logging',
       'Enable Logging',
       'Android basePlanId Limitation',
@@ -248,6 +248,24 @@ test('search signatures match the client schema', async () => {
   for (const { title, parameters, returns } of checked) {
     assert.deepEqual({ parameters, returns }, operations.get(title), title);
   }
+});
+
+test('search reaches every docs page', async () => {
+  const { apiData } = await vite.ssrLoadModule('/src/lib/searchData.ts');
+  const pages = await canonicalPaths(
+    fileURLToPath(new URL('../src/pages', import.meta.url))
+  );
+  const searchable = new Set(apiData.map((item) => item.path.split('#')[0]));
+  assert.deepEqual(
+    pages.filter((path) => path.startsWith('/docs/') && !searchable.has(path)),
+    []
+  );
+  assert.deepEqual(
+    [...searchable].filter(
+      (path) => path.startsWith('/docs/') && !pages.includes(path)
+    ),
+    []
+  );
 });
 
 test('keeps Tab among the drawer elements a keyboard can reach', async () => {

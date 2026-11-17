@@ -93,7 +93,7 @@ export default function VerificationAmazonPage() {
           purchase flow guide
         </Link>
         . <code>userId</code> is capped at 512 characters,{" "}
-        <code>receiptId</code> at 4 KiB, and the optional{" "}
+        <code>receiptId</code> at 4,096 characters, and the optional{" "}
         <code>expectedProductId</code> at 256 characters.
       </p>
       <CodeBlock title="200 OK" language="json">
@@ -212,6 +212,25 @@ export default function VerificationAmazonPage() {
         </a>
         .
       </p>
+      <h2 className="mt-10 text-2xl font-semibold">
+        Negative verdicts that return 200
+      </h2>
+      <p>
+        A receipt Amazon rejects is a verdict, not an error. An invalid receipt
+        or user ID (RVS 400 or 497) returns <code>200</code> with{" "}
+        <code>isValid: false</code> and <code>state: INAUTHENTIC</code>; a
+        receipt that is no longer valid (RVS 410) returns{" "}
+        <code>state: CANCELED</code>. Do not retry either. Gate entitlement on{" "}
+        <code>isValid</code>, not on the HTTP status.
+      </p>
+      <p>
+        A receipt-history row saved as <code>INAUTHENTIC</code> is deleted 30
+        days after the last such answer, and the dashboard&apos;s Total and
+        Invalid counts drop with it. A row is kept once it has held any other
+        verdict, <code>CANCELED</code> included, or is linked to a user or a
+        subscription. Rows saved before this rule shipped (week of November 16,
+        2026) are kept, and monthly usage is not lowered.
+      </p>
       <h2 className="mt-10 text-2xl font-semibold">Amazon error codes</h2>
       <div className="my-4 overflow-x-auto rounded-lg border border-border">
         <table className="min-w-[42rem] w-full text-sm">
@@ -236,15 +255,6 @@ export default function VerificationAmazonPage() {
               </td>
               <td className="px-3 py-2">
                 Enable the explicit App Tester sandbox option for this project.
-              </td>
-            </tr>
-            <tr>
-              <td className="px-3 py-2 font-mono text-xs">
-                AMAZON_RECEIPT_INVALID
-              </td>
-              <td className="px-3 py-2">
-                Treat the store verdict as invalid or canceled; do not retry as
-                a transient failure.
               </td>
             </tr>
             <tr>

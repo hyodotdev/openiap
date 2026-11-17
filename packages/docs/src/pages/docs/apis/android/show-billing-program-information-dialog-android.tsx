@@ -68,8 +68,8 @@ function ShowBillingProgramInformationDialogAndroid() {
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func show_billing_program_information_dialog_android(
-    params: BillingProgramInformationDialogParamsAndroid
-) -> BillingResultAndroid`}</CodeBlock>
+    params: Types.BillingProgramInformationDialogParamsAndroid
+) -> Types.BillingResultAndroid`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -175,8 +175,8 @@ if (Platform.OS === 'android') {
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
-    var params = BillingProgramInformationDialogParamsAndroid.new()
-    params.billing_program = BillingProgramAndroid.BILLING_CHOICE
+    var params = Types.BillingProgramInformationDialogParamsAndroid.new()
+    params.billing_program = Types.BillingProgramAndroid.BILLING_CHOICE
     params.external_transaction_token = reporting_details.external_transaction_token
     var result = await iap.show_billing_program_information_dialog_android(params)`}</CodeBlock>
           ),

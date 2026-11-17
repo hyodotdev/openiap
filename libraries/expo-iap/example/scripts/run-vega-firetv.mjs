@@ -6,9 +6,11 @@ import {fileURLToPath} from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const exampleRoot = path.resolve(__dirname, '..');
+// Pass `Release` for purchases: a 1 GB device kills the Debug package.
+const buildType = process.argv[2] === 'Release' ? 'release' : 'debug';
 const packageFile = path.join(
   exampleRoot,
-  'build/armv7-debug/expoiapvegaexample_armv7.vpkg',
+  `build/armv7-${buildType}/expoiapvegaexample_armv7.vpkg`,
 );
 const packageId = 'dev.hyo.openiap.expo.example';
 const appId = 'dev.hyo.openiap.expo.example.main';
@@ -141,22 +143,26 @@ const pushToDevice = (deviceId, source, destination) => {
   run(['exec', 'vda', '-s', deviceId, 'push', source, destination]);
 };
 
+// The Kepler copy can stall; time out instead of hanging the run.
 const copyToDevice = (deviceId, source, destinationDirectory, options = {}) => {
-  run([
-    'device',
-    'copy-to',
-    '-d',
-    deviceId,
-    '-s',
-    source,
-    '-o',
-    destinationDirectory,
-  ], options);
+  run(
+    [
+      'device',
+      'copy-to',
+      '-d',
+      deviceId,
+      '-s',
+      source,
+      '-o',
+      destinationDirectory,
+    ],
+    {timeout: 60000, ...options},
+  );
 };
 
 if (!fs.existsSync(packageFile)) {
   throw new Error(
-    `Missing ${path.relative(exampleRoot, packageFile)}. Run bun run build:vega:debug first.`,
+    `Missing ${path.relative(exampleRoot, packageFile)}. Run bun run build:vega:${buildType} first.`,
   );
 }
 
@@ -188,9 +194,12 @@ const cancelQueuedInstalls = () => {
 };
 const installApp = () => {
   try {
-    run(['device', '-d', deviceId, 'install-app', '--packagePath', packageFile], {
-      timeout: 90000,
-    });
+    run(
+      ['device', '-d', deviceId, 'install-app', '--packagePath', packageFile],
+      {
+        timeout: 90000,
+      },
+    );
     return;
   } catch (error) {
     console.warn(

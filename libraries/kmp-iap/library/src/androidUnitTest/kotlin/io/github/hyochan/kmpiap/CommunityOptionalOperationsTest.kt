@@ -229,8 +229,12 @@ class CommunityOptionalOperationsTest {
                 ExternalPurchaseLinkStatus.Unavailable,
                 delegate.openExternalPurchaseLink(ExternalPurchaseLinkRequest(url = "https://example.test/pay")).status,
             )
+            // Horizon can verify, so a request without horizon options is the caller's mistake.
+            assertEquals(
+                if (store == Store.HORIZON) ErrorCode.DeveloperError else ErrorCode.FeatureNotSupported,
+                assertFailsWith<PurchaseException> { delegate.verifyPurchase(VerifyPurchaseProps()) }.error.code,
+            )
             for (operation in listOf<suspend () -> Any?>(
-                { delegate.verifyPurchase(VerifyPurchaseProps()) },
                 { delegate.getBillingChoiceInfoAndroid(GetBillingChoiceInfoParamsAndroid()) },
                 { delegate.createBillingProgramReportingDetailsAndroid(BillingProgramAndroid.BillingChoice, null) },
                 { delegate.showBillingProgramInformationDialogAndroid(BillingProgramInformationDialogParamsAndroid(externalTransactionToken = "token")) },

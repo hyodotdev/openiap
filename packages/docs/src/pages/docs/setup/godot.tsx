@@ -45,8 +45,8 @@ function GodotSetup() {
             <strong>Godot 4.3</strong> or higher
           </li>
           <li>
-            iOS: <strong>Xcode 16+</strong> (Swift 6.0+) with{' '}
-            <strong>iOS 17+</strong> target
+            iOS: <strong>Xcode 26+</strong>, the minimum App Store Connect
+            accepts for uploads, with <strong>iOS 17+</strong> target
           </li>
           <li>
             Android devices: <strong>API level 24+</strong>
@@ -507,7 +507,7 @@ func _on_connected():
     print("Store connected!")
 
 func _on_purchase_updated(purchase: Dictionary):
-    print("Purchase: %s" % purchase.get("product_id", ""))
+    print("Purchase: %s" % purchase.get("productId", ""))
 
 func _on_purchase_error(error: Dictionary):
     print("Error: ", error)`}
@@ -583,7 +583,7 @@ func _on_purchase_error(error: Dictionary):
 
 func _ready():
     # Connect signals
-    iap.purchase_updated.connect(_on_purchase_updated)
+    iap.purchase_received.connect(_on_purchase_received)
     iap.purchase_error.connect(_on_purchase_error)
 
     # Initialize
@@ -591,7 +591,7 @@ func _ready():
         push_error("Store connection failed")
         return
 
-func _on_purchase_updated(purchase):
+func _on_purchase_received(purchase):
     # Validate receipt with your backend or IAPKit, then:
     # (second argument: true only for consumable products)
     await iap.finish_transaction(purchase, false)

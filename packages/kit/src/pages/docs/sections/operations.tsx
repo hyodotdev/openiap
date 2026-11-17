@@ -17,7 +17,9 @@ export default function OperationsPage() {
         key, <strong>600 burst / 5 req/sec</strong> per source IP, and{" "}
         <strong>5,000 burst / 100 req/sec</strong> for the whole process.
         Self-hosted deployments can tune the <code>RATE_LIMIT_*</code>{" "}
-        environment variables.
+        environment variables. Verification also has a per-project budget of{" "}
+        <strong>600 burst / 10 req/sec</strong>, shared across that project's
+        keys.
       </p>
       <p>
         When the bucket empties, IAPKit returns <code>429 RATE_LIMITED</code>{" "}
@@ -154,10 +156,10 @@ X-RateLimit-Remaining: 599`}
 }`}
       </CodeBlock>
       <p>
-        The API key is never logged in plaintext — only its 16-hex SHA-256
-        prefix (the same value the rate limiter uses as its bucket key). The
-        prefix is enough to correlate calls to the same key without creating an
-        exfiltration path if the log aggregator leaks.
+        The API key is never logged in plaintext — only a 16-hex keyed hash (the
+        same value the rate limiter uses as its bucket key). The hash key is
+        random per server process, so the value correlates calls to the same key
+        until the next restart and is useless if the log aggregator leaks.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">/health endpoint</h2>
@@ -398,17 +400,23 @@ GET  /v1/subscriptions/timeline?userId=`}</CodeBlock>
         <li>subscription user-binding body ≤ 32 KB before JSON parsing</li>
         <li>webhook push body ≤ 256 KB before JSON parsing</li>
         <li>
-          <code>jws</code> ≤ 16 KB (Apple)
+          <code>jws</code> ≤ 16,000 chars (Apple)
         </li>
         <li>
-          <code>purchaseToken</code> ≤ 2 KB for Google tokens, or ≤ 16 KB when
-          an Apple JWS is passed to subscription binding
+          <code>purchaseToken</code> ≤ 2,000 chars for Google tokens, or ≤
+          16,000 chars when an Apple JWS is passed to subscription binding
         </li>
         <li>
           <code>userId</code> ≤ 256 chars (Horizon)
         </li>
         <li>
           <code>sku</code> ≤ 256 chars (Horizon)
+        </li>
+        <li>
+          <code>userId</code> ≤ 512 chars (Amazon)
+        </li>
+        <li>
+          <code>receiptId</code> ≤ 4,096 chars (Amazon)
         </li>
         <li>
           <code>productId</code> ≤ 256 chars (catalog / subscriptions)

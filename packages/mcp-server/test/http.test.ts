@@ -31,6 +31,7 @@ const INITIALIZE_REQUEST = {
 interface SetupToolPayload {
   framework: string;
   snippet: string;
+  coverage: string;
   note: string;
 }
 
@@ -903,6 +904,73 @@ describe("remote MCP HTTP server", () => {
     expect(godotPayload.snippet).not.toContain(
       "await iap.verify_purchase_with_provider",
     );
+  });
+
+  it("generates a .NET MAUI setup snippet from the OpenIap.Maui API", async () => {
+    const apiKey = "openiap-kit_sk_setup";
+    const { baseUrl, sessionId } = await initializeMcpSession(apiKey);
+
+    const payload = await callTool<SetupToolPayload>(
+      baseUrl,
+      sessionId,
+      "iapkit_setup",
+      {
+        framework: "maui",
+        productId: "premium_monthly",
+      },
+    );
+    expect(payload).toMatchObject({
+      framework: "maui",
+      note: expect.stringContaining("openiap-kit_pk_"),
+    });
+    expect(payload.snippet).toContain(
+      "OpenIapClient.Mutation.VerifyPurchaseWithProviderAsync",
+    );
+    expect(payload.snippet).toContain("IncludeClientPayload = true");
+    expect(payload.snippet).toContain(
+      "IapkitPurchaseState.PendingAcknowledgment",
+    );
+    expect(payload.snippet).toContain(
+      "verifiedProductId == purchase.ProductId",
+    );
+    expect(payload.snippet).toContain(
+      'const string ExpectedProductId = "premium_monthly";',
+    );
+    expect(payload.snippet).toContain("<IAPKIT_PUBLISHABLE_KEY>");
+    expect(payload.snippet).not.toContain(apiKey);
+  });
+
+  it("finishes after the grant in every setup snippet and links the lifecycle guide", async () => {
+    const { baseUrl, sessionId } = await initializeMcpSession(
+      "openiap-kit_sk_setup",
+    );
+    const finishCalls = {
+      expo: "await finishTransaction({ purchase, isConsumable: false })",
+      "react-native":
+        "await finishTransaction({ purchase, isConsumable: false })",
+      flutter: "await FlutterInappPurchase.instance.finishTransaction(",
+      kmp: "kmpIapInstance.finishTransaction(purchase = purchase, isConsumable = false)",
+      godot: "await GodotIapPlugin.finish_transaction_dict(purchase, false)",
+      maui: "await OpenIapClient.Mutation.FinishTransactionAsync(",
+      ios: "try await iapStore.finishTransaction(purchase: purchase, isConsumable: false)",
+      android: "openIap.finishTransaction(purchase, false)",
+    };
+
+    for (const [framework, finishCall] of Object.entries(finishCalls)) {
+      const payload = await callTool<SetupToolPayload>(
+        baseUrl,
+        sessionId,
+        "iapkit_setup",
+        { framework },
+      );
+      const grant = payload.snippet.search(/grant_?entitlement\(/i);
+      expect(grant, framework).toBeGreaterThan(-1);
+      expect(payload.snippet.indexOf(finishCall), framework).toBeGreaterThan(
+        grant,
+      );
+      expect(payload.coverage).toContain("then finish the transaction");
+      expect(payload.coverage).toContain("https://openiap.dev/docs/lifecycle");
+    }
   });
 
   it("enqueues store sync jobs through the bearer-authenticated Kit API", async () => {

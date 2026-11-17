@@ -107,7 +107,7 @@ Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetails
             <CodeBlock language="gdscript">{`func create_billing_program_reporting_details_android(
     program: int,
     developer_billing_type = null
-) -> BillingProgramReportingDetailsAndroid`}</CodeBlock>
+) -> Types.BillingProgramReportingDetailsAndroid`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -211,7 +211,7 @@ var details = await OpenIapClient.Mutation.CreateBillingProgramReportingDetailsA
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
     # External Offer: create immediately before each launch; never cache.
     var details = await iap.create_billing_program_reporting_details_android(
-        BillingProgramAndroid.EXTERNAL_OFFER
+        Types.BillingProgramAndroid.EXTERNAL_OFFER
     )`}</CodeBlock>
           ),
         }}

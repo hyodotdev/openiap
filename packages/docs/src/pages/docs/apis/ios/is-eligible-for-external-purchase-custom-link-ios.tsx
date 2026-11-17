@@ -88,7 +88,9 @@ function IsEligibleForExternalPurchaseCustomLinkIOS() {
       </AnchorLink>
       <p>
         <code>Promise&lt;boolean&gt;</code> — Whether the app can use
-        ExternalPurchaseCustomLink (iOS 18.1+, macOS 15.1+).
+        ExternalPurchaseCustomLink (iOS 18.1+, macOS 15.1+). Godot&apos;s{' '}
+        <code>is_eligible_for_external_purchase_custom_link_ios</code> runs on
+        iOS only; on macOS it returns <code>false</code> without checking.
       </p>
 
       <h2>Example</h2>

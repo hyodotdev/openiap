@@ -488,14 +488,25 @@ internal fun buildAmazonSubscriptionProduct(
     )
 }
 
-/**
- * OpenIapModule for Amazon Appstore SDK IAP.
- *
- * Amazon's native IAP API is listener based instead of connection based. The
- * OpenIAP connection lifecycle registers the listener, while individual API
- * calls await the matching RequestId callback.
- */
 internal suspend fun unsupportedRedeemOfferCode(): Boolean = false
+
+// Mirrors horizonUnsupportedPurchaseError: dropping these would buy something other than what was asked.
+internal fun amazonUnsupportedPurchaseError(
+    offerToken: String?,
+    originalExternalTransactionId: String?,
+    hasDeveloperBillingOption: Boolean,
+): OpenIapError? = when {
+    !originalExternalTransactionId.isNullOrBlank() -> OpenIapError.FeatureNotSupported(
+        "originalExternalTransactionId is only supported by Google Play Billing 9.1+"
+    )
+    hasDeveloperBillingOption -> OpenIapError.FeatureNotSupported(
+        "developerBillingOption is only supported by Google Play Billing 8.3+"
+    )
+    !offerToken.isNullOrBlank() -> OpenIapError.FeatureNotSupported(
+        "One-time product offer tokens are not supported by the Amazon Appstore SDK"
+    )
+    else -> null
+}
 
 internal fun amazonPurchaseError(
     status: String?,
@@ -515,6 +526,13 @@ internal fun amazonPurchaseError(
     else -> OpenIapError.UnknownError("Unrecognized Amazon purchase response").withProductId(sku)
 }
 
+/**
+ * OpenIapModule for Amazon Appstore SDK IAP.
+ *
+ * Amazon's native IAP API is listener based instead of connection based. The
+ * OpenIAP connection lifecycle registers the listener, while individual API
+ * calls await the matching RequestId callback.
+ */
 class OpenIapModule(
     private val context: Context,
 ) : OpenIapProtocol, PurchasingListener, PurchaseTokenSettler {
@@ -758,7 +776,6 @@ class OpenIapModule(
                 } catch (error: IllegalArgumentException) {
                     emitPurchaseErrorAndThrow(OpenIapError.DeveloperError(error.message))
                 }
-                ensureRegistered()
                 if (androidArgs.skus.isEmpty()) {
                     emitPurchaseErrorAndThrow(OpenIapError.EmptySkuList)
                 }
@@ -781,11 +798,17 @@ class OpenIapModule(
                         )
                     )
                 }
+                amazonUnsupportedPurchaseError(
+                    offerToken = androidArgs.offerToken,
+                    originalExternalTransactionId = androidArgs.originalExternalTransactionId,
+                    hasDeveloperBillingOption = androidArgs.developerBillingOption != null,
+                )?.let { emitPurchaseErrorAndThrow(it) }
                 if (androidArgs.skus.size != 1) {
                     emitPurchaseErrorAndThrow(
                         OpenIapError.DeveloperError("Amazon Appstore SDK purchases one SKU at a time")
                     )
                 }
+                ensureRegistered()
 
                 val sku = androidArgs.skus.first()
                 if (!activePurchaseSku.compareAndSet(null, sku)) {
@@ -887,8 +910,11 @@ class OpenIapModule(
         withContext(Dispatchers.Main) {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("amzn://apps/android?p=${context.packageName}"))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            runCatching { context.startActivity(intent) }
-                .onFailure { OpenIapLog.warn("Amazon subscription deep link unavailable: ${it.message}", TAG) }
+            try {
+                context.startActivity(intent)
+            } catch (error: RuntimeException) {
+                throw OpenIapError.UnknownError("Failed to open the Amazon Appstore page: ${error.message}")
+            }
         }
     }
 

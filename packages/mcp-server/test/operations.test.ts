@@ -171,6 +171,43 @@ describe("operations tools", () => {
     }
   });
 
+  it("never sends the environment key to a caller-chosen kit", async () => {
+    const hosts: string[] = [];
+    vi.stubGlobal("fetch", async (input: string) => {
+      hosts.push(new URL(input).host);
+      return new Response("{}", {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    vi.stubEnv("IAPKIT_API_KEY", SECRET);
+    vi.stubEnv("IAPKIT_BASE_URL", "https://kit.test");
+    const server = createIapKitMcpServer({ allowEnvApiKey: true });
+    const client = new Client({ name: "test", version: "1" });
+    const [serverTransport, clientTransport] =
+      InMemoryTransport.createLinkedPair();
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+    const list = (args: Record<string, unknown>) =>
+      client.callTool({
+        name: "iapkit_list_inbound_notifications",
+        arguments: args,
+      });
+    try {
+      expect((await list({ baseUrl: "https://attacker.test" })).isError).toBe(
+        true,
+      );
+      expect(hosts).toEqual([]);
+      await list({ baseUrl: "https://kit.test" });
+      await list({ apiKey: SECRET, baseUrl: "https://other.test" });
+      expect(hosts).toEqual(["kit.test", "other.test"]);
+    } finally {
+      vi.unstubAllEnvs();
+      await client.close();
+      await server.close();
+    }
+  });
+
   it("returns kit's response unchanged", async () => {
     const { client, close } = await connect(() => ({
       notifications: [{ _id: "webhookEvents_1", status: "applied" }],

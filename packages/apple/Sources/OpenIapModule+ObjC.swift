@@ -77,20 +77,32 @@ import StoreKit
     ) {
         Task {
             do {
-                // For purchase request, type must be .inApp
-                let iosProps = RequestPurchaseIosProps(
-                    andDangerouslyFinishTransactionAutomatically: nil,
-                    appAccountToken: nil,
-                    quantity: quantity,
-                    sku: sku,
-                    withOffer: nil
-                )
-                let props = RequestPurchaseProps(
-                    request: .purchase(
-                        RequestPurchasePropsByPlatforms(apple: iosProps)
-                    ),
-                    type: .inApp
-                )
+                let props: RequestPurchaseProps
+                // A "subs" purchase must reach the provider as a subscription request.
+                if type.flatMap({ ProductQueryType(rawValue: $0) }) == .subs {
+                    props = RequestPurchaseProps(
+                        request: .subscription(
+                            RequestSubscriptionPropsByPlatforms(
+                                apple: RequestSubscriptionIosProps(quantity: quantity, sku: sku)
+                            )
+                        ),
+                        type: .subs
+                    )
+                } else {
+                    let iosProps = RequestPurchaseIosProps(
+                        andDangerouslyFinishTransactionAutomatically: nil,
+                        appAccountToken: nil,
+                        quantity: quantity,
+                        sku: sku,
+                        withOffer: nil
+                    )
+                    props = RequestPurchaseProps(
+                        request: .purchase(
+                            RequestPurchasePropsByPlatforms(apple: iosProps)
+                        ),
+                        type: .inApp
+                    )
+                }
 
                 let result = try await requestPurchase(props)
 
@@ -181,31 +193,43 @@ import StoreKit
     ) {
         Task {
             do {
-                // Parse the signature-based promotional offer.
-                let discountOffer: DiscountOfferInputIOS? = if let offer = offer,
-                    let identifier = offer["identifier"] as? String,
-                    let keyIdentifier = offer["keyIdentifier"] as? String,
-                    let nonce = offer["nonce"] as? String,
-                    let signature = offer["signature"] as? String,
-                    let timestamp = offer["timestamp"] as? Double {
-                    DiscountOfferInputIOS(
-                        identifier: identifier,
-                        keyIdentifier: keyIdentifier,
-                        nonce: nonce,
-                        signature: signature,
-                        timestamp: timestamp
-                    )
+                // A malformed offer must fail: dropping it would buy at full price.
+                let discountOffer: DiscountOfferInputIOS?
+                if let offer {
+                    guard let parsedOffer = OpenIapSerialization.discountOffer(from: offer) else {
+                        completion(
+                            nil,
+                            PurchaseError.make(
+                                code: .developerError,
+                                productId: sku,
+                                message: "offer must include identifier, keyIdentifier, nonce, signature, and timestamp."
+                            )
+                        )
+                        return
+                    }
+                    discountOffer = parsedOffer
                 } else {
-                    nil
+                    discountOffer = nil
                 }
 
                 // Parse JWS promotional offer (iOS 15+, WWDC 2025)
-                let jwsOffer: PromotionalOfferJWSInputIOS? = if let jwsDict = promotionalOfferJWS,
-                    let offerId = jwsDict["offerId"] as? String,
-                    let jws = jwsDict["jws"] as? String {
-                    PromotionalOfferJWSInputIOS(jws: jws, offerId: offerId)
+                let jwsOffer: PromotionalOfferJWSInputIOS?
+                if let promotionalOfferJWS {
+                    guard let offerId = promotionalOfferJWS["offerId"] as? String, !offerId.isEmpty,
+                        let jws = promotionalOfferJWS["jws"] as? String, !jws.isEmpty else {
+                        completion(
+                            nil,
+                            PurchaseError.make(
+                                code: .developerError,
+                                productId: sku,
+                                message: "promotionalOfferJWS must include offerId and jws."
+                            )
+                        )
+                        return
+                    }
+                    jwsOffer = PromotionalOfferJWSInputIOS(jws: jws, offerId: offerId)
                 } else {
-                    nil
+                    jwsOffer = nil
                 }
 
                 // Parse win-back offer (iOS 18+)

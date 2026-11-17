@@ -331,7 +331,9 @@ public sealed record PurchaseError
                 Request reached the billing service timeout (Google Play 8.x+),
                 or a launched Android purchase reported no result: Google Play
                 after 15 minutes and an owned-purchase check, Meta Horizon after
-                about 5 minutes
+                about 5 minutes. On iOS, kmp-iap throws it when{' '}
+                <code>initConnection</code> or <code>endConnection</code> gets
+                no answer within 15 seconds
               </td>
               <td>
                 Retry the call after a short delay; before retrying a purchase,

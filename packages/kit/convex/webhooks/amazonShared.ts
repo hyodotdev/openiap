@@ -25,6 +25,9 @@ export interface AmazonRtnMessage {
   relatedReceipts?: { cancelledReceiptId?: string };
 }
 
+// Prefix of the id IAPKit gives an RVS reconciliation event; no store issues it.
+export const AMAZON_RVS_EVENT_ID_PREFIX = "rvs:";
+
 export const amazonLifecycleNoticeValidator = v.object({
   messageId: v.string(),
   notificationType: v.string(),

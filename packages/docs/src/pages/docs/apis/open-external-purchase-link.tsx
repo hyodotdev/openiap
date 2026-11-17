@@ -99,6 +99,13 @@ function OpenExternalPurchaseLink() {
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
+      <p>
+        An{' '}
+        <Link to="/docs/types/external-purchase-link#external-purchase-link-request">
+          <code>ExternalPurchaseLinkRequest</code>
+        </Link>
+        :
+      </p>
       <ul>
         <li>
           <code>url</code> (required): the web checkout to open.
@@ -131,6 +138,13 @@ await launchExternalLinkAndroid({
       <AnchorLink id="returns" level="h2">
         Returns
       </AnchorLink>
+      <p>
+        An{' '}
+        <Link to="/docs/types/external-purchase-link#external-purchase-link-result">
+          <code>ExternalPurchaseLinkResult</code>
+        </Link>
+        :
+      </p>
       <ul>
         <li>
           <code>status</code>: <code>opened</code> (the user continued and the

@@ -92,6 +92,17 @@ function BillingPrograms() {
           <tbody>
             <tr>
               <td>
+                <code>UNSPECIFIED</code>
+              </td>
+              <td>
+                No billing program. In <code>InitConnectionConfig</code>, it
+                selects the standard client and keeps programs already queued
+                with <code>enableBillingProgramAndroid</code>
+              </td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td>
                 <code>USER_CHOICE_BILLING</code>
               </td>
               <td>
@@ -803,6 +814,12 @@ function BillingPrograms() {
           <tbody>
             <tr>
               <td>
+                <code>UNSPECIFIED</code>
+              </td>
+              <td>Unspecified launch mode. Do not use</td>
+            </tr>
+            <tr>
+              <td>
                 <code>LAUNCH_IN_EXTERNAL_BROWSER_OR_APP</code>
               </td>
               <td>
@@ -1233,15 +1250,15 @@ if (result.IsAvailable)
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Enable External Payments via InitConnectionConfig
-var config = InitConnectionConfig.new()
-config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_PAYMENTS
+var config = Types.InitConnectionConfig.new()
+config.enable_billing_program_android = Types.BillingProgramAndroid.EXTERNAL_PAYMENTS
 var connected = await iap.init_connection(config)
 if not connected:
     push_error("Store connection failed")
     return
 
 # Listen for developer billing selection
-func _on_developer_provided_billing(details: DeveloperProvidedBillingDetailsAndroid):
+func _on_developer_provided_billing(details: Dictionary):
     print("External transaction token received; send it to your backend without logging it.")
     # Report token to Google via your backend within 24 hours
 
@@ -1249,19 +1266,19 @@ iap.developer_provided_billing_android.connect(_on_developer_provided_billing)
 
 # Check availability (Japan only)
 var result = await iap.is_billing_program_available_android(
-    BillingProgramAndroid.EXTERNAL_PAYMENTS
+    Types.BillingProgramAndroid.EXTERNAL_PAYMENTS
 )
 if result.is_available:
     # Purchase with developer billing option
-    var props = RequestPurchaseProps.new()
-    props.request = RequestPurchasePropsByPlatforms.new()
-    props.request.google = RequestPurchaseAndroidProps.new()
+    var props = Types.RequestPurchaseProps.new()
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
     props.request.google.skus.assign(["product_id"])
-    props.request.google.developer_billing_option = DeveloperBillingOptionParamsAndroid.new()
-    props.request.google.developer_billing_option.billing_program = BillingProgramAndroid.EXTERNAL_PAYMENTS
+    props.request.google.developer_billing_option = Types.DeveloperBillingOptionParamsAndroid.new()
+    props.request.google.developer_billing_option.billing_program = Types.BillingProgramAndroid.EXTERNAL_PAYMENTS
     props.request.google.developer_billing_option.link_uri = "https://your-site.com/checkout"
-    props.request.google.developer_billing_option.launch_mode = DeveloperBillingLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
-    props.type = ProductQueryType.IN_APP
+    props.request.google.developer_billing_option.launch_mode = Types.DeveloperBillingLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
+    props.type = Types.ProductQueryType.IN_APP
     await iap.request_purchase(props)`}</CodeBlock>
             ),
           }}

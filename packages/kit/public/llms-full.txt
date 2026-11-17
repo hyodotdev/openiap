@@ -172,22 +172,19 @@ missing, and never use payload contents alone.
 
 ### GET /v1/products/{apiKey}
 
-Lists the project catalog. `platform=IOS|Android` filters by platform.
+Lists the project catalog in cursor pages. `platform=IOS|Android` filters by
+platform. `limit` defaults to 25 (range 1-50), and callers pass the opaque
+`nextCursor` back as `cursor` while `hasMore` is true.
 `includeClientPayload=true` explicitly joins each product's optional public
-payload. Payload-inclusive reads require `platform` and are cursor-paginated:
-`limit` defaults to 25 (range 1-50), and callers pass the opaque `nextCursor`
-back as `cursor` while `hasMore` is true. IAPKit reads payload bodies only for
-the selected page. Without the opt-in flag the existing `{ products }`
-response is unchanged and performs no payload lookup.
-For backwards compatibility, `limit` and `cursor` are ignored unless
-`includeClientPayload=true`.
+payload; it requires `platform`, and IAPKit reads payload bodies only for the
+selected page. Without the opt-in flag no payload lookup happens.
 
 ```http
 GET /v1/products/openiap-kit_pk_xxx?platform=IOS&includeClientPayload=true&limit=25
 ```
 
-Payload-inclusive response: `{ products, hasMore, nextCursor? }`. The final
-page sets `hasMore: false` and omits `nextCursor`. Catalog changes can
+Response: `{ products, hasMore, nextCursor? }`. The final page sets
+`hasMore: false` and omits `nextCursor`. Catalog changes can
 invalidate an opaque cursor; `400 INVALID_CURSOR` means restart from the first
 page without `cursor`.
 
@@ -262,6 +259,29 @@ event rows. Poll `GET /v2/subscriptions/user-erasure/{jobId}` until completion.
 The raw user ID is removed from the completed job immediately; completed job
 metadata is retained for seven days. Both endpoints require a secret admin key.
 The developer backend must separately erase any event copy it already received.
+The job read returns `{ jobId, status, subscriptionsErased,
+commerceEventsErased, createdAt, updatedAt, completedAt? }` with `status`
+`queued`, `running`, or `completed`, and `404 NOT_FOUND` once the job is no
+longer retained.
+
+### External checkouts
+
+Secret-key routes for a Stripe checkout paid outside the stores. IAPKit
+verifies the payment from Stripe's signed webhook, grants the entitlement, and
+reports it to Apple or Google. They work only for a project whose deployment
+has enabled a reporting profile; the IAPKit README covers request bodies, plan
+changes, and profile setup.
+
+- `POST /v1/external-purchase-tokens` — `{ profileId, userId, token }` → 201
+  `{ tokenId }` (Apple).
+- `POST /v1/external-checkouts` — requires an `Idempotency-Key` header → 201
+  `{ checkoutId }`; a conflicting key or order returns
+  `409 IDEMPOTENCY_CONFLICT`.
+- `POST /v1/external-checkouts/{checkoutId}/verify` — 202 `{ checkoutId }`.
+- `GET /v1/external-checkouts/{checkoutId}` — `{ paymentStatus,
+  reportingStatus, entitlement: { active, expiresAt? } }`.
+- `POST /v1/webhooks/stripe/{integrationId}` — Stripe's signed events; no API
+  key.
 
 ### Header-authenticated product and administrative subscription routes
 
@@ -269,7 +289,24 @@ The developer backend must separately erase any event copy it already received.
 Catalog writes and store sync require `Authorization: Bearer
 openiap-kit_sk_...` on `POST /v1/products`, `POST /v1/products/state`,
 `DELETE /v1/products/{productId}`, and `/v1/products/sync/*`. The same secret is
-required by `/v1/subscriptions/{list|metrics|revenue}`. Older key-in-path
+required by `/v1/subscriptions/{list|metrics|revenue}`.
+
+- `POST /v1/products/state` — `{ productId, platform, state }` sets only the
+  state (`Draft`, `Ready`, `Active`, `Removed`) and returns `{ id, state }`.
+- `DELETE /v1/products/{productId}?platform=IOS|Android` — marks the row
+  `Removed` and returns `{ ok }`; the next push sync deletes the store product
+  where the store allows it.
+- `POST /v1/products/sync/{ios|android}?direction=pull|push|both|purge-local&dryRun=true|false`
+  — 202 `{ jobId, deduped }`; `direction` defaults to `both`, `dryRun` to
+  `false`. Poll `GET /v1/products/sync/jobs/{jobId}`.
+- `POST /v1/products/sync/jobs/{jobId}/cancel` — `{ ok: true }`; a queued job
+  ends at once and a running job stops at its next step. A finished job
+  returns `{ ok: false, reason: "not active" }`.
+- `GET /v1/subscriptions/revenue?fromDay=&toDay=` — UTC `YYYY-MM-DD` days
+  spanning at most 92 days, both ends included; longer returns
+  `400 INVALID_INPUT`.
+
+Older key-in-path
 routes accept publishable keys only where app/store transports require them.
 Secret keys in URL paths receive `410 SECRET_API_KEY_IN_URL`.
 
@@ -331,7 +368,9 @@ Secret-key routes; publishable keys get 403. Lists page up to 100 rows with
   `eventType`, `destinationId`, `eventId`.
 - `POST /v1/webhooks/deliveries/{deliveryId}/resend` — 202; re-sends a
   delivered or failed delivery with the same `eventId`. 30 per project per
-  minute; `EVENT_PRUNED` after the event's 30-day retention.
+  minute; `EVENT_PRUNED` after the event's 30-day retention. While a
+  destination is disabled, new events get no delivery row for it and cannot be
+  re-sent later.
 - `GET /v1/webhooks/notifications` — inbound store notifications with applied
   state and a payload fingerprint; raw payloads are never returned.
 - `GET /v1/purchase/issues` — failed verifications and links from the last 30
@@ -382,14 +421,18 @@ Setup guides:
 | ---- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | 200  | `{ store, isValid, state, productId?, environment?, clientPayload? }` | Verification ran                                                                      |
 | 400  | `INVALID_INPUT`                                                       | Malformed body, unknown store, oversized field                                        |
-| 400  | `INVALID_API_KEY`                                                     | Well-formed key that fails project lookup                                             |
+| 400  | `INVALID_API_KEY`                                                     | Well-formed key that fails project lookup (verify, product, subscription routes)      |
 | 413  | `PAYLOAD_TOO_LARGE`                                                   | Request body exceeds the 32 KB edge cap                                               |
 | 401  | `MISSING_API_KEY`                                                     | No `Authorization` header                                                             |
 | 403  | `INSUFFICIENT_SCOPE`                                                  | Publishable key used for an admin operation                                           |
-| 403  | `INVALID_API_KEY`                                                     | Wrong scheme or malformed key (format only)                                           |
+| 403  | `INVALID_API_KEY`                                                     | Wrong scheme or malformed key; on the routes below, also a key that fails lookup      |
 | 429  | `RATE_LIMITED`                                                        | Key, IP, or process bucket empty; inspect `X-RateLimit-Scope` and honor `Retry-After` |
 | 503  | `SERVICE_BUSY`                                                        | Verification concurrency is full; retry later                                         |
 | 500  | `UNKNOWN_ERROR`                                                       | Server-side failure; include `X-Correlation-Id`                                       |
+
+A well-formed key that fails project lookup returns `403 INVALID_API_KEY`
+instead of `400` on the verification-job, external-checkout, webhook-delivery,
+purchase-issue, and subscription resync and timeline routes.
 
 Error body shape:
 
@@ -398,8 +441,7 @@ Error body shape:
   "errors": [
     {
       "code": "META_HORIZON_APP_SECRET_NOT_CONFIGURED",
-      "message": "Meta Horizon App Secret is not set for this project.",
-      "path": "horizon.appSecret"
+      "message": "Meta Horizon App Secret is not set for this project."
     }
   ]
 }
@@ -459,12 +501,12 @@ automatically reserve capacity; self-host for dedicated operational control.
 ## Input size caps
 
 - request body ≤ 32 KB before JSON parsing
-- `jws` ≤ 16 KB (Apple)
-- `purchaseToken` ≤ 2 KB (Google)
+- `jws` ≤ 16,000 chars (Apple)
+- `purchaseToken` ≤ 2,000 chars (Google)
 - `userId` ≤ 256 chars (Horizon)
 - `sku` ≤ 256 chars (Horizon)
 - `userId` ≤ 512 chars (Amazon)
-- `receiptId` ≤ 4 KiB (Amazon)
+- `receiptId` ≤ 4,096 chars (Amazon)
 - `expectedProductId` ≤ 256 chars (Apple, Google, or Amazon)
 - `clientPayload.body` ≤ 16 KiB measured as UTF-8 bytes
 
@@ -496,8 +538,8 @@ Every verify request emits one JSON line to stdout:
 }
 ```
 
-The API key is never logged in plaintext — only the first 16 hex chars of
-its SHA-256 prefix (the same value the rate limiter keys on).
+The API key is never logged in plaintext — only a 16-hex keyed hash (the
+same value the rate limiter keys on), keyed per server process.
 
 ## Outbound retries
 

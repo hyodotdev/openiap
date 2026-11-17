@@ -79,7 +79,8 @@ function LatestTransactionIOS() {
           <code>Promise&lt;PurchaseIOS | null&gt;</code>
         </Link>{' '}
         — iOS purchase shape, or <code>null</code> if the SKU has no matching
-        transaction.
+        transaction. Godot&apos;s <code>latest_transaction_ios</code> runs on
+        iOS only and returns <code>null</code> on macOS.
       </p>
 
       <h2>Example</h2>

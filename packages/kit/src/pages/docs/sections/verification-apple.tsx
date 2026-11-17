@@ -107,8 +107,9 @@ export default function VerificationApplePage() {
       </CodeBlock>
 
       <p>
-        The <code>jws</code> field accepts up to 16 KB — Apple's real payloads
-        run ~1–2 KB, so the cap is room-to-grow, not a tight bound.
+        The <code>jws</code> field accepts up to 16,000 characters — Apple's
+        real payloads run ~1–2 KB, so the cap is room-to-grow, not a tight
+        bound.
       </p>
 
       <p>
@@ -213,6 +214,22 @@ if (revocationDate !== undefined) {
               </td>
               <td className="px-3 py-2">
                 JWS is malformed or the payload couldn't be decoded.
+              </td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 font-mono text-xs">
+                PROJECT_APP_STORE_BUNDLE_ID_NOT_CONFIGURED
+              </td>
+              <td className="px-3 py-2">
+                The project has no App Store bundle id in its settings.
+              </td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 font-mono text-xs">
+                PROJECT_APP_STORE_APPLE_ID_NOT_CONFIGURED
+              </td>
+              <td className="px-3 py-2">
+                A production JWS arrived before the App Apple ID was set.
               </td>
             </tr>
             <tr>

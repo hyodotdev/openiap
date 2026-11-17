@@ -3,6 +3,7 @@ import { after, before, test } from "node:test";
 import { spawn, execFileSync } from "node:child_process";
 import { createServer } from "node:http";
 import {
+  chmod,
   mkdtemp,
   readFile,
   readdir,
@@ -27,6 +28,7 @@ let directory, origin, server;
 let logoutError;
 let loginPollErrors = [];
 let deviceLifetime = 5000;
+let verificationUrl;
 let syncConflict = false;
 let syncJob = { status: "succeeded" };
 const purchase = {
@@ -141,7 +143,8 @@ before(async () => {
       data = {
         deviceCode: "device-secret",
         userCode: "ABCD123456",
-        verificationUrl: `${origin}/cli/authorize?user_code=ABCD123456`,
+        verificationUrl:
+          verificationUrl ?? `${origin}/cli/authorize?user_code=ABCD123456`,
         interval: 0,
         expiresAt: Date.now() + deviceLifetime,
       };
@@ -224,6 +227,22 @@ test("setup renders the shared framework snippets without authentication", async
     /IAPKIT_PUBLISHABLE_KEY/,
   );
   assert.equal(requests.length, count);
+});
+
+test("setup supports .NET MAUI and says what the example covers", async () => {
+  const result = await run(["setup", "--framework", "maui", "--json"]);
+  assert.equal(result.status, 0, result.stderr);
+  const { snippet, coverage } = JSON.parse(result.stdout).data;
+  assert.match(
+    snippet,
+    /OpenIapClient\.Mutation\.VerifyPurchaseWithProviderAsync/,
+  );
+  assert.ok(
+    snippet.indexOf("GrantEntitlement(") <
+      snippet.indexOf("OpenIapClient.Mutation.FinishTransactionAsync("),
+  );
+  assert.match(coverage, /then finish the transaction/);
+  assert.match(coverage, /https:\/\/openiap\.dev\/docs\/lifecycle/);
 });
 
 test("health probes the server independently of login", async () => {
@@ -936,6 +955,42 @@ test("login retries a transient server failure and pending approval before succe
     loginPollErrors = [];
   }
 });
+
+test(
+  "login opens only a web address in the browser",
+  { skip: process.platform === "win32" },
+  async () => {
+    const fakeBin = await mkdtemp(path.join(tmpdir(), "openiap-cli-opener-"));
+    const opened = path.join(fakeBin, "opened.txt");
+    for (const name of ["open", "xdg-open"]) {
+      const file = path.join(fakeBin, name);
+      await writeFile(file, `#!/bin/sh\necho "$1" >> "${opened}"\n`);
+      await chmod(file, 0o755);
+    }
+    const env = { PATH: `${fakeBin}${path.delimiter}${process.env.PATH}` };
+    const openedUrls = async () => {
+      // The opener is detached, so its write can land after the CLI exits.
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        const text = await readFile(opened, "utf8").catch(() => "");
+        if (text) return text.trim().split("\n");
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      return [];
+    };
+    try {
+      verificationUrl = "file:///etc/hosts";
+      assert.equal((await run(["login", "--json"], env)).status, 0);
+      verificationUrl = undefined;
+      assert.equal((await run(["login", "--json"], env)).status, 0);
+      assert.deepEqual(await openedUrls(), [
+        `${origin}/cli/authorize?user_code=ABCD123456`,
+      ]);
+    } finally {
+      verificationUrl = undefined;
+      await rm(fakeBin, { recursive: true, force: true });
+    }
+  },
+);
 
 test("login retries a lost response and an HTML gateway error", async () => {
   loginPollErrors = [

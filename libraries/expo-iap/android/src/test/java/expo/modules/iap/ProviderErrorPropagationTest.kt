@@ -7,6 +7,7 @@ import dev.hyo.openiap.MutationVerifyPurchaseWithProviderHandler
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapProtocol
 import expo.modules.kotlin.Promise
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.fail
 import org.junit.Test
@@ -19,6 +20,8 @@ import java.lang.reflect.Proxy
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class ProviderErrorPropagationTest {
+    private fun envelope(message: String?): JSONObject = JSONObject(message.orEmpty().removePrefix(ExpoIapHelper.ERROR_ENVELOPE_PREFIX))
+
     private fun invoke(
         module: ExpoIapModule,
         method: String,
@@ -105,7 +108,9 @@ class ProviderErrorPropagationTest {
                             cause: Throwable?,
                         ) {
                             assertEquals(error.code, code)
-                            assertEquals(error.message, message)
+                            val payload = envelope(message)
+                            assertEquals(error.message, payload.getString("message"))
+                            assertEquals(error.debugMessage, payload.opt("debugMessage").takeUnless { it == JSONObject.NULL })
                             responses++
                         }
                     }
@@ -115,10 +120,8 @@ class ProviderErrorPropagationTest {
         }
     }
 
-    @Test
-    fun `initConnection preserves provider errors instead of reporting init failure`() {
-        val error = OpenIapError.ProviderConfiguration("No Android store provider registered.")
-        val init: MutationInitConnectionHandler = { throw error }
+    /** Runs initConnection against [init] and returns the code and message of its one rejection. */
+    private fun rejectedInit(init: MutationInitConnectionHandler): Pair<String?, String?> {
         val provider =
             Proxy.newProxyInstance(OpenIapProtocol::class.java.classLoader, arrayOf(OpenIapProtocol::class.java)) { _, method, _ ->
                 when (method.name) {
@@ -131,11 +134,11 @@ class ProviderErrorPropagationTest {
             .getDeclaredField("openIapLazy")
             .apply { isAccessible = true }
             .set(module, lazy { provider })
-        var responses = 0
+        val rejections = mutableListOf<Pair<String?, String?>>()
         val promise =
             object : Promise {
                 override fun resolve(value: Any?) {
-                    fail("A throwing provider must reject")
+                    fail("A failed init must reject")
                 }
 
                 override fun reject(
@@ -143,12 +146,25 @@ class ProviderErrorPropagationTest {
                     message: String?,
                     cause: Throwable?,
                 ) {
-                    assertEquals(error.code, code)
-                    assertEquals(error.message, message)
-                    responses++
+                    rejections += code to message
                 }
             }
         invoke(module, "initConnection", arrayOf(null), promise)
-        assertEquals(1, responses)
+        return rejections.single()
+    }
+
+    @Test
+    fun `initConnection preserves provider errors instead of reporting init failure`() {
+        val error = OpenIapError.ProviderConfiguration("No Android store provider registered.")
+        val (code, message) = rejectedInit { throw error }
+        assertEquals(error.code, code)
+        assertEquals(error.message, envelope(message).getString("message"))
+    }
+
+    @Test
+    fun `initConnection rejects a refused connection with the init code`() {
+        val (code, message) = rejectedInit { false }
+        assertEquals(OpenIapError.InitConnection.CODE, code)
+        assertEquals(OpenIapError.InitConnection.CODE, envelope(message).getString("code"))
     }
 }

@@ -1,17 +1,19 @@
 package io.github.hyochan.kmpiap
 
+import io.github.hyochan.kmpiap.openiap.ErrorCode
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.assertIs
+import kotlin.test.assertNull
 
 class IosConnectionLifecycleTest {
     @Test
@@ -60,14 +62,23 @@ class IosConnectionLifecycleTest {
     }
 
     @Test
-    fun `stalled operation times out and releases the lifecycle`() = runTest {
+    fun `stalled operation fails with a timeout error and releases the lifecycle`() = runTest {
         val lifecycle = IosConnectionLifecycle(timeoutMillis = 1)
         val stalled = async {
             runCatching { lifecycle.run { awaitCancellation() } }
         }
         val next = async { lifecycle.run { "next" } }
 
-        assertTrue(stalled.await().exceptionOrNull() is TimeoutCancellationException)
+        val failure = assertIs<PurchaseException>(stalled.await().exceptionOrNull())
+        assertEquals(ErrorCode.ServiceTimeout, failure.error.code)
         assertEquals("next", next.await())
+    }
+
+    @Test
+    fun `the caller's own timeout stays a cancellation`() = runTest {
+        val lifecycle = IosConnectionLifecycle()
+
+        assertNull(withTimeoutOrNull(1) { lifecycle.run { awaitCancellation() } })
+        assertEquals("next", lifecycle.run { "next" })
     }
 }

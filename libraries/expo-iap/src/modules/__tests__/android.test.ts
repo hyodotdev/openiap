@@ -96,6 +96,28 @@ describe('Android Module Functions', () => {
 
       ExpoIapModule.deepLinkToSubscriptionsAndroid = original;
     });
+
+    it('rethrows a native rejection as a PurchaseError', async () => {
+      const original = ExpoIapModule.deepLinkToSubscriptionsAndroid;
+      ExpoIapModule.deepLinkToSubscriptionsAndroid = jest
+        .fn()
+        .mockRejectedValue(
+          Object.assign(new Error('No activity can open subscriptions'), {
+            code: 'service-error',
+          }),
+        );
+
+      await expect(
+        deepLinkToSubscriptionsAndroid({packageNameAndroid: 'com.example.app'}),
+      ).rejects.toMatchObject({
+        name: expect.stringContaining('PurchaseError'),
+        code: 'service-error',
+        message: 'No activity can open subscriptions',
+        platform: 'android',
+      });
+
+      ExpoIapModule.deepLinkToSubscriptionsAndroid = original;
+    });
   });
 
   describe('acknowledgePurchaseAndroid', () => {
@@ -554,6 +576,70 @@ describe('Android Module Functions', () => {
         });
         expect(result).toEqual(mockResult);
       });
+    });
+
+    it('rethrows a native rejection as a PurchaseError with its debug details', async () => {
+      const envelope = JSON.stringify({
+        code: 'developer-error',
+        message: 'Invalid arguments provided to the API',
+        debugMessage: 'Connect with ALTERNATIVE_BILLING_ONLY first',
+        subResponseCodeAndroid: 'user-ineligible',
+        platform: 'android',
+      });
+      const calls: [jest.Mock, () => Promise<unknown>][] = [
+        [
+          ExpoIapModule.isBillingProgramAvailableAndroid as jest.Mock,
+          () => isBillingProgramAvailableAndroid('external-offer'),
+        ],
+        [
+          ExpoIapModule.getBillingChoiceInfoAndroid as jest.Mock,
+          () => getBillingChoiceInfoAndroid(),
+        ],
+        [
+          ExpoIapModule.launchExternalLinkAndroid as jest.Mock,
+          () =>
+            launchExternalLinkAndroid({
+              billingProgram: 'external-offer',
+              launchMode: 'launch-in-external-browser-or-app',
+              linkType: 'link-to-digital-content-offer',
+              linkUri: 'https://example.com/purchase',
+            }),
+        ],
+        [
+          ExpoIapModule.createBillingProgramReportingDetailsAndroid as jest.Mock,
+          () => createBillingProgramReportingDetailsAndroid('external-offer'),
+        ],
+        [
+          ExpoIapModule.showBillingProgramInformationDialogAndroid as jest.Mock,
+          () =>
+            showBillingProgramInformationDialogAndroid({
+              externalTransactionToken: 'choice-token',
+            }),
+        ],
+        [
+          ExpoIapModule.showAlternativeBillingOnlyInformationDialogAndroid as jest.Mock,
+          () => showAlternativeBillingOnlyInformationDialogAndroid(),
+        ],
+        [
+          ExpoIapModule.showInAppMessagesAndroid as jest.Mock,
+          () => showInAppMessagesAndroid(),
+        ],
+      ];
+
+      for (const [native, call] of calls) {
+        native.mockRejectedValueOnce(
+          Object.assign(new Error(`OPENIAP_ERROR_JSON:${envelope}`), {
+            code: 'developer-error',
+          }),
+        );
+        await expect(call()).rejects.toMatchObject({
+          code: 'developer-error',
+          message: 'Invalid arguments provided to the API',
+          debugMessage: 'Connect with ALTERNATIVE_BILLING_ONLY first',
+          subResponseCodeAndroid: 'user-ineligible',
+          platform: 'android',
+        });
+      }
     });
 
     describe('showInAppMessagesAndroid', () => {
