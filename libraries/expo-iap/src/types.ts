@@ -156,7 +156,7 @@ export interface AppTransaction {
   signedDate: number;
   /**
    * Store channel of the original app purchase: consumer, education, enterprise,
-   * or another future StoreKit value (Apple 27+ beta).
+   * or another future StoreKit value (Apple 27+).
    */
   storeType?: (string | null);
 }
@@ -260,7 +260,7 @@ export interface BillingResultAndroid {
 
 /**
  * Metadata for one auto-renewable subscription included in an Apple
- * subscription bundle (Apple 27+ beta).
+ * subscription bundle (Apple 27+).
  */
 export interface BundledSubscriptionIOS {
   description: string;
@@ -1220,7 +1220,7 @@ export interface ProductSubscriptionAndroid extends ProductCommon {
 export interface ProductSubscriptionIOS extends ProductCommon {
   /**
    * Subscriptions included in this Apple subscription bundle. Empty or null for
-   * every other product type (Apple 27+ beta).
+   * every other product type (Apple 27+).
    */
   bundledSubscriptionsIOS?: (BundledSubscriptionIOS[] | null);
   currency: string;

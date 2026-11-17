@@ -426,7 +426,7 @@ public enum BillingProgramAndroid
     /// <summary>
     /// User Choice Billing program.
     /// User can select between Google Play Billing or alternative billing.
-    /// Available in Google Play Billing Library 7.0+
+    /// Available in Google Play Billing Library 6.1.0+
     /// </summary>
     UserChoiceBilling,
     /// <summary>
@@ -2115,9 +2115,9 @@ public enum ProductTypeIOS
     NonConsumable,
     AutoRenewableSubscription,
     NonRenewingSubscription,
-    /// <summary>A group of independently purchasable subscriptions sold together (Apple 27+ beta).</summary>
+    /// <summary>A group of independently purchasable subscriptions sold together (Apple 27+).</summary>
     SubscriptionBundle,
-    /// <summary>A group of subscriptions that are available only as one suite (Apple 27+ beta).</summary>
+    /// <summary>A group of subscriptions that are available only as one suite (Apple 27+).</summary>
     SubscriptionSuite
 }
 
@@ -3011,7 +3011,7 @@ public sealed record AppTransaction
     public required double SignedDate { get; init; }
     /// <summary>
     /// Store channel of the original app purchase: consumer, education, enterprise,
-    /// or another future StoreKit value (Apple 27+ beta).
+    /// or another future StoreKit value (Apple 27+).
     /// </summary>
     [JsonPropertyName("storeType")]
     public string? StoreType { get; init; }
@@ -3099,7 +3099,7 @@ public sealed record BillingResultAndroid
 
 /// <summary>
 /// Metadata for one auto-renewable subscription included in an Apple
-/// subscription bundle (Apple 27+ beta).
+/// subscription bundle (Apple 27+).
 /// </summary>
 public sealed record BundledSubscriptionIOS
 {
@@ -3681,7 +3681,7 @@ public sealed record ProductSubscriptionIOS : ProductSubscription
 {
     /// <summary>
     /// Subscriptions included in this Apple subscription bundle. Empty or null for
-    /// every other product type (Apple 27+ beta).
+    /// every other product type (Apple 27+).
     /// </summary>
     [JsonPropertyName("bundledSubscriptionsIOS")]
     public IReadOnlyList<BundledSubscriptionIOS>? BundledSubscriptionsIOS { get; init; }

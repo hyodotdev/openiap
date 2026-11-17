@@ -600,7 +600,7 @@ enum BillingProgramAndroid {
   """
   User Choice Billing program.
   User can select between Google Play Billing or alternative billing.
-  Available in Google Play Billing Library 7.0+
+  Available in Google Play Billing Library 6.1.0+
   """
   USER_CHOICE_BILLING
   """

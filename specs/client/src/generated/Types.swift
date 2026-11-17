@@ -175,7 +175,7 @@ public enum BillingProgramAndroid: String, Codable, CaseIterable {
     case unspecified = "unspecified"
     /// User Choice Billing program.
     /// User can select between Google Play Billing or alternative billing.
-    /// Available in Google Play Billing Library 7.0+
+    /// Available in Google Play Billing Library 6.1.0+
     case userChoiceBilling = "user-choice-billing"
     /// External Content Links program.
     /// Allows linking to external content outside the app.
@@ -895,9 +895,9 @@ public enum ProductTypeIOS: String, Codable, CaseIterable {
     case nonConsumable = "non-consumable"
     case autoRenewableSubscription = "auto-renewable-subscription"
     case nonRenewingSubscription = "non-renewing-subscription"
-    /// A group of independently purchasable subscriptions sold together (Apple 27+ beta).
+    /// A group of independently purchasable subscriptions sold together (Apple 27+).
     case subscriptionBundle = "subscription-bundle"
-    /// A group of subscriptions that are available only as one suite (Apple 27+ beta).
+    /// A group of subscriptions that are available only as one suite (Apple 27+).
     case subscriptionSuite = "subscription-suite"
 
     public init?(rawValue: String) {
@@ -1375,7 +1375,7 @@ public struct AppTransaction: Codable {
     public var revocationDate: Double? = nil
     public var signedDate: Double
     /// Store channel of the original app purchase: consumer, education, enterprise,
-    /// or another future StoreKit value (Apple 27+ beta).
+    /// or another future StoreKit value (Apple 27+).
     public var storeType: String? = nil
 
     public init(
@@ -1501,7 +1501,7 @@ public struct BillingResultAndroid: Codable {
 }
 
 /// Metadata for one auto-renewable subscription included in an Apple
-/// subscription bundle (Apple 27+ beta).
+/// subscription bundle (Apple 27+).
 public struct BundledSubscriptionIOS: Codable {
     public var description: String
     public var displayName: String
@@ -2157,7 +2157,7 @@ public struct ProductSubscriptionAndroid: Codable, ProductCommon {
 
 public struct ProductSubscriptionIOS: Codable, ProductCommon {
     /// Subscriptions included in this Apple subscription bundle. Empty or null for
-    /// every other product type (Apple 27+ beta).
+    /// every other product type (Apple 27+).
     public var bundledSubscriptionsIOS: [BundledSubscriptionIOS]? = nil
     public var currency: String
     public var debugDescription: String? = nil

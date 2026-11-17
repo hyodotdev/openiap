@@ -191,7 +191,7 @@ public enum class BillingProgramAndroid(val rawValue: String) {
     /**
      * User Choice Billing program.
      * User can select between Google Play Billing or alternative billing.
-     * Available in Google Play Billing Library 7.0+
+     * Available in Google Play Billing Library 6.1.0+
      */
     UserChoiceBilling("user-choice-billing"),
     /**
@@ -1236,11 +1236,11 @@ public enum class ProductTypeIOS(val rawValue: String) {
     AutoRenewableSubscription("auto-renewable-subscription"),
     NonRenewingSubscription("non-renewing-subscription"),
     /**
-     * A group of independently purchasable subscriptions sold together (Apple 27+ beta).
+     * A group of independently purchasable subscriptions sold together (Apple 27+).
      */
     SubscriptionBundle("subscription-bundle"),
     /**
-     * A group of subscriptions that are available only as one suite (Apple 27+ beta).
+     * A group of subscriptions that are available only as one suite (Apple 27+).
      */
     SubscriptionSuite("subscription-suite")
 
@@ -1934,7 +1934,7 @@ public data class AppTransaction(
     val signedDate: Double,
     /**
      * Store channel of the original app purchase: consumer, education, enterprise,
-     * or another future StoreKit value (Apple 27+ beta).
+     * or another future StoreKit value (Apple 27+).
      */
     val storeType: String? = null
 ) {
@@ -2132,7 +2132,7 @@ public data class BillingResultAndroid(
 
 /**
  * Metadata for one auto-renewable subscription included in an Apple
- * subscription bundle (Apple 27+ beta).
+ * subscription bundle (Apple 27+).
  */
 public data class BundledSubscriptionIOS(
     val description: String,
@@ -3120,7 +3120,7 @@ public data class ProductSubscriptionAndroid(
 public data class ProductSubscriptionIOS(
     /**
      * Subscriptions included in this Apple subscription bundle. Empty or null for
-     * every other product type (Apple 27+ beta).
+     * every other product type (Apple 27+).
      */
     val bundledSubscriptionsIOS: List<BundledSubscriptionIOS>? = null,
     override val currency: String,

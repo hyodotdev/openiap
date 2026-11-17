@@ -208,7 +208,7 @@ enum BillingProgramAndroid {
   Unspecified('unspecified'),
   /// User Choice Billing program.
   /// User can select between Google Play Billing or alternative billing.
-  /// Available in Google Play Billing Library 7.0+
+  /// Available in Google Play Billing Library 6.1.0+
   UserChoiceBilling('user-choice-billing'),
   /// External Content Links program.
   /// Allows linking to external content outside the app.
@@ -1339,9 +1339,9 @@ enum ProductTypeIOS {
   NonConsumable('non-consumable'),
   AutoRenewableSubscription('auto-renewable-subscription'),
   NonRenewingSubscription('non-renewing-subscription'),
-  /// A group of independently purchasable subscriptions sold together (Apple 27+ beta).
+  /// A group of independently purchasable subscriptions sold together (Apple 27+).
   SubscriptionBundle('subscription-bundle'),
-  /// A group of subscriptions that are available only as one suite (Apple 27+ beta).
+  /// A group of subscriptions that are available only as one suite (Apple 27+).
   SubscriptionSuite('subscription-suite');
 
   const ProductTypeIOS(this.value);
@@ -2070,7 +2070,7 @@ class AppTransaction {
   final double? revocationDate;
   final double signedDate;
   /// Store channel of the original app purchase: consumer, education, enterprise,
-  /// or another future StoreKit value (Apple 27+ beta).
+  /// or another future StoreKit value (Apple 27+).
   final String? storeType;
 
   factory AppTransaction.fromJson(Map<String, dynamic> json) {
@@ -2254,7 +2254,7 @@ class BillingResultAndroid {
 }
 
 /// Metadata for one auto-renewable subscription included in an Apple
-/// subscription bundle (Apple 27+ beta).
+/// subscription bundle (Apple 27+).
 class BundledSubscriptionIOS {
   const BundledSubscriptionIOS({
     required this.description,
@@ -3309,7 +3309,7 @@ class ProductSubscriptionIOS extends ProductSubscription implements ProductCommo
   });
 
   /// Subscriptions included in this Apple subscription bundle. Empty or null for
-  /// every other product type (Apple 27+ beta).
+  /// every other product type (Apple 27+).
   final List<BundledSubscriptionIOS>? bundledSubscriptionsIOS;
   final String currency;
   final String? debugDescription;
