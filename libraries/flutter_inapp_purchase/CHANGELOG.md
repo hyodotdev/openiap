@@ -1,5 +1,14 @@
 # Changelog
 
+## 11.4.1 (2026-11-18)
+
+- fix: close the repository audit backlog across SDKs, IAPKit and docs (#619)
+- docs: balance logo sizes across sponsor sections
+- docs: tighten commerce landing and sponsors, block forced dark
+- docs(sponsors): add Codemagic and move sponsorship to GitHub Sponsors
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-11.4.1
+
+
 ## 11.4.0 (2026-11-15)
 
 - feat: add a shared external purchase link call (#612)
