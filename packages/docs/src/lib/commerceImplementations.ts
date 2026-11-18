@@ -226,7 +226,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'The delivery worker sends signed events to registered backend HTTPS endpoints and records attempts. Your receiver owns duplicate handling; the example shows how to build that side.',
       file: 'convex/commerce/delivery.ts',
       symbol: 'deliverPendingEventsHandler',
-      line: 168,
+      line: 185,
       checkFile: 'convex/commerce/delivery.test.ts',
       check:
         'Worker tests check signed requests, transport failures, and destination validation with test I/O.',

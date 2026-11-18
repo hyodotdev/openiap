@@ -149,12 +149,10 @@ gates remain independent of that hosted view.
   version commits directly to `main`. Branch protection also requires linear
   history and blocks force pushes and deletion, for administrators too. Workflow
   tokens default to read-only and write permissions are granted per job.
-- Two self-hosted runners, `mac-mini-hyo` and `mac-mini-hyo-2` (label
-  `ssd-ci`), are registered on the maintainer's machine and idle. No workflow
-  in this tree may target them: `audit-security.mjs workflows` accepts only
-  GitHub-hosted `runs-on` labels. A fork pull request can still add one, so
-  every outside contributor's run waits for approval; read the fork's workflow
-  changes before approving. Check the setting with
+- The repository registers no self-hosted runners. No workflow in this tree
+  may target one: `audit-security.mjs workflows` accepts only GitHub-hosted
+  `runs-on` labels. Every outside contributor's run still waits for approval;
+  read the fork's workflow changes before approving. Check the setting with
   `gh api repos/hyodotdev/openiap/actions/permissions/fork-pr-contributor-approval`.
 - CodeQL's traced Kotlin jobs build the Google and KMP Android cores plus the
   React Native, Expo, Flutter, Godot, and MAUI JVM wrappers. Its traced Swift
