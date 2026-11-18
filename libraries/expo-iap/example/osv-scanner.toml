@@ -7,8 +7,3 @@ reason = "The fix is glob 14.0.2, outside Expo 57 and React Native TV configurat
 id = "GHSA-g3hv-75wg-m249"
 ignoreUntil = 2026-12-04
 reason = "The fix is minimatch 11.0.1, outside the Expo 57, React Native TV configuration, React Native CLI and Jest dependency ranges. These copies serve local project discovery, fingerprinting, lint and coverage; the example mobile entry points and published expo-iap runtime do not import them. Patterns come from the trusted checkout and build configuration; do not load untrusted project patterns or expose this tooling as a public request handler. Recheck compatible upstream upgrades before expiry: https://github.com/advisories/GHSA-g3hv-75wg-m249. Rechecked 2026-11-04: still no fix inside these dependency ranges."
-
-[[IgnoredVulns]]
-id = "GHSA-fc5q-39xc-vjpf"
-ignoreUntil = 2026-12-18
-reason = "No patched picomatch release exists (every version through 4.0.7 is affected). This lock reaches picomatch only through build, test and lint tooling (Vite, Vitest, Jest, Metro, Expo CLI, micromatch, tinyglobby, lint-staged), which match repository-owned glob patterns; the published SDK runtimes, the IAPKit server and the CLI do not import it. Do not pass untrusted glob patterns to these tools. Revisit the upstream fix before expiry: https://github.com/advisories/GHSA-fc5q-39xc-vjpf. Checked 2026-11-18: still no patched release."
