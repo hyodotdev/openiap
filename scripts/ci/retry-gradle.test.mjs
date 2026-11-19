@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const script = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -25,6 +25,9 @@ function runRetry(command, env = {}) {
     env: {
       ...process.env,
       GRADLE_NETWORK_RETRY_DELAY_SECONDS: "0",
+      // Keep plugin lookups off the network unless a test supplies a repository.
+      GRADLE_NETWORK_RETRY_PLUGIN_REPOSITORIES:
+        "file:///nonexistent-openiap-plugin-repository",
       ...env,
     },
   });
@@ -473,3 +476,39 @@ test("stops after the configured number of transient attempts", () => {
     assert.equal(readFileSync(counter, "utf8"), "2");
   });
 });
+
+for (const published of [true, false]) {
+  test(`${published ? "retries" : "does not retry"} an unresolved plugin ${published ? "a repository serves" : "no repository has"}`, () => {
+    const repository = mkdtempSync(path.join(tmpdir(), "openiap-plugin-repo-"));
+    const marker = "org/example/plugin/org.example.plugin.gradle.plugin/1.2.3";
+    if (published) {
+      mkdirSync(path.join(repository, marker), { recursive: true });
+      writeFileSync(
+        path.join(
+          repository,
+          marker,
+          "org.example.plugin.gradle.plugin-1.2.3.pom",
+        ),
+        "",
+      );
+    }
+
+    try {
+      withCounterTest((counter) => {
+        const command = incrementScript(
+          counter,
+          `if [ "$count" -eq 1 ]; then echo "- Plugin Repositories (could not resolve plugin artifact 'org.example.plugin:org.example.plugin.gradle.plugin:1.2.3')" >&2; exit 31; fi; printf 'recovered'`,
+        );
+        const result = runRetry(command, {
+          GRADLE_NETWORK_RETRY_PLUGIN_REPOSITORIES:
+            pathToFileURL(repository).href,
+        });
+
+        assert.equal(result.status, published ? 0 : 31);
+        assert.equal(readFileSync(counter, "utf8"), published ? "2" : "1");
+      });
+    } finally {
+      rmSync(repository, { force: true, recursive: true });
+    }
+  });
+}

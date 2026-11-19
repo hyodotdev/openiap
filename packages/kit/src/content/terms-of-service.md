@@ -2,7 +2,7 @@
 
 **Service:** Purchase validation and entitlement infrastructure for the Apple App Store, Google Play, Amazon Appstore, and Meta Horizon
 
-**Last updated:** 2026-11-16
+**Last updated:** 2026-11-19
 
 These Terms of Service (“Terms”) govern your access to and use of the services provided by Hyo Dev (“we”, “our”, “us”). By creating an account or using our services, you agree to be bound by these Terms.
 
@@ -82,6 +82,7 @@ We use third-party providers, including:
 - **Sentry** (error and performance monitoring)
 - **Mixpanel** (product analytics)
 - **Apple, Google, Amazon, and Meta** (purchase verification and store reconciliation)
+- **Stripe** (verifying checkouts paid outside the stores, when you register them)
 
 Your use of the service constitutes agreement to the processing of data by these providers as needed to operate the platform. See the Privacy Policy for the categories of data and purposes associated with each provider.
 
@@ -142,7 +143,7 @@ We may suspend or terminate your access if:
 - You violate these Terms
 - Your use poses security, legal, or operational risks
 
-You may terminate your account at any time by contacting us.
+You may delete your account at any time on the Profile page, or by contacting us. Deleting your account also deletes any organization that has no other member, with its projects and their data.
 
 Upon termination:
 

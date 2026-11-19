@@ -346,6 +346,7 @@ describe("verifyRecordingIssues", () => {
             }),
         ),
     ];
+    // 1,200 rows across 16 shards outnumber a shard's 64-row cap.
     for (let attempt = 0; attempt < 300; attempt += 1) {
       for (const fail of unrecognized) await fail().catch(() => undefined);
     }

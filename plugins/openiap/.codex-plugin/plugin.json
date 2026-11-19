@@ -19,8 +19,8 @@
     "category": "Developer Tools",
     "capabilities": ["Read", "Write"],
     "websiteURL": "https://openiap.dev",
-    "privacyPolicyURL": "https://openiap.dev/privacy",
-    "termsOfServiceURL": "https://openiap.dev/terms",
+    "privacyPolicyURL": "https://kit.openiap.dev/privacy-policy",
+    "termsOfServiceURL": "https://kit.openiap.dev/terms-of-service",
     "defaultPrompt": [
       "Use OpenIAP to review my in-app purchase flow.",
       "Use OpenIAP to generate an Expo setup snippet.",

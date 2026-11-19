@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig, type PluginOption } from "vite";
 import react from "@vitejs/plugin-react";
 import fs from "node:fs";
@@ -59,6 +60,8 @@ function notFoundForMissingStaticDocs(): PluginOption {
 }
 
 export default defineConfig({
+  // convex-test cold starts take over 5 s when the machine is busy.
+  test: { testTimeout: 15_000 },
   plugins: [react(), notFoundForMissingStaticDocs()],
   resolve: {
     alias: {

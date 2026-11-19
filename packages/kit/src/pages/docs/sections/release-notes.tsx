@@ -26,7 +26,7 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-11-16",
     weekStart: "2026-11-16",
     date: "2026-11-17",
-    pullRequests: [618, 619],
+    pullRequests: [618, 619, 620],
     tagline:
       "Purchase rows no store recognized are deleted after 30 days, an unknown Google subscription state no longer counts as entitled, the backend moved to openiap.dev domains, and sponsorship runs through GitHub Sponsors only.",
     items: [
@@ -64,6 +64,16 @@ const RELEASES: ReleaseEntry[] = [
         kind: "docs",
         topic: "Sponsorship",
         text: "The pricing page, usage page, operations guide, terms of service, and sponsorship request email now point only to GitHub Sponsors. OpenCollective no longer takes IAPKit sponsorship.",
+      },
+      {
+        kind: "fix",
+        topic: "Account deletion",
+        text: "A deletion batch that fails retries after 1, 2, 4, and more minutes, then hourly until the deletion finishes. Before, the deletion stopped there and left the rest of the account in place.",
+      },
+      {
+        kind: "docs",
+        topic: "Privacy policy",
+        text: "The privacy policy now lists the project data IAPKit stores (store credentials, the App Review screenshot, webhook destinations and their secrets), the user ID sent with purchases, store notifications, and Stripe external checkouts, and names Stripe as a provider. It states the 30-day retention for store notifications and for unrecognized purchase rows, and which rows are kept. Both it and the terms say you can delete your account on the Profile page.",
       },
       {
         kind: "ops",

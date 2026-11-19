@@ -1,0 +1,53 @@
+name: "CI: Rerun jobs no runner picked up"
+
+# GitHub cancels a job its hosted macOS pool cannot staff, which turns a
+# passing run red with no code at fault. Rerun those jobs once; any other
+# failure stays. Release workflows are not listed: they never rerun on their own.
+on:
+  workflow_run:
+    workflows:
+      - CI
+      - CI - expo-iap
+      - CI - flutter_inapp_purchase
+      - CI - godot-iap
+      - CI - kmp-iap
+      - CI - maui-iap
+      - CI - react-native-iap
+      - CodeQL
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  rerun:
+    # A fork's run stays under the approval its contributor policy requires.
+    if: >-
+      (github.event.workflow_run.conclusion == 'failure' ||
+      github.event.workflow_run.conclusion == 'cancelled') &&
+      github.event.workflow_run.run_attempt == 1 &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    name: Rerun runner-capacity cancellations
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      checks: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+
+      - name: Rerun if no runner picked the jobs up
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        run: node scripts/ci/rerun-runner-capacity.mjs

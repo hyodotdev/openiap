@@ -30,6 +30,26 @@ has_sdk_install_failure() {
   grep -qiE "$sdk_install_pattern" "$1"
 }
 
+# An unresolved plugin prints no network cause, and a wrong version reads the
+# same, so retry only when a plugin repository does serve that marker POM. A
+# build that omits the repository serving it costs two short retries.
+readonly plugin_repositories="${GRADLE_NETWORK_RETRY_PLUGIN_REPOSITORIES:-https://plugins.gradle.org/m2 https://repo1.maven.org/maven2 https://dl.google.com/dl/android/maven2}"
+
+has_published_unresolved_plugin() {
+  local coordinate group artifact version repository
+  coordinate="$(grep -oiE "could not resolve plugin artifact '[A-Za-z0-9._-]+:[A-Za-z0-9._-]+:[A-Za-z0-9._+-]+'" "$1" |
+    head -n 1 | sed -E "s/.*artifact '([^']+)'/\1/")"
+  [[ -n "$coordinate" ]] || return 1
+  IFS=: read -r group artifact version <<<"$coordinate"
+  for repository in $plugin_repositories; do
+    if curl -fsSIL --max-time 10 \
+      "$repository/${group//.//}/$artifact/$version/$artifact-$version.pom" >/dev/null 2>&1; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 has_retryable_dependency_failure() {
   awk \
     -v fetch_pattern="$fetch_pattern" \
@@ -119,7 +139,8 @@ for ((attempt = 1; attempt <= max_attempts; attempt += 1)); do
 
   if ! has_retryable_dependency_failure "$retry_log" &&
     ! has_wrapper_download_failure "$retry_log" &&
-    ! has_sdk_install_failure "$retry_log"; then
+    ! has_sdk_install_failure "$retry_log" &&
+    ! has_published_unresolved_plugin "$retry_log"; then
     echo "Gradle failed without a recognized transient network error; not retrying." >&2
     exit "$command_status"
   fi
