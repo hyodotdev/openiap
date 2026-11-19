@@ -2,7 +2,7 @@
 
 **Service:** Purchase validation and entitlement infrastructure for the Apple App Store, Google Play, Amazon Appstore, and Meta Horizon
 
-**Last updated:** 2026-11-16
+**Last updated:** 2026-11-19
 
 Hyo Dev (“we”, “our”, “us”) provides purchase validation and entitlement infrastructure for app-store purchases. We are committed to protecting your privacy and handling your information responsibly. This Privacy Policy explains what information we collect, how we use it, and your rights.
 
@@ -24,7 +24,9 @@ This information is required to create and manage your account.
 Our service processes **transaction and entitlement information** from the Apple App Store, Google Play, Amazon Appstore, and Meta Horizon. Depending on the integration, this data may include:
 
 - Store or app-scoped user identifiers
+- The user ID your app or backend sends with a purchase, checkout, or entitlement request
 - Transaction, receipt, purchase-token, product, subscription, and entitlement metadata
+- The signed notifications the stores send about your app's purchases
 - Information needed to validate purchases, reconcile store state, and maintain entitlements
 
 We do **not** receive or store payment card details.
@@ -42,6 +44,18 @@ This is used for security, debugging, and performance.
 ### 1.4. Sponsorship Links
 
 If your organization sponsors OpenIAP on GitHub and we link that sponsorship to it, we store the sponsoring GitHub account, the sponsorship amount, and when we linked it. We use them only to stop sponsorship notices to your organization and to show the sponsorship on its Usage page. We store nothing about sponsorships that are not linked to an organization.
+
+### 1.5. Project Configuration
+
+To verify purchases and sync products for a project, we store:
+
+- Store credentials: the Apple App Store Server API key file, the App Store Connect API key file, the Google service account file, the Amazon Appstore shared secret, and the Meta Horizon app ID and secret
+- One App Review screenshot per project, which we send to App Store Connect when you sync iOS products
+- The webhook destination URLs you register, and the signing secret IAPKit generates for each
+
+### 1.6. External Checkouts
+
+If your backend registers a Stripe checkout paid outside the stores, we store the order ID, user ID, and product ID you send, and the payment facts we read from your Stripe account: the payment, invoice, charge, and refund identifiers, amounts, currency, region, payment time, and subscription period.
 
 ---
 
@@ -104,6 +118,10 @@ We use Mixpanel in the hosted web application to understand adoption and improve
 
 When you ask IAPKit to verify or reconcile a purchase, the relevant transaction identifiers and app configuration are sent only to the applicable platform: Apple, Google, Amazon, or Meta. Those platforms process the request under their own privacy policies.
 
+### Stripe (External Checkouts)
+
+When your backend registers a Stripe checkout, IAPKit reads that payment from your Stripe account and receives Stripe's signed webhooks for it. IAPKit then reports the purchase to Apple or Google, as the checkout asks. Stripe processes the payment under its own privacy policy.
+
 We disclose personal data only as needed to operate, analyze, improve, secure, support, and validate the service, or to comply with law. We do not sell personal data or share it for third-party marketing.
 
 ---
@@ -124,10 +142,13 @@ We retain:
 
 - **Account data** for as long as your account is active
 - **Transaction data** as required to operate the service
+- **Store notifications** for 30 days after we receive them
+- **Purchase records no store recognized** for 30 days after the last time a store failed to recognize them. A record that was ever valid, or is linked to a user, an order, or a subscription, is kept as transaction data
+- **Project configuration** (store credentials, the review screenshot, webhook destinations) until you remove it or the project is deleted
 - **Sponsorship links** until the link is removed or the organization is deleted
 - **Logs and diagnostics** for a limited time for security and debugging
 
-You may request deletion of your account at any time.
+You can delete your account yourself on the Profile page, or ask us to.
 
 ---
 

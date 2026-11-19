@@ -66,6 +66,11 @@ const RELEASES: ReleaseEntry[] = [
         text: "The pricing page, usage page, operations guide, terms of service, and sponsorship request email now point only to GitHub Sponsors. OpenCollective no longer takes IAPKit sponsorship.",
       },
       {
+        kind: "docs",
+        topic: "Privacy policy",
+        text: "The privacy policy now lists the project data IAPKit stores (store credentials, the App Review screenshot, webhook destinations and their secrets), the user ID sent with purchases, store notifications, and Stripe external checkouts, and names Stripe as a provider. It states the 30-day retention for store notifications and unrecognized purchase rows. Both it and the terms say you can delete your account on the Profile page.",
+      },
+      {
         kind: "ops",
         topic: "Backend domains",
         text: "The hosted Convex backend now serves its API at `api.openiap.dev` and sign-in at `auth.openiap.dev` instead of its default `convex.cloud` and `convex.site` addresses. Dashboard and CLI sessions from before the switch may need to sign in once more. Apps and SDKs are unaffected because they call `kit.openiap.dev`.",

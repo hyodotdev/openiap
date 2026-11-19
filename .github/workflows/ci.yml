@@ -110,6 +110,9 @@ jobs:
       - name: Test the native registry wait helper
         run: node --test scripts/ci/wait-for-openiap-natives.test.mjs
 
+      - name: Test the runner-capacity rerun helper
+        run: node --test scripts/ci/rerun-runner-capacity.test.mjs
+
   audit-lockfile:
     name: Audit Lockfile Sync
     needs: changes
