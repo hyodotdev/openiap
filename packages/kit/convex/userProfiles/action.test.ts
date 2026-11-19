@@ -50,6 +50,21 @@ describe("finalizeAccountDeletion", () => {
     ]);
   });
 
+  it("counts only failures in a row once a batch succeeds", async () => {
+    const runMutation = vi
+      .fn()
+      .mockResolvedValueOnce({ done: false })
+      .mockRejectedValueOnce(new Error("batch failed"));
+    const { ctx, runAfter } = context(runMutation);
+
+    await expect(finalize(ctx, { userId, failures: 6 })).rejects.toThrow(
+      "batch failed",
+    );
+    expect(runAfter.mock.calls.map(([delay, , args]) => [delay, args])).toEqual(
+      [[60_000, { userId, failures: 1 }]],
+    );
+  });
+
   it("gives up after six failed runs", async () => {
     const { ctx, runAfter } = context(async () => {
       throw new Error("batch failed");

@@ -22,18 +22,21 @@ export const finalizeAccountDeletion = internalAction({
   args: { userId: v.id("users"), failures: v.optional(v.number()) },
   returns: v.null(),
   handler: async (ctx, args) => {
+    // Counts failures in a row, so a run that made progress starts over.
+    let failures = args.failures ?? 0;
     try {
       for (let i = 0; i < MAX_DRAIN_ITERATIONS; i++) {
         const { done } = await ctx.runMutation(
           internal.userProfiles.internal.drainAccountDeletionBatch,
           { userId: args.userId },
         );
+        failures = 0;
         if (done) {
           return null;
         }
       }
     } catch (error) {
-      const failures = (args.failures ?? 0) + 1;
+      failures += 1;
       if (failures <= MAX_FAILED_RUNS) {
         await ctx.scheduler.runAfter(
           FIRST_RETRY_DELAY_MS * 2 ** (failures - 1),

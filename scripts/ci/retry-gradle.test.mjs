@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const script = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -500,7 +500,8 @@ for (const published of [true, false]) {
           `if [ "$count" -eq 1 ]; then echo "- Plugin Repositories (could not resolve plugin artifact 'org.example.plugin:org.example.plugin.gradle.plugin:1.2.3')" >&2; exit 31; fi; printf 'recovered'`,
         );
         const result = runRetry(command, {
-          GRADLE_NETWORK_RETRY_PLUGIN_REPOSITORIES: `file://${repository}`,
+          GRADLE_NETWORK_RETRY_PLUGIN_REPOSITORIES:
+            pathToFileURL(repository).href,
         });
 
         assert.equal(result.status, published ? 0 : 31);
