@@ -25,6 +25,9 @@ function runRetry(command, env = {}) {
     env: {
       ...process.env,
       GRADLE_NETWORK_RETRY_DELAY_SECONDS: "0",
+      // Keep plugin lookups off the network unless a test supplies a repository.
+      GRADLE_NETWORK_RETRY_PLUGIN_REPOSITORIES:
+        "file:///nonexistent-openiap-plugin-repository",
       ...env,
     },
   });

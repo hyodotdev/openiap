@@ -55,7 +55,7 @@ To verify purchases and sync products for a project, we store:
 
 ### 1.6. External Checkouts
 
-If your backend registers a Stripe checkout paid outside the stores, we store the order ID, user ID, and product ID you send, and the payment facts we read from your Stripe account: the payment, invoice, charge, and refund identifiers, amounts, currency, region, payment time, and subscription period.
+If your backend registers a Stripe checkout paid outside the stores, we store the order ID, user ID, product ID, and region you send, and the payment facts we read from your Stripe account: the payment, invoice, charge, and refund identifiers, amounts, currency, payment time, and subscription period. To read them, IAPKit holds your Stripe account ID, API key, and webhook signing secret in its deployment configuration, not in these records.
 
 ---
 
@@ -142,8 +142,8 @@ We retain:
 
 - **Account data** for as long as your account is active
 - **Transaction data** as required to operate the service
-- **Store notifications** for 30 days after we receive them
-- **Purchase records no store recognized** for 30 days after the last time a store failed to recognize them. A record that was ever valid, or is linked to a user, an order, or a subscription, is kept as transaction data
+- **Store notifications** for 30 days after we receive them. A subscription keeps a summary of its latest notification (its type, time, and transaction identifiers) as transaction data
+- **Purchase records no store recognized** for 30 days after the last time a store failed to recognize them. A record that held any other verdict, or is linked to a user, an order, or a subscription, is kept as transaction data, as is a record last checked before November 17, 2026
 - **Project configuration** (store credentials, the review screenshot, webhook destinations) until you remove it or the project is deleted
 - **Sponsorship links** until the link is removed or the organization is deleted
 - **Logs and diagnostics** for a limited time for security and debugging

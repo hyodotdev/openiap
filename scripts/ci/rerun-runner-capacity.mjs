@@ -7,15 +7,21 @@ import { fileURLToPath } from "node:url";
 
 const NO_RUNNER = "was not acquired by Runner";
 const API = "https://api.github.com";
+const PASSED = ["success", "skipped", "neutral"];
+
+const unsuccessful = (job) => !PASSED.includes(job.conclusion);
 
 export function shouldRerun(jobs, annotationsFor) {
-  const failed = jobs.filter((job) =>
-    ["failure", "cancelled"].includes(job.conclusion),
-  );
+  const failed = jobs.filter(unsuccessful);
   return (
     failed.length > 0 &&
-    failed.every((job) =>
-      annotationsFor(job).some((message) => message.includes(NO_RUNNER)),
+    failed.every(
+      (job) =>
+        // A step can print the same text, so also require that none ran.
+        job.conclusion === "cancelled" &&
+        !job.runner_name &&
+        (job.steps ?? []).length === 0 &&
+        annotationsFor(job).some((message) => message.includes(NO_RUNNER)),
     )
   );
 }
@@ -57,7 +63,7 @@ export async function rerunIfRunnerCapacity({
 
   const annotations = new Map();
   for (const job of jobs) {
-    if (!["failure", "cancelled"].includes(job.conclusion)) continue;
+    if (!unsuccessful(job)) continue;
     const found = await request(
       `/repos/${repository}/check-runs/${job.id}/annotations?per_page=100`,
     );
@@ -69,6 +75,14 @@ export async function rerunIfRunnerCapacity({
 
   if (!shouldRerun(jobs, (job) => annotations.get(job.id) ?? [])) {
     console.log("Not a runner-capacity failure; leaving the run as it is.");
+    return false;
+  }
+  const run = await request(`/repos/${repository}/actions/runs/${runId}`);
+  if (
+    String(run.run_attempt) !== String(attempt) ||
+    run.status !== "completed"
+  ) {
+    console.log("The run moved on since this attempt; leaving it.");
     return false;
   }
   await request(

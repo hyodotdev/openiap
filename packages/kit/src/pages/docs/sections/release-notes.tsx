@@ -66,9 +66,14 @@ const RELEASES: ReleaseEntry[] = [
         text: "The pricing page, usage page, operations guide, terms of service, and sponsorship request email now point only to GitHub Sponsors. OpenCollective no longer takes IAPKit sponsorship.",
       },
       {
+        kind: "fix",
+        topic: "Account deletion",
+        text: "A deletion batch that fails retries after 1, 2, 4, 8, 16, and 32 minutes. Before, the deletion stopped there and left the rest of the account in place.",
+      },
+      {
         kind: "docs",
         topic: "Privacy policy",
-        text: "The privacy policy now lists the project data IAPKit stores (store credentials, the App Review screenshot, webhook destinations and their secrets), the user ID sent with purchases, store notifications, and Stripe external checkouts, and names Stripe as a provider. It states the 30-day retention for store notifications and unrecognized purchase rows. Both it and the terms say you can delete your account on the Profile page.",
+        text: "The privacy policy now lists the project data IAPKit stores (store credentials, the App Review screenshot, webhook destinations and their secrets), the user ID sent with purchases, store notifications, and Stripe external checkouts, and names Stripe as a provider. It states the 30-day retention for store notifications and for unrecognized purchase rows, and which rows are kept. Both it and the terms say you can delete your account on the Profile page.",
       },
       {
         kind: "ops",
