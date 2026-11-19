@@ -65,13 +65,15 @@ describe("finalizeAccountDeletion", () => {
     );
   });
 
-  it("gives up after six failed runs", async () => {
+  it("keeps retrying hourly once the delay reaches its cap", async () => {
     const { ctx, runAfter } = context(async () => {
       throw new Error("batch failed");
     });
     await expect(finalize(ctx, { userId, failures: 6 })).rejects.toThrow(
       "batch failed",
     );
-    expect(runAfter).not.toHaveBeenCalled();
+    expect(runAfter.mock.calls.map(([delay, , args]) => [delay, args])).toEqual(
+      [[3_600_000, { userId, failures: 7 }]],
+    );
   });
 });

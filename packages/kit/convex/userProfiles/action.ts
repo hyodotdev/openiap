@@ -6,9 +6,10 @@ import { internal } from "../_generated/api";
 // Batches per action run, more than a realistic account needs; a larger one
 // reschedules the action to continue.
 const MAX_DRAIN_ITERATIONS = 500;
-// A failed batch retries after 1, 2, 4, 8, 16 and 32 minutes, then gives up.
-const MAX_FAILED_RUNS = 6;
+// A failed batch retries after 1, 2, 4, ... minutes, then hourly until it
+// succeeds, so a fix deployed later still finishes the deletion.
 const FIRST_RETRY_DELAY_MS = 60_000;
+const MAX_RETRY_DELAY_MS = 60 * 60_000;
 
 /**
  * Finishes the teardown `deleteAccount` started, calling
@@ -37,13 +38,14 @@ export const finalizeAccountDeletion = internalAction({
       }
     } catch (error) {
       failures += 1;
-      if (failures <= MAX_FAILED_RUNS) {
-        await ctx.scheduler.runAfter(
+      await ctx.scheduler.runAfter(
+        Math.min(
           FIRST_RETRY_DELAY_MS * 2 ** (failures - 1),
-          internal.userProfiles.action.finalizeAccountDeletion,
-          { userId: args.userId, failures },
-        );
-      }
+          MAX_RETRY_DELAY_MS,
+        ),
+        internal.userProfiles.action.finalizeAccountDeletion,
+        { userId: args.userId, failures },
+      );
       throw error;
     }
 

@@ -68,7 +68,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "fix",
         topic: "Account deletion",
-        text: "A deletion batch that fails retries after 1, 2, 4, 8, 16, and 32 minutes. Before, the deletion stopped there and left the rest of the account in place.",
+        text: "A deletion batch that fails retries after 1, 2, 4, and more minutes, then hourly until the deletion finishes. Before, the deletion stopped there and left the rest of the account in place.",
       },
       {
         kind: "docs",
