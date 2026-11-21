@@ -131,7 +131,11 @@ async function resolveApiKeyClientPayloadWriter(
       platform: args.platform,
       productId: args.productId,
     },
-    author: resolved.keyId ? { apiKeyId: resolved.keyId } : {},
+    author: resolved.keyId
+      ? { apiKeyId: resolved.keyId }
+      : resolved.grantUserId
+        ? { userId: resolved.grantUserId }
+        : {},
   };
 }
 

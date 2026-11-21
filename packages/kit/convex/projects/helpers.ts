@@ -14,6 +14,11 @@ import {
   type ApiKeyType,
 } from "../apiKeys/helpers";
 import { deleteFileAndStorageIfUnreferenced } from "../files/storage";
+import {
+  isGrantApiKey,
+  isReadOnlyGrantApiKey,
+  resolveGrantApiKey,
+} from "../oauth/grants";
 import { deleteClientPayloadVersion } from "../products/clientPayloads";
 import { deleteVerificationJob } from "../purchases/verificationJobState";
 export {
@@ -24,6 +29,8 @@ export {
 export type ApiKeyProjectResolution = {
   project: Doc<"projects">;
   keyId?: Id<"apiKeys">;
+  /** Who approved the OAuth connector that holds this credential. */
+  grantUserId?: Id<"users">;
   keyType: ApiKeyType;
   organizationId: Id<"organizations">;
 };
@@ -68,6 +75,18 @@ export async function resolveProjectByApiKeyFromDb(
       keyType: "secret",
       organizationId: resolved.project.organizationId,
     };
+  }
+  // An OAuth connector reaches its one project as a secret key would.
+  if (isGrantApiKey(apiKey)) {
+    const resolved = await resolveGrantApiKey(ctx, apiKey);
+    return resolved
+      ? {
+          project: resolved.project,
+          grantUserId: resolved.grant.userId,
+          keyType: "secret",
+          organizationId: resolved.project.organizationId,
+        }
+      : null;
   }
   const keyRow = await getApiKeyByKey(ctx, apiKey);
   if (keyRow !== null) {
@@ -215,11 +234,10 @@ export async function resolveOperatorAccess(
   access: "read" | "write",
 ): Promise<{ project: Doc<"projects">; adminView: boolean }> {
   if (args.apiKey !== undefined) {
-    const resolved = await resolveProjectByApiKeyFromDb(
-      ctx,
-      args.apiKey,
-      "admin",
-    );
+    const resolved =
+      access === "write" && isReadOnlyGrantApiKey(args.apiKey)
+        ? null
+        : await resolveProjectByApiKeyFromDb(ctx, args.apiKey, "admin");
     if (!resolved) throw invalidApiKeyError();
     return { project: resolved.project, adminView: true };
   }
@@ -346,6 +364,16 @@ export async function deleteProjectWithData(
     .take(PROJECT_DELETION_PAGE);
   for (const queue of verificationQueues) await ctx.db.delete(queue._id);
   if (verificationQueues.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
+  const oauthGrants = await ctx.db
+    .query("oauthGrants")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const grant of oauthGrants) await ctx.db.delete(grant._id);
+  if (oauthGrants.length > 0) {
     await scheduleProjectDeletionContinuation(ctx, projectId);
     return false;
   }

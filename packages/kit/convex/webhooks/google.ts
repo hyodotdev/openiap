@@ -8,6 +8,7 @@ import { action, type ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { moneyToMicros } from "../products/play";
+import { publicBaseUrl } from "../utils/helpers";
 import { getProjectByApiKey, googlePlayEnvironment } from "../purchases/shared";
 import {
   isUnauthenticatedPubSubAllowed,
@@ -184,9 +185,7 @@ export function projectPubSubOidcAudiences(
   apiKey: string,
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): string[] {
-  const publicBase =
-    env.IAPKIT_PUBLIC_BASE_URL?.trim().replace(/\/+$/, "") ||
-    "https://kit.openiap.dev";
+  const publicBase = publicBaseUrl(env);
   const configuredAudience =
     env.GOOGLE_PUBSUB_PUSH_AUDIENCE?.trim() || publicBase;
   let publicOrigin: string;

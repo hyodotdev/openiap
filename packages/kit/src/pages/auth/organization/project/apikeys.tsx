@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation } from "convex/react";
+import { ConnectedApps } from "./ConnectedApps";
 import { api, Id } from "@/convex";
 import { toast } from "sonner";
 import {
@@ -632,6 +633,7 @@ export default function ApiKeys(): React.JSX.Element {
         onRegenerate={handleRegenerateKey}
         onRevoke={handleRevokeKey}
       />
+      <ConnectedApps projectId={project._id} />
     </div>
   );
 }

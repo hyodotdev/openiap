@@ -15,7 +15,13 @@ import type {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
-import { INSUFFICIENT_API_KEY_SCOPE_MESSAGE, isSecretApiKey } from "./auth.js";
+import {
+  INSUFFICIENT_API_KEY_SCOPE_MESSAGE,
+  isSecretApiKey,
+  READ_ONLY_GRANT_MESSAGE,
+  READ_SCOPE,
+  WRITE_SCOPE,
+} from "./auth.js";
 import {
   fetchKit,
   KIT_PURCHASE_ISSUE_CAUSES,
@@ -121,6 +127,8 @@ export interface IapKitMcpServerOptions {
    * where the operator owns the process; network transports require a bearer.
    */
   allowEnvApiKey?: boolean;
+  /** Leave write tools out: the caller's credential only reads. */
+  readOnly?: boolean;
 }
 
 type KeyedArgs = { apiKey?: string; baseUrl?: string };
@@ -253,20 +261,41 @@ export function redactSecretString(value: string, apiKey?: string): string {
     );
 }
 
+interface ToolHost {
+  mcp: McpServer;
+  readOnly: boolean;
+}
+
+/** A connector's read-only grant; a secret key carries no such scope. */
+function isReadOnlyCaller(extra: ToolExtra): boolean {
+  const scopes = extra.authInfo?.scopes ?? [];
+  return scopes.includes(READ_SCOPE) && !scopes.includes(WRITE_SCOPE);
+}
+
 function registerTool<Args extends z.ZodRawShape>(
-  server: McpServer,
+  server: ToolHost,
   localName: string,
   description: string,
   schema: Args,
   annotations: ToolAnnotations,
   handler: ToolCallback<Args>,
 ) {
-  server.tool(
+  const writes = annotations.readOnlyHint !== true;
+  if (writes && server.readOnly) return;
+  // A session lists tools once, so a write tool also checks each caller.
+  const guarded = (async (args: unknown, extra: ToolExtra) =>
+    writes && isReadOnlyCaller(extra)
+      ? err(new Error(READ_ONLY_GRANT_MESSAGE))
+      : (handler as (args: unknown, extra: ToolExtra) => unknown)(
+          args,
+          extra,
+        )) as ToolCallback<Args>;
+  server.mcp.tool(
     `${IAPKIT_TOOL_PREFIX}_${localName}`,
     description,
     schema,
     annotations,
-    handler,
+    guarded,
   );
 }
 
@@ -288,12 +317,15 @@ export function createIapKitMcpServer(
     version: IAPKIT_MCP_SERVER_VERSION,
     websiteUrl: "https://kit.openiap.dev",
   });
-  registerIapKitTools(server, createKitAccess(options));
+  registerIapKitTools(
+    { mcp: server, readOnly: options.readOnly === true },
+    createKitAccess(options),
+  );
   return server;
 }
 
 function registerIapKitTools(
-  server: McpServer,
+  server: ToolHost,
   { callerBaseUrl, kitBaseUrl, resolveApiKey, withClient }: KitAccess,
 ) {
   // ---------------------------------------------------------------------------

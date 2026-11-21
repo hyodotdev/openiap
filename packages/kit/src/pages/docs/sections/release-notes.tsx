@@ -48,7 +48,7 @@ const RELEASES: ReleaseEntry[] = [
     date: "2026-11-17",
     pullRequests: [618, 619, 620],
     tagline:
-      "Purchase rows no store recognized are deleted after 30 days, an unknown Google subscription state no longer counts as entitled, the backend moved to openiap.dev domains, and sponsorship runs through GitHub Sponsors only.",
+      "Claude and ChatGPT connect to a project with a GitHub sign-in, purchase rows no store recognized are deleted after 30 days, an unknown Google subscription state no longer counts as entitled, the backend moved to openiap.dev domains, and sponsorship runs through GitHub Sponsors only.",
     items: [
       {
         kind: "fix",
@@ -74,6 +74,11 @@ const RELEASES: ReleaseEntry[] = [
         kind: "security",
         topic: "Organization roles",
         text: "Organization members can no longer request upload URLs for project credentials and review screenshots. Owners and admins are unaffected.",
+      },
+      {
+        kind: "feature",
+        topic: "Claude and ChatGPT connectors",
+        text: "Claude and ChatGPT connect to one project at https://kit.openiap.dev/mcp after a GitHub sign-in, read-only unless the owner or admin allows changes. The project's API keys page lists each connection with Disconnect.",
       },
       {
         kind: "feature",

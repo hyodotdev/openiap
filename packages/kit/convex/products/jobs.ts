@@ -72,8 +72,9 @@ const directionValidator = v.union(
 );
 
 // A valid secret `apiKey` is enough, as in `upsertProduct` and the
-// `server/api/v1/products.ts` routes. A signed-in user is recorded on
-// `createdBy`; server-to-server calls have none and must not be blocked.
+// `server/api/v1/products.ts` routes. The signed-in user, or the member who
+// approved an OAuth connector, is recorded on `createdBy`; other key calls
+// have none and must not be blocked.
 async function resolveProjectByApiKey(
   ctx: QueryCtx | MutationCtx,
   apiKey: string,
@@ -89,13 +90,13 @@ async function resolveProjectByApiKey(
     throw isApiKey(apiKey)
       ? invalidApiKeyError()
       : createError(ErrorCode.PROJECT_NOT_FOUND);
-  let userId: Id<"users"> | null = null;
+  let userId: Id<"users"> | null = resolved?.grantUserId ?? null;
   try {
-    userId = await getAuthUserId(ctx);
+    userId ??= await getAuthUserId(ctx);
   } catch {
     userId = null;
   }
-  // A signed-in user must belong to the key's organization. Without one, the
+  // A recorded user must belong to the key's organization. Without one, the
   // secret apiKey is the only credential (server, MCP tool, SDK).
   if (userId) {
     const membership = await ctx.db

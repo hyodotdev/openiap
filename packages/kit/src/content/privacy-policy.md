@@ -2,7 +2,7 @@
 
 **Service:** Purchase validation and entitlement infrastructure for the Apple App Store, Google Play, Amazon Appstore, and Meta Horizon
 
-**Last updated:** 2026-11-19
+**Last updated:** 2026-11-21
 
 Hyo Dev (“we”, “our”, “us”) provides purchase validation and entitlement infrastructure for app-store purchases. We are committed to protecting your privacy and handling your information responsibly. This Privacy Policy explains what information we collect, how we use it, and your rights.
 
@@ -56,6 +56,10 @@ To verify purchases and sync products for a project, we store:
 ### 1.6. External Checkouts
 
 If your backend registers a Stripe checkout paid outside the stores, we store the order ID, user ID, product ID, and region you send, and the payment facts we read from your Stripe account: the payment, invoice, charge, and refund identifiers, amounts, currency, payment time, and subscription period. To read them, IAPKit holds your Stripe account ID, API key, and webhook signing secret in its deployment configuration, not in these records.
+
+### 1.7. Connected Apps
+
+When you connect an AI assistant such as Claude or ChatGPT to a project, we store which assistant, the project, whether it may make changes, who approved it, and when it was connected and last used. Its tokens are stored only as one-way hashes.
 
 ---
 
@@ -122,6 +126,10 @@ When you ask IAPKit to verify or reconcile a purchase, the relevant transaction 
 
 When your backend registers a Stripe checkout, IAPKit reads that payment from your Stripe account and receives Stripe's signed webhooks for it. IAPKit then reports the purchase to Apple or Google, as the checkout asks. Stripe processes the payment under its own privacy policy.
 
+### AI Assistants You Connect
+
+If you connect an AI assistant to a project, it receives the project data its requests return, such as products, subscribers, purchases, and revenue. Its provider, for example Anthropic or OpenAI, processes that data under its own privacy policy.
+
 We disclose personal data only as needed to operate, analyze, improve, secure, support, and validate the service, or to comply with law. We do not sell personal data or share it for third-party marketing.
 
 ---
@@ -146,6 +154,7 @@ We retain:
 - **Purchase records no store recognized** for 30 days after the last time a store failed to recognize them. A record that held any other verdict, or is linked to a user, an order, or a subscription, is kept as transaction data, as is a record last checked before November 17, 2026
 - **Project configuration** (store credentials, the review screenshot, webhook destinations) until you remove it or the project is deleted
 - **Sponsorship links** until the link is removed or the organization is deleted
+- **Connected apps** until disconnected, until the approving member leaves the organization, 30 days after the assistant last renewed its access, or when the approving account or project is deleted
 - **Logs and diagnostics** for a limited time for security and debugging
 
 You can delete your account yourself on the Profile page, or ask us to.
