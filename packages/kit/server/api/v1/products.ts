@@ -1399,6 +1399,12 @@ function guardedPathApiKey(c: Context): string {
   return apiKey;
 }
 
+// Others are 400, INVALID_API_KEY for an unknown key included (llms.txt).
+const PRODUCT_STATUS_BY_CODE: Record<string, 403 | 404> = {
+  INSUFFICIENT_SCOPE: 403,
+  NOT_FOUND: 404,
+};
+
 function productRouteError(
   c: Context,
   error: unknown,
@@ -1409,7 +1415,7 @@ function productRouteError(
   if (convexError) {
     return c.json(
       { errors: [convexError] },
-      convexError.code === "INSUFFICIENT_SCOPE" ? 403 : 400,
+      PRODUCT_STATUS_BY_CODE[convexError.code] ?? 400,
     );
   }
 

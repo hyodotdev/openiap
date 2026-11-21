@@ -1,5 +1,7 @@
 import { createMiddleware } from "hono/factory";
 
+import { isSessionProjectKey } from "../../../convex/utils/helpers";
+
 const MAX_API_KEY_LENGTH = 128;
 
 function isValidApiKeyLength(apiKey: string): boolean {
@@ -12,6 +14,8 @@ export function apiKeyValidationError(
   if (!apiKey?.trim()) return "API key is required";
   if (/\s/.test(apiKey)) return "API key is malformed";
   if (!isValidApiKeyLength(apiKey)) return "API key is too long";
+  // The CLI's project pointer works only inside an authenticated session.
+  if (isSessionProjectKey(apiKey)) return "API key is malformed";
   return null;
 }
 
