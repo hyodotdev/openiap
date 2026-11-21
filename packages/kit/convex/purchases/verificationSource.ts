@@ -3,6 +3,7 @@
 import { Buffer } from "node:buffer";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { ConvexError, v } from "convex/values";
+import { verificationSourceConfigured } from "../utils/helpers";
 import { ReceiptVerificationError } from "./errors";
 
 type VerificationScope =
@@ -45,11 +46,7 @@ class ReceiptSourceUnavailableError extends ReceiptVerificationError {
   }
 }
 
-export function verificationSourceConfigured(
-  secret: string | undefined,
-): boolean {
-  return Boolean(secret && /^[a-f0-9]{64}$/.test(secret));
-}
+export { verificationSourceConfigured };
 
 export function verificationSourceSecret(scope: VerificationScope): string {
   const secret = process.env.IAPKIT_VERIFICATION_SOURCE_SECRET;

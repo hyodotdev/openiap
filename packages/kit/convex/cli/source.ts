@@ -1,4 +1,5 @@
 import { ConvexError, v, type Infer } from "convex/values";
+import { verificationSourceConfigured } from "../utils/helpers";
 import { hmacSha256Hex, verifyHmacSha256Hex } from "../utils/sha256";
 import type { CliScope } from "./scope";
 
@@ -16,7 +17,7 @@ type StartSource = Infer<typeof cliStartSourceValidator>;
 
 function sourceSecret(): string {
   const secret = process.env.IAPKIT_VERIFICATION_SOURCE_SECRET;
-  if (!secret || !/^[a-f0-9]{64}$/.test(secret))
+  if (!verificationSourceConfigured(secret))
     throw new ConvexError({
       code: "REQUEST_FAILED",
       message: "CLI login is temporarily unavailable. Retry later.",

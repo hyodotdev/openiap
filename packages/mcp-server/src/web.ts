@@ -1,13 +1,16 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 
 import {
+  OAUTH_ACCESS_TOKEN_PREFIX,
   INSUFFICIENT_API_KEY_SCOPE_MESSAGE,
   isSecretApiKey,
   MISSING_API_KEY_MESSAGE,
+  READ_SCOPE,
+  WRITE_SCOPE,
 } from "./auth.js";
 import { normalizeKitBaseUrl } from "./kit-client.js";
 import { createIapKitMcpServer } from "./mcp.js";
@@ -27,6 +30,8 @@ const MAX_MCP_BODY_BYTES = 1024 * 1024;
 const MCP_BODY_TOO_LARGE_ERROR = "MCP request body is too large";
 const INVALID_API_KEY_MESSAGE =
   "The bearer is not an active IAPKit secret admin key.";
+const EXPIRED_ACCESS_TOKEN_MESSAGE =
+  "The access token is expired or revoked. Refresh it or connect IAPKit again.";
 const DEFAULT_ALLOWED_ORIGINS = [
   "https://chatgpt.com",
   "https://chat.openai.com",
@@ -35,6 +40,13 @@ const DEFAULT_ALLOWED_ORIGINS = [
   "http://127.0.0.1:3000",
   "http://127.0.0.1:5173",
 ];
+
+/** What an OAuth connector's session runs as. */
+interface OauthGrant {
+  /** Tenant whose share of sessions it uses. */
+  owner: string;
+  readOnly: boolean;
+}
 
 export interface IapKitWebMcpHandlerOptions {
   allowedOrigins?: string[];
@@ -51,6 +63,18 @@ export interface IapKitWebMcpHandlerOptions {
    * check alone admits a session and no per-tenant share applies.
    */
   authenticate?: (apiKey: string) => Promise<string | null>;
+  /**
+   * Accepts OAuth access tokens beside secret keys. `authenticate` maps a
+   * token to the secret credential its tools call the kit with, checked on
+   * every request so a revoked or expired token stops working at once.
+   */
+  oauth?: {
+    /** RFC 9728 document a client reads to find the authorization server. */
+    resourceMetadataUrl: string;
+    authenticate: (
+      accessToken: string,
+    ) => Promise<(OauthGrant & { apiKey: string }) | null>;
+  };
   /**
    * Identity of this process for session affinity. Defaults to
    * FLY_MACHINE_ID; session ids are prefixed with it so a follow-up
@@ -74,6 +98,10 @@ export function createIapKitWebMcpHandler(
     options.kitBaseUrl ?? process.env.IAPKIT_BASE_URL,
   );
   const authenticate = options.authenticate;
+  const oauth = options.oauth;
+  const challenge = oauth
+    ? `Bearer resource_metadata="${oauth.resourceMetadataUrl}"`
+    : "Bearer";
 
   return async function handleIapKitMcpRequest(
     request: Request,
@@ -94,12 +122,39 @@ export function createIapKitWebMcpHandler(
         return withIapKitMcpCors(
           request,
           jsonRpcError(401, -32001, MISSING_API_KEY_MESSAGE, {
-            "www-authenticate": "Bearer",
+            "www-authenticate": challenge,
           }),
           allowedOrigins,
         );
       }
-      if (!isSecretApiKey(bearerToken)) {
+
+      let authInfo: AuthInfo;
+      let grant: OauthGrant | undefined;
+      if (isSecretApiKey(bearerToken)) {
+        authInfo = {
+          token: bearerToken,
+          clientId: "iapkit-project-api-key",
+          scopes: ["iapkit:project"],
+        };
+      } else if (oauth && bearerToken.startsWith(OAUTH_ACCESS_TOKEN_PREFIX)) {
+        const resolved = await oauth.authenticate(bearerToken);
+        if (!resolved) {
+          // 401, not 403: the client refreshes its token and retries.
+          return withIapKitMcpCors(
+            request,
+            jsonRpcError(401, -32001, EXPIRED_ACCESS_TOKEN_MESSAGE, {
+              "www-authenticate": `${challenge}, error="invalid_token"`,
+            }),
+            allowedOrigins,
+          );
+        }
+        grant = resolved;
+        authInfo = {
+          token: resolved.apiKey,
+          clientId: "iapkit-oauth-connector",
+          scopes: resolved.readOnly ? [READ_SCOPE] : [READ_SCOPE, WRITE_SCOPE],
+        };
+      } else {
         return withIapKitMcpCors(
           request,
           jsonRpcError(403, -32003, INSUFFICIENT_API_KEY_SCOPE_MESSAGE),
@@ -107,20 +162,19 @@ export function createIapKitWebMcpHandler(
         );
       }
 
-      const authInfo: AuthInfo = {
-        token: bearerToken,
-        clientId: "iapkit-project-api-key",
-        scopes: ["iapkit:project"],
-      };
-
+      // A session answers only the credential that opened it. For an OAuth
+      // connector that is its grant's, so a refreshed access token keeps it.
+      const credential = credentialFingerprint(authInfo.token);
       if (request.method === "POST") {
         const response = await handlePost(request, {
           transports,
           logger,
           authInfo,
+          credential,
           machineId,
           kitBaseUrl,
           authenticate,
+          grant,
         });
         return withIapKitMcpCors(request, response, allowedOrigins);
       }
@@ -130,6 +184,7 @@ export function createIapKitWebMcpHandler(
           request,
           transports,
           authInfo,
+          credential,
           machineId,
         );
         return withIapKitMcpCors(request, response, allowedOrigins);
@@ -169,9 +224,12 @@ interface PostContext {
   transports: BoundedSessionStore<WebStandardStreamableHTTPServerTransport>;
   logger: Pick<Console, "error" | "info">;
   authInfo: AuthInfo;
+  credential: string;
   machineId: string | undefined;
   kitBaseUrl: string;
   authenticate: IapKitWebMcpHandlerOptions["authenticate"];
+  /** Set when the bearer was an OAuth token, already authenticated. */
+  grant: OauthGrant | undefined;
 }
 
 async function handlePost(
@@ -180,14 +238,18 @@ async function handlePost(
     transports,
     logger,
     authInfo,
+    credential,
     machineId,
     kitBaseUrl,
     authenticate,
+    grant,
   }: PostContext,
 ): Promise<Response> {
   const sessionId = request.headers.get("mcp-session-id") ?? undefined;
   const body = await readJsonBody(request);
-  const existingTransport = sessionId ? transports.get(sessionId) : undefined;
+  const existingTransport = sessionId
+    ? transports.get(sessionId, credential)
+    : undefined;
 
   if (existingTransport) {
     return existingTransport.handleRequest(request, {
@@ -208,12 +270,16 @@ async function handlePost(
     );
   }
 
-  const owner = authenticate ? await authenticate(authInfo.token) : undefined;
+  const owner = grant
+    ? grant.owner
+    : authenticate
+      ? await authenticate(authInfo.token)
+      : undefined;
   if (owner === null) {
     return jsonRpcError(403, -32003, INVALID_API_KEY_MESSAGE);
   }
 
-  const reservation = transports.reserve(owner);
+  const reservation = transports.reserve(owner, credential);
   if (!reservation) {
     return jsonRpcError(503, -32000, MCP_SESSION_CAPACITY_MESSAGE, {
       "retry-after": String(MCP_SESSION_CAPACITY_RETRY_AFTER_SECONDS),
@@ -240,7 +306,10 @@ async function handlePost(
     if (initializedSessionId) transports.delete(initializedSessionId);
   };
 
-  const server = createIapKitMcpServer({ kitBaseUrl });
+  const server = createIapKitMcpServer({
+    kitBaseUrl,
+    readOnly: grant?.readOnly,
+  });
   try {
     await server.connect(transport);
     return await transport.handleRequest(request, {
@@ -263,10 +332,13 @@ async function handleExistingSession(
   request: Request,
   transports: BoundedSessionStore<WebStandardStreamableHTTPServerTransport>,
   authInfo: AuthInfo,
+  credential: string,
   machineId: string | undefined,
 ): Promise<Response> {
   const sessionId = request.headers.get("mcp-session-id") ?? undefined;
-  const transport = sessionId ? transports.get(sessionId) : undefined;
+  const transport = sessionId
+    ? transports.get(sessionId, credential)
+    : undefined;
 
   if (!transport) {
     if (sessionId) {
@@ -318,6 +390,10 @@ function unknownSessionResponse(
     -32001,
     "Session not found — initialize a new MCP session.",
   );
+}
+
+function credentialFingerprint(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 function parseBearerToken(authorization: string | null): string | null {

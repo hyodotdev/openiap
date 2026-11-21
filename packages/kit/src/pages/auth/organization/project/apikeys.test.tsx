@@ -55,6 +55,8 @@ vi.mock("react-router-dom", () => ({
   useParams: () => ({ orgSlug: "acme", projectSlug: "game" }),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+// Covered by ConnectedApps.test.tsx.
+vi.mock("./ConnectedApps", () => ({ ConnectedApps: () => null }));
 vi.mock("@/lib/mixpanel", () => ({
   MixpanelEvent: { ApiKeyCreated: "api_key_created" },
   trackEvent: vi.fn(),

@@ -126,7 +126,12 @@ export const drainAccountDeletionBatch = internalMutation({
       return { done: false };
     }
 
-    for (const table of ["cliSessions", "cliDevices"] as const) {
+    for (const table of [
+      "cliSessions",
+      "cliDevices",
+      "oauthGrants",
+      "oauthCodes",
+    ] as const) {
       const rows = await ctx.db
         .query(table)
         .withIndex("by_user_id", (q) => q.eq("userId", userId))

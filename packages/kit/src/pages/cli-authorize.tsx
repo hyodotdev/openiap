@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex";
+import { ApprovalAlert, ApprovalCard } from "@/components/ApprovalCard";
+import { ApprovalSignIn } from "@/components/ApprovalSignIn";
 
 export default function CliAuthorize() {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const { signIn } = useAuthActions();
   const code =
     new URLSearchParams(window.location.search).get("user_code") ?? "";
   const device = useQuery(
@@ -39,66 +39,56 @@ export default function CliAuthorize() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
-      <section className="max-w-lg w-full rounded-xl border border-border p-8 space-y-6">
-        <h1 className="text-2xl font-semibold">Connect OpenIAP CLI</h1>
-        <p>
-          Only approve a connection you started. Check that this code matches
-          your terminal.
-        </p>
-        <p
-          className="font-mono text-3xl tracking-widest break-all"
-          aria-label="Verification code"
-        >
-          {code}
-        </p>
-        {result ? (
-          <p role="status">{result}</p>
-        ) : isLoading ? (
-          <p>Loading…</p>
-        ) : !isAuthenticated ? (
-          <button
-            className="btn-gradient btn-lg"
-            onClick={() =>
-              void signIn("github", {
-                redirectTo: `/cli/authorize?user_code=${encodeURIComponent(code)}`,
-              }).catch(() => setError("GitHub sign-in failed. Try again."))
-            }
-          >
-            Sign in with GitHub
-          </button>
-        ) : device === undefined ? (
-          <p>Loading connection…</p>
-        ) : !device || device.used ? (
-          <p>This code is invalid or already used. Start login again.</p>
-        ) : (
-          <>
-            <dl className="space-y-2">
-              <dt>Device</dt>
-              <dd className="break-all">{device.name}</dd>
-              <dt>Access</dt>
-              <dd>{device.scope} — your organization roles still apply</dd>
-            </dl>
-            <div className="flex gap-4 flex-wrap">
-              <button
-                disabled={busy}
-                className="btn-gradient btn-lg"
-                onClick={() => void respond(true)}
-              >
-                Approve connection
-              </button>
-              <button
-                disabled={busy}
-                className="px-5 py-3 border rounded-lg"
-                onClick={() => void respond(false)}
-              >
-                Deny
-              </button>
-            </div>
-          </>
-        )}
-        {error && <p role="alert">{error}</p>}
-      </section>
-    </main>
+    <ApprovalCard title="Connect OpenIAP CLI">
+      <p>
+        Only approve a connection you started. Check that this code matches your
+        terminal.
+      </p>
+      <p
+        className="font-mono text-3xl tracking-widest break-all"
+        aria-label="Verification code"
+      >
+        {code}
+      </p>
+      {result ? (
+        <p role="status">{result}</p>
+      ) : isLoading ? (
+        <p>Loading…</p>
+      ) : !isAuthenticated ? (
+        <ApprovalSignIn
+          returnTo={`/cli/authorize?user_code=${encodeURIComponent(code)}`}
+        />
+      ) : device === undefined ? (
+        <p>Loading connection…</p>
+      ) : !device || device.used ? (
+        <p>This code is invalid or already used. Start login again.</p>
+      ) : (
+        <>
+          <dl className="space-y-2">
+            <dt>Device</dt>
+            <dd className="break-all">{device.name}</dd>
+            <dt>Access</dt>
+            <dd>{device.scope} — your organization roles still apply</dd>
+          </dl>
+          <div className="flex gap-3 flex-wrap">
+            <button
+              disabled={busy}
+              className="btn-gradient btn-lg"
+              onClick={() => void respond(true)}
+            >
+              Approve connection
+            </button>
+            <button
+              disabled={busy}
+              className="btn-secondary btn-lg"
+              onClick={() => void respond(false)}
+            >
+              Deny
+            </button>
+          </div>
+        </>
+      )}
+      {error && <ApprovalAlert>{error}</ApprovalAlert>}
+    </ApprovalCard>
   );
 }

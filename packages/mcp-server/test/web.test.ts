@@ -101,6 +101,44 @@ describe("web MCP handler session routing", () => {
     expect(list.status).toBe(200);
   });
 
+  it("answers only the credential that opened a session", async () => {
+    const handler = createHandler("self42");
+    const init = await handler(initializeRequest());
+    const sessionId = init.headers.get("mcp-session-id") ?? "";
+    await init.text();
+    const other = { authorization: `Bearer ${SECRET_KEY}_other` };
+
+    for (const method of ["GET", "DELETE"]) {
+      const response = await handler(
+        new Request("http://localhost/mcp", {
+          method,
+          headers: {
+            accept: "text/event-stream",
+            "mcp-session-id": sessionId,
+            ...other,
+          },
+        }),
+      );
+      expect(response.status).toBe(404);
+    }
+    expect((await handler(toolsListRequest(sessionId, other))).status).toBe(
+      404,
+    );
+
+    // The owner's session survived every attempt, and the owner can end it.
+    const own = await handler(toolsListRequest(sessionId));
+    expect(own.status).toBe(200);
+    await own.text();
+    const end = await handler(
+      new Request("http://localhost/mcp", {
+        method: "DELETE",
+        headers: { "mcp-session-id": sessionId, ...BEARER },
+      }),
+    );
+    expect(end.status).toBe(200);
+    expect((await handler(toolsListRequest(sessionId))).status).toBe(404);
+  });
+
   it("evicts the least recently used session at capacity instead of locking out", async () => {
     const handler = createHandler("self42");
     const sessionIds: string[] = [];
@@ -430,5 +468,275 @@ describe("hosted MCP from kit's network position", () => {
 
     expect(response.status).toBe(413);
     expect(sent).toBeLessThan(64);
+  });
+});
+
+describe("OAuth connectors on the hosted MCP", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const GRANT_KEY = "openiap-kit_sk_oauth_grant";
+  const READER = "iapkit_oat_reader";
+  const WRITER = "iapkit_oat_writer";
+  const METADATA =
+    "https://kit.example/.well-known/oauth-protected-resource/mcp";
+
+  // Each token is its own grant unless it names one, as a refreshed token does.
+  function createOauthHandler(
+    grants: Record<string, { readOnly: boolean; grant?: string } | undefined>,
+  ) {
+    const authenticate = vi.fn(async (accessToken: string) => {
+      const grant = grants[accessToken];
+      return grant
+        ? {
+            apiKey: `${GRANT_KEY}_${grant.grant ?? accessToken}`,
+            owner: "projects_1",
+            readOnly: grant.readOnly,
+          }
+        : null;
+    });
+    const handler = createIapKitWebMcpHandler({
+      logger: silentLogger,
+      kitBaseUrl: "http://127.0.0.1:3000",
+      oauth: { resourceMetadataUrl: METADATA, authenticate },
+    });
+    return { handler, authenticate, grants };
+  }
+
+  const as = (token: string) => ({ authorization: `Bearer ${token}` });
+
+  async function open(
+    handler: (request: Request) => Promise<Response>,
+    token: string,
+  ): Promise<string> {
+    const response = await handler(initializeRequest(undefined, as(token)));
+    expect(response.status).toBe(200);
+    await response.text();
+    return response.headers.get("mcp-session-id") ?? "";
+  }
+
+  async function toolNames(
+    handler: (request: Request) => Promise<Response>,
+    sessionId: string,
+    token: string,
+  ): Promise<string[]> {
+    const response = await handler(toolsListRequest(sessionId, as(token)));
+    const text = await response.text();
+    return [...text.matchAll(/"name":"(iapkit_[a-z_]+)"/g)].map((m) => m[1]);
+  }
+
+  function createProduct(sessionId: string, token: string): Request {
+    return mcpRequest(
+      {
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: {
+          name: "iapkit_create_product",
+          arguments: {
+            productId: "com.example.pro",
+            platform: "IOS",
+            type: "Subscription",
+            title: "Pro",
+          },
+        },
+      },
+      sessionId,
+      as(token),
+    );
+  }
+
+  it("points an unauthenticated client at the resource metadata", async () => {
+    const { handler } = createOauthHandler({});
+    const response = await handler(
+      new Request("http://localhost/mcp", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      }),
+    );
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("www-authenticate")).toBe(
+      `Bearer resource_metadata="${METADATA}"`,
+    );
+  });
+
+  it("answers an unknown token with 401 invalid_token so the client refreshes", async () => {
+    const { handler } = createOauthHandler({});
+    const response = await handler(
+      initializeRequest(undefined, as("iapkit_oat_stale")),
+    );
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("www-authenticate")).toBe(
+      `Bearer resource_metadata="${METADATA}", error="invalid_token"`,
+    );
+    expect(response.headers.get("mcp-session-id")).toBeNull();
+  });
+
+  it("keeps 403 for a bearer that is neither a key nor an access token", async () => {
+    const { handler, authenticate } = createOauthHandler({});
+    for (const bearer of [
+      "${IAPKIT_API_KEY}",
+      "session-project:x",
+      "garbage",
+    ]) {
+      const response = await handler(initializeRequest(undefined, as(bearer)));
+      expect(response.status).toBe(403);
+    }
+    expect(authenticate).not.toHaveBeenCalled();
+  });
+
+  it("still refuses a publishable key with 403", async () => {
+    const { handler, authenticate } = createOauthHandler({});
+    const response = await handler(
+      initializeRequest(undefined, as("openiap-kit_pk_mobile")),
+    );
+
+    expect(response.status).toBe(403);
+    expect(authenticate).not.toHaveBeenCalled();
+  });
+
+  it("lists only read tools for a read-only grant", async () => {
+    const { handler } = createOauthHandler({ [READER]: { readOnly: true } });
+    const names = await toolNames(handler, await open(handler, READER), READER);
+
+    expect(names).toContain("iapkit_list_products");
+    expect(names).not.toContain("iapkit_create_product");
+    expect(names).not.toContain("iapkit_sync_products");
+  });
+
+  // Kit's readOnlyGrantGuard lets a read-only credential make only these.
+  it("sends a read-only grant's calls as /v1 or /v2 GETs only", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        // Only calls carrying the credential meet the guard.
+        if (new Headers(init?.headers).has("authorization"))
+          calls.push(`${init?.method ?? "GET"} ${new URL(url).pathname}`);
+        return Response.json({});
+      }),
+    );
+    const { handler } = createOauthHandler({ [READER]: { readOnly: true } });
+    const sessionId = await open(handler, READER);
+    const args: Record<string, object> = {
+      setup: { framework: "react-native" },
+      check_status: { userId: "u1" },
+      troubleshoot: { sampleUserId: "u1" },
+      simulate_purchase: { productId: "p", platform: "IOS" },
+      get_client_payload: { productId: "p", platform: "IOS" },
+      get_client_payload_draft: { productId: "p", platform: "IOS" },
+      get_client_payload_history: { productId: "p", platform: "IOS" },
+      sync_status: { jobId: "j" },
+      user_timeline: { userId: "u1" },
+    };
+    const names = await toolNames(handler, sessionId, READER);
+    expect(names).toHaveLength(16);
+    for (const name of names) {
+      const response = await handler(
+        mcpRequest(
+          {
+            jsonrpc: "2.0",
+            id: 3,
+            method: "tools/call",
+            params: {
+              name,
+              arguments: args[name.replace(/^iapkit_/, "")] ?? {},
+            },
+          },
+          sessionId,
+          as(READER),
+        ),
+      );
+      await response.text();
+    }
+    expect(calls.length).toBeGreaterThan(0);
+    for (const call of calls) expect(call).toMatch(/^GET \/v[12]\//);
+  });
+
+  it("calls the kit with the grant's credential, never the access token", async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      Response.json({ products: [], hasMore: false }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { handler } = createOauthHandler({ [WRITER]: { readOnly: false } });
+    const sessionId = await open(handler, WRITER);
+    expect(await toolNames(handler, sessionId, WRITER)).toContain(
+      "iapkit_create_product",
+    );
+
+    const response = await handler(
+      mcpRequest(
+        {
+          jsonrpc: "2.0",
+          id: 3,
+          method: "tools/call",
+          params: { name: "iapkit_list_products", arguments: {} },
+        },
+        sessionId,
+        as(WRITER),
+      ),
+    );
+    await response.text();
+
+    const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
+    expect(headers.get("authorization")).toBe(`Bearer ${GRANT_KEY}_${WRITER}`);
+  });
+
+  it("keeps another grant's token out of a session", async () => {
+    const fetchMock = vi.fn(async () => Response.json({}));
+    vi.stubGlobal("fetch", fetchMock);
+    const { handler } = createOauthHandler({
+      [WRITER]: { readOnly: false },
+      [READER]: { readOnly: true },
+    });
+    const sessionId = await open(handler, WRITER);
+
+    const response = await handler(createProduct(sessionId, READER));
+
+    expect(response.status).toBe(404);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("stops a write when a read-only grant's own token is reused for one", async () => {
+    const fetchMock = vi.fn(async () => Response.json({}));
+    vi.stubGlobal("fetch", fetchMock);
+    const { handler, grants } = createOauthHandler({
+      [WRITER]: { readOnly: false },
+    });
+    const sessionId = await open(handler, WRITER);
+    // The same grant, downgraded since the session opened.
+    grants[WRITER] = { readOnly: true };
+
+    const response = await handler(createProduct(sessionId, WRITER));
+
+    expect(await response.text()).toContain("read-only");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps a session across a refreshed access token of the same grant", async () => {
+    const refreshed = "iapkit_oat_refreshed";
+    const { handler } = createOauthHandler({
+      [WRITER]: { readOnly: false },
+      [refreshed]: { readOnly: false, grant: WRITER },
+    });
+    const sessionId = await open(handler, WRITER);
+
+    expect(await toolNames(handler, sessionId, refreshed)).toContain(
+      "iapkit_create_product",
+    );
+  });
+
+  it("stops a session as soon as its token is revoked", async () => {
+    const { handler, grants } = createOauthHandler({
+      [WRITER]: { readOnly: false },
+    });
+    const sessionId = await open(handler, WRITER);
+    grants[WRITER] = undefined;
+
+    const response = await handler(toolsListRequest(sessionId, as(WRITER)));
+
+    expect(response.status).toBe(401);
   });
 });

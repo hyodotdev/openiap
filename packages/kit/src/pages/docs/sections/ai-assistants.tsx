@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 
+import { CONNECTOR_CHANGES, CONNECTOR_READS } from "@/lib/connectorAccess";
+
 import { Callout } from "../components/Callout";
 import { CodeBlock } from "../components/CodeBlock";
 import { DocsPage } from "../components/DocsPage";
@@ -9,9 +11,39 @@ export default function AiAssistantsPage() {
     <DocsPage
       slug="ai-assistants"
       title="AI assistants"
-      description="Point Claude, Cursor, and other LLM-powered tools at IAPKit's llms.txt so they can answer IAPKit questions without crawling this site."
+      description="Connect Claude or ChatGPT to an IAPKit project, drive IAPKit from a coding agent, or point any LLM tool at IAPKit's llms.txt."
     >
-      <h2>Use the CLI</h2>
+      <h2 className="mt-10 text-2xl font-semibold">
+        Connect Claude or ChatGPT
+      </h2>
+      <p>
+        Add <code>https://kit.openiap.dev/mcp</code> as a custom connector in
+        Claude, or as an app in ChatGPT developer mode. You sign in with GitHub,
+        pick one project, and approve; no key is copied.
+      </p>
+      <ul className="my-3 list-disc space-y-1 pl-6">
+        <li>
+          The connection reads {CONNECTOR_READS}. Tick{" "}
+          <strong>Also allow changes</strong> on the approval page to let it{" "}
+          {CONNECTOR_CHANGES}.
+        </li>
+        <li>
+          Only organization owners and admins can approve, and only for a
+          project in their organization.
+        </li>
+        <li>
+          Each connection appears under <strong>Connected apps</strong> on the
+          project&apos;s API keys page. <strong>Disconnect</strong> ends it at
+          once; removing the member who approved it ends it too.
+        </li>
+        <li>
+          To change access, disconnect and connect again. ChatGPT keeps the
+          tools it loaded first, so choose <strong>Refresh tools</strong> in the
+          app&apos;s settings afterwards.
+        </li>
+      </ul>
+
+      <h2 className="mt-10 text-2xl font-semibold">Use the CLI</h2>
       <p>
         Sign in once, then let your coding agent use IAPKit through commands
         with JSON results. The CLI uses IAPKit directly and keeps your existing

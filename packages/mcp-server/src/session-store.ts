@@ -2,6 +2,8 @@ interface SessionEntry<T> {
   value: T;
   lastAccessedAt: number;
   owner?: string;
+  /** Fingerprint of the credential that opened the session. */
+  credential?: string;
 }
 
 const MAX_MCP_SESSIONS = 256;
@@ -52,18 +54,19 @@ export class BoundedSessionStore<T> {
     return this.entries.size;
   }
 
-  get(sessionId: string): T | undefined {
+  /** The session, if `credential` is the one that opened it. */
+  get(sessionId: string, credential?: string): T | undefined {
     const now = this.now();
     this.pruneExpired(now);
     const entry = this.entries.get(sessionId);
-    if (!entry) return undefined;
+    if (!entry || entry.credential !== credential) return undefined;
 
     this.entries.delete(sessionId);
     this.entries.set(sessionId, { ...entry, lastAccessedAt: now });
     return entry.value;
   }
 
-  reserve(owner?: string): SessionReservation<T> | null {
+  reserve(owner?: string, credential?: string): SessionReservation<T> | null {
     if (this.closed) return null;
 
     const now = this.now();
@@ -123,6 +126,7 @@ export class BoundedSessionStore<T> {
           value,
           lastAccessedAt: this.now(),
           owner,
+          credential,
         });
       },
       release,

@@ -12,6 +12,7 @@ import { sourceRateLimitMiddleware } from "./api/v1/rate-limit";
 import { apiRoutesV2 } from "./api/v2/routes";
 import { handleHealthRequest } from "./health";
 import { handleIapKitMcpRequest, mcpRateLimitResponse } from "./mcp";
+import { oauthRoutes, readOnlyGrantGuard } from "./oauth";
 import { shouldReturnNotFoundForMissingStaticPath } from "./staticPaths";
 import { parsePort } from "./utils/env";
 
@@ -49,6 +50,8 @@ app.use("*", async (c, next) => {
   }
 });
 
+app.use("*", readOnlyGrantGuard);
+
 // Liveness/readiness probe. No DB hit — Fly.io health checks fire
 // frequently and hitting Convex from here would both mask real
 // outages (a slow backend should still report "proc is alive") and
@@ -77,6 +80,10 @@ app.all("/cli/v1/*", (c) =>
     404,
   ),
 );
+
+// OAuth discovery and token endpoints for connectors. Before static serving
+// so an unknown `/.well-known` or `/oauth` path is a 404, not the SPA.
+app.route("/", oauthRoutes);
 
 // Codex / MCP plugin endpoint for IAPKit. This must sit before
 // static serving so `/mcp` never falls through to the React Router SPA.

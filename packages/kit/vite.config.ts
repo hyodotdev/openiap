@@ -99,6 +99,11 @@ export default defineConfig({
         target: "http://localhost:3000",
         changeOrigin: true,
       },
+      // OAuth for connectors; `/oauth/authorize` stays with the SPA.
+      "^/(?:\\.well-known/|oauth/(?:token|revoke)$)": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
     },
   },
   build: {
