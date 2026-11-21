@@ -3,6 +3,7 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError } from "convex/values";
+import { isSessionProjectKey, SESSION_PROJECT_PREFIX } from "../utils/helpers";
 import {
   allowsLegacyProjectApiKeyFallback,
   assertApiKeyAccess,
@@ -49,10 +50,10 @@ export async function resolveProjectByApiKeyFromDb(
   requiredAccess: ApiKeyAccess = "client",
 ): Promise<ApiKeyProjectResolution | null> {
   // CLI sessions select a project without creating or recovering a secret key.
-  if (apiKey.startsWith("session-project:")) {
+  if (isSessionProjectKey(apiKey)) {
     const projectId = ctx.db.normalizeId(
       "projects",
-      apiKey.slice("session-project:".length),
+      apiKey.slice(SESSION_PROJECT_PREFIX.length),
     );
     if (!projectId) return null;
     const resolved = await resolveProjectByIdForCurrentUserFromDb(
@@ -145,6 +146,30 @@ export type OperatorProjectArgs = {
   apiKey?: string;
 };
 
+/** The `/v1` error for a key that reaches no project. */
+export function invalidApiKeyError() {
+  return new ConvexError({
+    code: "INVALID_API_KEY",
+    message: "API key is invalid or inactive",
+  });
+}
+
+/**
+ * A key a `/v1` caller sent. Errors for it must be published codes; CLI
+ * sessions and dashboard calls keep their dashboard-scoped ones.
+ */
+export function isPublicApiKey(apiKey: string | undefined): apiKey is string {
+  return apiKey !== undefined && !isSessionProjectKey(apiKey);
+}
+
+/** True when a call names its project by a `/v1` key, not a dashboard id. */
+export function calledWithPublicKey(args: {
+  apiKey?: string;
+  projectId?: unknown;
+}): boolean {
+  return !args.projectId && isPublicApiKey(args.apiKey);
+}
+
 /**
  * Project for an operations read or write: a secret admin key, or a dashboard
  * session where any member reads and only owners and admins write.
@@ -172,12 +197,7 @@ export async function resolveOperatorAccess(
       args.apiKey,
       "admin",
     );
-    if (!resolved) {
-      throw new ConvexError({
-        code: "INVALID_API_KEY",
-        message: "API key is invalid or inactive",
-      });
-    }
+    if (!resolved) throw invalidApiKeyError();
     return { project: resolved.project, adminView: true };
   }
   if (!args.projectId) {

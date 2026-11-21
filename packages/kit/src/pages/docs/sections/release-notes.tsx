@@ -114,6 +114,11 @@ const RELEASES: ReleaseEntry[] = [
         topic: "API reference",
         text: "The API reference covers the product state, delete, and sync-cancel routes, the user-erasure job read, the external checkout routes, the 92-day revenue range, and which routes return 400 or 403 INVALID_API_KEY for an unknown key.",
       },
+      {
+        kind: "fix",
+        topic: "Product API errors",
+        text: "Product create and state writes and sync job reads and cancels answer an unknown secret key with 400 INVALID_API_KEY, a missing sync job with 404 NOT_FOUND, a missing product with 400 PRODUCT_NOT_FOUND, and a conflicting sync with 400 INVALID_INPUT. These returned 500 before.",
+      },
     ],
   },
   {

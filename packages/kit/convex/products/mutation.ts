@@ -1,7 +1,7 @@
 import { assertCliScope } from "../cli/scope";
 import { invalidateSubscriptionStats } from "../subscriptions/stats";
 import { mutation, type MutationCtx } from "../_generated/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { createError, ErrorCode } from "../utils/errors";
 
@@ -25,6 +25,8 @@ import {
 } from "./localizations";
 import { normalizeProductRegions, productRegionsValidator } from "./regions";
 import {
+  calledWithPublicKey,
+  invalidApiKeyError,
   resolveProjectByApiKeyFromDb,
   resolveProjectByIdForCurrentUserFromDb,
 } from "../projects/helpers";
@@ -373,12 +375,14 @@ export const upsertProduct = mutation({
     await assertCliScope(ctx, "write");
     const project = await resolveProjectForMutationArgs(ctx, args);
     if (!project)
-      throw createError(
-        args.projectId
-          ? ErrorCode.PROJECT_NOT_FOUND
-          : ErrorCode.API_KEY_INVALID,
-        args.projectId ? "Project not found" : "Invalid API key",
-      );
+      throw calledWithPublicKey(args)
+        ? invalidApiKeyError()
+        : createError(
+            args.projectId
+              ? ErrorCode.PROJECT_NOT_FOUND
+              : ErrorCode.API_KEY_INVALID,
+            args.projectId ? "Project not found" : "Invalid API key",
+          );
 
     // Push-sync carries prices as JS numbers, so a value past the safe-integer
     // range could be rounded before it reaches the store.
@@ -540,12 +544,14 @@ export const setProductState = mutation({
     await assertCliScope(ctx, "write");
     const project = await resolveProjectForMutationArgs(ctx, args);
     if (!project)
-      throw createError(
-        args.projectId
-          ? ErrorCode.PROJECT_NOT_FOUND
-          : ErrorCode.API_KEY_INVALID,
-        args.projectId ? "Project not found" : "Invalid API key",
-      );
+      throw calledWithPublicKey(args)
+        ? invalidApiKeyError()
+        : createError(
+            args.projectId
+              ? ErrorCode.PROJECT_NOT_FOUND
+              : ErrorCode.API_KEY_INVALID,
+            args.projectId ? "Project not found" : "Invalid API key",
+          );
 
     const existing = await ctx.db
       .query("products")
@@ -557,7 +563,12 @@ export const setProductState = mutation({
       )
       .unique();
     if (!existing)
-      throw createError(ErrorCode.PRODUCT_NOT_FOUND, "Product not found");
+      throw calledWithPublicKey(args)
+        ? new ConvexError({
+            code: "PRODUCT_NOT_FOUND",
+            message: "Product not found",
+          })
+        : createError(ErrorCode.PRODUCT_NOT_FOUND, "Product not found");
 
     await ctx.db.patch(existing._id, {
       state: args.state,
