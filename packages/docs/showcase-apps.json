@@ -126,6 +126,16 @@
       "android": "https://play.google.com/store/apps/details?id=com.crossplatformkorea.moonlitbeacon",
       "ratings": 0,
       "installs": 5
+    },
+    {
+      "name": "minulo",
+      "tagline": "Block Instagram Reels, YouTube Shorts and TikTok For You on iPhone",
+      "category": "Health & wellness",
+      "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b3/16/9a/b3169a15-e93b-acb8-69d6-023fd32385fc/AppIcon-0-0-1x_U007ephone-0-1-85-220.png/512x512bb.jpg",
+      "library": "expo-iap",
+      "iapkit": false,
+      "ios": "https://apps.apple.com/app/id6809352229",
+      "web": "https://minulo.app/en/"
     }
   ],
   "github": {
