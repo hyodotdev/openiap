@@ -718,6 +718,7 @@ function globToRegExp(glob) {
  * Dependabot's github-actions "/" entry reads only .github/workflows, so each
  * composite action needs its own directory, and an action shared across
  * directories must arrive in one PR or the family-drift check above fails it.
+ * The group-by group must also exclude each family group, or it splits them.
  */
 export function findDependabotActionGaps(source, actionDirectories) {
   const entries = (parseYaml(source)?.updates ?? []).filter(
@@ -737,13 +738,25 @@ export function findDependabotActionGaps(source, actionDirectories) {
     }
   }
   for (const entry of entries) {
-    const groupsByName = Object.values(entry.groups ?? {}).some(
+    const groups = Object.values(entry.groups ?? {});
+    const byName = groups.find(
       (group) => group?.["group-by"] === "dependency-name",
     );
-    if ((entry.directories ?? []).length > 1 && !groupsByName) {
+    if ((entry.directories ?? []).length > 1 && !byName) {
       findings.push(
         ".github/dependabot.yml: a github-actions entry with several directories needs a group with group-by: dependency-name",
       );
+    }
+    if (!byName) continue;
+    const excluded = byName["exclude-patterns"] ?? [];
+    for (const pattern of groups
+      .filter((group) => group !== byName)
+      .flatMap((group) => group?.patterns ?? [])) {
+      if (!excluded.includes(pattern)) {
+        findings.push(
+          `.github/dependabot.yml: the group-by: dependency-name group must exclude ${pattern}`,
+        );
+      }
     }
   }
   return findings;
