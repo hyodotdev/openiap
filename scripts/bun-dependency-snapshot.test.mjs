@@ -48,12 +48,14 @@ const lock = {
       "",
       {
         peerDependencies: {
+          "nested-peer": "^1",
           "optional-peer": "^1",
           "peer-only": "^1",
         },
         optionalPeers: ["optional-peer"],
       },
     ],
+    "plugin/nested-peer": ["nested-peer@1.0.0"],
     "peer-only": ["peer-only@1.0.0"],
     tool: ["tool@1.0.0", "", { dependencies: { helper: "^1" } }],
     helper: ["helper@1.0.0"],
@@ -98,6 +100,7 @@ test("Bun manifest follows exact edges, scopes, and duplicate versions", () => {
     "direct",
   );
   assert.deepEqual(manifest.resolved["pkg:npm/plugin@1.0.0"].dependencies, [
+    "pkg:npm/nested-peer@1.0.0",
     "pkg:npm/peer-only@1.0.0",
   ]);
   assert.equal(

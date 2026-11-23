@@ -30,20 +30,15 @@ function dependencyEntries(metadata) {
   for (const [name, range] of Object.entries(
     metadata?.peerDependencies ?? {},
   )) {
-    entries.set(name, {
-      name,
-      optional: optionalPeers.has(name),
-      peer: true,
-      range,
-    });
+    entries.set(name, { name, optional: optionalPeers.has(name), range });
   }
   for (const [name, range] of Object.entries(metadata?.dependencies ?? {})) {
-    entries.set(name, { name, optional: false, peer: false, range });
+    entries.set(name, { name, optional: false, range });
   }
   for (const [name, range] of Object.entries(
     metadata?.optionalDependencies ?? {},
   )) {
-    entries.set(name, { name, optional: true, peer: false, range });
+    entries.set(name, { name, optional: true, range });
   }
   return [...entries.values()];
 }
@@ -87,7 +82,7 @@ function createResolver(lock) {
     }),
   );
 
-  function resolveDependency(originKey, { name, optional, peer, range }) {
+  function resolveDependency(originKey, { name, optional, range }) {
     if (String(range).startsWith("workspace:")) {
       const target = workspaceByName.get(name);
       if (!target)
@@ -97,11 +92,8 @@ function createResolver(lock) {
     try {
       return {
         kind: "package",
-        key: resolvePackageKey(
-          packages,
-          peer ? packageParent(packages, originKey) : originKey,
-          name,
-        ),
+        // Bun nests a peer under its package when no parent copy fits.
+        key: resolvePackageKey(packages, originKey, name),
       };
     } catch (error) {
       if (optional) return null;
@@ -117,12 +109,7 @@ function devDependencySeeds(resolver, path) {
   const originKey = workspacePackageKeyByPath.get(path) ?? "";
   return Object.entries(workspaces[path].devDependencies ?? {}).map(
     ([name, range]) =>
-      resolveDependency(originKey, {
-        name,
-        optional: false,
-        peer: false,
-        range,
-      }),
+      resolveDependency(originKey, { name, optional: false, range }),
   );
 }
 
