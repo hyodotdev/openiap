@@ -101,8 +101,8 @@
       "dependencies": {
         "@apple/app-store-server-library": "^1.6.0",
         "@auth/core": "^0.41.3",
-        "@convex-dev/auth": "^0.0.96",
-        "@convex-dev/migrations": "0.3.7",
+        "@convex-dev/auth": "^0.0.98",
+        "@convex-dev/migrations": "0.3.8",
         "@convex-dev/rate-limiter": "^0.4.2",
         "@hono/standard-validator": "^0.3.0",
         "@hyodotdev/openiap-commerce-protocol": "workspace:*",
@@ -315,11 +315,11 @@
 
     "@bramus/specificity": ["@bramus/specificity@2.4.2", "", { "dependencies": { "css-tree": "^3.0.0" }, "bin": { "specificity": "bin/cli.js" } }, "sha512-ctxtJ/eA+t+6q2++vj5j7FYX3nRu311q1wfYH3xjlLOsczhlhxAg2FWNUXhpGvAw3BWo1xBcvOV6/YLc2r5FJw=="],
 
-    "@convex-dev/auth": ["@convex-dev/auth@0.0.96", "", { "dependencies": { "@oslojs/crypto": "^1.0.1", "@oslojs/encoding": "^1.1.0", "cookie": "^1.0.1", "is-network-error": "^1.1.0", "jose": "^5.2.2", "jwt-decode": "^4.0.0", "lucia": "^3.2.0", "oauth4webapi": "^3.1.2", "path-to-regexp": "^6.3.0", "server-only": "^0.0.1" }, "peerDependencies": { "@auth/core": "^0.41.1", "convex": "^1.17.0", "react": "^18.2.0 || ^19.0.0-0" }, "optionalPeers": ["react"], "bin": { "auth": "dist/bin.cjs" } }, "sha512-4vcoQmmlbInLpR6BK43iIH21JwVPG5U7kRIjLaUWkeEr+hVaS/DuYsQRrDsDLu9rbHpq9PT2ZkUrtPDLkxYx0A=="],
+    "@convex-dev/auth": ["@convex-dev/auth@0.0.98", "", { "dependencies": { "@oslojs/crypto": "^1.0.1", "@oslojs/encoding": "^1.1.0", "cookie": "^1.0.1", "is-network-error": "^1.1.0", "jose": "^5.2.2", "jwt-decode": "^4.0.0", "lucia": "^3.2.0", "oauth4webapi": "^3.1.2", "path-to-regexp": "^6.3.0", "server-only": "^0.0.1" }, "peerDependencies": { "@auth/core": "^0.41.1", "convex": "^1.17.0", "react": "^18.2.0 || ^19.0.0-0" }, "optionalPeers": ["react"], "bin": { "auth": "dist/bin.cjs" } }, "sha512-lcgZ0V7z6bcvqTFsXjFa/ZsZclanmltGBaJMJtcdp+x7VeFv7h3+CWE+JGv402C+71itMBkQXONZxBaMe/7ocQ=="],
 
     "@convex-dev/batch-worker": ["@convex-dev/batch-worker@0.3.5", "", { "dependencies": { "convex-helpers": "^0.1.127" }, "peerDependencies": { "convex": "^1.43.0" } }, "sha512-kTxLGy1TXRN6WLcENcoRWWnvPshv1sIZp2EpPqGqCB4FxDI7m8tEHUr+jCLdhGtSZT1UHkWtb1w8YYuEzTxHWQ=="],
 
-    "@convex-dev/migrations": ["@convex-dev/migrations@0.3.7", "", { "peerDependencies": { "convex": "^1.42.0", "convex-helpers": "^0.1.115" } }, "sha512-B5psv+FhfFLu2ttusIMcWiHS2fpxOiqWrvHl9wOjgcCwTy1Lqhvn2rY7LBQ8O6hVF5dPm8uoEbaNKPSHxkiD7A=="],
+    "@convex-dev/migrations": ["@convex-dev/migrations@0.3.8", "", { "peerDependencies": { "convex": "^1.42.0", "convex-helpers": "^0.1.115" } }, "sha512-+wI5pHQzvcLxBEMLl7yhClfaz6jXppI5RsP/+UOFl0fmCfnbYXMKNelr8u08KZAmCGPUkEjMb4teZsyYJH9sWQ=="],
 
     "@convex-dev/rate-limiter": ["@convex-dev/rate-limiter@0.4.2", "", { "dependencies": { "@convex-dev/batch-worker": "0.3.5" }, "peerDependencies": { "convex": "^1.43.0", "react": "^18.2.0 || ^19.0.0" }, "optionalPeers": ["react"] }, "sha512-njheoDd//MZgxtw+0PP3LL47PVMkvOKZmXDjYglDKSu5IdrfJtGmz/EHd6px9UcALuk/w7LTo83YwQ3bTGsMIg=="],
 
