@@ -1741,6 +1741,29 @@ test("Dependabot must update every composite action with its workflows", () => {
     ),
     [],
   );
+  const grouped = (exclude, own = []) =>
+    findDependabotActionGaps(
+      config([
+        ...both,
+        "    groups:",
+        "      codeql:",
+        "        patterns:",
+        '          - "github/codeql-action*"',
+        "      shared:",
+        "        group-by: dependency-name",
+        ...(own.length ? ["        patterns:"] : []),
+        ...own.map((pattern) => `          - "${pattern}"`),
+        ...(exclude.length ? ["        exclude-patterns:"] : []),
+        ...exclude.map((pattern) => `          - "${pattern}"`),
+      ]),
+      actions,
+    );
+  assert.deepEqual(grouped([]), [
+    ".github/dependabot.yml: the group-by: dependency-name group must exclude github/codeql-action*",
+  ]);
+  assert.deepEqual(grouped(["github/codeql-action*"]), []);
+  // Its own patterns scope the group; they are not a family to exclude.
+  assert.deepEqual(grouped(["github/codeql-action*"], ["actions/*"]), []);
   // `*` stays inside one path segment.
   assert.equal(
     findDependabotActionGaps(config(both), [".github/actions/a/b"]).length,

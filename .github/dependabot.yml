@@ -1,12 +1,12 @@
 version: 2
-# A week of cooldown lets a bad release be yanked first; security updates skip it.
+# Version updates run monthly after a week of cooldown, so a bad release can be
+# yanked first; security updates skip both.
 updates:
   # packages/kit — receipt-validation SaaS app
   - package-ecosystem: "npm"
     directory: "/packages/kit"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
     cooldown:
       default-days: 7
     open-pull-requests-limit: 5
@@ -14,18 +14,10 @@ updates:
       - "openiap-kit"
       - "📦 update packages"
     groups:
-      kit-convex:
+      # One PR for every minor and patch bump; majors are ignored below.
+      kit:
         patterns:
-          - "convex"
-          - "@convex-dev/*"
-      kit-react:
-        patterns:
-          - "react"
-          - "react-dom"
-          - "@types/react"
-          - "@types/react-dom"
-      kit-dev-dependencies:
-        dependency-type: "development"
+          - "*"
     ignore:
       # Major bumps often need code migration work; review manually
       # rather than letting Dependabot flood the queue.
@@ -39,8 +31,7 @@ updates:
       - "/"
       - "/.github/actions/*"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
     cooldown:
       default-days: 7
     open-pull-requests-limit: 3
@@ -60,17 +51,19 @@ updates:
       gradle-actions:
         patterns:
           - "gradle/actions*"
-      # One PR per action across directories, so a workflow and a composite
-      # action never pin the same action at two commits.
+      # One PR per action across directories; it must exclude the families
+      # above or it splits them per action.
       actions-across-directories:
         group-by: dependency-name
+        exclude-patterns:
+          - "github/codeql-action*"
+          - "gradle/actions*"
 
   # packages/kit Dockerfile base image
   - package-ecosystem: "docker"
     directory: "/packages/kit"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
     cooldown:
       default-days: 7
     open-pull-requests-limit: 2
@@ -84,14 +77,17 @@ updates:
   - package-ecosystem: "bundler"
     directory: "/packages/apple"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
     cooldown:
       default-days: 7
     open-pull-requests-limit: 3
     labels:
       - "📱 iOS"
       - "📦 update packages"
+    groups:
+      ruby:
+        patterns:
+          - "*"
     ignore:
       - dependency-name: "cocoapods"
 
@@ -99,11 +95,14 @@ updates:
   - package-ecosystem: "bundler"
     directory: "/libraries/react-native-iap/example"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
     cooldown:
       default-days: 7
     open-pull-requests-limit: 3
     labels:
       - "react-native-iap"
       - "📦 update packages"
+    groups:
+      ruby:
+        patterns:
+          - "*"

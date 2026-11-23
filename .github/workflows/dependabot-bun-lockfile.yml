@@ -3,7 +3,8 @@ name: Dependabot — Auto-refresh bun lockfile
 # Dependabot doesn't update bun.lock when it bumps a package.json, so the
 # kit verify job fails with `lockfile had changes, but lockfile is frozen`.
 # This workflow re-runs `bun install` on the PR branch and pushes the
-# refreshed bun.lock back so subsequent CI sees a consistent workspace.
+# refreshed bun.lock back so subsequent CI sees a consistent workspace. CI on
+# that push starts only after a maintainer approves its held runs.
 
 on:
   pull_request:
@@ -71,9 +72,11 @@ jobs:
       - name: Dispatch Kit verification
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No checkout here, so gh needs the repository named.
+          GH_REPO: ${{ github.repository }}
           PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          # GITHUB_TOKEN pushes don't trigger pull_request events, so
-          # dispatch deploy-kit.yml on the updated branch tip. Non-main manual
-          # dispatches are verify-only; the deploy job is guarded to main.
+          # The bot push's own pull_request runs wait for a maintainer to
+          # approve them, so dispatch deploy-kit.yml on the new tip now.
+          # Non-main dispatches are verify-only; the deploy job is guarded to main.
           gh workflow run deploy-kit.yml --ref "$PR_HEAD_REF"
