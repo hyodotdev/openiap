@@ -261,8 +261,11 @@ dependencies {
     add("androidUnitTestImplementation", "com.google.code.gson:gson:2.14.0")
 }
 
-extra["robolectricSdks"] = listOf(35)
-apply(from = "../../../packages/google/gradle/robolectric-runtimes.gradle")
+// Monorepo only; a copy of this module elsewhere uses Robolectric's own downloader.
+file("../../../packages/google/gradle/robolectric-runtimes.gradle").takeIf { it.isFile }?.let {
+    extra["robolectricSdks"] = listOf(35)
+    apply(from = it)
+}
 
 if (providers.gradleProperty("openiapProvider").isPresent) {
     apply(from = "../../../packages/google/gradle/openiap-store.gradle")

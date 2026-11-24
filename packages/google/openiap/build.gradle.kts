@@ -256,8 +256,11 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
 }
 
-extra["robolectricSdks"] = listOf(23, 29, 34)
-apply(from = file("../gradle/robolectric-runtimes.gradle"))
+// Monorepo only; a copy of this module elsewhere uses Robolectric's own downloader.
+file("../gradle/robolectric-runtimes.gradle").takeIf { it.isFile }?.let {
+    extra["robolectricSdks"] = listOf(23, 29, 34)
+    apply(from = it)
+}
 
 // Configure Vanniktech Maven Publish
 // Determine which variant to publish based on gradle.properties or default to play

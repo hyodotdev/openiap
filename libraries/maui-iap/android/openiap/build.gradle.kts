@@ -123,5 +123,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$googleCoroutinesVersion")
 }
 
-extra["robolectricSdks"] = listOf(35)
-apply(from = file("../../../../packages/google/gradle/robolectric-runtimes.gradle"))
+// Monorepo only; a copy of this module elsewhere uses Robolectric's own downloader.
+file("../../../../packages/google/gradle/robolectric-runtimes.gradle").takeIf { it.isFile }?.let {
+    extra["robolectricSdks"] = listOf(35)
+    apply(from = it)
+}
