@@ -258,6 +258,9 @@ jobs:
       - name: Build React Native Android wrapper
         if: matrix.component == 'react-native'
         working-directory: libraries/react-native-iap
+        env:
+          # A retry may clear the NDK this job half-installed (React Native's default).
+          GRADLE_NETWORK_RETRY_NDK_VERSION: "27.1.12297006"
         run: |
           corepack enable
           corepack prepare yarn@3.6.1 --activate
@@ -271,6 +274,9 @@ jobs:
       - name: Build Expo Android wrapper
         if: matrix.component == 'expo'
         working-directory: libraries/expo-iap
+        env:
+          # A retry may clear the NDK this job half-installed (React Native's default).
+          GRADLE_NETWORK_RETRY_NDK_VERSION: "27.1.12297006"
         run: |
           bun install --frozen-lockfile
           bun run build:plugin
