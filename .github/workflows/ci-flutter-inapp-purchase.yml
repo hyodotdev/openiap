@@ -80,14 +80,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: flutter-actions/setup-flutter@adb607ae976a9e00473569facfc69813c637a060 # v4.3
+      - uses: flutter-actions/setup-flutter@0e3ac53a5126c46be01612423cf26b5d59018adc # v5.0
         with:
           channel: stable
           version: "3.44.9"
           cache: true
           cache-sdk: true
 
-      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: "temurin"
           java-version-file: .java-version
@@ -156,7 +156,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - uses: flutter-actions/setup-flutter@adb607ae976a9e00473569facfc69813c637a060 # v4.3
+      - uses: flutter-actions/setup-flutter@0e3ac53a5126c46be01612423cf26b5d59018adc # v5.0
         with:
           channel: stable
           version: "3.44.9"
@@ -177,7 +177,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - uses: flutter-actions/setup-flutter@adb607ae976a9e00473569facfc69813c637a060 # v4.3
+      - uses: flutter-actions/setup-flutter@0e3ac53a5126c46be01612423cf26b5d59018adc # v5.0
         with:
           channel: stable
           version: "3.44.9"
