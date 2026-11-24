@@ -718,7 +718,8 @@ function globToRegExp(glob) {
  * Dependabot's github-actions "/" entry reads only .github/workflows, so each
  * composite action needs its own directory, and an action shared across
  * directories must arrive in one PR or the family-drift check above fails it.
- * The group-by group must also exclude each family group, or it splits them.
+ * A multi-ecosystem group does that; a group-by group must also exclude each
+ * family group, or it splits them.
  */
 export function findDependabotActionGaps(source, actionDirectories) {
   const entries = (parseYaml(source)?.updates ?? []).filter(
@@ -742,9 +743,11 @@ export function findDependabotActionGaps(source, actionDirectories) {
     const byName = groups.find(
       (group) => group?.["group-by"] === "dependency-name",
     );
-    if ((entry.directories ?? []).length > 1 && !byName) {
+    const oneGroup =
+      byName || (entry["multi-ecosystem-group"] && entry.patterns?.length);
+    if ((entry.directories ?? []).length > 1 && !oneGroup) {
       findings.push(
-        ".github/dependabot.yml: a github-actions entry with several directories needs a group with group-by: dependency-name",
+        ".github/dependabot.yml: a github-actions entry with several directories needs a multi-ecosystem-group or a group with group-by: dependency-name",
       );
     }
     if (!byName) continue;
