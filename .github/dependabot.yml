@@ -1,26 +1,30 @@
 version: 2
-# Version updates run monthly after a week of cooldown, so a bad release can be
-# yanked first; security updates skip both.
+# Every version update lands in one monthly PR, so main needs one rebase and CI
+# pass a month; it also keeps coupled actions such as CodeQL's init and analyze
+# at one version. A week of cooldown lets a bad release be yanked first.
+# Security updates skip the schedule and cooldown. Entries repeat the group
+# label because Dependabot may apply only theirs.
+multi-ecosystem-groups:
+  dependencies:
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 1
+    labels:
+      - "📦 update packages"
+
 updates:
   # packages/kit — receipt-validation SaaS app
   - package-ecosystem: "npm"
     directory: "/packages/kit"
-    schedule:
-      interval: "monthly"
+    multi-ecosystem-group: "dependencies"
+    patterns: ["*"]
     cooldown:
       default-days: 7
-    open-pull-requests-limit: 5
     labels:
       - "openiap-kit"
       - "📦 update packages"
-    groups:
-      # One PR for every minor and patch bump; majors are ignored below.
-      kit:
-        patterns:
-          - "*"
     ignore:
-      # Major bumps often need code migration work; review manually
-      # rather than letting Dependabot flood the queue.
+      # Major bumps often need code migration work; review manually.
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
@@ -30,79 +34,46 @@ updates:
     directories:
       - "/"
       - "/.github/actions/*"
-    schedule:
-      interval: "monthly"
+    multi-ecosystem-group: "dependencies"
+    patterns: ["*"]
     cooldown:
       default-days: 7
-    open-pull-requests-limit: 3
     labels:
       - "💨 ci"
       - "📦 update packages"
-    groups:
-      # Several actions live at different paths in ONE repository and refuse to
-      # run at mixed versions: CodeQL fails with "Loaded a configuration file
-      # for version X, but running version Y" when init and analyze disagree.
-      # Ungrouped, Dependabot opens one PR per path, and each is broken on its
-      # own. scripts/audit-security.mjs enforces the same invariant on the
-      # workflows themselves.
-      codeql-action:
-        patterns:
-          - "github/codeql-action*"
-      gradle-actions:
-        patterns:
-          - "gradle/actions*"
-      # One PR per action across directories; it must exclude the families
-      # above or it splits them per action.
-      actions-across-directories:
-        group-by: dependency-name
-        exclude-patterns:
-          - "github/codeql-action*"
-          - "gradle/actions*"
 
   # packages/kit Dockerfile base image
   - package-ecosystem: "docker"
     directory: "/packages/kit"
-    schedule:
-      interval: "monthly"
+    multi-ecosystem-group: "dependencies"
+    patterns: ["*"]
     cooldown:
       default-days: 7
-    open-pull-requests-limit: 2
     labels:
       - "openiap-kit"
-      - "👷‍♀️ build"
       - "📦 update packages"
 
   # Apple release CocoaPods toolchain. CocoaPods itself is pinned in the
   # Gemfile and moves only with a release lint; its dependencies still update.
   - package-ecosystem: "bundler"
     directory: "/packages/apple"
-    schedule:
-      interval: "monthly"
+    multi-ecosystem-group: "dependencies"
+    patterns: ["*"]
     cooldown:
       default-days: 7
-    open-pull-requests-limit: 3
     labels:
       - "📱 iOS"
       - "📦 update packages"
-    groups:
-      ruby:
-        patterns:
-          - "*"
     ignore:
       - dependency-name: "cocoapods"
 
   # React Native example CocoaPods toolchain
   - package-ecosystem: "bundler"
     directory: "/libraries/react-native-iap/example"
-    schedule:
-      interval: "monthly"
+    multi-ecosystem-group: "dependencies"
+    patterns: ["*"]
     cooldown:
       default-days: 7
-    open-pull-requests-limit: 3
     labels:
       - "react-native-iap"
       - "📦 update packages"
-    groups:
-      ruby:
-        patterns:
-          - "*"

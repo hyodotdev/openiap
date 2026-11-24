@@ -1727,8 +1727,19 @@ test("Dependabot must update every composite action with its workflows", () => {
     '      - "/.github/actions/*"',
   ];
   assert.deepEqual(findDependabotActionGaps(config(both), actions), [
-    ".github/dependabot.yml: a github-actions entry with several directories needs a group with group-by: dependency-name",
+    ".github/dependabot.yml: a github-actions entry with several directories needs a multi-ecosystem-group or a group with group-by: dependency-name",
   ]);
+  assert.deepEqual(
+    findDependabotActionGaps(
+      config([
+        ...both,
+        '    multi-ecosystem-group: "dependencies"',
+        '    patterns: ["*"]',
+      ]),
+      actions,
+    ),
+    [],
+  );
   assert.deepEqual(
     findDependabotActionGaps(
       config([
