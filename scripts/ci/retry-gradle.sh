@@ -8,6 +8,10 @@ set -u -o pipefail
 
 readonly max_attempts="${GRADLE_NETWORK_RETRY_ATTEMPTS:-3}"
 readonly base_delay_seconds="${GRADLE_NETWORK_RETRY_DELAY_SECONDS:-10}"
+# Maven Central rate-limits bursts of hosted runners for longer than the base
+# delay, so a 429 waits this long per attempt instead.
+readonly rate_limit_delay_seconds="${GRADLE_NETWORK_RETRY_RATE_LIMIT_DELAY_SECONDS:-60}"
+readonly rate_limit_pattern='(status code|http response code)[^0-9]*429|too many requests'
 readonly retryable_http_status='408|425|429|500|502|503|504|520|522|523|524'
 readonly fetch_pattern='could not (get|head|download).*https?://'
 readonly transient_transport_pattern='read timed out|connect timed out|connection timed out|connection reset|connection refused|could not resolve host|temporary failure in name resolution|name or service not known|network is unreachable|remote host terminated the handshake|tls handshake timeout|(http response code|status code)[^0-9]*('"$retryable_http_status"')|bad gateway|service unavailable|gateway time-?out'
@@ -97,6 +101,11 @@ if ! [[ "$base_delay_seconds" =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 
+if ! [[ "$rate_limit_delay_seconds" =~ ^[0-9]+$ ]]; then
+  echo "GRADLE_NETWORK_RETRY_RATE_LIMIT_DELAY_SECONDS must be a non-negative integer" >&2
+  exit 2
+fi
+
 if [[ "${1:-}" == "--" ]]; then
   shift
 fi
@@ -159,6 +168,9 @@ for ((attempt = 1; attempt <= max_attempts; attempt += 1)); do
   fi
 
   delay_seconds="$((base_delay_seconds * attempt))"
+  if grep -qiE "$rate_limit_pattern" "$retry_log"; then
+    delay_seconds="$((rate_limit_delay_seconds * attempt))"
+  fi
   echo "Transient Gradle dependency-network failure detected (attempt $attempt/$max_attempts)." >&2
   echo "Retrying in ${delay_seconds}s..." >&2
   sleep "$delay_seconds"
