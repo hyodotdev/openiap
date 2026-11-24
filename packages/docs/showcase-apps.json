@@ -135,7 +135,8 @@
       "library": "expo-iap",
       "ios": "https://apps.apple.com/us/app/minulo-block-reels-shorts/id6809352229",
       "android": "https://play.google.com/store/apps/details?id=app.feedminus",
-      "web": "https://minulo.app/en/"
+      "web": "https://minulo.app/en/",
+      "installs": 1
     }
   ],
   "github": {
