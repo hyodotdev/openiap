@@ -80,7 +80,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: flutter-actions/setup-flutter@adb607ae976a9e00473569facfc69813c637a060 # v4.3
+      - uses: flutter-actions/setup-flutter@0e3ac53a5126c46be01612423cf26b5d59018adc # v5.0
         with:
           channel: stable
           version: "3.44.9"
@@ -156,7 +156,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - uses: flutter-actions/setup-flutter@adb607ae976a9e00473569facfc69813c637a060 # v4.3
+      - uses: flutter-actions/setup-flutter@0e3ac53a5126c46be01612423cf26b5d59018adc # v5.0
         with:
           channel: stable
           version: "3.44.9"
@@ -177,7 +177,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - uses: flutter-actions/setup-flutter@adb607ae976a9e00473569facfc69813c637a060 # v4.3
+      - uses: flutter-actions/setup-flutter@0e3ac53a5126c46be01612423cf26b5d59018adc # v5.0
         with:
           channel: stable
           version: "3.44.9"
