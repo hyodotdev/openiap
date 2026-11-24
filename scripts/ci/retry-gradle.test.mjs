@@ -25,6 +25,7 @@ function runRetry(command, env = {}) {
     env: {
       ...process.env,
       GRADLE_NETWORK_RETRY_DELAY_SECONDS: "0",
+      GRADLE_NETWORK_RETRY_RATE_LIMIT_DELAY_SECONDS: "0",
       // Keep plugin lookups off the network unless a test supplies a repository.
       GRADLE_NETWORK_RETRY_PLUGIN_REPOSITORIES:
         "file:///nonexistent-openiap-plugin-repository",
@@ -32,6 +33,13 @@ function runRetry(command, env = {}) {
     },
   });
 }
+
+// A no-op sleep, so a test can assert a long delay without waiting it out.
+const fakeSleepDirectory = mkdtempSync(path.join(tmpdir(), "openiap-sleep-"));
+writeFileSync(path.join(fakeSleepDirectory, "sleep"), "#!/bin/sh\nexit 0\n", {
+  mode: 0o755,
+});
+test.after(() => rmSync(fakeSleepDirectory, { force: true, recursive: true }));
 
 function withCounterTest(callback) {
   const directory = mkdtempSync(path.join(tmpdir(), "openiap-retry-test-"));
@@ -311,6 +319,36 @@ test("retries a fetch that receives a retryable HTTP status", () => {
     assert.equal(readFileSync(counter, "utf8"), "2");
   });
 });
+
+for (const { name, cause, delay } of [
+  {
+    name: "waits the rate-limit delay after a 429",
+    cause: "Received status code 429 from server: Too Many Requests",
+    delay: "7",
+  },
+  {
+    name: "keeps the base delay for other statuses",
+    cause: "Received status code 503 from server: Service Unavailable",
+    delay: "0",
+  },
+]) {
+  test(name, () => {
+    withCounterTest((counter) => {
+      const command = incrementScript(
+        counter,
+        `if [ "$count" -eq 1 ]; then printf '%s\\n' "Could not HEAD 'https://repo.example/plugin.jar'. ${cause}" >&2; exit 19; fi; printf 'recovered'`,
+      );
+      const result = runRetry(command, {
+        GRADLE_NETWORK_RETRY_RATE_LIMIT_DELAY_SECONDS: "7",
+        // Keep the test fast: only the printed delay matters here.
+        PATH: `${fakeSleepDirectory}:${process.env.PATH}`,
+      });
+
+      assert.equal(result.status, 0);
+      assert.match(result.stderr, new RegExp(`Retrying in ${delay}s`));
+    });
+  });
+}
 
 test("does not retry deterministic compile or test failures", () => {
   withCounterTest((counter) => {
