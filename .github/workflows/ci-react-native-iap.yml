@@ -20,6 +20,7 @@ on:
       - "packages/google/build.gradle.kts"
       - "packages/google/openiap/**"
       - "packages/google/core/**"
+      - "packages/google/gradle/robolectric-runtimes.gradle"
       - "packages/conformance/android/**"
       - "libraries-versions.jsonc"
       - "codecov.yml"
@@ -52,6 +53,7 @@ on:
       - "packages/google/build.gradle.kts"
       - "packages/google/openiap/**"
       - "packages/google/core/**"
+      - "packages/google/gradle/robolectric-runtimes.gradle"
       - "packages/conformance/android/**"
       - "libraries-versions.jsonc"
       - "codecov.yml"
@@ -190,6 +192,8 @@ jobs:
         with:
           distribution: "temurin"
           java-version-file: .java-version
+
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6
 
       - name: Run Android unit tests
         working-directory: libraries/react-native-iap/example/android

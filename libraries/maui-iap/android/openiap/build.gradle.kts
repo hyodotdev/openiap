@@ -122,3 +122,6 @@ dependencies {
     implementation("com.google.code.gson:gson:$gsonVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$googleCoroutinesVersion")
 }
+
+extra["robolectricSdks"] = listOf(35)
+apply(from = file("../../../../packages/google/gradle/robolectric-runtimes.gradle"))

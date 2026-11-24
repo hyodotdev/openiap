@@ -256,6 +256,9 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
 }
 
+extra["robolectricSdks"] = listOf(23, 29, 34)
+apply(from = file("../gradle/robolectric-runtimes.gradle"))
+
 // Configure Vanniktech Maven Publish
 // Determine which variant to publish based on gradle.properties or default to play
 val publishVariant = project.findProperty("OPENIAP_PUBLISH_VARIANT")?.toString() ?: "play"

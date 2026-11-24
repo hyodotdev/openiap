@@ -34,43 +34,6 @@ gradle.parent?.rootProject?.let { consumerRoot ->
     layout.buildDirectory.set(isolatedBuildRoot)
 }
 
-// Robolectric fetches its Android runtime outside Gradle, so a Maven Central
-// 429 fails tests with no retry. Gradle resolves the runtimes instead and hands
-// Robolectric their paths. Versions match Robolectric 4.16.1; bump them with it.
-val robolectricRuntimes = listOf(
-    "6.0.1_r3-robolectric-r1-i7", // API 23, minSdk: tests without @Config(sdk)
-    "10-robolectric-5803371-i7", // API 29
-    "14-robolectric-10818077-i7", // API 34
-    "15-robolectric-13954326-i7", // API 35
-)
-listOf(":openiap-core", ":openiap").forEach { path ->
-    // Configuring a module before its script compiles hides the root plugins from it.
-    project(path).afterEvaluate {
-        // One configuration per runtime: Gradle would keep only the newest version.
-        val runtimes = robolectricRuntimes.associateWith { version ->
-            configurations.detachedConfiguration(
-                dependencies.create("org.robolectric:android-all-instrumented:$version"),
-            ).apply { isTransitive = false }.incoming.files
-        }
-        val depsFile = layout.buildDirectory.file("robolectric/robolectric-deps.properties")
-        val writeDeps = tasks.register("writeRobolectricDeps") {
-            runtimes.values.forEach { inputs.files(it) }
-            outputs.file(depsFile)
-            doLast {
-                val deps = java.util.Properties()
-                runtimes.forEach { (version, jar) ->
-                    deps["org.robolectric:android-all-instrumented:$version"] = jar.singleFile.absolutePath
-                }
-                depsFile.get().asFile.outputStream().use { deps.store(it, null) }
-            }
-        }
-        tasks.withType<Test>().configureEach {
-            dependsOn(writeDeps)
-            systemProperty("robolectric-deps.properties", depsFile.get().asFile.absolutePath)
-        }
-    }
-}
-
 // Configure Maven Central publishing at the root.
 // Credentials are sourced from env or gradle.properties.
 // Maven Central publishing is configured per-module via Vanniktech plugin.

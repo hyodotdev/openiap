@@ -208,3 +208,10 @@ dependencies {
 
     // Store SDK versions stay centralized in packages/google.
 }
+
+// Monorepo only: the published package runs no tests.
+def robolectricRuntimes = new File(buildscript.sourceFile.canonicalFile.parentFile, '../../../packages/google/gradle/robolectric-runtimes.gradle')
+if (!androidIapDisabled && robolectricRuntimes.isFile()) {
+    ext.robolectricSdks = [35]
+    apply from: robolectricRuntimes
+}

@@ -129,6 +129,9 @@ dependencies {
     testImplementation("androidx.test:core:1.7.0")
 }
 
+extra["robolectricSdks"] = listOf(23, 35)
+apply(from = file("../gradle/robolectric-runtimes.gradle"))
+
 if (isStandaloneGoogleBuild) {
     extensions.configure<MavenPublishBaseExtension> {
         val groupId = project.findProperty("OPENIAP_GROUP_ID")?.toString() ?: "io.github.hyochan.openiap"

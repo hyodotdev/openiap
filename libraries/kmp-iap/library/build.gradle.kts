@@ -261,6 +261,9 @@ dependencies {
     add("androidUnitTestImplementation", "com.google.code.gson:gson:2.14.0")
 }
 
+extra["robolectricSdks"] = listOf(35)
+apply(from = "../../../packages/google/gradle/robolectric-runtimes.gradle")
+
 if (providers.gradleProperty("openiapProvider").isPresent) {
     apply(from = "../../../packages/google/gradle/openiap-store.gradle")
     val addStore = extra["openIapAddStoreDependencies"] as groovy.lang.Closure<*>

@@ -1,0 +1,41 @@
+// Robolectric fetches its Android runtime outside Gradle, so a Maven Central
+// 429 fails tests with no retry. Gradle resolves the runtimes instead and hands
+// Robolectric their paths. Set ext.robolectricSdks to the API levels the tests
+// run on (@Config(sdk), else the manifest's targetSdk or minSdk), then apply.
+
+// Robolectric 4.16.1's runtime per API level; bump them with it.
+def runtimeVersions = [
+  23: '6.0.1_r3-robolectric-r1-i7',
+  29: '10-robolectric-5803371-i7',
+  34: '14-robolectric-10818077-i7',
+  35: '15-robolectric-13954326-i7',
+]
+
+// One configuration per runtime: Gradle would keep only the newest version.
+def runtimes = project.ext.robolectricSdks.collectEntries { sdk ->
+  def version = runtimeVersions[sdk]
+  if (version == null) {
+    throw new GradleException("robolectric-runtimes.gradle: no runtime for API $sdk; add it to runtimeVersions")
+  }
+  def configuration = configurations.detachedConfiguration(
+    dependencies.create("org.robolectric:android-all-instrumented:$version"),
+  )
+  configuration.transitive = false
+  [(version): configuration.incoming.files]
+}
+def depsFile = layout.buildDirectory.file('robolectric/robolectric-deps.properties')
+def writeDeps = tasks.register('writeRobolectricDeps') {
+  runtimes.values().each { inputs.files(it) }
+  outputs.file(depsFile)
+  doLast {
+    def deps = new Properties()
+    runtimes.each { version, jar ->
+      deps["org.robolectric:android-all-instrumented:$version"] = jar.singleFile.absolutePath
+    }
+    depsFile.get().asFile.withOutputStream { deps.store(it, null) }
+  }
+}
+tasks.withType(Test).configureEach {
+  dependsOn(writeDeps)
+  systemProperty('robolectric-deps.properties', depsFile.get().asFile.absolutePath)
+}

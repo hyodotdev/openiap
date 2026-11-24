@@ -17,6 +17,8 @@ dependencies {
     testImplementation("org.robolectric:robolectric:4.16.1")
     testImplementation("androidx.test:core:1.7.0")
 }
+extra["robolectricSdks"] = listOf(35)
+apply(from = file("../../../gradle/robolectric-runtimes.gradle"))
 tasks.withType<Test>().configureEach {
     include("**/FixtureConformanceTest.class")
     systemProperty("openiap.conformanceReport", layout.buildDirectory.file("reports/openiap/{storeId}.json").get().asFile.path)
