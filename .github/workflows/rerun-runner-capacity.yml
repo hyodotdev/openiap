@@ -1,8 +1,9 @@
 name: "CI: Rerun jobs no runner picked up"
 
 # GitHub cancels a job its hosted macOS pool cannot staff, which turns a
-# passing run red with no code at fault. Rerun those jobs once; any other
-# failure stays. Release workflows are not listed: they never rerun on their own.
+# passing run red with no code at fault. Rerun those jobs up to twice: a busy
+# pool often misses the first rerun too. Any other failure stays. Release
+# workflows are not listed: they never rerun on their own.
 on:
   workflow_run:
     workflows:
@@ -25,7 +26,7 @@ jobs:
     if: >-
       (github.event.workflow_run.conclusion == 'failure' ||
       github.event.workflow_run.conclusion == 'cancelled') &&
-      github.event.workflow_run.run_attempt == 1 &&
+      github.event.workflow_run.run_attempt <= 2 &&
       github.event.workflow_run.head_repository.full_name == github.repository
     name: Rerun runner-capacity cancellations
     runs-on: ubuntu-latest

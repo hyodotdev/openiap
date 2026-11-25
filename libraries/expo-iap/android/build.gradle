@@ -115,3 +115,10 @@ dependencies {
 
     openIapAddStoreDependencies('api', googleVersionString, ':openiap-google')
 }
+
+// Monorepo only; a copy of this module elsewhere uses Robolectric's own downloader.
+def robolectricRuntimes = new File(buildscript.sourceFile.canonicalFile.parentFile, '../../../packages/google/gradle/robolectric-runtimes.gradle')
+if (robolectricRuntimes.isFile()) {
+  ext.robolectricSdks = [35]
+  apply from: robolectricRuntimes
+}

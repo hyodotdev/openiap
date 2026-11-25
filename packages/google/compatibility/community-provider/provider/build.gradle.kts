@@ -17,6 +17,11 @@ dependencies {
     testImplementation("org.robolectric:robolectric:4.16.1")
     testImplementation("androidx.test:core:1.7.0")
 }
+// Monorepo only; a copy of this module elsewhere uses Robolectric's own downloader.
+file("../../../gradle/robolectric-runtimes.gradle").takeIf { it.isFile }?.let {
+    extra["robolectricSdks"] = listOf(35)
+    apply(from = it)
+}
 tasks.withType<Test>().configureEach {
     include("**/FixtureConformanceTest.class")
     systemProperty("openiap.conformanceReport", layout.buildDirectory.file("reports/openiap/{storeId}.json").get().asFile.path)

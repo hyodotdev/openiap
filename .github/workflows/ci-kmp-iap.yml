@@ -63,8 +63,6 @@ jobs:
           java-version-file: .java-version
 
       - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6
-        with:
-          cache-read-only: true
 
       - name: Compile check
         run: |
@@ -111,8 +109,6 @@ jobs:
           java-version-file: .java-version
 
       - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6
-        with:
-          cache-read-only: true
 
       - name: Set up Xcode
         uses: ./.github/actions/setup-xcode

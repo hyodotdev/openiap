@@ -755,6 +755,8 @@ jobs:
           distribution: "temurin"
           java-version-file: .java-version
 
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6
+
       - name: Grant execute permission
         working-directory: packages/google
         run: chmod +x gradlew

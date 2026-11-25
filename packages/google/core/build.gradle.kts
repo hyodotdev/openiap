@@ -129,6 +129,12 @@ dependencies {
     testImplementation("androidx.test:core:1.7.0")
 }
 
+// Monorepo only; a copy of this module elsewhere uses Robolectric's own downloader.
+file("../gradle/robolectric-runtimes.gradle").takeIf { it.isFile }?.let {
+    extra["robolectricSdks"] = listOf(23, 35)
+    apply(from = it)
+}
+
 if (isStandaloneGoogleBuild) {
     extensions.configure<MavenPublishBaseExtension> {
         val groupId = project.findProperty("OPENIAP_GROUP_ID")?.toString() ?: "io.github.hyochan.openiap"
