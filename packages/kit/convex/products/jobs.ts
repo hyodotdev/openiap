@@ -1,5 +1,5 @@
 import { assertCliScope } from "../cli/scope";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 import {
@@ -14,10 +14,15 @@ import {
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
+  callerError,
+  calledWithApiKey,
+  invalidApiKeyError,
+  isApiKey,
   resolveProjectByApiKeyFromDb,
   resolveProjectByIdForCurrentUserFromDb,
 } from "../projects/helpers";
 import { ErrorCode, createError } from "../utils/errors";
+import { isSessionProjectKey } from "../utils/helpers";
 import { getWritableProject } from "../projects/writable";
 import {
   PRODUCT_SYNC_JOB_DEADLINE_MS,
@@ -77,14 +82,13 @@ async function resolveProjectByApiKey(
   const resolved = await resolveProjectByApiKeyFromDb(
     ctx,
     apiKey,
-    access === "read" && apiKey.startsWith("session-project:")
-      ? "client"
-      : "admin",
+    access === "read" && isSessionProjectKey(apiKey) ? "client" : "admin",
   );
   const project = resolved?.project ?? null;
-  if (!project) {
-    throw createError(ErrorCode.PROJECT_NOT_FOUND);
-  }
+  if (!project)
+    throw isApiKey(apiKey)
+      ? invalidApiKeyError()
+      : createError(ErrorCode.PROJECT_NOT_FOUND);
   let userId: Id<"users"> | null = null;
   try {
     userId = await getAuthUserId(ctx);
@@ -151,6 +155,14 @@ async function resolveProjectForMutationArgs(
   throw createError(ErrorCode.INVALID_INPUT, "apiKey or projectId is required");
 }
 
+// `/v1` turns dashboard-scoped errors into 500s, so a public key gets a
+// published code; CLI sessions and the dashboard keep theirs.
+function syncJobNotFound(publicKey: boolean) {
+  return publicKey
+    ? new ConvexError({ code: "NOT_FOUND", message: "Sync job not found" })
+    : createError(ErrorCode.INVALID_INPUT, "Sync job not found");
+}
+
 // A job can only be read through its own project.
 async function resolveJobByApiKey(
   ctx: QueryCtx | MutationCtx,
@@ -162,14 +174,9 @@ async function resolveJobByApiKey(
   // rather than fail argument validation into a 500.
   const jobId = ctx.db.normalizeId("productSyncJobs", rawJobId);
   const job = jobId ? await ctx.db.get(jobId) : null;
-  if (!job) {
-    throw createError(ErrorCode.INVALID_INPUT, "Sync job not found");
-  }
-  if (job.projectId !== project._id) {
-    // Treat cross-project lookups as not-found rather than 403 to
-    // avoid leaking job existence across projects.
-    throw createError(ErrorCode.INVALID_INPUT, "Sync job not found");
-  }
+  // Cross-project lookups read as not found, so job ids do not leak.
+  if (!job || job.projectId !== project._id)
+    throw syncJobNotFound(isApiKey(apiKey));
   return { job, project };
 }
 
@@ -184,9 +191,8 @@ async function resolveJobForMutationArgs(
   const { project } = await resolveProjectForMutationArgs(ctx, args);
   const jobId = ctx.db.normalizeId("productSyncJobs", args.jobId);
   const job = jobId ? await ctx.db.get(jobId) : null;
-  if (!job || job.projectId !== project._id) {
-    throw createError(ErrorCode.INVALID_INPUT, "Sync job not found");
-  }
+  if (!job || job.projectId !== project._id)
+    throw syncJobNotFound(calledWithApiKey(args));
   return { job, project };
 }
 
@@ -251,11 +257,14 @@ export const enqueueProductSync = mutation({
         lockedJob &&
         (lockedJob.status === "queued" || lockedJob.status === "running")
       ) {
-        if (lockedJob.direction !== direction || lockedJob.dryRun !== dryRun)
-          throw createError(
+        if (lockedJob.direction !== direction || lockedJob.dryRun !== dryRun) {
+          const message = `A different sync is already running. Wait for or cancel job ${lockedJob._id} before changing direction or preview/apply mode.`;
+          throw callerError(
+            calledWithApiKey(args),
             ErrorCode.INVALID_INPUT,
-            `A different sync is already running. Wait for or cancel job ${lockedJob._id} before changing direction or preview/apply mode.`,
+            message,
           );
+        }
         return { jobId: lockedJob._id, deduped: true };
       }
       // The lock points at a finished job, e.g. after a worker crash or a

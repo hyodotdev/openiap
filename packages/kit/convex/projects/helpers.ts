@@ -3,6 +3,8 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError } from "convex/values";
+import { createError, ErrorCode } from "../utils/errors";
+import { isSessionProjectKey, SESSION_PROJECT_PREFIX } from "../utils/helpers";
 import {
   allowsLegacyProjectApiKeyFallback,
   assertApiKeyAccess,
@@ -49,10 +51,10 @@ export async function resolveProjectByApiKeyFromDb(
   requiredAccess: ApiKeyAccess = "client",
 ): Promise<ApiKeyProjectResolution | null> {
   // CLI sessions select a project without creating or recovering a secret key.
-  if (apiKey.startsWith("session-project:")) {
+  if (isSessionProjectKey(apiKey)) {
     const projectId = ctx.db.normalizeId(
       "projects",
-      apiKey.slice("session-project:".length),
+      apiKey.slice(SESSION_PROJECT_PREFIX.length),
     );
     if (!projectId) return null;
     const resolved = await resolveProjectByIdForCurrentUserFromDb(
@@ -145,6 +147,52 @@ export type OperatorProjectArgs = {
   apiKey?: string;
 };
 
+/** The `/v1` error for a key that reaches no project. */
+export function invalidApiKeyError() {
+  return new ConvexError({
+    code: "INVALID_API_KEY",
+    message: "API key is invalid or inactive",
+  });
+}
+
+/**
+ * A key a `/v1` caller sent. Errors for it must be published codes; CLI
+ * sessions and dashboard calls keep their dashboard-scoped ones.
+ */
+export function isApiKey(apiKey: string | undefined): apiKey is string {
+  return apiKey !== undefined && !isSessionProjectKey(apiKey);
+}
+
+/** A published error for a `/v1` key; a dashboard-scoped one otherwise. */
+export function callerError(
+  publicKey: boolean,
+  code: ErrorCode.INVALID_INPUT | ErrorCode.PRODUCT_NOT_FOUND,
+  message: string,
+) {
+  return publicKey
+    ? new ConvexError({ code, message })
+    : createError(code, message);
+}
+
+/** The error for a product write whose key or project id found no project. */
+export function projectNotFoundError(args: {
+  apiKey?: string;
+  projectId?: unknown;
+}) {
+  if (calledWithApiKey(args)) return invalidApiKeyError();
+  return args.projectId
+    ? createError(ErrorCode.PROJECT_NOT_FOUND, "Project not found")
+    : createError(ErrorCode.API_KEY_INVALID, "Invalid API key");
+}
+
+/** True when a call names its project by a `/v1` key, not a dashboard id. */
+export function calledWithApiKey(args: {
+  apiKey?: string;
+  projectId?: unknown;
+}): boolean {
+  return !args.projectId && isApiKey(args.apiKey);
+}
+
 /**
  * Project for an operations read or write: a secret admin key, or a dashboard
  * session where any member reads and only owners and admins write.
@@ -172,12 +220,7 @@ export async function resolveOperatorAccess(
       args.apiKey,
       "admin",
     );
-    if (!resolved) {
-      throw new ConvexError({
-        code: "INVALID_API_KEY",
-        message: "API key is invalid or inactive",
-      });
-    }
+    if (!resolved) throw invalidApiKeyError();
     return { project: resolved.project, adminView: true };
   }
   if (!args.projectId) {

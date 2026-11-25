@@ -31,6 +31,20 @@ describe("apiKeyMiddleware", () => {
     expect(body).toEqual({ ok: true, apiKey: "openiap-kit_abc123" });
   });
 
+  test("refuses the CLI's session pointer as a malformed key", async () => {
+    const response = await buildApp().request("/verify", {
+      method: "POST",
+      headers: { Authorization: "Bearer session-project:abc" },
+    });
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      errors: [{ code: "INVALID_API_KEY", message: "API key is malformed" }],
+    });
+    expect(apiKeyValidationError("session-project:abc")).toBe(
+      "API key is malformed",
+    );
+  });
+
   test("tolerates multiple spaces between scheme and key", async () => {
     const app = buildApp();
     const response = await app.request("/verify", {

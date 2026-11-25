@@ -18,3 +18,10 @@ export function validateEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 }
+
+export const SESSION_PROJECT_PREFIX = "session-project:";
+
+/** A CLI session's project pointer, which is not a key. */
+export function isSessionProjectKey(apiKey: string): boolean {
+  return apiKey.startsWith(SESSION_PROJECT_PREFIX);
+}

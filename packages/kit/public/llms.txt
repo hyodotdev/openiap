@@ -180,6 +180,7 @@ unknown.
 - `200` — verification ran; require `isValid`, an operation-appropriate `state`, and an exact store-verified `productId` match
 - `400 INVALID_INPUT` — malformed body / unknown store / oversized field
 - `400 INVALID_API_KEY` — well-formed key that fails project lookup (unknown or rotated), on verification, product, and subscription routes
+- `404 NOT_FOUND` — product sync job read or cancel for a job this key's project does not have
 - `413 PAYLOAD_TOO_LARGE` — request body exceeds the 32 KB edge cap
 - `401 MISSING_API_KEY` — no `Authorization` header
 - `403 INSUFFICIENT_SCOPE` — publishable key used for an administrative operation

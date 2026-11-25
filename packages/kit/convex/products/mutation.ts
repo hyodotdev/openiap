@@ -25,6 +25,9 @@ import {
 } from "./localizations";
 import { normalizeProductRegions, productRegionsValidator } from "./regions";
 import {
+  callerError,
+  projectNotFoundError,
+  calledWithApiKey,
   resolveProjectByApiKeyFromDb,
   resolveProjectByIdForCurrentUserFromDb,
 } from "../projects/helpers";
@@ -372,13 +375,7 @@ export const upsertProduct = mutation({
   handler: async (ctx, args) => {
     await assertCliScope(ctx, "write");
     const project = await resolveProjectForMutationArgs(ctx, args);
-    if (!project)
-      throw createError(
-        args.projectId
-          ? ErrorCode.PROJECT_NOT_FOUND
-          : ErrorCode.API_KEY_INVALID,
-        args.projectId ? "Project not found" : "Invalid API key",
-      );
+    if (!project) throw projectNotFoundError(args);
 
     // Push-sync carries prices as JS numbers, so a value past the safe-integer
     // range could be rounded before it reaches the store.
@@ -539,13 +536,7 @@ export const setProductState = mutation({
   handler: async (ctx, args) => {
     await assertCliScope(ctx, "write");
     const project = await resolveProjectForMutationArgs(ctx, args);
-    if (!project)
-      throw createError(
-        args.projectId
-          ? ErrorCode.PROJECT_NOT_FOUND
-          : ErrorCode.API_KEY_INVALID,
-        args.projectId ? "Project not found" : "Invalid API key",
-      );
+    if (!project) throw projectNotFoundError(args);
 
     const existing = await ctx.db
       .query("products")
@@ -557,7 +548,11 @@ export const setProductState = mutation({
       )
       .unique();
     if (!existing)
-      throw createError(ErrorCode.PRODUCT_NOT_FOUND, "Product not found");
+      throw callerError(
+        calledWithApiKey(args),
+        ErrorCode.PRODUCT_NOT_FOUND,
+        "Product not found",
+      );
 
     await ctx.db.patch(existing._id, {
       state: args.state,

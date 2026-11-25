@@ -1765,6 +1765,58 @@ describe("productsRoutes", () => {
     await expect(response.json()).resolves.toEqual({ errors: [scopeError] });
   });
 
+  it("answers an unknown key with 400 and a missing sync job with 404", async () => {
+    const app = buildApp();
+    const headers = {
+      authorization: "Bearer openiap-kit_sk_unknown",
+      "content-type": "application/json",
+    };
+    const respond = async (error: { code: string; message: string }) => {
+      mocks.mutation.mockRejectedValueOnce(new Error("backend"));
+      mocks.query.mockRejectedValueOnce(new Error("backend"));
+      mocks.handleConvexError.mockReturnValueOnce(error);
+      return error;
+    };
+
+    const invalid = await respond({
+      code: "INVALID_API_KEY",
+      message: "API key is invalid or inactive",
+    });
+    const created = await app.request("/products", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        productId: "premium",
+        platform: "IOS",
+        type: "NonConsumable",
+        title: "Premium",
+      }),
+    });
+    expect(created.status).toBe(400);
+    await expect(created.json()).resolves.toEqual({ errors: [invalid] });
+
+    const missing = await respond({
+      code: "NOT_FOUND",
+      message: "Sync job not found",
+    });
+    const job = await app.request("/products/sync/jobs/job_1", { headers });
+    expect(job.status).toBe(404);
+    await expect(job.json()).resolves.toEqual({ errors: [missing] });
+
+    // Other published codes, such as PRODUCT_NOT_FOUND, stay 400.
+    await respond({ code: "PRODUCT_NOT_FOUND", message: "Product not found" });
+    const state = await app.request("/products/state", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        productId: "premium",
+        platform: "IOS",
+        state: "Active",
+      }),
+    });
+    expect(state.status).toBe(400);
+  });
+
   it("returns 404 for a missing client payload", async () => {
     const app = buildApp();
     mocks.query.mockResolvedValueOnce({ status: "not_found" });
