@@ -1,7 +1,7 @@
 import { assertCliScope } from "../cli/scope";
 import { invalidateSubscriptionStats } from "../subscriptions/stats";
 import { mutation, type MutationCtx } from "../_generated/server";
-import { ConvexError, v } from "convex/values";
+import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { createError, ErrorCode } from "../utils/errors";
 
@@ -25,6 +25,7 @@ import {
 } from "./localizations";
 import { normalizeProductRegions, productRegionsValidator } from "./regions";
 import {
+  callerError,
   calledWithPublicKey,
   invalidApiKeyError,
   resolveProjectByApiKeyFromDb,
@@ -563,12 +564,11 @@ export const setProductState = mutation({
       )
       .unique();
     if (!existing)
-      throw calledWithPublicKey(args)
-        ? new ConvexError({
-            code: "PRODUCT_NOT_FOUND",
-            message: "Product not found",
-          })
-        : createError(ErrorCode.PRODUCT_NOT_FOUND, "Product not found");
+      throw callerError(
+        calledWithPublicKey(args),
+        ErrorCode.PRODUCT_NOT_FOUND,
+        "Product not found",
+      );
 
     await ctx.db.patch(existing._id, {
       state: args.state,

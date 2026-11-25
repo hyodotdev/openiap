@@ -834,12 +834,6 @@ async function handleGetProductSyncJob(c: Context, apiKey: string) {
       apiKey,
       jobId,
     });
-    if (!job) {
-      return c.json(
-        { errors: [{ code: "NOT_FOUND", message: "Sync job not found" }] },
-        404,
-      );
-    }
     return c.json(job);
   } catch (error) {
     return productRouteError(

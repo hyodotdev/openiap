@@ -319,11 +319,11 @@ curl "https://kit.openiap.dev/v1/products/sync/jobs/<jobId>" \\
               ],
               [
                 "GET /v1/products/sync/jobs/{jobId}",
-                "Returns the job's status, progress, and result.",
+                "Returns the job's status, progress, and result, or 404 NOT_FOUND when the project has no such job.",
               ],
               [
                 "POST /v1/products/sync/jobs/{jobId}/cancel",
-                'Returns { ok: true }. A queued job ends at once; a running job stops at its next step. A finished job returns { ok: false, reason: "not active" }.',
+                'Returns { ok: true }. A queued job ends at once; a running job stops at its next step. A finished job returns { ok: false, reason: "not active" }, and a job the project does not have returns 404 NOT_FOUND.',
               ],
             ].map(([route, effect]) => (
               <tr key={route}>

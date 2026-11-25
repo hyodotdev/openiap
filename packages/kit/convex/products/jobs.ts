@@ -14,6 +14,7 @@ import {
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
+  callerError,
   calledWithPublicKey,
   invalidApiKeyError,
   isPublicApiKey,
@@ -258,9 +259,11 @@ export const enqueueProductSync = mutation({
       ) {
         if (lockedJob.direction !== direction || lockedJob.dryRun !== dryRun) {
           const message = `A different sync is already running. Wait for or cancel job ${lockedJob._id} before changing direction or preview/apply mode.`;
-          throw calledWithPublicKey(args)
-            ? new ConvexError({ code: "INVALID_INPUT", message })
-            : createError(ErrorCode.INVALID_INPUT, message);
+          throw callerError(
+            calledWithPublicKey(args),
+            ErrorCode.INVALID_INPUT,
+            message,
+          );
         }
         return { jobId: lockedJob._id, deduped: true };
       }

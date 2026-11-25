@@ -3,6 +3,7 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError } from "convex/values";
+import { createError, ErrorCode } from "../utils/errors";
 import { isSessionProjectKey, SESSION_PROJECT_PREFIX } from "../utils/helpers";
 import {
   allowsLegacyProjectApiKeyFallback,
@@ -160,6 +161,17 @@ export function invalidApiKeyError() {
  */
 export function isPublicApiKey(apiKey: string | undefined): apiKey is string {
   return apiKey !== undefined && !isSessionProjectKey(apiKey);
+}
+
+/** A published error for a `/v1` key; a dashboard-scoped one otherwise. */
+export function callerError(
+  publicKey: boolean,
+  code: ErrorCode.INVALID_INPUT | ErrorCode.PRODUCT_NOT_FOUND,
+  message: string,
+) {
+  return publicKey
+    ? new ConvexError({ code, message })
+    : createError(code, message);
 }
 
 /** True when a call names its project by a `/v1` key, not a dashboard id. */

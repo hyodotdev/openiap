@@ -117,7 +117,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "fix",
         topic: "Product API errors",
-        text: "Product create and state writes and sync job reads and cancels answer an unknown secret key with 400 INVALID_API_KEY, a missing sync job with 404 NOT_FOUND, a missing product with 400 PRODUCT_NOT_FOUND, and a conflicting sync with 400 INVALID_INPUT. These returned 500 before.",
+        text: "Product create and state writes and sync starts, job reads and cancels answer an unknown secret key with 400 INVALID_API_KEY, a missing sync job with 404 NOT_FOUND, a missing product with 400 PRODUCT_NOT_FOUND, and a conflicting sync with 400 INVALID_INPUT. These returned 500 before. A CLI session project pointer sent as an API key now gets 403 INVALID_API_KEY on every public route.",
       },
     ],
   },

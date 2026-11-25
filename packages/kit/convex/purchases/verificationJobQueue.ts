@@ -4,6 +4,7 @@ import { internalMutation, type MutationCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { resolveProjectByApiKeyFromDb } from "../projects/helpers";
 import { hashApiKeyForStorage } from "../apiKeys/helpers";
+import { isSessionProjectKey } from "../utils/helpers";
 import { sha256Hex } from "../utils/sha256";
 import { purchaseStoreValidator } from "../schema";
 import { receiptResponseValidator } from "./shared";
@@ -57,7 +58,7 @@ export const enqueue = internalMutation({
   returns: v.object({ jobId: v.id("verificationJobs"), deduped: v.boolean() }),
   handler: async (ctx, args) => {
     const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
-    if (!resolved || args.apiKey.startsWith("session-project:"))
+    if (!resolved || isSessionProjectKey(args.apiKey))
       throw new ConvexError({
         code: "INVALID_API_KEY",
         message: "Invalid API key.",
@@ -192,8 +193,7 @@ export const read = internalMutation({
   args: { apiKey: v.string(), idempotencyKey: v.string(), jobId: v.string() },
   handler: async (ctx, args): Promise<VerificationJobView> => {
     const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
-    if (!resolved || args.apiKey.startsWith("session-project:"))
-      return notFound();
+    if (!resolved || isSessionProjectKey(args.apiKey)) return notFound();
     const id = ctx.db.normalizeId("verificationJobs", args.jobId);
     let job = id ? await ctx.db.get(id) : null;
     if (
