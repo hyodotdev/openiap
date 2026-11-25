@@ -42,6 +42,10 @@ const storeIndicatorConfig = {
 
 type StoreIndicatorKey = keyof typeof storeIndicatorConfig;
 
+// Inner gutters are narrower than the card's so nine columns fit.
+const CELL = "py-4 px-4 first:pl-6 last:pr-6";
+const HEAD_CELL = "py-3 px-4 first:pl-6 last:pr-6 font-medium";
+
 type PurchaseRow = {
   _id: string;
   store: string;
@@ -145,18 +149,18 @@ export function PurchasesTable({
         <table
           className={cn(
             "w-full text-sm",
-            variant === "preview" && "min-w-[75rem]",
+            variant === "preview" && "min-w-[68rem]",
           )}
         >
           <thead className="text-xs uppercase text-muted-foreground border-b border-border">
             <tr className="text-left whitespace-nowrap">
-              <th className="py-3 px-6 font-medium">{"Validity"}</th>
-              <th className="py-3 px-6 font-medium">{"Verified state"}</th>
-              <th className="py-3 px-6 font-medium">{"Store"}</th>
-              <th className="py-3 px-6 font-medium">{"Environment"}</th>
-              <th className="py-3 px-6 font-medium">{"Product ID"}</th>
-              <th className="py-3 px-6 font-medium">{"Request IP"}</th>
-              <th className="py-3 px-6 font-medium">
+              <th className={HEAD_CELL}>{"Validity"}</th>
+              <th className={HEAD_CELL}>{"Verified state"}</th>
+              <th className={HEAD_CELL}>{"Store"}</th>
+              <th className={HEAD_CELL}>{"Environment"}</th>
+              <th className={HEAD_CELL}>{"Product ID"}</th>
+              <th className={HEAD_CELL}>{"Request IP"}</th>
+              <th className={HEAD_CELL}>
                 <button
                   type="button"
                   className="inline-flex items-center gap-1"
@@ -168,7 +172,7 @@ export function PurchasesTable({
                   </span>
                 </button>
               </th>
-              <th className="py-3 px-6 font-medium">
+              <th className={HEAD_CELL}>
                 <button
                   type="button"
                   className="inline-flex items-center gap-1"
@@ -180,7 +184,7 @@ export function PurchasesTable({
                   </span>
                 </button>
               </th>
-              <th className="py-3 px-6 font-medium">
+              <th className={HEAD_CELL}>
                 <button
                   type="button"
                   className="inline-flex items-center gap-1"
@@ -253,7 +257,7 @@ export function PurchasesTable({
                     )}
                     aria-label={"View details"}
                   >
-                    <td className="py-4 px-6">
+                    <td className={CELL}>
                       <Badge
                         variant={purchase.isValid ? "success" : "danger"}
                         size="sm"
@@ -268,7 +272,7 @@ export function PurchasesTable({
                         {purchase.isValid ? "Valid" : "Invalid"}
                       </Badge>
                     </td>
-                    <td className="py-4 px-6">
+                    <td className={CELL}>
                       <Badge
                         variant={variant}
                         size="sm"
@@ -277,31 +281,41 @@ export function PurchasesTable({
                         {label}
                       </Badge>
                     </td>
-                    <td className="py-4 px-6">
+                    <td className={CELL}>
                       {renderStoreIndicator(purchase.store, storeLabel)}
                     </td>
-                    <td className="py-4 px-6">
+                    <td className={CELL}>
                       <EnvironmentBadge environment={purchase.environment} />
                     </td>
-                    <td className="py-4 px-6 text-xs">
+                    <td className={cn(CELL, "text-xs")}>
                       {purchase.productId ? (
                         <span className="font-mono">{purchase.productId}</span>
                       ) : (
                         <NotReported reason={NO_PRODUCT_REASON} />
                       )}
                     </td>
-                    <td className="py-4 px-6 font-mono text-xs whitespace-nowrap">
+                    <td
+                      className={cn(
+                        CELL,
+                        "font-mono text-xs whitespace-nowrap",
+                      )}
+                    >
                       {purchase.requestIp ?? "N/A"}
                     </td>
-                    <td className="py-4 px-6 font-mono text-xs whitespace-nowrap">
+                    <td
+                      className={cn(
+                        CELL,
+                        "font-mono text-xs whitespace-nowrap",
+                      )}
+                    >
                       {formatVerificationDuration(
                         purchase.verificationDurationMs,
                       ) ?? "N/A"}
                     </td>
-                    <td className="py-4 px-6 font-mono text-xs">
+                    <td className={cn(CELL, "font-mono text-xs")}>
                       {formatReceiptDate(purchase._creationTime)}
                     </td>
-                    <td className="py-4 px-6 font-mono text-xs">
+                    <td className={cn(CELL, "font-mono text-xs")}>
                       {formatReceiptDate(purchase.updatedAt)}
                     </td>
                   </tr>
