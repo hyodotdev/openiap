@@ -3,6 +3,7 @@ import { mutation } from "../_generated/server";
 import type { Doc } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { revokeMemberGrants } from "../oauth/grants";
 import { SPONSOR_CTA_THRESHOLD } from "../plans";
 import { createError, ErrorCode } from "../utils/errors";
 import { organizationInviteRoleValidator } from "../utils/validation";
@@ -355,6 +356,7 @@ export const removeMember = mutation({
     }
 
     await ctx.db.delete(membershipToRemove._id);
+    await revokeMemberGrants(ctx, args.userId, args.organizationId);
     if (currentUserId === args.userId) {
       const profile = await ctx.db
         .query("userProfiles")

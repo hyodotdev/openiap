@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { accessHistoryValidator } from "./subscriptions/accessHistory";
 import { externalTables } from "./externalCheckouts/model";
+import { oauthScopeValidator } from "./oauth/clients";
 import { authTables } from "@convex-dev/auth/server";
 import { harmonizedPurchaseStateValidator } from "./purchases/purchaseState";
 import { receiptResponseValidator } from "./purchases/shared";
@@ -157,6 +158,49 @@ const schema = defineSchema({
     .index("by_session_id", ["sessionId"])
     .index("by_user_id", ["userId"])
     .index("by_token_hash", ["tokenHash"]),
+
+  // One-time authorization codes for OAuth connectors (Claude, ChatGPT).
+  oauthCodes: defineTable({
+    codeHash: v.string(),
+    userId: v.id("users"),
+    projectId: v.id("projects"),
+    scope: oauthScopeValidator,
+    clientId: v.string(),
+    clientName: v.string(),
+    redirectUri: v.string(),
+    codeChallenge: v.string(),
+    expiresAt: v.number(),
+    // Set by the first exchange; a second one ends the grant it made.
+    usedAt: v.optional(v.number()),
+    grantId: v.optional(v.id("oauthGrants")),
+  })
+    .index("by_code_hash", ["codeHash"])
+    .index("by_user_id", ["userId"]),
+  // A connector's access to one project. Deleting the row revokes it.
+  oauthGrants: defineTable({
+    userId: v.id("users"),
+    projectId: v.id("projects"),
+    organizationId: v.id("organizations"),
+    clientId: v.string(),
+    clientName: v.string(),
+    scope: oauthScopeValidator,
+    accessTokenHash: v.string(),
+    accessExpiresAt: v.number(),
+    // Named in every refresh token the grant issues.
+    refreshFamily: v.string(),
+    refreshTokenHash: v.string(),
+    refreshExpiresAt: v.number(),
+    // The token the last rotation replaced; a retry with it within a minute
+    // receives that rotation's pair again.
+    previousRefreshTokenHash: v.optional(v.string()),
+    rotatedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    lastUsedAt: v.number(),
+  })
+    .index("by_access_token_hash", ["accessTokenHash"])
+    .index("by_refresh_family", ["refreshFamily"])
+    .index("by_project", ["projectId"])
+    .index("by_user_id", ["userId"]),
 
   // Organizations table
   organizations: defineTable({

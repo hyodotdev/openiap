@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { verificationSourceConfigured } from "../convex/purchases/verificationSource";
+import { verificationSourceConfigured } from "../convex/utils/helpers";
 
 const DEPLOYMENT_ENVIRONMENTS = new Set([
   "development",

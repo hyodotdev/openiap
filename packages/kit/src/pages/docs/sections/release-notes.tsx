@@ -26,9 +26,9 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-11-23",
     weekStart: "2026-11-23",
     date: "2026-11-26",
-    pullRequests: [629, 631],
+    pullRequests: [629, 630, 631],
     tagline:
-      "A security update for the IAPKit runtime image, and product API mistakes answer with documented errors instead of 500.",
+      "Claude and ChatGPT connect to a project with a GitHub sign-in, product API mistakes answer with documented errors instead of 500, and the IAPKit runtime image gets a security update.",
     items: [
       {
         kind: "security",
@@ -39,6 +39,11 @@ const RELEASES: ReleaseEntry[] = [
         kind: "fix",
         topic: "Product API errors",
         text: "Product create and state writes and sync starts, job reads and cancels answer an unknown secret key with 400 INVALID_API_KEY, a missing sync job with 404 NOT_FOUND, a missing product with 400 PRODUCT_NOT_FOUND, and a conflicting sync with 400 INVALID_INPUT. These returned 500 before. A CLI session project pointer sent as an API key now gets 403 INVALID_API_KEY on every /v1 and /v2 route.",
+      },
+      {
+        kind: "feature",
+        topic: "Claude and ChatGPT connectors",
+        text: "Claude and ChatGPT connect to one project at https://kit.openiap.dev/mcp after a GitHub sign-in, read-only unless the owner or admin allows changes. The project's API keys page lists each connection with Disconnect.",
       },
     ],
   },

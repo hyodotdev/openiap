@@ -5,7 +5,9 @@ import {
 import type { Context } from "hono";
 
 import { api } from "@/convex";
+import { grantApiKey, oauthServerProof } from "../convex/oauth/grants";
 import type { ConsumeResult } from "./api/v1/rate-limit";
+import { oauthResourceMetadataUrl } from "./oauth";
 
 /** Handles MCP HTTP requests for the Kit-hosted IAPKit MCP endpoint. */
 export const handleIapKitMcpRequest = createIapKitWebMcpHandler({
@@ -19,6 +21,30 @@ export const handleIapKitMcpRequest = createIapKitWebMcpHandler({
       apiKey,
     });
     return status.found ? status.projectId : null;
+  },
+  oauth: {
+    resourceMetadataUrl: oauthResourceMetadataUrl(),
+    authenticate: async (accessToken) => {
+      const server = await oauthServerProof();
+      if (!server) return null;
+      const { client } = await import("./convex");
+      // A Convex secret that differs from the server's reads as no grant.
+      const grant = await client
+        .query(api.oauth.query.authenticate, { server, accessToken })
+        .catch(() => null);
+      if (grant?.recordUse)
+        void client
+          .mutation(api.oauth.mutation.markUsed, { server, accessToken })
+          .catch(() => undefined);
+      const apiKey = grant && (await grantApiKey(grant));
+      return apiKey
+        ? {
+            apiKey,
+            owner: grant.projectId,
+            readOnly: grant.scope === "read",
+          }
+        : null;
+    },
   },
 });
 

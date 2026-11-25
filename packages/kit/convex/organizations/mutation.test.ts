@@ -20,7 +20,7 @@ describe("removeMember", () => {
     const matching = (userId?: string) =>
       rows.filter((row) => userId === undefined || row.userId === userId);
     const db = {
-      query: () => ({
+      query: (table: string) => ({
         withIndex: (
           _name: string,
           build: (q: { eq: (field: string, value: string) => unknown }) => void,
@@ -35,6 +35,8 @@ describe("removeMember", () => {
           build(q);
           return {
             first: async () => matching(userId)[0] ?? null,
+            // The removed member has no connector grants or codes here.
+            collect: async () => (table.startsWith("oauth") ? [] : matching()),
             filter: () => ({
               collect: async () =>
                 matching().filter((row) => row.role === "owner"),

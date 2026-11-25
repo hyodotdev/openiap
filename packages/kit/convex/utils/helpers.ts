@@ -25,3 +25,20 @@ export const SESSION_PROJECT_PREFIX = "session-project:";
 export function isSessionProjectKey(apiKey: string): boolean {
   return apiKey.startsWith(SESSION_PROJECT_PREFIX);
 }
+
+/** Where IAPKit is served, without a trailing slash. */
+export function publicBaseUrl(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): string {
+  return (
+    env.IAPKIT_PUBLIC_BASE_URL?.trim().replace(/\/+$/, "") ||
+    "https://kit.openiap.dev"
+  );
+}
+
+/** `IAPKIT_VERIFICATION_SOURCE_SECRET` must be 32 random bytes in hex. */
+export function verificationSourceConfigured(
+  secret: string | undefined,
+): secret is string {
+  return Boolean(secret && /^[a-f0-9]{64}$/.test(secret));
+}

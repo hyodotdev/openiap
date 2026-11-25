@@ -6,6 +6,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -40,7 +41,7 @@ afterEach(cleanup);
 
 describe("CLI browser consent", () => {
   it("keeps the code through GitHub sign-in without approving automatically", async () => {
-    render(<CliAuthorize />);
+    render(<CliAuthorize />, { wrapper: MemoryRouter });
     fireEvent.click(
       screen.getByRole("button", { name: "Sign in with GitHub" }),
     );
@@ -60,7 +61,7 @@ describe("CLI browser consent", () => {
       expiresAt: Date.now() + 10000,
       used: false,
     };
-    render(<CliAuthorize />);
+    render(<CliAuthorize />, { wrapper: MemoryRouter });
     expect(screen.getByText("Developer terminal")).toBeDefined();
     expect(mocks.approve).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Approve connection" }));
@@ -85,7 +86,7 @@ describe("CLI browser consent", () => {
       approved: false,
       error: "This login code is invalid or expired.",
     });
-    render(<CliAuthorize />);
+    render(<CliAuthorize />, { wrapper: MemoryRouter });
     fireEvent.click(screen.getByRole("button", { name: "Approve connection" }));
     expect(await screen.findByRole("alert")).toBeDefined();
     expect(screen.queryByRole("status")).toBeNull();

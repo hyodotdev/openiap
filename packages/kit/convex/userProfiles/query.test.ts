@@ -48,6 +48,8 @@ function fixture() {
     userProfiles: profiles,
     organizationMembers: memberships,
     projects,
+    oauthGrants: [],
+    oauthCodes: [],
   };
   const db = {
     query: vi.fn((table: string) => ({

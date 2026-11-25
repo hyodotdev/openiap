@@ -37,6 +37,26 @@ describe("BoundedSessionStore", () => {
     );
   });
 
+  it("hides a session from other credentials without keeping it alive", () => {
+    let now = 0;
+    const store = new BoundedSessionStore<string>({
+      maxSize: 2,
+      idleTtlMs: 100,
+      now: () => now,
+      dispose: async () => undefined,
+    });
+    store.reserve("tenant", "owner-key")?.commit("session", "transport");
+
+    now = 60;
+    expect(store.get("session", "other-key")).toBeUndefined();
+    expect(store.get("session")).toBeUndefined();
+    now = 120;
+    expect(store.get("session", "owner-key")).toBeUndefined();
+
+    store.reserve("tenant", "owner-key")?.commit("fresh", "transport");
+    expect(store.get("fresh", "owner-key")).toBe("transport");
+  });
+
   it("evicts the least recently used session at the cap instead of refusing", async () => {
     let now = 0;
     const dispose = vi.fn(async () => undefined);

@@ -1,15 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const convexMock = vi.hoisted(() => ({ query: vi.fn() }));
-vi.mock("./convex", () => ({ client: { query: convexMock.query } }));
+const convexMock = vi.hoisted(() => ({ query: vi.fn(), mutation: vi.fn() }));
+vi.mock("./convex", () => ({
+  client: { query: convexMock.query, mutation: convexMock.mutation },
+}));
 
 const { handleIapKitMcpRequest } = await import("./mcp");
 
 const SECRET_KEY = "openiap-kit_sk_hosted";
+const ACCESS_TOKEN = "iapkit_oat_connector";
 
 describe("IAPKit MCP route handler", () => {
   beforeEach(() => {
+    vi.unstubAllEnvs();
     convexMock.query.mockReset();
+    convexMock.mutation.mockReset();
     convexMock.query.mockResolvedValue({
       found: true,
       projectId: "projects_1",
@@ -77,6 +82,66 @@ describe("IAPKit MCP route handler", () => {
     expect(toolNames).toContain("iapkit_sync_products");
     expect(toolNames).toContain("iapkit_sync_status");
     expect(toolNames).not.toContain("openiap_inspect_state");
+  });
+
+  it("serves a read-only OAuth grant its read tools and records the use", async () => {
+    vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "a".repeat(64));
+    convexMock.query.mockResolvedValue({
+      grantId: "a".repeat(32),
+      projectId: "projects_1",
+      scope: "read",
+      recordUse: true,
+    });
+    // Failing to record the use never blocks the call.
+    convexMock.mutation.mockRejectedValue(new Error("offline"));
+    const auth = { authorization: `Bearer ${ACCESS_TOKEN}` };
+
+    const init = await postMcp(INITIALIZE, undefined, auth);
+    expect(init.status).toBe(200);
+    const sessionId = init.headers.get("mcp-session-id") ?? undefined;
+    const tools = await postMcp(
+      { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
+      sessionId,
+      auth,
+    );
+    const names = parseSseJson(await tools.text()).result.tools.map(
+      (tool: { name: string }) => tool.name,
+    );
+
+    expect(names).toContain("iapkit_inspect_state");
+    expect(names).not.toContain("iapkit_set_client_payload_draft");
+    expect(convexMock.query).toHaveBeenCalledWith(expect.anything(), {
+      server: { issuedAt: expect.any(Number), mac: expect.any(String) },
+      accessToken: ACCESS_TOKEN,
+    });
+    expect(convexMock.mutation).toHaveBeenCalledWith(expect.anything(), {
+      server: { issuedAt: expect.any(Number), mac: expect.any(String) },
+      accessToken: ACCESS_TOKEN,
+    });
+  });
+
+  it("answers 401 for an unknown token or a server without its secret", async () => {
+    const auth = { authorization: `Bearer ${ACCESS_TOKEN}` };
+
+    vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "a".repeat(64));
+    convexMock.query.mockResolvedValue(null);
+    const unknown = await postMcp(INITIALIZE, undefined, auth);
+    expect(unknown.status).toBe(401);
+    expect(unknown.headers.get("www-authenticate")).toContain(
+      'error="invalid_token"',
+    );
+
+    // A Convex deployment with another secret refuses the server.
+    convexMock.query.mockRejectedValue(new Error("UNAUTHENTICATED"));
+    const refused = await postMcp(INITIALIZE, undefined, auth);
+    expect(refused.status).toBe(401);
+
+    convexMock.query.mockClear();
+    vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", undefined);
+    const unconfigured = await postMcp(INITIALIZE, undefined, auth);
+    expect(unconfigured.status).toBe(401);
+    expect(convexMock.query).not.toHaveBeenCalled();
+    expect(convexMock.mutation).not.toHaveBeenCalled();
   });
 
   it("returns 400 for invalid MCP JSON", async () => {

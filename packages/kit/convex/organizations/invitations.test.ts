@@ -78,6 +78,7 @@ function fixture() {
           return {
             first: async () => matching()[0] ?? null,
             take: async (n: number) => matching().slice(0, n),
+            collect: async () => matching(),
             paginate: async ({
               cursor,
               numItems,
