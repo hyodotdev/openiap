@@ -8,6 +8,7 @@ import { api, type Id } from "@/convex";
 import { BackLink } from "@/components/BackLink";
 import { Badge, type BadgeVariant } from "@/components/Badge";
 import { PageLoading } from "@/components/LoadingSpinner";
+import { Select } from "@/components/Select";
 import { convexErrorMessage } from "@/lib/appError";
 import { formatUtcDateTime } from "@/lib/utils";
 import { COMMERCE_EVENT_TYPES } from "../../../../../convex/commerce/contract";
@@ -84,32 +85,26 @@ export default function WebhookDeliveries() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <select
+        <Select
           aria-label="Filter by status"
           value={status ?? ""}
           onChange={(event) => setFilter("status", event.target.value)}
-          className="rounded border border-border bg-background px-2 py-1 text-sm"
-        >
-          <option value="">{"All statuses"}</option>
-          {DELIVERY_STATUSES.map((value) => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
-        <select
+          className="py-1 pl-2 text-sm"
+          options={[
+            { value: "", label: "All statuses" },
+            ...DELIVERY_STATUSES.map((value) => ({ value, label: value })),
+          ]}
+        />
+        <Select
           aria-label="Filter by event type"
           value={eventType ?? ""}
           onChange={(event) => setFilter("eventType", event.target.value)}
-          className="rounded border border-border bg-background px-2 py-1 text-sm"
-        >
-          <option value="">{"All event types"}</option>
-          {COMMERCE_EVENT_TYPES.map((value) => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
+          className="py-1 pl-2 text-sm"
+          options={[
+            { value: "", label: "All event types" },
+            ...COMMERCE_EVENT_TYPES.map((value) => ({ value, label: value })),
+          ]}
+        />
         {eventId || destinationId ? (
           <button
             type="button"

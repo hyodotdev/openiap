@@ -11,6 +11,7 @@ import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
 import { Modal } from "@/components/Modal";
+import { Select } from "@/components/Select";
 import { api, type Id } from "@/convex";
 import {
   closeProductClientPayloadEditor,
@@ -357,7 +358,7 @@ export function ProductClientPayloadDialog({
         <div className="grid gap-4 sm:grid-cols-[10rem_1fr]">
           <label className="text-xs" htmlFor="client-payload-format">
             <span className="mb-1 block text-muted-foreground">Format</span>
-            <select
+            <Select
               id="client-payload-format"
               value={format}
               disabled={isInputDisabled}
@@ -366,14 +367,9 @@ export function ProductClientPayloadDialog({
                 setBodyTouched(true);
                 setSubmitError(null);
               }}
-              className="w-full rounded border border-border bg-background px-2 py-1.5"
-            >
-              {FORMAT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              className="py-1.5 pl-2"
+              options={FORMAT_OPTIONS}
+            />
           </label>
           <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
             Edits go to a draft that apps never receive. Publish makes it the

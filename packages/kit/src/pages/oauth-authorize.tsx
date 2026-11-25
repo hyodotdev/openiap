@@ -5,6 +5,7 @@ import { api } from "@/convex";
 import type { Id } from "@/convex";
 import { ApprovalAlert, ApprovalCard } from "@/components/ApprovalCard";
 import { ApprovalSignIn } from "@/components/ApprovalSignIn";
+import { Select } from "@/components/Select";
 import { convexErrorMessage } from "@/lib/appError";
 import { CONNECTOR_CHANGES, CONNECTOR_READS } from "@/lib/connectorAccess";
 
@@ -103,19 +104,17 @@ export default function OauthAuthorize() {
           </p>
           <label className="block space-y-2">
             <span className="font-medium">Project</span>
-            <select
-              className="w-full rounded-lg border border-border bg-background p-3"
+            <Select
+              className="rounded-lg py-3 pl-3"
               value={selected}
               onChange={(event) =>
                 setProjectId(event.target.value as Id<"projects">)
               }
-            >
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.organizationName} / {project.name}
-                </option>
-              ))}
-            </select>
+              options={projects.map((project) => ({
+                value: project.id,
+                label: `${project.organizationName} / ${project.name}`,
+              }))}
+            />
           </label>
           <fieldset className="space-y-3">
             <legend className="mb-2 font-medium">Access</legend>

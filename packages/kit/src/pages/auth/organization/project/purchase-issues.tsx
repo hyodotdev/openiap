@@ -13,6 +13,7 @@ import { BackLink } from "@/components/BackLink";
 import { Badge } from "@/components/Badge";
 import { LoadingSpinner, PageLoading } from "@/components/LoadingSpinner";
 import { Modal } from "@/components/Modal";
+import { Select } from "@/components/Select";
 import {
   isPurchaseIssueCause,
   PURCHASE_ISSUE_CAUSES,
@@ -26,6 +27,7 @@ const FINGERPRINT_PREFIX = 16;
 const SHARED_ROW = "Shared by every failure of this store and cause";
 const inputClass =
   "rounded border border-border bg-background px-2 py-1 text-sm text-foreground";
+const FILTER_SELECT_CLASS = "py-1 pl-2 text-sm";
 
 export default function PurchaseIssues() {
   const { project } = useOutletContext<OutletContext>();
@@ -83,32 +85,28 @@ export default function PurchaseIssues() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <select
+        <Select
           aria-label="Filter by cause"
           value={cause ?? ""}
           onChange={(event) => setParam("cause", event.target.value)}
-          className={inputClass}
-        >
-          <option value="">{"All causes"}</option>
-          {Object.entries(PURCHASE_ISSUE_CAUSES).map(([value, { label }]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-        <select
+          className={FILTER_SELECT_CLASS}
+          options={[
+            { value: "", label: "All causes" },
+            ...Object.entries(PURCHASE_ISSUE_CAUSES).map(
+              ([value, { label }]) => ({ value, label }),
+            ),
+          ]}
+        />
+        <Select
           aria-label="Filter by store"
           value={store ?? ""}
           onChange={(event) => setParam("store", event.target.value)}
-          className={inputClass}
-        >
-          <option value="">{"All stores"}</option>
-          {COMMERCE_STORES.map((value) => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
+          className={FILTER_SELECT_CLASS}
+          options={[
+            { value: "", label: "All stores" },
+            ...COMMERCE_STORES.map((value) => ({ value, label: value })),
+          ]}
+        />
         <input
           aria-label="Filter by product ID"
           placeholder="Product ID"

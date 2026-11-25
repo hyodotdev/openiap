@@ -7,7 +7,6 @@ import {
   Loader2,
   Plus,
   RefreshCw,
-  ChevronDown,
   X,
   Trash2,
   AlertTriangle,
@@ -21,6 +20,7 @@ import { api } from "@/convex";
 import { PageLoading } from "@/components/LoadingSpinner";
 import { Modal } from "@/components/Modal";
 import { Tooltip } from "@/components/Tooltip";
+import { Select } from "@/components/Select";
 import { Badge, PlatformBadge } from "../../../../components/Badge";
 import { usdPriceToMicros } from "./productPrice";
 import type { ProductClientPayloadSummary } from "./clientPayload";
@@ -31,6 +31,15 @@ import {
 } from "./product-sync-result";
 import { ProductSyncFailureList } from "./product-sync-failure-list";
 import { resolveProductListingDraft } from "./product-localizations";
+
+const REGION_MODE_OPTIONS = [
+  {
+    value: "inherit",
+    label: "Keep the store's current regions (new products: everywhere)",
+  },
+  { value: "all", label: "Sell in every region the store prices" },
+  { value: "list", label: "Only these regions…" },
+];
 
 type DashboardProject = Omit<
   Doc<"projects">,
@@ -462,9 +471,10 @@ export default function ProjectProducts() {
             />
           </Field>
           <Field label="Platform">
-            <SelectWithChevron
+            <Select
+              className="py-1.5 pl-2"
               value={draft.platform}
-              onChange={(value) =>
+              onChange={({ target: { value } }) =>
                 setDraft({
                   ...draft,
                   platform: value as "IOS" | "Android",
@@ -477,9 +487,10 @@ export default function ProjectProducts() {
             />
           </Field>
           <Field label="Type">
-            <SelectWithChevron
+            <Select
+              className="py-1.5 pl-2"
               value={draft.type}
-              onChange={(value) =>
+              onChange={({ target: { value } }) =>
                 setDraft({
                   ...draft,
                   type: value as
@@ -508,9 +519,10 @@ export default function ProjectProducts() {
           </Field>
           {draft.type === "Subscription" && (
             <Field label="Billing period">
-              <SelectWithChevron
+              <Select
+                className="py-1.5 pl-2"
                 value={draft.billingPeriod}
-                onChange={(value) =>
+                onChange={({ target: { value } }) =>
                   setDraft({
                     ...draft,
                     billingPeriod: value as
@@ -581,19 +593,14 @@ export default function ProjectProducts() {
         </div>
         {supportsSalesRegions && (
           <Field label="Sales regions">
-            <select
+            <Select
               value={regionMode}
               onChange={(e) =>
                 setRegionMode(e.target.value as "inherit" | "all" | "list")
               }
-              className="w-full px-2 py-1.5 rounded border border-border bg-background"
-            >
-              <option value="inherit">
-                Keep the store's current regions (new products: everywhere)
-              </option>
-              <option value="all">Sell in every region the store prices</option>
-              <option value="list">Only these regions…</option>
-            </select>
+              className="py-1.5 pl-2"
+              options={REGION_MODE_OPTIONS}
+            />
             {regionMode === "list" && (
               <input
                 value={regionsInput}
@@ -1514,33 +1521,5 @@ function Field({
       <span className="block text-muted-foreground mb-1">{label}</span>
       {children}
     </label>
-  );
-}
-
-// `appearance-none` hides the native arrow; a padded ChevronDown replaces it.
-function SelectWithChevron({
-  value,
-  onChange,
-  options,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  options: Array<{ value: string; label: string }>;
-}) {
-  return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full appearance-none px-2 pr-8 py-1.5 rounded border border-border bg-background"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-      <ChevronDown className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-    </div>
   );
 }
