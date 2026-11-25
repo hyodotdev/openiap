@@ -25,7 +25,7 @@ const RELEASES: ReleaseEntry[] = [
   {
     id: "week-2026-11-23",
     weekStart: "2026-11-23",
-    date: "2026-11-25",
+    date: "2026-11-26",
     pullRequests: [629, 631],
     tagline:
       "A security update for the IAPKit runtime image, and product API mistakes answer with documented errors instead of 500.",
