@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHmac, randomBytes, randomUUID } from "node:crypto";
 
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
@@ -392,8 +392,13 @@ function unknownSessionResponse(
   );
 }
 
+// Keyed per process, so a fingerprint cannot be checked against guessed keys.
+const CREDENTIAL_FINGERPRINT_KEY = randomBytes(32);
+
 function credentialFingerprint(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
+  return createHmac("sha256", CREDENTIAL_FINGERPRINT_KEY)
+    .update(token)
+    .digest("hex");
 }
 
 function parseBearerToken(authorization: string | null): string | null {
