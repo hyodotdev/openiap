@@ -5,42 +5,15 @@ import { EnvironmentBadge } from "@/components/EnvironmentBadge";
 import { NotReported } from "@/components/NotReported";
 import { Tooltip } from "@/components/Tooltip";
 import { cn } from "@/lib/utils";
-import {
-  Apple,
-  CheckCircle2,
-  Headset,
-  Loader2,
-  Play,
-  ShoppingBag,
-  XCircle,
-} from "lucide-react";
+import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import type { HarmonizedPurchaseState } from "@/convex";
 import {
   formatReceiptDate,
   getPurchaseStateDisplay,
   NO_PRODUCT_REASON,
+  storeIndicatorConfig,
+  type StoreIndicatorKey,
 } from "./receipt-utils";
-
-const storeIndicatorConfig = {
-  apple: {
-    icon: Apple,
-    label: "App Store",
-  },
-  google: {
-    icon: Play,
-    label: "Google Play",
-  },
-  horizon: {
-    icon: Headset,
-    label: "Meta Horizon",
-  },
-  amazon: {
-    icon: ShoppingBag,
-    label: "Amazon Appstore",
-  },
-} as const;
-
-type StoreIndicatorKey = keyof typeof storeIndicatorConfig;
 
 // Inner gutters are narrower than the card's so nine columns fit.
 const CELL = "py-4 px-4 first:pl-6 last:pr-6";

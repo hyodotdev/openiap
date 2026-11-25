@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -70,7 +71,10 @@ describe("PurchasesTable", () => {
     expect(withProduct.textContent).toBe("premium_monthly");
     expect(without.textContent).toBe("Not reported");
 
-    fireEvent.focus(within(without).getByText("Not reported"));
+    // A real focus: it only lands if the trigger is keyboard-focusable.
+    const trigger = within(without).getByText("Not reported");
+    act(() => trigger.focus());
+    expect(document.activeElement).toBe(trigger);
     expect(screen.getByRole("tooltip").textContent).toMatch(
       /returned no product/,
     );

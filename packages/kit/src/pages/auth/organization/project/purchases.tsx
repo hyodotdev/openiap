@@ -9,9 +9,14 @@ import {
 import { useQuery } from "convex/react";
 import { api, HarmonizedPurchaseState, Id } from "@/convex";
 import { PageLoading } from "@/components/LoadingSpinner";
-import { cn, utcDayEnd, utcDayStart } from "@/lib/utils";
-import { AlertTriangle, History, Search } from "lucide-react";
-import { getPurchaseStateDisplay } from "./receipt-utils";
+import { utcDayEnd, utcDayStart } from "@/lib/utils";
+import { AlertTriangle, History, Search, X } from "lucide-react";
+import {
+  getPurchaseStateDisplay,
+  storeIndicatorConfig,
+  type StoreIndicatorKey,
+} from "./receipt-utils";
+import { PurchasesSummary, type PurchaseStats } from "./PurchasesSummary";
 import { PurchasesTable } from "./PurchasesTable";
 import { Select, Input } from "antd";
 import { MixpanelEvent, trackEvent } from "@/lib/mixpanel";
@@ -28,45 +33,15 @@ interface OutletContext {
   project: ProjectData;
 }
 
-type PurchaseStats = {
-  total: number;
-  apple: number;
-  google: number;
-  horizon: number;
-  amazon: number;
-  // Count of distinct Play Console orderIds across the project's Google
-  // purchases. Diverges from `google` when pending-acknowledgement or
-  // error rows exist (those inflate `google` but carry no orderId).
-  // Used by the "Google Play" card only so customers see Play
-  // Console-matching numbers there instead of validation-call counts;
-  // the "Total" / "Valid" / "Invalid" cards still use the raw row
-  // counts on `stats.total` / `stats.valid` / `stats.invalid` so
-  // `total === valid + invalid` continues to hold and Horizon rows
-  // stay represented in the total.
-  googleOrders: number;
-  valid: number;
-  invalid: number;
-};
-
-type CardKey =
-  | "total"
-  | "apple"
-  | "google"
-  | "horizon"
-  | "amazon"
-  | "valid"
-  | "invalid";
-type StoreFilter = "apple" | "google" | "horizon" | "amazon";
-
-const STATS_LABELS: Record<CardKey, string> = {
-  total: "Total Purchases",
-  apple: "App Store",
-  google: "Google Play",
-  horizon: "Meta Horizon",
-  amazon: "Amazon Appstore",
-  valid: "Valid",
-  invalid: "Invalid",
-};
+// Sorting and paging live in the URL too, but do not narrow the list.
+const NON_FILTER_PARAMS = [
+  "sortField",
+  "sortDirection",
+  "cursor",
+  "cursorStack",
+];
+// Two to a row on a phone, natural width from `sm`.
+const FILTER_CONTROL = "min-w-[9rem] flex-1 sm:w-40 sm:flex-none";
 
 export default function ProjectPurchases() {
   const PAGE_SIZE = 25;
@@ -208,19 +183,6 @@ export default function ProjectPurchases() {
     };
   }, [activePurchases]);
 
-  // Only Google has a separate stable order identifier. Its card uses the
-  // distinct order count; the other store cards use persisted purchase rows.
-  // Total / Valid / Invalid remain row counts so their arithmetic stays exact.
-  const cardValues: Record<CardKey, number> = {
-    total: stats.total,
-    apple: stats.apple,
-    google: stats.googleOrders,
-    horizon: stats.horizon,
-    amazon: stats.amazon,
-    valid: stats.valid,
-    invalid: stats.invalid,
-  };
-
   const purchasePage: PurchaseRow[] = activePurchases?.page ?? [];
 
   const isInitialLoading = !paginatedPurchases && !cachedPurchases;
@@ -261,7 +223,7 @@ export default function ProjectPurchases() {
     setExclusiveFilters({});
   };
 
-  const applyStoreFilter = (store: StoreFilter) => {
+  const applyStoreFilter = (store: StoreIndicatorKey) => {
     setExclusiveFilters({ store });
   };
 
@@ -313,20 +275,14 @@ export default function ProjectPurchases() {
     return <PageLoading />;
   }
 
-  const statKeys: CardKey[] = [
-    "total",
-    "apple",
-    "google",
-    "horizon",
-    "amazon",
-    "valid",
-    "invalid",
-  ];
+  const hasFilters = [...searchParams.keys()].some(
+    (key) => !NON_FILTER_PARAMS.includes(key),
+  );
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3 sm:flex-nowrap">
+        <div className="min-w-0 max-w-3xl">
           <h2 className="text-2xl font-bold mb-1">{"Purchases"}</h2>
           <p className="text-muted-foreground">
             {
@@ -343,118 +299,33 @@ export default function ProjectPurchases() {
         </Link>
       </div>
 
-      <p className="text-xs text-muted-foreground -mt-4">
-        {
-          "Google Play counts distinct Play Console orders. Other store cards count persisted purchase rows."
-        }
-      </p>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {statKeys.map((statKey) => {
-          // Determine which card matches the currently-active filter
-          // so the selected card is visually distinct from hover (the
-          // prior styling only highlighted on hover, so users couldn't
-          // tell which card they had already clicked).
-          const storeCard: StoreFilter | undefined =
-            statKey === "apple" ||
-            statKey === "google" ||
-            statKey === "horizon" ||
-            statKey === "amazon"
-              ? statKey
-              : undefined;
-          const isActive =
-            statKey === "total"
-              ? !storeFilter && isValidFilter === undefined
-              : storeCard
-                ? storeFilter === storeCard
-                : statKey === "valid"
-                  ? isValidFilter === true
-                  : isValidFilter === false;
-          const applyCardFilter = () => {
-            if (statKey === "total") {
-              resetFilters();
-            } else if (storeCard) {
-              applyStoreFilter(storeCard);
-            } else {
-              applyValidityFilter(statKey === "valid");
-            }
-          };
-          return (
-            <div
-              key={statKey}
-              className={cn(
-                "bg-card border rounded-xl p-4 shadow-sm",
-                "cursor-pointer transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                isActive
-                  ? "border-primary ring-2 ring-primary/20"
-                  : "border-border hover:border-primary/50",
-              )}
-              role="button"
-              aria-pressed={isActive}
-              tabIndex={0}
-              onClick={applyCardFilter}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  applyCardFilter();
-                }
-              }}
-              aria-label={STATS_LABELS[statKey]}
-            >
-              <p className="text-sm text-muted-foreground">
-                {STATS_LABELS[statKey]}
-              </p>
-              <p
-                className={cn(
-                  "text-3xl font-semibold mt-2",
-                  statKey === "valid" && "text-success",
-                  statKey === "invalid" && "text-danger",
-                )}
-              >
-                {cardValues[statKey].toLocaleString()}
-              </p>
-            </div>
-          );
-        })}
-      </div>
+      <PurchasesSummary
+        stats={stats}
+        storeFilter={storeFilter}
+        isValidFilter={isValidFilter}
+        onReset={resetFilters}
+        onStore={applyStoreFilter}
+        onValidity={applyValidityFilter}
+      />
 
       <div className="bg-card border border-border rounded-xl shadow-sm">
-        <div className="p-6 border-b border-border flex flex-col gap-3 w-full xl:flex-row xl:items-center">
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-muted-foreground">{"Store"}</label>
+        <div className="flex flex-wrap items-center gap-2 border-b border-border p-4">
+          <div className={FILTER_CONTROL}>
             <Select
+              aria-label="Store"
               value={storeFilter ?? undefined}
-              onChange={(value) =>
-                setFilters({
-                  store: value || null,
-                })
-              }
-              placeholder={"All"}
+              onChange={(value) => setFilters({ store: value || null })}
+              placeholder={"All stores"}
               allowClear
-              className="min-w-[140px]"
-              options={[
-                {
-                  value: "apple",
-                  label: "App Store",
-                },
-                {
-                  value: "google",
-                  label: "Google Play",
-                },
-                {
-                  value: "horizon",
-                  label: "Meta Horizon",
-                },
-                {
-                  value: "amazon",
-                  label: "Amazon Appstore",
-                },
-              ]}
+              className="w-full"
+              options={Object.entries(storeIndicatorConfig).map(
+                ([value, { label }]) => ({ value, label }),
+              )}
             />
           </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-muted-foreground">{"Status"}</label>
+          <div className={FILTER_CONTROL}>
             <Select
+              aria-label="Validity"
               value={
                 isValidFilter === undefined
                   ? undefined
@@ -462,101 +333,84 @@ export default function ProjectPurchases() {
                     ? "true"
                     : "false"
               }
-              onChange={(value) =>
-                setFilters({
-                  isValid: value || null,
-                })
-              }
-              placeholder={"All"}
+              onChange={(value) => setFilters({ isValid: value || null })}
+              placeholder={"Valid and invalid"}
               allowClear
-              className="min-w-[140px]"
+              className="w-full"
               options={[
-                {
-                  value: "true",
-                  label: "Valid",
-                },
-                {
-                  value: "false",
-                  label: "Invalid",
-                },
+                { value: "true", label: "Valid" },
+                { value: "false", label: "Invalid" },
               ]}
             />
           </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-muted-foreground">{"State"}</label>
+          <div className={FILTER_CONTROL}>
             <Select
+              aria-label="Verified state"
               value={stateFilter ?? undefined}
-              onChange={(value) =>
-                setFilters({
-                  state: value || null,
-                })
-              }
-              placeholder={"All"}
+              onChange={(value) => setFilters({ state: value || null })}
+              placeholder={"All states"}
               allowClear
-              className="min-w-[140px]"
+              className="w-full"
               options={(
                 Object.values(
                   HarmonizedPurchaseState,
                 ) as HarmonizedPurchaseState[]
-              ).map((state) => {
-                const { label } = getPurchaseStateDisplay(state);
-                return {
-                  value: state,
-                  label,
-                };
-              })}
+              ).map((state) => ({
+                value: state,
+                label: getPurchaseStateDisplay(state).label,
+              }))}
             />
           </div>
-          <div className="w-full xl:w-72">
+          <div className={FILTER_CONTROL}>
             <Input
-              prefix={<Search className="w-4 h-4 text-muted-foreground" />}
-              value={requestIpQuery}
-              onChange={(event) =>
-                setFilters({
-                  ip: event.target.value,
-                })
-              }
-              placeholder={"Search by request IP..."}
+              aria-label="Filter by product ID"
+              className="w-full"
+              value={searchParams.get("product") ?? ""}
+              onChange={(event) => setFilters({ product: event.target.value })}
+              placeholder={"Product ID"}
               allowClear
             />
           </div>
-        </div>
-
-        <div className="px-6 py-4 border-b border-border flex flex-wrap items-center gap-3">
-          <Input
-            aria-label="Filter by app user ID"
-            className="w-full sm:w-56"
-            value={searchParams.get("user") ?? ""}
-            onChange={(event) => setFilters({ user: event.target.value })}
-            placeholder={"App user ID"}
-            allowClear
-          />
-          <Input
-            aria-label="Filter by product ID"
-            className="w-full sm:w-56"
-            value={searchParams.get("product") ?? ""}
-            onChange={(event) => setFilters({ product: event.target.value })}
-            placeholder={"Product ID"}
-            allowClear
-          />
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            {"From"}
+          <div className={FILTER_CONTROL}>
+            <Input
+              aria-label="Filter by app user ID"
+              className="w-full"
+              value={searchParams.get("user") ?? ""}
+              onChange={(event) => setFilters({ user: event.target.value })}
+              placeholder={"App user ID"}
+              allowClear
+            />
+          </div>
+          <div className={FILTER_CONTROL}>
+            <Input
+              aria-label="Search by request IP"
+              className="w-full"
+              prefix={<Search className="w-4 h-4 text-muted-foreground" />}
+              value={requestIpQuery}
+              onChange={(event) => setFilters({ ip: event.target.value })}
+              placeholder={"Request IP"}
+              allowClear
+            />
+          </div>
+          <div className="flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-2 text-sm">
             <input
               type="date"
+              aria-label="Created from"
               value={createdFromDay}
               onChange={(event) => setFilters({ from: event.target.value })}
-              className="rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
+              className="bg-transparent text-foreground outline-none"
             />
-          </label>
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            {"To"}
+            <span className="text-muted-foreground" aria-hidden="true">
+              {"–"}
+            </span>
             <input
               type="date"
+              aria-label="Created to"
               value={createdToDay}
               onChange={(event) => setFilters({ to: event.target.value })}
-              className="rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
+              className="bg-transparent text-foreground outline-none"
             />
-          </label>
+          </div>
           {appUserIdFilter ? (
             <button
               type="button"
@@ -565,10 +419,20 @@ export default function ProjectPurchases() {
                   `/${orgSlug}/project/${projectSlug}/purchases/user/${encodeURIComponent(appUserIdFilter)}`,
                 )
               }
-              className="inline-flex items-center gap-1.5 rounded border border-border px-2 py-1 text-xs font-medium hover:bg-muted"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-sm font-medium hover:bg-muted"
             >
               <History className="h-3.5 w-3.5" />
               {"User timeline"}
+            </button>
+          ) : null}
+          {hasFilters ? (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="ml-auto inline-flex h-8 items-center gap-1 rounded-md px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+              {"Clear filters"}
             </button>
           ) : null}
         </div>

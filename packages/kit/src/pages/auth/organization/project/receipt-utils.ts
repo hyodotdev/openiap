@@ -1,7 +1,29 @@
+import { Apple, Headset, Play, ShoppingBag } from "lucide-react";
 import type { BadgeVariant } from "@/components/Badge";
 import { HarmonizedPurchaseState } from "@/convex";
 
 export const FALLBACK_VALUE = "—";
+
+export const storeIndicatorConfig = {
+  apple: {
+    icon: Apple,
+    label: "App Store",
+  },
+  google: {
+    icon: Play,
+    label: "Google Play",
+  },
+  horizon: {
+    icon: Headset,
+    label: "Meta Horizon",
+  },
+  amazon: {
+    icon: ShoppingBag,
+    label: "Amazon Appstore",
+  },
+} as const;
+
+export type StoreIndicatorKey = keyof typeof storeIndicatorConfig;
 
 export const NO_PRODUCT_REASON =
   "The store returned no product for this purchase, usually because it did not recognize the receipt.";

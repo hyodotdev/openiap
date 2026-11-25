@@ -40,6 +40,37 @@
   }
 }
 
+/* One scrollbar for every scroller: thin, no track, a thumb in the text
+ * colour. Browsers that honour `scrollbar-color` ignore the WebKit rules. */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--foreground) 22%, transparent)
+      transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--foreground) 22%, transparent);
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--foreground) 38%, transparent);
+    background-clip: content-box;
+  }
+}
+
 @layer base {
   :root {
     /* IAPKit brand: mocha primary and coral accent, from hyo.dev. */
