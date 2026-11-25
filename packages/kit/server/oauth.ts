@@ -178,14 +178,16 @@ oauthRoutes.post("/oauth/token", tokenRateLimit, formLimit, async (c) => {
         },
         400,
       );
-    tokens = await client.mutation(api.oauth.mutation.exchange, {
-      server,
-      code,
-      codeVerifier,
-      clientId,
-      redirectUri,
-      resource: field("resource"),
-    });
+    tokens = await client
+      .mutation(api.oauth.mutation.exchange, {
+        server,
+        code,
+        codeVerifier,
+        clientId,
+        redirectUri,
+        resource: field("resource"),
+      })
+      .catch(() => undefined);
   } else if (grantType === "refresh_token") {
     const refreshToken = field("refresh_token");
     if (!refreshToken)
@@ -196,14 +198,18 @@ oauthRoutes.post("/oauth/token", tokenRateLimit, formLimit, async (c) => {
         },
         400,
       );
-    tokens = await client.mutation(api.oauth.mutation.refresh, {
-      server,
-      refreshToken,
-      clientId: field("client_id"),
-    });
+    tokens = await client
+      .mutation(api.oauth.mutation.refresh, {
+        server,
+        refreshToken,
+        clientId: field("client_id"),
+      })
+      .catch(() => undefined);
   } else {
     return c.json({ error: "unsupported_grant_type" }, 400);
   }
+  // Undefined: Convex refused the call, e.g. its secret differs from ours.
+  if (tokens === undefined) return unavailable(c);
   return tokens ? c.json(tokens) : c.json({ error: "invalid_grant" }, 400);
 });
 
@@ -213,8 +219,11 @@ oauthRoutes.post("/oauth/revoke", tokenRateLimit, formLimit, async (c) => {
   const server = await oauthServerProof();
   if (!server) return unavailable(c);
   const { client } = await import("./convex");
-  await client.mutation(api.oauth.mutation.revoke, { server, token });
-  return c.body(null, 200);
+  const revoked = await client
+    .mutation(api.oauth.mutation.revoke, { server, token })
+    .then(() => true)
+    .catch(() => false);
+  return revoked ? c.body(null, 200) : unavailable(c);
 });
 
 // The consent page is the SPA's; everything else here is a real 404.

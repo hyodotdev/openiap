@@ -130,6 +130,11 @@ describe("IAPKit MCP route handler", () => {
       'error="invalid_token"',
     );
 
+    // A Convex deployment with another secret refuses the server.
+    convexMock.query.mockRejectedValue(new Error("UNAUTHENTICATED"));
+    const refused = await postMcp(INITIALIZE, undefined, auth);
+    expect(refused.status).toBe(401);
+
     convexMock.query.mockClear();
     vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", undefined);
     const unconfigured = await postMcp(INITIALIZE, undefined, auth);

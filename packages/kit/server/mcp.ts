@@ -28,10 +28,10 @@ export const handleIapKitMcpRequest = createIapKitWebMcpHandler({
       const server = await oauthServerProof();
       if (!server) return null;
       const { client } = await import("./convex");
-      const grant = await client.query(api.oauth.query.authenticate, {
-        server,
-        accessToken,
-      });
+      // A Convex secret that differs from the server's reads as no grant.
+      const grant = await client
+        .query(api.oauth.query.authenticate, { server, accessToken })
+        .catch(() => null);
       if (grant?.recordUse)
         void client
           .mutation(api.oauth.mutation.markUsed, { server, accessToken })

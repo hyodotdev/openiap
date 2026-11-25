@@ -288,4 +288,26 @@ describe("OAuth endpoints for connectors", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(convexMock.mutation).not.toHaveBeenCalled();
   });
+
+  it("answers 503 when Convex refuses the server", async () => {
+    convexMock.mutation.mockRejectedValue(new Error("UNAUTHENTICATED"));
+    const requests: Record<string, string>[] = [
+      {
+        grant_type: "authorization_code",
+        code: "c",
+        code_verifier: "v",
+        client_id: "https://claude.ai/oauth/x",
+        redirect_uri: "https://claude.ai/api/mcp/auth_callback",
+      },
+      { grant_type: "refresh_token", refresh_token: "r" },
+    ];
+    for (const fields of requests) {
+      const response = await form("/oauth/token", fields);
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toMatchObject({
+        error: "temporarily_unavailable",
+      });
+    }
+    expect((await form("/oauth/revoke", { token: "r" })).status).toBe(503);
+  });
 });

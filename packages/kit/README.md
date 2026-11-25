@@ -174,7 +174,7 @@ that origin as `IAPKIT_PUBLIC_BASE_URL` in `.env.local` and on the dev
 deployment (`bunx convex env set`), point the dev `SITE_URL` at it, and start
 the server with `IAPKIT_BASE_URL=http://localhost:3000` so MCP tools call this
 server rather than the hosted one. Without the verification secret from
-above, every connector call fails with `invalid_token`. Afterwards, restore
+above, the token endpoint answers `503 temporarily_unavailable`. Afterwards, restore
 `SITE_URL` to `http://localhost:5173` and remove `IAPKIT_PUBLIC_BASE_URL` from
 `.env.local` and the dev deployment (`bunx convex env remove
 IAPKIT_PUBLIC_BASE_URL`); it also sets Google Pub/Sub audiences and CLI login
