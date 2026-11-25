@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/Badge";
 import { EnvironmentBadge } from "@/components/EnvironmentBadge";
+import { NotReported } from "@/components/NotReported";
+import { Tooltip } from "@/components/Tooltip";
 import { cn } from "@/lib/utils";
 import {
   Apple,
@@ -13,7 +15,11 @@ import {
   XCircle,
 } from "lucide-react";
 import type { HarmonizedPurchaseState } from "@/convex";
-import { formatReceiptDate, getPurchaseStateDisplay } from "./receipt-utils";
+import {
+  formatReceiptDate,
+  getPurchaseStateDisplay,
+  NO_PRODUCT_REASON,
+} from "./receipt-utils";
 
 const storeIndicatorConfig = {
   apple: {
@@ -84,14 +90,16 @@ const renderStoreIndicator = (store: string, label: string) => {
     return <span className="font-mono text-xs whitespace-nowrap">{store}</span>;
   }
   const Icon = config.icon;
+  // To the right: the scrolling table would clip a tooltip above or below.
   return (
-    <span
-      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-muted/40"
-      aria-label={label}
-      title={label}
-    >
-      <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-    </span>
+    <Tooltip content={label} side="right" align="center" widthClass="w-max">
+      <span
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-muted/40"
+        aria-label={label}
+      >
+        <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+      </span>
+    </Tooltip>
   );
 };
 
@@ -269,14 +277,18 @@ export function PurchasesTable({
                         {label}
                       </Badge>
                     </td>
-                    <td className="py-4 px-6 font-mono text-xs whitespace-nowrap">
+                    <td className="py-4 px-6">
                       {renderStoreIndicator(purchase.store, storeLabel)}
                     </td>
                     <td className="py-4 px-6">
                       <EnvironmentBadge environment={purchase.environment} />
                     </td>
-                    <td className="py-4 px-6 font-mono text-xs">
-                      {purchase.productId ?? "N/A"}
+                    <td className="py-4 px-6 text-xs">
+                      {purchase.productId ? (
+                        <span className="font-mono">{purchase.productId}</span>
+                      ) : (
+                        <NotReported reason={NO_PRODUCT_REASON} />
+                      )}
                     </td>
                     <td className="py-4 px-6 font-mono text-xs whitespace-nowrap">
                       {purchase.requestIp ?? "N/A"}

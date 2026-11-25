@@ -5,11 +5,16 @@ import { api, Id } from "@/convex";
 import { BackLink } from "@/components/BackLink";
 import { Badge } from "@/components/Badge";
 import { EnvironmentBadge } from "@/components/EnvironmentBadge";
+import { NotReported } from "@/components/NotReported";
 import { PageLoading } from "@/components/LoadingSpinner";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, XCircle, Copy, ClipboardCheck } from "lucide-react";
 import { ResyncFromStoreButton } from "@/components/ResyncFromStoreButton";
-import { FALLBACK_VALUE, getPurchaseStateDisplay } from "./receipt-utils";
+import {
+  FALLBACK_VALUE,
+  getPurchaseStateDisplay,
+  NO_PRODUCT_REASON,
+} from "./receipt-utils";
 
 interface ProjectData {
   _id: Id<"projects">;
@@ -350,9 +355,15 @@ export default function PurchaseDetail() {
             <p className="text-xs uppercase text-muted-foreground">
               {"Product ID"}
             </p>
-            <p className="text-lg font-semibold mt-2 font-mono text-sm text-muted-foreground">
-              {purchase.productId ?? FALLBACK_VALUE}
-            </p>
+            {purchase.productId ? (
+              <p className="text-lg font-semibold mt-2 font-mono text-sm text-muted-foreground">
+                {purchase.productId}
+              </p>
+            ) : (
+              <div className="mt-2">
+                <NotReported reason={NO_PRODUCT_REASON} />
+              </div>
+            )}
           </div>
         </div>
       </div>

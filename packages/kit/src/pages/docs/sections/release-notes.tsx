@@ -56,6 +56,11 @@ const RELEASES: ReleaseEntry[] = [
         text: "The Purchases list and purchase detail show Sandbox or Production for each purchase, including ones verified earlier, or Not reported when the store's response does not say, as with Meta Horizon.",
       },
       {
+        kind: "feature",
+        topic: "Dashboard",
+        text: "In the Purchases list, hovering a store icon names the store, and a purchase the store returned no product for reads Not reported instead of N/A.",
+      },
+      {
         kind: "fix",
         topic: "Claude and ChatGPT connectors",
         text: "The hosted MCP server names the IAPKit icon, and kit.openiap.dev serves it as a PNG and favicon.ico, so connectors stop falling back to the OpenIAP icon.",

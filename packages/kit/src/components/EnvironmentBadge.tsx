@@ -1,4 +1,5 @@
 import { Badge } from "@/components/Badge";
+import { NotReported } from "@/components/NotReported";
 
 /** A purchase's store environment; "Not reported" when the store did not say. */
 export function EnvironmentBadge({
@@ -8,12 +9,7 @@ export function EnvironmentBadge({
 }) {
   if (!environment) {
     return (
-      <span
-        className="whitespace-nowrap text-xs text-muted-foreground"
-        title="The store's response does not say whether this purchase is sandbox or production."
-      >
-        {"Not reported"}
-      </span>
+      <NotReported reason="The store's response does not say whether this purchase is sandbox or production." />
     );
   }
   return (

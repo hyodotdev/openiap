@@ -3,6 +3,9 @@ import { HarmonizedPurchaseState } from "@/convex";
 
 export const FALLBACK_VALUE = "—";
 
+export const NO_PRODUCT_REASON =
+  "The store returned no product for this purchase, usually because it did not recognize the receipt.";
+
 export function formatReceiptDate(
   timestamp?: number | null,
   options: Intl.DateTimeFormatOptions = {
