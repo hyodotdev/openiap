@@ -74,19 +74,16 @@ export default function ProjectIndex() {
       id: "orders",
       label: "Orders",
       icon: ReceiptText,
-      badge: "Beta",
     },
     {
       id: "analytics",
       label: "Analytics",
       icon: BarChart3,
-      badge: "Beta",
     },
     {
       id: "products",
       label: "Products",
       icon: Layers,
-      badge: "Beta",
     },
     {
       id: "webhooks",

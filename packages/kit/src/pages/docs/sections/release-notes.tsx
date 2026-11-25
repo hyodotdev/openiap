@@ -66,6 +66,11 @@ const RELEASES: ReleaseEntry[] = [
         text: "Purchases shows its totals in one summary with a bar per store and its filters in one toolbar, Order lookup is a single search bar, and project tabs and scrollbars are quieter.",
       },
       {
+        kind: "feature",
+        topic: "Dashboard",
+        text: "The Orders, Analytics and Products tabs no longer carry a Beta label; Webhooks keeps it.",
+      },
+      {
         kind: "fix",
         topic: "Claude and ChatGPT connectors",
         text: "The hosted MCP server names the IAPKit icon, and kit.openiap.dev serves it as a PNG and favicon.ico, so connectors stop falling back to the OpenIAP icon.",
