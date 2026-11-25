@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
@@ -164,7 +164,7 @@ export function createIapKitWebMcpHandler(
 
       // A session answers only the credential that opened it. For an OAuth
       // connector that is its grant's, so a refreshed access token keeps it.
-      const credential = credentialFingerprint(authInfo.token);
+      const credential = authInfo.token;
       if (request.method === "POST") {
         const response = await handlePost(request, {
           transports,
@@ -390,15 +390,6 @@ function unknownSessionResponse(
     -32001,
     "Session not found — initialize a new MCP session.",
   );
-}
-
-// Keyed per process, so a fingerprint cannot be checked against guessed keys.
-const CREDENTIAL_FINGERPRINT_KEY = randomBytes(32);
-
-function credentialFingerprint(token: string): string {
-  return createHmac("sha256", CREDENTIAL_FINGERPRINT_KEY)
-    .update(token)
-    .digest("hex");
 }
 
 function parseBearerToken(authorization: string | null): string | null {
