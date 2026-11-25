@@ -92,7 +92,8 @@ describe("IAPKit MCP route handler", () => {
       scope: "read",
       recordUse: true,
     });
-    convexMock.mutation.mockResolvedValue(null);
+    // Failing to record the use never blocks the call.
+    convexMock.mutation.mockRejectedValue(new Error("offline"));
     const auth = { authorization: `Bearer ${ACCESS_TOKEN}` };
 
     const init = await postMcp(INITIALIZE, undefined, auth);

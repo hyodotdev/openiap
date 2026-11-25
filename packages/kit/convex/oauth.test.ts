@@ -974,6 +974,15 @@ describe("OAuth connectors", () => {
         request: REQUEST,
       }),
     ).toEqual({ error: expect.stringMatching(/browser/) });
+    await expect(
+      cli.mutation(api.oauth.mutation.approve, {
+        request: REQUEST,
+        state: "s1",
+        allow: true,
+        projectId: f.projectId,
+        scope: "write",
+      }),
+    ).rejects.toThrow("INSUFFICIENT_SCOPE");
     expect(
       await f.owner.query(api.oauth.query.listProjectGrants, {
         projectId: f.projectId,

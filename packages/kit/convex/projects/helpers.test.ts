@@ -155,6 +155,7 @@ describe("deleteProjectWithData", () => {
       productSyncJobs: rows("product_job", { result: "large" }),
       purchaseStats: rows("purchase_stats"),
       verificationAdmissionBuckets: rows("admission_bucket"),
+      oauthGrants: rows("oauth_grant"),
     });
     const scheduler = { runAfter: vi.fn().mockResolvedValue(undefined) };
     const storage = { delete: vi.fn().mockResolvedValue(undefined) };
@@ -168,7 +169,7 @@ describe("deleteProjectWithData", () => {
     }
 
     expect(complete).toBe(true);
-    expect(calls).toBe(51);
+    expect(calls).toBe(53);
     expect(scheduler.runAfter).toHaveBeenCalledTimes(calls - 1);
     expect(db.takeSizes.every((size) => size === 10)).toBe(true);
     for (const [table, tableRows] of Object.entries(db.tables)) {
