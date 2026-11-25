@@ -7,6 +7,7 @@ on:
       - ".github/workflows/ci-godot-iap.yml"
       - ".github/workflows/release-godot.yml"
       - "scripts/ci/retry-gradle.sh"
+      - ".github/actions/setup-gradle/**"
       - "scripts/fetch-godot-lib.sh"
       - "scripts/ci/godot-versions.sh"
       - ".github/actions/setup-xcode/action.yml"
@@ -30,6 +31,7 @@ on:
       - ".github/workflows/ci-godot-iap.yml"
       - ".github/workflows/release-godot.yml"
       - "scripts/ci/retry-gradle.sh"
+      - ".github/actions/setup-gradle/**"
       - "scripts/fetch-godot-lib.sh"
       - "scripts/ci/godot-versions.sh"
       - ".github/actions/setup-xcode/action.yml"
@@ -86,7 +88,7 @@ jobs:
           distribution: "temurin"
           java-version-file: .java-version
 
-      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6
+      - uses: ./.github/actions/setup-gradle
 
       - name: Verify plugin files exist
         run: |

@@ -5821,6 +5821,23 @@ function checkFrameworkDependencyHygiene() {
       `${xcodeWorkflow} must not drift from the shared Xcode pin`,
     );
   }
+  // Raw setup-gradle skips the Maven Central mirror, and its 429s come back.
+  for (const gradleWorkflow of [
+    ".github/workflows/ci.yml",
+    ".github/workflows/ci-expo-iap.yml",
+    ".github/workflows/ci-flutter-inapp-purchase.yml",
+    ".github/workflows/ci-godot-iap.yml",
+    ".github/workflows/ci-kmp-iap.yml",
+    ".github/workflows/ci-maui-iap.yml",
+    ".github/workflows/ci-react-native-iap.yml",
+    ".github/workflows/codeql.yml",
+  ]) {
+    expectNotIncludes(
+      gradleWorkflow,
+      ["uses: gradle/actions/setup-gradle@"],
+      `${gradleWorkflow} must set up Gradle through the shared action`,
+    );
+  }
   expectIncludes(
     ".github/workflows/ci-maui-iap.yml",
     [

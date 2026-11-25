@@ -22,6 +22,7 @@ on:
       - ".github/actions/coverage-report/**"
       - "scripts/test-ios-log-sanitizers.sh"
       - "scripts/ci/retry-gradle.sh"
+      - ".github/actions/setup-gradle/**"
       - ".github/workflows/ci-expo-iap.yml"
       - ".java-version"
       - "package.json"
@@ -47,6 +48,7 @@ on:
       - ".github/actions/coverage-report/**"
       - "scripts/test-ios-log-sanitizers.sh"
       - "scripts/ci/retry-gradle.sh"
+      - ".github/actions/setup-gradle/**"
       - ".github/workflows/ci-expo-iap.yml"
       - ".java-version"
       - "package.json"
@@ -193,7 +195,7 @@ jobs:
           distribution: "temurin"
           java-version-file: .java-version
 
-      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6
+      - uses: ./.github/actions/setup-gradle
 
       - name: Run Android unit tests
         working-directory: libraries/expo-iap/example/android

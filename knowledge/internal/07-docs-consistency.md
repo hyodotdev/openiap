@@ -349,7 +349,7 @@ cd packages/google && ./gradlew :openiap:compilePlayDebugKotlin
 
 # 3. SSOT audit + parser fault fixtures (from the repository root)
 cd <repo-root>
-bun test scripts/audit-docs.test.ts
+bun test ./scripts/audit-docs.test.ts
 bun run audit:docs
 ```
 
@@ -380,7 +380,7 @@ Run with:
 
 ```bash
 cd <repo-root>
-bun test scripts/audit-docs.test.ts
+bun test ./scripts/audit-docs.test.ts
 bun run audit:docs
 ```
 

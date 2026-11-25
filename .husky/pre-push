@@ -1,0 +1,21 @@
+#!/usr/bin/env sh
+# A push to main has no pull-request CI in front of it, so the CI steps it will
+# trigger run here first. Needs Bun and Node; CI stays the final gate.
+set -e
+
+# A release workflow pushes to main after its own validation.
+if [ "$GITHUB_ACTIONS" = "true" ]; then
+  exit 0
+fi
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_ROOT"
+
+ZERO="0000000000000000000000000000000000000000"
+while read -r _local_ref local_sha remote_ref remote_sha; do
+  # A deleted or brand-new main has no range to check.
+  if [ "$remote_ref" = "refs/heads/main" ] \
+    && [ "$local_sha" != "$ZERO" ] && [ "$remote_sha" != "$ZERO" ]; then
+    node scripts/verify-main-push.mjs "$remote_sha" "$local_sha" </dev/null
+  fi
+done

@@ -98,6 +98,9 @@ message per
 `knowledge/internal/06-git-deployment.md#git-commit-message-format`, and push
 to `main`. One verified batch, not one commit per finding.
 
+The `pre-push` hook runs the `ci.yml` steps the push will trigger. A failure
+blocks the push: fix it and return to review, never pass `--no-verify`.
+
 ## 5. Confirm
 
 1. Verify `HEAD` equals `origin/main` and the worktree is clean, so the Source

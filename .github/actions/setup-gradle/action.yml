@@ -1,0 +1,19 @@
+name: Set up Gradle
+description: Set up Gradle with its dependency cache and resolve Maven Central through a mirror.
+inputs:
+  gradle-version:
+    description: Gradle version to install; the wrapper's when empty
+    default: ""
+runs:
+  using: composite
+  steps:
+    - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6
+      with:
+        gradle-version: ${{ inputs.gradle-version }}
+
+    - name: Resolve Maven Central through its mirror
+      shell: bash
+      run: |
+        init_dir="${GRADLE_USER_HOME:-$HOME/.gradle}/init.d"
+        mkdir -p "$init_dir"
+        cp "$GITHUB_WORKSPACE/.github/actions/setup-gradle/maven-central-mirror.init.gradle" "$init_dir/"

@@ -71,7 +71,7 @@ if staged '(^|/)osv-scanner\.toml$|(^|/)(bun\.lock|yarn\.lock|Gemfile\.lock)$|^s
 fi
 
 # Path filters gate native builds; a filter edit must not silently skip them.
-if staged '^(\.github/(workflows|actions)/|scripts/audit-ci-path-filters(\.test)?\.mjs$|scripts/agent/context-files\.ts$)'; then
+if staged '^(\.github/(workflows|actions)/|scripts/(audit-ci-path-filters|verify-main-push)(\.test)?\.mjs$|scripts/agent/context-files\.ts$)'; then
   echo "🧭 CI path filter audit…"
   bun run audit:ci-paths
 fi

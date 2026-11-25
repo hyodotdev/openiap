@@ -26,6 +26,7 @@ on:
       - ".java-version"
       - ".github/workflows/release-flutter.yml"
       - "scripts/ci/retry-gradle.sh"
+      - ".github/actions/setup-gradle/**"
       - "scripts/verify-horizon-merged-manifest.mjs"
       - "!**/*.md"
   push:
@@ -53,6 +54,7 @@ on:
       - ".java-version"
       - ".github/workflows/release-flutter.yml"
       - "scripts/ci/retry-gradle.sh"
+      - ".github/actions/setup-gradle/**"
       - "scripts/verify-horizon-merged-manifest.mjs"
       - "!**/*.md"
 
@@ -94,7 +96,7 @@ jobs:
           distribution: "temurin"
           java-version-file: .java-version
 
-      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6
+      - uses: ./.github/actions/setup-gradle
 
       - name: Install dependencies
         run: flutter pub get

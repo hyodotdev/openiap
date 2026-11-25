@@ -721,6 +721,16 @@ export const cases = Object.freeze([
     jobs: [...nativeWorkflows, "ci:test-android"],
   },
   {
+    name: "gradle-setup",
+    files: [".github/actions/setup-gradle/maven-central-mirror.init.gradle"],
+    jobs: [
+      ...nativeWorkflows,
+      "ci:audit-lockfile",
+      "ci:audit-parity",
+      "ci:test-android",
+    ],
+  },
+  {
     name: "xcode-pin",
     files: [".github/actions/setup-xcode/action.yml"],
     jobs: [

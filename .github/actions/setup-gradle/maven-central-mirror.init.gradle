@@ -1,0 +1,46 @@
+// Maven Central answers hosted runners with 429, so every repository that
+// points at it reads Google's mirror instead. Central itself is appended last,
+// for anything the mirror does not have yet.
+def mirrorUrl = 'https://maven-central.storage-download.googleapis.com/maven2/'
+def centralHosts = ['repo.maven.apache.org', 'repo1.maven.org']
+def fallbackName = 'MavenCentralFallback'
+
+def useMirror = { repos ->
+  repos.all { repo ->
+    if (repo instanceof MavenArtifactRepository && repo.name != fallbackName &&
+        repo.url?.host in centralHosts) {
+      repo.url = mirrorUrl
+    }
+  }
+}
+// The plugin portal forwards what it lacks to Maven Central, so it goes last.
+def portalLast = { repos ->
+  repos.findAll { it instanceof MavenArtifactRepository && it.url?.host == 'plugins.gradle.org' }.each {
+    repos.remove(it)
+    repos.add(it)
+  }
+}
+// Runs once a build's repositories are all declared, so Central stays last.
+def addFallback = { repos ->
+  if (repos.any { it instanceof MavenArtifactRepository && it.url?.toString() == mirrorUrl }) {
+    repos.maven {
+      name = fallbackName
+      url = 'https://repo.maven.apache.org/maven2/'
+    }
+  }
+}
+
+beforeSettings { settings ->
+  useMirror(settings.pluginManagement.repositories)
+  useMirror(settings.dependencyResolutionManagement.repositories)
+}
+settingsEvaluated { settings ->
+  portalLast(settings.pluginManagement.repositories)
+  addFallback(settings.pluginManagement.repositories)
+  addFallback(settings.dependencyResolutionManagement.repositories)
+}
+allprojects { project ->
+  useMirror(project.buildscript.repositories)
+  useMirror(project.repositories)
+  project.afterEvaluate { addFallback(project.repositories) }
+}

@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-11-17T17:19:47.202Z
+> Last updated: 2026-11-25T08:49:38.442Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2717,6 +2717,10 @@ to create follow-up PRs. "Continue", "finish the remaining work", "merge", and
   no open PR gets no PR at all. Review it and commit it straight to `main`;
   `$loop-review-self` owns that lane and lists the paths that qualify. Product
   code, specs, and published package sources are never in it.
+- A push to `main` has no pull-request CI in front of it, so the `pre-push`
+  hook runs the `ci.yml` steps that push will trigger
+  (`scripts/verify-main-push.mjs`). Fix what it reports; never pass
+  `--no-verify`. It lists the jobs only CI can run.
 
 Claude Code enforces this: `scripts/guard-pull-request.mjs` holds `gh pr
 create`, `gh pr new`, the REST and GraphQL create calls, GitHub MCP tools that
@@ -3627,7 +3631,7 @@ cd packages/google && ./gradlew :openiap:compilePlayDebugKotlin
 
 # 3. SSOT audit + parser fault fixtures (from the repository root)
 cd <repo-root>
-bun test scripts/audit-docs.test.ts
+bun test ./scripts/audit-docs.test.ts
 bun run audit:docs
 ```
 
@@ -3658,7 +3662,7 @@ Run with:
 
 ```bash
 cd <repo-root>
-bun test scripts/audit-docs.test.ts
+bun test ./scripts/audit-docs.test.ts
 bun run audit:docs
 ```
 

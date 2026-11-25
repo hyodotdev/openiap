@@ -195,11 +195,14 @@ jobs:
       - name: Audit workflow security
         run: node scripts/audit-security.mjs workflows
 
-      # shellcheck is off: existing run blocks still carry its findings.
-      - name: Lint workflows with actionlint v1.7.12
+      - name: Install actionlint v1.7.12
         run: |
           scripts/install-security-tool.sh actionlint "$RUNNER_TEMP/actionlint"
-          "$RUNNER_TEMP/actionlint" -shellcheck= -pyflakes=
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      # shellcheck is off: existing run blocks still carry its findings.
+      - name: Lint workflows
+        run: actionlint -shellcheck= -pyflakes=
 
       - name: Install OSV-Scanner v2.5.0
         run: |
@@ -372,6 +375,7 @@ jobs:
             android:
               - 'packages/google/**'
               - '.java-version'
+              - '.github/actions/setup-gradle/**'
               - 'packages/conformance/**'
               - 'specs/client/**'
               - 'scripts/**'
@@ -755,7 +759,7 @@ jobs:
           distribution: "temurin"
           java-version-file: .java-version
 
-      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6
+      - uses: ./.github/actions/setup-gradle
 
       - name: Grant execute permission
         working-directory: packages/google
@@ -924,7 +928,7 @@ jobs:
 
       - name: Audit docs consistency
         run: |
-          bun test scripts/audit-docs.test.ts
+          bun test ./scripts/audit-docs.test.ts
           bun run audit:docs
 
       - name: Check static discovery guards
