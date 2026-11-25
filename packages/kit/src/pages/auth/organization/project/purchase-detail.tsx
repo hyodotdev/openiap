@@ -4,11 +4,17 @@ import { useQuery } from "convex/react";
 import { api, Id } from "@/convex";
 import { BackLink } from "@/components/BackLink";
 import { Badge } from "@/components/Badge";
+import { EnvironmentBadge } from "@/components/EnvironmentBadge";
+import { NotReported } from "@/components/NotReported";
 import { PageLoading } from "@/components/LoadingSpinner";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, XCircle, Copy, ClipboardCheck } from "lucide-react";
 import { ResyncFromStoreButton } from "@/components/ResyncFromStoreButton";
-import { FALLBACK_VALUE, getPurchaseStateDisplay } from "./receipt-utils";
+import {
+  FALLBACK_VALUE,
+  getPurchaseStateDisplay,
+  NO_PRODUCT_REASON,
+} from "./receipt-utils";
 
 interface ProjectData {
   _id: Id<"projects">;
@@ -174,9 +180,6 @@ export default function PurchaseDetail() {
     );
   }
 
-  const productId =
-    (purchase as { productId?: string | null }).productId ?? null;
-
   const formattedRemoteResponse: string | null =
     purchase.rawEvidenceVisible && purchase.remoteResponse
       ? formatJson(parseJson(purchase.remoteResponse))
@@ -305,6 +308,14 @@ export default function PurchaseDetail() {
           </div>
           <div>
             <p className="text-xs uppercase text-muted-foreground">
+              {"Environment"}
+            </p>
+            <div className="mt-2">
+              <EnvironmentBadge environment={purchase.environment} />
+            </div>
+          </div>
+          <div>
+            <p className="text-xs uppercase text-muted-foreground">
               {"Purchase ID"}
             </p>
             <div className="mt-2 flex items-center gap-2">
@@ -344,9 +355,15 @@ export default function PurchaseDetail() {
             <p className="text-xs uppercase text-muted-foreground">
               {"Product ID"}
             </p>
-            <p className="text-lg font-semibold mt-2 font-mono text-sm text-muted-foreground">
-              {productId ?? FALLBACK_VALUE}
-            </p>
+            {purchase.productId ? (
+              <p className="text-lg font-semibold mt-2 font-mono text-sm text-muted-foreground">
+                {purchase.productId}
+              </p>
+            ) : (
+              <div className="mt-2">
+                <NotReported reason={NO_PRODUCT_REASON} />
+              </div>
+            )}
           </div>
         </div>
       </div>

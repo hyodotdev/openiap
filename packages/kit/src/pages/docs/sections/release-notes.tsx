@@ -26,9 +26,9 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-11-23",
     weekStart: "2026-11-23",
     date: "2026-11-26",
-    pullRequests: [629, 630, 631],
+    pullRequests: [629, 630, 631, 632],
     tagline:
-      "Claude and ChatGPT connect to a project with a GitHub sign-in, product API mistakes answer with documented errors instead of 500, and the IAPKit runtime image gets a security update.",
+      "Claude and ChatGPT connect to a project with a GitHub sign-in, the dashboard tells sandbox purchases from production ones, product API mistakes answer with documented errors instead of 500, and the IAPKit runtime image gets a security update.",
     items: [
       {
         kind: "security",
@@ -49,6 +49,26 @@ const RELEASES: ReleaseEntry[] = [
         kind: "docs",
         topic: "Claude and ChatGPT connectors",
         text: "The AI assistants guide walks through connecting Claude and ChatGPT step by step, with screenshots of each screen.",
+      },
+      {
+        kind: "feature",
+        topic: "Dashboard",
+        text: "The Purchases list and purchase detail show Sandbox or Production for each purchase, including ones verified earlier, or Not reported when the store's response does not say, as with Meta Horizon.",
+      },
+      {
+        kind: "feature",
+        topic: "Dashboard",
+        text: "In the Purchases list, hovering a store icon names the store, and a purchase the store returned no product for reads Not reported instead of N/A.",
+      },
+      {
+        kind: "feature",
+        topic: "Dashboard",
+        text: "Purchases, Subscriptions and Analytics each show their totals in one summary panel with filters in a single toolbar, Order lookup is one search bar, and project tabs and scrollbars are quieter.",
+      },
+      {
+        kind: "feature",
+        topic: "Dashboard",
+        text: "The Orders, Analytics and Products tabs no longer carry a Beta label; Webhooks keeps it.",
       },
       {
         kind: "fix",

@@ -5,8 +5,8 @@ import type { FunctionReturnType } from "convex/server";
 import { ConvexError } from "convex/values";
 import { api, Id } from "@/convex";
 import { Badge, type BadgeVariant } from "@/components/Badge";
+import { SegmentedControl } from "@/components/SegmentedControl";
 import { cn, formatMicros } from "@/lib/utils";
-import { Select, Input } from "antd";
 import {
   AlertCircle,
   ClipboardCheck,
@@ -18,7 +18,11 @@ import {
   Search,
   XCircle,
 } from "lucide-react";
-import { FALLBACK_VALUE, formatReceiptDate } from "./receipt-utils";
+import {
+  FALLBACK_VALUE,
+  formatReceiptDate,
+  storeIndicatorConfig,
+} from "./receipt-utils";
 
 interface ProjectData {
   _id: Id<"projects">;
@@ -46,6 +50,12 @@ interface AppleOrderTransaction {
   webOrderLineItemId?: string;
   appTransactionId?: string;
 }
+
+const LOOKUP_STORES = (["apple", "google"] as const).map((value) => ({
+  value,
+  label: storeIndicatorConfig[value].label,
+  icon: storeIndicatorConfig[value].icon,
+}));
 
 const STORE_LABELS: Record<OrderLookupStore, string> = {
   apple: "App Store",
@@ -361,57 +371,45 @@ export default function ProjectOrders() {
         </p>
       </div>
 
-      <div className="bg-card border border-border rounded-xl shadow-sm p-6 space-y-3">
+      <div className="space-y-2">
         <form
           onSubmit={(event) => {
             event.preventDefault();
             void handleLookup();
           }}
-          className="flex flex-col gap-3 lg:flex-row lg:items-center"
+          className="flex flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-sm transition-shadow focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15 sm:flex-row sm:items-center"
         >
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-muted-foreground">{"Store"}</label>
-            <Select
-              value={store}
-              onChange={(value) => setStore(value)}
-              className="min-w-[160px]"
-              options={[
-                {
-                  value: "apple",
-                  label: "App Store",
-                },
-                {
-                  value: "google",
-                  label: "Google Play",
-                },
-              ]}
+          <SegmentedControl
+            label="Store"
+            options={LOOKUP_STORES}
+            value={store}
+            onChange={setStore}
+          />
+          <label className="flex min-w-0 flex-1 items-center gap-2 px-2">
+            <Search
+              className="h-4 w-4 shrink-0 text-muted-foreground"
+              aria-hidden="true"
             />
-          </div>
-          <div className="w-full lg:w-96">
-            <Input
-              prefix={<Search className="w-4 h-4 text-muted-foreground" />}
+            <input
+              aria-label="Order ID"
               value={orderId}
               onChange={(event) => setOrderId(event.target.value)}
               placeholder={
                 store === "apple" ? "MXXXXXXXXX" : "GPA.XXXX-XXXX-XXXX-XXXXX"
               }
-              allowClear
+              className="h-9 min-w-0 flex-1 bg-transparent font-mono text-sm outline-none placeholder:text-muted-foreground/60"
             />
-          </div>
+          </label>
           <button
             type="submit"
             disabled={isLoading || !orderId.trim()}
-            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Search className="w-4 h-4" />
-            )}
-            {isLoading ? "Looking up..." : "Look up order"}
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {isLoading ? "Looking up..." : "Look up"}
           </button>
         </form>
-        <div className="flex items-start gap-2 text-xs text-muted-foreground">
+        <div className="flex items-start gap-2 px-1 text-xs text-muted-foreground">
           <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
           <p>{STORE_FORM_HINTS[store]}</p>
         </div>

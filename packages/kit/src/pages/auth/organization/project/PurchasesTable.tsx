@@ -1,43 +1,28 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/Badge";
+import { EnvironmentBadge } from "@/components/EnvironmentBadge";
+import { NotReported } from "@/components/NotReported";
+import { Tooltip } from "@/components/Tooltip";
 import { cn } from "@/lib/utils";
-import {
-  Apple,
-  CheckCircle2,
-  Headset,
-  Loader2,
-  Play,
-  ShoppingBag,
-  XCircle,
-} from "lucide-react";
+import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import type { HarmonizedPurchaseState } from "@/convex";
-import { formatReceiptDate, getPurchaseStateDisplay } from "./receipt-utils";
+import {
+  formatReceiptDate,
+  getPurchaseStateDisplay,
+  NO_PRODUCT_REASON,
+  storeIndicatorConfig,
+  type StoreIndicatorKey,
+} from "./receipt-utils";
 
-const storeIndicatorConfig = {
-  apple: {
-    icon: Apple,
-    label: "App Store",
-  },
-  google: {
-    icon: Play,
-    label: "Google Play",
-  },
-  horizon: {
-    icon: Headset,
-    label: "Meta Horizon",
-  },
-  amazon: {
-    icon: ShoppingBag,
-    label: "Amazon Appstore",
-  },
-} as const;
-
-type StoreIndicatorKey = keyof typeof storeIndicatorConfig;
+// Inner gutters are narrower than the card's so nine columns fit.
+const CELL = "py-4 px-4 first:pl-6 last:pr-6";
+const HEAD_CELL = "py-3 px-4 first:pl-6 last:pr-6 font-medium";
 
 type PurchaseRow = {
   _id: string;
   store: string;
+  environment?: string | null;
   isValid?: boolean | null;
   state?: HarmonizedPurchaseState | null;
   requestIp?: string | null;
@@ -82,14 +67,16 @@ const renderStoreIndicator = (store: string, label: string) => {
     return <span className="font-mono text-xs whitespace-nowrap">{store}</span>;
   }
   const Icon = config.icon;
+  // To the right: the scrolling table would clip a tooltip above or below.
   return (
-    <span
-      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-muted/40"
-      aria-label={label}
-      title={label}
-    >
-      <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-    </span>
+    <Tooltip content={label} side="right" align="center" widthClass="w-max">
+      <span
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-muted/40"
+        aria-label={label}
+      >
+        <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+      </span>
+    </Tooltip>
   );
 };
 
@@ -139,13 +126,14 @@ export function PurchasesTable({
           )}
         >
           <thead className="text-xs uppercase text-muted-foreground border-b border-border">
-            <tr className="text-left">
-              <th className="py-3 px-6 font-medium">{"Validity"}</th>
-              <th className="py-3 px-6 font-medium">{"Verified state"}</th>
-              <th className="py-3 px-6 font-medium">{"Store"}</th>
-              <th className="py-3 px-6 font-medium">{"Product ID"}</th>
-              <th className="py-3 px-6 font-medium">{"Request IP"}</th>
-              <th className="py-3 px-6 font-medium">
+            <tr className="text-left whitespace-nowrap">
+              <th className={HEAD_CELL}>{"Validity"}</th>
+              <th className={HEAD_CELL}>{"Verified state"}</th>
+              <th className={HEAD_CELL}>{"Store"}</th>
+              <th className={HEAD_CELL}>{"Environment"}</th>
+              <th className={HEAD_CELL}>{"Product ID"}</th>
+              <th className={HEAD_CELL}>{"Request IP"}</th>
+              <th className={HEAD_CELL}>
                 <button
                   type="button"
                   className="inline-flex items-center gap-1"
@@ -157,7 +145,7 @@ export function PurchasesTable({
                   </span>
                 </button>
               </th>
-              <th className="py-3 px-6 font-medium">
+              <th className={HEAD_CELL}>
                 <button
                   type="button"
                   className="inline-flex items-center gap-1"
@@ -169,7 +157,7 @@ export function PurchasesTable({
                   </span>
                 </button>
               </th>
-              <th className="py-3 px-6 font-medium">
+              <th className={HEAD_CELL}>
                 <button
                   type="button"
                   className="inline-flex items-center gap-1"
@@ -186,7 +174,7 @@ export function PurchasesTable({
           <tbody aria-busy={isLoading}>
             {isLoading ? (
               <tr>
-                <td colSpan={8} className="py-10 text-center">
+                <td colSpan={9} className="py-10 text-center">
                   <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2
                       className="h-4 w-4 animate-spin"
@@ -199,7 +187,7 @@ export function PurchasesTable({
             ) : rows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={9}
                   className="py-16 text-center text-muted-foreground"
                 >
                   <p className="font-semibold">{"No purchases found"}</p>
@@ -242,7 +230,7 @@ export function PurchasesTable({
                     )}
                     aria-label={"View details"}
                   >
-                    <td className="py-4 px-6">
+                    <td className={CELL}>
                       <Badge
                         variant={purchase.isValid ? "success" : "danger"}
                         size="sm"
@@ -257,7 +245,7 @@ export function PurchasesTable({
                         {purchase.isValid ? "Valid" : "Invalid"}
                       </Badge>
                     </td>
-                    <td className="py-4 px-6">
+                    <td className={CELL}>
                       <Badge
                         variant={variant}
                         size="sm"
@@ -266,24 +254,41 @@ export function PurchasesTable({
                         {label}
                       </Badge>
                     </td>
-                    <td className="py-4 px-6 font-mono text-xs whitespace-nowrap">
+                    <td className={CELL}>
                       {renderStoreIndicator(purchase.store, storeLabel)}
                     </td>
-                    <td className="py-4 px-6 font-mono text-xs">
-                      {purchase.productId ?? "N/A"}
+                    <td className={CELL}>
+                      <EnvironmentBadge environment={purchase.environment} />
                     </td>
-                    <td className="py-4 px-6 font-mono text-xs whitespace-nowrap">
+                    <td className={cn(CELL, "text-xs")}>
+                      {purchase.productId ? (
+                        <span className="font-mono">{purchase.productId}</span>
+                      ) : (
+                        <NotReported reason={NO_PRODUCT_REASON} />
+                      )}
+                    </td>
+                    <td
+                      className={cn(
+                        CELL,
+                        "font-mono text-xs whitespace-nowrap",
+                      )}
+                    >
                       {purchase.requestIp ?? "N/A"}
                     </td>
-                    <td className="py-4 px-6 font-mono text-xs whitespace-nowrap">
+                    <td
+                      className={cn(
+                        CELL,
+                        "font-mono text-xs whitespace-nowrap",
+                      )}
+                    >
                       {formatVerificationDuration(
                         purchase.verificationDurationMs,
                       ) ?? "N/A"}
                     </td>
-                    <td className="py-4 px-6 font-mono text-xs">
+                    <td className={cn(CELL, "font-mono text-xs")}>
                       {formatReceiptDate(purchase._creationTime)}
                     </td>
-                    <td className="py-4 px-6 font-mono text-xs">
+                    <td className={cn(CELL, "font-mono text-xs")}>
                       {formatReceiptDate(purchase.updatedAt)}
                     </td>
                   </tr>

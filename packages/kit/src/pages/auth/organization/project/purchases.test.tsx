@@ -82,7 +82,7 @@ describe("ProjectPurchases store stats", () => {
     cleanup();
   });
 
-  it("shows every store in a responsive card grid", () => {
+  it("shows the total, every store and validity in one summary", () => {
     render(<ProjectPurchases />);
 
     expect(
@@ -98,17 +98,55 @@ describe("ProjectPurchases store stats", () => {
       screen.getByRole("button", { name: "Amazon Appstore" }).textContent,
     ).toContain("5");
 
-    const grid = screen.getByRole("button", {
-      name: "Total Purchases",
-    }).parentElement;
-    expect(grid?.classList.contains("sm:grid-cols-2")).toBe(true);
-    expect(grid?.classList.contains("xl:grid-cols-4")).toBe(true);
+    expect(
+      screen.getByRole("button", { name: "Total Purchases" }).textContent,
+    ).toContain("19");
+    expect(screen.getByRole("button", { name: "Valid" }).textContent).toContain(
+      "15",
+    );
+    expect(
+      screen.getByRole("button", { name: "Invalid" }).textContent,
+    ).toContain("4");
     expect(
       screen.getByText(/Amazon lifecycle stays here through RVS rechecks/),
     ).toBeTruthy();
   });
 
-  it("filters the purchases table from Amazon and Horizon cards", () => {
+  it("marks the total as showing everything only when nothing narrows the list", () => {
+    const view = render(<ProjectPurchases />);
+    const total = () => screen.getByRole("button", { name: "Total Purchases" });
+    expect(total().getAttribute("aria-pressed")).toBe("true");
+    view.unmount();
+
+    mocks.searchParams = new URLSearchParams("product=premium_monthly");
+    const filtered = render(<ProjectPurchases />);
+    expect(total().getAttribute("aria-pressed")).toBe("false");
+    expect(total().textContent).toContain("Show every purchase");
+    filtered.unmount();
+
+    // The query ignores blank and unrecognized values, so they filter nothing.
+    mocks.searchParams = new URLSearchParams(
+      "product=%20&store=nowhere&ip=%20",
+    );
+    render(<ProjectPurchases />);
+    expect(total().getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("offers Clear filters only while a filter narrows the list", () => {
+    mocks.searchParams = new URLSearchParams("sortField=updatedAt");
+    const view = render(<ProjectPurchases />);
+    expect(screen.queryByRole("button", { name: "Clear filters" })).toBeNull();
+    view.unmount();
+
+    mocks.searchParams = new URLSearchParams("store=amazon");
+    render(<ProjectPurchases />);
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect([
+      ...(mocks.setSearchParams.mock.calls[0][0] as URLSearchParams).keys(),
+    ]).toEqual([]);
+  });
+
+  it("filters the purchases table from the Amazon and Horizon rows", () => {
     render(<ProjectPurchases />);
 
     fireEvent.click(screen.getByRole("button", { name: "Amazon Appstore" }));
@@ -118,9 +156,7 @@ describe("ProjectPurchases store stats", () => {
     ).toBe("amazon");
 
     mocks.setSearchParams.mockReset();
-    fireEvent.keyDown(screen.getByRole("button", { name: "Meta Horizon" }), {
-      key: "Enter",
-    });
+    fireEvent.click(screen.getByRole("button", { name: "Meta Horizon" }));
     expect(
       (mocks.setSearchParams.mock.calls[0][0] as URLSearchParams).get("store"),
     ).toBe("horizon");

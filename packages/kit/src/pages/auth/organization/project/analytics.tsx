@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactElement,
+} from "react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { Select } from "antd";
 import {
-  BarChart3,
   TrendingUp,
   Users,
   RefreshCw,
@@ -34,6 +39,12 @@ import {
 import type { Doc } from "@/convex";
 import { api } from "@/convex";
 import { PageLoading } from "@/components/LoadingSpinner";
+import { SegmentedControl } from "@/components/SegmentedControl";
+import {
+  SECTION_LABEL,
+  SummaryPanel,
+  TOOLBAR,
+} from "@/components/SummaryPanel";
 import { cn, formatMicros, normalizeCurrencyCode } from "@/lib/utils";
 import {
   REVENUE_COUNTERS,
@@ -95,25 +106,29 @@ function withDefaults(row: RevenueMetrics["days"][number]): MetricRow {
 }
 
 const RANGES = [
-  { id: "7d", label: "Last 7 days", days: 7 },
-  { id: "30d", label: "Last 30 days", days: 30 },
-  { id: "90d", label: "Last 90 days", days: 90 },
+  { value: "7d", label: "Last 7 days", days: 7 },
+  { value: "30d", label: "Last 30 days", days: 30 },
+  { value: "90d", label: "Last 90 days", days: 90 },
 ] as const;
 
-type RangeId = (typeof RANGES)[number]["id"];
+type RangeId = (typeof RANGES)[number]["value"];
 
 const PERIODS = [
-  { id: "daily", label: "Daily" },
-  { id: "weekly", label: "Weekly" },
-  { id: "monthly", label: "Monthly" },
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
 ] as const;
 
-type PeriodId = (typeof PERIODS)[number]["id"];
+type PeriodId = (typeof PERIODS)[number]["value"];
 
-const ENVIRONMENTS: Array<{ id: Environment; label: string }> = [
-  { id: "Production", label: "Production" },
-  { id: "Sandbox", label: "Sandbox" },
+const ENVIRONMENTS: Array<{ value: Environment; label: string }> = [
+  { value: "Production", label: "Production" },
+  { value: "Sandbox", label: "Sandbox" },
 ];
+
+// Full-width rows on a phone, natural width from `sm`.
+const SEGMENTS = "w-full sm:w-auto";
+const CARD = "rounded-xl border border-border bg-card shadow-sm";
 
 type PlatformCardKey = "all" | "ios" | "android";
 
@@ -156,7 +171,7 @@ export default function ProjectAnalytics() {
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   const [platformFilter, setPlatformFilter] = useState<PlatformFilter>("all");
 
-  const range = RANGES.find((r) => r.id === rangeId) ?? RANGES[1];
+  const range = RANGES.find((r) => r.value === rangeId) ?? RANGES[1];
   const MAX_RANGE_DAYS = RANGES[RANGES.length - 1].days;
 
   // Day keys are UTC to match the rollup cron; local days would half-cover
@@ -467,12 +482,9 @@ export default function ProjectAnalytics() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold mb-1 flex items-center gap-2">
-          <BarChart3 className="w-5 h-5" />
-          Analytics
-        </h2>
-        <p className="text-sm text-muted-foreground">
+      <div className="max-w-3xl">
+        <h2 className="mb-1 text-2xl font-bold">Analytics</h2>
+        <p className="text-muted-foreground">
           Subscription revenue and lifecycle metrics from verified Apple ASN v2
           and Google RTDN notifications, in UTC days. Revenue is the store list
           price before store fees.{" "}
@@ -568,191 +580,200 @@ export default function ProjectAnalytics() {
         </Notice>
       )}
 
-      <div className="grid gap-4 md:grid-cols-3">
-        {PLATFORM_CARDS.map((card) => {
-          const active = platformFilter === card.filter;
-          const cardTotals = platformTotals.get(card.filter) ?? {
-            revenueMicros: 0,
-            activeSubs: 0,
-            activeHistoryComplete: false,
-            newSubs: 0,
-          };
-          return (
-            <div
-              key={card.key}
-              role="button"
-              tabIndex={0}
-              onClick={() => setPlatformFilter(card.filter)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setPlatformFilter(card.filter);
-                }
-              }}
-              className={cn(
-                "bg-card border rounded-xl p-4 shadow-sm cursor-pointer transition",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                active
-                  ? "border-primary ring-2 ring-primary/20"
-                  : "border-border hover:border-primary/50",
-              )}
-              aria-pressed={active}
-            >
-              <p className="text-sm text-muted-foreground">{card.label}</p>
-              <p className="text-3xl font-semibold mt-2 tabular-nums">
-                {money(cardTotals.revenueMicros)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                gross ·{" "}
-                {cardTotals.activeHistoryComplete
-                  ? count(cardTotals.activeSubs)
-                  : "—"}{" "}
-                active · {count(cardTotals.newSubs)} new
-              </p>
+      <SummaryPanel label="Revenue by platform">
+        <div className={TOOLBAR}>
+          <SegmentedControl
+            label="Environment"
+            options={ENVIRONMENTS}
+            value={environment}
+            onChange={setEnvironment}
+            size="sm"
+            className={SEGMENTS}
+          />
+          <SegmentedControl
+            label="Date range"
+            options={RANGES}
+            value={rangeId}
+            onChange={setRangeId}
+            size="sm"
+            className={SEGMENTS}
+          />
+          <SegmentedControl
+            label="Granularity"
+            options={PERIODS}
+            value={periodId}
+            onChange={setPeriodId}
+            size="sm"
+            className={SEGMENTS}
+          />
+          {metrics.productIds.length > 0 && (
+            <div className="min-w-[9rem] flex-1 sm:w-52 sm:flex-none">
+              <Select
+                aria-label="Product"
+                value={selectedProduct ?? undefined}
+                onChange={(v) => setSelectedProduct(v || null)}
+                placeholder="All products"
+                allowClear
+                className="w-full"
+                options={metrics.productIds.map((id) => ({
+                  value: id,
+                  label: id,
+                }))}
+              />
             </div>
-          );
-        })}
-      </div>
-
-      <div className="flex flex-wrap gap-3 items-center">
-        <ChicletGroup
-          options={ENVIRONMENTS}
-          value={environment}
-          onChange={(v) => setEnvironment(v as Environment)}
-        />
-        <ChicletGroup
-          options={RANGES.map((r) => ({ id: r.id, label: r.label }))}
-          value={rangeId}
-          onChange={(v) => setRangeId(v as RangeId)}
-        />
-        <ChicletGroup
-          options={PERIODS.map((p) => ({ id: p.id, label: p.label }))}
-          value={periodId}
-          onChange={(v) => setPeriodId(v as PeriodId)}
-        />
-        {metrics.productIds.length > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Product:</span>
-            <Select
-              value={selectedProduct ?? undefined}
-              onChange={(v) => setSelectedProduct(v || null)}
-              placeholder="All products"
-              allowClear
-              className="min-w-[200px]"
-              options={metrics.productIds.map((id) => ({
-                value: id,
-                label: id,
-              }))}
-            />
-          </div>
-        )}
-        {currencyOptions.length > 1 && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Currency:</span>
-            {/* No allowClear: the chart needs exactly one currency. Other
-                currencies are for the chart only; totals stay in the
-                reporting currency. */}
-            <Select
-              value={currency}
-              onChange={(v) => setSelectedCurrency(v ?? null)}
-              className="min-w-[100px]"
-              options={currencyOptions.map((c) => ({
-                value: c,
-                label: c === reportingCurrency ? `${c} (reporting)` : c,
-              }))}
-            />
-          </div>
-        )}
-      </div>
-
-      {excludedReportingCurrencies.length > 0 && (
-        <div className="border border-border bg-muted/20 rounded-lg p-4 text-sm text-muted-foreground">
-          Headline revenue totals only include {reportingCurrency}.{" "}
-          {currency !== reportingCurrency &&
-            `Revenue charts and cohorts are showing ${currency}. `}
-          {calloutExcludedCurrencies.length > 0
-            ? `${calloutExcludedCurrencies.join(", ")} ${
-                calloutExcludedCurrencies.length === 1 ? "is" : "are"
-              } also kept separate. `
-            : "Other currency slices are kept separate. "}
-          IAPKit does not convert currencies.
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <SummaryCard
-          icon={TrendingUp}
-          label="Net revenue"
-          value={money(
-            totals.refundedMicros === null
-              ? null
-              : totals.grossMicros - totals.refundedMicros,
           )}
-          detail={
-            hasNumbers
-              ? `Gross ${formatMicros(totals.grossMicros, {
-                  currency: reportingCurrency,
-                })} · refunds ${money(totals.refundedMicros)}`
-              : undefined
-          }
-        />
-        <SummaryCard
-          icon={Users}
-          label="Active subscriptions"
-          value={
-            totals.activeHistoryComplete ? count(totals.activeSubsLast) : "—"
-          }
-          detail={
-            hasSplitNumbers
-              ? totals.activeHistoryComplete && totals.trialHistoryComplete
-                ? `${totals.activeTrialsLast} in free trial`
-                : "Historical access is unverified"
-              : undefined
-          }
-        />
-        <SummaryCard
-          icon={UserPlus}
-          label="Trials started"
-          value={splitCount(splitTotals.trialStarts)}
-          detail={splitDetail()}
-        />
-        <SummaryCard
-          icon={UserCheck}
-          label="Trial conversions"
-          value={splitCount(splitTotals.trialConversions)}
-          detail={splitDetail("Paid charge that ends a trial")}
-        />
-        <SummaryCard
-          icon={TrendingUp}
-          label="Direct paid starts"
-          value={splitCount(splitTotals.directPaidStarts)}
-          detail={splitDetail("Paid from day one, no trial")}
-        />
-        <SummaryCard
-          icon={RefreshCw}
-          label="Renewals"
-          value={count(totals.renewals)}
-          detail="Includes billing recoveries"
-        />
-        <SummaryCard
-          icon={Undo2}
-          label="Auto-renew off"
-          value={count(totals.cancellations)}
-          detail="Access continues until the period ends"
-        />
-        <SummaryCard
-          icon={LogOut}
-          label="Churn"
-          value={hasNumbers && churn ? `${churn.rate.toFixed(1)}%` : "—"}
-          detail={
-            hasNumbers && churn
-              ? `${churn.expirations} expired of ${churn.paidAtStart} paid at start${
-                  churn.fromDay > fromDay ? `, from ${churn.fromDay}` : ""
-                }`
-              : undefined
-          }
-        />
-      </div>
+          {currencyOptions.length > 1 && (
+            <div className="min-w-[9rem] flex-1 sm:w-40 sm:flex-none">
+              {/* No allowClear: the chart needs exactly one currency. Other
+                  currencies are for the chart only; totals stay in the
+                  reporting currency. */}
+              <Select
+                aria-label="Chart currency"
+                value={currency}
+                onChange={(v) => setSelectedCurrency(v ?? null)}
+                className="w-full"
+                options={currencyOptions.map((c) => ({
+                  value: c,
+                  label: c === reportingCurrency ? `${c} (reporting)` : c,
+                }))}
+              />
+            </div>
+          )}
+        </div>
+        <div className="grid divide-y divide-border @2xl:grid-cols-3 @2xl:divide-x @2xl:divide-y-0">
+          {PLATFORM_CARDS.map((card) => {
+            const active = platformFilter === card.filter;
+            const cardTotals = platformTotals.get(card.filter) ?? {
+              revenueMicros: 0,
+              activeSubs: 0,
+              activeHistoryComplete: false,
+              newSubs: 0,
+            };
+            return (
+              <button
+                key={card.key}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setPlatformFilter(card.filter)}
+                className={cn(
+                  "relative min-w-0 p-5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40",
+                  active ? "bg-primary/5" : "hover:bg-muted/40",
+                )}
+              >
+                {active && (
+                  <span
+                    className="absolute inset-y-0 left-0 w-0.5 bg-primary @2xl:inset-x-0 @2xl:bottom-auto @2xl:h-0.5 @2xl:w-auto"
+                    aria-hidden="true"
+                  />
+                )}
+                <span className={cn(SECTION_LABEL, active && "text-primary")}>
+                  {card.label}
+                </span>
+                <span className="mt-2 block text-3xl font-semibold tracking-tight tabular-nums">
+                  {money(cardTotals.revenueMicros)}
+                </span>
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  gross ·{" "}
+                  {cardTotals.activeHistoryComplete
+                    ? count(cardTotals.activeSubs)
+                    : "—"}{" "}
+                  active · {count(cardTotals.newSubs)} new
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {excludedReportingCurrencies.length > 0 && (
+          <p className="border-t border-border px-5 py-2.5 text-xs text-muted-foreground">
+            Headline revenue totals only include {reportingCurrency}.{" "}
+            {currency !== reportingCurrency &&
+              `Revenue charts and cohorts are showing ${currency}. `}
+            {calloutExcludedCurrencies.length > 0
+              ? `${calloutExcludedCurrencies.join(", ")} ${
+                  calloutExcludedCurrencies.length === 1 ? "is" : "are"
+                } also kept separate. `
+              : "Other currency slices are kept separate. "}
+            IAPKit does not convert currencies.
+          </p>
+        )}
+      </SummaryPanel>
+
+      <SummaryPanel label="Key metrics">
+        <div className="grid grid-cols-2 gap-px bg-border @4xl:grid-cols-4">
+          <MetricCell
+            icon={TrendingUp}
+            label="Net revenue"
+            value={money(
+              totals.refundedMicros === null
+                ? null
+                : totals.grossMicros - totals.refundedMicros,
+            )}
+            detail={
+              hasNumbers
+                ? `Gross ${formatMicros(totals.grossMicros, {
+                    currency: reportingCurrency,
+                  })} · refunds ${money(totals.refundedMicros)}`
+                : undefined
+            }
+          />
+          <MetricCell
+            icon={Users}
+            label="Active subscriptions"
+            value={
+              totals.activeHistoryComplete ? count(totals.activeSubsLast) : "—"
+            }
+            detail={
+              hasSplitNumbers
+                ? totals.activeHistoryComplete && totals.trialHistoryComplete
+                  ? `${totals.activeTrialsLast} in free trial`
+                  : "Historical access is unverified"
+                : undefined
+            }
+          />
+          <MetricCell
+            icon={UserPlus}
+            label="Trials started"
+            value={splitCount(splitTotals.trialStarts)}
+            detail={splitDetail()}
+          />
+          <MetricCell
+            icon={UserCheck}
+            label="Trial conversions"
+            value={splitCount(splitTotals.trialConversions)}
+            detail={splitDetail("Paid charge that ends a trial")}
+          />
+          <MetricCell
+            icon={TrendingUp}
+            label="Direct paid starts"
+            value={splitCount(splitTotals.directPaidStarts)}
+            detail={splitDetail("Paid from day one, no trial")}
+          />
+          <MetricCell
+            icon={RefreshCw}
+            label="Renewals"
+            value={count(totals.renewals)}
+            detail="Includes billing recoveries"
+          />
+          <MetricCell
+            icon={Undo2}
+            label="Auto-renew off"
+            value={count(totals.cancellations)}
+            detail="Access continues until the period ends"
+          />
+          <MetricCell
+            icon={LogOut}
+            label="Churn"
+            value={hasNumbers && churn ? `${churn.rate.toFixed(1)}%` : "—"}
+            detail={
+              hasNumbers && churn
+                ? `${churn.expirations} expired of ${churn.paidAtStart} paid at start${
+                    churn.fromDay > fromDay ? `, from ${churn.fromDay}` : ""
+                  }`
+                : undefined
+            }
+          />
+        </div>
+      </SummaryPanel>
 
       {dataState !== "ready" ? (
         <EmptyState dataState={dataState} environment={environment} />
@@ -969,38 +990,6 @@ const tooltipStyle = {
   fontSize: "12px",
 } as const;
 
-function ChicletGroup({
-  options,
-  value,
-  onChange,
-}: {
-  options: Array<{ id: string; label: string }>;
-  value: string;
-  onChange: (id: string) => void;
-}) {
-  // bg-card and bg-muted/40 look the same in dark mode, so the active option
-  // also gets a primary border.
-  return (
-    <div className="inline-flex gap-1 bg-muted/40 rounded-lg p-1 border border-border">
-      {options.map((opt) => (
-        <button
-          key={opt.id}
-          onClick={() => onChange(opt.id)}
-          aria-pressed={value === opt.id}
-          className={cn(
-            "px-3 py-1.5 rounded-md text-xs font-medium transition-colors border",
-            value === opt.id
-              ? "bg-card text-foreground border-primary shadow-sm"
-              : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground",
-          )}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function Notice({
   icon: Icon,
   title,
@@ -1021,7 +1010,7 @@ function Notice({
   );
 }
 
-function SummaryCard({
+function MetricCell({
   icon: Icon,
   label,
   value,
@@ -1031,16 +1020,18 @@ function SummaryCard({
   label: string;
   value: string;
   detail?: string;
-}) {
+}): ReactElement {
   return (
-    <div className="border border-border rounded-lg bg-card p-4 min-w-0">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-        <Icon className="w-3.5 h-3.5 shrink-0" />
+    <div className="min-w-0 bg-card p-4">
+      <div className={cn(SECTION_LABEL, "flex items-start gap-1.5")}>
+        <Icon className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         {label}
       </div>
-      <div className="text-2xl font-semibold tabular-nums">{value}</div>
+      <div className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">
+        {value}
+      </div>
       {detail && (
-        <p className="text-xs text-muted-foreground mt-1 break-words">
+        <p className="mt-1 break-words text-xs text-muted-foreground">
           {detail}
         </p>
       )}
@@ -1058,7 +1049,7 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border border-border rounded-lg bg-card p-4">
+    <div className={cn(CARD, "p-4")}>
       <div className="mb-3">
         <h3 className="text-sm font-semibold">{title}</h3>
         {subtitle && (
@@ -1093,7 +1084,7 @@ function EmptyState({
             body: "Analytics roll up from Apple ASN v2 / Google RTDN notifications. Once your first notification arrives, the next tick fills this view.",
           };
   return (
-    <div className="border border-border rounded-lg bg-card p-12 text-center">
+    <div className={cn(CARD, "p-12 text-center")}>
       <AlertCircle className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
       <p className="text-sm font-medium mb-1">{copy.title}</p>
       <p className="text-xs text-muted-foreground max-w-md mx-auto">
@@ -1121,7 +1112,7 @@ function CohortTable({
     Math.max(0, ...cohorts.map((row) => row.retained.length)),
   );
   return (
-    <div className="border border-border rounded-lg bg-card p-4">
+    <div className={cn(CARD, "p-4")}>
       <div className="mb-3">
         <h3 className="text-sm font-semibold">
           Monthly project cohorts · {currency}

@@ -13,7 +13,10 @@ import type { DataModel, Doc, Id } from "../_generated/dataModel";
 import { harmonizedPurchaseStateValidator } from "./purchaseState";
 import { purchaseStoreValidator } from "../schema";
 import { readPurchaseStats } from "./stats";
-import { extractProductIdFromRemoteResponse } from "./shared";
+import {
+  extractEnvironmentFromRemoteResponse,
+  extractProductIdFromRemoteResponse,
+} from "./shared";
 import {
   evidenceFingerprint,
   purchaseDigest,
@@ -38,6 +41,31 @@ function withoutRawEvidence<
     ...rest
   } = purchase;
   return rest;
+}
+
+// Rows saved before a column existed fall back to parsing remoteResponse.
+function withStoredResponseFields(
+  purchase: Doc<"purchases">,
+): Omit<Doc<"purchases">, "productId"> & { productId: string | null } {
+  return {
+    ...purchase,
+    productId:
+      purchase.productId ??
+      extractProductIdFromRemoteResponse(
+        purchase.store,
+        purchase.remoteResponse,
+        purchase.requestData.store === "google"
+          ? purchase.requestData.expectedProductId
+          : undefined,
+      ),
+    environment:
+      purchase.environment ??
+      extractEnvironmentFromRemoteResponse(
+        purchase.store,
+        purchase.remoteResponse,
+      ) ??
+      undefined,
+  };
 }
 
 // Convex appends `_creationTime` to every index, so a creation-time range
@@ -284,21 +312,8 @@ export const getReceiptsByProject = query({
       ).paginate(args.paginationOpts);
     }
 
-    // Rows from before the productId column and its backfill fall back to
-    // parsing remoteResponse.
-    const pageWithProductId = paginated.page.map((purchase) => {
-      const row = {
-        ...purchase,
-        productId:
-          purchase.productId ??
-          extractProductIdFromRemoteResponse(
-            purchase.store,
-            purchase.remoteResponse,
-            purchase.requestData.store === "google"
-              ? purchase.requestData.expectedProductId
-              : undefined,
-          ),
-      };
+    const page = paginated.page.map((purchase) => {
+      const row = withStoredResponseFields(purchase);
       return canReadRawStoreEvidence(membership.role)
         ? row
         : withoutRawEvidence(row);
@@ -313,7 +328,7 @@ export const getReceiptsByProject = query({
 
     return {
       ...paginated,
-      page: pageWithProductId,
+      page,
       stats,
     };
   },
@@ -358,27 +373,16 @@ export const getPurchaseById = query({
             await purchaseDigest(purchase.store, purchase.remoteId),
           )
         : undefined;
-    const withProductId = {
-      ...purchase,
-      productId:
-        purchase.productId ??
-        extractProductIdFromRemoteResponse(
-          purchase.store,
-          purchase.remoteResponse,
-          purchase.requestData.store === "google"
-            ? purchase.requestData.expectedProductId
-            : undefined,
-        ),
-    };
+    const row = withStoredResponseFields(purchase);
     if (canReadRawStoreEvidence(membership.role)) {
       return {
-        ...withProductId,
+        ...row,
         rawEvidenceVisible: true as const,
         evidenceFingerprint: fingerprint,
       };
     }
     return {
-      ...withoutRawEvidence(withProductId),
+      ...withoutRawEvidence(row),
       rawEvidenceVisible: false as const,
       evidenceFingerprint: fingerprint,
     };

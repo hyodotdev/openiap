@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate, useLocation, Outlet } from "react-router-dom";
 import { useQuery } from "convex/react";
-import { Badge, PlatformBadge } from "../../../../components/Badge";
+import { PlatformBadge } from "../../../../components/Badge";
 import type { LucideIcon } from "lucide-react";
 import {
   Settings,
@@ -74,19 +74,16 @@ export default function ProjectIndex() {
       id: "orders",
       label: "Orders",
       icon: ReceiptText,
-      badge: "Beta",
     },
     {
       id: "analytics",
       label: "Analytics",
       icon: BarChart3,
-      badge: "Beta",
     },
     {
       id: "products",
       label: "Products",
       icon: Layers,
-      badge: "Beta",
     },
     {
       id: "webhooks",
@@ -248,11 +245,11 @@ export default function ProjectIndex() {
         {/* Keep wide project navigation in its own horizontal scroller.
             Otherwise `<main>` becomes the scroller and shifts the page body
             underneath the fixed-width organization sidebar. Compact tabs fit
-            beside the sidebar from 1280px; below that the bar scrolls, with a
-            thin scrollbar where the platform shows one. */}
+            beside the sidebar from 1280px; below that the bar scrolls with no
+            scrollbar, and tabs fade out at the edge they continue past. */}
         <div
           ref={tabScrollerRef}
-          className="container max-w-7xl mx-auto px-4 overflow-x-auto overscroll-x-contain [scrollbar-width:thin]"
+          className="no-scrollbar container max-w-7xl mx-auto px-4 overflow-x-auto overscroll-x-contain [mask-image:linear-gradient(to_right,transparent,black_1rem,black_calc(100%-1rem),transparent)]"
         >
           <nav aria-label="Project sections" className="flex w-max min-w-full">
             {tabs.map((tab) => {
@@ -273,9 +270,9 @@ export default function ProjectIndex() {
                   <Icon className="w-4 h-4" />
                   <span className="text-sm font-medium">{tab.label}</span>
                   {tab.badge && (
-                    <Badge variant="new" size="xs" className="px-1.5">
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80">
                       {tab.badge}
-                    </Badge>
+                    </span>
                   )}
                 </button>
               );

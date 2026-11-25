@@ -240,7 +240,7 @@ describe("ProjectAnalytics data states", () => {
         ],
       });
       render(<ProjectAnalytics />);
-      fireEvent.click(screen.getByRole("button", { name: period }));
+      fireEvent.click(screen.getByRole("radio", { name: period }));
       expect(mocks.state.lineSeries.at(-1)).toMatchObject({
         paidActiveSubs: 5,
         activeTrials: 0,

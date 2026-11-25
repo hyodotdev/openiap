@@ -26,6 +26,7 @@ const SAMPLE_TIME = Date.UTC(2026, 10, 3, 9, 41);
 const SAMPLE_PURCHASES = [
   {
     store: "apple",
+    environment: "Production",
     productId: "premium_monthly",
     state: HarmonizedPurchaseState.ENTITLED,
     isValid: true,
@@ -33,6 +34,7 @@ const SAMPLE_PURCHASES = [
   },
   {
     store: "google",
+    environment: "Production",
     productId: "coins_500",
     state: HarmonizedPurchaseState.READY_TO_CONSUME,
     isValid: true,
@@ -40,6 +42,7 @@ const SAMPLE_PURCHASES = [
   },
   {
     store: "amazon",
+    environment: "Production",
     productId: "premium_yearly",
     state: HarmonizedPurchaseState.ENTITLED,
     isValid: true,
@@ -47,6 +50,7 @@ const SAMPLE_PURCHASES = [
   },
   {
     store: "google",
+    environment: "Sandbox",
     productId: "remove_ads",
     state: HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT,
     isValid: true,
@@ -54,6 +58,7 @@ const SAMPLE_PURCHASES = [
   },
   {
     store: "apple",
+    environment: "Production",
     productId: "premium_monthly",
     state: HarmonizedPurchaseState.INAUTHENTIC,
     isValid: false,
@@ -69,6 +74,7 @@ const SAMPLE_PURCHASES = [
 ].map((row, index) => ({
   _id: `sample-${index}`,
   store: row.store,
+  environment: row.environment,
   productId: row.productId,
   state: row.state,
   isValid: row.isValid,

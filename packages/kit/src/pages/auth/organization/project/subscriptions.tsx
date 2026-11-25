@@ -1,22 +1,29 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
-import {
-  Activity,
-  Calendar,
-  AlertTriangle,
-  CheckCircle2,
-  XCircle,
-  PauseCircle,
-  RefreshCw,
-} from "lucide-react";
+import { Input } from "antd";
+import { AlertTriangle } from "lucide-react";
 
 import type { Doc } from "@/convex";
 import { api } from "@/convex";
 import { PageLoading } from "@/components/LoadingSpinner";
 import { ResyncFromStoreButton } from "@/components/ResyncFromStoreButton";
+import { SegmentedControl } from "@/components/SegmentedControl";
+import {
+  SECTION_LABEL,
+  SummaryPanel,
+  TOOLBAR,
+} from "@/components/SummaryPanel";
 import { Badge } from "../../../../components/Badge";
 import {
+  cn,
   DEFAULT_REPORTING_CURRENCY,
   formatMicros,
   normalizeCurrencyCode,
@@ -29,17 +36,20 @@ type DashboardProject = Omit<
 type ProjectContext = { project: DashboardProject };
 
 const STATE_FILTERS = [
-  { id: "all", label: "All" },
-  { id: "Active", label: "Active" },
-  { id: "InGracePeriod", label: "Grace period" },
-  { id: "InBillingRetry", label: "Billing retry" },
-  { id: "Expired", label: "Expired" },
-  { id: "Refunded", label: "Refunded" },
-  { id: "Revoked", label: "Revoked" },
-  { id: "Paused", label: "Paused" },
+  { value: "all", label: "All" },
+  { value: "Active", label: "Active" },
+  { value: "InGracePeriod", label: "Grace period" },
+  { value: "InBillingRetry", label: "Billing retry" },
+  { value: "Expired", label: "Expired" },
+  { value: "Refunded", label: "Refunded" },
+  { value: "Revoked", label: "Revoked" },
+  { value: "Paused", label: "Paused" },
 ] as const;
 
-type StateFilter = (typeof STATE_FILTERS)[number]["id"];
+type StateFilter = (typeof STATE_FILTERS)[number]["value"];
+
+const FIGURE = "font-semibold tracking-tight tabular-nums";
+const NOTE = "px-2 pt-1.5 text-xs text-muted-foreground";
 
 export default function ProjectSubscriptions() {
   const { project } = useOutletContext<ProjectContext>();
@@ -112,135 +122,164 @@ export default function ProjectSubscriptions() {
     return <PageLoading />;
   }
 
+  const shown = totalsCurrent && metrics ? metrics : undefined;
+  const health = [
+    { label: "Active", count: shown?.activeSubs, color: "bg-success" },
+    { label: "In grace", count: shown?.inGracePeriod, color: "bg-warning" },
+    {
+      label: "Billing retry",
+      count: shown?.inBillingRetry,
+      color: "bg-danger",
+    },
+  ];
+  const recent = [
+    { label: "Refunded", count: metrics?.refunded30d },
+    { label: "Auto-renew off", count: metrics?.canceled30d },
+  ];
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold mb-1 flex items-center gap-2">
-          <Activity className="w-5 h-5" />
-          Subscriptions
-        </h2>
-        <p className="text-sm text-muted-foreground">
+      <div className="max-w-3xl">
+        <h2 className="mb-1 text-2xl font-bold">Subscriptions</h2>
+        <p className="text-muted-foreground">
           Authoritative state derived from IAPKit&apos;s internal lifecycle
           events. Rows update when kit ingests an Apple ASN v2 or Google RTDN
           notification. Counts and MRR cover production purchases only.
         </p>
       </div>
 
-      {!totalsCurrent && (
-        <p role="status" className="text-sm text-muted-foreground">
-          {metrics === undefined || metrics.stats?.state === "rebuilding"
-            ? "Updating subscription totals…"
-            : "Subscription totals are not available yet."}{" "}
-          Individual subscriptions remain available below.
-        </p>
-      )}
-      {totalsCurrent && metrics && (
-        <p className="text-xs text-muted-foreground">
-          Totals evaluated {new Date(metrics.stats.asOf).toLocaleString()}.
-        </p>
-      )}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <MetricCard
-          icon={CheckCircle2}
-          label="Active"
-          value={totalsCurrent && metrics ? metrics.activeSubs : "—"}
-        />
-        <MetricCard
-          icon={AlertTriangle}
-          label="In grace"
-          value={totalsCurrent && metrics ? metrics.inGracePeriod : "—"}
-        />
-        <MetricCard
-          icon={RefreshCw}
-          label="Billing retry"
-          value={totalsCurrent && metrics ? metrics.inBillingRetry : "—"}
-        />
-        <MetricCard
-          icon={Calendar}
-          label={`MRR (${reportingCurrency})`}
-          value={formattedMrr}
-        />
-      </div>
+      <SummaryPanel label="Subscription summary">
+        <div className="grid gap-px bg-border @xl:grid-cols-2 @4xl:grid-cols-[13rem_minmax(0,1fr)_minmax(0,1fr)_15rem]">
+          <div className="bg-card p-5">
+            <p className={SECTION_LABEL}>Active</p>
+            <p className={cn(FIGURE, "mt-2 text-4xl")}>
+              {shown?.activeSubs ?? "—"}
+            </p>
+          </div>
 
-      {totalsCurrent && metrics.excludedMrrByCurrency.length > 0 && (
-        <div className="border border-border rounded-lg bg-card p-4">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-            <div className="flex-1">
-              <p className="text-sm font-medium mb-2">
-                MRR excludes non-reporting currencies
-              </p>
-              <p className="text-sm text-muted-foreground mb-3">
-                The main MRR card only includes {reportingCurrency}. Other
-                currencies are shown separately and are not converted or summed.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {metrics.mrrByCurrency.map((entry) => (
-                  <span
-                    key={entry.currency}
-                    className={`rounded-md border px-2.5 py-1 text-xs tabular-nums ${
-                      entry.currency === reportingCurrency
-                        ? "border-primary/40 bg-primary/10 text-foreground"
-                        : "border-border bg-muted/30 text-muted-foreground"
-                    }`}
-                  >
-                    {formatMicros(entry.mrrMicros, {
-                      currency: entry.currency,
-                    })}
-                    {entry.currency === reportingCurrency ? " included" : ""}
-                  </span>
-                ))}
-              </div>
+          <div className="bg-card p-3">
+            <p className={cn(SECTION_LABEL, "px-2 pt-1")}>Health</p>
+            <div
+              className="mx-2 mt-3 flex h-1.5 overflow-hidden rounded-full bg-muted"
+              aria-hidden="true"
+            >
+              {health.map(({ label, count, color }) => (
+                <span
+                  key={label}
+                  className={color}
+                  style={{ flexGrow: count ?? 0 }}
+                />
+              ))}
             </div>
+            <dl className="mt-2">
+              {health.slice(1).map(({ label, count, color }) => (
+                <SummaryRow key={label} label={label} dot={color}>
+                  {count ?? "—"}
+                </SummaryRow>
+              ))}
+            </dl>
+          </div>
+
+          <div className="bg-card p-3">
+            <p className={cn(SECTION_LABEL, "px-2 pt-1")}>Last 30 days</p>
+            <dl className="mt-1.5">
+              {recent.map(({ label, count }) => (
+                <SummaryRow key={label} label={label}>
+                  {count ?? "—"}
+                </SummaryRow>
+              ))}
+            </dl>
+            {metrics?.recentCountsTruncated && (
+              <p className={NOTE}>
+                The 30-day counts cover only the most recently updated
+                subscriptions.
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-col bg-card">
+            <div className="flex-1 p-5">
+              <p className={SECTION_LABEL}>{`MRR (${reportingCurrency})`}</p>
+              <p className={cn(FIGURE, "mt-2 text-2xl")}>{formattedMrr}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Monthly recurring revenue
+              </p>
+            </div>
+            <dl className="border-t border-border px-3 py-1.5">
+              <SummaryRow label="Total tracked">
+                {subscriptions.total}
+              </SummaryRow>
+            </dl>
+          </div>
+        </div>
+        <div className="border-t border-border px-5 py-2.5 text-xs text-muted-foreground">
+          {shown ? (
+            <p>
+              Totals evaluated {new Date(shown.stats.asOf).toLocaleString()}.
+            </p>
+          ) : (
+            <p role="status">
+              {metrics === undefined || metrics.stats?.state === "rebuilding"
+                ? "Updating subscription totals…"
+                : "Subscription totals are not available yet."}{" "}
+              Individual subscriptions remain available below.
+            </p>
+          )}
+        </div>
+      </SummaryPanel>
+
+      {shown && shown.excludedMrrByCurrency.length > 0 && (
+        <div className="flex items-start gap-3 px-1">
+          <AlertTriangle
+            className="mt-0.5 h-4 w-4 shrink-0 text-warning"
+            aria-hidden="true"
+          />
+          <div className="min-w-0 text-sm">
+            <p className="font-medium">MRR excludes non-reporting currencies</p>
+            <p className="mt-1 text-muted-foreground">
+              The MRR figure only includes {reportingCurrency}. Other currencies
+              are shown separately and are not converted or summed.
+            </p>
+            <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs tabular-nums text-muted-foreground">
+              {shown.mrrByCurrency.map((entry) => (
+                <li
+                  key={entry.currency}
+                  className={cn(
+                    entry.currency === reportingCurrency &&
+                      "font-medium text-foreground",
+                  )}
+                >
+                  {formatMicros(entry.mrrMicros, {
+                    currency: entry.currency,
+                  })}
+                  {entry.currency === reportingCurrency ? " included" : ""}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       )}
 
-      {metrics?.recentCountsTruncated && (
-        <p className="text-sm text-muted-foreground">
-          The 30-day counts cover only the most recently updated subscriptions.
-        </p>
-      )}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <MetricCard
-          icon={XCircle}
-          label="Refunded (30d)"
-          value={metrics?.refunded30d ?? "—"}
-        />
-        <MetricCard
-          icon={PauseCircle}
-          label="Auto-renew off (30d)"
-          value={metrics?.canceled30d ?? "—"}
-        />
-        <MetricCard
-          icon={Activity}
-          label="Total tracked"
-          value={subscriptions.total}
-        />
-      </div>
-
-      <div className="border border-border rounded-lg bg-card overflow-hidden">
-        <div className="flex flex-wrap gap-2 p-3 border-b border-border">
-          {STATE_FILTERS.map((option) => (
-            <button
-              key={option.id}
-              onClick={() => setFilter(option.id)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                filter === option.id
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-          <input
-            aria-label="Filter by app user ID"
-            value={userFilter}
-            onChange={(event) => setUserFilter(event.target.value)}
-            placeholder="App user ID"
-            className="ml-auto w-full rounded border border-border bg-background px-2 py-1 text-xs sm:w-56"
+      <div className="@container overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <div className={TOOLBAR}>
+          <SegmentedControl
+            label="State"
+            options={STATE_FILTERS}
+            value={filter}
+            onChange={setFilter}
+            size="sm"
+            className="shrink flex-wrap"
           />
+          <div className="min-w-[9rem] flex-1 sm:w-56 sm:flex-none @4xl:ml-auto">
+            <Input
+              aria-label="Filter by app user ID"
+              className="w-full"
+              value={userFilter}
+              onChange={(event) => setUserFilter(event.target.value)}
+              placeholder="App user ID"
+              allowClear
+            />
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
@@ -278,7 +317,9 @@ export default function ProjectSubscriptions() {
                         {sub.userId}
                       </Link>
                     ) : (
-                      <span className="opacity-50">unbound</span>
+                      <span className="whitespace-nowrap opacity-50">
+                        unbound
+                      </span>
                     )}
                   </td>
                   <td className="px-4 py-2">{sub.productId}</td>
@@ -297,7 +338,7 @@ export default function ProjectSubscriptions() {
                     {formatDate(sub.updatedAt)}
                   </td>
                   {canManage ? (
-                    <td className="px-4 py-2">
+                    <td className="whitespace-nowrap px-4 py-2">
                       <ResyncFromStoreButton
                         projectId={project._id}
                         target={{ subscriptionId: sub.id }}
@@ -315,22 +356,27 @@ export default function ProjectSubscriptions() {
   );
 }
 
-function MetricCard({
-  icon: Icon,
+function SummaryRow({
   label,
-  value,
+  dot,
+  children,
 }: {
-  icon: typeof Activity;
   label: string;
-  value: string | number;
-}) {
+  dot?: string;
+  children: ReactNode;
+}): ReactElement {
   return (
-    <div className="border border-border rounded-lg bg-card p-4">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-        <Icon className="w-3.5 h-3.5" />
+    <div className="flex items-center gap-3 px-2 py-1.5 text-sm">
+      <dt className="flex flex-1 items-center gap-3 text-muted-foreground">
+        {dot ? (
+          <span
+            className={cn("h-2 w-2 shrink-0 rounded-full", dot)}
+            aria-hidden="true"
+          />
+        ) : null}
         {label}
-      </div>
-      <div className="text-2xl font-semibold tabular-nums">{value}</div>
+      </dt>
+      <dd className="font-medium tabular-nums">{children}</dd>
     </div>
   );
 }

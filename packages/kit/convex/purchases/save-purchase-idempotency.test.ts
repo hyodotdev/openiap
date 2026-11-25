@@ -383,6 +383,70 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     );
   });
 
+  it("stores the environment Apple and Google state, and keeps it through an error body", async () => {
+    await savePurchaseInternal({
+      ctx,
+      ...buildArgs({
+        store: "apple",
+        remoteId: "2000000000000001",
+        requestData: { store: "apple", jws: "header.payload.signature" },
+        remoteResponse: JSON.stringify({
+          productId: "premium_monthly",
+          environment: "Sandbox",
+        }),
+      }),
+    });
+    const sandboxResponse = JSON.stringify({
+      productLineItem: [{ productId: "premium_monthly" }],
+      testPurchaseContext: { fopType: "TEST" },
+    });
+    await savePurchaseInternal({
+      ctx,
+      ...buildArgs({ remoteId: TOKEN, remoteResponse: sandboxResponse }),
+    });
+    await savePurchaseInternal({
+      ctx,
+      ...buildArgs({
+        remoteId: TOKEN,
+        state: HarmonizedPurchaseState.INAUTHENTIC,
+        isValid: false,
+        remoteResponse: JSON.stringify({ message: "Google returned 500" }),
+      }),
+    });
+
+    const rows = await db.query("purchases").collect();
+    expect(rows.map((row) => [row.store, row.environment])).toEqual([
+      ["apple", "Sandbox"],
+      ["google", "Sandbox"],
+    ]);
+  });
+
+  it("keeps the environment of a row saved before the column when an error body replaces its response", async () => {
+    const id = await savePurchaseInternal({
+      ctx,
+      ...buildArgs({
+        remoteId: TOKEN,
+        remoteResponse: JSON.stringify({
+          lineItems: [{ productId: "premium_monthly" }],
+          testPurchase: {},
+        }),
+      }),
+    });
+    await db.patch(id, { environment: undefined });
+
+    await savePurchaseInternal({
+      ctx,
+      ...buildArgs({
+        remoteId: TOKEN,
+        state: HarmonizedPurchaseState.INAUTHENTIC,
+        isValid: false,
+        remoteResponse: JSON.stringify({ message: "Google returned 410" }),
+      }),
+    });
+
+    expect((await db.get(id))?.environment).toBe("Sandbox");
+  });
+
   it("persists the verified expected item from a multi-item token", async () => {
     await savePurchaseInternal({
       ctx,

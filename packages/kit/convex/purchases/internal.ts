@@ -56,6 +56,7 @@ import {
   AMAZON_RECONCILE_INTERVAL_MS,
   AMAZON_RECONCILE_LEASE_MS,
   AMAZON_RECONCILE_RETRY_MS,
+  extractEnvironmentFromRemoteResponse,
   extractOrderIdFromRemoteResponse,
   extractProductIdFromRemoteResponse,
   isValidState,
@@ -94,7 +95,7 @@ export async function savePurchaseInternal({
   remoteResponse,
   state,
   isValid,
-  environment,
+  environment: requestEnvironment,
   requestIp,
   verificationDurationMs,
   persistIfChanged,
@@ -132,6 +133,11 @@ export async function savePurchaseInternal({
     remoteResponse,
     expectedProductId,
   );
+  // Amazon's caller passes it; Apple and Google state it in the response.
+  const environment =
+    requestEnvironment ??
+    extractEnvironmentFromRemoteResponse(store, remoteResponse) ??
+    undefined;
 
   // Primary dedup on (projectId, remoteId): most Apple and Horizon flows, and
   // Google replays of the same purchaseToken, stay on one row here.
@@ -416,6 +422,8 @@ async function patchExistingPurchase(
     statsCounted?: boolean;
     storeStatsCounted?: boolean;
     unrecognizedAt?: number;
+    environment?: ReceiptEnvironment;
+    remoteResponse?: string;
   },
   args: PurchasePatchArgs,
   extraDelta: PurchaseStatsDelta = {},
@@ -441,6 +449,15 @@ async function patchExistingPurchase(
     existing.statsCounted === true,
     existing.storeStatsCounted === true,
   );
+  // A row saved before the column keeps what the response being replaced said.
+  const environment =
+    args.environment ??
+    existing.environment ??
+    extractEnvironmentFromRemoteResponse(
+      existing.store,
+      existing.remoteResponse,
+    ) ??
+    undefined;
   await ctx.db.patch(existing._id, {
     store: args.store,
     applicationId: args.applicationId,
@@ -452,9 +469,7 @@ async function patchExistingPurchase(
     statsCounted: true,
     storeStatsCounted: true,
     updatedAt: args.updatedAt,
-    ...(args.environment !== undefined
-      ? { environment: args.environment }
-      : {}),
+    ...(environment !== undefined ? { environment } : {}),
     ...(args.nextAmazonReconcileAt !== undefined
       ? { nextAmazonReconcileAt: args.nextAmazonReconcileAt }
       : {}),

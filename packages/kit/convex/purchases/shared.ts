@@ -57,7 +57,7 @@ export type GooglePlayReceiptData = Infer<
 export type ReceiptEnvironment = Infer<typeof receiptEnvironmentValidator>;
 
 export function googlePlayEnvironment(
-  testPurchase: object | null | undefined,
+  testPurchase: unknown,
 ): ReceiptEnvironment {
   return testPurchase != null ? "Sandbox" : "Production";
 }
@@ -701,6 +701,44 @@ export function extractProductIdFromRemoteResponse(
       ) {
         return (parsed as { productId: string }).productId;
       }
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+/**
+ * Sandbox or Production from a stored receipt response, or null when the
+ * response does not say. Shared by `savePurchaseInternal` and the read path.
+ */
+export function extractEnvironmentFromRemoteResponse(
+  store: "apple" | "google" | "horizon" | "amazon",
+  remoteResponse?: string | null,
+): ReceiptEnvironment | null {
+  if (!remoteResponse || (store !== "apple" && store !== "google")) {
+    return null;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(remoteResponse);
+    if (!isRecord(parsed)) {
+      return null;
+    }
+
+    if (store === "apple") {
+      return typeof parsed.environment === "string"
+        ? narrowAppleEnvironment(parsed.environment)
+        : null;
+    }
+
+    // Only a purchase Google returned can tell; an error body has neither list.
+    if (Array.isArray(parsed.lineItems)) {
+      return googlePlayEnvironment(parsed.testPurchase);
+    }
+    if (Array.isArray(parsed.productLineItem)) {
+      return googlePlayEnvironment(parsed.testPurchaseContext);
     }
   } catch {
     return null;
