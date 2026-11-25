@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-11-25T08:49:38.442Z
+> Last updated: 2026-11-25T10:38:20.453Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2860,9 +2860,7 @@ merging a PR does not publish a package.
   card for each RC publication.
 - Release one package at a time. Before each later dispatch in a train, wait
   until every check on the previous version commit, CodeQL included, has
-  finished green, and fix or rerun a red one first. CodeQL keeps one queued run
-  per branch, so releasing faster than it finishes leaves release commits
-  unanalyzed.
+  finished green, and fix or rerun a red one first.
 
 The executable policy is `scripts/release-branch-policy.mjs`. CI validates
 version consistency; every package publisher requires `main`:

@@ -23,6 +23,20 @@ const CHANGE_GROUPS = [
 
 const RELEASES: ReleaseEntry[] = [
   {
+    id: "week-2026-11-23",
+    weekStart: "2026-11-23",
+    date: "2026-11-25",
+    pullRequests: [629],
+    tagline: "A security update for the IAPKit runtime image.",
+    items: [
+      {
+        kind: "security",
+        topic: "Runtime image",
+        text: "The Debian zstd update fixes CVE-2026-124851. Self-hosted deployments should rebuild the IAPKit image.",
+      },
+    ],
+  },
+  {
     id: "week-2026-11-16",
     weekStart: "2026-11-16",
     date: "2026-11-17",

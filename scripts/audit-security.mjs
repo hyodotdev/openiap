@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { isAlias, parse as parseYaml, parseDocument, visit } from "yaml";
 
 import { BUN_PROJECTS, OSV_LOCKFILES } from "./dependency-projects.mjs";
+import { parseTrivyExceptions } from "./generate-sbom.mjs";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 
@@ -574,6 +575,41 @@ export function auditDependencies(
   );
 }
 
+const TRIVY_EXCEPTIONS = "packages/kit/.trivyignore.yaml";
+
+// A dated exception fails every run once it lapses; this is the warning before.
+export const EXCEPTION_NOTICE_DAYS = 14;
+
+// Dated exceptions inside the notice period or already lapsed, soonest first.
+export function findExpiringExceptions(now = new Date(), root = repoRoot) {
+  const limit = new Date(now.getTime() + EXCEPTION_NOTICE_DAYS * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const read = (file) =>
+    existsSync(resolve(root, file))
+      ? readFileSync(resolve(root, file), "utf8")
+      : "";
+  const osvConfigs = new Set(
+    OSV_LOCKFILES.map((lockfile) =>
+      join(dirname(lockfile), "osv-scanner.toml"),
+    ),
+  );
+  const dated = [...osvConfigs].flatMap((file) =>
+    [...parseOsvIgnoredVulnerabilities(read(file))].map(
+      ([id, { ignoreUntil }]) => ({ file, id, expires: ignoreUntil }),
+    ),
+  );
+  for (const { id, expired_at } of parseTrivyExceptions(
+    read(TRIVY_EXCEPTIONS),
+  )) {
+    dated.push({ file: TRIVY_EXCEPTIONS, id, expires: String(expired_at) });
+  }
+  return dated
+    .filter(({ expires }) => expires <= limit)
+    .sort((left, right) => left.expires.localeCompare(right.expires))
+    .map(({ file, id, expires }) => `${expires} ${id} (${file})`);
+}
+
 /**
  * Actions from ONE repository that must run at the same version.
  *
@@ -860,6 +896,13 @@ async function main() {
   const [command, ...paths] = process.argv.slice(2);
   if (command === "dependencies") {
     auditDependencies();
+    const expiring = findExpiringExceptions();
+    // One line: GitHub shows ten annotations a step.
+    if (expiring.length) {
+      console.log(
+        `::warning::Security exceptions at or near their expiry date; recheck, then renew or remove them: ${expiring.join(", ")}`,
+      );
+    }
     return;
   }
   if (!command) {

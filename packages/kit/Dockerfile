@@ -75,26 +75,32 @@ RUN --mount=type=secret,id=VITE_KIT_MIXPANEL_TOKEN,required=false \
     VITE_KIT_MIXPANEL_TOKEN="$(cat /run/secrets/VITE_KIT_MIXPANEL_TOKEN 2>/dev/null || true)" \
     bun run build:all
 
-# Remove the zlib overlay when Distroless ships the fix for CVE-2026-85091.
-FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS zlib-security
+FROM gcr.io/distroless/base-debian13:nonroot@sha256:83e67481ae9fc8c7a6d211113431fb8085619bed49672e583261111bac184f0d AS runtime-base
+
+# Overlays Debian's fix for CVE-2026-124851. The build fails once the base
+# ships that version or newer: remove this stage then.
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS zstd-security
 WORKDIR /tmp
 ARG TARGETARCH
-ADD https://snapshot.debian.org/archive/debian-security/20261107T075304Z/pool/updates/main/z/zlib/zlib1g_1.3.dfsg+really1.3.1-1+deb13u1_${TARGETARCH}.deb zlib1g.deb
+COPY --from=runtime-base /var/lib/dpkg/status.d/libzstd1 base-libzstd1
+ADD https://snapshot.debian.org/archive/debian-security/20261124T215723Z/pool/updates/main/libz/libzstd/libzstd1_1.5.7+dfsg-1+deb13u1_${TARGETARCH}.deb libzstd1.deb
 RUN --network=none set -eux; \
     case "$TARGETARCH" in \
-      amd64) checksum=8c27c342230503b73dfde629642c3b352e87b554e06d60cf58772f236a305ceb ;; \
-      arm64) checksum=0e41b3d7ad8ad7fcd36dd4d61ca91a70018478fc4af652e044f4be770784ddff ;; \
+      amd64) checksum=23a6f8a774d5dceda5f759b4ecdcdd652dfbefbf8271912e6a7ab0ee3250dc75 ;; \
+      arm64) checksum=ab5ad90f986b315bfa12be50f438aa3453e32da3b29540844d2d847800d2ce08 ;; \
       *) exit 1 ;; \
     esac; \
-    printf '%s  zlib1g.deb\n' "$checksum" | sha256sum -c -; \
-    dpkg-deb --extract zlib1g.deb /zlib; \
-    mkdir -p /zlib/var/lib/dpkg/status.d; \
-    dpkg-deb --field zlib1g.deb > /zlib/var/lib/dpkg/status.d/zlib1g; \
-    dpkg-deb --control zlib1g.deb control; \
-    cp control/md5sums /zlib/var/lib/dpkg/status.d/zlib1g.md5sums
+    printf '%s  libzstd1.deb\n' "$checksum" | sha256sum -c -; \
+    dpkg --compare-versions "$(sed -n 's/^Version: //p' base-libzstd1)" lt \
+      "$(dpkg-deb --field libzstd1.deb Version)"; \
+    dpkg-deb --extract libzstd1.deb /zstd; \
+    mkdir -p /zstd/var/lib/dpkg/status.d; \
+    dpkg-deb --field libzstd1.deb > /zstd/var/lib/dpkg/status.d/libzstd1; \
+    dpkg-deb --control libzstd1.deb control; \
+    cp control/md5sums /zstd/var/lib/dpkg/status.d/libzstd1.md5sums
 
 # --- Runtime image (single binary + static assets) -----------------------
-FROM gcr.io/distroless/base-debian13:nonroot@sha256:83e67481ae9fc8c7a6d211113431fb8085619bed49672e583261111bac184f0d AS runtime
+FROM runtime-base AS runtime
 WORKDIR /srv
 
 ARG IAPKIT_REVISION=unknown
@@ -102,7 +108,7 @@ LABEL org.opencontainers.image.title="IAPKit" \
       org.opencontainers.image.source="https://github.com/hyodotdev/openiap" \
       org.opencontainers.image.revision="${IAPKIT_REVISION}"
 
-COPY --from=zlib-security /zlib/ /
+COPY --from=zstd-security /zstd/ /
 COPY --from=builder --chown=65532:65532 /app/packages/kit/openiap-kit-server ./openiap-kit-server
 COPY --from=builder --chown=65532:65532 /app/packages/kit/dist ./public
 

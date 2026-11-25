@@ -22,6 +22,7 @@ import {
   auditWorkflowFiles,
   checkUrl,
   extractExternalUrls,
+  findExpiringExceptions,
   LOCKSTEP_EXEMPT,
   findActionFamilyDrift,
   findDependabotActionGaps,
@@ -675,6 +676,42 @@ reason = "Invalid date."
   );
 });
 
+test("dated exceptions are reported 14 days before they lapse", () => {
+  const root = mkdtempSync(resolve(tmpdir(), "openiap-exceptions-"));
+  try {
+    writeFileSync(
+      resolve(root, "osv-scanner.toml"),
+      `[[IgnoredVulns]]
+id = "GHSA-later"
+ignoreUntil = 2027-01-30
+reason = "No patched release exists."
+
+[[IgnoredVulns]]
+id = "GHSA-soon"
+ignoreUntil = 2026-12-04
+reason = "No patched release exists."
+`,
+    );
+    mkdirSync(resolve(root, "packages/kit"), { recursive: true });
+    writeFileSync(
+      resolve(root, "packages/kit/.trivyignore.yaml"),
+      "vulnerabilities:\n  - id: CVE-2026-0001\n    expired_at: 2026-12-08\n",
+    );
+    const on = (day) =>
+      findExpiringExceptions(new Date(`${day}T12:00:00Z`), root);
+    assert.deepEqual(on("2026-11-19"), []);
+    assert.deepEqual(on("2026-11-20"), [
+      "2026-12-04 GHSA-soon (osv-scanner.toml)",
+    ]);
+    assert.deepEqual(on("2026-11-25"), [
+      "2026-12-04 GHSA-soon (osv-scanner.toml)",
+      "2026-12-08 CVE-2026-0001 (packages/kit/.trivyignore.yaml)",
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("Bun lock exceptions require usage in either feed and expire on their date", () => {
   const lockfile = "libraries/expo-iap/bun.lock";
   const projects = [{ directory: "libraries/expo-iap", lockfile }];
@@ -1200,9 +1237,9 @@ test("CodeQL scopes Swift pull requests to public macOS runners", () => {
   );
   assert.match(
     workflow,
-    /group: codeql-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref_name \}\}/u,
+    /group: codeql-\$\{\{ github\.event\.pull_request\.number \|\| github\.run_id \}\}/u,
   );
-  // A PR push cancels its superseded run; a main run always finishes.
+  // A PR push cancels its superseded run; a main run shares its group with none.
   assert.match(
     workflow,
     /cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/u,

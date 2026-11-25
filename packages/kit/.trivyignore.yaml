@@ -2,7 +2,7 @@ vulnerabilities:
   - id: CVE-2026-107494
     purls:
       - pkg:deb/debian/libssl3t64@3.5.9-1~deb13u1
-    expired_at: 2026-12-08
+    expired_at: 2026-12-24
     statement: >-
       A denial of service in OpenSSL's QUIC stack. Debian 13 has no fix (the
       3.5.9 in the base image is affected too). The Kit never reaches
@@ -15,7 +15,7 @@ vulnerabilities:
   - id: CVE-2026-124709
     purls:
       - pkg:deb/debian/libssl3t64@3.5.9-1~deb13u1
-    expired_at: 2026-12-08
+    expired_at: 2026-12-24
     statement: >-
       A memory leak in OpenSSL's QUIC server stream handling. Debian 13 has
       no fix (the 3.5.9 in the base image is affected too). The Kit
