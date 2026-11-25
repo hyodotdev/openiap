@@ -89,10 +89,14 @@ export default function AiAssistantsPage() {
       />
       <ol start={2} className="my-3 list-decimal space-y-2 pl-6">
         <li>
-          Name it <code>IAPKit</code>, optionally upload{" "}
+          Name it <code>IAPKit</code>, upload{" "}
           <a href="/icon-256.png" className="text-primary underline">
             the IAPKit icon
-          </a>
+          </a>{" "}
+          (ChatGPT cannot change it later), describe it as{" "}
+          <code>
+            kit.openiap.dev: in-app purchases, products and subscriptions
+          </code>
           , enter <code>https://kit.openiap.dev/mcp</code> as the server URL,
           keep <strong>OAuth</strong>, tick{" "}
           <strong>I understand and want to continue</strong>, and choose{" "}
@@ -145,6 +149,10 @@ export default function AiAssistantsPage() {
           To change access, disconnect and connect again. ChatGPT keeps the
           tools it loaded first, so choose <strong>Refresh tools</strong> in the
           plugin&apos;s settings afterwards.
+        </li>
+        <li>
+          Deleting the plugin in ChatGPT does not end the IAPKit connection;
+          disconnect it under <strong>Connected apps</strong> too.
         </li>
         <li>
           Coding agents such as Codex and Claude Code connect with a secret
