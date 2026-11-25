@@ -159,7 +159,7 @@ export function invalidApiKeyError() {
  * A key a `/v1` caller sent. Errors for it must be published codes; CLI
  * sessions and dashboard calls keep their dashboard-scoped ones.
  */
-export function isPublicApiKey(apiKey: string | undefined): apiKey is string {
+export function isApiKey(apiKey: string | undefined): apiKey is string {
   return apiKey !== undefined && !isSessionProjectKey(apiKey);
 }
 
@@ -174,12 +174,23 @@ export function callerError(
     : createError(code, message);
 }
 
+/** The error for a product write whose key or project id found no project. */
+export function projectNotFoundError(args: {
+  apiKey?: string;
+  projectId?: unknown;
+}) {
+  if (calledWithApiKey(args)) return invalidApiKeyError();
+  return args.projectId
+    ? createError(ErrorCode.PROJECT_NOT_FOUND, "Project not found")
+    : createError(ErrorCode.API_KEY_INVALID, "Invalid API key");
+}
+
 /** True when a call names its project by a `/v1` key, not a dashboard id. */
-export function calledWithPublicKey(args: {
+export function calledWithApiKey(args: {
   apiKey?: string;
   projectId?: unknown;
 }): boolean {
-  return !args.projectId && isPublicApiKey(args.apiKey);
+  return !args.projectId && isApiKey(args.apiKey);
 }
 
 /**

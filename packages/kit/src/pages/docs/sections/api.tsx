@@ -772,6 +772,14 @@ POST /v1/webhooks/stripe/{integrationId}         Stripe's signed events; no API 
               </td>
             </tr>
             <tr>
+              <td className="px-3 py-2 font-mono text-xs">404</td>
+              <td className="px-3 py-2 font-mono text-xs">NOT_FOUND</td>
+              <td className="px-3 py-2">
+                Product sync job read or cancel for a job the key&apos;s project
+                does not have.
+              </td>
+            </tr>
+            <tr>
               <td className="px-3 py-2 font-mono text-xs">413</td>
               <td className="px-3 py-2 font-mono text-xs">PAYLOAD_TOO_LARGE</td>
               <td className="px-3 py-2">

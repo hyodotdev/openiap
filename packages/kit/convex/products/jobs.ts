@@ -15,9 +15,9 @@ import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
   callerError,
-  calledWithPublicKey,
+  calledWithApiKey,
   invalidApiKeyError,
-  isPublicApiKey,
+  isApiKey,
   resolveProjectByApiKeyFromDb,
   resolveProjectByIdForCurrentUserFromDb,
 } from "../projects/helpers";
@@ -86,7 +86,7 @@ async function resolveProjectByApiKey(
   );
   const project = resolved?.project ?? null;
   if (!project)
-    throw isPublicApiKey(apiKey)
+    throw isApiKey(apiKey)
       ? invalidApiKeyError()
       : createError(ErrorCode.PROJECT_NOT_FOUND);
   let userId: Id<"users"> | null = null;
@@ -176,7 +176,7 @@ async function resolveJobByApiKey(
   const job = jobId ? await ctx.db.get(jobId) : null;
   // Cross-project lookups read as not found, so job ids do not leak.
   if (!job || job.projectId !== project._id)
-    throw syncJobNotFound(isPublicApiKey(apiKey));
+    throw syncJobNotFound(isApiKey(apiKey));
   return { job, project };
 }
 
@@ -192,7 +192,7 @@ async function resolveJobForMutationArgs(
   const jobId = ctx.db.normalizeId("productSyncJobs", args.jobId);
   const job = jobId ? await ctx.db.get(jobId) : null;
   if (!job || job.projectId !== project._id)
-    throw syncJobNotFound(calledWithPublicKey(args));
+    throw syncJobNotFound(calledWithApiKey(args));
   return { job, project };
 }
 
@@ -260,7 +260,7 @@ export const enqueueProductSync = mutation({
         if (lockedJob.direction !== direction || lockedJob.dryRun !== dryRun) {
           const message = `A different sync is already running. Wait for or cancel job ${lockedJob._id} before changing direction or preview/apply mode.`;
           throw callerError(
-            calledWithPublicKey(args),
+            calledWithApiKey(args),
             ErrorCode.INVALID_INPUT,
             message,
           );
