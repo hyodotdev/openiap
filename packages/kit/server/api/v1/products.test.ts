@@ -1803,7 +1803,7 @@ describe("productsRoutes", () => {
     expect(job.status).toBe(404);
     await expect(job.json()).resolves.toEqual({ errors: [missing] });
 
-    // Codes that already reached clients keep their status.
+    // Other published codes, such as PRODUCT_NOT_FOUND, stay 400.
     await respond({ code: "PRODUCT_NOT_FOUND", message: "Product not found" });
     const state = await app.request("/products/state", {
       method: "POST",
