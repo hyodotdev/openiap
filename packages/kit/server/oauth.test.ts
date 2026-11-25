@@ -1,7 +1,17 @@
+import type { Context } from "hono";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const convexMock = vi.hoisted(() => ({ mutation: vi.fn() }));
 vi.mock("./convex", () => ({ client: { mutation: convexMock.mutation } }));
+const source = vi.hoisted(() => ({ limited: false }));
+vi.mock("./api/v1/rate-limit", () => ({
+  sourceRateLimitMiddleware:
+    (options: {
+      respond: (ctx: Context, result: { retryAfterSec: number }) => Response;
+    }) =>
+    async (ctx: Context, next: () => Promise<void>) =>
+      source.limited ? options.respond(ctx, { retryAfterSec: 3 }) : next(),
+}));
 
 const { oauthRoutes, readOnlyGrantGuard } = await import("./oauth");
 const { Hono } = await import("hono");
@@ -27,6 +37,7 @@ describe("OAuth endpoints for connectors", () => {
     vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "a".repeat(64));
     convexMock.mutation.mockReset();
     convexMock.mutation.mockResolvedValue(TOKENS);
+    source.limited = false;
   });
   afterEach(() => vi.unstubAllEnvs());
 
@@ -102,6 +113,23 @@ describe("OAuth endpoints for connectors", () => {
       redirectUri: "https://claude.ai/api/mcp/auth_callback",
       resource: "https://kit.openiap.dev/mcp",
     });
+  });
+
+  it("slows a flooding source down before Convex", async () => {
+    source.limited = true;
+    const response = await form("/oauth/token", {
+      grant_type: "refresh_token",
+      refresh_token: "r",
+      client_id: "https://claude.ai/oauth/x",
+    });
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("retry-after")).toBe("3");
+    await expect(response.json()).resolves.toEqual({
+      error: "slow_down",
+      error_description: "Too many requests.",
+    });
+    expect(convexMock.mutation).not.toHaveBeenCalled();
   });
 
   it("refreshes, and reports a dead grant as invalid_grant", async () => {
