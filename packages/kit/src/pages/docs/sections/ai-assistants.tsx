@@ -5,6 +5,7 @@ import { CONNECTOR_CHANGES, CONNECTOR_READS } from "@/lib/connectorAccess";
 import { Callout } from "../components/Callout";
 import { CodeBlock } from "../components/CodeBlock";
 import { DocsPage } from "../components/DocsPage";
+import { DocsScreenshot } from "../components/DocsScreenshot";
 
 export default function AiAssistantsPage() {
   return (
@@ -13,20 +14,120 @@ export default function AiAssistantsPage() {
       title="AI assistants"
       description="Connect Claude or ChatGPT to an IAPKit project, drive IAPKit from a coding agent, or point any LLM tool at IAPKit's llms.txt."
     >
-      <h2 className="mt-10 text-2xl font-semibold">
+      <h2
+        id="connect-claude-or-chatgpt"
+        className="mt-10 text-2xl font-semibold"
+      >
         Connect Claude or ChatGPT
       </h2>
       <p>
-        Add <code>https://kit.openiap.dev/mcp</code> as a custom connector in
-        Claude, or as an app in ChatGPT developer mode. You sign in with GitHub,
-        pick one project, and approve; no key is copied.
+        Add <code>https://kit.openiap.dev/mcp</code> as a connector, sign in
+        with GitHub, pick one project, and approve. No key is copied. Then ask
+        about the project in a chat, for example &ldquo;Which products are still
+        drafts?&rdquo; or &ldquo;Why did this user&apos;s last purchase
+        fail?&rdquo;
       </p>
-      <ul className="my-3 list-disc space-y-1 pl-6">
+
+      <h3 id="connect-claude" className="mt-8 text-xl font-semibold">
+        Claude
+      </h3>
+      <p>
+        A connector added on claude.ai also works in the Claude desktop and
+        mobile apps.
+      </p>
+      <ol className="my-3 list-decimal space-y-2 pl-6">
         <li>
-          The connection reads {CONNECTOR_READS}. Tick{" "}
-          <strong>Also allow changes</strong> on the approval page to let it{" "}
-          {CONNECTOR_CHANGES}.
+          Open <strong>Settings</strong> &rarr; <strong>Plugins</strong>, then
+          choose <strong>Add</strong> &rarr;{" "}
+          <strong>Add custom connector</strong>. Name it <code>IAPKit</code>,
+          enter <code>https://kit.openiap.dev/mcp</code>, and choose{" "}
+          <strong>Continue</strong>.
         </li>
+      </ol>
+      <DocsScreenshot
+        src="/docs/screenshots/connector-claude-add.webp"
+        alt="Claude's Add custom connector dialog with the name IAPKit and the URL https://kit.openiap.dev/mcp"
+        maxWidth={518}
+      />
+      <ol start={2} className="my-3 list-decimal space-y-2 pl-6">
+        <li>
+          Claude detects that IAPKit signs users in with OAuth and reads
+          Claude&apos;s published identity. Keep both defaults and choose{" "}
+          <strong>Add</strong>.
+        </li>
+      </ol>
+      <DocsScreenshot
+        src="/docs/screenshots/connector-claude-sign-in.webp"
+        alt="Claude's authentication options with Sign in now and Use Claude's published identity selected and marked Detected"
+        maxWidth={518}
+      />
+      <ol start={3} className="my-3 list-decimal space-y-2 pl-6">
+        <li>
+          IAPKit opens. Sign in with GitHub, then{" "}
+          <a href="#approve-the-connection" className="text-primary underline">
+            approve the connection
+          </a>
+          .
+        </li>
+      </ol>
+
+      <h3 id="connect-chatgpt" className="mt-8 text-xl font-semibold">
+        ChatGPT
+      </h3>
+      <ol className="my-3 list-decimal space-y-2 pl-6">
+        <li>
+          Open <strong>Plugins</strong>, choose <strong>+</strong>, then{" "}
+          <strong>Add custom MCP server</strong>. If it is missing, turn on
+          developer mode in ChatGPT&apos;s settings first.
+        </li>
+      </ol>
+      <DocsScreenshot
+        src="/docs/screenshots/connector-chatgpt-menu.webp"
+        alt="ChatGPT's Plugins menu with Create plugin, Upload plugin archive and Add custom MCP server"
+        maxWidth={390}
+      />
+      <ol start={2} className="my-3 list-decimal space-y-2 pl-6">
+        <li>
+          Name it <code>IAPKit</code>, enter{" "}
+          <code>https://kit.openiap.dev/mcp</code> as the server URL, keep{" "}
+          <strong>OAuth</strong>, tick{" "}
+          <strong>I understand and want to continue</strong>, and choose{" "}
+          <strong>Create as a plugin</strong>.
+        </li>
+      </ol>
+      <DocsScreenshot
+        src="/docs/screenshots/connector-chatgpt-server.webp"
+        alt="ChatGPT's Add custom MCP server form with the name IAPKit, the URL https://kit.openiap.dev/mcp, OAuth authentication and the risk acknowledgement ticked"
+        maxWidth={370}
+      />
+      <ol start={3} className="my-3 list-decimal space-y-2 pl-6">
+        <li>
+          On the plugin&apos;s page, choose <strong>Connect</strong>. IAPKit
+          opens; sign in with GitHub and{" "}
+          <a href="#approve-the-connection" className="text-primary underline">
+            approve the connection
+          </a>
+          .
+        </li>
+        <li>
+          In a chat, mention <strong>@IAPKit</strong> and ask your question.
+        </li>
+      </ol>
+
+      <h3 id="approve-the-connection" className="mt-8 text-xl font-semibold">
+        Approve the connection
+      </h3>
+      <p>
+        Choose the project and choose <strong>Connect</strong>. The connection
+        reads {CONNECTOR_READS}. Tick <strong>Also allow changes</strong> to let
+        it {CONNECTOR_CHANGES}.
+      </p>
+      <DocsScreenshot
+        src="/docs/screenshots/connector-iapkit-approve.webp"
+        alt="IAPKit's Connect to IAPKit page with a project selector, the read access summary and an unticked Also allow changes option"
+        maxWidth={560}
+      />
+      <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
           Only organization owners and admins can approve, and only for a
           project in their organization.
@@ -39,7 +140,25 @@ export default function AiAssistantsPage() {
         <li>
           To change access, disconnect and connect again. ChatGPT keeps the
           tools it loaded first, so choose <strong>Refresh tools</strong> in the
-          app&apos;s settings afterwards.
+          plugin&apos;s settings afterwards.
+        </li>
+        <li>
+          Coding agents such as Codex and Claude Code connect with a secret
+          admin key instead; see the{" "}
+          <Link
+            to="/docs/ai-assistants/codex-plugin"
+            className="text-primary underline"
+          >
+            Codex
+          </Link>{" "}
+          and{" "}
+          <Link
+            to="/docs/ai-assistants/claude-plugin"
+            className="text-primary underline"
+          >
+            Claude Code
+          </Link>{" "}
+          plugin guides.
         </li>
       </ul>
 

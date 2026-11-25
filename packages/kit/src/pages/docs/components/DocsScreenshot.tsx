@@ -13,15 +13,18 @@ export function DocsScreenshot({
   src,
   alt,
   caption,
+  maxWidth,
 }: {
   src: string;
   alt: string;
   caption?: string;
-}) {
+  /** Pixels; keeps a small capture, such as a dialog, at its own size. */
+  maxWidth?: number;
+}): React.JSX.Element {
   const [failed, setFailed] = useState(false);
 
   return (
-    <figure className="my-6">
+    <figure className="mx-auto my-6" style={{ maxWidth }}>
       {failed ? (
         <div className="flex aspect-[16/9] items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">
           <ImageOff className="mr-2 h-4 w-4" />

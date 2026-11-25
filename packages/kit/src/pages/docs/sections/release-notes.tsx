@@ -45,6 +45,16 @@ const RELEASES: ReleaseEntry[] = [
         topic: "Claude and ChatGPT connectors",
         text: "Claude and ChatGPT connect to one project at https://kit.openiap.dev/mcp after a GitHub sign-in, read-only unless the owner or admin allows changes. The project's API keys page lists each connection with Disconnect.",
       },
+      {
+        kind: "docs",
+        topic: "Claude and ChatGPT connectors",
+        text: "The AI assistants guide walks through connecting Claude and ChatGPT step by step, with screenshots of each screen.",
+      },
+      {
+        kind: "fix",
+        topic: "Dashboard",
+        text: "Dropdowns on the approval page and in the dashboard keep their arrow inside the field instead of against its edge.",
+      },
     ],
   },
   {

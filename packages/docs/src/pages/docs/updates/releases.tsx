@@ -913,6 +913,35 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
+      id: 'iapkit-connectors-2026-11-26',
+      date: new Date('2026-11-26'),
+      element: (
+        <div key="iapkit-connectors-2026-11-26" style={noteCardStyle}>
+          <AnchorLink id="iapkit-connectors-2026-11-26" level="h4">
+            November 26, 2026 - Connect Claude and ChatGPT to IAPKit
+          </AnchorLink>
+          <p>
+            Claude and ChatGPT connect to an IAPKit project at{' '}
+            <code>https://kit.openiap.dev/mcp</code>. Sign in with GitHub, pick
+            a project and approve; no key is copied. A connection reads
+            products, subscribers, purchases and revenue, and owners and admins
+            can also let it make changes. Then ask about the project in a chat.
+          </p>
+          <p>
+            Follow the{' '}
+            <a href="https://kit.openiap.dev/docs/ai-assistants#connect-claude-or-chatgpt">
+              step-by-step guide with screenshots
+            </a>{' '}
+            to set it up, and see the{' '}
+            <a href="https://kit.openiap.dev/docs/release-notes#week-2026-11-23">
+              IAPKit weekly history
+            </a>{' '}
+            for the server changes. No package update is needed.
+          </p>
+        </div>
+      ),
+    },
+    {
       id: 'play-verification-state-2026-11-17',
       date: new Date('2026-11-17'),
       element: (
