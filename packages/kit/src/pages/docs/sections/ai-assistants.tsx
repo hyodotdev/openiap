@@ -37,10 +37,10 @@ export default function AiAssistantsPage() {
       </p>
       <ol className="my-3 list-decimal space-y-2 pl-6">
         <li>
-          Open <strong>Settings</strong> &rarr; <strong>Plugins</strong>, then
-          choose <strong>Add</strong> &rarr;{" "}
-          <strong>Add custom connector</strong>. Name it <code>IAPKit</code>,
-          enter <code>https://kit.openiap.dev/mcp</code>, and choose{" "}
+          Open <strong>Plugins</strong> in the sidebar, then choose{" "}
+          <strong>Add</strong> &rarr; <strong>Add custom connector</strong>.
+          Name it <code>IAPKit</code>, enter{" "}
+          <code>https://kit.openiap.dev/mcp</code>, and choose{" "}
           <strong>Continue</strong>.
         </li>
       </ol>
@@ -105,7 +105,7 @@ export default function AiAssistantsPage() {
       </ol>
       <DocsScreenshot
         src="/docs/screenshots/connector-chatgpt-server.webp"
-        alt="ChatGPT's Add custom MCP server form with the name IAPKit, the URL https://kit.openiap.dev/mcp, OAuth authentication and the risk acknowledgement ticked"
+        alt="ChatGPT's Add custom MCP server form with the IAPKit icon, the name IAPKit, a kit.openiap.dev description, the URL https://kit.openiap.dev/mcp, OAuth authentication and the risk acknowledgement ticked"
         maxWidth={370}
       />
       <ol start={3} className="my-3 list-decimal space-y-2 pl-6">
