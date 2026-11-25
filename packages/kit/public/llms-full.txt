@@ -298,7 +298,8 @@ required by `/v1/subscriptions/{list|metrics|revenue}`.
   where the store allows it.
 - `POST /v1/products/sync/{ios|android}?direction=pull|push|both|purge-local&dryRun=true|false`
   — 202 `{ jobId, deduped }`; `direction` defaults to `both`, `dryRun` to
-  `false`. Poll `GET /v1/products/sync/jobs/{jobId}`.
+  `false`. Poll `GET /v1/products/sync/jobs/{jobId}`. A different `direction`
+  or `dryRun` while a job is active returns 400 `INVALID_INPUT`.
 - `POST /v1/products/sync/jobs/{jobId}/cancel` — `{ ok: true }`; a queued job
   ends at once and a running job stops at its next step. A finished job
   returns `{ ok: false, reason: "not active" }`. Reading or cancelling a job

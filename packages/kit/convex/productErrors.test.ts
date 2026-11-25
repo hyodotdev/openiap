@@ -94,6 +94,14 @@ describe("/v1 product errors", () => {
     ).toEqual(invalid);
     expect(
       await published(
+        t.mutation(api.products.jobs.enqueueProductSync, {
+          apiKey: UNKNOWN_KEY,
+          platform: "IOS",
+        }),
+      ),
+    ).toEqual(invalid);
+    expect(
+      await published(
         t.query(api.products.jobs.getSyncJobById, {
           apiKey: UNKNOWN_KEY,
           jobId: "missing",

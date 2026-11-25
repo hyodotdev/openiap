@@ -315,7 +315,7 @@ curl "https://kit.openiap.dev/v1/products/sync/jobs/<jobId>" \\
               ],
               [
                 "POST /v1/products/sync/{ios|android}?direction=&dryRun=",
-                "Queues a sync and returns 202 { jobId, deduped }. direction is pull, push, both (default), or purge-local; dryRun defaults to false.",
+                "Queues a sync and returns 202 { jobId, deduped }. direction is pull, push, both (default), or purge-local; dryRun defaults to false. A different direction or dryRun while a job is active returns 400 INVALID_INPUT.",
               ],
               [
                 "GET /v1/products/sync/jobs/{jobId}",
