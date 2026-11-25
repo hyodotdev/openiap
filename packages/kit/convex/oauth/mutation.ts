@@ -48,14 +48,22 @@ async function pkceChallenge(verifier: string): Promise<string> {
     .replace(/=+$/, "");
 }
 
+interface TokenResponse {
+  access_token: string;
+  token_type: "Bearer";
+  expires_in: number;
+  refresh_token: string;
+  scope: string;
+}
+
 function tokenResponse(
   tokens: { accessToken: string; refreshToken: string },
   granted: OauthScope,
   expiresInMs = ACCESS_TTL_MS,
-) {
+): TokenResponse {
   return {
     access_token: tokens.accessToken,
-    token_type: "Bearer" as const,
+    token_type: "Bearer",
     expires_in: Math.ceil(expiresInMs / 1000),
     refresh_token: tokens.refreshToken,
     scope: scopeString(granted),

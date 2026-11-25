@@ -61,7 +61,10 @@ export default function OauthAuthorize() {
   }
 
   const projects = details?.projects ?? [];
-  const selected = projectId ?? projects[0]?.id;
+  // A project that left the list (lost access) falls back to the first one.
+  const selected = projects.some((project) => project.id === projectId)
+    ? projectId
+    : projects[0]?.id;
   const cancel = (
     <button
       disabled={sending !== undefined}

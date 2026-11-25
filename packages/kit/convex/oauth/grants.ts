@@ -231,11 +231,24 @@ function leastRecentlyUsed(grants: Doc<"oauthGrants">[]): Doc<"oauthGrants"> {
  * derives the pair from the token it replaces and the server secret, so a
  * retry with that token can be answered the same pair. Only hashes are stored.
  */
+export interface IssuedTokens {
+  accessToken: string;
+  refreshToken: string;
+  stored: Pick<
+    Doc<"oauthGrants">,
+    | "accessTokenHash"
+    | "accessExpiresAt"
+    | "refreshFamily"
+    | "refreshTokenHash"
+    | "refreshExpiresAt"
+  >;
+}
+
 export async function newTokens(
   now: number,
   refreshFamily = randomHex(16),
   replacedRefreshToken?: string,
-) {
+): Promise<IssuedTokens> {
   const key = secret();
   const part = async (label: string) =>
     replacedRefreshToken && key

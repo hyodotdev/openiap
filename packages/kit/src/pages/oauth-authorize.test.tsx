@@ -134,6 +134,47 @@ describe("connector consent page", () => {
     );
   });
 
+  it("starts one GitHub sign-in at a time and allows a retry after a failure", async () => {
+    mocks.auth.isAuthenticated = false;
+    let fail: (error: Error) => void = () => {};
+    mocks.signIn.mockReturnValue(
+      new Promise((_, reject) => {
+        fail = reject;
+      }),
+    );
+    render(<OauthAuthorize />, { wrapper: MemoryRouter });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Sign in with GitHub" }),
+    );
+    const pending = screen.getByRole("button", { name: "Signing in…" });
+    expect(pending.hasAttribute("disabled")).toBe(true);
+    fireEvent.click(pending);
+    expect(mocks.signIn).toHaveBeenCalledTimes(1);
+
+    fail(new Error("offline"));
+    const retry = await screen.findByRole("button", {
+      name: "Sign in with GitHub",
+    });
+    expect(retry.hasAttribute("disabled")).toBe(false);
+  });
+
+  it("sends the first project when the chosen one left the list", async () => {
+    const { rerender } = render(<OauthAuthorize />, { wrapper: MemoryRouter });
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "p2" } });
+    mocks.details = {
+      clientName: "Claude",
+      redirectHost: "claude.ai",
+      projects: [{ id: "p1", name: "App", organizationName: "Acme" }],
+    };
+    rerender(<OauthAuthorize />);
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    await waitFor(() =>
+      expect(mocks.approve).toHaveBeenCalledWith(
+        expect.objectContaining({ projectId: "p1" }),
+      ),
+    );
+  });
+
   it("sends the chosen project and write access only when asked", async () => {
     render(<OauthAuthorize />, { wrapper: MemoryRouter });
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "p2" } });

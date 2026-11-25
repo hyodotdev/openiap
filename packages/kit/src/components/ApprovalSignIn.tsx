@@ -16,10 +16,12 @@ export function ApprovalSignIn({
 }: {
   returnTo: string;
   children?: ReactNode;
-}) {
+}): React.JSX.Element {
   const { signIn } = useAuthActions();
   const unfinished = isSignInUnfinished(useLocation().state);
   const [error, setError] = useState<string>();
+  // One sign-in at a time; a success leaves the page, a failure re-enables it.
+  const [pending, setPending] = useState(false);
 
   return (
     <>
@@ -31,15 +33,19 @@ export function ApprovalSignIn({
       {children}
       <button
         className="btn-gradient btn-lg"
+        disabled={pending}
         onClick={() => {
+          setPending(true);
+          setError(undefined);
           rememberSignInReturn(returnTo);
           void signIn("github", { redirectTo: returnTo }).catch(() => {
             clearSignInReturn();
             setError("GitHub sign-in failed. Try again.");
+            setPending(false);
           });
         }}
       >
-        Sign in with GitHub
+        {pending ? "Signing in…" : "Sign in with GitHub"}
       </button>
       {error && <ApprovalAlert>{error}</ApprovalAlert>}
     </>
