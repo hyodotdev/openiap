@@ -63,7 +63,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "feature",
         topic: "Dashboard",
-        text: "Purchases shows its totals in one summary with a bar per store and its filters in one toolbar, Order lookup is a single search bar, and project tabs and scrollbars are quieter.",
+        text: "Purchases, Subscriptions and Analytics each show their totals in one summary panel with filters in a single toolbar, Order lookup is one search bar, and project tabs and scrollbars are quieter.",
       },
       {
         kind: "feature",

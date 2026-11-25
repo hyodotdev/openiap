@@ -20,6 +20,7 @@ import { PurchasesSummary, type PurchaseStats } from "./PurchasesSummary";
 import { PurchasesTable } from "./PurchasesTable";
 import { Select, Input } from "antd";
 import { MixpanelEvent, trackEvent } from "@/lib/mixpanel";
+import { TOOLBAR } from "@/components/SummaryPanel";
 
 interface ProjectData {
   _id: Id<"projects">;
@@ -303,13 +304,14 @@ export default function ProjectPurchases() {
         stats={stats}
         storeFilter={storeFilter}
         isValidFilter={isValidFilter}
+        filtered={hasFilters}
         onReset={resetFilters}
         onStore={applyStoreFilter}
         onValidity={applyValidityFilter}
       />
 
       <div className="bg-card border border-border rounded-xl shadow-sm">
-        <div className="flex flex-wrap items-center gap-2 border-b border-border p-4">
+        <div className={TOOLBAR}>
           <div className={FILTER_CONTROL}>
             <Select
               aria-label="Store"

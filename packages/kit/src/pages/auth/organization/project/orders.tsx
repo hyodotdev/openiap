@@ -5,6 +5,7 @@ import type { FunctionReturnType } from "convex/server";
 import { ConvexError } from "convex/values";
 import { api, Id } from "@/convex";
 import { Badge, type BadgeVariant } from "@/components/Badge";
+import { SegmentedControl } from "@/components/SegmentedControl";
 import { cn, formatMicros } from "@/lib/utils";
 import {
   AlertCircle,
@@ -50,7 +51,11 @@ interface AppleOrderTransaction {
   appTransactionId?: string;
 }
 
-const LOOKUP_STORES: OrderLookupStore[] = ["apple", "google"];
+const LOOKUP_STORES = (["apple", "google"] as const).map((value) => ({
+  value,
+  label: storeIndicatorConfig[value].label,
+  icon: storeIndicatorConfig[value].icon,
+}));
 
 const STORE_LABELS: Record<OrderLookupStore, string> = {
   apple: "App Store",
@@ -374,34 +379,12 @@ export default function ProjectOrders() {
           }}
           className="flex flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-sm transition-shadow focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15 sm:flex-row sm:items-center"
         >
-          <div
-            role="radiogroup"
-            aria-label="Store"
-            className="flex shrink-0 rounded-lg bg-muted p-1"
-          >
-            {LOOKUP_STORES.map((option) => {
-              const Icon = storeIndicatorConfig[option].icon;
-              const selected = store === option;
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() => setStore(option)}
-                  className={cn(
-                    "flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                    selected
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                  {STORE_LABELS[option]}
-                </button>
-              );
-            })}
-          </div>
+          <SegmentedControl
+            label="Store"
+            options={LOOKUP_STORES}
+            value={store}
+            onChange={setStore}
+          />
           <label className="flex min-w-0 flex-1 items-center gap-2 px-2">
             <Search
               className="h-4 w-4 shrink-0 text-muted-foreground"

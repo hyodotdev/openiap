@@ -112,6 +112,18 @@ describe("ProjectPurchases store stats", () => {
     ).toBeTruthy();
   });
 
+  it("marks the total as showing everything only when nothing narrows the list", () => {
+    const view = render(<ProjectPurchases />);
+    const total = () => screen.getByRole("button", { name: "Total Purchases" });
+    expect(total().getAttribute("aria-pressed")).toBe("true");
+    view.unmount();
+
+    mocks.searchParams = new URLSearchParams("product=premium_monthly");
+    render(<ProjectPurchases />);
+    expect(total().getAttribute("aria-pressed")).toBe("false");
+    expect(total().textContent).toContain("Show every purchase");
+  });
+
   it("offers Clear filters only while a filter narrows the list", () => {
     mocks.searchParams = new URLSearchParams("sortField=updatedAt");
     const view = render(<ProjectPurchases />);

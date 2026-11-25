@@ -1,3 +1,4 @@
+import { SECTION_LABEL, SummaryPanel } from "@/components/SummaryPanel";
 import { cn } from "@/lib/utils";
 import { storeIndicatorConfig, type StoreIndicatorKey } from "./receipt-utils";
 
@@ -18,6 +19,8 @@ type Props = {
   stats: PurchaseStats;
   storeFilter?: StoreIndicatorKey;
   isValidFilter?: boolean;
+  /** Any filter narrows the list, including ones this panel does not set. */
+  filtered: boolean;
   onReset: () => void;
   onStore: (store: StoreIndicatorKey) => void;
   onValidity: (isValid: boolean) => void;
@@ -25,8 +28,6 @@ type Props = {
 
 const STORES: StoreIndicatorKey[] = ["apple", "google", "amazon", "horizon"];
 
-const SECTION_LABEL =
-  "text-[11px] font-medium uppercase tracking-wider text-muted-foreground";
 const ROW =
   "group flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
 
@@ -35,6 +36,7 @@ export function PurchasesSummary({
   stats,
   storeFilter,
   isValidFilter,
+  filtered,
   onReset,
   onStore,
   onValidity,
@@ -47,7 +49,7 @@ export function PurchasesSummary({
     horizon: stats.horizon,
   };
   const largest = Math.max(1, ...Object.values(storeCounts));
-  const unfiltered = !storeFilter && isValidFilter === undefined;
+  const unfiltered = !filtered;
   const validity = [
     { isValid: true, label: "Valid", count: stats.valid, dot: "bg-success" },
     {
@@ -59,9 +61,8 @@ export function PurchasesSummary({
   ];
 
   return (
-    // Sized by its own width, not the viewport: the sidebar narrows the page.
-    <section aria-label="Purchase summary" className="@container">
-      <div className="grid divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-sm @4xl:grid-cols-[13rem_minmax(0,1fr)_17rem] @4xl:divide-x @4xl:divide-y-0">
+    <SummaryPanel label="Purchase summary">
+      <div className="grid divide-y divide-border @4xl:grid-cols-[13rem_minmax(0,1fr)_17rem] @4xl:divide-x @4xl:divide-y-0">
         <button
           type="button"
           aria-label="Total Purchases"
@@ -187,6 +188,6 @@ export function PurchasesSummary({
           </ul>
         </div>
       </div>
-    </section>
+    </SummaryPanel>
   );
 }

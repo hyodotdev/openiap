@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, within } from "@testing-library/react";
 
 const mocks = vi.hoisted(() => ({
   project: {
@@ -131,14 +131,20 @@ describe("ProjectSubscriptions responsive metrics", () => {
     },
   );
 
-  it("stacks secondary metric cards before the small breakpoint", () => {
+  it("stacks the summary until its own container is wide enough", () => {
     render(<ProjectSubscriptions />);
 
-    const refundedLabel = screen.getByText("Refunded (30d)");
-    const secondaryMetrics = refundedLabel.parentElement?.parentElement;
+    const summary = screen.getByRole("region", {
+      name: "Subscription summary",
+    });
+    const recent = within(summary).getByText("Last 30 days").parentElement;
+    const columns = [...(recent?.parentElement?.classList ?? [])].filter(
+      (name) => name.includes("grid-cols-"),
+    );
 
-    expect(secondaryMetrics?.classList.contains("grid-cols-1")).toBe(true);
-    expect(secondaryMetrics?.classList.contains("sm:grid-cols-3")).toBe(true);
-    expect(secondaryMetrics?.classList.contains("grid-cols-3")).toBe(false);
+    expect(summary.classList.contains("@container")).toBe(true);
+    expect(columns.length).toBeGreaterThan(0);
+    expect(columns.every((name) => name.startsWith("@"))).toBe(true);
+    expect(recent?.textContent).toBe("Last 30 daysRefunded0Auto-renew off0");
   });
 });
