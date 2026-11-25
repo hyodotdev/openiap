@@ -190,9 +190,11 @@ const schema = defineSchema({
     refreshFamily: v.string(),
     refreshTokenHash: v.string(),
     refreshExpiresAt: v.number(),
-    // The token the last rotation replaced, accepted once more briefly.
+    // The token the last rotation replaced and the seed of the pair it got,
+    // so a retry within a minute receives that same pair again.
     previousRefreshTokenHash: v.optional(v.string()),
     rotatedAt: v.optional(v.number()),
+    rotationSeed: v.optional(v.string()),
     createdAt: v.number(),
     lastUsedAt: v.number(),
   })

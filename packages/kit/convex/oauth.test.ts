@@ -359,7 +359,7 @@ describe("OAuth connectors", () => {
     expect(await refresh(third!.refresh_token)).toBeNull();
   });
 
-  it("lets a lost refresh answer be retried for a minute, not longer", async () => {
+  it("answers a retried refresh with the same pair for a minute, not longer", async () => {
     const f = await fixture();
     const refresh = async (refreshToken: string) =>
       f.t.mutation(api.oauth.mutation.refresh, {
@@ -367,18 +367,31 @@ describe("OAuth connectors", () => {
         refreshToken,
       });
     const first = await connect(f);
-    const lost = await refresh(first.refresh_token);
-    const retried = await refresh(first.refresh_token);
-    expect(await reaches(f, lost!.access_token)).toBe(false);
-    expect(await reaches(f, retried!.access_token)).toBe(true);
+    // Two refreshes in flight with one token, or a retry after a lost answer.
+    const answered = await refresh(first.refresh_token);
+    expect(await refresh(first.refresh_token)).toEqual(answered);
+    expect(await reaches(f, answered!.access_token)).toBe(true);
 
-    // Retries do not move the window.
+    // The window starts at the rotation; retries do not move it.
     vi.advanceTimersByTime(30_000);
-    const again = await refresh(first.refresh_token);
-    expect(await reaches(f, again!.access_token)).toBe(true);
+    expect(await refresh(first.refresh_token)).toEqual(answered);
     vi.advanceTimersByTime(31_000);
     expect(await refresh(first.refresh_token)).toBeNull();
-    expect(await reaches(f, again!.access_token)).toBe(false);
+    expect(await reaches(f, answered!.access_token)).toBe(false);
+  });
+
+  it("revokes with the refresh token just rotated away", async () => {
+    const f = await fixture();
+    const first = await connect(f);
+    const second = await f.t.mutation(api.oauth.mutation.refresh, {
+      server: await proof(),
+      refreshToken: first.refresh_token,
+    });
+    await f.t.mutation(api.oauth.mutation.revoke, {
+      server: await proof(),
+      token: first.refresh_token,
+    });
+    expect(await reaches(f, second!.access_token)).toBe(false);
   });
 
   it("ends the grant a code made when the code comes back", async () => {
@@ -394,8 +407,13 @@ describe("OAuth connectors", () => {
     const tokens = await exchange();
     expect(await reaches(f, tokens!.access_token)).toBe(true);
 
+    // Refreshing keeps the grant, so a later replay still ends it.
+    const refreshed = await f.t.mutation(api.oauth.mutation.refresh, {
+      server: await proof(),
+      refreshToken: tokens!.refresh_token,
+    });
     expect(await exchange()).toBeNull();
-    expect(await reaches(f, tokens!.access_token)).toBe(false);
+    expect(await reaches(f, refreshed!.access_token)).toBe(false);
   });
 
   it("ignores a refresh token it never issued", async () => {
@@ -979,6 +997,10 @@ describe("OAuth connectors", () => {
     expect(await found(`openiap-kit_sk_oauth_${grant!.grantId}`)).toBe(false);
     // The scope is signed: a read grant cannot claim write.
     expect(await found(key.replace("_r_", "_w_"))).toBe(false);
+    // Nor with a signature for the scope it does not have.
+    expect(
+      await found((await grantApiKey({ ...grant!, scope: "write" }))!),
+    ).toBe(false);
     // The access token itself is not a key.
     expect(await found(tokens.access_token)).toBe(false);
     vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "b".repeat(64));

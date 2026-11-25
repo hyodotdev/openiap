@@ -195,8 +195,8 @@ export const exchange = mutation({
 /**
  * Rotates a grant's tokens. Null is `invalid_grant`. A refresh token of the
  * grant other than the current one leaked (RFC 9700 §4.14.2), so the grant
- * is revoked. The one just rotated away still works for a minute, for a
- * client retrying a refresh whose answer it lost.
+ * is revoked. The one just rotated away gets the same answer again for a
+ * minute, for a client retrying a refresh whose answer it lost.
  */
 export const refresh = mutation({
   args: {
@@ -212,6 +212,7 @@ export const refresh = mutation({
     const presented = await sha256Hex(args.refreshToken);
     const retry =
       presented === grant.previousRefreshTokenHash &&
+      grant.rotationSeed !== undefined &&
       now - (grant.rotatedAt ?? 0) < REFRESH_RETRY_MS;
     // A rotated-away or misused token, a lapsed grant or lost access ends it.
     if (
@@ -223,18 +224,19 @@ export const refresh = mutation({
       await ctx.db.delete(grant._id);
       return null;
     }
-    const tokens = await newTokens(now, grant.refreshFamily);
-    // A retry keeps the original rotation, so its window never grows.
-    await ctx.db.patch(
-      grant._id,
-      retry
-        ? tokens.stored
-        : {
-            ...tokens.stored,
-            previousRefreshTokenHash: presented,
-            rotatedAt: now,
-          },
-    );
+    if (retry)
+      return tokenResponse(
+        await newTokens(now, grant.refreshFamily, grant.rotationSeed),
+        grant.scope,
+      );
+    const rotationSeed = randomHex(32);
+    const tokens = await newTokens(now, grant.refreshFamily, rotationSeed);
+    await ctx.db.patch(grant._id, {
+      ...tokens.stored,
+      previousRefreshTokenHash: presented,
+      rotatedAt: now,
+      rotationSeed,
+    });
     return tokenResponse(tokens, grant.scope);
   },
 });
@@ -245,8 +247,11 @@ export const revoke = mutation({
   handler: async (ctx, { server, token }) => {
     await assertOauthServer(server);
     const byRefresh = await refreshTokenGrant(ctx, token);
+    const hash = await sha256Hex(token);
     const grant =
-      byRefresh?.refreshTokenHash === (await sha256Hex(token))
+      byRefresh &&
+      (byRefresh.refreshTokenHash === hash ||
+        byRefresh.previousRefreshTokenHash === hash)
         ? byRefresh
         : await grantByAccessToken(ctx, token);
     if (grant) await ctx.db.delete(grant._id);

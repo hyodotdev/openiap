@@ -142,7 +142,12 @@ export async function resolveGrantApiKey(
   )
     return null;
   const grant = await ctx.db.get(grantId);
-  if (!grant || (grant.scope === "read" && "insert" in ctx.db)) return null;
+  if (
+    !grant ||
+    grant.scope !== scope ||
+    (grant.scope === "read" && "insert" in ctx.db)
+  )
+    return null;
   const project = await adminProject(ctx, grant.userId, grant.projectId);
   return project ? { grant, project } : null;
 }
@@ -222,9 +227,20 @@ function leastRecentlyUsed(grants: Doc<"oauthGrants">[]): Doc<"oauthGrants"> {
 }
 
 /** New tokens for a grant; a new grant also gets its refresh family here. */
-export async function newTokens(now: number, refreshFamily = randomHex(16)) {
-  const accessToken = `iapkit_oat_${randomHex(32)}`;
-  const refreshToken = `${REFRESH_TOKEN_PREFIX}${refreshFamily}_${randomHex(32)}`;
+/**
+ * A token pair. A refresh derives it from a stored seed and the server
+ * secret, so a retried refresh can answer the same pair again.
+ */
+export async function newTokens(
+  now: number,
+  refreshFamily = randomHex(16),
+  seed?: string,
+) {
+  const key = secret();
+  const part = async (label: string) =>
+    seed && key ? hmacSha256Hex(key, `${label}:${seed}`) : randomHex(32);
+  const accessToken = `iapkit_oat_${await part("access")}`;
+  const refreshToken = `${REFRESH_TOKEN_PREFIX}${refreshFamily}_${await part("refresh")}`;
   return {
     accessToken,
     refreshToken,
