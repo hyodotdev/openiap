@@ -60,7 +60,7 @@ describe("PurchasesTable", () => {
     expect(cells).toEqual(["Sandbox", "Production", "Not reported"]);
   });
 
-  it("says when the store returned no product, with the reason on hover", () => {
+  it("says when the store returned no product, with the reason on focus", () => {
     renderTable(["Production", "Production"]);
 
     const [withProduct, without] = screen
@@ -70,9 +70,7 @@ describe("PurchasesTable", () => {
     expect(withProduct.textContent).toBe("premium_monthly");
     expect(without.textContent).toBe("Not reported");
 
-    fireEvent.mouseEnter(
-      within(without).getByText("Not reported").parentElement!,
-    );
+    fireEvent.focus(within(without).getByText("Not reported"));
     expect(screen.getByRole("tooltip").textContent).toMatch(
       /returned no product/,
     );
