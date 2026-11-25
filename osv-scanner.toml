@@ -1,4 +1,4 @@
 [[IgnoredVulns]]
 id = "GHSA-g3hv-75wg-m249"
-ignoreUntil = 2026-12-04
-reason = "The fix is minimatch 11.0.1, outside the declared major ranges of ESLint, TypeScript-ESLint, GraphQL config and npm-run-all. After the gaxios upgrade, this lock reaches minimatch only through development tools, not the Kit runtime. These tools read repository-owned patterns for trusted builds, lint and tests; do not process untrusted project configuration. Recheck compatible upstream upgrades before expiry: https://github.com/advisories/GHSA-g3hv-75wg-m249. Rechecked 2026-11-04: still no fix inside these dependency ranges."
+ignoreUntil = 2026-12-24
+reason = "The fix is minimatch 11.0.1. GraphQL config 5 and 6 require minimatch 10, and so does the resolved TypeScript-ESLint parser, which accepts 11 from 8.73.0. After the gaxios upgrade, this lock reaches minimatch only through development tools, not the Kit runtime. These tools read repository-owned patterns for trusted builds, lint and tests; do not process untrusted project configuration. Recheck compatible upstream upgrades before expiry: https://github.com/advisories/GHSA-g3hv-75wg-m249. Rechecked 2026-11-25: GraphQL config has no release that accepts the fix."

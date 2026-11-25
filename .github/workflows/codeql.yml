@@ -12,10 +12,10 @@ on:
 permissions:
   contents: read
 
-# One group per PR or branch. A PR push cancels its superseded run; a started
-# main run always finishes, and only the newest waiting push queues behind it.
+# A PR push cancels that PR's superseded run. Every other run has its own
+# group, so main pushes neither cancel nor wait on each other.
 concurrency:
-  group: codeql-${{ github.event.pull_request.number || github.ref_name }}
+  group: codeql-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

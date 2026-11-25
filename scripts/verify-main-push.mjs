@@ -17,6 +17,10 @@ import {
   pushAlwaysFilters,
   selectJobs,
 } from "./audit-ci-path-filters.mjs";
+import {
+  EXCEPTION_NOTICE_DAYS,
+  findExpiringExceptions,
+} from "./audit-security.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const repositoryRoot = path.resolve(path.dirname(scriptPath), "..");
@@ -224,6 +228,14 @@ function main([base, head]) {
   console.log("\nverify-main-push: every local step passed.");
   if (ciOnly.length) {
     console.log(`Only CI runs:\n${ciOnly.map((one) => `  ${one}`).join("\n")}`);
+  }
+  const expiring = findExpiringExceptions();
+  if (expiring.length) {
+    console.log(
+      `Security exceptions within ${EXCEPTION_NOTICE_DAYS} days of the expiry date that fails CI:\n${expiring
+        .map((one) => `  ${one}`)
+        .join("\n")}`,
+    );
   }
   return 0;
 }

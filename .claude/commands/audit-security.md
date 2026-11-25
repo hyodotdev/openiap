@@ -54,8 +54,11 @@ the dependents' ranges, or a clearing dependency bump that has not been
 tested yet) must be justified and expiring in the owning `osv-scanner.toml`,
 and must show either that the dependency is build-only (not reachable in a
 shipped package) or, for runtime-reachable advisories, a reviewed statement
-of exploitability and mitigation. A successful GitHub dependency-submission
-run is separate
+of exploitability and mitigation. A lapsed exception fails every pull request
+and push, so from 14 days before, the audit and the main pre-push hook name it:
+recheck it then, and renew or remove it.
+
+A successful GitHub dependency-submission run is separate
 evidence that the hosted graph matches the exact Bun lock commit:
 
 ```bash

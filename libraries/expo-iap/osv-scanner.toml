@@ -1,9 +1,9 @@
 [[IgnoredVulns]]
 id = "GHSA-3g3m-2fjr-6pw4"
-ignoreUntil = 2026-12-04
-reason = "The fix is glob 14.0.2, outside Expo 57 dependency ranges. Expo uses glob for trusted local project discovery and builds, including early cancellation after the first match; cancellation must not be treated as an enforced traversal budget. The published expo-iap mobile entry points do not import glob. Do not run this tooling on untrusted directory trees or expose it as a public request handler. Recheck compatible upstream upgrades before expiry: https://github.com/advisories/GHSA-3g3m-2fjr-6pw4. Rechecked 2026-11-04: still no fix inside these dependency ranges."
+ignoreUntil = 2026-12-24
+reason = "The fix is glob 14.0.2. This lock resolves glob 13 for the Expo 57 packages, which accept glob 14 from expo 57.0.34, and for expo-module-scripts, which still requires glob 13. Expo uses glob for trusted local project discovery and builds, including early cancellation after the first match; cancellation must not be treated as an enforced traversal budget. The published expo-iap mobile entry points do not import glob. Do not run this tooling on untrusted directory trees or expose it as a public request handler. Recheck compatible upstream upgrades before expiry: https://github.com/advisories/GHSA-3g3m-2fjr-6pw4. Rechecked 2026-11-25: expo-module-scripts has no release that accepts the fix."
 
 [[IgnoredVulns]]
 id = "GHSA-g3hv-75wg-m249"
-ignoreUntil = 2026-12-04
-reason = "The fix is minimatch 11.0.1, outside the Expo 57, Jest and ESLint dependency ranges. These copies serve local project discovery, fingerprinting, lint and coverage; the published expo-iap mobile entry points do not import them. Patterns come from the trusted checkout and build configuration; do not load untrusted project patterns or expose this tooling as a public request handler. Recheck compatible upstream upgrades before expiry: https://github.com/advisories/GHSA-g3hv-75wg-m249. Rechecked 2026-11-04: still no fix inside these dependency ranges."
+ignoreUntil = 2026-12-24
+reason = "The fix is minimatch 11.0.1. Expo fingerprint and glob 13 require minimatch 10, and so does the resolved TypeScript-ESLint parser, which accepts 11 from 8.73.0. These copies serve local project discovery, fingerprinting and lint; the published expo-iap mobile entry points do not import them. Patterns come from the trusted checkout and build configuration; do not load untrusted project patterns or expose this tooling as a public request handler. Recheck compatible upstream upgrades before expiry: https://github.com/advisories/GHSA-g3hv-75wg-m249. Rechecked 2026-11-25: Expo fingerprint and glob 13 have no release that accepts the fix."
