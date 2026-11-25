@@ -26,7 +26,7 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-11-23",
     weekStart: "2026-11-23",
     date: "2026-11-26",
-    pullRequests: [629, 630, 631],
+    pullRequests: [629, 630, 631, 632],
     tagline:
       "Claude and ChatGPT connect to a project with a GitHub sign-in, the dashboard tells sandbox purchases from production ones, product API mistakes answer with documented errors instead of 500, and the IAPKit runtime image gets a security update.",
     items: [
