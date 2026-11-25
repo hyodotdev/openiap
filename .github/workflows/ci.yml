@@ -531,6 +531,8 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           if [[ -n "$BASE_SHA" ]]; then
+            # The depth-2 checkout holds the base only until main moves past it.
+            git fetch --no-tags --depth=1 origin "$BASE_SHA"
             node specs/commerce-protocol/scripts/audit-compatibility.mjs --base "$BASE_SHA"
           fi
           node scripts/check-protocol-compatibility.mjs commerce-protocol
