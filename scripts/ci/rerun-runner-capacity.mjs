@@ -32,6 +32,7 @@ export async function rerunIfRunnerCapacity({
   attempt,
   token,
   fetch = globalThis.fetch,
+  pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 }) {
   const request = async (path, init = {}) => {
     const response = await fetch(`${API}${path}`, {
@@ -77,20 +78,41 @@ export async function rerunIfRunnerCapacity({
     console.log("Not a runner-capacity failure; leaving the run as it is.");
     return false;
   }
-  const run = await request(`/repos/${repository}/actions/runs/${runId}`);
-  if (
-    String(run.run_attempt) !== String(attempt) ||
-    run.status !== "completed"
-  ) {
+  const movedOn = async () => {
+    const run = await request(`/repos/${repository}/actions/runs/${runId}`);
+    return (
+      String(run.run_attempt) !== String(attempt) || run.status !== "completed"
+    );
+  };
+  if (await movedOn()) {
     console.log("The run moved on since this attempt; leaving it.");
     return false;
   }
-  await request(
-    `/repos/${repository}/actions/runs/${runId}/rerun-failed-jobs`,
-    {
-      method: "POST",
-    },
-  );
+  try {
+    await request(
+      `/repos/${repository}/actions/runs/${runId}/rerun-failed-jobs`,
+      { method: "POST" },
+    );
+  } catch (error) {
+    // This endpoint has answered 500 while the per-job one still worked.
+    // Rerunning one job starts the new attempt; the next pass reruns the rest.
+    await pause(10_000);
+    if (!(await movedOn())) {
+      let started = false;
+      for (const job of jobs.filter(unsuccessful)) {
+        try {
+          await request(`/repos/${repository}/actions/jobs/${job.id}/rerun`, {
+            method: "POST",
+          });
+          started = true;
+          break;
+        } catch {
+          // Try the next job.
+        }
+      }
+      if (!started && !(await movedOn())) throw error;
+    }
+  }
   console.log(`Reran the jobs no hosted runner picked up in run ${runId}.`);
   return true;
 }
@@ -106,10 +128,15 @@ if (
     );
     process.exit(2);
   }
-  await rerunIfRunnerCapacity({
-    repository: GITHUB_REPOSITORY,
-    runId: RUN_ID,
-    attempt: RUN_ATTEMPT,
-    token: GH_TOKEN,
-  });
+  try {
+    await rerunIfRunnerCapacity({
+      repository: GITHUB_REPOSITORY,
+      runId: RUN_ID,
+      attempt: RUN_ATTEMPT,
+      token: GH_TOKEN,
+    });
+  } catch (error) {
+    // The run it watches keeps its own result; this helper never adds a red X.
+    console.log(`::warning::Could not rerun run ${RUN_ID}: ${error.message}`);
+  }
 }

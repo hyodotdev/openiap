@@ -76,6 +76,7 @@ const rerun = (fetch) =>
     attempt: "1",
     token: "token",
     fetch,
+    pause: async () => {},
   });
 
 test("asks GitHub to rerun only the failed jobs of a capacity-cancelled run", async () => {
@@ -116,3 +117,59 @@ for (const [name, run] of [
     );
   });
 }
+
+test("leaves it there when the run moved on after a refused rerun", async () => {
+  const calls = [];
+  let runAttempt = 1;
+  const fetch = async (url, init = {}) => {
+    calls.push(`${init.method ?? "GET"} ${new URL(url).pathname}`);
+    if (url.includes("/jobs?")) return Response.json({ jobs: [unstaffed(7)] });
+    if (url.includes("/annotations"))
+      return Response.json([{ message: NO_RUNNER }]);
+    if (init.method === "POST") {
+      // Someone else started the next attempt meanwhile.
+      runAttempt = 2;
+      return new Response(null, { status: 500 });
+    }
+    return Response.json({ run_attempt: runAttempt, status: "completed" });
+  };
+
+  assert.equal(await rerun(fetch), true);
+  assert.equal(calls.filter((call) => call.startsWith("POST")).length, 1);
+});
+
+test("falls back to rerunning one job when the run-level rerun fails", async () => {
+  const calls = [];
+  const fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    calls.push(`${init.method ?? "GET"} ${path}`);
+    if (url.includes("/jobs?"))
+      return Response.json({ jobs: [unstaffed(7), unstaffed(8)] });
+    if (url.includes("/annotations"))
+      return Response.json([{ message: NO_RUNNER }]);
+    if (path.endsWith("/rerun-failed-jobs"))
+      return new Response(null, { status: 500 });
+    if (init.method === "POST") return new Response(null, { status: 201 });
+    return Response.json({ run_attempt: 1, status: "completed" });
+  };
+
+  assert.equal(await rerun(fetch), true);
+  assert.deepEqual(
+    calls.filter((call) => call.startsWith("POST")),
+    [
+      "POST /repos/owner/repo/actions/runs/42/rerun-failed-jobs",
+      "POST /repos/owner/repo/actions/jobs/7/rerun",
+    ],
+  );
+});
+
+test("throws when neither rerun endpoint starts anything", async () => {
+  const fetch = async (url, init = {}) => {
+    if (url.includes("/jobs?")) return Response.json({ jobs: [unstaffed(7)] });
+    if (url.includes("/annotations"))
+      return Response.json([{ message: NO_RUNNER }]);
+    if (init.method === "POST") return new Response(null, { status: 500 });
+    return Response.json({ run_attempt: 1, status: "completed" });
+  };
+  await assert.rejects(rerun(fetch), /rerun-failed-jobs: HTTP 500/);
+});
