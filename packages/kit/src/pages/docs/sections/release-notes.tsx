@@ -26,13 +26,19 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-11-23",
     weekStart: "2026-11-23",
     date: "2026-11-25",
-    pullRequests: [629],
-    tagline: "A security update for the IAPKit runtime image.",
+    pullRequests: [629, 631],
+    tagline:
+      "A security update for the IAPKit runtime image, and product API mistakes answer with documented errors instead of 500.",
     items: [
       {
         kind: "security",
         topic: "Runtime image",
         text: "The Debian zstd update fixes CVE-2026-124851. Self-hosted deployments should rebuild the IAPKit image.",
+      },
+      {
+        kind: "fix",
+        topic: "Product API errors",
+        text: "Product create and state writes and sync starts, job reads and cancels answer an unknown secret key with 400 INVALID_API_KEY, a missing sync job with 404 NOT_FOUND, a missing product with 400 PRODUCT_NOT_FOUND, and a conflicting sync with 400 INVALID_INPUT. These returned 500 before. A CLI session project pointer sent as an API key now gets 403 INVALID_API_KEY on every /v1 and /v2 route.",
       },
     ],
   },
@@ -113,11 +119,6 @@ const RELEASES: ReleaseEntry[] = [
         kind: "docs",
         topic: "API reference",
         text: "The API reference covers the product state, delete, and sync-cancel routes, the user-erasure job read, the external checkout routes, the 92-day revenue range, and which routes return 400 or 403 INVALID_API_KEY for an unknown key.",
-      },
-      {
-        kind: "fix",
-        topic: "Product API errors",
-        text: "Product create and state writes and sync starts, job reads and cancels answer an unknown secret key with 400 INVALID_API_KEY, a missing sync job with 404 NOT_FOUND, a missing product with 400 PRODUCT_NOT_FOUND, and a conflicting sync with 400 INVALID_INPUT. These returned 500 before. A CLI session project pointer sent as an API key now gets 403 INVALID_API_KEY on every /v1 and /v2 route.",
       },
     ],
   },
