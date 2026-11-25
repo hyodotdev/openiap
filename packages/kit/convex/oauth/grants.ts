@@ -226,19 +226,21 @@ function leastRecentlyUsed(grants: Doc<"oauthGrants">[]): Doc<"oauthGrants"> {
   return grants.reduce((a, b) => (b.lastUsedAt < a.lastUsedAt ? b : a));
 }
 
-/** New tokens for a grant; a new grant also gets its refresh family here. */
 /**
- * A token pair. A refresh derives it from a stored seed and the server
- * secret, so a retried refresh can answer the same pair again.
+ * A token pair; a new grant also gets its refresh family here. A refresh
+ * derives the pair from the token it replaces and the server secret, so a
+ * retry with that token can be answered the same pair. Only hashes are stored.
  */
 export async function newTokens(
   now: number,
   refreshFamily = randomHex(16),
-  seed?: string,
+  replacedRefreshToken?: string,
 ) {
   const key = secret();
   const part = async (label: string) =>
-    seed && key ? hmacSha256Hex(key, `${label}:${seed}`) : randomHex(32);
+    replacedRefreshToken && key
+      ? hmacSha256Hex(key, `${label}:${replacedRefreshToken}`)
+      : randomHex(32);
   const accessToken = `iapkit_oat_${await part("access")}`;
   const refreshToken = `${REFRESH_TOKEN_PREFIX}${refreshFamily}_${await part("refresh")}`;
   return {

@@ -51,11 +51,12 @@ async function pkceChallenge(verifier: string): Promise<string> {
 function tokenResponse(
   tokens: { accessToken: string; refreshToken: string },
   granted: OauthScope,
+  expiresInMs = ACCESS_TTL_MS,
 ) {
   return {
     access_token: tokens.accessToken,
     token_type: "Bearer" as const,
-    expires_in: ACCESS_TTL_MS / 1000,
+    expires_in: Math.ceil(expiresInMs / 1000),
     refresh_token: tokens.refreshToken,
     scope: scopeString(granted),
   };
@@ -196,7 +197,8 @@ export const exchange = mutation({
  * Rotates a grant's tokens. Null is `invalid_grant`. A refresh token of the
  * grant other than the current one leaked (RFC 9700 §4.14.2), so the grant
  * is revoked. The one just rotated away gets the same answer again for a
- * minute, for a client retrying a refresh whose answer it lost.
+ * minute, for a client retrying a refresh whose answer it lost; within that
+ * minute a thief holding it is not caught until the next rotation.
  */
 export const refresh = mutation({
   args: {
@@ -210,10 +212,13 @@ export const refresh = mutation({
     if (!grant) return null;
     const now = Date.now();
     const presented = await sha256Hex(args.refreshToken);
-    const retry =
+    const retried =
       presented === grant.previousRefreshTokenHash &&
-      grant.rotationSeed !== undefined &&
-      now - (grant.rotatedAt ?? 0) < REFRESH_RETRY_MS;
+      now - (grant.rotatedAt ?? 0) < REFRESH_RETRY_MS
+        ? await newTokens(now, grant.refreshFamily, args.refreshToken)
+        : null;
+    // The rederived pair matches unless the server secret changed since.
+    const retry = retried?.stored.refreshTokenHash === grant.refreshTokenHash;
     // A rotated-away or misused token, a lapsed grant or lost access ends it.
     if (
       (presented !== grant.refreshTokenHash && !retry) ||
@@ -224,18 +229,13 @@ export const refresh = mutation({
       await ctx.db.delete(grant._id);
       return null;
     }
-    if (retry)
-      return tokenResponse(
-        await newTokens(now, grant.refreshFamily, grant.rotationSeed),
-        grant.scope,
-      );
-    const rotationSeed = randomHex(32);
-    const tokens = await newTokens(now, grant.refreshFamily, rotationSeed);
+    if (retried && retry)
+      return tokenResponse(retried, grant.scope, grant.accessExpiresAt - now);
+    const tokens = await newTokens(now, grant.refreshFamily, args.refreshToken);
     await ctx.db.patch(grant._id, {
       ...tokens.stored,
       previousRefreshTokenHash: presented,
       rotatedAt: now,
-      rotationSeed,
     });
     return tokenResponse(tokens, grant.scope);
   },

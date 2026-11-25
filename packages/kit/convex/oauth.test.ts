@@ -374,10 +374,46 @@ describe("OAuth connectors", () => {
 
     // The window starts at the rotation; retries do not move it.
     vi.advanceTimersByTime(30_000);
-    expect(await refresh(first.refresh_token)).toEqual(answered);
+    expect(await refresh(first.refresh_token)).toEqual({
+      ...answered,
+      expires_in: 3570,
+    });
     vi.advanceTimersByTime(31_000);
     expect(await refresh(first.refresh_token)).toBeNull();
     expect(await reaches(f, answered!.access_token)).toBe(false);
+  });
+
+  it("never answers a retry with a pair the secret no longer derives", async () => {
+    const f = await fixture();
+    const first = await connect(f);
+    const refresh = async () =>
+      f.t.mutation(api.oauth.mutation.refresh, {
+        server: await proof(),
+        refreshToken: first.refresh_token,
+      });
+    const answered = await refresh();
+    vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "b".repeat(64));
+    expect(await refresh()).toBeNull();
+    expect(await reaches(f, answered!.access_token)).toBe(false);
+  });
+
+  it("keeps only hashes of the tokens a refresh issues", async () => {
+    const f = await fixture();
+    const first = await connect(f);
+    const second = await f.t.mutation(api.oauth.mutation.refresh, {
+      server: await proof(),
+      refreshToken: first.refresh_token,
+    });
+    const stored = JSON.stringify(
+      await f.t.run((ctx) => ctx.db.query("oauthGrants").collect()),
+    );
+    for (const token of [
+      first.access_token,
+      first.refresh_token,
+      second!.access_token,
+      second!.refresh_token,
+    ])
+      expect(stored).not.toContain(token.split("_").pop());
   });
 
   it("revokes with the refresh token just rotated away", async () => {
