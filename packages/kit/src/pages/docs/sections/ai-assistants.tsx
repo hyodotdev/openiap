@@ -28,6 +28,13 @@ export default function AiAssistantsPage() {
         fail?&rdquo;
       </p>
 
+      <DocsScreenshot
+        src="/docs/screenshots/connector-claude-chat.webp"
+        alt="Claude using IAPKit to answer how many products a project has and how many are drafts"
+        caption="Claude reads the project through IAPKit and answers from its data."
+        maxWidth={560}
+      />
+
       <h3 id="connect-claude" className="mt-8 text-xl font-semibold">
         Claude
       </h3>
@@ -121,6 +128,11 @@ export default function AiAssistantsPage() {
           In a chat, mention <strong>@IAPKit</strong> and ask your question.
         </li>
       </ol>
+      <DocsScreenshot
+        src="/docs/screenshots/connector-chatgpt-installed.webp"
+        alt="ChatGPT's Plugins page with IAPKit installed under its own icon and a kit.openiap.dev description"
+        maxWidth={400}
+      />
 
       <h3 id="approve-the-connection" className="mt-8 text-xl font-semibold">
         Approve the connection
