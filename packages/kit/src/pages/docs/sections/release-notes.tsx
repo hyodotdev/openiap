@@ -52,6 +52,11 @@ const RELEASES: ReleaseEntry[] = [
       },
       {
         kind: "fix",
+        topic: "Claude and ChatGPT connectors",
+        text: "The hosted MCP server names the IAPKit icon, and kit.openiap.dev serves it as a PNG and favicon.ico, so connectors stop falling back to the OpenIAP icon.",
+      },
+      {
+        kind: "fix",
         topic: "Dashboard",
         text: "Dropdowns on the approval page and in the dashboard keep their arrow inside the field instead of against its edge.",
       },

@@ -302,8 +302,8 @@ function registerTool<Args extends z.ZodRawShape>(
 /**
  * Creates the IAPKit MCP server and registers the `iapkit_*` tool surface.
  *
- * The returned server is configured with the package name/version metadata and
- * `https://kit.openiap.dev` as its website URL. Tool registration is performed
+ * The returned server is configured with the package name/version metadata,
+ * `https://kit.openiap.dev` as its website URL, and the IAPKit icon. Tool registration is performed
  * before returning so callers can connect the server directly to stdio, HTTP,
  * or web-standard MCP transports.
  *
@@ -316,6 +316,13 @@ export function createIapKitMcpServer(
     name: IAPKIT_MCP_SERVER_NAME,
     version: IAPKIT_MCP_SERVER_VERSION,
     websiteUrl: "https://kit.openiap.dev",
+    icons: [
+      {
+        src: "https://kit.openiap.dev/icon-256.png",
+        mimeType: "image/png",
+        sizes: ["256x256"],
+      },
+    ],
   });
   registerIapKitTools(
     { mcp: server, readOnly: options.readOnly === true },

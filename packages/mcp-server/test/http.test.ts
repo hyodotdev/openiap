@@ -131,6 +131,14 @@ describe("remote MCP HTTP server", () => {
     expect(initEvent.result.serverInfo).toMatchObject({
       name: "iapkit-mcp",
       websiteUrl: "https://kit.openiap.dev",
+      // Connectors show this instead of guessing from the domain.
+      icons: [
+        {
+          src: "https://kit.openiap.dev/icon-256.png",
+          mimeType: "image/png",
+          sizes: ["256x256"],
+        },
+      ],
     });
 
     const listResponse = await postMcp(

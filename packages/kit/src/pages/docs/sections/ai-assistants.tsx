@@ -76,9 +76,10 @@ export default function AiAssistantsPage() {
       </h3>
       <ol className="my-3 list-decimal space-y-2 pl-6">
         <li>
-          Open <strong>Plugins</strong>, choose <strong>+</strong>, then{" "}
-          <strong>Add custom MCP server</strong>. If it is missing, turn on
-          developer mode in ChatGPT&apos;s settings first.
+          Open <strong>Plugins</strong>, choose <strong>Add</strong> (or{" "}
+          <strong>+</strong>), then <strong>Add custom MCP server</strong>. If
+          it is missing, turn on developer mode in ChatGPT&apos;s settings
+          first.
         </li>
       </ol>
       <DocsScreenshot
@@ -88,9 +89,12 @@ export default function AiAssistantsPage() {
       />
       <ol start={2} className="my-3 list-decimal space-y-2 pl-6">
         <li>
-          Name it <code>IAPKit</code>, enter{" "}
-          <code>https://kit.openiap.dev/mcp</code> as the server URL, keep{" "}
-          <strong>OAuth</strong>, tick{" "}
+          Name it <code>IAPKit</code>, optionally upload{" "}
+          <a href="/icon-256.png" className="text-primary underline">
+            the IAPKit icon
+          </a>
+          , enter <code>https://kit.openiap.dev/mcp</code> as the server URL,
+          keep <strong>OAuth</strong>, tick{" "}
           <strong>I understand and want to continue</strong>, and choose{" "}
           <strong>Create as a plugin</strong>.
         </li>
