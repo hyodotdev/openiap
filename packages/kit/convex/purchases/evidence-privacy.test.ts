@@ -131,6 +131,32 @@ describe("raw store evidence", () => {
   });
 });
 
+describe("purchase environment", () => {
+  it("is read from the stored response when the row has none", async () => {
+    const { db, purchaseId } = setup();
+    const ctx = memoryCtx(db, "users_member");
+
+    const purchase = await getPurchaseById._handler(ctx, { purchaseId });
+    expect(purchase?.environment).toBe("Production");
+
+    await db.patch(purchaseId, {
+      remoteResponse: JSON.stringify({
+        productLineItem: [],
+        testPurchaseContext: { fopType: "TEST" },
+      }),
+    });
+    const list = await getReceiptsByProject._handler(ctx, {
+      projectId: PROJECT,
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    expect(list.page[0].environment).toBe("Sandbox");
+
+    await db.patch(purchaseId, { environment: "Production" });
+    const stored = await getPurchaseById._handler(ctx, { purchaseId });
+    expect(stored?.environment).toBe("Production");
+  });
+});
+
 describe("subscription store tokens", () => {
   it("reach dashboard admins and API keys, never members", async () => {
     const { db } = setup();

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/Badge";
+import { EnvironmentBadge } from "@/components/EnvironmentBadge";
 import { cn } from "@/lib/utils";
 import {
   Apple,
@@ -38,6 +39,7 @@ type StoreIndicatorKey = keyof typeof storeIndicatorConfig;
 type PurchaseRow = {
   _id: string;
   store: string;
+  environment?: string | null;
   isValid?: boolean | null;
   state?: HarmonizedPurchaseState | null;
   requestIp?: string | null;
@@ -135,14 +137,15 @@ export function PurchasesTable({
         <table
           className={cn(
             "w-full text-sm",
-            variant === "preview" && "min-w-[68rem]",
+            variant === "preview" && "min-w-[75rem]",
           )}
         >
           <thead className="text-xs uppercase text-muted-foreground border-b border-border">
-            <tr className="text-left">
+            <tr className="text-left whitespace-nowrap">
               <th className="py-3 px-6 font-medium">{"Validity"}</th>
               <th className="py-3 px-6 font-medium">{"Verified state"}</th>
               <th className="py-3 px-6 font-medium">{"Store"}</th>
+              <th className="py-3 px-6 font-medium">{"Environment"}</th>
               <th className="py-3 px-6 font-medium">{"Product ID"}</th>
               <th className="py-3 px-6 font-medium">{"Request IP"}</th>
               <th className="py-3 px-6 font-medium">
@@ -186,7 +189,7 @@ export function PurchasesTable({
           <tbody aria-busy={isLoading}>
             {isLoading ? (
               <tr>
-                <td colSpan={8} className="py-10 text-center">
+                <td colSpan={9} className="py-10 text-center">
                   <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2
                       className="h-4 w-4 animate-spin"
@@ -199,7 +202,7 @@ export function PurchasesTable({
             ) : rows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={9}
                   className="py-16 text-center text-muted-foreground"
                 >
                   <p className="font-semibold">{"No purchases found"}</p>
@@ -268,6 +271,9 @@ export function PurchasesTable({
                     </td>
                     <td className="py-4 px-6 font-mono text-xs whitespace-nowrap">
                       {renderStoreIndicator(purchase.store, storeLabel)}
+                    </td>
+                    <td className="py-4 px-6">
+                      <EnvironmentBadge environment={purchase.environment} />
                     </td>
                     <td className="py-4 px-6 font-mono text-xs">
                       {purchase.productId ?? "N/A"}

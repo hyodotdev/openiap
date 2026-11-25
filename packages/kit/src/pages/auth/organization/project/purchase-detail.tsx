@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import { api, Id } from "@/convex";
 import { BackLink } from "@/components/BackLink";
 import { Badge } from "@/components/Badge";
+import { EnvironmentBadge } from "@/components/EnvironmentBadge";
 import { PageLoading } from "@/components/LoadingSpinner";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, XCircle, Copy, ClipboardCheck } from "lucide-react";
@@ -174,9 +175,6 @@ export default function PurchaseDetail() {
     );
   }
 
-  const productId =
-    (purchase as { productId?: string | null }).productId ?? null;
-
   const formattedRemoteResponse: string | null =
     purchase.rawEvidenceVisible && purchase.remoteResponse
       ? formatJson(parseJson(purchase.remoteResponse))
@@ -305,6 +303,14 @@ export default function PurchaseDetail() {
           </div>
           <div>
             <p className="text-xs uppercase text-muted-foreground">
+              {"Environment"}
+            </p>
+            <div className="mt-2">
+              <EnvironmentBadge environment={purchase.environment} />
+            </div>
+          </div>
+          <div>
+            <p className="text-xs uppercase text-muted-foreground">
               {"Purchase ID"}
             </p>
             <div className="mt-2 flex items-center gap-2">
@@ -345,7 +351,7 @@ export default function PurchaseDetail() {
               {"Product ID"}
             </p>
             <p className="text-lg font-semibold mt-2 font-mono text-sm text-muted-foreground">
-              {productId ?? FALLBACK_VALUE}
+              {purchase.productId ?? FALLBACK_VALUE}
             </p>
           </div>
         </div>
