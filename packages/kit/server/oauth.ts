@@ -23,8 +23,8 @@ export function oauthResourceMetadataUrl(): string {
 }
 
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-// The `/v1` and `/v2` GET handlers only run Convex queries; commerce GETs
-// can recheck stores and write.
+// The `/v1` and `/v2` GET handlers run Convex queries or read-only actions
+// that resolve keys in a mutation; commerce GETs can recheck stores and write.
 const READ_ONLY_PATHS = /^\/(?:api\/)?v[12]\//;
 
 /**
