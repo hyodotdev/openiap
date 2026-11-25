@@ -119,9 +119,17 @@ describe("ProjectPurchases store stats", () => {
     view.unmount();
 
     mocks.searchParams = new URLSearchParams("product=premium_monthly");
-    render(<ProjectPurchases />);
+    const filtered = render(<ProjectPurchases />);
     expect(total().getAttribute("aria-pressed")).toBe("false");
     expect(total().textContent).toContain("Show every purchase");
+    filtered.unmount();
+
+    // The query ignores blank and unrecognized values, so they filter nothing.
+    mocks.searchParams = new URLSearchParams(
+      "product=%20&store=nowhere&ip=%20",
+    );
+    render(<ProjectPurchases />);
+    expect(total().getAttribute("aria-pressed")).toBe("true");
   });
 
   it("offers Clear filters only while a filter narrows the list", () => {

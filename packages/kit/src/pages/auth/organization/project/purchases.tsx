@@ -34,13 +34,6 @@ interface OutletContext {
   project: ProjectData;
 }
 
-// Sorting and paging live in the URL too, but do not narrow the list.
-const NON_FILTER_PARAMS = [
-  "sortField",
-  "sortDirection",
-  "cursor",
-  "cursorStack",
-];
 // Two to a row on a phone, natural width from `sm`.
 const FILTER_CONTROL = "min-w-[9rem] flex-1 sm:w-40 sm:flex-none";
 
@@ -276,9 +269,17 @@ export default function ProjectPurchases() {
     return <PageLoading />;
   }
 
-  const hasFilters = [...searchParams.keys()].some(
-    (key) => !NON_FILTER_PARAMS.includes(key),
-  );
+  // What the query narrows by: a blank or unrecognized URL value is no filter.
+  const hasFilters = [
+    storeFilter,
+    isValidFilter,
+    stateFilter,
+    requestIpQuery.trim() || undefined,
+    appUserIdFilter,
+    productIdFilter,
+    createdFrom,
+    createdTo,
+  ].some((value) => value !== undefined);
 
   return (
     <div className="space-y-6">
