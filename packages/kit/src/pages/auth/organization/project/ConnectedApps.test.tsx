@@ -9,14 +9,16 @@ import {
 } from "@testing-library/react";
 
 const mocks = vi.hoisted(() => ({
-  grants: [] as {
-    id: string;
-    clientName: string;
-    scope: "read" | "write";
-    connectedBy: string | null;
-    createdAt: number;
-    lastUsedAt: number;
-  }[],
+  grants: [] as
+    | {
+        id: string;
+        clientName: string;
+        scope: "read" | "write";
+        connectedBy: string | null;
+        createdAt: number;
+        lastUsedAt: number;
+      }[]
+    | null,
   disconnect: vi.fn(),
 }));
 vi.mock("convex/react", () => ({
@@ -52,6 +54,12 @@ describe("Connected apps", () => {
       screen.getByRole("link", { name: "AI assistants" }).getAttribute("href"),
     ).toBe("/docs/ai-assistants");
     expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("shows nothing to a member, who cannot manage connections", () => {
+    mocks.grants = null;
+    const { container } = render(<ConnectedApps projectId={"p1" as never} />);
+    expect(container.innerHTML).toBe("");
   });
 
   it("shows each app's access and disconnects only the one clicked", async () => {

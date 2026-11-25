@@ -65,7 +65,8 @@ export const listProjectGrants = query({
   handler: async (ctx, { projectId }) => {
     await assertCliScope(ctx, "read");
     const userId = await getAuthUserId(ctx);
-    if (!userId || !(await adminProject(ctx, userId, projectId))) return [];
+    // Null hides the card from members, who cannot see or end grants.
+    if (!userId || !(await adminProject(ctx, userId, projectId))) return null;
     const grants = await ctx.db
       .query("oauthGrants")
       .withIndex("by_project", (q) => q.eq("projectId", projectId))

@@ -298,7 +298,7 @@ describe("OAuth connectors", () => {
       await member.query(api.oauth.query.listProjectGrants, {
         projectId: f.projectId,
       }),
-    ).toEqual([]);
+    ).toBeNull();
   });
 
   it("spends a code once and checks verifier, client, redirect, resource and expiry", async () => {
@@ -485,11 +485,9 @@ describe("OAuth connectors", () => {
         accessToken: tokens.access_token,
       });
     const lastUsedAt = async () =>
-      (
-        await f.owner.query(api.oauth.query.listProjectGrants, {
-          projectId: f.projectId,
-        })
-      )[0].lastUsedAt;
+      (await f.owner.query(api.oauth.query.listProjectGrants, {
+        projectId: f.projectId,
+      }))![0].lastUsedAt;
     const connectedAt = await lastUsedAt();
     expect(await authenticate()).toMatchObject({ recordUse: false });
     vi.advanceTimersByTime(60 * 1000);
@@ -592,9 +590,9 @@ describe("OAuth connectors", () => {
     expect(await found(revokedKey)).toBe(false);
 
     const disconnected = await connect(f);
-    const [grant] = await f.owner.query(api.oauth.query.listProjectGrants, {
+    const [grant] = (await f.owner.query(api.oauth.query.listProjectGrants, {
       projectId: f.projectId,
-    });
+    }))!;
     await expect(
       f.t.mutation(api.oauth.mutation.disconnect, { grantId: grant.id }),
     ).rejects.toThrow();
@@ -622,7 +620,7 @@ describe("OAuth connectors", () => {
         refreshToken: demoted.refresh_token,
       }),
     ).toBeNull();
-    // Lost access is final: promoting the member back revives nothing.
+    // The refresh above ended the grant, so promoting the member back revives nothing.
     await f.t.run(async (ctx) => {
       const membership = await ctx.db
         .query("organizationMembers")
@@ -964,9 +962,9 @@ describe("OAuth connectors", () => {
       issuer: "https://test.convex.site",
       iapkitCli: true,
     });
-    const [grant] = await cli.query(api.oauth.query.listProjectGrants, {
+    const [grant] = (await cli.query(api.oauth.query.listProjectGrants, {
       projectId: f.projectId,
-    });
+    }))!;
     await expect(
       cli.mutation(api.oauth.mutation.disconnect, { grantId: grant.id }),
     ).rejects.toThrow("INSUFFICIENT_SCOPE");
