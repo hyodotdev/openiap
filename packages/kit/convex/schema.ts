@@ -170,6 +170,9 @@ const schema = defineSchema({
     redirectUri: v.string(),
     codeChallenge: v.string(),
     expiresAt: v.number(),
+    // Set by the first exchange; a second one ends the grant it made.
+    usedAt: v.optional(v.number()),
+    grantId: v.optional(v.id("oauthGrants")),
   })
     .index("by_code_hash", ["codeHash"])
     .index("by_user_id", ["userId"]),
@@ -187,6 +190,9 @@ const schema = defineSchema({
     refreshFamily: v.string(),
     refreshTokenHash: v.string(),
     refreshExpiresAt: v.number(),
+    // The token the last rotation replaced, accepted once more briefly.
+    previousRefreshTokenHash: v.optional(v.string()),
+    rotatedAt: v.optional(v.number()),
     createdAt: v.number(),
     lastUsedAt: v.number(),
   })

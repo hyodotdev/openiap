@@ -46,8 +46,6 @@ class ReceiptSourceUnavailableError extends ReceiptVerificationError {
   }
 }
 
-export { verificationSourceConfigured };
-
 export function verificationSourceSecret(scope: VerificationScope): string {
   const secret = process.env.IAPKIT_VERIFICATION_SOURCE_SECRET;
   if (!secret || !verificationSourceConfigured(secret)) unavailable(scope);

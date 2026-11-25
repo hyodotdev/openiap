@@ -359,6 +359,45 @@ describe("OAuth connectors", () => {
     expect(await refresh(third!.refresh_token)).toBeNull();
   });
 
+  it("lets a lost refresh answer be retried for a minute, not longer", async () => {
+    const f = await fixture();
+    const refresh = async (refreshToken: string) =>
+      f.t.mutation(api.oauth.mutation.refresh, {
+        server: await proof(),
+        refreshToken,
+      });
+    const first = await connect(f);
+    const lost = await refresh(first.refresh_token);
+    const retried = await refresh(first.refresh_token);
+    expect(await reaches(f, lost!.access_token)).toBe(false);
+    expect(await reaches(f, retried!.access_token)).toBe(true);
+
+    // Retries do not move the window.
+    vi.advanceTimersByTime(30_000);
+    const again = await refresh(first.refresh_token);
+    expect(await reaches(f, again!.access_token)).toBe(true);
+    vi.advanceTimersByTime(31_000);
+    expect(await refresh(first.refresh_token)).toBeNull();
+    expect(await reaches(f, again!.access_token)).toBe(false);
+  });
+
+  it("ends the grant a code made when the code comes back", async () => {
+    const f = await fixture();
+    const spent = await code(f);
+    const exchange = async () =>
+      f.t.mutation(api.oauth.mutation.exchange, {
+        server: await proof(),
+        code: spent,
+        codeVerifier: VERIFIER,
+        ...CLAUDE,
+      });
+    const tokens = await exchange();
+    expect(await reaches(f, tokens!.access_token)).toBe(true);
+
+    expect(await exchange()).toBeNull();
+    expect(await reaches(f, tokens!.access_token)).toBe(false);
+  });
+
   it("ignores a refresh token it never issued", async () => {
     const f = await fixture();
     const tokens = await connect(f);

@@ -15,6 +15,7 @@ import {
 import {
   ACCESS_TTL_MS,
   CODE_TTL_MS,
+  REFRESH_RETRY_MS,
   USE_RECORD_INTERVAL_MS,
   adminProject,
   assertOauthServer,
@@ -147,9 +148,16 @@ export const exchange = mutation({
       .withIndex("by_code_hash", (q) => q.eq("codeHash", codeHash))
       .unique();
     if (!row) return null;
-    // One attempt per code, whatever the outcome.
-    await ctx.db.delete(row._id);
+    // One attempt per code, whatever the outcome. A replayed code ends the
+    // grant its first use made (RFC 6749 §4.1.2).
+    if (row.usedAt !== undefined) {
+      if (row.grantId && (await ctx.db.get(row.grantId)))
+        await ctx.db.delete(row.grantId);
+      await ctx.db.delete(row._id);
+      return null;
+    }
     const now = Date.now();
+    await ctx.db.patch(row._id, { usedAt: now });
     const project = await adminProject(ctx, row.userId, row.projectId);
     if (
       row.expiresAt <= now ||
@@ -174,6 +182,7 @@ export const exchange = mutation({
       lastUsedAt: now,
       ...tokens.stored,
     });
+    await ctx.db.patch(row._id, { grantId });
     await ctx.scheduler.runAt(
       tokens.stored.refreshExpiresAt,
       internal.oauth.internal.expireGrant,
@@ -186,7 +195,8 @@ export const exchange = mutation({
 /**
  * Rotates a grant's tokens. Null is `invalid_grant`. A refresh token of the
  * grant other than the current one leaked (RFC 9700 §4.14.2), so the grant
- * is revoked.
+ * is revoked. The one just rotated away still works for a minute, for a
+ * client retrying a refresh whose answer it lost.
  */
 export const refresh = mutation({
   args: {
@@ -199,9 +209,13 @@ export const refresh = mutation({
     const grant = await refreshTokenGrant(ctx, args.refreshToken);
     if (!grant) return null;
     const now = Date.now();
+    const presented = await sha256Hex(args.refreshToken);
+    const retry =
+      presented === grant.previousRefreshTokenHash &&
+      now - (grant.rotatedAt ?? 0) < REFRESH_RETRY_MS;
     // A rotated-away or misused token, a lapsed grant or lost access ends it.
     if (
-      (await sha256Hex(args.refreshToken)) !== grant.refreshTokenHash ||
+      (presented !== grant.refreshTokenHash && !retry) ||
       (args.clientId !== undefined && args.clientId !== grant.clientId) ||
       grant.refreshExpiresAt <= now ||
       !(await adminProject(ctx, grant.userId, grant.projectId))
@@ -210,7 +224,17 @@ export const refresh = mutation({
       return null;
     }
     const tokens = await newTokens(now, grant.refreshFamily);
-    await ctx.db.patch(grant._id, tokens.stored);
+    // A retry keeps the original rotation, so its window never grows.
+    await ctx.db.patch(
+      grant._id,
+      retry
+        ? tokens.stored
+        : {
+            ...tokens.stored,
+            previousRefreshTokenHash: presented,
+            rotatedAt: now,
+          },
+    );
     return tokenResponse(tokens, grant.scope);
   },
 });

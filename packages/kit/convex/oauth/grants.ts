@@ -9,6 +9,7 @@ export const CODE_TTL_MS = 60 * 1000;
 export const ACCESS_TTL_MS = 60 * 60 * 1000;
 export const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const USE_RECORD_INTERVAL_MS = 10 * 60 * 1000;
+export const REFRESH_RETRY_MS = 60 * 1000;
 // Bound what removing a member and listing a project's connections read.
 export const MAX_GRANTS_PER_USER = 50;
 export const MAX_GRANTS_PER_PROJECT = 200;
@@ -122,8 +123,9 @@ export async function adminProject(
 
 /**
  * The grant and project an internal grant credential stands for. A read-only
- * grant's credential never resolves inside a mutation; the server also
- * refuses its requests that are not reads.
+ * grant's credential never resolves inside a mutation. Actions resolve keys
+ * through queries, so for them the server's read-only guard is the boundary;
+ * the credential never leaves the server.
  */
 export async function resolveGrantApiKey(
   ctx: QueryCtx | MutationCtx,
