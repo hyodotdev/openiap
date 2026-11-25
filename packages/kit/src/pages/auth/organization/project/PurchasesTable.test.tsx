@@ -71,8 +71,9 @@ describe("PurchasesTable", () => {
     expect(withProduct.textContent).toBe("premium_monthly");
     expect(without.textContent).toBe("Not reported");
 
-    // A real focus: it only lands if the trigger is keyboard-focusable.
+    // In the tab order, and a real focus lands on it.
     const trigger = within(without).getByText("Not reported");
+    expect(trigger.tabIndex).toBe(0);
     act(() => trigger.focus());
     expect(document.activeElement).toBe(trigger);
     expect(screen.getByRole("tooltip").textContent).toMatch(
