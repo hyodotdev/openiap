@@ -348,11 +348,13 @@ suspend fun verifyPurchaseWithIapkit(
         if (sku.isBlank() || userId.isBlank()) {
             throw IllegalArgumentException("IAPKit Horizon verification requires sku and userId")
         }
-        return mutableMapOf(
+        return mutableMapOf<String, Any?>(
             "store" to IapStore.Horizon.rawValue,
             "sku" to sku,
             "userId" to userId
-        )
+        ).apply {
+            horizon.sandbox?.let { put("sandbox", it) }
+        }
     }
 
     @Suppress("UNCHECKED_CAST")

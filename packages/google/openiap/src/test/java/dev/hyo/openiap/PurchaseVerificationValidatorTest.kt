@@ -632,6 +632,31 @@ class PurchaseVerificationValidatorTest {
         assertEquals("premium.monthly", bodyMap["sku"])
         assertEquals("123456789", bodyMap["userId"])
         assertEquals(true, bodyMap["includeClientPayload"])
+        assertFalse(bodyMap.containsKey("sandbox"))
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit posts the horizon sandbox flag as set`() = runTest {
+        for (sandbox in listOf(true, false)) {
+            val props = RequestVerifyPurchaseWithIapkitProps(
+                horizon = RequestVerifyPurchaseWithIapkitHorizonProps(
+                    sku = "premium.monthly",
+                    userId = "123456789",
+                    sandbox = sandbox
+                )
+            )
+            val environment = if (sandbox) ""","environment":"Sandbox"""" else ""
+            val connection = FakeHttpURLConnection(
+                200,
+                """{"store":"horizon","isValid":true,"state":"ENTITLED"$environment}"""
+            )
+
+            val result = verifyPurchaseWithIapkit(props, "TEST") { _ -> connection }
+
+            val bodyMap = Gson().fromJson(requireNotNull(connection.writtenBody), Map::class.java) as Map<*, *>
+            assertEquals(sandbox, bodyMap["sandbox"])
+            assertEquals(if (sandbox) "Sandbox" else null, result.environment)
+        }
     }
 
     @Test

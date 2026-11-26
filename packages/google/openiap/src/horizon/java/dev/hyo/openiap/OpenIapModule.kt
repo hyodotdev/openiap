@@ -2,6 +2,7 @@ package dev.hyo.openiap
 
 import android.app.Activity
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import com.meta.horizon.billingclient.api.AcknowledgePurchaseParams
 import com.meta.horizon.billingclient.api.BillingClient
 import com.meta.horizon.billingclient.api.BillingClientStateListener
@@ -70,22 +71,43 @@ private const val PURCHASE_QUERY_MAX_ATTEMPTS = 300
 internal fun resolveHorizonAppId(metaData: android.os.Bundle?): String? =
     metaData?.getString(HORIZON_APP_ID_META_DATA)?.takeIf { it.isNotBlank() }
 
+internal fun isDebuggableApp(applicationInfo: ApplicationInfo): Boolean =
+    (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+
+// The generated copy() drops includeClientPayload and horizon, so rebuild.
+private fun RequestVerifyPurchaseWithIapkitProps.withHorizon(
+    horizon: RequestVerifyPurchaseWithIapkitHorizonProps,
+): RequestVerifyPurchaseWithIapkitProps = RequestVerifyPurchaseWithIapkitProps(
+    amazon = amazon,
+    apiKey = apiKey,
+    apple = apple,
+    baseUrl = baseUrl,
+    google = google,
+    includeClientPayload = includeClientPayload,
+    horizon = horizon,
+)
+
 internal fun withResolvedHorizonUserId(
     options: RequestVerifyPurchaseWithIapkitProps,
     userId: String,
+): RequestVerifyPurchaseWithIapkitProps = options.withHorizon(
+    requireNotNull(options.horizon).copy(
+        userId = userId.trim().takeIf { it.isNotEmpty() }
+            ?: throw IllegalArgumentException("Horizon user ID must not be blank"),
+    ),
+)
+
+// Meta has no sandbox, so a debuggable build stands in for one. A value the caller set wins.
+internal fun withDefaultHorizonSandbox(
+    options: RequestVerifyPurchaseWithIapkitProps,
+    isDebuggable: Boolean,
 ): RequestVerifyPurchaseWithIapkitProps {
-    val horizon = requireNotNull(options.horizon)
-    return RequestVerifyPurchaseWithIapkitProps(
-        amazon = options.amazon,
-        apiKey = options.apiKey,
-        apple = options.apple,
-        baseUrl = options.baseUrl,
-        google = options.google,
-        includeClientPayload = options.includeClientPayload,
-        horizon = RequestVerifyPurchaseWithIapkitHorizonProps(
+    val horizon = options.horizon?.takeIf { it.sandbox == null } ?: return options
+    return options.withHorizon(
+        RequestVerifyPurchaseWithIapkitHorizonProps(
             sku = horizon.sku,
-            userId = userId.trim().takeIf { it.isNotEmpty() }
-                ?: throw IllegalArgumentException("Horizon user ID must not be blank"),
+            userId = horizon.userId,
+            sandbox = isDebuggable,
         ),
     )
 }
@@ -1450,8 +1472,11 @@ class OpenIapModule(
         if (props.provider != PurchaseVerificationProvider.Iapkit) {
             throw OpenIapError.FeatureNotSupported()
         }
-        val options = props.iapkit ?: throw OpenIapError.DeveloperError(
-            "Missing IAPKit verification parameters"
+        val options = withDefaultHorizonSandbox(
+            props.iapkit ?: throw OpenIapError.DeveloperError(
+                "Missing IAPKit verification parameters"
+            ),
+            isDebuggableApp(context.applicationInfo),
         )
         val horizonOptions = options.horizon
         val resolvedOptions = if (horizonOptions != null && horizonOptions.userId.isNullOrBlank()) {
