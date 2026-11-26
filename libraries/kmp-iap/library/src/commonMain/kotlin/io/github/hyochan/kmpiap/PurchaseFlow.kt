@@ -4,6 +4,7 @@
 // Guide: https://openiap.dev/docs/features/validation
 package io.github.hyochan.kmpiap
 
+import io.github.hyochan.kmpiap.openiap.ErrorCode
 import io.github.hyochan.kmpiap.openiap.IapPlatform
 import io.github.hyochan.kmpiap.openiap.IapStore
 import io.github.hyochan.kmpiap.openiap.Purchase
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -458,8 +460,10 @@ fun KmpIAP.createPurchaseFlow(
     getAvailablePurchases = getAvailablePurchases,
     getPendingTransactionsIOS = getPendingTransactionsIOS,
     listenForPurchases = listenForPurchases,
-    // An error ends the user's request; dispose ends them all.
-    endsRequest = purchaseErrorListener.onEach { purchaseRequests.clear() },
+    // An error ends the user's request, except a refused double tap; dispose ends them all.
+    endsRequest = purchaseErrorListener.onEach { error ->
+        if (error.code != ErrorCode.PurchaseInProgress) purchaseRequests.clear()
+    },
     onDispose = purchaseRequests::clear,
     wasRequested = wasRequested,
     confirmTimeout = confirmTimeout,
@@ -469,8 +473,11 @@ fun KmpIAP.createPurchaseFlow(
 internal class PurchaseRequests {
     // When the app asked for each product. An atomic map: requests, deliveries, and errors arrive on different threads.
     private val requestedAt = MutableStateFlow(emptyMap<String, Long>())
+    // Each request marks a distinct time, so an undo never takes another's mark.
+    private val lastMarkedAt = MutableStateFlow(0L)
 
-    fun mark(params: RequestPurchaseProps) {
+    /** Marks what [params] asks for; the undo leaves a purchase still in flight its marks, as a refused double tap must. */
+    fun mark(params: RequestPurchaseProps): () -> Unit {
         val requested = when (val request = params.request) {
             is RequestPurchaseProps.Request.Purchase ->
                 listOfNotNull(request.value.apple?.sku) + request.value.google?.skus.orEmpty()
@@ -478,8 +485,24 @@ internal class PurchaseRequests {
             is RequestPurchaseProps.Request.Subscription ->
                 listOfNotNull(request.value.apple?.sku) + request.value.google?.skus.orEmpty()
         }
-        val now = Clock.System.now().toEpochMilliseconds()
-        requestedAt.update { marks -> marks + requested.associateWith { now } }
+        val clock = Clock.System.now().toEpochMilliseconds()
+        val now = lastMarkedAt.updateAndGet { maxOf(clock, it + 1) }
+        var previous = emptyMap<String, Long?>()
+        requestedAt.update { marks ->
+            previous = requested.associateWith { marks[it] }
+            marks + requested.associateWith { now }
+        }
+        return {
+            requestedAt.update { marks ->
+                previous.entries.fold(marks) { acc, (productId, askedAt) ->
+                    when {
+                        acc[productId] != now -> acc
+                        askedAt == null -> acc - productId
+                        else -> acc + (productId to askedAt)
+                    }
+                }
+            }
+        }
     }
 
     /**

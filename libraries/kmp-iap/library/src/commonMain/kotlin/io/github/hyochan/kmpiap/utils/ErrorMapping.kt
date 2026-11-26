@@ -85,6 +85,7 @@ object ErrorCodeUtils {
         alias("E_PURCHASE_VERIFICATION_FAILED", "PURCHASE_VERIFICATION_FAILED", target = ErrorCode.PurchaseVerificationFailed)
         alias("E_PURCHASE_VERIFICATION_FINISHED", "PURCHASE_VERIFICATION_FINISHED", target = ErrorCode.PurchaseVerificationFinished)
         alias("E_PURCHASE_VERIFICATION_FINISH_FAILED", "PURCHASE_VERIFICATION_FINISH_FAILED", target = ErrorCode.PurchaseVerificationFinishFailed)
+        @Suppress("DEPRECATION") // Old spellings decode until client protocol 2.0.0 removes the code.
         alias("E_DUPLICATE_PURCHASE", "DUPLICATE_PURCHASE", target = ErrorCode.DuplicatePurchase)
     }
 
@@ -126,6 +127,7 @@ object ErrorCodeUtils {
         }
     }
 
+    @Suppress("DEPRECATION") // Covers DuplicatePurchase until client protocol 2.0.0 removes it.
     fun getErrorMessage(errorCode: ErrorCode): String = when (errorCode) {
         ErrorCode.Unknown -> "Unknown error occurred"
         ErrorCode.UserCancelled -> "Purchase cancelled by user"
@@ -162,6 +164,7 @@ object ErrorCodeUtils {
         ErrorCode.PurchaseVerificationFinished -> "Purchase verification completed"
         ErrorCode.PurchaseVerificationFinishFailed -> "Failed to complete purchase verification"
         ErrorCode.DuplicatePurchase -> "Duplicate purchase update detected"
+        ErrorCode.PurchaseInProgress -> "Another purchase is already in progress"
         ErrorCode.ServiceTimeout -> "Billing service request timed out"
     }
 }

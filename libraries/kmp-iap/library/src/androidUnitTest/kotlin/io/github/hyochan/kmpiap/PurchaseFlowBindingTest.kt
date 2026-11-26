@@ -79,6 +79,50 @@ class PurchaseFlowBindingTest {
         assertTrue(iap.purchaseRequests.wasRequested(afterDispose))
     }
 
+    @Test
+    fun `a refused double tap keeps the purchase in flight requested`() = runTest {
+        val attached = AttachedListeners()
+        var requests = 0
+        val request: MutationRequestPurchaseHandler = {
+            if (requests++ > 0) throw OpenIapError.PurchaseInProgress()
+            null
+        }
+        val module = fakeModule { method, args ->
+            when {
+                attached.record(method, args) -> null
+                method == "getRequestPurchase" -> request
+                else -> error("Unexpected call: $method")
+            }
+        }
+        val iap = KmpIAP(delegateFor(Store.HORIZON, module, registerListeners = true))
+
+        val flow = iap.createPurchaseFlow(
+            scope = backgroundScope,
+            confirmWithBackend = { _, _ -> PurchaseConfirmation.Invalid(reason = "expired") },
+            isConsumable = { false },
+        )
+        runCurrent()
+        iap.requestPurchase(premiumRequest())
+        // Android reports the refusal on the error listener; a call that throws undoes only its own marks.
+        attached.get<OpenIapPurchaseErrorListener>("PurchaseErrorListener")
+            .onPurchaseError(OpenIapError.PurchaseInProgress())
+        runCurrent()
+        assertTrue(runCatching { iap.requestPurchase(premiumRequest()) }.isFailure)
+
+        val bought = io.github.hyochan.kmpiap.openiap.PurchaseAndroid(
+            id = "in-flight",
+            isAutoRenewing = false,
+            productId = "premium",
+            purchaseState = io.github.hyochan.kmpiap.openiap.PurchaseState.Purchased,
+            quantity = 1,
+            store = io.github.hyochan.kmpiap.openiap.IapStore.Horizon,
+            storeId = "horizon",
+            transactionDate = System.currentTimeMillis().toDouble(),
+        )
+        assertTrue(iap.purchaseRequests.wasRequested(bought))
+        flow.dispose()
+    }
+
     private fun premiumRequest() = RequestPurchaseProps(
         request = RequestPurchaseProps.Request.Purchase(
             RequestPurchasePropsByPlatforms(google = RequestPurchaseAndroidProps(skus = listOf("premium")))

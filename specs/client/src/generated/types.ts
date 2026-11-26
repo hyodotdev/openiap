@@ -497,6 +497,7 @@ export enum ErrorCode {
   ConnectionClosed = 'connection-closed',
   DeferredPayment = 'deferred-payment',
   DeveloperError = 'developer-error',
+  /** @deprecated No store reports it. Scheduled for removal in client protocol 2.0.0. */
   DuplicatePurchase = 'duplicate-purchase',
   EmptySkuList = 'empty-sku-list',
   FeatureNotSupported = 'feature-not-supported',
@@ -510,6 +511,11 @@ export enum ErrorCode {
   NotPrepared = 'not-prepared',
   Pending = 'pending',
   PurchaseError = 'purchase-error',
+  /**
+   * A second purchase request while one is still running. The first purchase
+   * continues; this is not a failure of it.
+   */
+  PurchaseInProgress = 'purchase-in-progress',
   PurchaseVerificationFailed = 'purchase-verification-failed',
   PurchaseVerificationFinishFailed = 'purchase-verification-finish-failed',
   PurchaseVerificationFinished = 'purchase-verification-finished',

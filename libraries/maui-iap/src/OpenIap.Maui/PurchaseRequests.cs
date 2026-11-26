@@ -16,8 +16,10 @@ internal static class PurchaseRequests
     private const double ClockSkewMs = 600_000;
 
     private static readonly Dictionary<string, double> Requested = new(StringComparer.Ordinal);
+    // Each request marks a distinct time, so an undo never takes another's mark.
+    private static double lastMarkedAt;
 
-    /// <summary>Marks the request's SKUs, the target of a plan change included, and clears every mark if it fails.</summary>
+    /// <summary>Marks the request's SKUs, a plan change's target included; a failed request undoes only its own marks.</summary>
     public static async Task<T> Track<T>(RequestPurchaseProps request, Func<Task<T>> send)
     {
         string?[] skus =
@@ -27,12 +29,17 @@ internal static class PurchaseRequests
             .. request.RequestPurchase?.Google?.Skus ?? [],
             .. request.RequestSubscription?.Google?.Skus ?? [],
         ];
-        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        double now;
+        var previous = new Dictionary<string, double?>(StringComparer.Ordinal);
         lock (Requested)
         {
+            now = Math.Max(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), lastMarkedAt + 1);
+            lastMarkedAt = now;
             foreach (var sku in skus)
             {
-                if (!string.IsNullOrEmpty(sku)) Requested[sku] = now;
+                if (string.IsNullOrEmpty(sku)) continue;
+                if (!previous.ContainsKey(sku)) previous[sku] = Requested.TryGetValue(sku, out var askedAt) ? askedAt : null;
+                Requested[sku] = now;
             }
         }
         try
@@ -41,7 +48,15 @@ internal static class PurchaseRequests
         }
         catch
         {
-            Clear();
+            lock (Requested)
+            {
+                foreach (var (sku, askedAt) in previous)
+                {
+                    if (!Requested.TryGetValue(sku, out var current) || current != now) continue;
+                    if (askedAt is { } earlier) Requested[sku] = earlier;
+                    else Requested.Remove(sku);
+                }
+            }
             throw;
         }
     }

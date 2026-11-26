@@ -240,6 +240,12 @@ type RequestPurchaseProps =
         <code>purchaseErrorListener</code> or the hook&apos;s{' '}
         <code>onPurchaseError</code> callback.
       </p>
+      <p>
+        On Android, a request made while another purchase is still running is
+        refused with <code>purchase-in-progress</code>, on{' '}
+        <code>purchaseErrorListener</code> and on the call where the SDK rejects
+        it. The first purchase continues.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

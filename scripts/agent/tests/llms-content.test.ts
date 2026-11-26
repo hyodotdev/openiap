@@ -86,7 +86,7 @@ describe("generated LLM references", () => {
     expect(quickReference).not.toContain("products: [");
     expect(quickReference).toContain("ErrorCode.UserCancelled");
     expect(quickReference).toContain("| user-cancelled |");
-    expect(quickReference).toContain("| duplicate-purchase |");
+    expect(quickReference).toContain("| purchase-in-progress |");
     expect(quickReference).toContain("code: ErrorCode;");
     expect(quickReference).toContain(
       "subResponseCodeAndroid?: SubResponseCodeAndroid | null;",

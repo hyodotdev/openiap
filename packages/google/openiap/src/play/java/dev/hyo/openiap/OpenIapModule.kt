@@ -69,6 +69,7 @@ import dev.hyo.openiap.helpers.onSubscriptionBillingIssue
 import dev.hyo.openiap.helpers.onUserChoiceBilling
 import dev.hyo.openiap.helpers.requireAuthoritativeStorefrontCountry
 import dev.hyo.openiap.helpers.queryAlreadyOwnedPurchases
+import dev.hyo.openiap.helpers.querySubscriptionTokens
 import dev.hyo.openiap.helpers.queryProductDetails
 import dev.hyo.openiap.helpers.queryProductDetailsWithStatus
 import dev.hyo.openiap.helpers.queryPurchases
@@ -220,7 +221,7 @@ internal fun purchaseAdmissionError(
     !clientReady -> OpenIapError.ServiceDisconnected(
         "Billing connection ended before the purchase request could start"
     )
-    purchaseInProgress -> OpenIapError.DeveloperError("Another purchase is already in progress")
+    purchaseInProgress -> OpenIapError.PurchaseInProgress()
     reconnecting -> OpenIapError.ServiceDisconnected(
         "Billing connection is reconnecting; request the purchase again"
     )
@@ -257,6 +258,7 @@ class OpenIapModule(
         private const val TAG = "OpenIapModule"
         private const val AMBIGUOUS_PURCHASE_QUERY_MAX_ATTEMPTS = 3
         private const val AMBIGUOUS_PURCHASE_QUERY_RETRY_DELAY_MILLIS = 500L
+        private const val SUBSCRIPTION_LOOKUP_TIMEOUT_MILLIS = 5_000L
         private const val PURCHASE_FLOW_TIMEOUT_MILLIS = 15 * 60_000L
     }
 
@@ -2693,6 +2695,112 @@ class OpenIapModule(
         )
     }
 
+    /** The purchase, or the plan change it carries, is a product this request asked for. */
+    private fun PendingPurchaseSnapshot.asksFor(purchase: BillingPurchase): Boolean {
+        val changeTo = runCatching { purchase.pendingPurchaseUpdate?.products }.getOrNull().orEmpty()
+        return (purchase.products + changeTo).any { it in requestedSkus }
+    }
+
+    /**
+     * The type the cache, the request, or auto-renewal settles; null when only Play's
+     * subscription list can tell, as for a prepaid plan, which does not renew.
+     */
+    private fun knownProductType(purchase: BillingPurchase, pendingRequest: PendingPurchaseSnapshot?): String? =
+        purchase.products.firstOrNull()?.let { productManager.get(it) }?.productType
+            ?: pendingRequest?.requestedProductType?.takeIf { pendingRequest.asksFor(purchase) }
+            ?: BillingClient.ProductType.SUBS.takeIf { purchase.isAutoRenewing }
+
+    private fun deliverUpdatedPurchases(
+        sourceClient: BillingClient,
+        owner: ActiveStoreListenerOwner<BillingClient>,
+        pendingRequest: PendingPurchaseSnapshot?,
+        purchases: List<BillingPurchase>,
+        subscriptionTokens: Set<String>,
+    ) {
+        val mappedWithMatch = purchases.map { purchase ->
+            val firstProductId = purchase.products.firstOrNull()
+            val cached = firstProductId?.let { productManager.get(it) }
+            val pendingUpdate = runCatching { purchase.pendingPurchaseUpdate }.getOrNull()
+            val match = pendingRequest?.let { request ->
+                matchPendingRequest(
+                    productIds = purchase.products,
+                    purchaseToken = purchase.purchaseToken,
+                    pendingUpdateProductIds = pendingUpdate?.products,
+                    pendingUpdateToken = pendingUpdate?.purchaseToken,
+                    requestedSkus = request.requestedSkus,
+                    tokensBeforeLaunch = request.tokensBeforeLaunch,
+                )
+            }
+            val productType = knownProductType(purchase, pendingRequest)
+                ?: if (purchase.purchaseToken in subscriptionTokens) {
+                    BillingClient.ProductType.SUBS
+                } else {
+                    BillingClient.ProductType.INAPP
+                }
+
+            // A pending plan change is reported on the existing purchase, which keeps its
+            // old plan until the change is paid: the requested base plan goes only to a
+            // purchase that answers the request itself and has no pending update.
+            val basePlanId = if (productType == BillingClient.ProductType.SUBS) {
+                firstProductId?.let { productId ->
+                    pendingRequest?.selectedBasePlanIdsBySku?.get(productId)
+                }
+                    ?.takeIf { match == PendingRequestMatch.Purchase && pendingUpdate == null }
+                    ?: cached?.subscriptionOfferDetails
+                        .orEmpty()
+                        .singleOrNull()
+                        ?.basePlanId
+            } else {
+                null
+            }
+
+            OpenIapLog.debug("Mapping purchase products=${purchase.products} to type=$productType basePlanId=$basePlanId (cached=${cached != null})", TAG)
+            purchase.toPurchase(productType, basePlanId) to match
+        }
+        val mapped = mappedWithMatch.map { (purchase, _) -> purchase }
+        val matched = if (pendingRequest?.launchStartedAtMillis != null) {
+            mappedWithMatch
+                .filter { (_, match) -> match != null && match != PendingRequestMatch.None }
+                .map { (purchase, _) -> purchase }
+        } else {
+            emptyList()
+        }
+        // Claim the callback before notifying listeners, so a listener that
+        // starts another purchase cannot race the resolution below. If the claim
+        // fails (already completed, or cleared by disconnect/endConnection),
+        // still deliver the purchases: the store reported them.
+        val completedRequest = if (matched.isNotEmpty() && pendingRequest != null) {
+            claimPurchaseCallback(
+                sourceClient,
+                pendingRequest.callback,
+                requireLaunched = true,
+            )
+        } else {
+            null
+        }
+        OpenIapLog.debug("Mapped purchases count=${mapped.size}", TAG)
+        val delivered = deliverPurchasesIfActive(mapped, owner)
+        if (!delivered) {
+            OpenIapLog.warn(
+                "Ignoring purchase update from an inactive BillingClient connection",
+                TAG,
+            )
+        }
+        if (completedRequest != null) {
+            completedRequest.callback(Result.success(matched))
+        } else if (matched.isNotEmpty() && pendingRequest != null) {
+            OpenIapLog.warn(
+                "Purchase request completed elsewhere; delivered purchase update to listeners only",
+                TAG,
+            )
+        } else if (mapped.isNotEmpty() && pendingRequest != null) {
+            OpenIapLog.warn(
+                "Ignoring unrelated purchase update while another purchase is pending",
+                TAG,
+            )
+        }
+    }
+
     private fun onPurchasesUpdated(
         sourceClient: BillingClient,
         owner: ActiveStoreListenerOwner<BillingClient>,
@@ -2722,93 +2830,20 @@ class OpenIapModule(
         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
             // DEFERRED replacement returns null purchases; the change applies at the next renewal.
             if (purchases != null) {
-                val mappedWithMatch = purchases.map { purchase ->
-                    val firstProductId = purchase.products.firstOrNull()
-                    val cached = firstProductId?.let { productManager.get(it) }
-                    val matchesPendingRequest = pendingRequest != null &&
-                        purchase.products.any { it in pendingRequest.requestedSkus }
-                    val pendingUpdate = runCatching { purchase.pendingPurchaseUpdate }.getOrNull()
-                    val match = pendingRequest?.let { request ->
-                        matchPendingRequest(
-                            productIds = purchase.products,
-                            purchaseToken = purchase.purchaseToken,
-                            pendingUpdateProductIds = pendingUpdate?.products,
-                            pendingUpdateToken = pendingUpdate?.purchaseToken,
-                            requestedSkus = request.requestedSkus,
-                            tokensBeforeLaunch = request.tokensBeforeLaunch,
-                        )
-                    }
-                    val productType = cached?.productType
-                        ?: pendingRequest?.requestedProductType?.takeIf { matchesPendingRequest }
-                        // BillingClient does not expose product type on Purchase.
-                        // isAutoRenewing is a safer last-resort signal than
-                        // inventing type from SKU text.
-                        ?: if (purchase.isAutoRenewing) {
-                            BillingClient.ProductType.SUBS
-                        } else {
-                            BillingClient.ProductType.INAPP
-                        }
-
-                    // A pending plan change is reported on the existing purchase, which keeps its
-                    // old plan until the change is paid: the requested base plan goes only to a
-                    // purchase that answers the request itself and has no pending update.
-                    val basePlanId = if (productType == BillingClient.ProductType.SUBS) {
-                        firstProductId?.let { productId ->
-                            pendingRequest?.selectedBasePlanIdsBySku?.get(productId)
-                        }
-                            ?.takeIf { match == PendingRequestMatch.Purchase && pendingUpdate == null }
-                            ?: cached?.subscriptionOfferDetails
-                                .orEmpty()
-                                .singleOrNull()
-                                ?.basePlanId
-                    } else {
-                        null
-                    }
-
-                    OpenIapLog.debug("Mapping purchase products=${purchase.products} to type=$productType basePlanId=$basePlanId (cached=${cached != null})", TAG)
-                    purchase.toPurchase(productType, basePlanId) to match
-                }
-                val mapped = mappedWithMatch.map { (purchase, _) -> purchase }
-                val matched = if (pendingRequest?.launchStartedAtMillis != null) {
-                    mappedWithMatch
-                        .filter { (_, match) -> match != null && match != PendingRequestMatch.None }
-                        .map { (purchase, _) -> purchase }
+                if (purchases.all { knownProductType(it, pendingRequest) != null }) {
+                    deliverUpdatedPurchases(sourceClient, owner, pendingRequest, purchases, emptySet())
                 } else {
-                    emptyList()
-                }
-                // Claim the callback before notifying listeners, so a listener that
-                // starts another purchase cannot race the resolution below. If the claim
-                // fails (already completed, or cleared by disconnect/endConnection),
-                // still deliver the purchases: the store reported them.
-                val completedRequest = if (matched.isNotEmpty() && pendingRequest != null) {
-                    claimPurchaseCallback(
-                        sourceClient,
-                        pendingRequest.callback,
-                        requireLaunched = true,
-                    )
-                } else {
-                    null
-                }
-                OpenIapLog.debug("Mapped purchases count=${mapped.size}", TAG)
-                val delivered = deliverPurchasesIfActive(mapped, owner)
-                if (!delivered) {
-                    OpenIapLog.warn(
-                        "Ignoring purchase update from an inactive BillingClient connection",
-                        TAG,
-                    )
-                }
-                if (completedRequest != null) {
-                    completedRequest.callback(Result.success(matched))
-                } else if (matched.isNotEmpty() && pendingRequest != null) {
-                    OpenIapLog.warn(
-                        "Purchase request completed elsewhere; delivered purchase update to listeners only",
-                        TAG,
-                    )
-                } else if (mapped.isNotEmpty() && pendingRequest != null) {
-                    OpenIapLog.warn(
-                        "Ignoring unrelated purchase update while another purchase is pending",
-                        TAG,
-                    )
+                    val delivered = AtomicBoolean(false)
+                    fun deliver(tokens: Set<String>?) {
+                        if (!delivered.compareAndSet(false, true)) return
+                        if (tokens == null) {
+                            OpenIapLog.warn("Play did not list subscriptions; a non-renewing purchase maps as one-time", TAG)
+                        }
+                        deliverUpdatedPurchases(sourceClient, owner, pendingRequest, purchases, tokens.orEmpty())
+                    }
+                    querySubscriptionTokens(sourceClient) { tokens -> mainHandler.post { deliver(tokens) } }
+                    // Bounds the wait should Play never answer.
+                    mainHandler.postDelayed({ deliver(null) }, SUBSCRIPTION_LOOKUP_TIMEOUT_MILLIS)
                 }
             } else {
                 // Purchases is null - likely DEFERRED mode

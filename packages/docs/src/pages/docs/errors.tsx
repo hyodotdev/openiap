@@ -235,13 +235,28 @@ public sealed record PurchaseError
             </tr>
             <tr>
               <td>
+                <code>PurchaseInProgress</code>
+              </td>
+              <td>
+                A second purchase request while one is still running, such as a
+                double tap on Buy (Android). The first purchase continues.
+              </td>
+              <td>
+                Nothing to undo: ignore it, or keep the Buy button disabled
+                while a purchase runs
+              </td>
+            </tr>
+            <tr>
+              <td>
                 <code>DuplicatePurchase</code>
               </td>
               <td>
-                Duplicate <code>purchase-updated</code> event for the same token
-                (Android)
+                Deprecated: no store reports it. Scheduled for removal in client
+                protocol 2.0.0.
               </td>
-              <td>Deduplicate by purchase token and ignore duplicates</td>
+              <td>
+                Handle <code>PurchaseInProgress</code> instead
+              </td>
             </tr>
           </tbody>
         </table>
@@ -722,6 +737,7 @@ function isUserCancellation(error: { code?: unknown }) {
   FeatureNotSupported = 'feature-not-supported',
   EmptySkuList = 'empty-sku-list',
   DuplicatePurchase = 'duplicate-purchase',
+  PurchaseInProgress = 'purchase-in-progress',
 }`}</CodeBlock>
             ),
             swift: (
@@ -762,6 +778,7 @@ function isUserCancellation(error: { code?: unknown }) {
     case featureNotSupported
     case emptySkuList
     case duplicatePurchase
+    case purchaseInProgress
 }`}</CodeBlock>
             ),
             kotlin: (
@@ -802,6 +819,7 @@ function isUserCancellation(error: { code?: unknown }) {
     FeatureNotSupported,
     EmptySkuList,
     DuplicatePurchase,
+    PurchaseInProgress,
 }`}</CodeBlock>
             ),
             kmp: (
@@ -842,6 +860,7 @@ function isUserCancellation(error: { code?: unknown }) {
     FeatureNotSupported,
     EmptySkuList,
     DuplicatePurchase,
+    PurchaseInProgress,
 }`}</CodeBlock>
             ),
             dart: (
@@ -882,6 +901,7 @@ function isUserCancellation(error: { code?: unknown }) {
   featureNotSupported,
   emptySkuList,
   duplicatePurchase,
+  purchaseInProgress,
 }`}</CodeBlock>
             ),
             csharp: (
@@ -925,6 +945,7 @@ public enum ErrorCode
     FeatureNotSupported,
     EmptySkuList,
     DuplicatePurchase,
+    PurchaseInProgress,
 }`}</CodeBlock>
             ),
             gdscript: (
@@ -965,6 +986,7 @@ public enum ErrorCode
     FEATURE_NOT_SUPPORTED,
     EMPTY_SKU_LIST,
     DUPLICATE_PURCHASE,
+    PURCHASE_IN_PROGRESS,
 }`}</CodeBlock>
             ),
           }}

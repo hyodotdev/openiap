@@ -510,6 +510,7 @@ class OpenIapErrorTest {
             OpenIapError.BillingUnavailable.CODE,
             OpenIapError.ItemUnavailable.CODE,
             OpenIapError.DeveloperError.CODE,
+            OpenIapError.PurchaseInProgress.CODE,
             OpenIapError.FeatureNotSupported.CODE,
             OpenIapError.ServiceDisconnected.CODE,
             OpenIapError.ServiceTimeout.CODE,

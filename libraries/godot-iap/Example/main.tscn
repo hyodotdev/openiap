@@ -47,9 +47,9 @@ text = "Premium: OFF"
 
 [node name="StatusLabel" type="Label" parent="UI"]
 offset_left = 30.0
-offset_top = 210.0
+offset_top = 275.0
 offset_right = 690.0
-offset_bottom = 340.0
+offset_bottom = 405.0
 theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
 theme_override_font_sizes/font_size = 24
 text = "Connecting..."
@@ -81,6 +81,15 @@ offset_bottom = 185.0
 tooltip_text = "Check the app came from its store"
 theme_override_font_sizes/font_size = 32
 text = "App Ownership"
+
+[node name="AlternativeBillingButton" type="Button" parent="UI"]
+offset_left = 420.0
+offset_top = 200.0
+offset_right = 690.0
+offset_bottom = 260.0
+tooltip_text = "Google Play billing programs"
+theme_override_font_sizes/font_size = 32
+text = "Alt Billing"
 
 [node name="GameOverLabel" type="Label" parent="UI"]
 offset_left = 160.0
@@ -238,6 +247,52 @@ horizontal_scroll_mode = 0
 follow_focus = true
 
 [node name="VBoxContainer" type="VBoxContainer" parent="UI/OwnershipPanel/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 15
+
+[node name="AlternativeBillingPanel" type="Panel" parent="UI"]
+offset_left = 30.0
+offset_top = 200.0
+offset_right = 690.0
+offset_bottom = 1080.0
+theme = SubResource("Theme_panel")
+
+[node name="PanelBg" type="ColorRect" parent="UI/AlternativeBillingPanel"]
+layout_mode = 0
+offset_right = 660.0
+offset_bottom = 880.0
+color = Color(0.15, 0.15, 0.2, 1)
+
+[node name="TitleLabel" type="Label" parent="UI/AlternativeBillingPanel"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 640.0
+offset_bottom = 70.0
+theme_override_font_sizes/font_size = 36
+text = "Alternative Billing"
+horizontal_alignment = 1
+
+[node name="CloseButton" type="Button" parent="UI/AlternativeBillingPanel"]
+layout_mode = 0
+offset_left = 590.0
+offset_top = 15.0
+offset_right = 650.0
+offset_bottom = 55.0
+theme_override_font_sizes/font_size = 24
+text = "X"
+
+[node name="ScrollContainer" type="ScrollContainer" parent="UI/AlternativeBillingPanel"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 80.0
+offset_right = 640.0
+offset_bottom = 860.0
+horizontal_scroll_mode = 0
+follow_focus = true
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/AlternativeBillingPanel/ScrollContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 15

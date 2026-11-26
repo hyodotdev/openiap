@@ -116,7 +116,7 @@ public class OpenIapClientFacadeTests
     }
 
     [Fact]
-    public async Task PurchaseRequests_MarkEveryRequestedSkuAndClearWhenARequestFails()
+    public async Task PurchaseRequests_MarkEveryRequestedSkuAndUndoTheMarksOfARequestThatFails()
     {
         try
         {
@@ -137,6 +137,13 @@ public class OpenIapClientFacadeTests
                 SubscriptionRequest("premium"),
                 () => Task.FromException<int>(new InvalidOperationException("cancelled"))));
             Assert.False(PurchaseRequests.Take(Bought("GPA.2", "premium")));
+
+            // A refused double tap leaves the purchase in flight requested.
+            await PurchaseRequests.Track(SubscriptionRequest("premium"), () => Task.FromResult(0));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => PurchaseRequests.Track(
+                SubscriptionRequest("premium"),
+                () => Task.FromException<int>(new InvalidOperationException("Another purchase is already in progress"))));
+            Assert.True(PurchaseRequests.Take(Bought("GPA.3", "premium")));
         }
         finally
         {
@@ -184,6 +191,8 @@ public class OpenIapClientFacadeTests
             await PurchaseRequests.Track(SubscriptionRequest("premium_yearly"), () => Task.FromResult(0));
             store.Updates.OnNext(Bought("GPA.4", "premium_yearly") with { TransactionDate = Now() - 3_600_000 });
             store.Updates.OnNext(Bought("GPA.5", "premium_yearly") with { PurchaseState = PurchaseState.Pending });
+            // A refused double tap leaves the purchase in flight requested.
+            store.Errors.OnNext(new PurchaseError { Code = ErrorCode.PurchaseInProgress, Message = "Another purchase is already in progress" });
             store.Updates.OnNext(Bought("GPA.6", "premium_yearly"));
 
             // Outcomes arrive on the context current when the flow was created.

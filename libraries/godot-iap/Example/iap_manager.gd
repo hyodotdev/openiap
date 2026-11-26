@@ -28,11 +28,13 @@ const PRODUCT_CERTIFIED := "dev.hyo.martie.certified"
 const PRODUCT_PREMIUM := "dev.hyo.martie.premium"
 const PRODUCT_PREMIUM_YEAR := "dev.hyo.martie.premium_year"
 const CONSUMABLES := [PRODUCT_10_BULBS, PRODUCT_30_BULBS]
+const PREMIUM_PLANS := [PRODUCT_PREMIUM, PRODUCT_PREMIUM_YEAR]
 
 var store_connected := false
 var products: Dictionary = {}  # product_id -> Types.ProductAndroid or Types.ProductIOS
 var is_loading := false
-var subscription_entitlements := {PRODUCT_PREMIUM: false, PRODUCT_PREMIUM_YEAR: false}
+# Active premium plan id -> Types.ActiveSubscription, from the store.
+var active_subscriptions := {}
 var verification_method: IapkitConfig.Method = IapkitConfig.default_method()
 ## One flow for the whole app: it confirms, credits, and finishes every purchase.
 var flow: PurchaseFlow
@@ -217,7 +219,7 @@ func purchase_premium_year() -> void:
 	_purchase(PRODUCT_PREMIUM_YEAR)
 
 
-func _purchase(product_id: String, offer_token: String = "") -> void:
+func _purchase(product_id: String, offer_token: String = "", developer_billing_option: Types.DeveloperBillingOptionParamsAndroid = null) -> void:
 	if not store_connected:
 		push_error("[IAPManager] Not connected to store")
 		purchase_failed.emit(product_id, "Not connected")
@@ -252,10 +254,31 @@ func _purchase(product_id: String, offer_token: String = "") -> void:
 			print("[IAPManager] Using configured subscription offer")
 		else:
 			push_warning("[IAPManager] No offer token available for subscription")
+
+		var current := plan_to_replace(product_id)
+		if current != null:
+			if current.purchase_token == null or str(current.purchase_token).is_empty():
+				purchase_failed.emit(product_id, "The current plan has no purchase token; refresh subscriptions and try again")
+				return
+			var replacement := Types.SubscriptionProductReplacementParamsAndroid.new()
+			replacement.old_product_id = current.product_id
+			if _is_prepaid_offer(product_id, offer_token):
+				# Play only allows full-price replacement into a prepaid plan.
+				replacement.replacement_mode = Types.SubscriptionReplacementModeAndroid.CHARGE_FULL_PRICE
+			elif product_id == PRODUCT_PREMIUM_YEAR:
+				# Upgrades apply now with the unused time credited.
+				replacement.replacement_mode = Types.SubscriptionReplacementModeAndroid.WITH_TIME_PRORATION
+			else:
+				# Downgrades wait for the renewal.
+				replacement.replacement_mode = Types.SubscriptionReplacementModeAndroid.DEFERRED
+			props.request_subscription.google.subscription_product_replacement_params = replacement
+			props.request_subscription.google.purchase_token = current.purchase_token
+			print("[IAPManager] Changing plan from %s" % current.product_id)
 	else:
 		props.request = Types.RequestPurchasePropsByPlatforms.new()
 		props.request.google = Types.RequestPurchaseAndroidProps.new()
 		props.request.google.skus = google_skus
+		props.request.google.developer_billing_option = developer_billing_option
 		props.request.apple = Types.RequestPurchaseIosProps.new()
 		props.request.apple.sku = product_id
 
@@ -263,6 +286,37 @@ func _purchase(product_id: String, offer_token: String = "") -> void:
 	props.type = Types.ProductQueryType.SUBS if is_subscription else Types.ProductQueryType.IN_APP
 
 	var _result = GodotIapPlugin.request_purchase(props)
+
+
+## The owned premium plan this purchase replaces, or null. Only Google Play
+## changes a plan in place; other stores start a separate purchase.
+func plan_to_replace(product_id: String) -> Types.ActiveSubscription:
+	if product_id not in PREMIUM_PLANS or GodotIapPlugin.get_store() != Types.IapStore.GOOGLE:
+		return null
+	for owned in active_subscriptions:
+		if owned != product_id:
+			return active_subscriptions[owned]
+	return null
+
+
+## External Payments (Japan): Play shows your checkout beside its own.
+func purchase_with_external_payments(product_id: String, link_uri: String) -> void:
+	var option := Types.DeveloperBillingOptionParamsAndroid.new()
+	option.billing_program = Types.BillingProgramAndroid.EXTERNAL_PAYMENTS
+	option.launch_mode = Types.DeveloperBillingLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
+	option.link_uri = link_uri
+	_purchase(product_id, "", option)
+
+
+## Reconnects with a Google Play billing program; UNSPECIFIED returns to
+## standard billing. Native reconfigures the live connection in place.
+func set_billing_program(program: Types.BillingProgramAndroid) -> bool:
+	var config := Types.InitConnectionConfig.new()
+	config.enable_billing_program_android = program
+	var connected := await GodotIapPlugin.init_connection(config)
+	store_connected = GodotIapPlugin.is_store_connected()
+	connection_changed.emit(store_connected)
+	return connected
 
 
 ## Get the default offer token for a subscription product (Android)
@@ -310,6 +364,19 @@ func get_subscription_offers(product_id: String) -> Array:
 		offers.append(offer_info)
 
 	return offers
+
+
+## A prepaid offer ends with a phase that does not recur.
+func _is_prepaid_offer(product_id: String, offer_token: String) -> bool:
+	for offer_detail in _subscription_offer_details(products.get(product_id)):
+		if _offer_token_from_detail(offer_detail) != offer_token:
+			continue
+		var phases = _field(offer_detail, ["pricingPhases", "pricing_phases", "pricingPhasesAndroid", "pricing_phases_android"])
+		var phase_list = _field(phases, ["pricingPhaseList", "pricing_phase_list"])
+		if phase_list is Array and not phase_list.is_empty():
+			var recurrence = _field(phase_list.back(), ["recurrenceMode", "recurrence_mode"])
+			return recurrence != null and int(recurrence) == 3
+	return false
 
 
 func _subscription_offer_details(product: Variant) -> Array:
@@ -415,11 +482,11 @@ func refresh_subscriptions() -> void:
 	if not result.get("success", false):
 		push_warning("[IAPManager] Subscription query failed; premium stays as it was")
 		return
-	var active := {PRODUCT_PREMIUM: false, PRODUCT_PREMIUM_YEAR: false}
+	var active := {}
 	for subscription in result.subscriptions:
 		# Amazon reports the parent SKU, and the term in current_plan_id.
-		var term = subscription.current_plan_id if subscription.current_plan_id in active else subscription.product_id
-		if subscription.is_active and term in active:
-			active[term] = true
-	subscription_entitlements = active
+		var term = subscription.current_plan_id if subscription.current_plan_id in PREMIUM_PLANS else subscription.product_id
+		if subscription.is_active and term in PREMIUM_PLANS:
+			active[term] = subscription
+	active_subscriptions = active
 	subscription_entitlements_changed.emit()

@@ -120,6 +120,7 @@ type Query {
       'Query.isEligibleForExternalPurchaseCustomLinkIOS',
       'Mutation.presentExternalPurchaseNoticeSheetIOS',
       'Mutation.presentExternalPurchaseLinkIOS',
+      'ErrorCode.DuplicatePurchase',
     ]);
     expect(deprecations.entries.every((entry) => entry.reason.endsWith('client protocol 2.0.0.'))).toBe(true);
     expect(deprecations.typeReasons).toEqual(new Map());

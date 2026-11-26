@@ -1647,8 +1647,9 @@ func _listen_for_purchases(on_purchase: Callable) -> Callable:
 
 
 # A failed or cancelled purchase ends what the user asked for; other operations tag a method.
+# A refused double tap ends nothing: the purchase in flight continues.
 func _forget_requests_on_error(error: Dictionary) -> void:
-	if not error.has("method"):
+	if not error.has("method") and error.get("code") != Types.ERROR_CODE_VALUES[Types.ErrorCode.PURCHASE_IN_PROGRESS]:
 		_requested_skus.clear()
 
 

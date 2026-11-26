@@ -368,6 +368,17 @@ sealed class OpenIapError : Exception() {
         }
     }
 
+    /** A second purchase request while one runs; the first purchase continues. */
+    data class PurchaseInProgress(override val debugMessage: String? = null) : OpenIapError() {
+        override val code: String = CODE
+        override val message: String = MESSAGE
+
+        companion object {
+            val CODE = ErrorCode.PurchaseInProgress.rawValue
+            const val MESSAGE = "Another purchase is already in progress"
+        }
+    }
+
     data class FeatureNotSupported(override val debugMessage: String? = null) : OpenIapError() {
         override val code: String = CODE
         override val message: String = MESSAGE
@@ -432,6 +443,7 @@ sealed class OpenIapError : Exception() {
                 BillingUnavailable.CODE to BillingUnavailable.MESSAGE,
                 ItemUnavailable.CODE to ItemUnavailable.MESSAGE,
                 DeveloperError.CODE to DeveloperError.MESSAGE,
+                PurchaseInProgress.CODE to PurchaseInProgress.MESSAGE,
                 FeatureNotSupported.CODE to FeatureNotSupported.MESSAGE,
                 ServiceDisconnected.CODE to ServiceDisconnected.MESSAGE,
                 ServiceTimeout.CODE to ServiceTimeout.MESSAGE,

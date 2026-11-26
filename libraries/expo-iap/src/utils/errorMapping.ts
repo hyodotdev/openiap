@@ -36,7 +36,7 @@ export interface PurchaseError extends Error {
   platform?: IapPlatform;
 }
 
-/** Error code for duplicate purchase events. */
+/** @deprecated No store reports it. Scheduled for removal in client protocol 2.0.0. */
 export const DUPLICATE_PURCHASE_CODE = ErrorCode.DuplicatePurchase;
 
 const OPENIAP_ERROR_CODES: ReadonlySet<string> = new Set(
@@ -207,6 +207,7 @@ export function isUserCancelledError(error: unknown): boolean {
   return extractCode(error) === ErrorCode.UserCancelled;
 }
 
+/** @deprecated No store reports it. Scheduled for removal in client protocol 2.0.0. */
 export function isDuplicatePurchaseError(error: unknown): boolean {
   return extractCode(error) === DUPLICATE_PURCHASE_CODE;
 }
@@ -250,6 +251,8 @@ export function getUserFriendlyErrorMessage(error: ErrorLike): string {
       return 'Payment is pending approval';
     case ErrorCode.DuplicatePurchase:
       return 'This purchase has already been processed. Try restoring purchases.';
+    case ErrorCode.PurchaseInProgress:
+      return 'Another purchase is already in progress';
     case ErrorCode.NotPrepared:
       return 'In-app purchase is not ready. Please try again later.';
     case ErrorCode.ServiceError:

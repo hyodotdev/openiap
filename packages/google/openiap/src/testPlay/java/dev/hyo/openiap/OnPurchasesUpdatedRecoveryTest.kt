@@ -780,6 +780,104 @@ class OnPurchasesUpdatedRecoveryTest {
     }
 
     @Test
+    fun `an uncached prepaid subscription Play completes later maps as a subscription`() {
+        // A prepaid plan does not auto-renew, and nothing cached or requested names its type.
+        val prepaid = billingPurchase("prepaid-sub", "prepaid-token")
+        val client = RecordingBillingClient(ownedPurchases = listOf(prepaid))
+        val module = module()
+        setBillingClient(module, client)
+        val updates = mutableListOf<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+
+        module.onPurchasesUpdated(billingResult(BillingClient.BillingResponseCode.OK), listOf(prepaid))
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals("Play's subscription list is asked once", listOf(BillingClient.ProductType.SUBS), client.queriedProductTypes)
+        val purchase = updates.single() as PurchaseAndroid
+        assertEquals("a subscription reads its suspension", false, purchase.isSuspendedAndroid)
+    }
+
+    @Test
+    fun `an uncached purchase Play does not list as a subscription stays one-time`() {
+        val oneTime = billingPurchase("coins", "coins-token")
+        val client = RecordingBillingClient(ownedPurchases = emptyList())
+        val module = module()
+        setBillingClient(module, client)
+        val updates = mutableListOf<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+
+        module.onPurchasesUpdated(billingResult(BillingClient.BillingResponseCode.OK), listOf(oneTime))
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(listOf(BillingClient.ProductType.SUBS), client.queriedProductTypes)
+        assertNull((updates.single() as PurchaseAndroid).isSuspendedAndroid)
+    }
+
+    @Test
+    fun `an uncached purchase still arrives when Play never lists subscriptions`() {
+        val prepaid = billingPurchase("prepaid-sub", "prepaid-token")
+        val client = RecordingBillingClient(ownedPurchases = listOf(prepaid))
+        client.answersQueryPurchases = false
+        val module = module()
+        setBillingClient(module, client)
+        val updates = mutableListOf<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+
+        module.onPurchasesUpdated(billingResult(BillingClient.BillingResponseCode.OK), listOf(prepaid))
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue("it waits for Play first: $updates", updates.isEmpty())
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(5))
+
+        assertEquals(listOf("prepaid-sub"), updates.map { it.productId })
+    }
+
+    @Test
+    fun `an uncached purchase stays one-time when Play cannot list subscriptions`() {
+        val prepaid = billingPurchase("prepaid-sub", "prepaid-token")
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(prepaid),
+            purchaseResponseCodes = listOf(BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE),
+        )
+        val module = module()
+        setBillingClient(module, client)
+        val updates = mutableListOf<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+
+        module.onPurchasesUpdated(billingResult(BillingClient.BillingResponseCode.OK), listOf(prepaid))
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertNull("the purchase still arrives, typed as before", (updates.single() as PurchaseAndroid).isSuspendedAndroid)
+    }
+
+    @Test
+    fun `a second request while one runs is refused as in progress`() {
+        val client = RecordingBillingClient(
+            productDetails = listOf(inAppProductDetails("product-id")),
+            launchResponseCode = BillingClient.BillingResponseCode.OK,
+        )
+        val module = module()
+        val errors = mutableListOf<OpenIapError>()
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+        val first = startPurchase(module, client)
+        val running = pendingPurchaseField().get(module)
+
+        val second = runCatching { runBlocking { module.requestPurchase(purchaseProps()) } }
+
+        assertTrue("the double tap fails: $second", second.exceptionOrNull() is OpenIapError.PurchaseInProgress)
+        assertEquals(listOf(OpenIapError.PurchaseInProgress.CODE), errors.map { it.code })
+        assertNull("the first request is still running", first.get())
+        assertTrue("the first request keeps its slot", pendingPurchaseField().get(module) === running)
+
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.OK),
+            listOf(billingPurchase("product-id", "new-token", purchaseTime = 5)),
+        )
+        pumpMainLooperUntil { first.get() != null }
+
+        assertEquals(listOf("product-id"), purchasesOf(first).map { it.productId })
+    }
+
+    @Test
     fun `a matching purchase stamped before the launch still resolves the request`() {
         val client = RecordingBillingClient()
         val module = module()
@@ -931,6 +1029,7 @@ class OnPurchasesUpdatedRecoveryTest {
             ),
         )
 
+        assertEquals("a change to the requested product needs no type lookup", 0, client.queryPurchasesCalls.get())
         val resolved = results.single().getOrThrow().single() as PurchaseAndroid
         assertEquals("basic-id", resolved.productId)
         assertEquals(listOf("premium-id"), resolved.pendingPurchaseUpdateAndroid?.products)
@@ -2162,9 +2261,11 @@ class OnPurchasesUpdatedRecoveryTest {
         var billingChoiceDialogToken: String? = null
         var externalLinkProgram: Int? = null
         val queryPurchasesCalls = AtomicInteger(0)
+        val queriedProductTypes = mutableListOf<String>()
         val launchCalls = AtomicInteger(0)
         var onLaunch: (() -> Unit)? = null
         var beforeQueryPurchasesResponse: (() -> Unit)? = null
+        var answersQueryPurchases = true
         private val purchaseResponseCodes =
             java.util.concurrent.ConcurrentLinkedQueue(purchaseResponseCodes)
 
@@ -2173,6 +2274,9 @@ class OnPurchasesUpdatedRecoveryTest {
             listener: PurchasesResponseListener
         ) {
             queryPurchasesCalls.incrementAndGet()
+            // Play keeps the product type behind an obfuscated getter; update it with the Billing Library.
+            queriedProductTypes += params.zza()
+            if (!answersQueryPurchases) return
             beforeQueryPurchasesResponse?.invoke()
             val result = BillingResult.newBuilder()
                 .setResponseCode(

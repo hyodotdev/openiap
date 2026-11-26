@@ -200,6 +200,8 @@ String getUserFriendlyErrorMessage(dynamic error) {
       return 'Purchase verification completed';
     case ErrorCode.PurchaseVerificationFinishFailed:
       return 'Failed to finish purchase verification';
+    case ErrorCode.PurchaseInProgress:
+      return 'Another purchase is already in progress';
     default:
       // Try to surface message from PurchaseError if available
       if (error is PurchaseError && error.message.isNotEmpty) {

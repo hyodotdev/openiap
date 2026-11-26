@@ -2448,9 +2448,9 @@ function checkFlutter() {
       "deliverPurchaseRequestFailure(",
       "isCancellation = e is CancellationException",
       "reachedOpenIapRequest = reachedOpenIapRequest",
-      "ExpoIapHelper.rejectPurchasePromises(code, message, null)",
+      "ExpoIapHelper.rejectPurchasePromise(promise, code, message)",
     ],
-    "Expo Android purchase failures must settle pending promises",
+    "Expo Android purchase failures must settle their own promise",
   );
   expectMatch(
     "libraries/react-native-iap/android/src/main/java/com/margelo/nitro/iap/HybridRnIap.kt",

@@ -229,6 +229,8 @@ describe('deprecation documentation transformation', () => {
     expect(swift).toContain(
       '    @available(*, deprecated, message: "Use MODERN instead. Scheduled for removal in client protocol 3.0.0.")\n    case legacy = "legacy"',
     );
+    // An @available case stops Swift from synthesizing CaseIterable.
+    expect(swift).toContain('    public static let allCases: [LegacyBillingMode] = [.legacy, .modern]');
     expect(swift).toContain(
       '    @available(*, deprecated, message: "Use \'offer\' instead. Scheduled for removal in client protocol 3.0.0.")\n    func legacyOffer() async throws',
     );

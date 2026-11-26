@@ -858,6 +858,41 @@ void main() {
       flow.dispose();
     });
 
+    test('keeps the purchase in flight requested when a double tap is refused',
+        () async {
+      final iap = await connected('android');
+      final flow = iap.createPurchaseFlow(
+        confirmWithBackend: (purchase, {required isConsumable}) async =>
+            const PurchaseInvalid(reason: 'expired'),
+        isConsumable: (_) => false,
+      );
+      final outcome = flow.outcomes.first;
+
+      await requestPurchase(iap, 'premium');
+      // Android reports the refusal on the error stream.
+      await _sendNative(
+        'purchase-error',
+        jsonEncode({
+          'code': 'purchase-in-progress',
+          'message': 'Another purchase is already in progress',
+        }),
+      );
+      // A call that fails undoes only its own marks.
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(_channel, (call) async {
+        throw PlatformException(
+          code: 'purchase-in-progress',
+          message: 'Another purchase is already in progress',
+        );
+      });
+      await expectLater(requestPurchase(iap, 'premium'), throwsA(anything));
+      final now = DateTime.now().millisecondsSinceEpoch.toDouble();
+      await deliver(_play('GPA.1', transactionDate: now));
+
+      expect(((await outcome).status as PurchaseInvalid).recovered, isFalse);
+      flow.dispose();
+    });
+
     test('drops request marks on dispose, whatever listens', () async {
       final iap = await connected('android');
       PurchaseFlow create([

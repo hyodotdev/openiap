@@ -267,8 +267,8 @@ fi
 ```bash
 set -euo pipefail
 
-# Quick reference includes the generated DuplicatePurchase error code.
-grep "duplicate-purchase" llms.txt
+# Quick reference includes the generated PurchaseInProgress error code.
+grep "purchase-in-progress" llms.txt
 
 # llms-full.txt synced
 diff llms-full.txt packages/docs/public/llms-full.txt

@@ -186,6 +186,16 @@ void main() {
       expect(message, contains('cancelled'));
     });
 
+    test('getUserFriendlyErrorMessage names a refused double tap', () {
+      final message = errors.getUserFriendlyErrorMessage(
+        errors.PurchaseError(
+          message: 'ignored',
+          code: types.ErrorCode.PurchaseInProgress,
+        ),
+      );
+      expect(message, 'Another purchase is already in progress');
+    });
+
     test('getUserFriendlyErrorMessage falls back to provided message', () {
       final message = errors.getUserFriendlyErrorMessage(
         errors.PurchaseError(

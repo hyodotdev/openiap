@@ -5,9 +5,8 @@ import dev.hyo.openiap.FetchProductsResultProducts
 import dev.hyo.openiap.IapStore
 import dev.hyo.openiap.MutationAcknowledgePurchaseAndroidHandler
 import dev.hyo.openiap.MutationConsumePurchaseAndroidHandler
-import dev.hyo.openiap.MutationFinishTransactionHandler
-import dev.hyo.openiap.QueryFetchProductsHandler
 import dev.hyo.openiap.MutationEndConnectionHandler
+import dev.hyo.openiap.MutationFinishTransactionHandler
 import dev.hyo.openiap.MutationInitConnectionHandler
 import dev.hyo.openiap.MutationRequestPurchaseHandler
 import dev.hyo.openiap.OpenIapError
@@ -15,6 +14,7 @@ import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.Purchase
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseState
+import dev.hyo.openiap.QueryFetchProductsHandler
 import dev.hyo.openiap.QueryGetAvailablePurchasesHandler
 import dev.hyo.openiap.RequestPurchaseProps
 import dev.hyo.openiap.RequestPurchaseResult
@@ -23,11 +23,14 @@ import dev.hyo.openiap.listener.OpenIapConnectionStateListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import java.lang.reflect.Proxy
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
@@ -54,6 +57,40 @@ class OpenIapStoreConnectionLifecycleTest {
 
             assertFalse(store.status.value.loadings.purchasing.contains("coins"))
             assertNull(store.status.value.lastPurchaseResult?.productId)
+        } finally {
+            store.clear()
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun `a refused double tap leaves the purchase in flight untouched`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val module = FakeOpenIapProtocol()
+        val store = OpenIapStore(module.protocol)
+        val coins = RequestPurchaseProps.fromJson(mapOf(
+            "requestPurchase" to mapOf("google" to mapOf("skus" to listOf("coins"))),
+        ))
+        val firstResult = CompletableDeferred<RequestPurchaseResult?>()
+
+        try {
+            module.onRequestPurchase = { firstResult.await() }
+            val first = async { store.requestPurchase(coins) }
+            runCurrent()
+            module.onRequestPurchase = {
+                OpenIapError.PurchaseInProgress().also(module::emitError).let { throw it }
+            }
+
+            val second = runCatching { store.requestPurchase(coins) }
+
+            assertTrue(second.exceptionOrNull() is OpenIapError.PurchaseInProgress)
+            assertTrue(store.status.value.loadings.purchasing.contains("coins"))
+            assertNull(store.status.value.lastError)
+            module.emitError(OpenIapError.PurchaseFailed("The first purchase failed"))
+            assertEquals("coins", store.status.value.lastPurchaseResult?.productId)
+            firstResult.complete(RequestPurchaseResultPurchases(emptyList()))
+            first.await()
+            assertFalse(store.status.value.loadings.purchasing.contains("coins"))
         } finally {
             store.clear()
             Dispatchers.resetMain()
@@ -233,7 +270,8 @@ internal class FakeOpenIapProtocol {
         availablePurchaseRequests += 1
         availablePurchases
     }
-    private val requestPurchase: MutationRequestPurchaseHandler = { purchaseResult }
+    var onRequestPurchase: suspend () -> RequestPurchaseResult? = { purchaseResult }
+    private val requestPurchase: MutationRequestPurchaseHandler = { onRequestPurchase() }
 
     val protocol: OpenIapProtocol = Proxy.newProxyInstance(
         OpenIapProtocol::class.java.classLoader,

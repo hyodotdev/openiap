@@ -447,6 +447,83 @@ describe('Public API (src/index.ts)', () => {
       });
     });
 
+    it('keeps the purchase in flight requested when a double tap is refused', async () => {
+      const flow = IAP.createPurchaseFlow({
+        confirmWithBackend: async () => ({status: 'invalid' as const}),
+        isConsumable: () => false,
+      });
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome: {status: unknown}) =>
+        statuses.push(outcome.status),
+      );
+
+      await IAP.requestPurchase({
+        request: {apple: {sku: 'fresh'}},
+        type: 'in-app',
+      });
+      // The store reports the refusal on the error listener.
+      await IAP.requestPurchase({
+        request: {apple: {sku: 'fresh'}},
+        type: 'in-app',
+      });
+      mockIap.addPurchaseErrorListener.mock.calls[0][0]({
+        code: 'purchase-in-progress',
+        message: 'Another purchase is already in progress',
+      });
+      // A store that throws instead undoes only its own marks.
+      mockIap.requestPurchase.mockRejectedValueOnce(
+        new Error('Another purchase is already in progress'),
+      );
+      await expect(
+        IAP.requestPurchase({
+          request: {apple: {sku: 'fresh'}},
+          type: 'in-app',
+        }),
+      ).rejects.toBeDefined();
+      deliver({...nitroPurchase('fresh'), transactionDate: Date.now()});
+      await settle();
+
+      expect(statuses).toEqual([{status: 'invalid'}]);
+      flow.dispose();
+    });
+
+    it('keeps a later request marked when an earlier one fails in the same millisecond', async () => {
+      const now = jest.spyOn(Date, 'now').mockReturnValue(Date.now());
+      const flow = IAP.createPurchaseFlow({
+        confirmWithBackend: async () => ({status: 'invalid' as const}),
+        isConsumable: () => false,
+      });
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome: {status: unknown}) =>
+        statuses.push(outcome.status),
+      );
+      let failFirst: (error: Error) => void = () => {};
+      mockIap.requestPurchase
+        .mockImplementationOnce(
+          () =>
+            new Promise((_, reject) => {
+              failFirst = reject;
+            }),
+        )
+        .mockImplementationOnce(() => new Promise(() => {}));
+      const request = {
+        request: {apple: {sku: 'fresh'}},
+        type: 'in-app',
+      } as const;
+
+      const first = IAP.requestPurchase(request);
+      void IAP.requestPurchase(request);
+      await settle();
+      failFirst(new Error('network'));
+      await expect(first).rejects.toBeDefined();
+      deliver({...nitroPurchase('fresh'), transactionDate: Date.now()});
+      await settle();
+
+      expect(statuses).toEqual([{status: 'invalid'}]);
+      now.mockRestore();
+      flow.dispose();
+    });
+
     it('forgets a request the store answered with an error', async () => {
       const flow = IAP.createPurchaseFlow({
         confirmWithBackend: async () => ({status: 'invalid' as const}),

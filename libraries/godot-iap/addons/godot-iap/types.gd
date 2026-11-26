@@ -153,7 +153,10 @@ enum ErrorCode {
 	BILLING_UNAVAILABLE = 32,
 	FEATURE_NOT_SUPPORTED = 33,
 	EMPTY_SKU_LIST = 34,
+	## @deprecated No store reports it. Scheduled for removal in client protocol 2.0.0.
 	DUPLICATE_PURCHASE = 35,
+	## A second purchase request while one is still running. The first purchase continues; this is not a failure of it.
+	PURCHASE_IN_PROGRESS = 36,
 }
 
 ## Launch mode for external link flow (Android) Determines how the external URL is launched Introduced in Google Play Billing Library 8.2.0. External Offer and External Content Link integrations require 8.2.1+ and fresh details immediately before every redirect session.
@@ -6005,7 +6008,8 @@ const ERROR_CODE_VALUES = {
 	ErrorCode.BILLING_UNAVAILABLE: "billing-unavailable",
 	ErrorCode.FEATURE_NOT_SUPPORTED: "feature-not-supported",
 	ErrorCode.EMPTY_SKU_LIST: "empty-sku-list",
-	ErrorCode.DUPLICATE_PURCHASE: "duplicate-purchase"
+	ErrorCode.DUPLICATE_PURCHASE: "duplicate-purchase",
+	ErrorCode.PURCHASE_IN_PROGRESS: "purchase-in-progress"
 }
 
 const EXTERNAL_LINK_LAUNCH_MODE_ANDROID_VALUES = {
@@ -6394,7 +6398,10 @@ const ERROR_CODE_FROM_STRING = {
 	"EmptySkuList": ErrorCode.EMPTY_SKU_LIST,
 	"duplicate-purchase": ErrorCode.DUPLICATE_PURCHASE,
 	"DUPLICATE_PURCHASE": ErrorCode.DUPLICATE_PURCHASE,
-	"DuplicatePurchase": ErrorCode.DUPLICATE_PURCHASE
+	"DuplicatePurchase": ErrorCode.DUPLICATE_PURCHASE,
+	"purchase-in-progress": ErrorCode.PURCHASE_IN_PROGRESS,
+	"PURCHASE_IN_PROGRESS": ErrorCode.PURCHASE_IN_PROGRESS,
+	"PurchaseInProgress": ErrorCode.PURCHASE_IN_PROGRESS
 }
 
 const EXTERNAL_LINK_LAUNCH_MODE_ANDROID_FROM_STRING = {

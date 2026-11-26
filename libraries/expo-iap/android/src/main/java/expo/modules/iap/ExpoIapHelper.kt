@@ -23,6 +23,16 @@ import java.util.Locale
 import java.util.concurrent.ConcurrentLinkedQueue
 
 object ExpoIapHelper {
+    // ErrorCode.PurchaseInProgress; spelled out so this builds against an older openiap-google.
+    private const val PURCHASE_IN_PROGRESS_CODE = "purchase-in-progress"
+
+    /** A purchase error ends every pending purchase, except a refused double tap, which fails only its own call. */
+    internal fun rejectPendingPurchases(errorJson: Map<String, Any?>) {
+        val errorCode = errorJson["code"] as? String ?: OpenIapError.PurchaseFailed.CODE
+        if (errorCode == PURCHASE_IN_PROGRESS_CODE) return
+        rejectPurchasePromises(errorCode, serializeErrorEnvelope(errorJson), null)
+    }
+
     private const val MAX_BUFFERED_EVENTS = 200
     internal const val ERROR_ENVELOPE_PREFIX = "OPENIAP_ERROR_JSON:"
 
@@ -276,6 +286,14 @@ object ExpoIapHelper {
         )
     }
 
+    fun rejectPurchasePromise(
+        promise: Promise,
+        code: String,
+        message: String?,
+    ) {
+        PromiseUtils.rejectPromiseForKey(PromiseUtils.PROMISE_BUY_ITEM, promise, code, message)
+    }
+
     fun rejectPurchasePromises(
         code: String,
         message: String?,
@@ -392,13 +410,8 @@ object ExpoIapHelper {
                         )
                     }.onFailure { ExpoIapLog.failure("send fallback error event", it) }
                 }
-                // Also reject any pending purchase promises to match iOS behavior
-                val errorCode = errorJson["code"] as? String ?: OpenIapError.PurchaseFailed.CODE
-                rejectPurchasePromises(
-                    errorCode,
-                    serializeErrorEnvelope(errorJson),
-                    null,
-                )
+                // Also reject any pending purchase promises to match iOS behavior.
+                rejectPendingPurchases(errorJson)
             }
         openIap.addPurchaseErrorListener(purchaseErrorListener)
 

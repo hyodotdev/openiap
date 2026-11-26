@@ -6,18 +6,34 @@ import {
   type PurchaseFlow,
   type PurchaseFlowOptions,
 } from '../purchase-flow-core';
-import type {Purchase} from '../types';
+import {ErrorCode, type Purchase} from '../types';
 
 // When the app asked for each SKU, so the flow can tell the user's own
 // purchase from one the store redelivers.
 const requested = new Map<string, number>();
+// Distinct per request, so an undo never takes another request's mark.
+let lastMarkedAt = 0;
 
-export function markRequested(skus: (string | null | undefined)[]): void {
-  const now = Date.now();
-  for (const sku of skus) if (sku) requested.set(sku, now);
+// Returns the undo for a request that fails, which keeps other requests' marks.
+export function markRequested(skus: (string | null | undefined)[]): () => void {
+  const now = Math.max(Date.now(), lastMarkedAt + 1);
+  lastMarkedAt = now;
+  const previous = new Map<string, number | undefined>();
+  for (const sku of skus) {
+    if (!sku) continue;
+    if (!previous.has(sku)) previous.set(sku, requested.get(sku));
+    requested.set(sku, now);
+  }
+  return () => {
+    for (const [sku, askedAt] of previous) {
+      if (requested.get(sku) !== now) continue;
+      if (askedAt === undefined) requested.delete(sku);
+      else requested.set(sku, askedAt);
+    }
+  };
 }
 
-export function clearRequested(): void {
+function clearRequested(): void {
   requested.clear();
 }
 
@@ -64,8 +80,9 @@ export interface PurchaseFlowSdk {
   purchaseUpdatedListener: (
     listener: (purchase: Purchase) => void,
   ) => Subscription;
-  // Only that an error arrived matters here.
-  purchaseErrorListener: (listener: () => void) => Subscription;
+  purchaseErrorListener: (
+    listener: (error: {code?: string}) => void,
+  ) => Subscription;
 }
 
 /**
@@ -91,10 +108,15 @@ export function createSdkPurchaseFlow(
     ...options,
   });
   // Whatever listens, a failed or cancelled request ends what the user asked
-  // for, and the next account's flow must not inherit requests.
+  // for, and the next account's flow must not inherit requests. A refused
+  // double tap ends nothing: the purchase in flight continues.
   let errors: Subscription | undefined;
   try {
-    errors = manual ? undefined : sdk.purchaseErrorListener(clearRequested);
+    errors = manual
+      ? undefined
+      : sdk.purchaseErrorListener((error) => {
+          if (error.code !== ErrorCode.PurchaseInProgress) clearRequested();
+        });
   } catch (error) {
     flow.dispose();
     throw error;

@@ -160,6 +160,28 @@ internal fun queryAlreadyOwnedPurchases(
     query(attempt = 1)
 }
 
+/** Tokens Play lists as subscriptions, or null when the query fails. */
+internal fun querySubscriptionTokens(client: BillingClient, onResult: (Set<String>?) -> Unit) {
+    val params = QueryPurchasesParams.newBuilder()
+        .setProductType(BillingClient.ProductType.SUBS)
+        .build()
+    val handled = AtomicBoolean(false)
+    try {
+        client.queryPurchasesAsync(params) { result, purchaseList ->
+            if (!handled.compareAndSet(false, true)) return@queryPurchasesAsync
+            onResult(
+                if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                    purchaseList.orEmpty().mapTo(mutableSetOf()) { it.purchaseToken }
+                } else {
+                    null
+                }
+            )
+        }
+    } catch (_: Exception) {
+        if (handled.compareAndSet(false, true)) onResult(null)
+    }
+}
+
 internal data class SubscriptionBasePlanOffer(
     val offerToken: String?,
     val basePlanId: String?

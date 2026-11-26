@@ -197,13 +197,13 @@ class KmpIAP(
     internal val purchaseRequests = PurchaseRequests()
 
     override suspend fun requestPurchase(params: RequestPurchaseProps): RequestPurchaseResult? {
-        purchaseRequests.mark(params)
+        val unmark = purchaseRequests.mark(params)
         return try {
             delegate.requestPurchase(params)
         } catch (error: CancellationException) {
             throw error
         } catch (error: Throwable) {
-            purchaseRequests.clear()
+            unmark()
             throw error
         }
     }

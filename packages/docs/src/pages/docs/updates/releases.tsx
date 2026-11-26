@@ -194,6 +194,30 @@ const REACT_NATIVE_NITRO_CAUSE_RELEASES: readonly ReleaseMetadata[] = [
   },
 ];
 
+const PURCHASE_IN_FLIGHT_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '1.7.0',
+    tag: 'openiap-client-protocol-1.7.0',
+  },
+  { name: 'openiap-apple', version: '4.4.0', tag: '4.4.0' },
+  { name: 'openiap-google', version: '4.4.0', tag: 'google-4.4.0' },
+  {
+    name: 'react-native-iap',
+    version: '17.6.0',
+    tag: 'react-native-iap-17.6.0',
+  },
+  { name: 'expo-iap', version: '6.7.0', tag: 'expo-iap-6.7.0' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '11.6.0',
+    tag: 'flutter-iap-11.6.0',
+  },
+  { name: 'godot-iap', version: '4.6.0', tag: 'godot-iap-4.6.0' },
+  { name: 'kmp-iap', version: '4.5.0', tag: 'kmp-iap-4.5.0' },
+  { name: 'OpenIap.Maui', version: '3.5.0', tag: 'maui-iap-3.5.0' },
+];
+
 const HORIZON_SANDBOX_LABEL_RELEASES: readonly ReleaseMetadata[] = [
   { name: '@hyodotdev/openiap', version: '0.4.0', tag: 'openiap-0.4.0' },
   {
@@ -937,6 +961,128 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'purchase-in-flight-2026-11-27',
+      date: new Date('2026-11-27'),
+      element: (
+        <div key="purchase-in-flight-2026-11-27" style={noteCardStyle}>
+          {PURCHASE_IN_FLIGHT_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="purchase-in-flight-2026-11-27" level="h4">
+            November 27, 2026 - A refused double tap reports PurchaseInProgress
+          </AnchorLink>
+          <p>
+            Tapping Buy twice on Android refused the second request with{' '}
+            <code>developer-error</code>, and every SDK then forgot the user had
+            asked for the first: a rejected verification of it read as a
+            redelivery. The refusal now has its own code,{' '}
+            <code>PurchaseInProgress</code>.
+          </p>
+          <ClientProtocolChange
+            version="1.7.0"
+            source="error.graphql"
+            diff={`  enum ErrorCode {
+    ...
+-   DuplicatePurchase
++   DuplicatePurchase @deprecated(reason: "No store reports it. Scheduled for removal in client protocol 2.0.0.")
++   PurchaseInProgress
+  }`}
+          >
+            Additive: an exhaustive <code>switch</code> or <code>when</code>{' '}
+            over <Link to="/docs/errors">error codes</Link> with no default
+            needs a case for <code>PurchaseInProgress</code>.
+          </ClientProtocolChange>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Protocols and native packages
+          </h5>
+          <ul>
+            <li>
+              <strong>openiap-google 4.4.0</strong>
+              <ul>
+                <li>
+                  Google Play, Meta Horizon, and Amazon refuse a second{' '}
+                  <code>requestPurchase</code> with{' '}
+                  <code>PurchaseInProgress</code>, on purchase error listeners
+                  and on the call.
+                </li>
+                <li>
+                  <code>OpenIapStore</code> keeps the first purchase&apos;s
+                  purchasing flag and records no error for the refusal.
+                </li>
+                <li>
+                  A prepaid plan Play completes with no cached product and no
+                  matching request, such as one paid after an app restart, maps
+                  as a subscription by Play&apos;s subscription list.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>openiap-apple 4.4.0</strong>: carries the new code;
+              StoreKit does not refuse a second request, so iOS never reports
+              it.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul>
+            <li>
+              <strong>
+                react-native-iap 17.6.0, expo-iap 6.7.0, flutter_inapp_purchase
+                11.6.0, godot-iap 4.6.0, kmp-iap 4.5.0, and OpenIap.Maui 3.5.0
+              </strong>
+              : the purchase flow still treats the purchase in flight as the
+              user&apos;s own after a <code>PurchaseInProgress</code> error.
+              Each ships openiap-apple and openiap-google 4.4.0.
+            </li>
+            <li>
+              <strong>react-native-iap 17.6.0 and expo-iap 6.7.0</strong>:{' '}
+              <code>isDuplicatePurchaseError</code> and{' '}
+              <code>DUPLICATE_PURCHASE_CODE</code> are deprecated.
+            </li>
+            <li>
+              <strong>expo-iap 6.7.0</strong>: on Android, a failed request,
+              such as a refused double tap, rejects its own promise only, not
+              the promise of a purchase still in flight.
+            </li>
+            <li>
+              <strong>godot-iap 4.6.0</strong>: the example changes a Google
+              Play premium plan in place and adds an Alternative Billing panel.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul>
+            <li>
+              If you matched <code>developer-error</code> to spot a double tap,
+              match <code>purchase-in-progress</code>.
+            </li>
+            <li>
+              On Amazon, the refused <code>requestPurchase</code> now fails
+              instead of returning no purchases; catch it as on Google Play.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <div
+            style={{
+              border: '1px solid var(--border-color)',
+              borderRadius: '0.5rem',
+              padding: '1rem',
+            }}
+          >
+            <ul style={{ marginBottom: 0, paddingLeft: '1.25rem' }}>
+              {PURCHASE_IN_FLIGHT_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  >
+                    {getReleaseLabel(release)}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
     {
       id: 'horizon-sandbox-label-2026-11-26',
       date: new Date('2026-11-26'),

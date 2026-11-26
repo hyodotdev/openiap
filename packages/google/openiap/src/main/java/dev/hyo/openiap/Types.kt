@@ -430,7 +430,16 @@ public enum class ErrorCode(val rawValue: String) {
     BillingUnavailable("billing-unavailable"),
     FeatureNotSupported("feature-not-supported"),
     EmptySkuList("empty-sku-list"),
-    DuplicatePurchase("duplicate-purchase");
+    /**
+     * @deprecated No store reports it. Scheduled for removal in client protocol 2.0.0.
+     */
+    @Deprecated("No store reports it. Scheduled for removal in client protocol 2.0.0.")
+    DuplicatePurchase("duplicate-purchase"),
+    /**
+     * A second purchase request while one is still running. The first purchase
+     * continues; this is not a failure of it.
+     */
+    PurchaseInProgress("purchase-in-progress");
 
     companion object {
         private fun fromKnownJson(value: String): ErrorCode? = when (value) {
@@ -542,6 +551,9 @@ public enum class ErrorCode(val rawValue: String) {
             "duplicate-purchase" -> ErrorCode.DuplicatePurchase
             "DUPLICATE_PURCHASE" -> ErrorCode.DuplicatePurchase
             "DuplicatePurchase" -> ErrorCode.DuplicatePurchase
+            "purchase-in-progress" -> ErrorCode.PurchaseInProgress
+            "PURCHASE_IN_PROGRESS" -> ErrorCode.PurchaseInProgress
+            "PurchaseInProgress" -> ErrorCode.PurchaseInProgress
             else -> null
         }
 

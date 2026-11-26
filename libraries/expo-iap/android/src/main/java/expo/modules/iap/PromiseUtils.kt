@@ -36,6 +36,17 @@ object PromiseUtils {
         promises.clear()
     }
 
+    /** Rejects one promise and drops it, leaving the others for their own requests. */
+    fun rejectPromiseForKey(
+        key: String,
+        promise: Promise,
+        code: String,
+        message: String?,
+    ) {
+        promises[key]?.remove(promise)
+        promise.safeReject(code, message, null)
+    }
+
     fun rejectPromisesForKey(
         key: String,
         code: String,

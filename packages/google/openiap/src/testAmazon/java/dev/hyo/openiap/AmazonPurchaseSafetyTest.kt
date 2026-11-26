@@ -50,6 +50,31 @@ class AmazonPurchaseSafetyTest {
     }
 
     @Test
+    fun `a second purchase while one runs is refused as in progress`() {
+        val module = OpenIapModule(ApplicationProvider.getApplicationContext<Context>())
+        val errors = CopyOnWriteArrayList<OpenIapError>()
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+        // initConnection registers with the Appstore SDK on the main thread before any purchase.
+        OpenIapModule::class.java.getDeclaredField("isRegistered").apply { isAccessible = true }.set(module, true)
+        val running = OpenIapModule::class.java.getDeclaredField("activePurchaseSku").apply { isAccessible = true }
+        @Suppress("UNCHECKED_CAST")
+        (running.get(module) as java.util.concurrent.atomic.AtomicReference<String?>).set("coins")
+        val props = RequestPurchaseProps(
+            request = RequestPurchaseProps.Request.Purchase(
+                RequestPurchasePropsByPlatforms(google = RequestPurchaseAndroidProps(skus = listOf("coins"))),
+            ),
+            type = ProductQueryType.InApp,
+        )
+
+        val second = runCatching { runBlocking { module.requestPurchase(props) } }
+
+        assertTrue("the double tap fails its call: $second", second.exceptionOrNull() is OpenIapError.PurchaseInProgress)
+        assertEquals(listOf(OpenIapError.PurchaseInProgress.CODE), errors.map { it.code })
+        @Suppress("UNCHECKED_CAST")
+        assertEquals("the first purchase keeps its slot", "coins", (running.get(module) as java.util.concurrent.atomic.AtomicReference<String?>).get())
+    }
+
+    @Test
     fun `unsupported Amazon purchase options are refused`() {
         assertTrue(
             amazonUnsupportedPurchaseError(

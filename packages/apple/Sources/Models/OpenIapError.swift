@@ -42,6 +42,7 @@ public extension PurchaseError {
         case .featureNotSupported: return "Feature not supported on this platform"
         case .emptySkuList: return "Empty SKU list provided"
         case .duplicatePurchase: return "Duplicate purchase update detected"
+        case .purchaseInProgress: return "Another purchase is already in progress"
         }
     }
 

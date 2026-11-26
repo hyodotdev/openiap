@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:math' show max;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -121,14 +122,30 @@ class _SharedNativeState {
   final connectionChanges = _SerialTasks();
 
   /// When the app asked for each product, until its purchase or a purchase
-  /// error, so a flow can tell the user's own purchase from a redelivery.
+  /// error other than a refused double tap, so a flow can tell the user's own
+  /// purchase from a redelivery.
   final requestedProductIds = <String, int>{};
+  // Each request marks a distinct time, so an undo never takes another's mark.
+  int _lastMarkedAt = 0;
 
-  void markRequested(Iterable<String> productIds) {
-    final now = DateTime.now().millisecondsSinceEpoch;
+  /// Marks [productIds] and returns an undo for a request that fails to start,
+  /// which leaves the marks of a purchase still in flight alone.
+  void Function() markRequested(Iterable<String> productIds) {
+    final now = max(DateTime.now().millisecondsSinceEpoch, _lastMarkedAt + 1);
+    _lastMarkedAt = now;
+    final previous = <String, int?>{};
     for (final productId in productIds) {
+      previous.putIfAbsent(productId, () => requestedProductIds[productId]);
       requestedProductIds[productId] = now;
     }
+    return () => previous.forEach((productId, askedAt) {
+          if (requestedProductIds[productId] != now) return;
+          if (askedAt == null) {
+            requestedProductIds.remove(productId);
+          } else {
+            requestedProductIds[productId] = askedAt;
+          }
+        });
   }
 
   /// Whether the app asked for [purchase]: bought after the request, or a
@@ -441,7 +458,10 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         debugPrint(
           '[flutter_inapp_purchase] Emitting error to purchaseErrorListener: $error',
         );
-        _shared.requestedProductIds.clear();
+        // A refused double tap ends nothing: the purchase in flight continues.
+        if (error.code != gentype.ErrorCode.PurchaseInProgress) {
+          _shared.requestedProductIds.clear();
+        }
         _shared.purchaseError.add(error);
         break;
       case 'connection-updated':
@@ -690,6 +710,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
 
         final nativeType = resolveProductType(productType);
+        void Function()? unmark;
 
         try {
           if (_platform.isIOS || _platform.isMacOS) {
@@ -729,7 +750,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               );
             }
 
-            _shared.markRequested([payload['sku'] as String]);
+            unmark = _shared.markRequested([payload['sku'] as String]);
             await _channel.invokeMethod('requestPurchase', payload);
             return null;
           }
@@ -853,7 +874,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                   subscriptionProductReplacementParams.toJson();
             }
 
-            _shared.markRequested(skus);
+            unmark = _shared.markRequested(skus);
             await _channel.invokeMethod('requestPurchase', payload);
             return null;
           }
@@ -863,13 +884,13 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             message: 'requestPurchase is not supported on this platform',
           );
         } on PlatformException catch (error) {
-          _shared.requestedProductIds.clear();
+          unmark?.call();
           throw _purchaseErrorFromPlatformException(
             error,
             'request purchase',
           );
         } catch (error) {
-          _shared.requestedProductIds.clear();
+          unmark?.call();
           if (error is PurchaseError) rethrow;
           throw PurchaseError(
             code: gentype.ErrorCode.ServiceError,

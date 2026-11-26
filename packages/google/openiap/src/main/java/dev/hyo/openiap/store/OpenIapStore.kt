@@ -182,6 +182,8 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     private val connectionStateListener = OpenIapConnectionStateListener { _isConnected.value = false }
 
     private val purchaseErrorListener = OpenIapPurchaseErrorListener { error ->
+        // A refused double tap is not a failure of the purchase in flight.
+        if (error is OpenIapError.PurchaseInProgress) return@OpenIapPurchaseErrorListener
         val productId = pendingRequestProductId.getAndSet(null)
         val code = OpenIapError.toCode(error)
         if (error is OpenIapError.UserCancelled || error is OpenIapError.PurchaseCancelled) {
@@ -433,11 +435,10 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      */
     val requestPurchase: MutationRequestPurchaseHandler = { props ->
         val skuForStatus = OpenIapStorePurchaseRequestResolver.sku(props)
-
-        if (skuForStatus != null) {
-            addPurchasing(skuForStatus)
-            pendingRequestProductId.set(skuForStatus)
-        }
+        // A refused double tap leaves the purchase in flight its flag and pending sku.
+        val markedSku = skuForStatus?.takeIf { it !in status.value.loadings.purchasing }
+        val previousPending = skuForStatus?.let { pendingRequestProductId.getAndSet(it) }
+        markedSku?.let(::addPurchasing)
 
         try {
             module.requestPurchase(props).also { result ->
@@ -445,8 +446,11 @@ class OpenIapStore(private val module: OpenIapProtocol) {
                     pendingRequestProductId.compareAndSet(skuForStatus, null)
                 }
             }
+        } catch (error: OpenIapError.PurchaseInProgress) {
+            pendingRequestProductId.compareAndSet(skuForStatus, previousPending)
+            throw error
         } finally {
-            if (skuForStatus != null) removePurchasing(skuForStatus)
+            markedSku?.let(::removePurchasing)
         }
     }
 
