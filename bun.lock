@@ -90,7 +90,7 @@
     },
     "packages/google": {
       "name": "@hyodotdev/openiap-android",
-      "version": "4.2.1",
+      "version": "4.3.0",
       "dependencies": {
         "@hyodotdev/openiap-client-protocol": "workspace:*",
       },
