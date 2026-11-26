@@ -240,6 +240,29 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         XCTAssertEqual("premium.monthly", payload.sku)
         XCTAssertEqual("123456789", payload.userId)
         XCTAssertEqual(true, payload.includeClientPayload)
+
+        let body = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: JSONEncoder().encode(payload)) as? [String: Any]
+        )
+        XCTAssertNil(body["sandbox"])
+    }
+
+    func testIapkitHorizonPayloadForwardsSandboxOnlyWhenSet() throws {
+        for sandbox in [true, false] {
+            let payload = try OpenIapStoreKitModule.iapkitHorizonPayload(
+                from: RequestVerifyPurchaseWithIapkitHorizonProps(
+                    sandbox: sandbox,
+                    sku: "premium.monthly",
+                    userId: "123456789"
+                ),
+                includeClientPayload: nil
+            )
+
+            let body = try XCTUnwrap(
+                JSONSerialization.jsonObject(with: JSONEncoder().encode(payload)) as? [String: Any]
+            )
+            XCTAssertEqual(sandbox, body["sandbox"] as? Bool)
+        }
     }
 
     @MainActor
