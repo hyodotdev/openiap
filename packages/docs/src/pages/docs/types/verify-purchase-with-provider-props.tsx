@@ -392,6 +392,25 @@ function VerifyPurchaseWithProviderProps() {
                 resolves the signed-in user when you leave it out.
               </td>
             </tr>
+            <tr>
+              <td>
+                <code>sandbox</code>
+              </td>
+              <td>
+                <code>boolean?</code>
+              </td>
+              <td>
+                Available in Client Protocol 1.6.0 / openiap-apple 4.3.0 /
+                openiap-google 4.3.0. Marks a purchase verified from a
+                development build: <code>true</code> makes IAPKit show it as
+                Sandbox, and <code>false</code> clears that. The openiap-google
+                Horizon module sets it from whether the app is debuggable when
+                you leave it out. The app declares it and anyone with the
+                publishable key can send it, so it is a dashboard label: it
+                never changes <code>isValid</code>, and must not be used for
+                access decisions.
+              </td>
+            </tr>
           </tbody>
         </table>
       </section>

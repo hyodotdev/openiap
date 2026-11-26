@@ -87,7 +87,7 @@ export const productIdSchema = v.pipe(
 export const environmentSchema = v.pipe(
   v.string(),
   v.description(
-    "Store environment selected by IAPKit. Forward this value opaquely; stores may add new values.",
+    "Store environment selected by IAPKit; for Meta Horizon it is the app's own `sandbox` label, not a store verdict. Forward this value opaquely; stores may add new values.",
   ),
 );
 

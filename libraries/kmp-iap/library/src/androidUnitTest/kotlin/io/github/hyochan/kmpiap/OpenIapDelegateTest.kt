@@ -762,6 +762,13 @@ class OpenIapDelegateTest {
             Store.HORIZON to RequestVerifyPurchaseWithIapkitProps(
                 horizon = RequestVerifyPurchaseWithIapkitHorizonProps(sku = "dev.hyo.martie.10bulbs", userId = "meta-user"),
             ),
+            Store.HORIZON to RequestVerifyPurchaseWithIapkitProps(
+                horizon = RequestVerifyPurchaseWithIapkitHorizonProps(
+                    sku = "dev.hyo.martie.10bulbs",
+                    userId = "meta-user",
+                    sandbox = true,
+                ),
+            ),
             Store.AMAZON to RequestVerifyPurchaseWithIapkitProps(
                 amazon = RequestVerifyPurchaseWithIapkitAmazonProps(receiptId = "receipt"),
             ),

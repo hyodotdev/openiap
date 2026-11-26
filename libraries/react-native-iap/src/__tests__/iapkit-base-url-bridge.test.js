@@ -58,7 +58,7 @@ describe('IAPKit native bridge parity', () => {
     );
   });
 
-  it('forwards Horizon SKU and optional user ID through both native maps', () => {
+  it('forwards Horizon SKU, optional user ID, and optional sandbox through both native maps', () => {
     const spec = readSource('src/specs/RnIap.nitro.ts');
     const ios = readSource('ios/HybridRnIap.swift');
     const android = readSource(
@@ -66,12 +66,17 @@ describe('IAPKit native bridge parity', () => {
     );
 
     expect(spec).toMatch(
-      /interface NitroVerifyPurchaseWithIapkitHorizonProps[\s\S]*?sku: string;[\s\S]*?userId\?: string \| null;/,
+      /interface NitroVerifyPurchaseWithIapkitHorizonProps \{[^}]*?sku: string;[^}]*?userId\?: string \| null;[^}]*?sandbox\?: null \| boolean;/,
     );
     expect(ios).toContain('if case .second(let horizon) = iapkit.horizon');
     expect(ios).toContain('iapkitDict["horizon"] = horizonDict');
+    expect(ios).toContain('if case .second(let sandbox) = horizon.sandbox');
+    expect(ios).toContain('horizonDict["sandbox"] = sandbox');
     expect(android).toContain(
       '(iapkit.horizon as? Variant_NullType_NitroVerifyPurchaseWithIapkitHorizonProps.Second)',
+    );
+    expect(android).toContain(
+      'horizon.sandbox.unwrapBool()?.let { horizonMap["sandbox"] = it }',
     );
     expect(android).toContain('iapkitMap["horizon"] = horizonMap');
   });

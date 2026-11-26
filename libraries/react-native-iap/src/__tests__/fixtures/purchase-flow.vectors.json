@@ -962,6 +962,42 @@
       "granted": true
     },
     {
+      "name": "grants a Horizon entitlement IAPKit labels Sandbox, leaving the label to the native module",
+      "purchase": {
+        "id": "tx-13-sandbox",
+        "productId": "premium",
+        "purchaseState": "purchased",
+        "purchaseToken": "token-13-sandbox",
+        "store": "horizon",
+        "storeId": "horizon"
+      },
+      "isConsumable": false,
+      "props": {
+        "provider": "iapkit",
+        "iapkit": {
+          "apiKey": "pk",
+          "horizon": {
+            "sku": "premium"
+          }
+        }
+      },
+      "result": {
+        "iapkit": {
+          "store": "horizon",
+          "storeId": "horizon",
+          "environment": "Sandbox",
+          "isValid": true,
+          "state": "entitled",
+          "productId": "premium"
+        }
+      },
+      "confirmation": {
+        "status": "entitled",
+        "alreadyGranted": false
+      },
+      "granted": true
+    },
+    {
       "name": "answers a pending payment",
       "purchase": {
         "id": "tx-14",

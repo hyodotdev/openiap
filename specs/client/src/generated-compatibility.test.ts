@@ -562,6 +562,54 @@ export interface WrongOwner {
     expect(ownership).toContain('var apple: VerifyAppOwnershipOptionsIOS? = null');
   });
 
+  it('adds the Horizon sandbox flag without changing the published Kotlin constructor', () => {
+    const kotlin = generated('Types.kt');
+    const horizon = kotlin.slice(
+      kotlin.indexOf('public class RequestVerifyPurchaseWithIapkitHorizonProps('),
+      kotlin.indexOf('public data class RequestVerifyPurchaseWithIapkitProps('),
+    );
+    const primary = horizon.slice(0, horizon.indexOf(') {')).replace(/\/\*\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ');
+
+    expect(primary).toBe(
+      'public class RequestVerifyPurchaseWithIapkitHorizonProps( val sku: String, val userId: String? = null ',
+    );
+    expect(horizon).toContain(`    constructor(
+        sku: String,
+        userId: String? = null,
+        sandbox: Boolean?,
+    ) : this(`);
+    expect(horizon).toContain(`    fun copy(
+        sku: String = this.sku,
+        userId: String? = this.userId,
+    ): RequestVerifyPurchaseWithIapkitHorizonProps = RequestVerifyPurchaseWithIapkitHorizonProps(
+        sku = sku,
+        userId = userId,
+        sandbox = this.sandbox,
+    )`);
+    expect(horizon).toContain('sku == other.sku && userId == other.userId && sandbox == other.sandbox');
+    expect(horizon).toContain('"sandbox" to sandbox,');
+  });
+
+  it('keeps the Horizon sandbox flag optional in every generated language', () => {
+    expect(generated('types.ts')).toMatch(
+      /export interface RequestVerifyPurchaseWithIapkitHorizonProps \{[^}]*\n  sandbox\?: \(boolean \| null\);/,
+    );
+    expect(generated('Types.swift')).toContain(`    public init(
+        sandbox: Bool? = nil,
+        sku: String,
+        userId: String? = nil
+    ) {`);
+    expect(generated('types.dart')).toMatch(
+      /const RequestVerifyPurchaseWithIapkitHorizonProps\(\{[^}]*\n    this\.sandbox,/,
+    );
+    expect(generated('Types.cs')).toMatch(
+      /record RequestVerifyPurchaseWithIapkitHorizonProps[\s\S]*?\[JsonPropertyName\("sandbox"\)\]\n    public bool\? Sandbox \{ get; init; \}/,
+    );
+    expect(generated('types.gd')).toMatch(
+      /class RequestVerifyPurchaseWithIapkitHorizonProps:[\s\S]*?\tvar sandbox: Variant = null\n/,
+    );
+  });
+
   it('keeps store identity consistent in generated Kotlin', () => {
     const kotlin = generated('Types.kt');
     const iapkitResult = kotlin.slice(

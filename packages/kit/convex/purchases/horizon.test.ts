@@ -145,6 +145,72 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     });
   });
 
+  test.each([
+    { sandbox: true, saved: "Sandbox", returned: "Sandbox" },
+    // null tells the save path to clear a stored Sandbox.
+    { sandbox: false, saved: null, returned: undefined },
+    // An SDK from before the flag: the save path keeps what is stored.
+    { sandbox: undefined, saved: undefined, returned: undefined },
+  ])(
+    "saves the caller's label and returns only this request's: sandbox=$sandbox",
+    async ({ sandbox, saved: expected, returned }) => {
+      fetchMock.mockResolvedValue(
+        new Response(JSON.stringify({ success: true }), { status: 200 }),
+      );
+      const ctx = makeContext();
+
+      const receipt = await verifyMetaHorizonReceipt._handler(
+        ctx,
+        withVerificationSource("horizon", { ...VERIFY_ARGS, sandbox }),
+      );
+
+      // Never "Production", and the label changes neither verdict field.
+      expect(receipt).toEqual({
+        isValid: true,
+        state: "ENTITLED",
+        productId: "premium_monthly",
+        ...(returned ? { environment: returned } : {}),
+      });
+      const [saved] = savedReceipts(ctx);
+      expect(saved?.environment).toBe(expected);
+      expect(saved).toMatchObject({ state: "ENTITLED", isValid: true });
+      // The row keeps identity evidence only, so a recheck needs no label.
+      expect(saved?.requestData).toEqual({
+        store: "horizon",
+        userId: "meta-user-1",
+        sku: "premium_monthly",
+      });
+      const form = new URLSearchParams(
+        fetchMock.mock.calls[0]?.[1]?.body as string,
+      );
+      expect([...form.keys()]).toEqual(["access_token", "user_id", "sku"]);
+    },
+  );
+
+  test("labels a rejected development-build purchase without making it valid", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ success: false }), { status: 200 }),
+    );
+    const ctx = makeContext();
+
+    await expect(
+      verifyMetaHorizonReceipt._handler(
+        ctx,
+        withVerificationSource("horizon", { ...VERIFY_ARGS, sandbox: true }),
+      ),
+    ).resolves.toEqual({
+      isValid: false,
+      state: "INAUTHENTIC",
+      productId: "premium_monthly",
+      environment: "Sandbox",
+    });
+    expect(savedReceipts(ctx)[0]).toMatchObject({
+      state: "INAUTHENTIC",
+      isValid: false,
+      environment: "Sandbox",
+    });
+  });
+
   test("persists a confirmed success=false response as INAUTHENTIC", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ success: false }), { status: 200 }),
@@ -503,6 +569,8 @@ describe("entitlement rechecks", () => {
     }
     expect(ctx.runMutation).toHaveBeenCalledTimes(1);
     expect(savedReceipts(ctx)[0]).toMatchObject({ persistIfChanged: true });
+    // No caller, so no label: the save path keeps the stored environment.
+    expect(savedReceipts(ctx)[0]?.environment).toBeUndefined();
   });
 });
 

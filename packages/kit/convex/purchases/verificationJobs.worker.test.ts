@@ -107,6 +107,7 @@ describe("queued verification uses the existing store adapters", () => {
       expectedProductId: "product.test",
     },
     { store: "horizon", userId: "12345", sku: "product.test" },
+    { store: "horizon", userId: "12345", sku: "product.test", sandbox: true },
   ])(
     "authenticates and dispatches $store evidence without returning it",
     async (input) => {

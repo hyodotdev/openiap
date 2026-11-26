@@ -106,27 +106,24 @@ export const enqueue = action({
       args.idempotencyKey,
       `iapkit-verification-job-request-v1:${canonicalInput(input)}`,
     );
+    // Not evidence. Horizon's `sandbox` only labels the purchase; Amazon's
+    // picks the RVS endpoint, so it stays.
+    const notEvidence = [
+      "includeClientPayload",
+      "includeTransactionDetails",
+      ...(input.store === "horizon" ? ["sandbox"] : []),
+    ];
     const verdictHash = await hmacSha256Hex(
       hashKey,
       canonicalInput(
         Object.fromEntries(
-          Object.entries(input).filter(
-            ([key]) =>
-              !["includeClientPayload", "includeTransactionDetails"].includes(
-                key,
-              ),
-          ),
+          Object.entries(input).filter(([key]) => !notEvidence.includes(key)),
         ),
       ),
     );
     const evidence = Object.fromEntries(
       Object.entries(input).filter(
-        ([key]) =>
-          ![
-            "includeClientPayload",
-            "includeTransactionDetails",
-            "expectedProductId",
-          ].includes(key),
+        ([key]) => ![...notEvidence, "expectedProductId"].includes(key),
       ),
     );
     const evidenceHash = await hmacSha256Hex(hashKey, canonicalInput(evidence));
@@ -268,6 +265,7 @@ export const run = internalAction({
                 ...base,
                 userId: input.userId,
                 sku: input.sku,
+                sandbox: input.sandbox,
               });
           }
         },

@@ -109,6 +109,32 @@ describe("verifyPurchaseInputSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  test("accepts an optional Horizon sandbox flag and rejects a non-boolean one", () => {
+    const horizon = {
+      store: "horizon",
+      userId: "1234567890",
+      sku: "coin_pack_100",
+    };
+    for (const sandbox of [true, false]) {
+      const result = parse({ ...horizon, sandbox });
+      expect(result.success).toBe(true);
+      expect(result.output).toEqual({ ...horizon, sandbox });
+    }
+    expect(parse(horizon).output).toEqual(horizon);
+    expect(parse({ ...horizon, sandbox: "true" }).success).toBe(false);
+  });
+
+  test("drops a key the schema does not name instead of rejecting the request", () => {
+    const horizon = {
+      store: "horizon",
+      userId: "1234567890",
+      sku: "coin_pack_100",
+    };
+    const result = parse({ ...horizon, addedByANewerSdk: true });
+    expect(result.success).toBe(true);
+    expect(result.output).toEqual(horizon);
+  });
+
   test("accepts a Horizon subscription-term SKU", () => {
     const result = parse({
       store: "horizon",

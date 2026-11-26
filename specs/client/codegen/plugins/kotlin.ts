@@ -64,6 +64,11 @@ const COMPATIBLE_INPUT_DATA_CLASS_SHAPES: Record<string, CompatibleDataClassShap
     primaryFields: ['receiptId', 'sandbox', 'userId'],
     extraFields: ['expectedProductId'],
   },
+  RequestVerifyPurchaseWithIapkitHorizonProps: {
+    preserveExtraValues: true,
+    primaryFields: ['sku', 'userId'],
+    extraFields: ['sandbox'],
+  },
   RequestVerifyPurchaseWithIapkitProps: {
     primaryFields: ['amazon', 'apiKey', 'apple', 'baseUrl', 'google'],
     extraFields: ['includeClientPayload', 'horizon'],

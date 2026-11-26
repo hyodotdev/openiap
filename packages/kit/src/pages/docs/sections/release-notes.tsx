@@ -26,7 +26,7 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-11-23",
     weekStart: "2026-11-23",
     date: "2026-11-26",
-    pullRequests: [629, 630, 631, 632],
+    pullRequests: [629, 630, 631, 632, 633],
     tagline:
       "Claude and ChatGPT connect to a project with a GitHub sign-in, the dashboard tells sandbox purchases from production ones, product API mistakes answer with documented errors instead of 500, and the IAPKit runtime image gets a security update.",
     items: [
@@ -54,6 +54,11 @@ const RELEASES: ReleaseEntry[] = [
         kind: "feature",
         topic: "Dashboard",
         text: "The Purchases list and purchase detail show Sandbox or Production for each purchase, including ones verified earlier, or Not reported when the store's response does not say, as with Meta Horizon.",
+      },
+      {
+        kind: "feature",
+        topic: "Meta Horizon",
+        text: "Verify accepts sandbox on a Meta Horizon request: true shows the purchase as Sandbox instead of Not reported and false clears it; the app declares this label, Meta does not confirm it, and isValid and state are unchanged.",
       },
       {
         kind: "feature",

@@ -176,6 +176,20 @@ describe("durable purchase verification admission", () => {
     expect(await f.add(2, input)).toEqual({ ...second, deduped: true });
   });
 
+  it("counts a Horizon request with and without the sandbox label as the same evidence", async () => {
+    const f = await fixture();
+    const input = { store: "horizon", userId: "123456789", sku: "premium" };
+    const first = await f.add(1, input);
+    const second = await f.add(2, { ...input, sandbox: true });
+    const plain = (await f.t.run((ctx) => ctx.db.get(first.jobId)))!;
+    const labeled = (await f.t.run((ctx) => ctx.db.get(second.jobId)))!;
+    expect(labeled.evidenceHash).toBe(plain.evidenceHash);
+    expect(labeled.verdictHash).toBe(plain.verdictHash);
+    await expect(f.add(1, { ...input, sandbox: true })).rejects.toThrow(
+      "IDEMPOTENCY_CONFLICT",
+    );
+  });
+
   it("rejects missing/tampered source proof and malformed receipts before writing", async () => {
     const f = await fixture();
     await expect(

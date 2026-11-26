@@ -59,6 +59,13 @@ describe("hashPayload", () => {
     expect(left).not.toBe(right);
   });
 
+  test("gives a Horizon entitlement one fingerprint with or without the sandbox label", () => {
+    const entitlement = { store: "horizon", userId: "ab", sku: "c" } as const;
+    expect(hashPayload({ ...entitlement, sandbox: true })).toBe(
+      hashPayload(entitlement),
+    );
+  });
+
   test("distinguishes Amazon receipt tuples and sandbox mode", () => {
     const tupleLeft = hashPayload({
       store: "amazon",

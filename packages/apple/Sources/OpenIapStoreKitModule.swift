@@ -20,6 +20,7 @@ struct IapkitHorizonVerificationPayload: Codable {
     let store: IapStore
     let sku: String
     let userId: String
+    let sandbox: Bool?
     let includeClientPayload: Bool?
 }
 
@@ -187,6 +188,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             store: .horizon,
             sku: sku,
             userId: userId,
+            sandbox: horizon.sandbox,
             includeClientPayload: includeClientPayload
         )
     }

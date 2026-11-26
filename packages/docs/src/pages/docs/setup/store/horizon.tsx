@@ -397,6 +397,16 @@ if (iapkit?.isValid && iapkit.productId === purchase.productId) {
   await grantEntitlement(purchase.productId);
 }`}</CodeBlock>
         <p>
+          Meta has no sandbox store, so IAPKit shows a Horizon purchase as
+          Sandbox only when the request says so. A debuggable build sets{' '}
+          <Link to="/docs/types/verify-purchase-with-provider-props#request-verify-purchase-with-iapkit-horizon-props">
+            <code>horizon.sandbox</code>
+          </Link>{' '}
+          for you, and a release build clears it; pass <code>true</code> or{' '}
+          <code>false</code> to override. It is the app&apos;s own label, not a
+          store verdict.
+        </p>
+        <p>
           <Link to="/docs/features/validation#verify-purchase">
             verifyPurchase
           </Link>{' '}

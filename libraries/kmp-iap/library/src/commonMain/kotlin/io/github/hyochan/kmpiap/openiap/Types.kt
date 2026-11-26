@@ -3880,9 +3880,11 @@ public class RequestVerifyPurchaseWithIapkitResult private constructor(
 
     /**
      * Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
-     * Store-verified environment returned by IAPKit. Apple and Amazon use
-     * `Sandbox` or `Production`. SDKs forward this string opaquely, including
-     * unknown values; apps match their expected environment before fulfillment.
+     * Purchase environment returned by IAPKit. Apple, Google, and Amazon return
+     * `Sandbox` or `Production` when it is known. Horizon returns `Sandbox` only
+     * when this request set `sandbox`, a label Meta does not confirm. SDKs forward
+     * this string opaquely, including unknown values; apps match a store-verified
+     * environment before fulfillment.
      */
     var environment: String? = null
         private set
@@ -5726,7 +5728,7 @@ public data class RequestVerifyPurchaseWithIapkitGoogleProps(
     )
 }
 
-public data class RequestVerifyPurchaseWithIapkitHorizonProps(
+public class RequestVerifyPurchaseWithIapkitHorizonProps(
     /**
      * Meta Horizon product or subscription SKU.
      */
@@ -5736,14 +5738,63 @@ public data class RequestVerifyPurchaseWithIapkitHorizonProps(
      */
     val userId: String? = null
 ) {
+
+    /**
+     * Available in Client Protocol 1.6.0 / openiap-apple 4.3.0 / openiap-google 4.3.0.
+     * Marks a purchase verified from a development build: `true` makes IAPKit show
+     * it as Sandbox, and `false` clears that. When omitted, the openiap-google
+     * Horizon module sets it from whether the app is debuggable. It is the app's
+     * own dashboard label, which Meta does not confirm, and never affects whether
+     * the purchase is valid.
+     * See: https://openiap.dev/docs/types/verify-purchase-with-provider-props#request-verify-purchase-with-iapkit-horizon-props
+     */
+    var sandbox: Boolean? = null
+        private set
+
+    constructor(
+        sku: String,
+        userId: String? = null,
+        sandbox: Boolean?,
+    ) : this(
+        sku = sku,
+        userId = userId,
+    ) {
+        this.sandbox = sandbox
+    }
+
+    operator fun component1(): String = sku
+    operator fun component2(): String? = userId
+
+    fun copy(
+        sku: String = this.sku,
+        userId: String? = this.userId,
+    ): RequestVerifyPurchaseWithIapkitHorizonProps = RequestVerifyPurchaseWithIapkitHorizonProps(
+        sku = sku,
+        userId = userId,
+        sandbox = this.sandbox,
+    )
+
+    override fun equals(other: Any?): Boolean = other is RequestVerifyPurchaseWithIapkitHorizonProps &&
+        sku == other.sku && userId == other.userId && sandbox == other.sandbox
+    override fun hashCode(): Int {
+        var result = 1
+        result = 31 * result + sku.hashCode()
+        result = 31 * result + (userId?.hashCode() ?: 0)
+        result = 31 * result + (sandbox?.hashCode() ?: 0)
+        return result
+    }
+    override fun toString(): String = "RequestVerifyPurchaseWithIapkitHorizonProps(sku=$sku, userId=$userId, sandbox=$sandbox)"
+
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitHorizonProps? {
             val sku = json["sku"] as? String
             val userId = json["userId"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }
+            val sandbox = json["sandbox"]?.let { raw -> (raw as? Boolean) ?: throw IllegalArgumentException("Invalid Boolean input value") }
             if (sku == null) return null
             return RequestVerifyPurchaseWithIapkitHorizonProps(
                 sku = sku,
                 userId = userId,
+                sandbox = sandbox,
             )
         }
     }
@@ -5751,6 +5802,7 @@ public data class RequestVerifyPurchaseWithIapkitHorizonProps(
     fun toJson(): Map<String, Any?> = mapOf(
         "sku" to sku,
         "userId" to userId,
+        "sandbox" to sandbox,
     )
 }
 

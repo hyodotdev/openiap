@@ -185,10 +185,16 @@ function VerifyPurchaseWithProviderResult() {
                 Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 /
                 openiap-google 3.3.0. Opaque, provider-defined store
                 environment. IAPKit currently reports <code>'Sandbox'</code> or{' '}
-                <code>'Production'</code> for Apple, Google, and Amazon, but the
-                value space belongs to the provider — App Store Server also
-                names <code>'Xcode'</code> and <code>'LocalTesting'</code>.
-                Forward it and never fail a verification because the value is
+                <code>'Production'</code> for Apple, Google, and Amazon when it
+                is known, but the value space belongs to the provider — App
+                Store Server also names <code>'Xcode'</code> and{' '}
+                <code>'LocalTesting'</code>. Meta Horizon returns{' '}
+                <code>'Sandbox'</code> only when this request set{' '}
+                <Link to="/docs/types/verify-purchase-with-provider-props#request-verify-purchase-with-iapkit-horizon-props">
+                  <code>horizon.sandbox</code>
+                </Link>
+                , the app&apos;s own label rather than a store verdict. Forward
+                the value and never fail a verification because it is
                 unrecognised.
               </td>
             </tr>

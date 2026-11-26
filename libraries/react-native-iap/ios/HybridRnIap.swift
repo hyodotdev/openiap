@@ -642,6 +642,9 @@ class HybridRnIap: HybridRnIapSpec {
                         if case .second(let userId) = horizon.userId {
                             horizonDict["userId"] = userId
                         }
+                        if case .second(let sandbox) = horizon.sandbox {
+                            horizonDict["sandbox"] = sandbox
+                        }
                         iapkitDict["horizon"] = horizonDict
                     }
                     if case .second(let amazon) = iapkit.amazon {

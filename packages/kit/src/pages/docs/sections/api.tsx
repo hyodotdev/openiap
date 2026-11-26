@@ -111,7 +111,8 @@ export default function ApiReferencePage() {
         {`{
   "store": "horizon",
   "userId": "1234567890",       // Oculus user id  (≤ 256 chars)
-  "sku": "coin_pack_100"        // add-on SKU      (≤ 256 chars)
+  "sku": "coin_pack_100",       // add-on SKU      (≤ 256 chars)
+  "sandbox": true               // optional label: true shows Sandbox, false clears it
 }`}
       </CodeBlock>
 
@@ -163,11 +164,20 @@ export default function ApiReferencePage() {
         <code>state</code> permits that operation, and the store-verified{" "}
         <code>productId</code> is present and matches the product your app
         expected. For Meta Horizon, <code>productId</code> is the SKU IAPKit
-        checked. Amazon responses also identify the server-selected{" "}
+        checked. Apple, Google and Amazon responses also carry{" "}
         <code>environment</code> as <code>Sandbox</code> or{" "}
-        <code>Production</code>. A caller-supplied Amazon{" "}
-        <code>expectedProductId</code> mismatch returns <code>INAUTHENTIC</code>{" "}
-        without changing the persisted RVS verdict.
+        <code>Production</code> when it is known. A Meta Horizon response
+        carries <code>environment: &quot;Sandbox&quot;</code> only when that
+        request set <code>sandbox: true</code>; it is{" "}
+        <Link
+          to="/docs/verification/horizon#sandbox-purchases"
+          className="text-primary underline"
+        >
+          the app&apos;s own label, not a store verdict
+        </Link>
+        . A caller-supplied Amazon <code>expectedProductId</code> mismatch
+        returns <code>INAUTHENTIC</code> without changing the persisted RVS
+        verdict.
       </p>
       <p>
         Active Amazon purchase rows become due for another RVS check after 48

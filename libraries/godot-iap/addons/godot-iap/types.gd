@@ -3160,7 +3160,7 @@ class RequestVerifyPurchaseWithIapkitResult:
 	var store: _Types.IapStore = IapStore.UNKNOWN
 	## Stable store id: apple, play, horizon, amazon, or a community provider id.
 	var store_id: String = ""
-	## Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Store-verified environment returned by IAPKit. Apple and Amazon use `Sandbox` or `Production`. SDKs forward this string opaquely, including unknown values; apps match their expected environment before fulfillment.
+	## Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Purchase environment returned by IAPKit. Apple, Google, and Amazon return `Sandbox` or `Production` when it is known. Horizon returns `Sandbox` only when this request set `sandbox`, a label Meta does not confirm. SDKs forward this string opaquely, including unknown values; apps match a store-verified environment before fulfillment.
 	var environment: Variant = null
 	## True when the purchase is valid and actionable. Only entitled, pending-acknowledgment, or ready-to-consume return true. Callers must still match productId and use the platform plus app-owned product type to choose the fulfillment path.
 	var is_valid: bool = false
@@ -5431,6 +5431,8 @@ class RequestVerifyPurchaseWithIapkitHorizonProps:
 	var sku: String = ""
 	## Meta app-scoped user ID. The openiap-google Horizon module resolves the logged-in user when omitted.
 	var user_id: Variant = null
+	## Available in Client Protocol 1.6.0 / openiap-apple 4.3.0 / openiap-google 4.3.0. Marks a purchase verified from a development build: `true` makes IAPKit show it as Sandbox, and `false` clears that. When omitted, the openiap-google Horizon module sets it from whether the app is debuggable. It is the app's own dashboard label, which Meta does not confirm, and never affects whether the purchase is valid. See: https://openiap.dev/docs/types/verify-purchase-with-provider-props#request-verify-purchase-with-iapkit-horizon-props
+	var sandbox: Variant = null
 
 	static func from_dict(data: Dictionary) -> _Types.RequestVerifyPurchaseWithIapkitHorizonProps:
 		if not data.has("sku") or not data["sku"] is String:
@@ -5439,11 +5441,16 @@ class RequestVerifyPurchaseWithIapkitHorizonProps:
 		if data.has("userId") and data["userId"] != null and not data["userId"] is String:
 			push_error("Invalid RequestVerifyPurchaseWithIapkitHorizonProps.userId value")
 			return null
+		if data.has("sandbox") and data["sandbox"] != null and not data["sandbox"] is bool:
+			push_error("Invalid RequestVerifyPurchaseWithIapkitHorizonProps.sandbox value")
+			return null
 		var obj = RequestVerifyPurchaseWithIapkitHorizonProps.new()
 		if data.has("sku") and data["sku"] != null:
 			obj.sku = data["sku"]
 		if data.has("userId") and data["userId"] != null:
 			obj.user_id = data["userId"]
+		if data.has("sandbox") and data["sandbox"] != null:
+			obj.sandbox = data["sandbox"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -5452,6 +5459,8 @@ class RequestVerifyPurchaseWithIapkitHorizonProps:
 			dict["sku"] = sku
 		if user_id != null:
 			dict["userId"] = user_id
+		if sandbox != null:
+			dict["sandbox"] = sandbox
 		return dict
 
 ## Platform-specific verification parameters for IAPKit. - apple: Verifies via App Store (JWS token) - google: Verifies via Play Store (purchase token) - horizon: Verifies via Meta Horizon (app-scoped user ID + SKU) - amazon: Verifies via Amazon Appstore RVS (userId + receiptId)

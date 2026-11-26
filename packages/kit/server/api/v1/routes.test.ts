@@ -298,6 +298,62 @@ describe("apiRoutes", () => {
     ).not.toThrow();
   });
 
+  it("forwards a Horizon development-build label and returns it as environment only", async () => {
+    convexClientMock.action.mockResolvedValueOnce({
+      isValid: true,
+      state: "ENTITLED",
+      productId: "horizon.premium.monthly",
+      environment: "Sandbox",
+    });
+
+    const response = await apiRoutes.request("/purchase/verify", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer route-test-horizon-sandbox",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        store: "horizon",
+        userId: "123456789",
+        sku: "horizon.premium.monthly",
+        sandbox: true,
+        includeTransactionDetails: true,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      store: "horizon",
+      isValid: true,
+      state: "ENTITLED",
+      productId: "horizon.premium.monthly",
+      environment: "Sandbox",
+      // No commerceEnvironment: backends gate access on that field.
+      correlationId: response.headers.get("X-Correlation-Id"),
+    });
+    expect(convexClientMock.action).toHaveBeenCalledOnce();
+    const [functionReference, args] = convexClientMock.action.mock.calls[0];
+    expect(getFunctionName(functionReference)).toBe(
+      "purchases/horizon:verifyMetaHorizonReceiptInternalV1",
+    );
+    expect(args).toEqual({
+      apiKey: "route-test-horizon-sandbox",
+      userId: "123456789",
+      sku: "horizon.premium.monthly",
+      sandbox: true,
+      requestIp: undefined,
+      correlationId: response.headers.get("X-Correlation-Id"),
+      sourceAuth: {
+        issuedAt: expect.any(Number),
+        mac: expect.stringMatching(/^[a-f0-9]{64}$/),
+      },
+    });
+    const { sourceAuth, ...authenticated } = args;
+    expect(() =>
+      assertVerificationSource("horizon", authenticated, sourceAuth),
+    ).not.toThrow();
+  });
+
   it.each([
     {
       label: "Apple",
@@ -328,6 +384,7 @@ describe("apiRoutes", () => {
         apiKey: "route-test-horizon-forwarding",
         userId: "123456789",
         sku: "horizon.premium.monthly",
+        sandbox: undefined,
         requestIp: undefined,
       },
     },

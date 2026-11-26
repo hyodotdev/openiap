@@ -721,14 +721,17 @@ from the Meta Developer Dashboard; IAPKit combines them into the
 `OC|APP_ID|APP_SECRET` app access token per request — the client
 never sees the secret. Verify calls use
 `POST /v1/purchase/verify` with
-`{ "store": "horizon", "userId": "...", "sku": "..." }`.
+`{ "store": "horizon", "userId": "...", "sku": "..." }` and an optional boolean
+`sandbox`. Meta reports no environment, so `sandbox: true` shows the purchase
+as Sandbox and `false` clears that; it is the app's own label, never a verdict.
 
 See [`convex/purchases/horizon.ts`](convex/purchases/horizon.ts).
 
 ### Amazon Appstore RVS
 
 Amazon requests use
-`{ "store": "amazon", "userId": "...", "receiptId": "...", "sandbox"?: true, "expectedProductId"?: "..." }`.
+`{ "store": "amazon", "userId": "...", "receiptId": "..." }`, with an optional
+boolean `sandbox` and an optional `expectedProductId`.
 Production verification requires the project's write-only RVS shared secret.
 Cloud Sandbox is disabled by default because Amazon accepts any non-empty
 secret there; a project operator must explicitly enable **Allow Amazon App Tester

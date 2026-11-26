@@ -4075,9 +4075,11 @@ class RequestVerifyPurchaseWithIapkitResult {
   /// Apple or Google receipt is valid, and a payload exists for that product.
   final IapkitProductClientPayload? clientPayload;
   /// Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
-  /// Store-verified environment returned by IAPKit. Apple and Amazon use
-  /// `Sandbox` or `Production`. SDKs forward this string opaquely, including
-  /// unknown values; apps match their expected environment before fulfillment.
+  /// Purchase environment returned by IAPKit. Apple, Google, and Amazon return
+  /// `Sandbox` or `Production` when it is known. Horizon returns `Sandbox` only
+  /// when this request set `sandbox`, a label Meta does not confirm. SDKs forward
+  /// this string opaquely, including unknown values; apps match a store-verified
+  /// environment before fulfillment.
   final String? environment;
   /// True when the purchase is valid and actionable.
   /// Only entitled, pending-acknowledgment, or ready-to-consume return true.
@@ -5734,10 +5736,19 @@ class RequestVerifyPurchaseWithIapkitGoogleProps {
 
 class RequestVerifyPurchaseWithIapkitHorizonProps {
   const RequestVerifyPurchaseWithIapkitHorizonProps({
+    this.sandbox,
     required this.sku,
     this.userId,
   });
 
+  /// Available in Client Protocol 1.6.0 / openiap-apple 4.3.0 / openiap-google 4.3.0.
+  /// Marks a purchase verified from a development build: `true` makes IAPKit show
+  /// it as Sandbox, and `false` clears that. When omitted, the openiap-google
+  /// Horizon module sets it from whether the app is debuggable. It is the app's
+  /// own dashboard label, which Meta does not confirm, and never affects whether
+  /// the purchase is valid.
+  /// See: https://openiap.dev/docs/types/verify-purchase-with-provider-props#request-verify-purchase-with-iapkit-horizon-props
+  final bool? sandbox;
   /// Meta Horizon product or subscription SKU.
   final String sku;
   /// Meta app-scoped user ID. The openiap-google Horizon module resolves the logged-in user when omitted.
@@ -5745,6 +5756,7 @@ class RequestVerifyPurchaseWithIapkitHorizonProps {
 
   factory RequestVerifyPurchaseWithIapkitHorizonProps.fromJson(Map<String, dynamic> json) {
     return RequestVerifyPurchaseWithIapkitHorizonProps(
+      sandbox: json['sandbox'] as bool?,
       sku: json['sku'] as String,
       userId: json['userId'] as String?,
     );
@@ -5752,6 +5764,7 @@ class RequestVerifyPurchaseWithIapkitHorizonProps {
 
   Map<String, dynamic> toJson() {
     return {
+      'sandbox': sandbox,
       'sku': sku,
       'userId': userId,
     };

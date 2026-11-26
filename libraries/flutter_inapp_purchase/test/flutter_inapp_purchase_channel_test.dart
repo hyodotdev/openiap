@@ -3415,7 +3415,55 @@ void main() {
 
       expect(horizonPayload['sku'], 'premium.monthly');
       expect(horizonPayload['userId'], 'horizon-user-123');
+      expect(horizonPayload, isNot(contains('sandbox')));
       expect(iapkitPayload, isNot(contains('google')));
+    });
+
+    test('sends the Horizon sandbox flag only when it is set', () async {
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        calls.add(call);
+        if (call.method == 'initConnection') return true;
+        if (call.method == 'verifyPurchaseWithProvider') {
+          return {
+            'provider': 'iapkit',
+            'iapkit': {
+              'environment': 'Sandbox',
+              'isValid': true,
+              'productId': 'premium.monthly',
+              'state': 'entitled',
+              'store': 'horizon',
+              'storeId': 'horizon',
+            },
+          };
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      await iap.initConnection();
+      for (final sandbox in [true, false]) {
+        await iap.verifyPurchaseWithProvider(
+          provider: types.PurchaseVerificationProvider.Iapkit,
+          iapkit: types.RequestVerifyPurchaseWithIapkitProps(
+            horizon: types.RequestVerifyPurchaseWithIapkitHorizonProps(
+              sku: 'premium.monthly',
+              sandbox: sandbox,
+            ),
+          ),
+        );
+      }
+
+      final sent = calls
+          .where((call) => call.method == 'verifyPurchaseWithProvider')
+          .map((call) => ((call.arguments as Map)['iapkit'] as Map)['horizon']);
+      expect(sent, [
+        {'sku': 'premium.monthly', 'sandbox': true},
+        {'sku': 'premium.monthly', 'sandbox': false},
+      ]);
     });
 
     test('sends correct payload for Android verification', () async {
