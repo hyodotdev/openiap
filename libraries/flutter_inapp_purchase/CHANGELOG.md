@@ -1,5 +1,14 @@
 # Changelog
 
+## 11.5.0 (2026-11-26)
+
+- feat: label Meta Horizon purchases verified from a development build as Sandbox (#633)
+- fix(ci): clear the remaining causes of red main runs (#629)
+- fix(ci): stop Maven Central and macOS capacity from failing CI (#628)
+- fix(google): resolve Robolectric runtimes through Gradle
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-11.5.0
+
+
 ## 11.4.1 (2026-11-18)
 
 - fix: close the repository audit backlog across SDKs, IAPKit and docs (#619)
