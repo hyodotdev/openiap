@@ -120,6 +120,51 @@ export default function VerificationHorizonPage() {
         the SKU.
       </p>
 
+      <h2 id="sandbox-purchases" className="mt-10 text-2xl font-semibold">
+        Sandbox purchases
+      </h2>
+      <p>
+        Meta has no sandbox store. Developers test with Meta Test Users, and{" "}
+        <code>verify_entitlement</code> does not say which purchases are tests.
+        IAPKit shows a Horizon purchase as <strong>Sandbox</strong> only when a
+        request sets <code>sandbox: true</code>. The OpenIAP SDKs set it for
+        you: from openiap-google 4.3.0, a debuggable build sends{" "}
+        <code>true</code> and a release build sends <code>false</code>, unless
+        the app passes <code>horizon.sandbox</code> itself.
+      </p>
+      <CodeBlock language="json">
+        {`{
+  "store": "horizon",
+  "userId": "1234567890",
+  "sku": "coin_pack_100",
+  "sandbox": true
+}`}
+      </CodeBlock>
+      <ul className="my-3 list-disc space-y-1 pl-6">
+        <li>
+          The app declares the value, Meta does not confirm it, and anyone with
+          the publishable key can send it. It is a label for the dashboard: it
+          never changes <code>isValid</code> or <code>state</code>, and must not
+          be used for access decisions.
+        </li>
+        <li>
+          The dashboard follows the last verify of that <code>userId</code> and{" "}
+          <code>sku</code> that set the flag: <code>true</code> shows Sandbox,
+          and <code>false</code> clears it back to <strong>Not reported</strong>
+          . A request without the flag, such as one from an older SDK, leaves it
+          as it is.
+        </li>
+        <li>
+          The response carries <code>environment: &quot;Sandbox&quot;</code>{" "}
+          only when that request set <code>sandbox: true</code>.
+        </li>
+        <li>
+          IAPKit never records a Horizon purchase as Production. A Meta Test
+          User purchase made from a release build reads{" "}
+          <strong>Not reported</strong>.
+        </li>
+      </ul>
+
       <h2 className="mt-10 text-2xl font-semibold">
         What IAPKit does behind the scenes
       </h2>

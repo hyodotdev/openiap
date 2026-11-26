@@ -721,7 +721,9 @@ from the Meta Developer Dashboard; IAPKit combines them into the
 `OC|APP_ID|APP_SECRET` app access token per request — the client
 never sees the secret. Verify calls use
 `POST /v1/purchase/verify` with
-`{ "store": "horizon", "userId": "...", "sku": "..." }`.
+`{ "store": "horizon", "userId": "...", "sku": "...", "sandbox"?: true }`.
+Meta reports no environment, so `sandbox: true` shows the purchase as Sandbox
+and `false` clears that; it is the app's own label, never a verdict.
 
 See [`convex/purchases/horizon.ts`](convex/purchases/horizon.ts).
 

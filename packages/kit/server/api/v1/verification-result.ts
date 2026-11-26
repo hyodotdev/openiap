@@ -82,7 +82,8 @@ export async function verificationResult({
     ...(input.includeTransactionDetails === true
       ? {
           ...transactionDetails,
-          ...(receipt.environment
+          // Horizon's environment is the app's own label, never a verified one.
+          ...(receipt.environment && store !== "horizon"
             ? {
                 commerceEnvironment: normalizeEnvironment(receipt.environment),
               }

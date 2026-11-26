@@ -57,6 +57,11 @@ const RELEASES: ReleaseEntry[] = [
       },
       {
         kind: "feature",
+        topic: "Meta Horizon",
+        text: "Verify accepts sandbox on a Meta Horizon request: true shows the purchase as Sandbox instead of Not reported and false clears it; the app declares this label, Meta does not confirm it, and isValid and state are unchanged.",
+      },
+      {
+        kind: "feature",
         topic: "Dashboard",
         text: "In the Purchases list, hovering a store icon names the store, and a purchase the store returned no product for reads Not reported instead of N/A.",
       },

@@ -546,8 +546,9 @@ const schema = defineSchema({
     isValid: v.optional(v.boolean()), // computed from state at time of verification
     verificationDurationMs: v.optional(v.number()),
     // Sandbox or Production: read from the store's response for Apple and
-    // Google, passed by the caller for Amazon. Unset when the response does not
-    // say (Horizon, store errors) and on rows saved before it was derived.
+    // Google, passed by the caller for Amazon. Horizon follows the last verify
+    // that set `sandbox`: true stores Sandbox, false clears it. Unset when
+    // nothing says (store errors) and on rows saved before it was derived.
     environment: v.optional(receiptEnvironmentValidator),
     // Next RVS recheck of an active Amazon receipt. A claim moves it forward as
     // a lease, so overlapping five-minute cron ticks skip the row.

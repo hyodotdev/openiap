@@ -86,7 +86,7 @@ export interface ReplayConsumeResult {
 export type ReplayPayload =
   | { store: "apple"; jws: string; expectedProductId?: string }
   | { store: "google"; purchaseToken: string; expectedProductId?: string }
-  | { store: "horizon"; userId: string; sku: string }
+  | { store: "horizon"; userId: string; sku: string; sandbox?: boolean }
   | {
       store: "amazon";
       userId: string;
@@ -119,6 +119,7 @@ export function hashPayload(body: ReplayPayload): string {
       }
       break;
     case "horizon":
+      // `sandbox` is a label, not evidence, so it stays out of the hash.
       hasher.update(body.userId);
       hasher.update("\0");
       hasher.update(body.sku);

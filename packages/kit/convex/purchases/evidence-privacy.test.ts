@@ -155,6 +155,45 @@ describe("purchase environment", () => {
     const stored = await getPurchaseById._handler(ctx, { purchaseId });
     expect(stored?.environment).toBe("Production");
   });
+
+  it("shows a Horizon purchase as Sandbox only when its row says so", async () => {
+    const { db } = setup();
+    const ctx = memoryCtx(db, "users_member");
+    const horizon = (userId: string, environment?: "Sandbox") =>
+      db.seed("purchases", {
+        projectId: PROJECT,
+        store: "horizon",
+        applicationId: "1234567890123456",
+        remoteId: `${userId}:premium`,
+        requestData: { store: "horizon", userId, sku: "premium" },
+        remoteResponse: JSON.stringify({ success: true, sku: "premium" }),
+        state: "ENTITLED",
+        isValid: true,
+        productId: "premium",
+        ...(environment ? { environment } : {}),
+      }) as Id<"purchases">;
+    const labeled = horizon("dev-user", "Sandbox");
+    const unlabeled = horizon("release-user");
+
+    expect(
+      (await getPurchaseById._handler(ctx, { purchaseId: labeled }))
+        ?.environment,
+    ).toBe("Sandbox");
+    expect(
+      (await getPurchaseById._handler(ctx, { purchaseId: unlabeled }))
+        ?.environment,
+    ).toBeUndefined();
+    const list = await getReceiptsByProject._handler(ctx, {
+      projectId: PROJECT,
+      store: "horizon",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    expect(
+      Object.fromEntries(
+        list.page.map((row) => [row._id, row.environment ?? null]),
+      ),
+    ).toEqual({ [labeled]: "Sandbox", [unlabeled]: null });
+  });
 });
 
 describe("subscription store tokens", () => {

@@ -97,13 +97,19 @@ Request (Google):
 Request (Meta Horizon / Quest):
 
 ```json
-{ "store": "horizon", "userId": "1234567890", "sku": "coin_pack_100" }
+{
+  "store": "horizon",
+  "userId": "1234567890",
+  "sku": "coin_pack_100"
+}
 ```
 
 IAPKit does not expose the Meta App Secret to the client. The dashboard
 stores it as a write-only credential and the server composes the
 `OC|APP_ID|APP_SECRET` access token when calling
-`POST https://graph.oculus.com/{APP_ID}/verify_entitlement`.
+`POST https://graph.oculus.com/{APP_ID}/verify_entitlement`. The optional
+`sandbox` is the app's own label for the dashboard (`true` shows Sandbox,
+`false` clears it), never a store verdict.
 
 Request (Amazon Appstore):
 

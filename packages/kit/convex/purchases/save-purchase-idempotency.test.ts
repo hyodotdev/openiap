@@ -421,6 +421,109 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     ]);
   });
 
+  it("lets a Horizon label follow the last verify that set one, and never guesses one", async () => {
+    const horizon = (
+      userId: string,
+      environment?: "Sandbox" | null,
+      overrides: {
+        state?: HarmonizedPurchaseState;
+        persistIfChanged?: boolean;
+      } = {},
+    ) => ({
+      ...buildArgs({
+        store: "horizon",
+        remoteId: `${userId}:premium_monthly`,
+        requestData: { store: "horizon", userId, sku: "premium_monthly" },
+        remoteResponse: JSON.stringify({
+          success: true,
+          sku: "premium_monthly",
+        }),
+        state: overrides.state,
+        isValid: overrides.state === undefined,
+      }),
+      environment,
+      persistIfChanged: overrides.persistIfChanged,
+    });
+    const stored = async () =>
+      (await db.query("purchases").collect()).map((row) => [
+        row.remoteId,
+        row.environment,
+      ]);
+
+    // `sandbox: true` from a debug build.
+    await savePurchaseInternal({ ctx, ...horizon("tester", "Sandbox") });
+    // An SDK from before the flag sends nothing: kept.
+    await savePurchaseInternal({ ctx, ...horizon("tester") });
+    // A recheck has no caller: kept, even when the verdict changes.
+    await savePurchaseInternal({
+      ctx,
+      ...horizon("tester", undefined, {
+        state: HarmonizedPurchaseState.INAUTHENTIC,
+        persistIfChanged: true,
+      }),
+    });
+    expect(await stored()).toEqual([["tester:premium_monthly", "Sandbox"]]);
+
+    // `sandbox: false` from a release build: cleared, and it stays cleared.
+    await savePurchaseInternal({ ctx, ...horizon("tester", null) });
+    expect(await stored()).toEqual([["tester:premium_monthly", undefined]]);
+    await savePurchaseInternal({ ctx, ...horizon("tester") });
+    // A first verify with `sandbox: false` or no label stores nothing.
+    await savePurchaseInternal({ ctx, ...horizon("release-false", null) });
+    await savePurchaseInternal({ ctx, ...horizon("release-absent") });
+    expect(await stored()).toEqual([
+      ["tester:premium_monthly", undefined],
+      ["release-false:premium_monthly", undefined],
+      ["release-absent:premium_monthly", undefined],
+    ]);
+  });
+
+  it("clears nothing when another store's save carries null", async () => {
+    const saves = [
+      buildArgs({
+        store: "apple",
+        remoteId: "2000000000000001",
+        requestData: { store: "apple", jws: "header.payload.signature" },
+        remoteResponse: JSON.stringify({ environment: "Sandbox" }),
+      }),
+      buildArgs({
+        remoteId: TOKEN,
+        remoteResponse: JSON.stringify({
+          productLineItem: [{ productId: "premium_monthly" }],
+          testPurchaseContext: { fopType: "TEST" },
+        }),
+      }),
+      buildArgs({
+        store: "amazon",
+        remoteId: "sandbox:amazon-user:amazon-receipt",
+        requestData: {
+          store: "amazon",
+          userId: "amazon-user",
+          receiptId: "amazon-receipt",
+          sandbox: true,
+        },
+        remoteResponse: JSON.stringify({ productId: "premium_monthly" }),
+        environment: "Sandbox",
+      }),
+    ];
+    for (const args of saves) await savePurchaseInternal({ ctx, ...args });
+    // The second save's response says nothing, so only the stored value is left.
+    for (const args of saves)
+      await savePurchaseInternal({
+        ctx,
+        ...args,
+        remoteResponse: JSON.stringify({ message: "store error" }),
+        environment: null,
+      });
+
+    const rows = await db.query("purchases").collect();
+    expect(rows.map((row) => [row.store, row.environment])).toEqual([
+      ["apple", "Sandbox"],
+      ["google", "Sandbox"],
+      ["amazon", "Sandbox"],
+    ]);
+  });
+
   it("keeps the environment of a row saved before the column when an error body replaces its response", async () => {
     const id = await savePurchaseInternal({
       ctx,

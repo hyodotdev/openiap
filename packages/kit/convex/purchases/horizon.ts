@@ -163,6 +163,7 @@ const horizonVerificationArgs = v.object({
   apiKey: v.string(),
   userId: v.string(),
   sku: v.string(),
+  sandbox: v.optional(v.boolean()),
   requestIp: v.optional(v.string()),
   correlationId: v.optional(v.string()),
 });
@@ -248,6 +249,11 @@ export async function verifyHorizonReceipt(
   const state = verified.success
     ? HarmonizedPurchaseState.ENTITLED
     : HarmonizedPurchaseState.INAUTHENTIC;
+  // The caller's label; Meta reports no environment. true records Sandbox,
+  // false clears a stored one (null), and no value keeps it. Never
+  // "Production": a release build can still be a Meta Test User purchase.
+  const environment =
+    args.sandbox === undefined ? undefined : args.sandbox ? "Sandbox" : null;
 
   await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {
     projectId: project._id,
@@ -268,13 +274,19 @@ export async function verifyHorizonReceipt(
     }),
     state,
     isValid: isValidState(state),
+    environment,
     requestIp: args.requestIp,
     verificationDurationMs: Date.now() - verificationStart,
     persistIfChanged: options.recheck,
     correlationId: args.correlationId,
   });
 
-  return { isValid: isValidState(state), state, productId: args.sku };
+  return {
+    isValid: isValidState(state),
+    state,
+    productId: args.sku,
+    ...(environment ? { environment } : {}),
+  };
 }
 
 interface HorizonVerifyResult {

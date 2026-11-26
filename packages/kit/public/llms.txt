@@ -89,9 +89,11 @@ limits, statuses and fulfillment requirements.
 
 - Apple — `{ store: "apple", jws, expectedProductId?, includeClientPayload? }` where `jws` is a StoreKit 2 JWS (≤ 16,000 chars)
 - Google — `{ store: "google", purchaseToken, expectedProductId?, includeClientPayload? }` (token ≤ 2,000 chars)
-- Horizon — `{ store: "horizon", userId, sku }` (≤ 256 chars each). IAPKit
-  holds the App ID + App Secret server-side and composes the
-  `OC|APP_ID|APP_SECRET` access token per-request.
+- Horizon — `{ store: "horizon", userId, sku, sandbox? }` (≤ 256 chars each).
+  IAPKit holds the App ID + App Secret server-side and composes the
+  `OC|APP_ID|APP_SECRET` access token per-request. `sandbox` is the app's own
+  label for the dashboard (`true` shows Sandbox, `false` clears it), never a
+  store verdict.
 - Amazon — `{ store: "amazon", userId, receiptId, sandbox?, expectedProductId? }`
   where `userId` and `receiptId` come from Amazon Appstore RVS. Production uses
   the project-held RVS shared secret; sandbox requires the project's explicit

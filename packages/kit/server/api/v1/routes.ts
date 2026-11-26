@@ -226,9 +226,10 @@ const verifyPurchaseRouteDescription = describeRoute({
     "Supported request shapes (discriminated on `store`):\n" +
     '  • Apple  — `{ store: "apple",   jws, expectedProductId? }`\n' +
     '  • Google — `{ store: "google",  purchaseToken, expectedProductId? }`\n' +
-    '  • Horizon — `{ store: "horizon", userId, sku }` (Meta Quest;' +
+    '  • Horizon — `{ store: "horizon", userId, sku, sandbox? }` (Meta Quest;' +
     " IAPKit holds the App ID + App Secret and composes" +
-    " `OC|APP_ID|APP_SECRET` server-side)\n" +
+    " `OC|APP_ID|APP_SECRET` server-side; `sandbox` is the app's own" +
+    " label: true shows the purchase as Sandbox, false clears it)\n" +
     '  • Amazon — `{ store: "amazon", userId, receiptId, sandbox?, expectedProductId? }`' +
     " (Amazon Appstore SDK RVS; IAPKit holds the shared secret; sandbox " +
     "requires an explicit project opt-in)\n\n" +
@@ -412,7 +413,7 @@ type VerifyPurchaseJson = {
 } & (
   | { store: "apple"; jws: string; expectedProductId?: string }
   | { store: "google"; purchaseToken: string; expectedProductId?: string }
-  | { store: "horizon"; userId: string; sku: string }
+  | { store: "horizon"; userId: string; sku: string; sandbox?: boolean }
   | {
       store: "amazon";
       userId: string;
@@ -547,6 +548,7 @@ const verifyPurchaseHandler = async (c: VerifyContext) => {
             apiKey,
             userId: json.userId,
             sku: json.sku,
+            sandbox: json.sandbox,
             requestIp,
             correlationId,
           }),

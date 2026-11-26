@@ -76,7 +76,9 @@ export type SavePurchaseArgs = {
   remoteResponse?: string;
   state: HarmonizedPurchaseState;
   isValid: boolean;
-  environment?: ReceiptEnvironment;
+  // null clears the stored one for Horizon (`sandbox: false`) and is no
+  // label for any other store.
+  environment?: ReceiptEnvironment | null;
   requestIp?: string;
   verificationDurationMs?: number;
   persistIfChanged?: boolean;
@@ -135,9 +137,11 @@ export async function savePurchaseInternal({
   );
   // Amazon's caller passes it; Apple and Google state it in the response.
   const environment =
-    requestEnvironment ??
-    extractEnvironmentFromRemoteResponse(store, remoteResponse) ??
-    undefined;
+    requestEnvironment === null && store === "horizon"
+      ? null
+      : (requestEnvironment ??
+        extractEnvironmentFromRemoteResponse(store, remoteResponse) ??
+        undefined);
 
   // Primary dedup on (projectId, remoteId): most Apple and Horizon flows, and
   // Google replays of the same purchaseToken, stay on one row here.
@@ -302,7 +306,7 @@ export async function savePurchaseInternal({
     remoteResponse,
     state,
     isValid,
-    ...(environment !== undefined ? { environment } : {}),
+    ...(environment != null ? { environment } : {}),
     ...(nextAmazonReconcileAt !== undefined ? { nextAmazonReconcileAt } : {}),
     ...(amazonRvsSequence !== undefined
       ? { lastAmazonRvsSequence: amazonRvsSequence }
@@ -348,7 +352,7 @@ type PurchasePatchArgs = {
   state: HarmonizedPurchaseState;
   isValid: boolean;
   updatedAt: number;
-  environment?: ReceiptEnvironment;
+  environment?: ReceiptEnvironment | null;
   nextAmazonReconcileAt?: number;
   amazonRvsSequence?: number;
   productId: string | null;
@@ -450,14 +454,17 @@ async function patchExistingPurchase(
     existing.storeStatsCounted === true,
   );
   // A row saved before the column keeps what the response being replaced said.
+  // null removes the field: patching undefined clears it.
   const environment =
-    args.environment ??
-    existing.environment ??
-    extractEnvironmentFromRemoteResponse(
-      existing.store,
-      existing.remoteResponse,
-    ) ??
-    undefined;
+    args.environment === null
+      ? undefined
+      : (args.environment ??
+        existing.environment ??
+        extractEnvironmentFromRemoteResponse(
+          existing.store,
+          existing.remoteResponse,
+        ) ??
+        undefined);
   await ctx.db.patch(existing._id, {
     store: args.store,
     applicationId: args.applicationId,
@@ -469,7 +476,9 @@ async function patchExistingPurchase(
     statsCounted: true,
     storeStatsCounted: true,
     updatedAt: args.updatedAt,
-    ...(environment !== undefined ? { environment } : {}),
+    ...(environment !== undefined || args.environment === null
+      ? { environment }
+      : {}),
     ...(args.nextAmazonReconcileAt !== undefined
       ? { nextAmazonReconcileAt: args.nextAmazonReconcileAt }
       : {}),
@@ -736,7 +745,7 @@ export const saveReceiptInternal = internalMutation({
     remoteResponse: v.optional(v.string()),
     state: harmonizedPurchaseStateValidator,
     isValid: v.boolean(),
-    environment: v.optional(receiptEnvironmentValidator),
+    environment: v.optional(v.union(receiptEnvironmentValidator, v.null())),
     requestIp: v.optional(v.string()),
     verificationDurationMs: v.optional(v.number()),
     persistIfChanged: v.optional(v.boolean()),

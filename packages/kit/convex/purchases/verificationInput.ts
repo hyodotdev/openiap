@@ -181,6 +181,14 @@ export const verifyPurchaseInputSchema = v.variant("store", [
           "Add-on SKU as configured in the Meta Developer Dashboard.",
         ),
       ),
+      sandbox: v.optional(
+        v.pipe(
+          v.boolean(),
+          v.description(
+            "Marks a purchase verified from a development build: true shows it as Sandbox in the dashboard, false clears that. It is the app's own label, not a store verdict, and never changes isValid or state.",
+          ),
+        ),
+      ),
       includeClientPayload: includeClientPayloadSchema,
       includeTransactionDetails: includeTransactionDetailsSchema,
     }),
