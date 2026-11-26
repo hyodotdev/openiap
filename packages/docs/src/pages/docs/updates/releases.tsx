@@ -194,6 +194,31 @@ const REACT_NATIVE_NITRO_CAUSE_RELEASES: readonly ReleaseMetadata[] = [
   },
 ];
 
+const HORIZON_SANDBOX_LABEL_RELEASES: readonly ReleaseMetadata[] = [
+  { name: '@hyodotdev/openiap', version: '0.4.0', tag: 'openiap-0.4.0' },
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '1.6.0',
+    tag: 'openiap-client-protocol-1.6.0',
+  },
+  { name: 'openiap-apple', version: '4.3.0', tag: '4.3.0' },
+  { name: 'openiap-google', version: '4.3.0', tag: 'google-4.3.0' },
+  {
+    name: 'react-native-iap',
+    version: '17.5.0',
+    tag: 'react-native-iap-17.5.0',
+  },
+  { name: 'expo-iap', version: '6.6.0', tag: 'expo-iap-6.6.0' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '11.5.0',
+    tag: 'flutter-iap-11.5.0',
+  },
+  { name: 'godot-iap', version: '4.5.0', tag: 'godot-iap-4.5.0' },
+  { name: 'kmp-iap', version: '4.4.0', tag: 'kmp-iap-4.4.0' },
+  { name: 'OpenIap.Maui', version: '3.4.0', tag: 'maui-iap-3.4.0' },
+];
+
 const PLAY_VERIFICATION_STATE_RELEASES: readonly ReleaseMetadata[] = [
   { name: '@hyodotdev/openiap', version: '0.3.1', tag: 'openiap-0.3.1' },
   { name: 'openiap-apple', version: '4.2.1', tag: '4.2.1' },
@@ -912,6 +937,116 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'horizon-sandbox-label-2026-11-26',
+      date: new Date('2026-11-26'),
+      element: (
+        <div key="horizon-sandbox-label-2026-11-26" style={noteCardStyle}>
+          {HORIZON_SANDBOX_LABEL_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="horizon-sandbox-label-2026-11-26" level="h4">
+            November 26, 2026 - Meta Horizon debug-build purchases show as
+            Sandbox in IAPKit
+          </AnchorLink>
+          <p>
+            IAPKit shows a Meta Horizon purchase verified from a debuggable
+            Android build as Sandbox instead of Not reported. Meta reports no
+            environment, so the SDK sends the label; see the{' '}
+            <a href="https://kit.openiap.dev/docs/verification/horizon#sandbox-purchases">
+              Horizon verification guide
+            </a>
+            .
+          </p>
+          <ClientProtocolChange
+            version="1.6.0"
+            source="type.graphql"
+            diff={`  input RequestVerifyPurchaseWithIapkitHorizonProps {
+    sku: String!
+    userId: String
++   sandbox: Boolean
+  }`}
+          >
+            Additive and optional: it is{' '}
+            <Link to="/docs/types/verify-purchase-with-provider-props#request-verify-purchase-with-iapkit-horizon-props">
+              the app&apos;s own label, not a store verdict
+            </Link>
+            .
+          </ClientProtocolChange>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Protocols and native packages
+          </h5>
+          <ul>
+            <li>
+              <strong>openiap-google 4.3.0</strong>: on Meta Horizon,{' '}
+              <code>verifyPurchaseWithProvider</code> sets{' '}
+              <code>horizon.sandbox</code> from the app&apos;s debuggable flag
+              unless the caller passes <code>true</code> or <code>false</code>.
+            </li>
+            <li>
+              <strong>openiap-apple 4.3.0</strong>: forwards an explicit{' '}
+              <code>horizon.sandbox</code> to IAPKit and sets no default.
+            </li>
+            <li>
+              <strong>OpenIAP CLI 0.4.0</strong>:{' '}
+              <code>openiap kit purchases verify horizon</code> accepts{' '}
+              <code>--sandbox</code>.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul>
+            <li>
+              <strong>
+                react-native-iap 17.5.0, expo-iap 6.6.0, flutter_inapp_purchase
+                11.5.0, godot-iap 4.5.0, kmp-iap 4.4.0, and OpenIap.Maui 3.4.0
+              </strong>
+              : on Android, each accepts <code>horizon.sandbox</code> and gets
+              the debuggable-build default from openiap-google 4.3.0.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul>
+            <li>
+              Rebuild the native Android app; a debuggable build&apos;s
+              verification then returns{' '}
+              <code>environment: &apos;Sandbox&apos;</code>.
+            </li>
+            <li>
+              The label follows the last verify that set it: a release
+              build&apos;s <code>false</code> clears an earlier Sandbox, and an
+              older SDK that sends nothing leaves it unchanged.
+            </li>
+          </ul>
+          <p>
+            Hosted IAPKit accepts and records the flag; see the{' '}
+            <a href="https://kit.openiap.dev/docs/release-notes#week-2026-11-23">
+              IAPKit weekly history
+            </a>
+            .
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <div
+            style={{
+              border: '1px solid var(--border-color)',
+              borderRadius: '0.5rem',
+              padding: '1rem',
+            }}
+          >
+            <ul style={{ marginBottom: 0, paddingLeft: '1.25rem' }}>
+              {HORIZON_SANDBOX_LABEL_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  >
+                    {getReleaseLabel(release)}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
     {
       id: 'iapkit-connectors-2026-11-26',
       date: new Date('2026-11-26'),
