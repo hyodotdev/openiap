@@ -1801,6 +1801,7 @@ class HybridRnIap : HybridRnIapSpec() {
                     (iapkit.horizon as? Variant_NullType_NitroVerifyPurchaseWithIapkitHorizonProps.Second)?.value?.let { horizon ->
                         val horizonMap = mutableMapOf<String, Any?>("sku" to horizon.sku)
                         horizon.userId.unwrapString()?.let { horizonMap["userId"] = it }
+                        horizon.sandbox.unwrapBool()?.let { horizonMap["sandbox"] = it }
                         iapkitMap["horizon"] = horizonMap
                     }
                     (iapkit.amazon as? Variant_NullType_NitroVerifyPurchaseWithIapkitAmazonProps.Second)?.value?.let { amazon ->

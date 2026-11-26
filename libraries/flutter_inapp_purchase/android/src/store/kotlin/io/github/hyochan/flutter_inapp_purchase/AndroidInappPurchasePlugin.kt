@@ -1047,6 +1047,9 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler {
                                         (horizon["userId"] as? String)?.let { userId ->
                                             horizonMap["userId"] = userId
                                         }
+                                        (horizon["sandbox"] as? Boolean)?.let { sandbox ->
+                                            horizonMap["sandbox"] = sandbox
+                                        }
                                         iapkitMap["horizon"] = horizonMap
                                     }
                                 }

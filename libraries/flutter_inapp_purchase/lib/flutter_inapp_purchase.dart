@@ -1667,6 +1667,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                       'sku': iapkit.horizon!.sku,
                       if (iapkit.horizon!.userId != null)
                         'userId': iapkit.horizon!.userId,
+                      if (iapkit.horizon!.sandbox != null)
+                        'sandbox': iapkit.horizon!.sandbox,
                     },
                   if (iapkit.includeClientPayload != null)
                     'includeClientPayload': iapkit.includeClientPayload,

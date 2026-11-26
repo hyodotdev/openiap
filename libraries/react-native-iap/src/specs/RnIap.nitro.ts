@@ -442,6 +442,8 @@ export interface NitroVerifyPurchaseWithIapkitHorizonProps {
   sku: string;
   /** Meta app-scoped user ID. The openiap-google Horizon module resolves the logged-in user when omitted. */
   userId?: string | null;
+  /** Labels a development build's purchase as Sandbox in IAPKit; false clears it. The openiap-google Horizon module sets it from the debuggable flag when omitted. */
+  sandbox?: null | boolean;
 }
 
 export interface NitroVerifyPurchaseWithIapkitAmazonProps {
