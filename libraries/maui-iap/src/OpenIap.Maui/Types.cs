@@ -4265,9 +4265,11 @@ public sealed record RequestVerifyPurchaseWithIapkitResult : IJsonOnDeserialized
     public IapkitProductClientPayload? ClientPayload { get; init; }
     /// <summary>
     /// Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
-    /// Store-verified environment returned by IAPKit. Apple and Amazon use
-    /// `Sandbox` or `Production`. SDKs forward this string opaquely, including
-    /// unknown values; apps match their expected environment before fulfillment.
+    /// Purchase environment returned by IAPKit. Apple, Google, and Amazon return
+    /// `Sandbox` or `Production` when it is known. Horizon returns `Sandbox` only
+    /// when this request set `sandbox`, a label Meta does not confirm. SDKs forward
+    /// this string opaquely, including unknown values; apps match a store-verified
+    /// environment before fulfillment.
     /// </summary>
     [JsonPropertyName("environment")]
     public string? Environment { get; init; }
@@ -5237,6 +5239,17 @@ public sealed record RequestVerifyPurchaseWithIapkitHorizonProps
     /// <summary>Meta app-scoped user ID. The openiap-google Horizon module resolves the logged-in user when omitted.</summary>
     [JsonPropertyName("userId")]
     public string? UserId { get; init; }
+    /// <summary>
+    /// Available in Client Protocol 1.6.0 / openiap-apple 4.3.0 / openiap-google 4.3.0.
+    /// Marks a purchase verified from a development build: `true` makes IAPKit show
+    /// it as Sandbox, and `false` clears that. When omitted, the openiap-google
+    /// Horizon module sets it from whether the app is debuggable. It is the app&apos;s
+    /// own dashboard label, which Meta does not confirm, and never affects whether
+    /// the purchase is valid.
+    /// See: https://openiap.dev/docs/types/verify-purchase-with-provider-props#request-verify-purchase-with-iapkit-horizon-props
+    /// </summary>
+    [JsonPropertyName("sandbox")]
+    public bool? Sandbox { get; init; }
 }
 
 /// <summary>
