@@ -4,7 +4,9 @@ import {ActionSheetProvider} from '@expo/react-native-action-sheet';
 export default function RootLayout() {
   return (
     <ActionSheetProvider>
-      <Stack>
+      <Stack
+        screenOptions={{headerTransparent: false, statusBarStyle: 'dark'}}
+      >
         <Stack.Screen name="index" options={{title: 'Expo IAP Examples'}} />
         <Stack.Screen name="all-products" options={{title: 'All Products'}} />
         <Stack.Screen name="purchase-flow" options={{title: 'Purchase'}} />

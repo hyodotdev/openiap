@@ -1047,6 +1047,11 @@ function Releases() {
               purchase still in flight.
             </li>
             <li>
+              <strong>expo-iap 6.7.0</strong>: validated on Expo SDK 58 and
+              React Native 0.88, which the example now runs. See{' '}
+              <Link to="/docs/setup/expo">Expo setup</Link>.
+            </li>
+            <li>
               <strong>flutter_inapp_purchase 11.6.0 and kmp-iap 4.5.0</strong>:
               the Android error-code utilities read{' '}
               <code>E_PURCHASE_IN_PROGRESS</code> as{' '}

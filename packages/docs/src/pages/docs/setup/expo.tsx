@@ -60,14 +60,14 @@ function ExpoSetup() {
               <td>
                 <strong>Expo SDK</strong>
               </td>
-              <td>53+; SDK 57 / React Native 0.86 is the validated baseline</td>
+              <td>53+; SDK 58 / React Native 0.88 is the validated baseline</td>
             </tr>
             <tr>
               <td>
                 <strong>iOS</strong>
               </td>
               <td>
-                Follow the Expo SDK baseline (SDK 57: iOS 16.4+; SDK 53: iOS
+                Follow the Expo SDK baseline (SDK 57–58: iOS 16.4+; SDK 53: iOS
                 15.1+)
               </td>
             </tr>
@@ -85,8 +85,9 @@ function ExpoSetup() {
                 <strong>Node.js</strong>
               </td>
               <td>
-                Follow the Expo SDK baseline (SDK 57: Node.js 22.13.x; SDK
-                54–56: Node.js 20.19.x; SDK 53: Node.js 20.18.x)
+                Follow the Expo SDK baseline (SDK 58: Node.js 22.13+ or 24.3+;
+                SDK 57: Node.js 22.13.x; SDK 54–56: Node.js 20.19.x; SDK 53:
+                Node.js 20.18.x)
               </td>
             </tr>
           </tbody>
@@ -130,6 +131,11 @@ function ExpoSetup() {
         </p>
         <ul>
           <li>
+            <strong>Expo SDK 58:</strong> the default toolchain (Kotlin 2.2.0,
+            React Native 0.88) is sufficient. Kotlin 2.1.20 also builds; the
+            validated example pins it.
+          </li>
+          <li>
             <strong>Expo SDK 57:</strong> use Kotlin 2.1.20, which matches Expo
             and React Native 0.86. The default toolchain is sufficient; if you
             set <code>kotlinVersion</code> explicitly, use the value below.
@@ -161,7 +167,7 @@ function ExpoSetup() {
 
         <Callout kind="warning" title="Legacy Expo SDKs">
           Expo SDK 52 uses Kotlin 1.9.x and cannot consume the current OpenIAP
-          Android artifacts. Upgrade to the validated Expo SDK 57 toolchain;
+          Android artifacts. Upgrade to the validated Expo SDK 58 toolchain;
           downgrading Google Play Billing alone is not a supported workaround.
           See <a href="#legacy-expo-sdks">Legacy Expo SDKs</a> below.
         </Callout>
@@ -197,7 +203,7 @@ npx expo run:android`}
           </a>
         </h3>
         <p>
-          Match your Expo SDK deployment target. The validated SDK 57 setup
+          Match your Expo SDK deployment target. The validated SDK 58 setup
           requires iOS 16.4+:
         </p>
         <CodeBlock language="typescript">
@@ -685,7 +691,7 @@ EXPO_TV=1 npx expo run:ios --device "Apple TV 4K (3rd generation)"`}
         <Callout kind="warning">
           Expo SDK 52 (React Native 0.76.x) uses Kotlin 1.9.x, which is
           incompatible with the current OpenIAP Android artifacts. Upgrade to{' '}
-          <strong>Expo SDK 57</strong>, the version validated by the current
+          <strong>Expo SDK 58</strong>, the version validated by the current
           release (see <a href="#android-kotlin">Android Kotlin Version</a>).
         </Callout>
 

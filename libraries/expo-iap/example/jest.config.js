@@ -1,4 +1,4 @@
-// Expo SDK 57 installs expo/fetch as the global fetch implementation by default.
+// Since SDK 57, Expo installs expo/fetch as the global fetch implementation.
 // These component tests do not exercise expo/fetch, so retain React Native's
 // Jest fetch implementation and avoid initializing native fetch response types.
 process.env.EXPO_PUBLIC_USE_RN_FETCH ??= '1';
@@ -13,8 +13,6 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/app/$1',
     '^../../src$': '<rootDir>/../src',
     '^expo-iap$': '<rootDir>/../src/index',
-    // Match the Node resolution used by Expo's Xcode config plugin.
-    '^uuid$': require.resolve('uuid'),
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   collectCoverageFrom: ['app/**/*.{ts,tsx}', '!app/**/*.d.ts', '!__tests__/**'],
