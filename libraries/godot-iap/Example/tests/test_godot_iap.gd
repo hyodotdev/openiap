@@ -900,6 +900,13 @@ func test_refused_double_tap_removes_only_its_own_marks() -> void:
 	_assert_equal(GodotIapPlugin._requested_skus.get("premium", []).size(), 1, "A refusal after pending should keep the purchase in flight requested")
 	_assert_false(GodotIapPlugin._requested_skus.has("coins"), "A refusal after pending should drop the refused request's marks")
 
+	# Two refusals still on their way each end one refused request.
+	for sku in ["coins", "gems"]:
+		GodotIapPlugin.request_purchase({"requestPurchase": {"google": {"skus": [sku]}}, "type": "in-app"})
+	for _refusal in 2:
+		GodotIapPlugin.purchase_error.emit({"code": "purchase-in-progress", "message": "Another purchase is already in progress"})
+	_assert_equal(GodotIapPlugin._requested_skus.keys(), ["premium"], "Two refusals after pending should drop both refused requests")
+
 	# A request that fails validation leaves the pending request marked.
 	GodotIapPlugin.request_purchase({"requestPurchase": {"google": {"skus": []}}, "type": "in-app"})
 	_assert_equal(GodotIapPlugin._requested_skus.get("premium", []).size(), 1, "A request failing validation should keep the pending request marked")
@@ -916,7 +923,12 @@ func test_refused_double_tap_removes_only_its_own_marks() -> void:
 	var base_change := bought.merged({"pendingPurchaseUpdateAndroid": {"products": ["premium"]}})
 	_assert_true(GodotIapPlugin._take_requested(base_change) and GodotIapPlugin._take_requested(bought), "A same-product plan change should leave the other request marked")
 
+	# Undos of answered requests go once nothing is marked.
+	GodotIapPlugin.request_purchase({"requestPurchase": {"google": {"skus": ["premium"]}}, "type": "in-app"})
+	_assert_equal(GodotIapPlugin._request_unmarks.size(), 1, "A request after every mark was answered should drop the old undos")
+
 	GodotIapPlugin._requested_skus.clear()
+	GodotIapPlugin._request_unmarks.clear()
 	GodotIapPlugin._native_plugin = null
 	GodotIapPlugin._platform = ""
 

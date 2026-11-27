@@ -188,6 +188,9 @@ func _test_plan_change(plugin: Node, manager: Node, android: RecordingAndroidPlu
 	_check(not android.calls.has("requestPurchase"), "A plan change waits for the new plan's offers")
 	manager.purchase_subscription_with_offer(manager.PRODUCT_PREMIUM_YEAR, "explicit-offer")
 	_check(not android.calls.has("requestPurchase"), "A plan change with an offer the catalog lacks waits too")
+	manager.products = {manager.PRODUCT_PREMIUM_YEAR: {"subscriptionOffers": [{"offerToken": "bare-offer"}]}}
+	manager.purchase_subscription_with_offer(manager.PRODUCT_PREMIUM_YEAR, "bare-offer")
+	_check(not android.calls.has("requestPurchase"), "A plan change with an offer that lists no pricing phases waits too")
 	var renewing := {"subscriptionOffers": [{"offerToken": "renewing-offer", "pricingPhases": {"pricingPhaseList": [{"recurrenceMode": 1}]}}]}
 	manager.products = {manager.PRODUCT_PREMIUM: renewing, manager.PRODUCT_PREMIUM_YEAR: renewing}
 	var params: Dictionary
@@ -315,6 +318,17 @@ func _test_alternative_billing(manager: Node, android: RecordingAndroidPlugin) -
 	manager.purchase_failed.emit("", "Code: user-cancelled")
 	await process_frame
 	_check(scene.billing_program == Types.BillingProgramAndroid.UNSPECIFIED, "The purchase's outcome returns to standard billing")
+	# Choosing developer billing ends the purchase with no other outcome, so it retries the restore too.
+	scene._set_panel_visible(scene.billing_panel, true)
+	await scene._on_billing_program_selected(picker.get_item_index(Types.BillingProgramAndroid.USER_CHOICE_BILLING))
+	android.connects = false
+	android.init_error = JSON.stringify({"connected": true, "code": "developer-error", "message": "A purchase is in progress"})
+	await scene._on_billing_close_pressed()
+	android.connects = true
+	android.init_error = "{}"
+	root.get_node("GodotIapPlugin")._on_android_user_choice_billing(JSON.stringify({"externalTransactionToken": "fixture-token", "products": [manager.PRODUCT_10_BULBS]}))
+	await process_frame
+	_check(scene.billing_program == Types.BillingProgramAndroid.UNSPECIFIED, "Choosing developer billing returns to standard billing")
 	scene.queue_free()
 	await process_frame
 	manager.store_connected = previous_connection

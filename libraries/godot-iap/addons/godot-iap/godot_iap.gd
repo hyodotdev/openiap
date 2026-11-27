@@ -130,8 +130,9 @@ var _shell_open: Callable = Callable(OS, "shell_open")
 var _requested_skus := {}
 # Each request marks a distinct time, so an undo removes only its own mark.
 var _last_marked_at := 0.0
-# The newest request's undo: Android refuses a double tap after the call returned pending.
-var _newest_request_unmark := Callable()
+# Undos of the Android requests still marked, oldest first: Android refuses a double tap after the
+# call returned pending.
+var _request_unmarks: Array[Callable] = []
 var _in_request_call := false
 var _listening_flows: Array = []
 
@@ -831,8 +832,10 @@ func _dispatch_purchase_request(args: Dictionary) -> Dictionary:
 		if purchase_type == "in-app" and not offer_token.is_empty():
 			params["offerToken"] = offer_token
 		var params_json = JSON.stringify(params)
+		if _requested_skus.is_empty():
+			_request_unmarks.clear()
 		unmark = _mark_requested(params["skus"])
-		_newest_request_unmark = unmark
+		_request_unmarks.append(unmark)
 		_log("Calling Android requestPurchase: type=%s, skus=%d, subscriptionOffers=%d, hasPurchaseToken=%s" % [purchase_type, params["skus"].size(), subscription_offers.size(), params.has("purchaseToken")])
 		result_raw = _native_plugin.call("requestPurchase", params_json)
 	elif _is_apple():
@@ -859,6 +862,7 @@ func _dispatch_purchase_request(args: Dictionary) -> Dictionary:
 	var pending: bool = outcome.get("status", "") == "pending" or outcome.get("pending", false)
 	if unmark.is_valid() and not outcome.get("success", false) and not pending:
 		unmark.call()
+		_request_unmarks.erase(unmark)
 	return outcome
 
 
@@ -1671,16 +1675,16 @@ func _listen_for_purchases(on_purchase: Callable) -> Callable:
 
 
 # A failed or cancelled purchase ends what the user asked for; other operations tag a method.
-# A refused double tap ends only the refused request, always the newest: the purchase in flight continues.
+# A refused double tap ends only a refused request, always the newest left: the purchase in flight
+# is older than every request refused behind it.
 func _forget_requests_on_error(error: Dictionary) -> void:
 	if error.has("method") or _in_request_call:
 		return
-	if error.get("code") == Types.ERROR_CODE_VALUES[Types.ErrorCode.PURCHASE_IN_PROGRESS]:
-		if _newest_request_unmark.is_valid():
-			_newest_request_unmark.call()
-	else:
+	if error.get("code") != Types.ERROR_CODE_VALUES[Types.ErrorCode.PURCHASE_IN_PROGRESS]:
 		_requested_skus.clear()
-	_newest_request_unmark = Callable()
+		_request_unmarks.clear()
+	elif not _request_unmarks.is_empty():
+		_request_unmarks.pop_back().call()
 
 
 # Returns the undo for a request that fails, which removes only this request's marks.

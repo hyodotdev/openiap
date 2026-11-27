@@ -339,6 +339,7 @@ func _billing_program_available() -> bool:
 
 func _on_developer_billing_chosen(details: Dictionary) -> void:
 	billing_result_label.text = "The user chose your billing.\nToken: %s. Charge them, then report the token to Google Play." % ("present" if details.get("externalTransactionToken") else "missing")
+	_restore_standard_billing_if_closed()
 
 
 func _on_verification_selected(index: int) -> void:

@@ -268,13 +268,16 @@ func _purchase(product_id: String, offer_token: String = "", developer_billing_o
 			if current.purchase_token == null or str(current.purchase_token).is_empty():
 				purchase_failed.emit(product_id, "The current plan has no purchase token; refresh subscriptions and try again")
 				return
-			if _offer_detail(product_id, offer_token) == null:
-				# The offer decides the replacement mode Play accepts.
+			var phases := _offer_phases(product_id, offer_token)
+			if phases.is_empty():
+				# The offer's phases decide the replacement mode Play accepts.
 				purchase_failed.emit(product_id, "The new plan's offers are not loaded; refresh products and try again")
 				return
 			var replacement := Types.SubscriptionProductReplacementParamsAndroid.new()
 			replacement.old_product_id = current.product_id
-			if _is_prepaid_offer(product_id, offer_token):
+			# A prepaid offer ends with a phase that does not recur.
+			var recurrence = _field(phases.back(), ["recurrenceMode", "recurrence_mode"])
+			if recurrence != null and int(recurrence) == 3:
 				# Play only allows full-price replacement into a prepaid plan.
 				replacement.replacement_mode = Types.SubscriptionReplacementModeAndroid.CHARGE_FULL_PRICE
 			elif product_id == PRODUCT_PREMIUM_YEAR:
@@ -378,24 +381,16 @@ func get_subscription_offers(product_id: String) -> Array:
 	return offers
 
 
-## The cached offer with [param offer_token], or null.
-func _offer_detail(product_id: String, offer_token: String) -> Variant:
+## Pricing phases of the cached offer with [param offer_token]; empty when it is not loaded.
+func _offer_phases(product_id: String, offer_token: String) -> Array:
 	if offer_token.is_empty():
-		return null
+		return []
 	for offer_detail in _subscription_offer_details(products.get(product_id)):
 		if _offer_token_from_detail(offer_detail) == offer_token:
-			return offer_detail
-	return null
-
-
-## A prepaid offer ends with a phase that does not recur.
-func _is_prepaid_offer(product_id: String, offer_token: String) -> bool:
-	var phases = _field(_offer_detail(product_id, offer_token), ["pricingPhases", "pricing_phases", "pricingPhasesAndroid", "pricing_phases_android"])
-	var phase_list = _field(phases, ["pricingPhaseList", "pricing_phase_list"])
-	if phase_list is Array and not phase_list.is_empty():
-		var recurrence = _field(phase_list.back(), ["recurrenceMode", "recurrence_mode"])
-		return recurrence != null and int(recurrence) == 3
-	return false
+			var phases = _field(offer_detail, ["pricingPhases", "pricing_phases", "pricingPhasesAndroid", "pricing_phases_android"])
+			var phase_list = _field(phases, ["pricingPhaseList", "pricing_phase_list"])
+			return phase_list if phase_list is Array else []
+	return []
 
 
 func _subscription_offer_details(product: Variant) -> Array:
