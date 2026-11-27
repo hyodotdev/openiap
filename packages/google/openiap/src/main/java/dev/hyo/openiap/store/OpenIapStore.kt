@@ -458,7 +458,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
             for (listener in purchaseErrorListeners) runCatching { listener.onPurchaseError(refusal) }
             throw refusal
         }
-        claim?.let(pendingRequest::set)
+        val displaced = claim?.let(pendingRequest::getAndSet)
 
         try {
             module.requestPurchase(props).also { result ->
@@ -467,6 +467,10 @@ class OpenIapStore(private val module: OpenIapProtocol) {
                     pendingRequest.compareAndSet(claim, null)
                 }
             }
+        } catch (refusal: OpenIapError.PurchaseInProgress) {
+            // The module still had a purchase open: its outcome reports the request this one displaced.
+            pendingRequest.compareAndSet(claim, displaced)
+            throw refusal
         } finally {
             releasePurchasing(claim)
         }

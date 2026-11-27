@@ -171,6 +171,33 @@ class OpenIapStoreConnectionLifecycleTest {
     }
 
     @Test
+    fun `a request the module refuses leaves the dispatched purchase's sku`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val module = FakeOpenIapProtocol()
+        val store = OpenIapStore(module.protocol)
+
+        try {
+            // The module answers before the purchase ends, so the store's own guard is free again.
+            store.requestPurchase(RequestPurchaseProps.fromJson(mapOf(
+                "requestPurchase" to mapOf("google" to mapOf("skus" to listOf("coins"))),
+            )))
+            module.onRequestPurchase = { throw OpenIapError.PurchaseInProgress() }
+            val refused = runCatching {
+                store.requestPurchase(RequestPurchaseProps.fromJson(mapOf(
+                    "requestPurchase" to mapOf("google" to mapOf("skus" to listOf("premium"))),
+                )))
+            }
+            module.emitError(OpenIapError.PurchaseFailed("The dispatched purchase failed"))
+
+            assertTrue(refused.exceptionOrNull() is OpenIapError.PurchaseInProgress)
+            assertEquals("coins", store.status.value.lastPurchaseResult?.productId)
+        } finally {
+            store.clear()
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
     fun `a dispatched purchase without a result keeps its sku until its error event`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val module = FakeOpenIapProtocol()
