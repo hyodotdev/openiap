@@ -1,7 +1,7 @@
 [[IgnoredVulns]]
 id = "GHSA-3g3m-2fjr-6pw4"
 ignoreUntil = 2026-12-24
-reason = "The fix is glob 14.0.2. This lock resolves glob 13 for the Expo 57 packages, which accept glob 14 from expo 57.0.34, and for expo-module-scripts, which still requires glob 13. Expo uses glob for trusted local project discovery and builds, including early cancellation after the first match; cancellation must not be treated as an enforced traversal budget. The published expo-iap mobile entry points do not import glob. Do not run this tooling on untrusted directory trees or expose it as a public request handler. Recheck compatible upstream upgrades before expiry: https://github.com/advisories/GHSA-3g3m-2fjr-6pw4. Rechecked 2026-11-25: expo-module-scripts has no release that accepts the fix."
+reason = "The fix is glob 14.0.2. This lock resolves glob 13 for expo-module-scripts, which still requires it. It uses glob for trusted local project discovery and builds, including early cancellation after the first match; cancellation must not be treated as an enforced traversal budget. The published expo-iap mobile entry points do not import glob. Do not run this tooling on untrusted directory trees or expose it as a public request handler. Recheck compatible upstream upgrades before expiry: https://github.com/advisories/GHSA-3g3m-2fjr-6pw4. Rechecked 2026-11-27: expo-module-scripts has no release that accepts the fix."
 
 [[IgnoredVulns]]
 id = "GHSA-g3hv-75wg-m249"

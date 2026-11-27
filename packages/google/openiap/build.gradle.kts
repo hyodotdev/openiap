@@ -81,7 +81,9 @@ val isCentralPublishTaskRequested =
         taskName.contains("mavenCentral", ignoreCase = true)
     }
 
-android {
+// The DSL interface, not `android {}`: AGP 9 consumers such as Expo SDK 58 cannot read source
+// sets through the legacy accessor.
+extensions.configure<com.android.build.api.dsl.LibraryExtension> {
     namespace = "io.github.hyochan.openiap"
     compileSdk = 36
 

@@ -15,9 +15,10 @@ internal static class PurchaseRequests
     // PURCHASE_REQUEST_CLOCK_SKEW_MS in specs/client/src/purchase-flow.ts: device clocks run ahead.
     private const double ClockSkewMs = 600_000;
 
-    private static readonly Dictionary<string, double> Requested = new(StringComparer.Ordinal);
+    // When each live request asked for each SKU, oldest first.
+    private static readonly Dictionary<string, List<double>> Requested = new(StringComparer.Ordinal);
 
-    /// <summary>Marks the request's SKUs, the target of a plan change included, and clears every mark if it fails.</summary>
+    /// <summary>Marks the request's SKUs, a plan change's target included; a failed request undoes only its own marks.</summary>
     public static async Task<T> Track<T>(RequestPurchaseProps request, Func<Task<T>> send)
     {
         string?[] skus =
@@ -27,12 +28,17 @@ internal static class PurchaseRequests
             .. request.RequestPurchase?.Google?.Skus ?? [],
             .. request.RequestSubscription?.Google?.Skus ?? [],
         ];
-        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var marked = skus.OfType<string>().Where(sku => sku.Length > 0).ToHashSet(StringComparer.Ordinal);
+        double now;
         lock (Requested)
         {
-            foreach (var sku in skus)
+            // Distinct among the marks it joins, so the undo removes only its own.
+            now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            while (marked.Any(sku => Requested.TryGetValue(sku, out var live) && live.Contains(now))) now++;
+            foreach (var sku in marked)
             {
-                if (!string.IsNullOrEmpty(sku)) Requested[sku] = now;
+                if (!Requested.TryGetValue(sku, out var live)) Requested[sku] = live = [];
+                live.Add(now);
             }
         }
         try
@@ -41,7 +47,13 @@ internal static class PurchaseRequests
         }
         catch
         {
-            Clear();
+            lock (Requested)
+            {
+                foreach (var sku in marked)
+                {
+                    if (Requested.TryGetValue(sku, out var live) && live.Remove(now) && live.Count == 0) Requested.Remove(sku);
+                }
+            }
             throw;
         }
     }
@@ -58,10 +70,20 @@ internal static class PurchaseRequests
         lock (Requested)
         {
             // A receipt older than the request is a store redelivery.
-            var bought = Requested.TryGetValue(purchase.ProductId, out var askedAt)
-                && purchase.TransactionDate >= askedAt - ClockSkewMs
-                && Requested.Remove(purchase.ProductId);
-            return changes.Count(Requested.Remove) > 0 || bought;
+            var bought = Requested.TryGetValue(purchase.ProductId, out var live)
+                && purchase.TransactionDate >= live[0] - ClockSkewMs
+                && TakeMark(purchase.ProductId);
+            // A plan change within the same product answers one request, not two.
+            return changes.Distinct().Where(sku => !bought || sku != purchase.ProductId).Count(TakeMark) > 0 || bought;
         }
+    }
+
+    // Removes the oldest live mark for the SKU, which the matching purchase answers. Caller holds the lock.
+    private static bool TakeMark(string sku)
+    {
+        if (!Requested.TryGetValue(sku, out var live)) return false;
+        live.RemoveAt(0);
+        if (live.Count == 0) Requested.Remove(sku);
+        return true;
     }
 }

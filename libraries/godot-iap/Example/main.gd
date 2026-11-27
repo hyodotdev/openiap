@@ -22,11 +22,14 @@ var difficulty_timer: float = 0.0
 @onready var restart_button: Button = $UI/RestartButton
 @onready var store_button: Button = $UI/StoreButton
 @onready var ownership_button: Button = $UI/OwnershipButton
+@onready var billing_button: Button = $UI/AlternativeBillingButton
 @onready var overlay: ColorRect = $UI/Overlay
 @onready var store_panel: Panel = $UI/StorePanel
 @onready var store_contents: VBoxContainer = $UI/StorePanel/ScrollContainer/VBoxContainer
 @onready var ownership_panel: Panel = $UI/OwnershipPanel
 @onready var ownership_contents: VBoxContainer = $UI/OwnershipPanel/ScrollContainer/VBoxContainer
+@onready var billing_panel: Panel = $UI/AlternativeBillingPanel
+@onready var billing_contents: VBoxContainer = $UI/AlternativeBillingPanel/ScrollContainer/VBoxContainer
 @onready var loading_label: Label = $UI/LoadingLabel
 @onready var status_label: Label = $UI/StatusLabel
 
@@ -37,6 +40,20 @@ var ownership_request_hash: LineEdit
 var ownership_result_label: Label
 var ownership_check_button: Button
 var ownership_checking: bool = false
+var billing_program_picker: OptionButton
+var billing_url: LineEdit
+var billing_buy_button: Button
+var billing_result_label: Label
+# The program the connection runs with; the picker may be mid-change.
+var billing_program := Types.BillingProgramAndroid.UNSPECIFIED
+
+const BILLING_PROGRAMS := {
+	Types.BillingProgramAndroid.UNSPECIFIED: "Standard Google Play billing",
+	Types.BillingProgramAndroid.EXTERNAL_OFFER: "External Offer",
+	Types.BillingProgramAndroid.EXTERNAL_CONTENT_LINK: "External Content Link",
+	Types.BillingProgramAndroid.USER_CHOICE_BILLING: "User Choice Billing",
+	Types.BillingProgramAndroid.EXTERNAL_PAYMENTS: "External Payments (Japan)",
+}
 
 const VIEWPORT_WIDTH := 720
 const VIEWPORT_HEIGHT := 1280
@@ -52,9 +69,11 @@ func _ready() -> void:
 	restart_button.pressed.connect(_on_restart_pressed)
 	store_button.pressed.connect(_on_store_button_pressed)
 	ownership_button.pressed.connect(_set_panel_visible.bind(ownership_panel, true))
+	billing_button.pressed.connect(_set_panel_visible.bind(billing_panel, true))
 
 	_setup_store_panel()
 	_setup_ownership_check()
+	_setup_alternative_billing()
 
 	# Connect IAP signals (IapManager is autoload singleton)
 	IapManager.purchase_completed.connect(_on_purchase_completed)
@@ -69,6 +88,9 @@ func _ready() -> void:
 	overlay.visible = false
 	store_panel.visible = false
 	ownership_panel.visible = false
+	billing_panel.visible = false
+	# Billing programs exist only on Google Play.
+	billing_button.visible = GodotIapPlugin.get_store() == Types.IapStore.GOOGLE
 	loading_label.visible = IapManager.is_loading
 	status_label.text = "Connecting..." if IapManager.is_loading else "Not connected"
 	if IapManager.store_connected:
@@ -213,6 +235,113 @@ func _on_ownership_error(error: Dictionary) -> void:
 		ownership_result_label.text = "%s: %s" % [error.get("code", "service-error"), error.get("message", "App ownership verification failed")]
 
 
+func _setup_alternative_billing() -> void:
+	billing_panel.get_node("CloseButton").pressed.connect(_on_billing_close_pressed)
+	var description := Label.new()
+	description.text = "Pick a Google Play billing program; the store reconnects with it. Closing this panel returns to standard billing. Report every external transaction token to Google Play within 24 hours."
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	billing_contents.add_child(description)
+	billing_program_picker = OptionButton.new()
+	for program in BILLING_PROGRAMS:
+		billing_program_picker.add_item(BILLING_PROGRAMS[program], program)
+	billing_program_picker.item_selected.connect(_on_billing_program_selected)
+	billing_contents.add_child(billing_program_picker)
+	var url_label := Label.new()
+	url_label.text = "External URL"
+	billing_contents.add_child(url_label)
+	billing_url = LineEdit.new()
+	billing_url.text = "https://openiap.dev"
+	billing_url.custom_minimum_size.y = 40
+	billing_contents.add_child(billing_url)
+	billing_buy_button = Button.new()
+	billing_buy_button.text = "Buy 10 Bulbs"
+	billing_buy_button.custom_minimum_size.y = 70
+	billing_buy_button.pressed.connect(_on_billing_buy_pressed)
+	billing_buy_button.disabled = not IapManager.store_connected
+	billing_contents.add_child(billing_buy_button)
+	billing_result_label = Label.new()
+	billing_result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	billing_contents.add_child(billing_result_label)
+	GodotIapPlugin.user_choice_billing_android.connect(_on_developer_billing_chosen)
+	GodotIapPlugin.developer_provided_billing_android.connect(_on_developer_billing_chosen)
+
+
+func _on_billing_program_selected(index: int) -> void:
+	await _switch_billing_program(billing_program_picker.get_item_id(index))
+
+
+func _switch_billing_program(program: Types.BillingProgramAndroid) -> void:
+	billing_buy_button.disabled = true
+	billing_result_label.text = "Reconnecting..."
+	if await IapManager.set_billing_program(program):
+		billing_program = program
+		billing_result_label.text = "Connected with %s" % BILLING_PROGRAMS[program]
+	elif not IapManager.store_connected:
+		billing_result_label.text = "Reconnecting failed; the store is disconnected."
+	else:
+		billing_result_label.text = "Reconnecting failed; %s stays." % BILLING_PROGRAMS[billing_program]
+	billing_program_picker.select(billing_program_picker.get_item_index(billing_program))
+	billing_buy_button.disabled = not IapManager.store_connected
+	# Closing the panel while the switch ran still returns to standard billing.
+	if program != Types.BillingProgramAndroid.UNSPECIFIED:
+		await _restore_standard_billing_if_closed()
+
+
+# Play refuses to reconnect while a purchase runs, so each purchase outcome retries the restore.
+func _restore_standard_billing_if_closed() -> void:
+	if billing_panel and not billing_panel.visible and billing_program != Types.BillingProgramAndroid.UNSPECIFIED:
+		await _switch_billing_program(Types.BillingProgramAndroid.UNSPECIFIED)
+
+
+func _on_billing_close_pressed() -> void:
+	_set_panel_visible(billing_panel, false)
+	await _restore_standard_billing_if_closed()
+
+
+func _on_billing_buy_pressed() -> void:
+	match billing_program:
+		Types.BillingProgramAndroid.EXTERNAL_OFFER, Types.BillingProgramAndroid.EXTERNAL_CONTENT_LINK:
+			_launch_external_link()
+		Types.BillingProgramAndroid.EXTERNAL_PAYMENTS:
+			if _billing_program_available():
+				billing_result_label.text = "Play shows its checkout beside yours."
+				IapManager.purchase_with_external_payments(IapManager.PRODUCT_10_BULBS, billing_url.text)
+		_:
+			# With User Choice Billing, Play asks the user which billing to use.
+			IapManager.purchase_10_bulbs()
+
+
+func _launch_external_link() -> void:
+	if not _billing_program_available():
+		return
+	# Fresh reporting details right before every launch; your backend reports the token after payment.
+	var reporting: Types.BillingProgramReportingDetailsAndroid = GodotIapPlugin.create_billing_program_reporting_details_android(billing_program)
+	if reporting == null or reporting.external_transaction_token.is_empty():
+		billing_result_label.text = "Could not create reporting details"
+		return
+	var params := Types.LaunchExternalLinkParamsAndroid.new()
+	params.billing_program = billing_program
+	params.launch_mode = Types.ExternalLinkLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
+	params.link_type = Types.ExternalLinkTypeAndroid.LINK_TO_DIGITAL_CONTENT_OFFER
+	params.link_uri = billing_url.text
+	if GodotIapPlugin.launch_external_link_android(params):
+		billing_result_label.text = "External link launched. Report its token after payment."
+	else:
+		billing_result_label.text = "External link was not launched"
+
+
+func _billing_program_available() -> bool:
+	var availability: Types.BillingProgramAvailabilityResultAndroid = GodotIapPlugin.is_billing_program_available_android(billing_program)
+	if not availability.is_available:
+		billing_result_label.text = "%s is not available for this user" % BILLING_PROGRAMS[billing_program]
+	return availability.is_available
+
+
+func _on_developer_billing_chosen(details: Dictionary) -> void:
+	billing_result_label.text = "The user chose your billing.\nToken: %s. Charge them, then report the token to Google Play." % ("present" if details.get("externalTransactionToken") else "missing")
+	_restore_standard_billing_if_closed()
+
+
 func _on_verification_selected(index: int) -> void:
 	await IapManager.set_verification_method(verification_picker.get_item_id(index))
 
@@ -224,6 +353,9 @@ func _on_verification_changed(_label: String) -> void:
 
 func _on_verification_result(message: String, ok: bool) -> void:
 	status_label.text = ("✅ " if ok else "❌ ") + message
+	if billing_result_label:
+		billing_result_label.text = status_label.text
+	_restore_standard_billing_if_closed()
 	print("[Main] %s" % message)
 
 
@@ -306,7 +438,7 @@ func _on_store_button_pressed() -> void:
 
 func _set_panel_visible(panel: Panel, shown: bool) -> void:
 	panel.visible = shown
-	var any_open := store_panel.visible or ownership_panel.visible
+	var any_open := store_panel.visible or ownership_panel.visible or billing_panel.visible
 	overlay.visible = any_open
 	player.ui_blocking = any_open
 	player.touch_target_x = -1.0  # Reset touch target
@@ -360,6 +492,8 @@ func _show_store_status(text: String) -> void:
 	status_label.text = text
 	if store_status_label:
 		store_status_label.text = text
+	if billing_result_label:
+		billing_result_label.text = text
 
 
 func _on_purchase_completed(product_id: String) -> void:
@@ -379,6 +513,7 @@ func _on_purchase_completed(product_id: String) -> void:
 
 func _on_purchase_failed(_product_id: String, error: String) -> void:
 	_show_store_status("Purchase failed\n%s" % error)
+	_restore_standard_billing_if_closed()
 
 
 func _on_products_loaded() -> void:
@@ -401,8 +536,8 @@ func _on_loading_changed(loading: bool) -> void:
 
 
 func _on_subscription_entitlements_changed() -> void:
-	is_premium = IapManager.subscription_entitlements[IapManager.PRODUCT_PREMIUM]
-	is_premium_year = IapManager.subscription_entitlements[IapManager.PRODUCT_PREMIUM_YEAR]
+	is_premium = IapManager.active_subscriptions.has(IapManager.PRODUCT_PREMIUM)
+	is_premium_year = IapManager.active_subscriptions.has(IapManager.PRODUCT_PREMIUM_YEAR)
 	update_ui()
 	_update_store_panel_buttons()
 
@@ -433,6 +568,8 @@ func _update_store_panel_buttons() -> void:
 	_update_button_text("BuyPremiumYearButton", IapManager.PRODUCT_PREMIUM_YEAR, "Premium Year")
 	store_contents.get_node("RestoreButton").disabled = not IapManager.store_connected
 	verification_picker.disabled = not IapManager.store_connected
+	if billing_buy_button:
+		billing_buy_button.disabled = not IapManager.store_connected
 
 
 func _update_button_text(button_path: String, product_id: String, fallback: String) -> void:
@@ -450,3 +587,5 @@ func _update_button_text(button_path: String, product_id: String, fallback: Stri
 			button.text = title
 	else:
 		button.text = fallback
+	if IapManager.plan_to_replace(product_id) != null:
+		button.text = "Change plan: " + button.text

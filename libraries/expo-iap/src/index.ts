@@ -20,7 +20,6 @@ import {
   type IapkitConfirmationOptions,
 } from './purchase-flow-confirmers';
 import {
-  clearRequested,
   createSdkPurchaseFlow,
   markRequested,
   type PurchaseFlowSdk,
@@ -989,11 +988,14 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
   args,
 ) => {
   const {request} = args;
-  markRequested([request.apple?.sku, ...(request.google?.skus ?? [])]);
+  const unmark = markRequested([
+    request.apple?.sku,
+    ...(request.google?.skus ?? []),
+  ]);
   try {
     return await requestPurchaseFromStore(args);
   } catch (error) {
-    clearRequested();
+    unmark();
     throw error;
   }
 };

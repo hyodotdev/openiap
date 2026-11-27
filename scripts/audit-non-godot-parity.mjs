@@ -2448,9 +2448,9 @@ function checkFlutter() {
       "deliverPurchaseRequestFailure(",
       "isCancellation = e is CancellationException",
       "reachedOpenIapRequest = reachedOpenIapRequest",
-      "ExpoIapHelper.rejectPurchasePromises(code, message, null)",
+      "ExpoIapHelper.rejectPurchasePromise(promise, code, message)",
     ],
-    "Expo Android purchase failures must settle pending promises",
+    "Expo Android purchase failures must settle their own promise",
   );
   expectMatch(
     "libraries/react-native-iap/android/src/main/java/com/margelo/nitro/iap/HybridRnIap.kt",
@@ -8560,17 +8560,11 @@ function checkXcode27StoreKitCoverage() {
     ["bundledSubscriptionsIOS = null"],
     "React Native Android product StoreKit 27 initializer parity",
   );
+  // Expo's own template runs the scene life cycle from SDK 58.
   expectIncludes(
-    "libraries/expo-iap/example/plugins/withIos27SceneLifecycle.js",
-    [
-      "UIApplicationSceneManifest",
-      "configurationForConnecting connectingSceneSession",
-      "UIWindow(windowScene: windowScene)",
-      "appDelegate?.window = window",
-      "appDelegate?.applicationDidBecomeActive",
-      "appDelegate?.applicationDidEnterBackground",
-    ],
-    "Expo Xcode 27 scene lifecycle fixture",
+    "libraries/expo-iap/example/package.json",
+    ['"expo": "^58.'],
+    "Expo Xcode 27 scene lifecycle",
   );
   expectIncludes(
     "libraries/react-native-iap/example/ios/example/AppDelegate.swift",

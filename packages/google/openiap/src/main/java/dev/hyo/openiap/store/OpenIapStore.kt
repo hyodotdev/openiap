@@ -137,8 +137,13 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     private val finishesByToken =
         java.util.concurrent.ConcurrentHashMap<String, CompletableDeferred<Unit>>()
 
-    // SKU of the request whose outcome the next purchase event reports.
-    private val pendingRequestProductId = java.util.concurrent.atomic.AtomicReference<String?>(null)
+    // Listeners added through this store, which hear the refusals it makes itself.
+    private val purchaseErrorListeners = java.util.concurrent.CopyOnWriteArraySet<OpenIapPurchaseErrorListener>()
+
+    // The request whose outcome the next purchase event reports; it can outlive its claim.
+    private val pendingRequest = java.util.concurrent.atomic.AtomicReference<PurchaseClaim?>(null)
+    // The request in flight. Its outcome event frees it, so a listener can start the next purchase.
+    private val purchaseClaim = java.util.concurrent.atomic.AtomicReference<PurchaseClaim?>(null)
     private var purchaseListenersAttached = false
 
     private val purchaseUpdateListener = OpenIapPurchaseUpdateListener { purchase ->
@@ -150,7 +155,8 @@ class OpenIapStore(private val module: OpenIapProtocol) {
             transactionId = purchase.id,
             lastError = null,
         )
-        pendingRequestProductId.set(null)
+        pendingRequest.set(null)
+        releasePurchasing(purchaseClaim.get())
 
         storeScope.launch {
             try {
@@ -182,7 +188,10 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     private val connectionStateListener = OpenIapConnectionStateListener { _isConnected.value = false }
 
     private val purchaseErrorListener = OpenIapPurchaseErrorListener { error ->
-        val productId = pendingRequestProductId.getAndSet(null)
+        // A refused double tap is not a failure of the purchase in flight.
+        if (error is OpenIapError.PurchaseInProgress) return@OpenIapPurchaseErrorListener
+        val productId = pendingRequest.getAndSet(null)?.sku
+        releasePurchasing(purchaseClaim.get())
         val code = OpenIapError.toCode(error)
         if (error is OpenIapError.UserCancelled || error is OpenIapError.PurchaseCancelled) {
             setStatusMessage(
@@ -221,10 +230,17 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         activityBindings.set(owner, null)
     }
 
+    // Choosing alternative billing ends the Play request with no purchase event.
+    private val userChoiceBillingListener = dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener {
+        pendingRequest.set(null)
+        releasePurchasing(purchaseClaim.get())
+    }
+
     private fun attachPurchaseListeners() {
         if (purchaseListenersAttached) return
         module.addPurchaseUpdateListener(purchaseUpdateListener)
         module.addPurchaseErrorListener(purchaseErrorListener)
+        module.addUserChoiceBillingListener(userChoiceBillingListener)
         module.addConnectionStateListener(connectionStateListener)
         purchaseListenersAttached = true
     }
@@ -233,6 +249,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         if (!purchaseListenersAttached) return
         module.removePurchaseUpdateListener(purchaseUpdateListener)
         module.removePurchaseErrorListener(purchaseErrorListener)
+        module.removeUserChoiceBillingListener(userChoiceBillingListener)
         module.removeConnectionStateListener(connectionStateListener)
         purchaseListenersAttached = false
     }
@@ -248,7 +265,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         detachPurchaseListeners()
         activityBindings.clear()
         finishesByToken.clear()
-        pendingRequestProductId.set(null)
+        pendingRequest.set(null)
         storeScope.cancel()
     }
 
@@ -315,7 +332,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
             val ok = module.endConnection()
             detachPurchaseListeners()
             _isConnected.value = false
-            pendingRequestProductId.set(null)
+            pendingRequest.set(null)
             ok
         } catch (e: Exception) {
             setError(e.message)
@@ -432,21 +449,30 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @see <a href="https://openiap.dev/docs/apis/request-purchase">request-purchase</a>
      */
     val requestPurchase: MutationRequestPurchaseHandler = { props ->
-        val skuForStatus = OpenIapStorePurchaseRequestResolver.sku(props)
-
-        if (skuForStatus != null) {
-            addPurchasing(skuForStatus)
-            pendingRequestProductId.set(skuForStatus)
+        // Refused here, before native admission, so the purchase in flight keeps its flag and pending
+        // sku. Like a native refusal, it reaches the error listeners too.
+        val sku = OpenIapStorePurchaseRequestResolver.sku(props)
+        val claim = sku?.let(::claimPurchasing)
+        if (sku != null && claim == null) {
+            val refusal = OpenIapError.PurchaseInProgress().withProductId(sku)
+            for (listener in purchaseErrorListeners) runCatching { listener.onPurchaseError(refusal) }
+            throw refusal
         }
+        val displaced = claim?.let(pendingRequest::getAndSet)
 
         try {
             module.requestPurchase(props).also { result ->
+                // By identity: a listener may already have started the next request for the same SKU.
                 if (result is RequestPurchaseResultPurchases && result.value?.isEmpty() == true) {
-                    pendingRequestProductId.compareAndSet(skuForStatus, null)
+                    pendingRequest.compareAndSet(claim, null)
                 }
             }
+        } catch (refusal: OpenIapError.PurchaseInProgress) {
+            // The module still had a purchase open: its outcome reports the request this one displaced.
+            pendingRequest.compareAndSet(claim, displaced)
+            throw refusal
         } finally {
-            if (skuForStatus != null) removePurchasing(skuForStatus)
+            releasePurchasing(claim)
         }
     }
 
@@ -647,8 +673,14 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     // -------------------------------------------------------------------------
     fun addPurchaseUpdateListener(listener: OpenIapPurchaseUpdateListener) = module.addPurchaseUpdateListener(listener)
     fun removePurchaseUpdateListener(listener: OpenIapPurchaseUpdateListener) = module.removePurchaseUpdateListener(listener)
-    fun addPurchaseErrorListener(listener: OpenIapPurchaseErrorListener) = module.addPurchaseErrorListener(listener)
-    fun removePurchaseErrorListener(listener: OpenIapPurchaseErrorListener) = module.removePurchaseErrorListener(listener)
+    fun addPurchaseErrorListener(listener: OpenIapPurchaseErrorListener) {
+        purchaseErrorListeners.add(listener)
+        module.addPurchaseErrorListener(listener)
+    }
+    fun removePurchaseErrorListener(listener: OpenIapPurchaseErrorListener) {
+        purchaseErrorListeners.remove(listener)
+        module.removePurchaseErrorListener(listener)
+    }
     fun addUserChoiceBillingListener(listener: dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener) = module.addUserChoiceBillingListener(listener)
     fun removeUserChoiceBillingListener(listener: dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener) = module.removeUserChoiceBillingListener(listener)
     fun addDeveloperProvidedBillingListener(listener: dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener) = module.addDeveloperProvidedBillingListener(listener)
@@ -710,12 +742,25 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         _status.update { it.copy(lastPurchaseResult = null) }
     }
 
-    private fun addPurchasing(productId: String) = setLoading {
-        it.purchasing = it.purchasing + productId
+    private class PurchaseClaim(val sku: String) {
+        val released = java.util.concurrent.atomic.AtomicBoolean(false)
     }
 
-    private fun removePurchasing(productId: String) = setLoading {
-        it.purchasing = it.purchasing - productId
+    /** Flags [sku] as purchasing unless another purchase is already in flight. */
+    private fun claimPurchasing(sku: String): PurchaseClaim? {
+        var claimed = false
+        setLoading {
+            claimed = it.purchasing.isEmpty()
+            if (claimed) it.purchasing = it.purchasing + sku
+        }
+        return if (claimed) PurchaseClaim(sku).also(purchaseClaim::set) else null
+    }
+
+    /** Frees [claim] once, so a late release cannot drop the flag of the request that follows it. */
+    private fun releasePurchasing(claim: PurchaseClaim?) {
+        if (claim?.released?.compareAndSet(false, true) != true) return
+        purchaseClaim.compareAndSet(claim, null)
+        setLoading { it.purchasing = it.purchasing - claim.sku }
     }
 
 }

@@ -125,8 +125,13 @@ var _platform: String = ""
 ## OS.has_feature, swappable in tests: an editor run carries no export tags.
 var _has_feature: Callable = Callable(OS, "has_feature")
 var _shell_open: Callable = Callable(OS, "shell_open")
-# When request_purchase got each SKU, so the flow can tell the user's purchase from a redelivery.
+# When each live request_purchase got each SKU, oldest first, so the flow can tell the user's
+# purchase from a redelivery.
 var _requested_skus := {}
+# Undos of the Android requests still marked, oldest first: Android refuses a double tap after the
+# call returned pending.
+var _request_unmarks: Array[Callable] = []
+var _in_request_call := false
 var _listening_flows: Array = []
 
 
@@ -690,6 +695,14 @@ func _purchase_failure(code: String, message: String, details: Dictionary = {}) 
 
 ## Internal: Request a purchase with raw Dictionary
 func _request_purchase_raw(args: Dictionary) -> Dictionary:
+	# The call undoes its own marks, so its failures leave other requests' marks alone.
+	_in_request_call = true
+	var result := _dispatch_purchase_request(args)
+	_in_request_call = false
+	return result
+
+
+func _dispatch_purchase_request(args: Dictionary) -> Dictionary:
 	_log("_request_purchase_raw called")
 	if not _native_plugin:
 		print("[GodotIap] ERROR: Native plugin not available. Cannot make purchases.")
@@ -725,6 +738,7 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 		return _purchase_failure("developer-error", "requestSubscription requires type `subs`")
 
 	var result_raw = null
+	var unmark := Callable()
 	if _platform == "Android":
 		# Android requestPurchase is async — returns a pending response, then
 		# delivers the final state via purchase_updated / purchase_error.
@@ -816,7 +830,10 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 		if purchase_type == "in-app" and not offer_token.is_empty():
 			params["offerToken"] = offer_token
 		var params_json = JSON.stringify(params)
-		_mark_requested(params["skus"])
+		if _requested_skus.is_empty():
+			_request_unmarks.clear()
+		unmark = _mark_requested(params["skus"])
+		_request_unmarks.append(unmark)
 		_log("Calling Android requestPurchase: type=%s, skus=%d, subscriptionOffers=%d, hasPurchaseToken=%s" % [purchase_type, params["skus"].size(), subscription_offers.size(), params.has("purchaseToken")])
 		result_raw = _native_plugin.call("requestPurchase", params_json)
 	elif _is_apple():
@@ -834,11 +851,20 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 			apple_payload["requestSubscription"] = { "apple": apple_props }
 		else:
 			apple_payload["requestPurchase"] = { "apple": apple_props }
-		_mark_requested([sku])
+		unmark = _mark_requested([sku])
 		result_raw = _native_plugin.call("requestPurchaseWithPayload", JSON.stringify(apple_payload))
 	else:
 		return _purchase_failure("feature-not-supported", "Unsupported platform")
 
+	var outcome := _read_purchase_result(result_raw)
+	var pending: bool = outcome.get("status", "") == "pending" or outcome.get("pending", false)
+	if unmark.is_valid() and not outcome.get("success", false) and not pending:
+		unmark.call()
+		_request_unmarks.erase(unmark)
+	return outcome
+
+
+func _read_purchase_result(result_raw) -> Dictionary:
 	if result_raw == null or str(result_raw) == "":
 		var err_msg = "requestPurchase returned empty. Billing may not be connected."
 		print("[GodotIap] ERROR: ", err_msg)
@@ -1647,29 +1673,68 @@ func _listen_for_purchases(on_purchase: Callable) -> Callable:
 
 
 # A failed or cancelled purchase ends what the user asked for; other operations tag a method.
+# A refused double tap ends only a refused request, always the newest left: the purchase in flight
+# is older than every request refused behind it.
 func _forget_requests_on_error(error: Dictionary) -> void:
-	if not error.has("method"):
+	if error.has("method") or _in_request_call:
+		return
+	if error.get("code") != Types.ERROR_CODE_VALUES[Types.ErrorCode.PURCHASE_IN_PROGRESS]:
 		_requested_skus.clear()
+		_request_unmarks.clear()
+	elif not _request_unmarks.is_empty():
+		_request_unmarks.pop_back().call()
 
 
-func _mark_requested(skus: Array) -> void:
-	var now := Time.get_unix_time_from_system() * 1000.0
+# Returns the undo for a request that fails, which removes only this request's marks.
+func _mark_requested(skus: Array) -> Callable:
+	var marked := {}
 	for sku in skus:
-		_requested_skus[sku] = now
+		marked[sku] = true
+	# Distinct among the marks it joins, so the undo removes only its own.
+	var now := Time.get_unix_time_from_system() * 1000.0
+	while marked.keys().any(func(sku) -> bool: return _requested_skus.get(sku, []).has(now)):
+		now += 1.0
+	for sku in marked:
+		var live: Array = _requested_skus.get(sku, [])
+		live.append(now)
+		_requested_skus[sku] = live
+	return func() -> void:
+		for sku in marked:
+			var live: Array = _requested_skus.get(sku, [])
+			live.erase(now)
+			if live.is_empty():
+				_requested_skus.erase(sku)
 
 
 # A purchase made after the app asked for it, or a plan change to what it asked for; clears the mark.
 func _take_requested(purchase: Dictionary) -> bool:
-	var asked_at = _requested_skus.get(purchase.get("productId"))
+	var live: Array = _requested_skus.get(purchase.get("productId"), [])
+	var asked_at = null if live.is_empty() else live[0]
 	var bought_at = purchase.get("transactionDate")
 	var bought: bool = asked_at != null and (bought_at is int or bought_at is float) \
-		and bought_at >= asked_at - PURCHASE_REQUEST_CLOCK_SKEW_MS and _requested_skus.erase(purchase.productId)
+		and bought_at >= asked_at - PURCHASE_REQUEST_CLOCK_SKEW_MS and _take_mark(purchase.productId)
 	var changed := false
 	var change = purchase.get("pendingPurchaseUpdateAndroid")
 	if change is Dictionary:
+		# A plan change within the same product answers one request, not two.
+		var targets := {}
 		for product_id in change.get("products", []):
-			changed = _requested_skus.erase(product_id) or changed
+			if not (bought and product_id == purchase.productId):
+				targets[product_id] = true
+		for product_id in targets:
+			changed = _take_mark(product_id) or changed
 	return bought or changed
+
+
+# Removes the oldest live mark for the SKU, which the matching purchase answers.
+func _take_mark(sku: String) -> bool:
+	if not _requested_skus.has(sku):
+		return false
+	var live: Array = _requested_skus[sku]
+	live.pop_front()
+	if live.is_empty():
+		_requested_skus.erase(sku)
+	return true
 
 
 # ==========================================

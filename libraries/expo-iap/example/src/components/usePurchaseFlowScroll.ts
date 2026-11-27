@@ -1,4 +1,10 @@
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentRef,
+} from 'react';
 import {
   ScrollView,
   type LayoutChangeEvent,
@@ -8,6 +14,7 @@ import {
 import type {PurchaseFlowActivity} from './PurchaseFlowDiagram';
 
 type Stage = keyof PurchaseFlowActivity['steps'];
+type ScrollViewRef = ComponentRef<typeof ScrollView>;
 
 interface FollowedPurchase {
   productId: string;
@@ -21,7 +28,7 @@ interface FollowedPurchase {
 export default function usePurchaseFlowScroll(
   activity: PurchaseFlowActivity | null,
 ) {
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewRef>(null);
   const offsetY = useRef(0);
   const contentY = useRef(0);
   const diagramY = useRef<number | null>(null);
@@ -30,7 +37,7 @@ export default function usePurchaseFlowScroll(
   const stepY = useRef<Partial<Record<Stage, number>>>({});
   const [layoutVersion, setLayoutVersion] = useState(0);
   const [expanded, setExpanded] = useState(false);
-  const setScrollView = useCallback((view: ScrollView | null): void => {
+  const setScrollView = useCallback((view: ScrollViewRef | null): void => {
     scrollRef.current = view;
     if (view) return;
     followed.current = null;

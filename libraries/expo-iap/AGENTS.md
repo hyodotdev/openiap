@@ -22,7 +22,7 @@ with the `expo` scope, e.g. `fix(expo): resolve purchase crash`.
 - See issue: [#168](https://github.com/hyochan/expo-iap/issues/168)
 - This is kept at `13.4` for compatibility with affected Expo SDKs
 - The OpenIAP Swift package's iOS 15.0 minimum enforces the real requirement at build time
-- Users must follow the deployment target required by their Expo SDK. The validated Expo SDK 57 example uses iOS 16.4; older supported SDKs must never go below the module's iOS 15.0 runtime requirement.
+- Users must follow the deployment target required by their Expo SDK. The validated Expo SDK 58 example uses iOS 16.4; older supported SDKs must never go below the module's iOS 15.0 runtime requirement.
 
 **tvOS Exception**: tvOS platform version MUST be `16.0` (not `13.4`) because:
 

@@ -176,7 +176,11 @@ public static class OpenIapClient
             {
                 var updates = listen(onPurchase);
                 // Whatever listens, a failed or cancelled request ends what the user asked for, and disposing ends them all.
-                var errors = instance.PurchaseError.Subscribe(_ => PurchaseRequests.Clear());
+                // A refused double tap ends nothing: the purchase in flight continues.
+                var errors = instance.PurchaseError.Subscribe(error =>
+                {
+                    if (error.Code != ErrorCode.PurchaseInProgress) PurchaseRequests.Clear();
+                });
                 return new DisposableAction(() =>
                 {
                     updates.Dispose();

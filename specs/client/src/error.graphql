@@ -37,7 +37,12 @@ enum ErrorCode {
   BillingUnavailable
   FeatureNotSupported
   EmptySkuList
-  DuplicatePurchase
+  DuplicatePurchase @deprecated(reason: "No store reports it. Scheduled for removal in client protocol 2.0.0.")
+  """
+  A second purchase request while one is still running. The first purchase
+  continues; this is not a failure of it.
+  """
+  PurchaseInProgress
 }
 
 # Purchase error payload delivered through listeners and API responses

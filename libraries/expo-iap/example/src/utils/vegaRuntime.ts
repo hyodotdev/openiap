@@ -115,7 +115,8 @@ export function resolveIapkitVerificationBaseUrl(
 }
 
 export type TvRemoteEvent = {
-  eventKeyAction?: number;
+  // The native side sends a number; react-native-tvos types it as a string.
+  eventKeyAction?: number | string;
   eventType?: string;
 };
 
@@ -127,7 +128,9 @@ export function isVegaTvShortcutEnabled(): boolean {
 }
 
 export function isTvKeyRelease(event: TvRemoteEvent): boolean {
-  return event.eventKeyAction === undefined || event.eventKeyAction === 1;
+  return (
+    event.eventKeyAction === undefined || Number(event.eventKeyAction) === 1
+  );
 }
 
 export function showNativeAlert(title: string, message?: string): void {

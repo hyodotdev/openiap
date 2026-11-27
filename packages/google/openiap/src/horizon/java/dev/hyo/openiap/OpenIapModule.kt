@@ -345,7 +345,7 @@ class OpenIapModule(
             billingClient !== expectedClient || !expectedClient.isReady() -> OpenIapError.ServiceDisconnected(
                 "Billing connection ended before the purchase request could start"
             )
-            pendingPurchase != null -> OpenIapError.DeveloperError()
+            pendingPurchase != null -> OpenIapError.PurchaseInProgress()
             else -> {
                 pendingPurchase = PendingPurchaseSnapshot(
                     client = expectedClient,

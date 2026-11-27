@@ -4,6 +4,7 @@
 // Guide: https://openiap.dev/docs/features/validation
 package io.github.hyochan.kmpiap
 
+import io.github.hyochan.kmpiap.openiap.ErrorCode
 import io.github.hyochan.kmpiap.openiap.IapPlatform
 import io.github.hyochan.kmpiap.openiap.IapStore
 import io.github.hyochan.kmpiap.openiap.Purchase
@@ -458,8 +459,10 @@ fun KmpIAP.createPurchaseFlow(
     getAvailablePurchases = getAvailablePurchases,
     getPendingTransactionsIOS = getPendingTransactionsIOS,
     listenForPurchases = listenForPurchases,
-    // An error ends the user's request; dispose ends them all.
-    endsRequest = purchaseErrorListener.onEach { purchaseRequests.clear() },
+    // An error ends the user's request, except a refused double tap; dispose ends them all.
+    endsRequest = purchaseErrorListener.onEach { error ->
+        if (error.code != ErrorCode.PurchaseInProgress) purchaseRequests.clear()
+    },
     onDispose = purchaseRequests::clear,
     wasRequested = wasRequested,
     confirmTimeout = confirmTimeout,
@@ -467,10 +470,12 @@ fun KmpIAP.createPurchaseFlow(
 
 /** The products passed to [KmpIAP.requestPurchase] whose purchase has not arrived yet. */
 internal class PurchaseRequests {
-    // When the app asked for each product. An atomic map: requests, deliveries, and errors arrive on different threads.
-    private val requestedAt = MutableStateFlow(emptyMap<String, Long>())
+    // When each live request asked for each product. An atomic map: requests, deliveries, and
+    // errors arrive on different threads, so a list may not be in time order.
+    private val requestedAt = MutableStateFlow(emptyMap<String, List<Long>>())
 
-    fun mark(params: RequestPurchaseProps) {
+    /** Marks what [params] asks for; the undo removes only this request's marks, as a refused double tap must. */
+    fun mark(params: RequestPurchaseProps): () -> Unit {
         val requested = when (val request = params.request) {
             is RequestPurchaseProps.Request.Purchase ->
                 listOfNotNull(request.value.apple?.sku) + request.value.google?.skus.orEmpty()
@@ -478,8 +483,22 @@ internal class PurchaseRequests {
             is RequestPurchaseProps.Request.Subscription ->
                 listOfNotNull(request.value.apple?.sku) + request.value.google?.skus.orEmpty()
         }
-        val now = Clock.System.now().toEpochMilliseconds()
-        requestedAt.update { marks -> marks + requested.associateWith { now } }
+        val marked = requested.toSet()
+        // Distinct among the marks it joins, so the undo removes only its own.
+        var now = 0L
+        requestedAt.update { marks ->
+            now = Clock.System.now().toEpochMilliseconds()
+            while (marked.any { now in marks[it].orEmpty() }) now += 1
+            marks + marked.associateWith { marks[it].orEmpty() + now }
+        }
+        return {
+            requestedAt.update { marks ->
+                marked.fold(marks) { acc, productId ->
+                    val live = acc[productId].orEmpty() - now
+                    if (live.isEmpty()) acc - productId else acc + (productId to live)
+                }
+            }
+        }
     }
 
     /**
@@ -490,13 +509,18 @@ internal class PurchaseRequests {
         var matched = false
         requestedAt.update { marks ->
             // A receipt older than the request is the store redelivering an earlier purchase.
-            val bought = marks[purchase.productId]
+            val bought = marks[purchase.productId]?.minOrNull()
                 ?.takeIf { purchase.transactionDate >= it - PURCHASE_REQUEST_CLOCK_SKEW_MS }
                 ?.let { purchase.productId }
             val changed = purchase.pendingPurchaseUpdate()?.products.orEmpty().filter { it in marks }
-            val hits = listOfNotNull(bought) + changed
+            // A plan change within the same product answers one request, not two.
+            val hits = (listOfNotNull(bought) + changed).distinct()
             matched = hits.isNotEmpty()
-            marks - hits
+            // Each match clears only the oldest mark, which belongs to the request it answers.
+            hits.fold(marks) { acc, productId ->
+                val live = acc[productId].orEmpty().let { stamps -> stamps.minOrNull()?.let { stamps - it } ?: stamps }
+                if (live.isEmpty()) acc - productId else acc + (productId to live)
+            }
         }
         return matched
     }

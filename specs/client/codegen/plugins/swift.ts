@@ -137,6 +137,13 @@ export class SwiftPlugin extends CodegenPlugin {
       this.emit(`    case ${this.enumCaseName(value.name)} = "${value.rawValue}"`);
     }
 
+    // Swift does not synthesize CaseIterable once a case carries @available.
+    if (irEnum.values.some((value) => this.deprecationReason(value.description))) {
+      const cases = irEnum.values.map((value) => `.${this.enumCaseName(value.name)}`);
+      this.emit("");
+      this.emit(`    public static let allCases: [${irEnum.name}] = [${cases.join(", ")}]`);
+    }
+
     this.emit("");
     this.emit("    public init?(rawValue: String) {");
     this.emit("        switch rawValue {");

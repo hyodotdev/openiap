@@ -83,12 +83,13 @@ internal fun deliverPurchaseRequestFailure(
     errorCode: String,
     errorEnvelope: String,
     emitLocalError: () -> Unit,
-    rejectPendingPromises: (String, String) -> Unit,
+    // Only this request's promise: a refused double tap must not fail the purchase in flight.
+    rejectRequest: (String, String) -> Unit,
 ) {
     if (!reachedOpenIapRequest && !isCancellation) {
         emitLocalError()
     }
-    rejectPendingPromises(errorCode, errorEnvelope)
+    rejectRequest(errorCode, errorEnvelope)
 }
 
 @Suppress("UNCHECKED_CAST")
@@ -447,7 +448,7 @@ class ExpoIapModule : Module() {
                             "requestPurchase",
                             purchases.map { it.toJson() },
                         )
-                        ExpoIapHelper.resolvePurchasePromises(purchases.map { it.toJson() })
+                        ExpoIapHelper.resolvePurchasePromise(promise, purchases.map { it.toJson() })
                     } catch (e: Exception) {
                         ExpoIapLog.failure("requestPurchase", e)
                         val errorMap =
@@ -481,8 +482,8 @@ class ExpoIapModule : Module() {
                                     ExpoIapLog.failure("send PURCHASE_ERROR event requestPurchase", ex)
                                 }
                             },
-                            rejectPendingPromises = { code, message ->
-                                ExpoIapHelper.rejectPurchasePromises(code, message, null)
+                            rejectRequest = { code, message ->
+                                ExpoIapHelper.rejectPurchasePromise(promise, code, message)
                             },
                         )
                         if (e is CancellationException) {

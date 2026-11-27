@@ -812,11 +812,7 @@ class OpenIapModule(
 
                 val sku = androidArgs.skus.first()
                 if (!activePurchaseSku.compareAndSet(null, sku)) {
-                    emitPurchaseErrorAndThrow(
-                        OpenIapError.DeveloperError(
-                            "Another Amazon purchase is already in progress"
-                        ).withProductId(sku)
-                    )
+                    emitPurchaseErrorAndThrow(OpenIapError.PurchaseInProgress().withProductId(sku))
                 }
                 val purchaseGeneration = requestLifecycle.currentGeneration()
                 val response = try {
@@ -859,9 +855,10 @@ class OpenIapModule(
                     )
                 }
             }
-        } catch (_: OpenIapError) {
+        } catch (error: OpenIapError) {
             // The error was already published by emitPurchaseErrorAndThrow.
-            // Keep the request event-based, matching the Play implementation.
+            // A refused double tap also fails its call, as on Play and Horizon.
+            if (error is OpenIapError.PurchaseInProgress) throw error
             emptyList()
         }
         RequestPurchaseResultPurchases(purchases)

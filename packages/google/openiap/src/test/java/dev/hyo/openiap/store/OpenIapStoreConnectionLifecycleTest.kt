@@ -5,9 +5,8 @@ import dev.hyo.openiap.FetchProductsResultProducts
 import dev.hyo.openiap.IapStore
 import dev.hyo.openiap.MutationAcknowledgePurchaseAndroidHandler
 import dev.hyo.openiap.MutationConsumePurchaseAndroidHandler
-import dev.hyo.openiap.MutationFinishTransactionHandler
-import dev.hyo.openiap.QueryFetchProductsHandler
 import dev.hyo.openiap.MutationEndConnectionHandler
+import dev.hyo.openiap.MutationFinishTransactionHandler
 import dev.hyo.openiap.MutationInitConnectionHandler
 import dev.hyo.openiap.MutationRequestPurchaseHandler
 import dev.hyo.openiap.OpenIapError
@@ -15,19 +14,25 @@ import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.Purchase
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseState
+import dev.hyo.openiap.QueryFetchProductsHandler
 import dev.hyo.openiap.QueryGetAvailablePurchasesHandler
 import dev.hyo.openiap.RequestPurchaseProps
 import dev.hyo.openiap.RequestPurchaseResult
 import dev.hyo.openiap.RequestPurchaseResultPurchases
+import dev.hyo.openiap.UserChoiceBillingDetails
 import dev.hyo.openiap.listener.OpenIapConnectionStateListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
+import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 import java.lang.reflect.Proxy
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
@@ -54,6 +59,138 @@ class OpenIapStoreConnectionLifecycleTest {
 
             assertFalse(store.status.value.loadings.purchasing.contains("coins"))
             assertNull(store.status.value.lastPurchaseResult?.productId)
+        } finally {
+            store.clear()
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun `a refused double tap leaves the purchase in flight untouched`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val module = FakeOpenIapProtocol()
+        val store = OpenIapStore(module.protocol)
+        val coins = RequestPurchaseProps.fromJson(mapOf(
+            "requestPurchase" to mapOf("google" to mapOf("skus" to listOf("coins"))),
+        ))
+        val firstResult = CompletableDeferred<RequestPurchaseResult?>()
+
+        try {
+            module.onRequestPurchase = { firstResult.await() }
+            val first = async { store.requestPurchase(coins) }
+            runCurrent()
+            var nativeRequests = 0
+            module.onRequestPurchase = { nativeRequests++; null }
+            val heard = mutableListOf<OpenIapError>()
+            // A listener that throws does not stop the others or replace the refusal.
+            store.addPurchaseErrorListener { if (it is OpenIapError.PurchaseInProgress) error("listener failure") }
+            store.addPurchaseErrorListener { heard += it }
+
+            val premium = RequestPurchaseProps.fromJson(mapOf(
+                "requestPurchase" to mapOf("google" to mapOf("skus" to listOf("premium"))),
+            ))
+            val refused = listOf(coins, premium, coins).map { runCatching { store.requestPurchase(it) } }
+
+            assertTrue(refused.all { it.exceptionOrNull() is OpenIapError.PurchaseInProgress })
+            assertEquals("refused before native admission", 0, nativeRequests)
+            assertEquals("each refusal reaches the error listeners", 3, heard.count { it is OpenIapError.PurchaseInProgress })
+            assertEquals(setOf("coins"), store.status.value.loadings.purchasing)
+            assertNull(store.status.value.lastError)
+            module.emitError(OpenIapError.PurchaseFailed("The first purchase failed"))
+            assertEquals("coins", store.status.value.lastPurchaseResult?.productId)
+            firstResult.complete(RequestPurchaseResultPurchases(emptyList()))
+            first.await()
+            assertFalse(store.status.value.loadings.purchasing.contains("coins"))
+        } finally {
+            store.clear()
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun `a listener starts the next purchase when the outcome arrives`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val module = FakeOpenIapProtocol()
+        val store = OpenIapStore(module.protocol)
+        val coins = RequestPurchaseProps.fromJson(mapOf(
+            "requestPurchase" to mapOf("google" to mapOf("skus" to listOf("coins"))),
+        ))
+        val bought = PurchaseAndroid(
+            id = "transaction-id",
+            isAutoRenewing = false,
+            productId = "coins",
+            purchaseState = PurchaseState.Purchased,
+            purchaseToken = "purchase-token",
+            quantity = 1,
+            store = IapStore.Google,
+            storeId = "play",
+            transactionDate = 1.0,
+        )
+        val choice = UserChoiceBillingDetails(externalTransactionToken = "token", products = listOf("coins"))
+        val outcomes = listOf<() -> Unit>(
+            { module.emitPurchase(bought) },
+            { module.emitError(OpenIapError.UserCancelled()) },
+            { module.userChoiceBillingListeners.toList().forEach { it.onUserChoiceBilling(choice) } },
+        )
+
+        try {
+            for (emitOutcome in outcomes) {
+                val nativeResults = ArrayDeque<CompletableDeferred<RequestPurchaseResult?>>()
+                module.onRequestPurchase = { CompletableDeferred<RequestPurchaseResult?>().also(nativeResults::add).await() }
+                val first = async { store.requestPurchase(coins) }
+                runCurrent()
+                // The module reports the outcome before the first call returns, as Play does.
+                var next: kotlinx.coroutines.Deferred<RequestPurchaseResult?>? = null
+                val startNext = { next = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { store.requestPurchase(coins) } }
+                val onUpdate = OpenIapPurchaseUpdateListener { startNext() }
+                // A refusal must not start another request, or a regression here would recurse.
+                val onError = OpenIapPurchaseErrorListener { if (it !is OpenIapError.PurchaseInProgress) startNext() }
+                val onChoice = OpenIapUserChoiceBillingListener { startNext() }
+                store.addPurchaseUpdateListener(onUpdate)
+                store.addPurchaseErrorListener(onError)
+                store.addUserChoiceBillingListener(onChoice)
+                emitOutcome()
+                store.removePurchaseUpdateListener(onUpdate)
+                store.removePurchaseErrorListener(onError)
+                store.removeUserChoiceBillingListener(onChoice)
+
+                assertEquals("the next request reaches the module", 2, nativeResults.size)
+                nativeResults.removeFirst().complete(RequestPurchaseResultPurchases(emptyList()))
+                first.await()
+                assertEquals("the first call's return keeps the next request flagged", setOf("coins"), store.status.value.loadings.purchasing)
+                module.emitError(OpenIapError.PurchaseFailed("The next purchase failed"))
+                assertEquals("and its sku", "coins", store.status.value.lastPurchaseResult?.productId)
+                nativeResults.removeFirst().complete(RequestPurchaseResultPurchases(emptyList()))
+                next!!.await()
+                assertTrue(store.status.value.loadings.purchasing.isEmpty())
+            }
+        } finally {
+            store.clear()
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun `a request the module refuses leaves the dispatched purchase's sku`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val module = FakeOpenIapProtocol()
+        val store = OpenIapStore(module.protocol)
+
+        try {
+            // The module answers before the purchase ends, so the store's own guard is free again.
+            store.requestPurchase(RequestPurchaseProps.fromJson(mapOf(
+                "requestPurchase" to mapOf("google" to mapOf("skus" to listOf("coins"))),
+            )))
+            module.onRequestPurchase = { throw OpenIapError.PurchaseInProgress() }
+            val refused = runCatching {
+                store.requestPurchase(RequestPurchaseProps.fromJson(mapOf(
+                    "requestPurchase" to mapOf("google" to mapOf("skus" to listOf("premium"))),
+                )))
+            }
+            module.emitError(OpenIapError.PurchaseFailed("The dispatched purchase failed"))
+
+            assertTrue(refused.exceptionOrNull() is OpenIapError.PurchaseInProgress)
+            assertEquals("coins", store.status.value.lastPurchaseResult?.productId)
         } finally {
             store.clear()
             Dispatchers.resetMain()
@@ -195,6 +332,7 @@ internal class FakeOpenIapProtocol {
     val purchaseUpdateListeners = linkedSetOf<OpenIapPurchaseUpdateListener>()
     val purchaseErrorListeners = linkedSetOf<OpenIapPurchaseErrorListener>()
     val connectionStateListeners = linkedSetOf<OpenIapConnectionStateListener>()
+    val userChoiceBillingListeners = linkedSetOf<OpenIapUserChoiceBillingListener>()
     var availablePurchases: List<Purchase> = emptyList()
     var availablePurchaseRequests = 0
     var connectionResult = true
@@ -233,7 +371,8 @@ internal class FakeOpenIapProtocol {
         availablePurchaseRequests += 1
         availablePurchases
     }
-    private val requestPurchase: MutationRequestPurchaseHandler = { purchaseResult }
+    var onRequestPurchase: suspend () -> RequestPurchaseResult? = { purchaseResult }
+    private val requestPurchase: MutationRequestPurchaseHandler = { onRequestPurchase() }
 
     val protocol: OpenIapProtocol = Proxy.newProxyInstance(
         OpenIapProtocol::class.java.classLoader,
@@ -262,6 +401,14 @@ internal class FakeOpenIapProtocol {
             }
             "removePurchaseErrorListener" -> {
                 purchaseErrorListeners -= args.single() as OpenIapPurchaseErrorListener
+                Unit
+            }
+            "addUserChoiceBillingListener" -> {
+                userChoiceBillingListeners += args.single() as OpenIapUserChoiceBillingListener
+                Unit
+            }
+            "removeUserChoiceBillingListener" -> {
+                userChoiceBillingListeners -= args.single() as OpenIapUserChoiceBillingListener
                 Unit
             }
             "addConnectionStateListener" -> {

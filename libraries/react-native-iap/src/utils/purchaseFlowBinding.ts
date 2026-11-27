@@ -6,34 +6,59 @@ import {
   type PurchaseFlow,
   type PurchaseFlowOptions,
 } from '../purchase-flow-core';
-import type {Purchase} from '../types';
+import {ErrorCode, type Purchase} from '../types';
 
-// When the app asked for each SKU, so the flow can tell the user's own
-// purchase from one the store redelivers.
-const requested = new Map<string, number>();
+// When each live request asked for each SKU, oldest first, so the flow can
+// tell the user's own purchase from one the store redelivers.
+const requested = new Map<string, number[]>();
 
-export function markRequested(skus: (string | null | undefined)[]): void {
-  const now = Date.now();
-  for (const sku of skus) if (sku) requested.set(sku, now);
+// Returns the undo for a request that fails, which keeps other requests' marks.
+export function markRequested(skus: (string | null | undefined)[]): () => void {
+  const marked = new Set(skus.filter((sku): sku is string => !!sku));
+  // Distinct among the marks it joins, so the undo removes only its own.
+  let now = Date.now();
+  while ([...marked].some((sku) => requested.get(sku)?.includes(now))) now += 1;
+  for (const sku of marked) {
+    requested.set(sku, [...(requested.get(sku) ?? []), now]);
+  }
+  return () => {
+    for (const sku of marked) {
+      const live = requested.get(sku)?.filter((askedAt) => askedAt !== now);
+      if (live?.length) requested.set(sku, live);
+      else requested.delete(sku);
+    }
+  };
 }
 
-export function clearRequested(): void {
+function clearRequested(): void {
   requested.clear();
 }
 
+// Removes the oldest live mark for the SKU, which the matching purchase answers.
+function takeMark(sku: string): boolean {
+  const live = requested.get(sku);
+  if (!live) return false;
+  if (live.length > 1) requested.set(sku, live.slice(1));
+  else requested.delete(sku);
+  return true;
+}
+
 // A purchase made after the app asked for it, or a plan change to what it
-// asked for; clears the mark.
+// asked for; clears that request's mark.
 function takeRequested(purchase: Purchase): boolean {
-  const askedAt = requested.get(purchase.productId);
+  const askedAt = requested.get(purchase.productId)?.[0];
   const bought =
     askedAt !== undefined &&
     purchase.transactionDate >= askedAt - PURCHASE_REQUEST_CLOCK_SKEW_MS &&
-    requested.delete(purchase.productId);
-  const changed = (
+    takeMark(purchase.productId);
+  // A plan change within the same product answers one request, not two.
+  const changeTargets = new Set(
     ('pendingPurchaseUpdateAndroid' in purchase &&
       purchase.pendingPurchaseUpdateAndroid?.products) ||
-    []
-  ).filter((id) => requested.delete(id));
+      [],
+  );
+  if (bought) changeTargets.delete(purchase.productId);
+  const changed = [...changeTargets].filter(takeMark);
   return bought || changed.length > 0;
 }
 
@@ -64,8 +89,9 @@ export interface PurchaseFlowSdk {
   purchaseUpdatedListener: (
     listener: (purchase: Purchase) => void,
   ) => Subscription;
-  // Only that an error arrived matters here.
-  purchaseErrorListener: (listener: () => void) => Subscription;
+  purchaseErrorListener: (
+    listener: (error: {code?: string}) => void,
+  ) => Subscription;
 }
 
 /**
@@ -91,10 +117,15 @@ export function createSdkPurchaseFlow(
     ...options,
   });
   // Whatever listens, a failed or cancelled request ends what the user asked
-  // for, and the next account's flow must not inherit requests.
+  // for, and the next account's flow must not inherit requests. A refused
+  // double tap ends nothing: the purchase in flight continues.
   let errors: Subscription | undefined;
   try {
-    errors = manual ? undefined : sdk.purchaseErrorListener(clearRequested);
+    errors = manual
+      ? undefined
+      : sdk.purchaseErrorListener((error) => {
+          if (error.code !== ErrorCode.PurchaseInProgress) clearRequested();
+        });
   } catch (error) {
     flow.dispose();
     throw error;

@@ -332,7 +332,14 @@ public enum ErrorCode: String, Codable, CaseIterable {
     case billingUnavailable = "billing-unavailable"
     case featureNotSupported = "feature-not-supported"
     case emptySkuList = "empty-sku-list"
+    /// @deprecated No store reports it. Scheduled for removal in client protocol 2.0.0.
+    @available(*, deprecated, message: "No store reports it. Scheduled for removal in client protocol 2.0.0.")
     case duplicatePurchase = "duplicate-purchase"
+    /// A second purchase request while one is still running. The first purchase
+    /// continues; this is not a failure of it.
+    case purchaseInProgress = "purchase-in-progress"
+
+    public static let allCases: [ErrorCode] = [.unknown, .userCancelled, .userError, .itemUnavailable, .remoteError, .networkError, .serviceError, .purchaseVerificationFailed, .purchaseVerificationFinished, .purchaseVerificationFinishFailed, .notPrepared, .notEnded, .alreadyOwned, .developerError, .billingResponseJsonParseError, .deferredPayment, .interrupted, .iapNotAvailable, .purchaseError, .syncError, .transactionValidationFailed, .activityUnavailable, .alreadyPrepared, .pending, .connectionClosed, .initConnection, .serviceDisconnected, .serviceTimeout, .queryProduct, .skuNotFound, .skuOfferMismatch, .itemNotOwned, .billingUnavailable, .featureNotSupported, .emptySkuList, .duplicatePurchase, .purchaseInProgress]
 
     public init?(rawValue: String) {
         switch rawValue {
@@ -408,6 +415,8 @@ public enum ErrorCode: String, Codable, CaseIterable {
             self = .emptySkuList
         case "duplicate-purchase", "DUPLICATE_PURCHASE", "DuplicatePurchase":
             self = .duplicatePurchase
+        case "purchase-in-progress", "PURCHASE_IN_PROGRESS", "PurchaseInProgress":
+            self = .purchaseInProgress
         default:
             return nil
         }

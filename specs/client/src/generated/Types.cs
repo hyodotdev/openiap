@@ -755,7 +755,13 @@ public enum ErrorCode
     BillingUnavailable,
     FeatureNotSupported,
     EmptySkuList,
-    DuplicatePurchase
+    /// <summary>@deprecated No store reports it. Scheduled for removal in client protocol 2.0.0.</summary>
+    DuplicatePurchase,
+    /// <summary>
+    /// A second purchase request while one is still running. The first purchase
+    /// continues; this is not a failure of it.
+    /// </summary>
+    PurchaseInProgress
 }
 
 public sealed class ErrorCodeJsonConverter : JsonConverter<ErrorCode>, IOpenIapEnumJsonConverter<ErrorCode>
@@ -870,6 +876,9 @@ public sealed class ErrorCodeJsonConverter : JsonConverter<ErrorCode>, IOpenIapE
         ["duplicate-purchase"] = ErrorCode.DuplicatePurchase,
         ["DUPLICATE_PURCHASE"] = ErrorCode.DuplicatePurchase,
         ["DuplicatePurchase"] = ErrorCode.DuplicatePurchase,
+        ["purchase-in-progress"] = ErrorCode.PurchaseInProgress,
+        ["PURCHASE_IN_PROGRESS"] = ErrorCode.PurchaseInProgress,
+        ["PurchaseInProgress"] = ErrorCode.PurchaseInProgress,
     };
 
     private static readonly Dictionary<ErrorCode, string> _toString = new()
@@ -910,6 +919,7 @@ public sealed class ErrorCodeJsonConverter : JsonConverter<ErrorCode>, IOpenIapE
         [ErrorCode.FeatureNotSupported] = "feature-not-supported",
         [ErrorCode.EmptySkuList] = "empty-sku-list",
         [ErrorCode.DuplicatePurchase] = "duplicate-purchase",
+        [ErrorCode.PurchaseInProgress] = "purchase-in-progress",
     };
 
     public override ErrorCode Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)

@@ -434,7 +434,12 @@ enum ErrorCode {
   BillingUnavailable('billing-unavailable'),
   FeatureNotSupported('feature-not-supported'),
   EmptySkuList('empty-sku-list'),
-  DuplicatePurchase('duplicate-purchase');
+  /// @deprecated No store reports it. Scheduled for removal in client protocol 2.0.0.
+  @Deprecated('No store reports it. Scheduled for removal in client protocol 2.0.0.')
+  DuplicatePurchase('duplicate-purchase'),
+  /// A second purchase request while one is still running. The first purchase
+  /// continues; this is not a failure of it.
+  PurchaseInProgress('purchase-in-progress');
 
   const ErrorCode(this.value);
   final String value;
@@ -547,6 +552,9 @@ enum ErrorCode {
       case 'duplicate-purchase':
       case 'duplicatepurchase':
         return ErrorCode.DuplicatePurchase;
+      case 'purchase-in-progress':
+      case 'purchaseinprogress':
+        return ErrorCode.PurchaseInProgress;
     }
     return null;
   }

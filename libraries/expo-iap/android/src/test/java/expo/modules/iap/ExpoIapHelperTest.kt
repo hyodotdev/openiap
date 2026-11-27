@@ -297,7 +297,7 @@ class ExpoIapHelperTest {
             errorCode = "purchase-error",
             errorEnvelope = "envelope",
             emitLocalError = { emitted += 1 },
-            rejectPendingPromises = { code, message -> rejected = code to message },
+            rejectRequest = { code, message -> rejected = code to message },
         )
 
         assertEquals(1, emitted)
@@ -314,7 +314,7 @@ class ExpoIapHelperTest {
             errorCode = "user-cancelled",
             errorEnvelope = "envelope",
             emitLocalError = { emitted += 1 },
-            rejectPendingPromises = { code, message -> rejected = code to message },
+            rejectRequest = { code, message -> rejected = code to message },
         )
 
         assertEquals(0, emitted)
@@ -332,7 +332,7 @@ class ExpoIapHelperTest {
             errorCode = "service-disconnected",
             errorEnvelope = "envelope",
             emitLocalError = { emitted += 1 },
-            rejectPendingPromises = { code, message -> rejected = code to message },
+            rejectRequest = { code, message -> rejected = code to message },
         )
 
         assertEquals(0, emitted)

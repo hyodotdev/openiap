@@ -63,6 +63,9 @@ describe('shared errorMapping', () => {
     expect(getUserFriendlyErrorMessage(ErrorCode.UserCancelled)).toBe(
       'Purchase cancelled',
     );
+    expect(getUserFriendlyErrorMessage(ErrorCode.PurchaseInProgress)).toBe(
+      'Another purchase is already in progress',
+    );
     expect(
       getUserFriendlyErrorMessage(ErrorCode.PurchaseVerificationFinished),
     ).toBe('Purchase verification already finished');

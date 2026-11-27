@@ -78,7 +78,7 @@ class PlayConnectionConfigurationTest {
         )
         assertTrue(
             purchaseAdmissionError(clientReady = true, purchaseInProgress = true, reconnecting = false)
-                is OpenIapError.DeveloperError,
+                is OpenIapError.PurchaseInProgress,
         )
         assertEquals(
             null,

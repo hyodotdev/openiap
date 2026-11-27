@@ -116,7 +116,7 @@ public class OpenIapClientFacadeTests
     }
 
     [Fact]
-    public async Task PurchaseRequests_MarkEveryRequestedSkuAndClearWhenARequestFails()
+    public async Task PurchaseRequests_MarkEveryRequestedSkuAndUndoTheMarksOfARequestThatFails()
     {
         try
         {
@@ -137,6 +137,42 @@ public class OpenIapClientFacadeTests
                 SubscriptionRequest("premium"),
                 () => Task.FromException<int>(new InvalidOperationException("cancelled"))));
             Assert.False(PurchaseRequests.Take(Bought("GPA.2", "premium")));
+
+            // A refused double tap leaves the purchase in flight requested.
+            await PurchaseRequests.Track(SubscriptionRequest("premium"), () => Task.FromResult(0));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => PurchaseRequests.Track(
+                SubscriptionRequest("premium"),
+                () => Task.FromException<int>(new InvalidOperationException("Another purchase is already in progress"))));
+            Assert.True(PurchaseRequests.Take(Bought("GPA.3", "premium")));
+
+            // Two overlapping requests that both fail leave no mark, whichever fails first.
+            foreach (var earlierFailsFirst in new[] { true, false })
+            {
+                var fail = new[] { new TaskCompletionSource<int>(), new TaskCompletionSource<int>() };
+                var calls = fail.Select(source => PurchaseRequests.Track(SubscriptionRequest("premium"), () => source.Task)).ToArray();
+                foreach (var index in earlierFailsFirst ? new[] { 0, 1 } : [1, 0])
+                {
+                    fail[index].SetException(new InvalidOperationException("network"));
+                    await Assert.ThrowsAsync<InvalidOperationException>(() => calls[index]);
+                }
+                Assert.False(PurchaseRequests.Take(Bought("GPA.4", "premium")));
+            }
+
+            // Each purchase answers only its own request for the same SKU.
+            await PurchaseRequests.Track(SubscriptionRequest("premium"), () => Task.FromResult(0));
+            await PurchaseRequests.Track(SubscriptionRequest("premium"), () => Task.FromResult(0));
+            Assert.True(PurchaseRequests.Take(Bought("GPA.5", "premium")));
+            Assert.True(PurchaseRequests.Take(Bought("GPA.6", "premium")));
+            Assert.False(PurchaseRequests.Take(Bought("GPA.7", "premium")));
+
+            // A plan change within the same product answers one request.
+            await PurchaseRequests.Track(SubscriptionRequest("premium"), () => Task.FromResult(0));
+            await PurchaseRequests.Track(SubscriptionRequest("premium"), () => Task.FromResult(0));
+            Assert.True(PurchaseRequests.Take(Bought("GPA.8", "premium") with
+            {
+                PendingPurchaseUpdateAndroid = new() { Products = ["premium"], PurchaseToken = "change-token" },
+            }));
+            Assert.True(PurchaseRequests.Take(Bought("GPA.9", "premium")));
         }
         finally
         {
@@ -184,6 +220,8 @@ public class OpenIapClientFacadeTests
             await PurchaseRequests.Track(SubscriptionRequest("premium_yearly"), () => Task.FromResult(0));
             store.Updates.OnNext(Bought("GPA.4", "premium_yearly") with { TransactionDate = Now() - 3_600_000 });
             store.Updates.OnNext(Bought("GPA.5", "premium_yearly") with { PurchaseState = PurchaseState.Pending });
+            // A refused double tap leaves the purchase in flight requested.
+            store.Errors.OnNext(new PurchaseError { Code = ErrorCode.PurchaseInProgress, Message = "Another purchase is already in progress" });
             store.Updates.OnNext(Bought("GPA.6", "premium_yearly"));
 
             // Outcomes arrive on the context current when the flow was created.

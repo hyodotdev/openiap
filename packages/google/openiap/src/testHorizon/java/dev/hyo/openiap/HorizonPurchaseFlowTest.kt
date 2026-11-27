@@ -56,6 +56,25 @@ class HorizonPurchaseFlowTest {
     }
 
     @Test
+    fun `a second request while one runs is refused as in progress`() {
+        val client = FlowBillingClient()
+        val module = module(client)
+        val errors = CopyOnWriteArrayList<OpenIapError>()
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+        val results = CopyOnWriteArrayList<Result<List<Purchase>>>()
+        installLaunchedPurchase(module, client) { results += it }
+        val running = pendingPurchaseField().get(module)
+
+        val second = startPurchase(module)
+        awaitCondition { second.get() != null }
+
+        assertTrue("the double tap fails its call: ${second.get()}", second.get()?.exceptionOrNull() is OpenIapError.PurchaseInProgress)
+        assertEquals(listOf(OpenIapError.PurchaseInProgress.CODE), errors.map { it.code })
+        assertTrue("the first request keeps its slot", pendingPurchaseField().get(module) === running)
+        assertTrue(results.isEmpty())
+    }
+
+    @Test
     fun `a token Horizon reported before the launch does not resolve the request`() {
         val client = FlowBillingClient()
         val module = module(client)

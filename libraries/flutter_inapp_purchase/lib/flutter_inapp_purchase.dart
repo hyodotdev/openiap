@@ -120,32 +120,61 @@ class _SharedNativeState {
   /// Serializes initConnection and endConnection on the one native connection.
   final connectionChanges = _SerialTasks();
 
-  /// When the app asked for each product, until its purchase or a purchase
-  /// error, so a flow can tell the user's own purchase from a redelivery.
-  final requestedProductIds = <String, int>{};
+  /// When each live request asked for each product, oldest first, until its
+  /// purchase or a purchase error other than a refused double tap, so a flow
+  /// can tell the user's own purchase from a redelivery.
+  final requestedProductIds = <String, List<int>>{};
 
-  void markRequested(Iterable<String> productIds) {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    for (final productId in productIds) {
-      requestedProductIds[productId] = now;
+  /// Marks [productIds] and returns an undo for a request that fails to start,
+  /// which leaves the marks of other requests alone.
+  void Function() markRequested(Iterable<String> productIds) {
+    final marked = productIds.toSet();
+    // Distinct among the marks it joins, so the undo removes only its own.
+    var now = DateTime.now().millisecondsSinceEpoch;
+    while (marked.any((id) => requestedProductIds[id]?.contains(now) ?? false)) {
+      now += 1;
     }
+    for (final productId in marked) {
+      (requestedProductIds[productId] ??= []).add(now);
+    }
+    return () {
+      for (final productId in marked) {
+        final live = requestedProductIds[productId]?..remove(now);
+        if (live != null && live.isEmpty) {
+          requestedProductIds.remove(productId);
+        }
+      }
+    };
   }
 
   /// Whether the app asked for [purchase]: bought after the request, or a
-  /// plan change to what it asked for. Clears the mark.
+  /// plan change to what it asked for. Clears that request's mark.
   bool wasRequested(gentype.Purchase purchase) {
-    final askedAt = requestedProductIds[purchase.productId];
+    final askedAt = requestedProductIds[purchase.productId]?.first;
     final bought = askedAt != null &&
-        purchase.transactionDate >= askedAt - _purchaseRequestClockSkewMs;
-    if (bought) requestedProductIds.remove(purchase.productId);
+        purchase.transactionDate >= askedAt - _purchaseRequestClockSkewMs &&
+        _takeMark(purchase.productId);
     final changeTargets = purchase is gentype.PurchaseAndroid
         ? purchase.pendingPurchaseUpdateAndroid?.products
         : null;
+    // A plan change within the same product answers one request, not two.
+    final targets = {...?changeTargets};
+    if (bought) targets.remove(purchase.productId);
     var changed = false;
-    for (final productId in changeTargets ?? const <String>[]) {
-      changed = requestedProductIds.remove(productId) != null || changed;
+    for (final productId in targets) {
+      changed = _takeMark(productId) || changed;
     }
     return bought || changed;
+  }
+
+  /// Removes the oldest live mark for [productId], which the matching
+  /// purchase answers.
+  bool _takeMark(String productId) {
+    final live = requestedProductIds[productId];
+    if (live == null) return false;
+    live.removeAt(0);
+    if (live.isEmpty) requestedProductIds.remove(productId);
+    return true;
   }
 
   /// Whether each Play purchase token was last seen acknowledged.
@@ -441,7 +470,10 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         debugPrint(
           '[flutter_inapp_purchase] Emitting error to purchaseErrorListener: $error',
         );
-        _shared.requestedProductIds.clear();
+        // A refused double tap ends nothing: the purchase in flight continues.
+        if (error.code != gentype.ErrorCode.PurchaseInProgress) {
+          _shared.requestedProductIds.clear();
+        }
         _shared.purchaseError.add(error);
         break;
       case 'connection-updated':
@@ -690,6 +722,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
 
         final nativeType = resolveProductType(productType);
+        void Function()? unmark;
 
         try {
           if (_platform.isIOS || _platform.isMacOS) {
@@ -729,7 +762,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               );
             }
 
-            _shared.markRequested([payload['sku'] as String]);
+            unmark = _shared.markRequested([payload['sku'] as String]);
             await _channel.invokeMethod('requestPurchase', payload);
             return null;
           }
@@ -853,7 +886,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                   subscriptionProductReplacementParams.toJson();
             }
 
-            _shared.markRequested(skus);
+            unmark = _shared.markRequested(skus);
             await _channel.invokeMethod('requestPurchase', payload);
             return null;
           }
@@ -863,13 +896,13 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             message: 'requestPurchase is not supported on this platform',
           );
         } on PlatformException catch (error) {
-          _shared.requestedProductIds.clear();
+          unmark?.call();
           throw _purchaseErrorFromPlatformException(
             error,
             'request purchase',
           );
         } catch (error) {
-          _shared.requestedProductIds.clear();
+          unmark?.call();
           if (error is PurchaseError) rethrow;
           throw PurchaseError(
             code: gentype.ErrorCode.ServiceError,

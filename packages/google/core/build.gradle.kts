@@ -84,7 +84,9 @@ val isCentralPublishTaskRequested =
         taskName.contains("mavenCentral", ignoreCase = true)
     }
 
-android {
+// The DSL interface, not `android {}`: AGP 9 consumers such as Expo SDK 58 cannot read source
+// sets through the legacy accessor.
+extensions.configure<com.android.build.api.dsl.LibraryExtension> {
     namespace = "io.github.hyochan.openiap.core"
     compileSdk = 36
     defaultConfig {
@@ -93,9 +95,7 @@ android {
         buildConfigField("String", "CLIENT_PROTOCOL_VERSION", "\"$clientProtocolVersion\"")
         consumerProguardFiles("consumer-rules.pro")
     }
-    sourceSets.named("main") {
-        java.setSrcDirs(listOf("../openiap/src/main/java"))
-    }
+    sourceSets.getByName("main").java.setSrcDirs(listOf("../openiap/src/main/java"))
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

@@ -341,6 +341,7 @@ func _run_all_tests() -> void:
 	await test_ios_single_purchase_reads_report_invalid_store_identities()
 	test_request_purchase_reports_invalid_store_identities()
 	test_apple_purchase_before_init_emits_not_prepared()
+	test_refused_double_tap_removes_only_its_own_marks()
 	test_freed_object_options_are_ignored()
 	test_sensitive_values_are_not_logged()
 
@@ -876,6 +877,62 @@ func test_request_purchase_reports_invalid_store_identities() -> void:
 	GodotIapPlugin._platform = ""
 
 
+func test_refused_double_tap_removes_only_its_own_marks() -> void:
+	var fake := FakePurchasePayloadPlugin.new()
+	GodotIapPlugin._native_plugin = fake
+	GodotIapPlugin._platform = "Android"
+	GodotIapPlugin._requested_skus.clear()
+
+	fake.responses["requestPurchase"] = JSON.stringify({"status": "pending"})
+	GodotIapPlugin.request_purchase({"requestPurchase": {"google": {"skus": ["premium"]}}, "type": "in-app"})
+	fake.responses["requestPurchase"] = JSON.stringify({
+		"success": false, "code": "purchase-in-progress", "error": "Another purchase is already in progress",
+	})
+	GodotIapPlugin.request_purchase({"requestPurchase": {"google": {"skus": ["premium", "coins"]}}, "type": "in-app"})
+
+	_assert_equal(GodotIapPlugin._requested_skus.get("premium", []).size(), 1, "A refused double tap should keep the purchase in flight requested")
+	_assert_false(GodotIapPlugin._requested_skus.has("coins"), "A refused double tap should drop its own marks")
+
+	# Android answers pending first and reports the refusal on purchase_error.
+	fake.responses["requestPurchase"] = JSON.stringify({"success": true, "pending": true})
+	GodotIapPlugin.request_purchase({"requestPurchase": {"google": {"skus": ["premium", "coins"]}}, "type": "in-app"})
+	GodotIapPlugin.purchase_error.emit({"code": "purchase-in-progress", "message": "Another purchase is already in progress"})
+	_assert_equal(GodotIapPlugin._requested_skus.get("premium", []).size(), 1, "A refusal after pending should keep the purchase in flight requested")
+	_assert_false(GodotIapPlugin._requested_skus.has("coins"), "A refusal after pending should drop the refused request's marks")
+
+	# Two refusals still on their way each end one refused request.
+	for sku in ["coins", "gems"]:
+		GodotIapPlugin.request_purchase({"requestPurchase": {"google": {"skus": [sku]}}, "type": "in-app"})
+	for _refusal in 2:
+		GodotIapPlugin.purchase_error.emit({"code": "purchase-in-progress", "message": "Another purchase is already in progress"})
+	_assert_equal(GodotIapPlugin._requested_skus.keys(), ["premium"], "Two refusals after pending should drop both refused requests")
+
+	# A request that fails validation leaves the pending request marked.
+	GodotIapPlugin.request_purchase({"requestPurchase": {"google": {"skus": []}}, "type": "in-app"})
+	_assert_equal(GodotIapPlugin._requested_skus.get("premium", []).size(), 1, "A request failing validation should keep the pending request marked")
+
+	# Each purchase answers only its own request for the same SKU.
+	GodotIapPlugin.request_purchase({"requestPurchase": {"google": {"skus": ["premium"]}}, "type": "in-app"})
+	var bought := {"productId": "premium", "transactionDate": Time.get_unix_time_from_system() * 1000.0}
+	_assert_true(GodotIapPlugin._take_requested(bought) and GodotIapPlugin._take_requested(bought), "Two same-SKU requests should each answer a purchase")
+	_assert_false(GodotIapPlugin._take_requested(bought), "A third purchase should find no request left")
+
+	# A plan change within the same product answers one request.
+	GodotIapPlugin.request_purchase({"requestPurchase": {"google": {"skus": ["premium"]}}, "type": "in-app"})
+	GodotIapPlugin.request_purchase({"requestPurchase": {"google": {"skus": ["premium"]}}, "type": "in-app"})
+	var base_change := bought.merged({"pendingPurchaseUpdateAndroid": {"products": ["premium"]}})
+	_assert_true(GodotIapPlugin._take_requested(base_change) and GodotIapPlugin._take_requested(bought), "A same-product plan change should leave the other request marked")
+
+	# Undos of answered requests go once nothing is marked.
+	GodotIapPlugin.request_purchase({"requestPurchase": {"google": {"skus": ["premium"]}}, "type": "in-app"})
+	_assert_equal(GodotIapPlugin._request_unmarks.size(), 1, "A request after every mark was answered should drop the old undos")
+
+	GodotIapPlugin._requested_skus.clear()
+	GodotIapPlugin._request_unmarks.clear()
+	GodotIapPlugin._native_plugin = null
+	GodotIapPlugin._platform = ""
+
+
 func test_apple_purchase_before_init_emits_not_prepared() -> void:
 	var fake := FakePurchasePayloadPlugin.new()
 	# What the Apple plugin answers before init_connection, as Android does.
@@ -884,6 +941,7 @@ func test_apple_purchase_before_init_emits_not_prepared() -> void:
 	})
 	GodotIapPlugin._native_plugin = fake
 	GodotIapPlugin._platform = "iOS"
+	GodotIapPlugin._requested_skus.clear()
 	var errors: Array[Dictionary] = []
 	var capture_error = func(error: Dictionary) -> void:
 		errors.append(error)

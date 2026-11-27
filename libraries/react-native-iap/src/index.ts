@@ -85,7 +85,6 @@ import {
 } from './utils/available-purchases';
 import {getVegaIapModule as getVegaAdapter, isVegaOS} from './vega';
 import {
-  clearRequested,
   createSdkPurchaseFlow,
   markRequested,
   type PurchaseFlowSdk,
@@ -1641,6 +1640,7 @@ export const restorePurchases: MutationField<'restorePurchases'> = async () => {
 export const requestPurchase: MutationField<'requestPurchase'> = async (
   request,
 ) => {
+  let unmark: (() => void) | undefined;
   try {
     const {request: platformRequest, type} = request;
     const normalizedType = normalizeProductQueryType(type ?? 'in-app');
@@ -1690,7 +1690,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
       throw unsupportedPlatformError();
     }
 
-    markRequested([
+    unmark = markRequested([
       iosRequestSource?.sku,
       ...(androidRequestSource?.skus ?? []),
     ]);
@@ -1847,7 +1847,14 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
 
     return await IAP.instance.requestPurchase(unifiedRequest);
   } catch (error) {
-    clearRequested();
+    unmark?.();
+    // Android reports a refused double tap on purchaseErrorListener only.
+    if (
+      Platform.OS === 'android' &&
+      normalizePurchaseError(error).code === ErrorCode.PurchaseInProgress
+    ) {
+      return [];
+    }
     const parsedError = parseErrorAndLogIfNeeded(
       'Failed to request purchase:',
       error,

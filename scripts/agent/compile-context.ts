@@ -1143,7 +1143,7 @@ interface PurchaseError {
 | Code | Description | Action |
 |------|-------------|--------|
 | user-cancelled | User cancelled purchase | No action needed |
-| duplicate-purchase | A purchase request is already in progress | Wait for the active request instead of starting another |
+| purchase-in-progress | A purchase request is already in progress | Wait for the active request instead of starting another |
 | item-unavailable | Product not in store | Check store config |
 | already-owned | Already purchased | Restore purchases |
 | network-error | Network issue | Retry with backoff |

@@ -79,6 +79,101 @@ class PurchaseFlowBindingTest {
         assertTrue(iap.purchaseRequests.wasRequested(afterDispose))
     }
 
+    @Test
+    fun `a refused double tap keeps the purchase in flight requested`() = runTest {
+        val attached = AttachedListeners()
+        var requests = 0
+        val request: MutationRequestPurchaseHandler = {
+            if (requests++ > 0) throw OpenIapError.PurchaseInProgress()
+            null
+        }
+        val module = fakeModule { method, args ->
+            when {
+                attached.record(method, args) -> null
+                method == "getRequestPurchase" -> request
+                else -> error("Unexpected call: $method")
+            }
+        }
+        val iap = KmpIAP(delegateFor(Store.HORIZON, module, registerListeners = true))
+
+        val flow = iap.createPurchaseFlow(
+            scope = backgroundScope,
+            confirmWithBackend = { _, _ -> PurchaseConfirmation.Invalid(reason = "expired") },
+            isConsumable = { false },
+        )
+        runCurrent()
+        iap.requestPurchase(premiumRequest())
+        // Android reports the refusal on the error listener; a call that throws undoes only its own marks.
+        attached.get<OpenIapPurchaseErrorListener>("PurchaseErrorListener")
+            .onPurchaseError(OpenIapError.PurchaseInProgress())
+        runCurrent()
+        assertTrue(runCatching { iap.requestPurchase(premiumRequest()) }.isFailure)
+
+        assertTrue(iap.purchaseRequests.wasRequested(premiumPurchase()))
+        flow.dispose()
+    }
+
+    @Test
+    fun `two overlapping requests that fail leave no mark, in either order`() {
+        for (earlierFailsFirst in listOf(true, false)) {
+            val requests = PurchaseRequests()
+            val undoEarlier = requests.mark(premiumRequest())
+            val undoLater = requests.mark(premiumRequest())
+            if (earlierFailsFirst) {
+                undoEarlier()
+                undoLater()
+            } else {
+                undoLater()
+                undoEarlier()
+            }
+            assertFalse(requests.wasRequested(premiumPurchase()), "earlierFailsFirst=$earlierFailsFirst")
+        }
+    }
+
+    @Test
+    fun `a failed request keeps an overlapping live request marked`() {
+        val requests = PurchaseRequests()
+        requests.mark(premiumRequest())
+        requests.mark(premiumRequest())()
+        assertTrue(requests.wasRequested(premiumPurchase()))
+    }
+
+    @Test
+    fun `each purchase answers only its own request for the same product`() {
+        val requests = PurchaseRequests()
+        requests.mark(premiumRequest())
+        requests.mark(premiumRequest())
+        assertTrue(requests.wasRequested(premiumPurchase()))
+        assertTrue(requests.wasRequested(premiumPurchase()))
+        assertFalse(requests.wasRequested(premiumPurchase()))
+    }
+
+    @Test
+    fun `a plan change within the same product answers one request`() {
+        val requests = PurchaseRequests()
+        requests.mark(premiumRequest())
+        requests.mark(premiumRequest())
+        val baseChange = premiumPurchase().copy(
+            pendingPurchaseUpdateAndroid = io.github.hyochan.kmpiap.openiap.PendingPurchaseUpdateAndroid(
+                products = listOf("premium"),
+                purchaseToken = "change-token",
+            ),
+        )
+        assertTrue(requests.wasRequested(baseChange))
+        assertTrue(requests.wasRequested(premiumPurchase()))
+    }
+
+    private fun premiumPurchase() = io.github.hyochan.kmpiap.openiap.PurchaseAndroid(
+        id = "in-flight",
+        isAutoRenewing = false,
+        productId = "premium",
+        purchaseState = io.github.hyochan.kmpiap.openiap.PurchaseState.Purchased,
+        quantity = 1,
+        store = io.github.hyochan.kmpiap.openiap.IapStore.Horizon,
+        storeId = "horizon",
+        transactionDate = System.currentTimeMillis().toDouble(),
+    )
+
     private fun premiumRequest() = RequestPurchaseProps(
         request = RequestPurchaseProps.Request.Purchase(
             RequestPurchasePropsByPlatforms(google = RequestPurchaseAndroidProps(skus = listOf("premium")))

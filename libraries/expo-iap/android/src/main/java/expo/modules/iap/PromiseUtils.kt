@@ -18,14 +18,14 @@ object PromiseUtils {
         promises.computeIfAbsent(key) { java.util.concurrent.CopyOnWriteArrayList() }.add(promise)
     }
 
-    fun resolvePromisesForKey(
+    /** Resolves one promise and drops it, leaving the others for their own requests. */
+    fun resolvePromiseForKey(
         key: String,
+        promise: Promise,
         value: Any?,
     ) {
-        promises[key]?.forEach { promise ->
-            promise.safeResolve(value)
-        }
-        promises.remove(key)
+        promises[key]?.remove(promise)
+        promise.safeResolve(value)
     }
 
     fun rejectAllPendingPromises() {
@@ -34,6 +34,17 @@ object PromiseUtils {
             promise.safeReject(OpenIapError.ServiceDisconnected.CODE, "Connection has been closed", null)
         }
         promises.clear()
+    }
+
+    /** Rejects one promise and drops it, leaving the others for their own requests. */
+    fun rejectPromiseForKey(
+        key: String,
+        promise: Promise,
+        code: String,
+        message: String?,
+    ) {
+        promises[key]?.remove(promise)
+        promise.safeReject(code, message, null)
     }
 
     fun rejectPromisesForKey(

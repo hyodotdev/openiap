@@ -235,13 +235,28 @@ public sealed record PurchaseError
             </tr>
             <tr>
               <td>
+                <code>PurchaseInProgress</code>
+              </td>
+              <td>
+                A second purchase request while one is still running, such as a
+                double tap on Buy (Android). The first purchase continues.
+              </td>
+              <td>
+                Nothing to undo: ignore it, or keep the Buy button disabled
+                while a purchase runs
+              </td>
+            </tr>
+            <tr>
+              <td>
                 <code>DuplicatePurchase</code>
               </td>
               <td>
-                Duplicate <code>purchase-updated</code> event for the same token
-                (Android)
+                Deprecated: no store reports it. Scheduled for removal in client
+                protocol 2.0.0.
               </td>
-              <td>Deduplicate by purchase token and ignore duplicates</td>
+              <td>
+                Handle <code>PurchaseInProgress</code> instead
+              </td>
             </tr>
           </tbody>
         </table>
@@ -722,10 +737,11 @@ function isUserCancellation(error: { code?: unknown }) {
   FeatureNotSupported = 'feature-not-supported',
   EmptySkuList = 'empty-sku-list',
   DuplicatePurchase = 'duplicate-purchase',
+  PurchaseInProgress = 'purchase-in-progress',
 }`}</CodeBlock>
             ),
             swift: (
-              <CodeBlock language="swift">{`enum OpenIapError: Error {
+              <CodeBlock language="swift">{`enum ErrorCode {
     case unknown
     case userCancelled
     case userError
@@ -762,10 +778,11 @@ function isUserCancellation(error: { code?: unknown }) {
     case featureNotSupported
     case emptySkuList
     case duplicatePurchase
+    case purchaseInProgress
 }`}</CodeBlock>
             ),
             kotlin: (
-              <CodeBlock language="kotlin">{`enum class OpenIapError {
+              <CodeBlock language="kotlin">{`enum class ErrorCode {
     Unknown,
     UserCancelled,
     UserError,
@@ -802,10 +819,11 @@ function isUserCancellation(error: { code?: unknown }) {
     FeatureNotSupported,
     EmptySkuList,
     DuplicatePurchase,
+    PurchaseInProgress,
 }`}</CodeBlock>
             ),
             kmp: (
-              <CodeBlock language="kotlin">{`enum class OpenIapError {
+              <CodeBlock language="kotlin">{`enum class ErrorCode {
     Unknown,
     UserCancelled,
     UserError,
@@ -842,46 +860,48 @@ function isUserCancellation(error: { code?: unknown }) {
     FeatureNotSupported,
     EmptySkuList,
     DuplicatePurchase,
+    PurchaseInProgress,
 }`}</CodeBlock>
             ),
             dart: (
-              <CodeBlock language="dart">{`enum IAPError {
-  unknown,
-  userCancelled,
-  userError,
-  itemUnavailable,
-  remoteError,
-  networkError,
-  serviceError,
-  purchaseVerificationFailed,
-  purchaseVerificationFinished,
-  purchaseVerificationFinishFailed,
-  notPrepared,
-  notEnded,
-  alreadyOwned,
-  developerError,
-  billingResponseJsonParseError,
-  deferredPayment,
-  interrupted,
-  iapNotAvailable,
-  purchaseError,
-  syncError,
-  transactionValidationFailed,
-  activityUnavailable,
-  alreadyPrepared,
-  pending,
-  connectionClosed,
-  initConnection,
-  serviceDisconnected,
-  serviceTimeout,
-  queryProduct,
-  skuNotFound,
-  skuOfferMismatch,
-  itemNotOwned,
-  billingUnavailable,
-  featureNotSupported,
-  emptySkuList,
-  duplicatePurchase,
+              <CodeBlock language="dart">{`enum ErrorCode {
+  Unknown,
+  UserCancelled,
+  UserError,
+  ItemUnavailable,
+  RemoteError,
+  NetworkError,
+  ServiceError,
+  PurchaseVerificationFailed,
+  PurchaseVerificationFinished,
+  PurchaseVerificationFinishFailed,
+  NotPrepared,
+  NotEnded,
+  AlreadyOwned,
+  DeveloperError,
+  BillingResponseJsonParseError,
+  DeferredPayment,
+  Interrupted,
+  IapNotAvailable,
+  PurchaseError,
+  SyncError,
+  TransactionValidationFailed,
+  ActivityUnavailable,
+  AlreadyPrepared,
+  Pending,
+  ConnectionClosed,
+  InitConnection,
+  ServiceDisconnected,
+  ServiceTimeout,
+  QueryProduct,
+  SkuNotFound,
+  SkuOfferMismatch,
+  ItemNotOwned,
+  BillingUnavailable,
+  FeatureNotSupported,
+  EmptySkuList,
+  DuplicatePurchase,
+  PurchaseInProgress,
 }`}</CodeBlock>
             ),
             csharp: (
@@ -925,10 +945,11 @@ public enum ErrorCode
     FeatureNotSupported,
     EmptySkuList,
     DuplicatePurchase,
+    PurchaseInProgress,
 }`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`enum OpenIapError {
+              <CodeBlock language="gdscript">{`enum ErrorCode {
     UNKNOWN,
     USER_CANCELLED,
     USER_ERROR,
@@ -965,6 +986,7 @@ public enum ErrorCode
     FEATURE_NOT_SUPPORTED,
     EMPTY_SKU_LIST,
     DUPLICATE_PURCHASE,
+    PURCHASE_IN_PROGRESS,
 }`}</CodeBlock>
             ),
           }}

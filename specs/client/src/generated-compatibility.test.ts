@@ -326,6 +326,7 @@ describe('generated compatibility', () => {
       'Query.isEligibleForExternalPurchaseCustomLinkIOS',
       'Mutation.presentExternalPurchaseNoticeSheetIOS',
       'Mutation.presentExternalPurchaseLinkIOS',
+      'ErrorCode.DuplicatePurchase',
     ]);
     for (const file of generatedFiles) {
       const source = generated(file);

@@ -4,6 +4,7 @@ extends SceneTree
 const EnvelopeTests = preload("res://tests/test_envelope_parsing.gd")
 const Types = preload("res://addons/godot-iap/types.gd")
 const Config = preload("res://iapkit_config.gd")
+const AndroidStore = preload("res://addons/godot-iap/android_store.gd")
 
 var _failed := false
 
@@ -11,10 +12,30 @@ var _failed := false
 class RecordingAndroidPlugin:
 	extends EnvelopeTests.FakeAndroidJsonPlugin
 	var provider_props := "{}"
+	var calls: Array[String] = []
+	var configs: Array[String] = []
+	var connects := true
+	var init_error := "{}"
+
+	func _respond(method: String, fallback: String) -> String:
+		calls.append(method)
+		return super._respond(method, fallback)
 
 	func verifyPurchaseWithProvider(props_json: String) -> String:
 		provider_props = props_json
 		return super(props_json)
+
+	func initConnectionWithConfig(config_json: String) -> bool:
+		calls.append("initConnectionWithConfig")
+		configs.append(config_json)
+		return connects
+
+	func getLastInitError() -> String:
+		return init_error
+
+	func endConnection() -> bool:
+		calls.append("endConnection")
+		return true
 
 
 class RecordingApplePlugin:
@@ -131,10 +152,12 @@ func _run() -> void:
 		{"productId": "dev.hyo.martie.premium.base", "currentPlanId": manager.PRODUCT_PREMIUM, "isActive": true, "transactionId": "amazon-monthly", "transactionDate": 1},
 	]})
 	await manager.refresh_subscriptions()
-	_check(manager.subscription_entitlements.values().all(func(active): return active), "Active subscriptions, an Amazon term included, grant premium")
+	_check(manager.active_subscriptions.has(manager.PRODUCT_PREMIUM) and manager.active_subscriptions.has(manager.PRODUCT_PREMIUM_YEAR), "Active subscriptions, an Amazon term included, grant premium")
 	android.responses["getActiveSubscriptionsResult"] = JSON.stringify({"success": false, "code": "network-error", "error": "Offline"})
 	await manager.refresh_subscriptions()
-	_check(manager.subscription_entitlements.values().all(func(active): return active), "A failed subscription query keeps premium as it was")
+	_check(manager.active_subscriptions.size() == 2, "A failed subscription query keeps premium as it was")
+	await _test_plan_change(plugin, manager, android)
+	await _test_alternative_billing(manager, android)
 
 	manager.purchase_completed.disconnect(record_completed)
 	manager.verification_result.disconnect(record_result)
@@ -145,6 +168,176 @@ func _run() -> void:
 	plugin._native_plugin = previous_plugin
 	plugin._platform = previous_platform
 	quit(1 if _failed else 0)
+
+
+func _test_plan_change(plugin: Node, manager: Node, android: RecordingAndroidPlugin) -> void:
+	var previous_connection: bool = manager.store_connected
+	manager.store_connected = true
+	android.responses["requestPurchase"] = JSON.stringify({"status": "pending"})
+	android.responses["getActiveSubscriptionsResult"] = JSON.stringify({"success": false, "code": "network-error", "error": "Offline"})
+	await manager.refresh_subscriptions()
+	android.calls.clear()
+	manager.purchase_premium_year()
+	_check(not android.calls.has("requestPurchase"), "A plan purchase waits for a current subscription list")
+	var previous_products: Dictionary = manager.products
+	_own_subscription(android, manager.PRODUCT_PREMIUM)
+	await manager.refresh_subscriptions()
+	manager.products = {}
+	android.calls.clear()
+	manager.purchase_premium_year()
+	_check(not android.calls.has("requestPurchase"), "A plan change waits for the new plan's offers")
+	manager.purchase_subscription_with_offer(manager.PRODUCT_PREMIUM_YEAR, "explicit-offer")
+	_check(not android.calls.has("requestPurchase"), "A plan change with an offer the catalog lacks waits too")
+	manager.products = {manager.PRODUCT_PREMIUM_YEAR: {"subscriptionOffers": [{"offerToken": "bare-offer"}]}}
+	manager.purchase_subscription_with_offer(manager.PRODUCT_PREMIUM_YEAR, "bare-offer")
+	_check(not android.calls.has("requestPurchase"), "A plan change with an offer that lists no pricing phases waits too")
+	var renewing := {"subscriptionOffers": [{"offerToken": "renewing-offer", "pricingPhases": {"pricingPhaseList": [{"recurrenceMode": 1}]}}]}
+	manager.products = {manager.PRODUCT_PREMIUM: renewing, manager.PRODUCT_PREMIUM_YEAR: renewing}
+	var params: Dictionary
+	for change in [
+		[manager.PRODUCT_PREMIUM, manager.PRODUCT_PREMIUM_YEAR, "with-time-proration"],
+		[manager.PRODUCT_PREMIUM_YEAR, manager.PRODUCT_PREMIUM, "deferred"],
+	]:
+		_own_subscription(android, change[0])
+		await manager.refresh_subscriptions()
+		manager._purchase(change[1])
+		params = JSON.parse_string(android.last_args[0])
+		_check(params.get("subscriptionProductReplacementParams") == {"oldProductId": change[0], "replacementMode": change[2]} and params.get("purchaseToken") == "owned-token" and params.skus == [change[1]], "Buying %s while owning %s changes the plan with %s" % [change[1], change[0], change[2]])
+	var previous_feature: Callable = plugin._has_feature
+	plugin._has_feature = func(feature: String) -> bool: return feature == AndroidStore.store_feature("amazon")
+	manager.purchase_premium_year()
+	params = JSON.parse_string(android.last_args[0])
+	_check(not params.has("subscriptionProductReplacementParams") and not params.has("purchaseToken"), "Amazon buys the other plan as a separate purchase")
+	plugin._has_feature = previous_feature
+	manager.purchase_10_bulbs()
+	params = JSON.parse_string(android.last_args[0])
+	_check(not params.has("subscriptionProductReplacementParams") and not params.has("purchaseToken"), "A consumable never replaces a plan")
+	android.responses["getActiveSubscriptionsResult"] = JSON.stringify({"success": true, "subscriptions": []})
+	await manager.refresh_subscriptions()
+	manager.purchase_premium_year()
+	params = JSON.parse_string(android.last_args[0])
+	_check(not params.has("subscriptionProductReplacementParams") and not params.has("purchaseToken"), "Without an owned plan the subscription is a new purchase")
+
+	manager.products = {manager.PRODUCT_PREMIUM_YEAR: {"subscriptionOffers": [{"offerToken": "prepaid-offer", "pricingPhases": {"pricingPhaseList": [{"recurrenceMode": 3}]}}]}}
+	_own_subscription(android, manager.PRODUCT_PREMIUM)
+	await manager.refresh_subscriptions()
+	manager.purchase_premium_year()
+	params = JSON.parse_string(android.last_args[0])
+	_check(params.get("subscriptionProductReplacementParams", {}).get("replacementMode") == "charge-full-price", "A change into a prepaid plan charges the full price, as Play requires")
+	manager.products = previous_products
+
+	android.responses["getActiveSubscriptionsResult"] = JSON.stringify({"success": true, "subscriptions": [
+		{"productId": manager.PRODUCT_PREMIUM, "isActive": true, "transactionId": "owned", "transactionDate": 1},
+	]})
+	await manager.refresh_subscriptions()
+	android.calls.clear()
+	manager.purchase_premium_year()
+	_check(not android.calls.has("requestPurchase"), "A plan change without the current purchase token does not start")
+	android.responses.erase("requestPurchase")
+	manager.store_connected = previous_connection
+
+
+func _test_alternative_billing(manager: Node, android: RecordingAndroidPlugin) -> void:
+	var previous_connection: bool = manager.store_connected
+	manager.store_connected = true
+	_own_subscription(android, manager.PRODUCT_PREMIUM)
+	var scene = load("res://main.tscn").instantiate()
+	root.add_child(scene)
+	await process_frame
+	_check(scene.store_contents.get_node("BuyPremiumYearButton").text.begins_with("Change plan: ") and not scene.store_contents.get_node("BuyPremiumButton").text.begins_with("Change plan: "), "The other Play plan reads as a plan change")
+	_check(scene.billing_button.visible, "Google Play shows Alternative Billing")
+	scene.billing_button.pressed.emit()
+	_check(scene.billing_panel.visible and scene.overlay.visible, "Alternative Billing opens its own panel")
+	var picker: OptionButton = scene.billing_program_picker
+	await scene._on_billing_program_selected(picker.get_item_index(Types.BillingProgramAndroid.EXTERNAL_OFFER))
+	_check(JSON.parse_string(android.configs.back()).enableBillingProgramAndroid == "external-offer" and scene.billing_program == Types.BillingProgramAndroid.EXTERNAL_OFFER, "Picking External Offer reconnects with it")
+
+	android.responses["isBillingProgramAvailableAndroid"] = JSON.stringify({"isAvailable": true, "billingProgram": "external-offer"})
+	android.responses["createBillingProgramReportingDetailsAndroid"] = JSON.stringify({"billingProgram": "external-offer", "externalTransactionToken": "fixture-token"})
+	android.responses["launchExternalLinkAndroid"] = JSON.stringify({"launched": true})
+	android.calls.clear()
+	scene._on_billing_buy_pressed()
+	_check(android.calls == ["isBillingProgramAvailableAndroid", "createBillingProgramReportingDetailsAndroid", "launchExternalLinkAndroid"], "External Offer creates fresh reporting details right before the launch")
+	var link: Dictionary = JSON.parse_string(android.last_args[0])
+	_check(link.billingProgram == "external-offer" and link.linkUri == scene.billing_url.text and link.launchMode == "launch-in-external-browser-or-app", "The launch carries the program and the entered URL")
+	_check(scene.billing_result_label.text == "External link launched. Report its token after payment." and not scene.billing_result_label.text.contains("fixture-token"), "The result never shows the token")
+	android.responses["createBillingProgramReportingDetailsAndroid"] = JSON.stringify({"billingProgram": "external-offer", "externalTransactionToken": ""})
+	android.calls.clear()
+	scene._on_billing_buy_pressed()
+	_check(not android.calls.has("launchExternalLinkAndroid") and scene.billing_result_label.text == "Could not create reporting details", "No token, no launch")
+
+	android.connects = false
+	android.init_error = JSON.stringify({"connected": true, "code": "developer-error", "message": "A purchase is in progress"})
+	await scene._on_billing_program_selected(picker.get_item_index(Types.BillingProgramAndroid.EXTERNAL_PAYMENTS))
+	_check(scene.billing_program == Types.BillingProgramAndroid.EXTERNAL_OFFER and picker.get_selected_id() == Types.BillingProgramAndroid.EXTERNAL_OFFER and manager.store_connected, "A refused reconnect keeps the live program")
+	android.connects = true
+	android.init_error = "{}"
+
+	await scene._on_billing_program_selected(picker.get_item_index(Types.BillingProgramAndroid.EXTERNAL_PAYMENTS))
+	android.responses["isBillingProgramAvailableAndroid"] = JSON.stringify({"isAvailable": false, "billingProgram": "external-payments"})
+	android.calls.clear()
+	scene._on_billing_buy_pressed()
+	_check(not android.calls.has("requestPurchase") and scene.billing_result_label.text.ends_with("is not available for this user"), "An unavailable program starts no purchase")
+	android.responses["isBillingProgramAvailableAndroid"] = JSON.stringify({"isAvailable": true, "billingProgram": "external-payments"})
+	android.responses["requestPurchase"] = JSON.stringify({"status": "pending"})
+	scene._on_billing_buy_pressed()
+	var purchase: Dictionary = JSON.parse_string(android.last_args[0])
+	_check(purchase.skus == [manager.PRODUCT_10_BULBS] and purchase.developerBillingOption == {"billingProgram": "external-payments", "launchMode": "launch-in-external-browser-or-app", "linkUri": scene.billing_url.text}, "External Payments buys with the developer billing option")
+	manager.purchase_with_external_payments(manager.PRODUCT_PREMIUM, scene.billing_url.text)
+	purchase = JSON.parse_string(android.last_args[0])
+	_check(purchase.skus == [manager.PRODUCT_PREMIUM] and purchase.get("developerBillingOption", {}).get("billingProgram") == "external-payments", "A subscription keeps the developer billing option")
+	android.responses.erase("requestPurchase")
+	root.get_node("GodotIapPlugin")._on_android_developer_provided_billing(JSON.stringify({"externalTransactionToken": "fixture-token", "products": []}))
+	_check(scene.billing_result_label.text.begins_with("The user chose your billing.\nToken: present"), "Choosing developer billing reads as chosen")
+
+	await scene._on_billing_program_selected(picker.get_item_index(Types.BillingProgramAndroid.USER_CHOICE_BILLING))
+	android.responses["requestPurchase"] = JSON.stringify({"status": "pending"})
+	scene._on_billing_buy_pressed()
+	purchase = JSON.parse_string(android.last_args[0])
+	_check(purchase.skus == [manager.PRODUCT_10_BULBS] and not purchase.has("developerBillingOption"), "User Choice Billing buys normally; Play shows the choice")
+	android.responses.erase("requestPurchase")
+	root.get_node("GodotIapPlugin")._on_android_user_choice_billing(JSON.stringify({"externalTransactionToken": "", "products": [manager.PRODUCT_10_BULBS]}))
+	_check(scene.billing_result_label.text.begins_with("The user chose your billing.\nToken: missing"), "A user choice without a token says so")
+
+	android.calls.clear()
+	await scene._on_billing_close_pressed()
+	_check(JSON.parse_string(android.configs.back()).enableBillingProgramAndroid == "unspecified" and not android.calls.has("endConnection"), "Closing returns to standard billing without ending the connection")
+	_check(not scene.billing_panel.visible and not scene.overlay.visible and scene.billing_program == Types.BillingProgramAndroid.UNSPECIFIED, "Closing hides the panel")
+	# A switch that finishes after the panel closed returns to standard billing too.
+	await scene._on_billing_program_selected(picker.get_item_index(Types.BillingProgramAndroid.EXTERNAL_OFFER))
+	_check(JSON.parse_string(android.configs.back()).enableBillingProgramAndroid == "unspecified" and scene.billing_program == Types.BillingProgramAndroid.UNSPECIFIED, "A switch that ends after closing returns to standard billing")
+	# Play refuses the restore while a purchase runs; the purchase's outcome retries it.
+	scene._set_panel_visible(scene.billing_panel, true)
+	await scene._on_billing_program_selected(picker.get_item_index(Types.BillingProgramAndroid.EXTERNAL_OFFER))
+	android.connects = false
+	android.init_error = JSON.stringify({"connected": true, "code": "developer-error", "message": "A purchase is in progress"})
+	await scene._on_billing_close_pressed()
+	_check(scene.billing_program == Types.BillingProgramAndroid.EXTERNAL_OFFER, "A restore refused during a purchase keeps the program")
+	android.connects = true
+	android.init_error = "{}"
+	manager.purchase_failed.emit("", "Code: user-cancelled")
+	await process_frame
+	_check(scene.billing_program == Types.BillingProgramAndroid.UNSPECIFIED, "The purchase's outcome returns to standard billing")
+	# Choosing developer billing ends the purchase with no other outcome, so it retries the restore too.
+	scene._set_panel_visible(scene.billing_panel, true)
+	await scene._on_billing_program_selected(picker.get_item_index(Types.BillingProgramAndroid.USER_CHOICE_BILLING))
+	android.connects = false
+	android.init_error = JSON.stringify({"connected": true, "code": "developer-error", "message": "A purchase is in progress"})
+	await scene._on_billing_close_pressed()
+	android.connects = true
+	android.init_error = "{}"
+	root.get_node("GodotIapPlugin")._on_android_user_choice_billing(JSON.stringify({"externalTransactionToken": "fixture-token", "products": [manager.PRODUCT_10_BULBS]}))
+	await process_frame
+	_check(scene.billing_program == Types.BillingProgramAndroid.UNSPECIFIED, "Choosing developer billing returns to standard billing")
+	scene.queue_free()
+	await process_frame
+	manager.store_connected = previous_connection
+
+
+func _own_subscription(android: RecordingAndroidPlugin, product_id: String) -> void:
+	android.responses["getActiveSubscriptionsResult"] = JSON.stringify({"success": true, "subscriptions": [
+		{"productId": product_id, "isActive": true, "transactionId": "owned", "transactionDate": 1, "purchaseToken": "owned-token"},
+	]})
 
 
 func _apple_purchase(id: String, product_id: String) -> Dictionary:
@@ -257,6 +450,7 @@ func _test_verification_picker(plugin: Node) -> void:
 	root.add_child(connecting_scene)
 	await process_frame
 	_check(connecting_scene.status_label.text == "Connecting..." and not connecting_scene.ownership_button.disabled and connecting_scene.loading_label.visible, "An unfinished connection keeps ownership diagnostics accessible")
+	_check(not connecting_scene.billing_button.visible, "Apple hides the Google Play billing programs")
 	_check(connecting_scene.store_contents.get_node("Buy10BulbsButton").disabled and connecting_scene.store_contents.get_node("RestoreButton").disabled and connecting_scene.verification_picker.disabled, "An unfinished connection keeps purchase and receipt operations disabled")
 	connecting_scene.ownership_button.pressed.emit()
 	_check(connecting_scene.ownership_panel.visible and not connecting_scene.store_panel.visible and connecting_scene.ownership_panel.is_ancestor_of(connecting_scene.ownership_check_button) and not connecting_scene.ownership_check_button.disabled, "App Ownership opens its own panel, independent of billing connection")
