@@ -132,6 +132,7 @@ var _requested_skus := {}
 var _last_marked_at := 0.0
 # The newest request's undo: Android refuses a double tap after the call returned pending.
 var _newest_request_unmark := Callable()
+var _in_request_call := false
 var _listening_flows: Array = []
 
 
@@ -695,6 +696,14 @@ func _purchase_failure(code: String, message: String, details: Dictionary = {}) 
 
 ## Internal: Request a purchase with raw Dictionary
 func _request_purchase_raw(args: Dictionary) -> Dictionary:
+	# The call undoes its own marks, so its failures leave other requests' marks alone.
+	_in_request_call = true
+	var result := _dispatch_purchase_request(args)
+	_in_request_call = false
+	return result
+
+
+func _dispatch_purchase_request(args: Dictionary) -> Dictionary:
 	_log("_request_purchase_raw called")
 	if not _native_plugin:
 		print("[GodotIap] ERROR: Native plugin not available. Cannot make purchases.")
@@ -1664,7 +1673,7 @@ func _listen_for_purchases(on_purchase: Callable) -> Callable:
 # A failed or cancelled purchase ends what the user asked for; other operations tag a method.
 # A refused double tap ends only the refused request, always the newest: the purchase in flight continues.
 func _forget_requests_on_error(error: Dictionary) -> void:
-	if error.has("method"):
+	if error.has("method") or _in_request_call:
 		return
 	if error.get("code") == Types.ERROR_CODE_VALUES[Types.ErrorCode.PURCHASE_IN_PROGRESS]:
 		if _newest_request_unmark.is_valid():
@@ -1700,13 +1709,24 @@ func _take_requested(purchase: Dictionary) -> bool:
 	var asked_at = null if live.is_empty() else live[0]
 	var bought_at = purchase.get("transactionDate")
 	var bought: bool = asked_at != null and (bought_at is int or bought_at is float) \
-		and bought_at >= asked_at - PURCHASE_REQUEST_CLOCK_SKEW_MS and _requested_skus.erase(purchase.productId)
+		and bought_at >= asked_at - PURCHASE_REQUEST_CLOCK_SKEW_MS and _take_mark(purchase.productId)
 	var changed := false
 	var change = purchase.get("pendingPurchaseUpdateAndroid")
 	if change is Dictionary:
 		for product_id in change.get("products", []):
-			changed = _requested_skus.erase(product_id) or changed
+			changed = _take_mark(product_id) or changed
 	return bought or changed
+
+
+# Removes the oldest live mark for the SKU, which the matching purchase answers.
+func _take_mark(sku: String) -> bool:
+	if not _requested_skus.has(sku):
+		return false
+	var live: Array = _requested_skus[sku]
+	live.pop_front()
+	if live.is_empty():
+		_requested_skus.erase(sku)
+	return true
 
 
 # ==========================================

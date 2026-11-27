@@ -138,6 +138,16 @@ class PurchaseFlowBindingTest {
         assertTrue(requests.wasRequested(premiumPurchase()))
     }
 
+    @Test
+    fun `each purchase answers only its own request for the same product`() {
+        val requests = PurchaseRequests()
+        requests.mark(premiumRequest())
+        requests.mark(premiumRequest())
+        assertTrue(requests.wasRequested(premiumPurchase()))
+        assertTrue(requests.wasRequested(premiumPurchase()))
+        assertFalse(requests.wasRequested(premiumPurchase()))
+    }
+
     private fun premiumPurchase() = io.github.hyochan.kmpiap.openiap.PurchaseAndroid(
         id = "in-flight",
         isAutoRenewing = false,

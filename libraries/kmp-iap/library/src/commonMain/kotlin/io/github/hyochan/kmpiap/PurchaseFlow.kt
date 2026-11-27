@@ -514,7 +514,11 @@ internal class PurchaseRequests {
             val changed = purchase.pendingPurchaseUpdate()?.products.orEmpty().filter { it in marks }
             val hits = listOfNotNull(bought) + changed
             matched = hits.isNotEmpty()
-            marks - hits
+            // Each match clears only the oldest mark, which belongs to the request it answers.
+            hits.fold(marks) { acc, productId ->
+                val live = acc[productId].orEmpty().let { stamps -> stamps.minOrNull()?.let { stamps - it } ?: stamps }
+                if (live.isEmpty()) acc - productId else acc + (productId to live)
+            }
         }
         return matched
     }

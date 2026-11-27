@@ -568,6 +568,31 @@ describe('Public API (src/index.ts)', () => {
       },
     );
 
+    it('lets each purchase answer only its own request for the same SKU', async () => {
+      const flow = IAP.createPurchaseFlow({
+        confirmWithBackend: async () => ({status: 'invalid' as const}),
+        isConsumable: () => false,
+      });
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome: {status: unknown}) =>
+        statuses.push(outcome.status),
+      );
+      const request = {
+        request: {apple: {sku: 'fresh'}},
+        type: 'in-app',
+      } as const;
+
+      await IAP.requestPurchase(request);
+      await IAP.requestPurchase(request);
+      deliver({...nitroPurchase('fresh', 'tx-1'), transactionDate: Date.now()});
+      await settle();
+      deliver({...nitroPurchase('fresh', 'tx-2'), transactionDate: Date.now()});
+      await settle();
+
+      expect(statuses).toEqual([{status: 'invalid'}, {status: 'invalid'}]);
+      flow.dispose();
+    });
+
     it('forgets a request the store answered with an error', async () => {
       const flow = IAP.createPurchaseFlow({
         confirmWithBackend: async () => ({status: 'invalid' as const}),

@@ -35,19 +35,28 @@ function clearRequested(): void {
   requested.clear();
 }
 
+// Removes the oldest live mark for the SKU, which the matching purchase answers.
+function takeMark(sku: string): boolean {
+  const live = requested.get(sku);
+  if (!live) return false;
+  if (live.length > 1) requested.set(sku, live.slice(1));
+  else requested.delete(sku);
+  return true;
+}
+
 // A purchase made after the app asked for it, or a plan change to what it
-// asked for; clears the mark.
+// asked for; clears that request's mark.
 function takeRequested(purchase: Purchase): boolean {
   const askedAt = requested.get(purchase.productId)?.[0];
   const bought =
     askedAt !== undefined &&
     purchase.transactionDate >= askedAt - PURCHASE_REQUEST_CLOCK_SKEW_MS &&
-    requested.delete(purchase.productId);
+    takeMark(purchase.productId);
   const changed = (
     ('pendingPurchaseUpdateAndroid' in purchase &&
       purchase.pendingPurchaseUpdateAndroid?.products) ||
     []
-  ).filter((id) => requested.delete(id));
+  ).filter(takeMark);
   return bought || changed.length > 0;
 }
 

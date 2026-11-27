@@ -73,8 +73,17 @@ internal static class PurchaseRequests
             // A receipt older than the request is a store redelivery.
             var bought = Requested.TryGetValue(purchase.ProductId, out var live)
                 && purchase.TransactionDate >= live[0] - ClockSkewMs
-                && Requested.Remove(purchase.ProductId);
-            return changes.Count(Requested.Remove) > 0 || bought;
+                && TakeMark(purchase.ProductId);
+            return changes.Count(TakeMark) > 0 || bought;
         }
+    }
+
+    // Removes the oldest live mark for the SKU, which the matching purchase answers. Caller holds the lock.
+    private static bool TakeMark(string sku)
+    {
+        if (!Requested.TryGetValue(sku, out var live)) return false;
+        live.RemoveAt(0);
+        if (live.Count == 0) Requested.Remove(sku);
+        return true;
     }
 }

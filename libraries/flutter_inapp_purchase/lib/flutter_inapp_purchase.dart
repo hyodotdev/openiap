@@ -148,20 +148,30 @@ class _SharedNativeState {
   }
 
   /// Whether the app asked for [purchase]: bought after the request, or a
-  /// plan change to what it asked for. Clears the mark.
+  /// plan change to what it asked for. Clears that request's mark.
   bool wasRequested(gentype.Purchase purchase) {
     final askedAt = requestedProductIds[purchase.productId]?.first;
     final bought = askedAt != null &&
-        purchase.transactionDate >= askedAt - _purchaseRequestClockSkewMs;
-    if (bought) requestedProductIds.remove(purchase.productId);
+        purchase.transactionDate >= askedAt - _purchaseRequestClockSkewMs &&
+        _takeMark(purchase.productId);
     final changeTargets = purchase is gentype.PurchaseAndroid
         ? purchase.pendingPurchaseUpdateAndroid?.products
         : null;
     var changed = false;
     for (final productId in changeTargets ?? const <String>[]) {
-      changed = requestedProductIds.remove(productId) != null || changed;
+      changed = _takeMark(productId) || changed;
     }
     return bought || changed;
+  }
+
+  /// Removes the oldest live mark for [productId], which the matching
+  /// purchase answers.
+  bool _takeMark(String productId) {
+    final live = requestedProductIds[productId];
+    if (live == null) return false;
+    live.removeAt(0);
+    if (live.isEmpty) requestedProductIds.remove(productId);
+    return true;
   }
 
   /// Whether each Play purchase token was last seen acknowledged.

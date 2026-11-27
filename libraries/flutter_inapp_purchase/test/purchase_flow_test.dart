@@ -931,6 +931,29 @@ void main() {
       });
     }
 
+    test('lets each purchase answer only its own request for the same product',
+        () async {
+      final iap = await connected('android');
+      final flow = iap.createPurchaseFlow(
+        confirmWithBackend: (purchase, {required isConsumable}) async =>
+            const PurchaseInvalid(reason: 'expired'),
+        isConsumable: (_) => false,
+      );
+      final outcomes = flow.outcomes.take(2).toList();
+
+      await requestPurchase(iap, 'premium');
+      await requestPurchase(iap, 'premium');
+      final now = DateTime.now().millisecondsSinceEpoch.toDouble();
+      await deliver(_play('GPA.1', transactionDate: now));
+      await deliver(_play('GPA.2', transactionDate: now));
+
+      expect(
+        (await outcomes).map((o) => (o.status as PurchaseInvalid).recovered),
+        [false, false],
+      );
+      flow.dispose();
+    });
+
     test('drops request marks on dispose, whatever listens', () async {
       final iap = await connected('android');
       PurchaseFlow create([

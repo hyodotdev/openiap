@@ -179,7 +179,8 @@ func _on_purchase_processed(purchase: Dictionary, status: PurchaseFlow.Status) -
 
 
 func _on_purchase_error(error: Dictionary) -> void:
-	if error.get("method") == "verifyAppOwnership":
+	# Ownership checks and billing-program reconnects report their own results.
+	if error.get("method") in ["verifyAppOwnership", "initConnection"]:
 		return
 	var code = error.get("code", "")
 	var details := "Code: %s\nMessage: %s" % [code, error.get("message", "Unknown error")]

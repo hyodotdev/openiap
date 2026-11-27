@@ -157,6 +157,13 @@ public class OpenIapClientFacadeTests
                 }
                 Assert.False(PurchaseRequests.Take(Bought("GPA.4", "premium")));
             }
+
+            // Each purchase answers only its own request for the same SKU.
+            await PurchaseRequests.Track(SubscriptionRequest("premium"), () => Task.FromResult(0));
+            await PurchaseRequests.Track(SubscriptionRequest("premium"), () => Task.FromResult(0));
+            Assert.True(PurchaseRequests.Take(Bought("GPA.5", "premium")));
+            Assert.True(PurchaseRequests.Take(Bought("GPA.6", "premium")));
+            Assert.False(PurchaseRequests.Take(Bought("GPA.7", "premium")));
         }
         finally
         {
