@@ -44,7 +44,8 @@ class OpenIapStoreProviderDispatchTest {
                 "getDeepLinkToSubscriptions" -> deepLink
                 "getRequestPurchase" -> request
                 "getFinishTransaction" -> finish
-                "addPurchaseUpdateListener", "addPurchaseErrorListener", "addConnectionStateListener" -> null
+                "addPurchaseUpdateListener", "addPurchaseErrorListener", "addUserChoiceBillingListener",
+                "addConnectionStateListener" -> null
                 else -> error("Unexpected call: ${method.name}")
             }
         } as OpenIapProtocol
