@@ -158,6 +158,8 @@ class OpenIapStoreConnectionLifecycleTest {
                 nativeResults.removeFirst().complete(RequestPurchaseResultPurchases(emptyList()))
                 first.await()
                 assertEquals("the first call's return keeps the next request flagged", setOf("coins"), store.status.value.loadings.purchasing)
+                module.emitError(OpenIapError.PurchaseFailed("The next purchase failed"))
+                assertEquals("and its sku", "coins", store.status.value.lastPurchaseResult?.productId)
                 nativeResults.removeFirst().complete(RequestPurchaseResultPurchases(emptyList()))
                 next!!.await()
                 assertTrue(store.status.value.loadings.purchasing.isEmpty())

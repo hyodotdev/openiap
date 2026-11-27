@@ -621,13 +621,14 @@ Alert.alert('Error', getUserFriendlyErrorMessage(error));`}
           </a>
         </h3>
         <p>
-          Replace <code>react-native</code> with <code>react-native-tvos</code>{' '}
-          in your <code>package.json</code>:
+          Replace <code>react-native</code> with the{' '}
+          <code>react-native-tvos</code> release that matches your Expo SDK in
+          your <code>package.json</code>. For SDK 58:
         </p>
         <CodeBlock language="json">
           {`{
   "dependencies": {
-    "react-native": "npm:react-native-tvos@0.86.2-0",
+    "react-native": "npm:react-native-tvos@0.88.1-0",
     "@react-native-tvos/config-tv": "^0.1.6",
     ${EXPO_PACKAGE.dependencyLine}
   }

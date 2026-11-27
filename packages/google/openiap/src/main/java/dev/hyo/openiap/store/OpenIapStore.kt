@@ -231,8 +231,10 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     }
 
     // Choosing alternative billing ends the Play request with no purchase event.
-    private val userChoiceBillingListener =
-        dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener { releasePurchasing(purchaseClaim.get()) }
+    private val userChoiceBillingListener = dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener {
+        pendingRequestProductId.set(null)
+        releasePurchasing(purchaseClaim.get())
+    }
 
     private fun attachPurchaseListeners() {
         if (purchaseListenersAttached) return
@@ -460,7 +462,11 @@ class OpenIapStore(private val module: OpenIapProtocol) {
 
         try {
             module.requestPurchase(props).also { result ->
-                if (result is RequestPurchaseResultPurchases && result.value?.isEmpty() == true) {
+                // Only while this request is still the one in flight: a listener may have started the
+                // next request for the same SKU.
+                if (result is RequestPurchaseResultPurchases && result.value?.isEmpty() == true &&
+                    purchaseClaim.get() === claim
+                ) {
                     pendingRequestProductId.compareAndSet(sku, null)
                 }
             }
