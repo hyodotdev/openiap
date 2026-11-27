@@ -853,6 +853,26 @@ class OnPurchasesUpdatedRecoveryTest {
     }
 
     @Test
+    fun `an update a listener triggers waits until every listener has the current one`() {
+        val first = billingPurchase("premium", "first-token", autoRenewing = true)
+        val second = billingPurchase("premium_year", "second-token", autoRenewing = true)
+        val module = module()
+        setBillingClient(module, RecordingBillingClient())
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener {
+            if (it.productId == "premium") {
+                module.onPurchasesUpdated(billingResult(BillingClient.BillingResponseCode.OK), listOf(second))
+            }
+        })
+        val seen = mutableListOf<String>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { seen += it.productId })
+
+        module.onPurchasesUpdated(billingResult(BillingClient.BillingResponseCode.OK), listOf(first))
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(listOf("premium", "premium_year"), seen)
+    }
+
+    @Test
     fun `an uncached purchase stays one-time when Play cannot list subscriptions`() {
         val prepaid = billingPurchase("prepaid-sub", "prepaid-token")
         val client = RecordingBillingClient(
@@ -2243,6 +2263,7 @@ class OnPurchasesUpdatedRecoveryTest {
         pending: Boolean = false,
         acknowledged: Boolean = false,
         pendingUpdate: Pair<String, String>? = null,
+        autoRenewing: Boolean = false,
     ): BillingPurchase = BillingPurchase(
         """
         {
@@ -2254,6 +2275,7 @@ class OnPurchasesUpdatedRecoveryTest {
           "purchaseState": ${if (pending) 4 else 0},
           "purchaseToken": "$token",
           "quantity": 1,
+          "autoRenewing": $autoRenewing,
           "acknowledged": $acknowledged${pendingUpdate?.let { (updateProduct, updateToken) ->
             """,
           "pendingPurchaseUpdate": {

@@ -893,6 +893,13 @@ func test_refused_double_tap_removes_only_its_own_marks() -> void:
 	_assert_equal(GodotIapPlugin._requested_skus.get("premium", []).size(), 1, "A refused double tap should keep the purchase in flight requested")
 	_assert_false(GodotIapPlugin._requested_skus.has("coins"), "A refused double tap should drop its own marks")
 
+	# Android answers pending first and reports the refusal on purchase_error.
+	fake.responses["requestPurchase"] = JSON.stringify({"success": true, "pending": true})
+	GodotIapPlugin.request_purchase({"requestPurchase": {"google": {"skus": ["premium", "coins"]}}, "type": "in-app"})
+	GodotIapPlugin.purchase_error.emit({"code": "purchase-in-progress", "message": "Another purchase is already in progress"})
+	_assert_equal(GodotIapPlugin._requested_skus.get("premium", []).size(), 1, "A refusal after pending should keep the purchase in flight requested")
+	_assert_false(GodotIapPlugin._requested_skus.has("coins"), "A refusal after pending should drop the refused request's marks")
+
 	GodotIapPlugin._requested_skus.clear()
 	GodotIapPlugin._native_plugin = null
 	GodotIapPlugin._platform = ""

@@ -341,6 +341,7 @@ class OpenIapModule(
     private val purchaseDeliveryClaims = PurchaseDeliveryClaims()
     // Purchase updates in the order Play sent them: one waiting for the subscription list holds back later ones.
     private val purchaseUpdateQueue = ArrayDeque<PurchaseUpdateSlot>()
+    private var drainingPurchaseUpdates = false
     private val purchaseFlowTimeoutToken = Any()
 
     private fun resetConnectionStateLocked() {
@@ -2807,14 +2808,27 @@ class OpenIapModule(
         var delivery: (() -> Unit)? = null
     }
 
-    /** Marks [slot] ready, then delivers every ready update at the head of the queue, in order. */
+    /**
+     * Marks [slot] ready, then delivers every ready update at the head of the queue, in order. One
+     * caller drains at a time, so an update a listener triggers waits for the one being delivered.
+     */
     private fun readyPurchaseUpdate(slot: PurchaseUpdateSlot, delivery: () -> Unit) {
-        synchronized(purchaseUpdateQueue) { slot.delivery = delivery }
+        synchronized(purchaseUpdateQueue) {
+            slot.delivery = delivery
+            if (drainingPurchaseUpdates) return
+            drainingPurchaseUpdates = true
+        }
         while (true) {
             val next = synchronized(purchaseUpdateQueue) {
                 purchaseUpdateQueue.firstOrNull()?.delivery?.also { purchaseUpdateQueue.removeFirst() }
+                    ?: run { drainingPurchaseUpdates = false; null }
             } ?: return
-            next()
+            try {
+                next()
+            } catch (error: Throwable) {
+                synchronized(purchaseUpdateQueue) { drainingPurchaseUpdates = false }
+                throw error
+            }
         }
     }
 

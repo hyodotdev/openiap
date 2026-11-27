@@ -587,8 +587,10 @@ func _test_wrapper_tracks_requests() -> void:
 	_check(published.size() == 2 and published[1].recovered, "A receipt far older than the request is a redelivery")
 	# A storefront failure is not a purchase error, so the mark stays.
 	await wrapper.get_storefront()
+	# The double tap returns pending; Android then refuses it on purchase_error.
+	wrapper.request_purchase(_purchase_props("premium"))
 	wrapper.purchase_error.emit({"code": "purchase-in-progress", "message": "Another purchase is already in progress"})
-	_check(wrapper._requested_skus.has("premium"), "A refused double tap keeps the purchase in flight requested")
+	_check(wrapper._requested_skus.get("premium", []).size() == 1, "A refused double tap keeps the purchase in flight requested")
 	var clock_ahead := _android_purchase("GPA.requested", "premium")
 	# A game that runs the device clock ahead makes the store's time look minutes old.
 	clock_ahead["transactionDate"] = Time.get_unix_time_from_system() * 1000.0 - 5 * 60000

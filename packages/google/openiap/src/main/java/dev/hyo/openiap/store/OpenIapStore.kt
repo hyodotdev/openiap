@@ -137,6 +137,9 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     private val finishesByToken =
         java.util.concurrent.ConcurrentHashMap<String, CompletableDeferred<Unit>>()
 
+    // Listeners added through this store, which hear the refusals it makes itself.
+    private val purchaseErrorListeners = java.util.concurrent.CopyOnWriteArraySet<OpenIapPurchaseErrorListener>()
+
     // SKU of the request whose outcome the next purchase event reports.
     private val pendingRequestProductId = java.util.concurrent.atomic.AtomicReference<String?>(null)
     private var purchaseListenersAttached = false
@@ -434,10 +437,15 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @see <a href="https://openiap.dev/docs/apis/request-purchase">request-purchase</a>
      */
     val requestPurchase: MutationRequestPurchaseHandler = { props ->
-        // Refused here, before native admission, so the purchase in flight keeps its flag and pending sku.
+        // Refused here, before native admission, so the purchase in flight keeps its flag and pending
+        // sku. Like a native refusal, it reaches the error listeners too.
         val sku = OpenIapStorePurchaseRequestResolver.sku(props)
         val trackedSku = sku?.takeIf(::claimPurchasing)
-        if (sku != null && trackedSku == null) throw OpenIapError.PurchaseInProgress()
+        if (sku != null && trackedSku == null) {
+            val refusal = OpenIapError.PurchaseInProgress().withProductId(sku)
+            for (listener in purchaseErrorListeners) listener.onPurchaseError(refusal)
+            throw refusal
+        }
         trackedSku?.let(pendingRequestProductId::set)
 
         try {
@@ -648,8 +656,14 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     // -------------------------------------------------------------------------
     fun addPurchaseUpdateListener(listener: OpenIapPurchaseUpdateListener) = module.addPurchaseUpdateListener(listener)
     fun removePurchaseUpdateListener(listener: OpenIapPurchaseUpdateListener) = module.removePurchaseUpdateListener(listener)
-    fun addPurchaseErrorListener(listener: OpenIapPurchaseErrorListener) = module.addPurchaseErrorListener(listener)
-    fun removePurchaseErrorListener(listener: OpenIapPurchaseErrorListener) = module.removePurchaseErrorListener(listener)
+    fun addPurchaseErrorListener(listener: OpenIapPurchaseErrorListener) {
+        purchaseErrorListeners.add(listener)
+        module.addPurchaseErrorListener(listener)
+    }
+    fun removePurchaseErrorListener(listener: OpenIapPurchaseErrorListener) {
+        purchaseErrorListeners.remove(listener)
+        module.removePurchaseErrorListener(listener)
+    }
     fun addUserChoiceBillingListener(listener: dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener) = module.addUserChoiceBillingListener(listener)
     fun removeUserChoiceBillingListener(listener: dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener) = module.removeUserChoiceBillingListener(listener)
     fun addDeveloperProvidedBillingListener(listener: dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener) = module.addDeveloperProvidedBillingListener(listener)

@@ -79,6 +79,8 @@ class OpenIapStoreConnectionLifecycleTest {
             runCurrent()
             var nativeRequests = 0
             module.onRequestPurchase = { nativeRequests++; null }
+            val heard = mutableListOf<OpenIapError>()
+            store.addPurchaseErrorListener { heard += it }
 
             val premium = RequestPurchaseProps.fromJson(mapOf(
                 "requestPurchase" to mapOf("google" to mapOf("skus" to listOf("premium"))),
@@ -87,6 +89,7 @@ class OpenIapStoreConnectionLifecycleTest {
 
             assertTrue(refused.all { it.exceptionOrNull() is OpenIapError.PurchaseInProgress })
             assertEquals("refused before native admission", 0, nativeRequests)
+            assertEquals("each refusal reaches the error listeners", 3, heard.count { it is OpenIapError.PurchaseInProgress })
             assertEquals(setOf("coins"), store.status.value.loadings.purchasing)
             assertNull(store.status.value.lastError)
             module.emitError(OpenIapError.PurchaseFailed("The first purchase failed"))

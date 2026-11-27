@@ -130,6 +130,8 @@ var _shell_open: Callable = Callable(OS, "shell_open")
 var _requested_skus := {}
 # Each request marks a distinct time, so an undo removes only its own mark.
 var _last_marked_at := 0.0
+# The newest request's undo: Android refuses a double tap after the call returned pending.
+var _newest_request_unmark := Callable()
 var _listening_flows: Array = []
 
 
@@ -821,6 +823,7 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 			params["offerToken"] = offer_token
 		var params_json = JSON.stringify(params)
 		unmark = _mark_requested(params["skus"])
+		_newest_request_unmark = unmark
 		_log("Calling Android requestPurchase: type=%s, skus=%d, subscriptionOffers=%d, hasPurchaseToken=%s" % [purchase_type, params["skus"].size(), subscription_offers.size(), params.has("purchaseToken")])
 		result_raw = _native_plugin.call("requestPurchase", params_json)
 	elif _is_apple():
@@ -1659,10 +1662,16 @@ func _listen_for_purchases(on_purchase: Callable) -> Callable:
 
 
 # A failed or cancelled purchase ends what the user asked for; other operations tag a method.
-# A refused double tap ends nothing: the purchase in flight continues.
+# A refused double tap ends only the refused request, always the newest: the purchase in flight continues.
 func _forget_requests_on_error(error: Dictionary) -> void:
-	if not error.has("method") and error.get("code") != Types.ERROR_CODE_VALUES[Types.ErrorCode.PURCHASE_IN_PROGRESS]:
+	if error.has("method"):
+		return
+	if error.get("code") == Types.ERROR_CODE_VALUES[Types.ErrorCode.PURCHASE_IN_PROGRESS]:
+		if _newest_request_unmark.is_valid():
+			_newest_request_unmark.call()
+	else:
 		_requested_skus.clear()
+	_newest_request_unmark = Callable()
 
 
 # Returns the undo for a request that fails, which removes only this request's marks.

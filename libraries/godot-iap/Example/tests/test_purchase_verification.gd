@@ -181,6 +181,8 @@ func _test_plan_change(plugin: Node, manager: Node, android: RecordingAndroidPlu
 	android.calls.clear()
 	manager.purchase_premium_year()
 	_check(not android.calls.has("requestPurchase"), "A plan change waits for the new plan's offers")
+	manager.purchase_subscription_with_offer(manager.PRODUCT_PREMIUM_YEAR, "explicit-offer")
+	_check(not android.calls.has("requestPurchase"), "A plan change with an offer the catalog lacks waits too")
 	var renewing := {"subscriptionOffers": [{"offerToken": "renewing-offer", "pricingPhases": {"pricingPhaseList": [{"recurrenceMode": 1}]}}]}
 	manager.products = {manager.PRODUCT_PREMIUM: renewing, manager.PRODUCT_PREMIUM_YEAR: renewing}
 	var params: Dictionary
