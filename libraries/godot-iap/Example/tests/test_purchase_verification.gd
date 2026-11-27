@@ -174,6 +174,11 @@ func _test_plan_change(plugin: Node, manager: Node, android: RecordingAndroidPlu
 	var previous_connection: bool = manager.store_connected
 	manager.store_connected = true
 	android.responses["requestPurchase"] = JSON.stringify({"status": "pending"})
+	android.responses["getActiveSubscriptionsResult"] = JSON.stringify({"success": false, "code": "network-error", "error": "Offline"})
+	await manager.refresh_subscriptions()
+	android.calls.clear()
+	manager.purchase_premium_year()
+	_check(not android.calls.has("requestPurchase"), "A plan purchase waits for a current subscription list")
 	var previous_products: Dictionary = manager.products
 	_own_subscription(android, manager.PRODUCT_PREMIUM)
 	await manager.refresh_subscriptions()

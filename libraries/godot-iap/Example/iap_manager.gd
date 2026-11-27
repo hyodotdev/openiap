@@ -35,6 +35,8 @@ var products: Dictionary = {}  # product_id -> Types.ProductAndroid or Types.Pro
 var is_loading := false
 # Active premium plan id -> Types.ActiveSubscription, from the store.
 var active_subscriptions := {}
+# Whether the last subscription query answered; a plan change needs a current list.
+var subscriptions_current := false
 var verification_method: IapkitConfig.Method = IapkitConfig.default_method()
 ## One flow for the whole app: it confirms, credits, and finishes every purchase.
 var flow: PurchaseFlow
@@ -257,6 +259,10 @@ func _purchase(product_id: String, offer_token: String = "", developer_billing_o
 		else:
 			push_warning("[IAPManager] No offer token available for subscription")
 
+		if product_id in PREMIUM_PLANS and GodotIapPlugin.get_store() == Types.IapStore.GOOGLE and not subscriptions_current:
+			# A plan change replaces what Play owns now, not a list from an earlier query.
+			purchase_failed.emit(product_id, "Subscriptions are not loaded; refresh subscriptions and try again")
+			return
 		var current := plan_to_replace(product_id)
 		if current != null:
 			if current.purchase_token == null or str(current.purchase_token).is_empty():
@@ -494,7 +500,9 @@ func refresh_subscriptions() -> void:
 	var result := await GodotIapPlugin.get_active_subscriptions_result()
 	if not result.get("success", false):
 		push_warning("[IAPManager] Subscription query failed; premium stays as it was")
+		subscriptions_current = false
 		return
+	subscriptions_current = true
 	var active := {}
 	for subscription in result.subscriptions:
 		# Amazon reports the parent SKU, and the term in current_plan_id.
