@@ -140,8 +140,8 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     // Listeners added through this store, which hear the refusals it makes itself.
     private val purchaseErrorListeners = java.util.concurrent.CopyOnWriteArraySet<OpenIapPurchaseErrorListener>()
 
-    // SKU of the request whose outcome the next purchase event reports.
-    private val pendingRequestProductId = java.util.concurrent.atomic.AtomicReference<String?>(null)
+    // The request whose outcome the next purchase event reports; it can outlive its claim.
+    private val pendingRequest = java.util.concurrent.atomic.AtomicReference<PurchaseClaim?>(null)
     // The request in flight. Its outcome event frees it, so a listener can start the next purchase.
     private val purchaseClaim = java.util.concurrent.atomic.AtomicReference<PurchaseClaim?>(null)
     private var purchaseListenersAttached = false
@@ -155,7 +155,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
             transactionId = purchase.id,
             lastError = null,
         )
-        pendingRequestProductId.set(null)
+        pendingRequest.set(null)
         releasePurchasing(purchaseClaim.get())
 
         storeScope.launch {
@@ -190,7 +190,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     private val purchaseErrorListener = OpenIapPurchaseErrorListener { error ->
         // A refused double tap is not a failure of the purchase in flight.
         if (error is OpenIapError.PurchaseInProgress) return@OpenIapPurchaseErrorListener
-        val productId = pendingRequestProductId.getAndSet(null)
+        val productId = pendingRequest.getAndSet(null)?.sku
         releasePurchasing(purchaseClaim.get())
         val code = OpenIapError.toCode(error)
         if (error is OpenIapError.UserCancelled || error is OpenIapError.PurchaseCancelled) {
@@ -232,7 +232,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
 
     // Choosing alternative billing ends the Play request with no purchase event.
     private val userChoiceBillingListener = dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener {
-        pendingRequestProductId.set(null)
+        pendingRequest.set(null)
         releasePurchasing(purchaseClaim.get())
     }
 
@@ -265,7 +265,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         detachPurchaseListeners()
         activityBindings.clear()
         finishesByToken.clear()
-        pendingRequestProductId.set(null)
+        pendingRequest.set(null)
         storeScope.cancel()
     }
 
@@ -332,7 +332,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
             val ok = module.endConnection()
             detachPurchaseListeners()
             _isConnected.value = false
-            pendingRequestProductId.set(null)
+            pendingRequest.set(null)
             ok
         } catch (e: Exception) {
             setError(e.message)
@@ -458,16 +458,13 @@ class OpenIapStore(private val module: OpenIapProtocol) {
             for (listener in purchaseErrorListeners) runCatching { listener.onPurchaseError(refusal) }
             throw refusal
         }
-        sku?.let(pendingRequestProductId::set)
+        claim?.let(pendingRequest::set)
 
         try {
             module.requestPurchase(props).also { result ->
-                // Only while this request is still the one in flight: a listener may have started the
-                // next request for the same SKU.
-                if (result is RequestPurchaseResultPurchases && result.value?.isEmpty() == true &&
-                    purchaseClaim.get() === claim
-                ) {
-                    pendingRequestProductId.compareAndSet(sku, null)
+                // By identity: a listener may already have started the next request for the same SKU.
+                if (result is RequestPurchaseResultPurchases && result.value?.isEmpty() == true) {
+                    pendingRequest.compareAndSet(claim, null)
                 }
             }
         } finally {
