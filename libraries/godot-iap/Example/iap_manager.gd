@@ -239,6 +239,7 @@ func _purchase(product_id: String, offer_token: String = "", developer_billing_o
 		props.request_subscription = Types.RequestSubscriptionPropsByPlatforms.new()
 		props.request_subscription.google = Types.RequestSubscriptionAndroidProps.new()
 		props.request_subscription.google.skus = google_skus
+		props.request_subscription.google.developer_billing_option = developer_billing_option
 		props.request_subscription.apple = Types.RequestSubscriptionIosProps.new()
 		props.request_subscription.apple.sku = product_id
 
