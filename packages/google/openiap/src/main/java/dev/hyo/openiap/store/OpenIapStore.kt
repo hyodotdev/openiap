@@ -443,7 +443,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         val trackedSku = sku?.takeIf(::claimPurchasing)
         if (sku != null && trackedSku == null) {
             val refusal = OpenIapError.PurchaseInProgress().withProductId(sku)
-            for (listener in purchaseErrorListeners) listener.onPurchaseError(refusal)
+            for (listener in purchaseErrorListeners) runCatching { listener.onPurchaseError(refusal) }
             throw refusal
         }
         trackedSku?.let(pendingRequestProductId::set)

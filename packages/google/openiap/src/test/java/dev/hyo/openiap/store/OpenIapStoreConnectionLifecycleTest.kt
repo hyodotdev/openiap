@@ -80,6 +80,8 @@ class OpenIapStoreConnectionLifecycleTest {
             var nativeRequests = 0
             module.onRequestPurchase = { nativeRequests++; null }
             val heard = mutableListOf<OpenIapError>()
+            // A listener that throws does not stop the others or replace the refusal.
+            store.addPurchaseErrorListener { if (it is OpenIapError.PurchaseInProgress) error("listener failure") }
             store.addPurchaseErrorListener { heard += it }
 
             val premium = RequestPurchaseProps.fromJson(mapOf(
