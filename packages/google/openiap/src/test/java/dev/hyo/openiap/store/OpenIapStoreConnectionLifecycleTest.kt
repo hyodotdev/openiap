@@ -77,9 +77,8 @@ class OpenIapStoreConnectionLifecycleTest {
             module.onRequestPurchase = { firstResult.await() }
             val first = async { store.requestPurchase(coins) }
             runCurrent()
-            module.onRequestPurchase = {
-                OpenIapError.PurchaseInProgress().also(module::emitError).let { throw it }
-            }
+            var nativeRequests = 0
+            module.onRequestPurchase = { nativeRequests++; null }
 
             val premium = RequestPurchaseProps.fromJson(mapOf(
                 "requestPurchase" to mapOf("google" to mapOf("skus" to listOf("premium"))),
@@ -87,6 +86,7 @@ class OpenIapStoreConnectionLifecycleTest {
             val refused = listOf(coins, premium, coins).map { runCatching { store.requestPurchase(it) } }
 
             assertTrue(refused.all { it.exceptionOrNull() is OpenIapError.PurchaseInProgress })
+            assertEquals("refused before native admission", 0, nativeRequests)
             assertEquals(setOf("coins"), store.status.value.loadings.purchasing)
             assertNull(store.status.value.lastError)
             module.emitError(OpenIapError.PurchaseFailed("The first purchase failed"))

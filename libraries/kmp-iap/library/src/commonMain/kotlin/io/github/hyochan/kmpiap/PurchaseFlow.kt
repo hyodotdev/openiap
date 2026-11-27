@@ -471,8 +471,8 @@ fun KmpIAP.createPurchaseFlow(
 
 /** The products passed to [KmpIAP.requestPurchase] whose purchase has not arrived yet. */
 internal class PurchaseRequests {
-    // When each live request asked for each product, oldest first. An atomic map: requests,
-    // deliveries, and errors arrive on different threads.
+    // When each live request asked for each product. An atomic map: requests, deliveries, and
+    // errors arrive on different threads, so a list may not be in time order.
     private val requestedAt = MutableStateFlow(emptyMap<String, List<Long>>())
     // Each request marks a distinct time, so an undo removes only its own mark.
     private val lastMarkedAt = MutableStateFlow(0L)
@@ -508,7 +508,7 @@ internal class PurchaseRequests {
         var matched = false
         requestedAt.update { marks ->
             // A receipt older than the request is the store redelivering an earlier purchase.
-            val bought = marks[purchase.productId]?.firstOrNull()
+            val bought = marks[purchase.productId]?.minOrNull()
                 ?.takeIf { purchase.transactionDate >= it - PURCHASE_REQUEST_CLOCK_SKEW_MS }
                 ?.let { purchase.productId }
             val changed = purchase.pendingPurchaseUpdate()?.products.orEmpty().filter { it in marks }

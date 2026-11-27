@@ -741,7 +741,7 @@ function isUserCancellation(error: { code?: unknown }) {
 }`}</CodeBlock>
             ),
             swift: (
-              <CodeBlock language="swift">{`enum OpenIapError: Error {
+              <CodeBlock language="swift">{`enum ErrorCode {
     case unknown
     case userCancelled
     case userError
@@ -864,44 +864,44 @@ function isUserCancellation(error: { code?: unknown }) {
 }`}</CodeBlock>
             ),
             dart: (
-              <CodeBlock language="dart">{`enum IAPError {
-  unknown,
-  userCancelled,
-  userError,
-  itemUnavailable,
-  remoteError,
-  networkError,
-  serviceError,
-  purchaseVerificationFailed,
-  purchaseVerificationFinished,
-  purchaseVerificationFinishFailed,
-  notPrepared,
-  notEnded,
-  alreadyOwned,
-  developerError,
-  billingResponseJsonParseError,
-  deferredPayment,
-  interrupted,
-  iapNotAvailable,
-  purchaseError,
-  syncError,
-  transactionValidationFailed,
-  activityUnavailable,
-  alreadyPrepared,
-  pending,
-  connectionClosed,
-  initConnection,
-  serviceDisconnected,
-  serviceTimeout,
-  queryProduct,
-  skuNotFound,
-  skuOfferMismatch,
-  itemNotOwned,
-  billingUnavailable,
-  featureNotSupported,
-  emptySkuList,
-  duplicatePurchase,
-  purchaseInProgress,
+              <CodeBlock language="dart">{`enum ErrorCode {
+  Unknown,
+  UserCancelled,
+  UserError,
+  ItemUnavailable,
+  RemoteError,
+  NetworkError,
+  ServiceError,
+  PurchaseVerificationFailed,
+  PurchaseVerificationFinished,
+  PurchaseVerificationFinishFailed,
+  NotPrepared,
+  NotEnded,
+  AlreadyOwned,
+  DeveloperError,
+  BillingResponseJsonParseError,
+  DeferredPayment,
+  Interrupted,
+  IapNotAvailable,
+  PurchaseError,
+  SyncError,
+  TransactionValidationFailed,
+  ActivityUnavailable,
+  AlreadyPrepared,
+  Pending,
+  ConnectionClosed,
+  InitConnection,
+  ServiceDisconnected,
+  ServiceTimeout,
+  QueryProduct,
+  SkuNotFound,
+  SkuOfferMismatch,
+  ItemNotOwned,
+  BillingUnavailable,
+  FeatureNotSupported,
+  EmptySkuList,
+  DuplicatePurchase,
+  PurchaseInProgress,
 }`}</CodeBlock>
             ),
             csharp: (
@@ -949,7 +949,7 @@ public enum ErrorCode
 }`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`enum OpenIapError {
+              <CodeBlock language="gdscript">{`enum ErrorCode {
     UNKNOWN,
     USER_CANCELLED,
     USER_ERROR,

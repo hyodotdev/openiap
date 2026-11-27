@@ -1007,8 +1007,10 @@ function Releases() {
                   and on the call.
                 </li>
                 <li>
-                  <code>OpenIapStore</code> keeps the first purchase&apos;s
-                  purchasing flag and records no error for the refusal.
+                  <code>OpenIapStore</code> refuses a second request itself with{' '}
+                  <code>PurchaseInProgress</code>, keeps the first
+                  purchase&apos;s purchasing flag, and records no error for the
+                  refusal.
                 </li>
                 <li>
                   A prepaid plan Play completes with no cached product and no

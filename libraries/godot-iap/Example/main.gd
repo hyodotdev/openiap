@@ -283,14 +283,19 @@ func _switch_billing_program(program: Types.BillingProgramAndroid) -> void:
 	billing_program_picker.select(billing_program_picker.get_item_index(billing_program))
 	billing_buy_button.disabled = not IapManager.store_connected
 	# Closing the panel while the switch ran still returns to standard billing.
-	if program != Types.BillingProgramAndroid.UNSPECIFIED and billing_program == program and not billing_panel.visible:
+	if program != Types.BillingProgramAndroid.UNSPECIFIED:
+		await _restore_standard_billing_if_closed()
+
+
+# Play refuses to reconnect while a purchase runs, so each purchase outcome retries the restore.
+func _restore_standard_billing_if_closed() -> void:
+	if billing_panel and not billing_panel.visible and billing_program != Types.BillingProgramAndroid.UNSPECIFIED:
 		await _switch_billing_program(Types.BillingProgramAndroid.UNSPECIFIED)
 
 
 func _on_billing_close_pressed() -> void:
 	_set_panel_visible(billing_panel, false)
-	if billing_program != Types.BillingProgramAndroid.UNSPECIFIED:
-		await _switch_billing_program(Types.BillingProgramAndroid.UNSPECIFIED)
+	await _restore_standard_billing_if_closed()
 
 
 func _on_billing_buy_pressed() -> void:
@@ -349,6 +354,7 @@ func _on_verification_result(message: String, ok: bool) -> void:
 	status_label.text = ("✅ " if ok else "❌ ") + message
 	if billing_result_label:
 		billing_result_label.text = status_label.text
+	_restore_standard_billing_if_closed()
 	print("[Main] %s" % message)
 
 
@@ -506,6 +512,7 @@ func _on_purchase_completed(product_id: String) -> void:
 
 func _on_purchase_failed(_product_id: String, error: String) -> void:
 	_show_store_status("Purchase failed\n%s" % error)
+	_restore_standard_billing_if_closed()
 
 
 func _on_products_loaded() -> void:

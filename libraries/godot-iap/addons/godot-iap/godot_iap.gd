@@ -1671,6 +1671,8 @@ func _mark_requested(skus: Array) -> Callable:
 	_last_marked_at = now
 	var marked := {}
 	for sku in skus:
+		if marked.has(sku):
+			continue
 		marked[sku] = true
 		var live: Array = _requested_skus.get(sku, [])
 		live.append(now)

@@ -434,9 +434,10 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @see <a href="https://openiap.dev/docs/apis/request-purchase">request-purchase</a>
      */
     val requestPurchase: MutationRequestPurchaseHandler = { props ->
-        // The store refuses a purchase while another is in flight, so that request leaves the
-        // first one's flag and pending sku alone.
-        val trackedSku = OpenIapStorePurchaseRequestResolver.sku(props)?.takeIf(::claimPurchasing)
+        // Refused here, before native admission, so the purchase in flight keeps its flag and pending sku.
+        val sku = OpenIapStorePurchaseRequestResolver.sku(props)
+        val trackedSku = sku?.takeIf(::claimPurchasing)
+        if (sku != null && trackedSku == null) throw OpenIapError.PurchaseInProgress()
         trackedSku?.let(pendingRequestProductId::set)
 
         try {

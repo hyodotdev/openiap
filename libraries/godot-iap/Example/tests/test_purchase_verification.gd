@@ -293,6 +293,18 @@ func _test_alternative_billing(manager: Node, android: RecordingAndroidPlugin) -
 	# A switch that finishes after the panel closed returns to standard billing too.
 	await scene._on_billing_program_selected(picker.get_item_index(Types.BillingProgramAndroid.EXTERNAL_OFFER))
 	_check(JSON.parse_string(android.configs.back()).enableBillingProgramAndroid == "unspecified" and scene.billing_program == Types.BillingProgramAndroid.UNSPECIFIED, "A switch that ends after closing returns to standard billing")
+	# Play refuses the restore while a purchase runs; the purchase's outcome retries it.
+	scene._set_panel_visible(scene.billing_panel, true)
+	await scene._on_billing_program_selected(picker.get_item_index(Types.BillingProgramAndroid.EXTERNAL_OFFER))
+	android.connects = false
+	android.init_error = JSON.stringify({"connected": true, "code": "developer-error", "message": "A purchase is in progress"})
+	await scene._on_billing_close_pressed()
+	_check(scene.billing_program == Types.BillingProgramAndroid.EXTERNAL_OFFER, "A restore refused during a purchase keeps the program")
+	android.connects = true
+	android.init_error = "{}"
+	manager.purchase_failed.emit("", "Code: user-cancelled")
+	await process_frame
+	_check(scene.billing_program == Types.BillingProgramAndroid.UNSPECIFIED, "The purchase's outcome returns to standard billing")
 	scene.queue_free()
 	await process_frame
 	manager.store_connected = previous_connection
