@@ -17,8 +17,6 @@ internal static class PurchaseRequests
 
     // When each live request asked for each SKU, oldest first.
     private static readonly Dictionary<string, List<double>> Requested = new(StringComparer.Ordinal);
-    // Each request marks a distinct time, so an undo removes only its own mark.
-    private static double lastMarkedAt;
 
     /// <summary>Marks the request's SKUs, a plan change's target included; a failed request undoes only its own marks.</summary>
     public static async Task<T> Track<T>(RequestPurchaseProps request, Func<Task<T>> send)
@@ -34,8 +32,9 @@ internal static class PurchaseRequests
         double now;
         lock (Requested)
         {
-            now = Math.Max(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), lastMarkedAt + 1);
-            lastMarkedAt = now;
+            // Distinct among the marks it joins, so the undo removes only its own.
+            now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            while (marked.Any(sku => Requested.TryGetValue(sku, out var live) && live.Contains(now))) now++;
             foreach (var sku in marked)
             {
                 if (!Requested.TryGetValue(sku, out var live)) Requested[sku] = live = [];

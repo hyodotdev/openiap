@@ -1042,15 +1042,16 @@ function Releases() {
               <code>DUPLICATE_PURCHASE_CODE</code> are deprecated.
             </li>
             <li>
-              <strong>expo-iap 6.7.0</strong>: on Android, each request settles
-              its own promise only, so a refused double tap never settles the
-              promise of the purchase still in flight.
+              <strong>expo-iap 6.7.0</strong>: on Android, a refused double tap
+              rejects only its own promise and never settles the promise of the
+              purchase still in flight.
             </li>
             <li>
               <strong>flutter_inapp_purchase 11.6.0 and kmp-iap 4.5.0</strong>:
-              the Android error-code utilities map{' '}
-              <code>PurchaseInProgress</code> to and from{' '}
-              <code>E_PURCHASE_IN_PROGRESS</code>.
+              the Android error-code utilities read{' '}
+              <code>E_PURCHASE_IN_PROGRESS</code> as{' '}
+              <code>PurchaseInProgress</code>. Flutter writes it back with the{' '}
+              <code>E_</code> prefix and KMP without it.
             </li>
             <li>
               <strong>godot-iap 4.6.0</strong>: the example changes a Google
@@ -1064,8 +1065,11 @@ function Releases() {
               match <code>purchase-in-progress</code>.
             </li>
             <li>
-              On Amazon, the refused <code>requestPurchase</code> now fails
-              instead of returning no purchases; catch it as on Google Play.
+              On Amazon, openiap-google&apos;s <code>requestPurchase</code> now
+              throws the refusal instead of returning no purchases, as it does
+              on Google Play. expo-iap, flutter_inapp_purchase, kmp-iap, and
+              OpenIap.Maui pass that on; react-native-iap and godot-iap report
+              it on the purchase error listener only.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>

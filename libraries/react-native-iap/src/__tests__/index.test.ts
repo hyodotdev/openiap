@@ -487,6 +487,72 @@ describe('Public API (src/index.ts)', () => {
       flow.dispose();
     });
 
+    it('forgets a request Android refuses, which resolves there', async () => {
+      Object.assign(Platform, {OS: 'android'});
+      const flow = IAP.createPurchaseFlow({
+        confirmWithBackend: async () => ({status: 'invalid' as const}),
+        isConsumable: () => false,
+      });
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome: {status: unknown}) =>
+        statuses.push(outcome.status),
+      );
+      const request = {
+        request: {google: {skus: ['fresh']}},
+        type: 'in-app',
+      } as const;
+
+      await IAP.requestPurchase(request);
+      mockIap.requestPurchase.mockRejectedValueOnce(
+        Object.assign(new Error('Another purchase is already in progress'), {
+          code: 'purchase-in-progress',
+        }),
+      );
+      await expect(IAP.requestPurchase(request)).resolves.toEqual([]);
+      deliver({...nitroPurchase('fresh'), transactionDate: Date.now()});
+      await settle();
+      // Nobody asked for the next delivery: the refused request left no mark.
+      deliver({
+        ...nitroPurchase('fresh', 'tx-later'),
+        transactionDate: Date.now(),
+      });
+      await settle();
+
+      expect(statuses).toEqual([
+        {status: 'invalid'},
+        {status: 'invalid', recovered: true},
+      ]);
+      flow.dispose();
+    });
+
+    it('stamps a request with the clock again after the clock moves back', async () => {
+      const realNow = Date.now();
+      const now = jest.spyOn(Date, 'now').mockReturnValue(realNow + 3_600_000);
+      const flow = IAP.createPurchaseFlow({
+        confirmWithBackend: async () => ({status: 'invalid' as const}),
+        isConsumable: () => false,
+      });
+      const statuses: unknown[] = [];
+      flow.subscribe((outcome: {status: unknown}) =>
+        statuses.push(outcome.status),
+      );
+      const request = {
+        request: {apple: {sku: 'fresh'}},
+        type: 'in-app',
+      } as const;
+
+      mockIap.requestPurchase.mockRejectedValueOnce(new Error('network'));
+      await expect(IAP.requestPurchase(request)).rejects.toBeDefined();
+      now.mockReturnValue(realNow);
+      await IAP.requestPurchase(request);
+      deliver({...nitroPurchase('fresh'), transactionDate: realNow});
+      await settle();
+
+      expect(statuses).toEqual([{status: 'invalid'}]);
+      now.mockRestore();
+      flow.dispose();
+    });
+
     it('keeps a later request marked when an earlier one fails in the same millisecond', async () => {
       const now = jest.spyOn(Date, 'now').mockReturnValue(Date.now());
       const flow = IAP.createPurchaseFlow({

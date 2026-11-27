@@ -37,7 +37,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -474,8 +473,6 @@ internal class PurchaseRequests {
     // When each live request asked for each product. An atomic map: requests, deliveries, and
     // errors arrive on different threads, so a list may not be in time order.
     private val requestedAt = MutableStateFlow(emptyMap<String, List<Long>>())
-    // Each request marks a distinct time, so an undo removes only its own mark.
-    private val lastMarkedAt = MutableStateFlow(0L)
 
     /** Marks what [params] asks for; the undo removes only this request's marks, as a refused double tap must. */
     fun mark(params: RequestPurchaseProps): () -> Unit {
@@ -486,10 +483,14 @@ internal class PurchaseRequests {
             is RequestPurchaseProps.Request.Subscription ->
                 listOfNotNull(request.value.apple?.sku) + request.value.google?.skus.orEmpty()
         }
-        val clock = Clock.System.now().toEpochMilliseconds()
-        val now = lastMarkedAt.updateAndGet { maxOf(clock, it + 1) }
         val marked = requested.toSet()
-        requestedAt.update { marks -> marks + marked.associateWith { marks[it].orEmpty() + now } }
+        // Distinct among the marks it joins, so the undo removes only its own.
+        var now = 0L
+        requestedAt.update { marks ->
+            now = Clock.System.now().toEpochMilliseconds()
+            while (marked.any { now in marks[it].orEmpty() }) now += 1
+            marks + marked.associateWith { marks[it].orEmpty() + now }
+        }
         return {
             requestedAt.update { marks ->
                 marked.fold(marks) { acc, productId ->

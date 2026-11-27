@@ -11,14 +11,13 @@ import {ErrorCode, type Purchase} from '../types';
 // When each live request asked for each SKU, oldest first, so the flow can
 // tell the user's own purchase from one the store redelivers.
 const requested = new Map<string, number[]>();
-// Distinct per request, so an undo removes only its own mark.
-let lastMarkedAt = 0;
 
 // Returns the undo for a request that fails, which keeps other requests' marks.
 export function markRequested(skus: (string | null | undefined)[]): () => void {
-  const now = Math.max(Date.now(), lastMarkedAt + 1);
-  lastMarkedAt = now;
   const marked = new Set(skus.filter((sku): sku is string => !!sku));
+  // Distinct among the marks it joins, so the undo removes only its own.
+  let now = Date.now();
+  while ([...marked].some((sku) => requested.get(sku)?.includes(now))) now += 1;
   for (const sku of marked) {
     requested.set(sku, [...(requested.get(sku) ?? []), now]);
   }

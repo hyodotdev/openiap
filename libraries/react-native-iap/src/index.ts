@@ -1848,6 +1848,13 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
     return await IAP.instance.requestPurchase(unifiedRequest);
   } catch (error) {
     unmark?.();
+    // Android reports a refused double tap on purchaseErrorListener only.
+    if (
+      Platform.OS === 'android' &&
+      normalizePurchaseError(error).code === ErrorCode.PurchaseInProgress
+    ) {
+      return [];
+    }
     const parsedError = parseErrorAndLogIfNeeded(
       'Failed to request purchase:',
       error,

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
-import 'dart:math' show max;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -125,15 +124,16 @@ class _SharedNativeState {
   /// purchase or a purchase error other than a refused double tap, so a flow
   /// can tell the user's own purchase from a redelivery.
   final requestedProductIds = <String, List<int>>{};
-  // Each request marks a distinct time, so an undo removes only its own mark.
-  int _lastMarkedAt = 0;
 
   /// Marks [productIds] and returns an undo for a request that fails to start,
   /// which leaves the marks of other requests alone.
   void Function() markRequested(Iterable<String> productIds) {
-    final now = max(DateTime.now().millisecondsSinceEpoch, _lastMarkedAt + 1);
-    _lastMarkedAt = now;
     final marked = productIds.toSet();
+    // Distinct among the marks it joins, so the undo removes only its own.
+    var now = DateTime.now().millisecondsSinceEpoch;
+    while (marked.any((id) => requestedProductIds[id]?.contains(now) ?? false)) {
+      now += 1;
+    }
     for (final productId in marked) {
       (requestedProductIds[productId] ??= []).add(now);
     }

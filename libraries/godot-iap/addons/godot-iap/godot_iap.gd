@@ -128,8 +128,6 @@ var _shell_open: Callable = Callable(OS, "shell_open")
 # When each live request_purchase got each SKU, oldest first, so the flow can tell the user's
 # purchase from a redelivery.
 var _requested_skus := {}
-# Each request marks a distinct time, so an undo removes only its own mark.
-var _last_marked_at := 0.0
 # Undos of the Android requests still marked, oldest first: Android refuses a double tap after the
 # call returned pending.
 var _request_unmarks: Array[Callable] = []
@@ -1689,13 +1687,14 @@ func _forget_requests_on_error(error: Dictionary) -> void:
 
 # Returns the undo for a request that fails, which removes only this request's marks.
 func _mark_requested(skus: Array) -> Callable:
-	var now := maxf(Time.get_unix_time_from_system() * 1000.0, _last_marked_at + 1.0)
-	_last_marked_at = now
 	var marked := {}
 	for sku in skus:
-		if marked.has(sku):
-			continue
 		marked[sku] = true
+	# Distinct among the marks it joins, so the undo removes only its own.
+	var now := Time.get_unix_time_from_system() * 1000.0
+	while marked.keys().any(func(sku) -> bool: return _requested_skus.get(sku, []).has(now)):
+		now += 1.0
+	for sku in marked:
 		var live: Array = _requested_skus.get(sku, [])
 		live.append(now)
 		_requested_skus[sku] = live

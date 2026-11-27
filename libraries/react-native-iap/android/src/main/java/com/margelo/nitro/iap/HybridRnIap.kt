@@ -859,6 +859,8 @@ class HybridRnIap : HybridRnIapSpec() {
                 if (!reachedOpenIapRequest) {
                     sendPurchaseError(toErrorResult(error = e, debugMessage = e.message))
                 }
+                // Tells requestPurchase in JS to forget this request; it still resolves there.
+                if (e is OpenIapError.PurchaseInProgress) throw OpenIapException(toPurchaseError(e), e)
                 defaultResult
             } catch (e: Exception) {
                 RnIapLog.failure("requestPurchase", e)
