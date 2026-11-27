@@ -434,23 +434,19 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @see <a href="https://openiap.dev/docs/apis/request-purchase">request-purchase</a>
      */
     val requestPurchase: MutationRequestPurchaseHandler = { props ->
-        val skuForStatus = OpenIapStorePurchaseRequestResolver.sku(props)
-        // A refused double tap leaves the purchase in flight its flag and pending sku.
-        val markedSku = skuForStatus?.takeIf { it !in status.value.loadings.purchasing }
-        val previousPending = skuForStatus?.let { pendingRequestProductId.getAndSet(it) }
-        markedSku?.let(::addPurchasing)
+        // The store refuses a purchase while another is in flight, so that request leaves the
+        // first one's flag and pending sku alone.
+        val trackedSku = OpenIapStorePurchaseRequestResolver.sku(props)?.takeIf(::claimPurchasing)
+        trackedSku?.let(pendingRequestProductId::set)
 
         try {
             module.requestPurchase(props).also { result ->
                 if (result is RequestPurchaseResultPurchases && result.value?.isEmpty() == true) {
-                    pendingRequestProductId.compareAndSet(skuForStatus, null)
+                    pendingRequestProductId.compareAndSet(trackedSku, null)
                 }
             }
-        } catch (error: OpenIapError.PurchaseInProgress) {
-            pendingRequestProductId.compareAndSet(skuForStatus, previousPending)
-            throw error
         } finally {
-            markedSku?.let(::removePurchasing)
+            trackedSku?.let(::removePurchasing)
         }
     }
 
@@ -714,8 +710,14 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         _status.update { it.copy(lastPurchaseResult = null) }
     }
 
-    private fun addPurchasing(productId: String) = setLoading {
-        it.purchasing = it.purchasing + productId
+    /** Flags [productId] as purchasing unless another purchase is already in flight. */
+    private fun claimPurchasing(productId: String): Boolean {
+        var claimed = false
+        setLoading {
+            claimed = it.purchasing.isEmpty()
+            if (claimed) it.purchasing = it.purchasing + productId
+        }
+        return claimed
     }
 
     private fun removePurchasing(productId: String) = setLoading {

@@ -1040,9 +1040,15 @@ function Releases() {
               <code>DUPLICATE_PURCHASE_CODE</code> are deprecated.
             </li>
             <li>
-              <strong>expo-iap 6.7.0</strong>: on Android, a failed request,
-              such as a refused double tap, rejects its own promise only, not
-              the promise of a purchase still in flight.
+              <strong>expo-iap 6.7.0</strong>: on Android, each request settles
+              its own promise only, so a refused double tap never settles the
+              promise of the purchase still in flight.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 11.6.0 and kmp-iap 4.5.0</strong>:
+              the Android error-code utilities map{' '}
+              <code>PurchaseInProgress</code> to and from{' '}
+              <code>E_PURCHASE_IN_PROGRESS</code>.
             </li>
             <li>
               <strong>godot-iap 4.6.0</strong>: the example changes a Google

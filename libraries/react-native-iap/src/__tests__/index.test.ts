@@ -524,6 +524,50 @@ describe('Public API (src/index.ts)', () => {
       flow.dispose();
     });
 
+    it.each([
+      ['the earlier', 0],
+      ['the later', 1],
+    ])(
+      'forgets both requests when %s of two overlapping ones fails first',
+      async (_, firstToFail) => {
+        const flow = IAP.createPurchaseFlow({
+          confirmWithBackend: async () => ({status: 'invalid' as const}),
+          isConsumable: () => false,
+        });
+        const statuses: unknown[] = [];
+        flow.subscribe((outcome: {status: unknown}) =>
+          statuses.push(outcome.status),
+        );
+        const fail: ((error: Error) => void)[] = [];
+        const failable = () =>
+          new Promise((_, reject) => {
+            fail.push(reject);
+          });
+        mockIap.requestPurchase
+          .mockImplementationOnce(failable)
+          .mockImplementationOnce(failable);
+        const request = {
+          request: {apple: {sku: 'fresh'}},
+          type: 'in-app',
+        } as const;
+
+        const calls = [
+          IAP.requestPurchase(request),
+          IAP.requestPurchase(request),
+        ];
+        await settle();
+        for (const index of [firstToFail, 1 - firstToFail]) {
+          fail[index]!(new Error('network'));
+          await expect(calls[index]).rejects.toBeDefined();
+        }
+        deliver({...nitroPurchase('fresh'), transactionDate: Date.now()});
+        await settle();
+
+        expect(statuses).toEqual([{status: 'invalid', recovered: true}]);
+        flow.dispose();
+      },
+    );
+
     it('forgets a request the store answered with an error', async () => {
       const flow = IAP.createPurchaseFlow({
         confirmWithBackend: async () => ({status: 'invalid' as const}),

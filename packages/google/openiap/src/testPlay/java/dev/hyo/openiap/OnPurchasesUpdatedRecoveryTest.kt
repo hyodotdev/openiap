@@ -832,6 +832,27 @@ class OnPurchasesUpdatedRecoveryTest {
     }
 
     @Test
+    fun `a later purchase update waits for an earlier one still typing its purchase`() {
+        val pending = billingPurchase("prepaid-sub", "prepaid-token", pending = true)
+        val purchased = billingPurchase("prepaid-sub", "prepaid-token")
+        val client = RecordingBillingClient(ownedPurchases = listOf(purchased))
+        val module = module()
+        setBillingClient(module, client)
+        val updates = mutableListOf<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+
+        client.answersQueryPurchases = false
+        module.onPurchasesUpdated(billingResult(BillingClient.BillingResponseCode.OK), listOf(pending))
+        client.answersQueryPurchases = true
+        module.onPurchasesUpdated(billingResult(BillingClient.BillingResponseCode.OK), listOf(purchased))
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue("the purchased update waits behind the pending one: $updates", updates.isEmpty())
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(5))
+
+        assertEquals(listOf(PurchaseState.Pending, PurchaseState.Purchased), updates.map { it.purchaseState })
+    }
+
+    @Test
     fun `an uncached purchase stays one-time when Play cannot list subscriptions`() {
         val prepaid = billingPurchase("prepaid-sub", "prepaid-token")
         val client = RecordingBillingClient(

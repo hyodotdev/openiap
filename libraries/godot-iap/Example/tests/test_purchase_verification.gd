@@ -174,6 +174,15 @@ func _test_plan_change(plugin: Node, manager: Node, android: RecordingAndroidPlu
 	var previous_connection: bool = manager.store_connected
 	manager.store_connected = true
 	android.responses["requestPurchase"] = JSON.stringify({"status": "pending"})
+	var previous_products: Dictionary = manager.products
+	_own_subscription(android, manager.PRODUCT_PREMIUM)
+	await manager.refresh_subscriptions()
+	manager.products = {}
+	android.calls.clear()
+	manager.purchase_premium_year()
+	_check(not android.calls.has("requestPurchase"), "A plan change waits for the new plan's offers")
+	var renewing := {"subscriptionOffers": [{"offerToken": "renewing-offer", "pricingPhases": {"pricingPhaseList": [{"recurrenceMode": 1}]}}]}
+	manager.products = {manager.PRODUCT_PREMIUM: renewing, manager.PRODUCT_PREMIUM_YEAR: renewing}
 	var params: Dictionary
 	for change in [
 		[manager.PRODUCT_PREMIUM, manager.PRODUCT_PREMIUM_YEAR, "with-time-proration"],
@@ -199,7 +208,6 @@ func _test_plan_change(plugin: Node, manager: Node, android: RecordingAndroidPlu
 	params = JSON.parse_string(android.last_args[0])
 	_check(not params.has("subscriptionProductReplacementParams") and not params.has("purchaseToken"), "Without an owned plan the subscription is a new purchase")
 
-	var previous_products: Dictionary = manager.products
 	manager.products = {manager.PRODUCT_PREMIUM_YEAR: {"subscriptionOffers": [{"offerToken": "prepaid-offer", "pricingPhases": {"pricingPhaseList": [{"recurrenceMode": 3}]}}]}}
 	_own_subscription(android, manager.PRODUCT_PREMIUM)
 	await manager.refresh_subscriptions()
@@ -282,6 +290,9 @@ func _test_alternative_billing(manager: Node, android: RecordingAndroidPlugin) -
 	await scene._on_billing_close_pressed()
 	_check(JSON.parse_string(android.configs.back()).enableBillingProgramAndroid == "unspecified" and not android.calls.has("endConnection"), "Closing returns to standard billing without ending the connection")
 	_check(not scene.billing_panel.visible and not scene.overlay.visible and scene.billing_program == Types.BillingProgramAndroid.UNSPECIFIED, "Closing hides the panel")
+	# A switch that finishes after the panel closed returns to standard billing too.
+	await scene._on_billing_program_selected(picker.get_item_index(Types.BillingProgramAndroid.EXTERNAL_OFFER))
+	_check(JSON.parse_string(android.configs.back()).enableBillingProgramAndroid == "unspecified" and scene.billing_program == Types.BillingProgramAndroid.UNSPECIFIED, "A switch that ends after closing returns to standard billing")
 	scene.queue_free()
 	await process_frame
 	manager.store_connected = previous_connection

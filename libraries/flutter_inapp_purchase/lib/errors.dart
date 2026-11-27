@@ -98,6 +98,7 @@ class ErrorCodeMapping {
     ErrorCode.ItemNotOwned: 'E_ITEM_NOT_OWNED',
     ErrorCode.FeatureNotSupported: 'E_FEATURE_NOT_SUPPORTED',
     ErrorCode.EmptySkuList: 'E_EMPTY_SKU_LIST',
+    ErrorCode.PurchaseInProgress: 'E_PURCHASE_IN_PROGRESS',
     // Purchase verification codes
     ErrorCode.PurchaseVerificationFailed: 'E_PURCHASE_VERIFICATION_FAILED',
     ErrorCode.PurchaseVerificationFinished: 'E_PURCHASE_VERIFICATION_FINISHED',

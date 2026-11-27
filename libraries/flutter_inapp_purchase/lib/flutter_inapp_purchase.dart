@@ -121,37 +121,36 @@ class _SharedNativeState {
   /// Serializes initConnection and endConnection on the one native connection.
   final connectionChanges = _SerialTasks();
 
-  /// When the app asked for each product, until its purchase or a purchase
-  /// error other than a refused double tap, so a flow can tell the user's own
-  /// purchase from a redelivery.
-  final requestedProductIds = <String, int>{};
-  // Each request marks a distinct time, so an undo never takes another's mark.
+  /// When each live request asked for each product, oldest first, until its
+  /// purchase or a purchase error other than a refused double tap, so a flow
+  /// can tell the user's own purchase from a redelivery.
+  final requestedProductIds = <String, List<int>>{};
+  // Each request marks a distinct time, so an undo removes only its own mark.
   int _lastMarkedAt = 0;
 
   /// Marks [productIds] and returns an undo for a request that fails to start,
-  /// which leaves the marks of a purchase still in flight alone.
+  /// which leaves the marks of other requests alone.
   void Function() markRequested(Iterable<String> productIds) {
     final now = max(DateTime.now().millisecondsSinceEpoch, _lastMarkedAt + 1);
     _lastMarkedAt = now;
-    final previous = <String, int?>{};
-    for (final productId in productIds) {
-      previous.putIfAbsent(productId, () => requestedProductIds[productId]);
-      requestedProductIds[productId] = now;
+    final marked = productIds.toSet();
+    for (final productId in marked) {
+      (requestedProductIds[productId] ??= []).add(now);
     }
-    return () => previous.forEach((productId, askedAt) {
-          if (requestedProductIds[productId] != now) return;
-          if (askedAt == null) {
-            requestedProductIds.remove(productId);
-          } else {
-            requestedProductIds[productId] = askedAt;
-          }
-        });
+    return () {
+      for (final productId in marked) {
+        final live = requestedProductIds[productId]?..remove(now);
+        if (live != null && live.isEmpty) {
+          requestedProductIds.remove(productId);
+        }
+      }
+    };
   }
 
   /// Whether the app asked for [purchase]: bought after the request, or a
   /// plan change to what it asked for. Clears the mark.
   bool wasRequested(gentype.Purchase purchase) {
-    final askedAt = requestedProductIds[purchase.productId];
+    final askedAt = requestedProductIds[purchase.productId]?.first;
     final bought = askedAt != null &&
         purchase.transactionDate >= askedAt - _purchaseRequestClockSkewMs;
     if (bought) requestedProductIds.remove(purchase.productId);

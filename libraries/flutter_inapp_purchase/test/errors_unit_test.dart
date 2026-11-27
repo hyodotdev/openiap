@@ -96,6 +96,21 @@ void main() {
       expect(androidValue, 'E_NETWORK_ERROR');
     });
 
+    test('maps a refused double tap on Android both ways', () {
+      final androidValue = errors.ErrorCodeUtils.toPlatformCode(
+        types.ErrorCode.PurchaseInProgress,
+        types.IapPlatform.Android,
+      );
+      expect(androidValue, 'E_PURCHASE_IN_PROGRESS');
+      expect(
+        errors.ErrorCodeUtils.fromPlatformCode(
+          androidValue,
+          types.IapPlatform.Android,
+        ),
+        types.ErrorCode.PurchaseInProgress,
+      );
+    });
+
     test('isValidForPlatform validates error codes', () {
       expect(
         errors.ErrorCodeUtils.isValidForPlatform(

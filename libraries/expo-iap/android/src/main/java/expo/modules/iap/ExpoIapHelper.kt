@@ -279,11 +279,11 @@ object ExpoIapHelper {
         PromiseUtils.addPromiseForKey(PromiseUtils.PROMISE_BUY_ITEM, promise)
     }
 
-    fun resolvePurchasePromises(purchases: List<Map<String, Any?>>) {
-        PromiseUtils.resolvePromisesForKey(
-            PromiseUtils.PROMISE_BUY_ITEM,
-            purchases,
-        )
+    fun resolvePurchasePromise(
+        promise: Promise,
+        purchases: List<Map<String, Any?>>,
+    ) {
+        PromiseUtils.resolvePromiseForKey(PromiseUtils.PROMISE_BUY_ITEM, promise, purchases)
     }
 
     fun rejectPurchasePromise(

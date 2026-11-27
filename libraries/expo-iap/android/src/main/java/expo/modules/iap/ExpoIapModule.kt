@@ -448,7 +448,7 @@ class ExpoIapModule : Module() {
                             "requestPurchase",
                             purchases.map { it.toJson() },
                         )
-                        ExpoIapHelper.resolvePurchasePromises(purchases.map { it.toJson() })
+                        ExpoIapHelper.resolvePurchasePromise(promise, purchases.map { it.toJson() })
                     } catch (e: Exception) {
                         ExpoIapLog.failure("requestPurchase", e)
                         val errorMap =

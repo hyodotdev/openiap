@@ -109,19 +109,45 @@ class PurchaseFlowBindingTest {
         runCurrent()
         assertTrue(runCatching { iap.requestPurchase(premiumRequest()) }.isFailure)
 
-        val bought = io.github.hyochan.kmpiap.openiap.PurchaseAndroid(
-            id = "in-flight",
-            isAutoRenewing = false,
-            productId = "premium",
-            purchaseState = io.github.hyochan.kmpiap.openiap.PurchaseState.Purchased,
-            quantity = 1,
-            store = io.github.hyochan.kmpiap.openiap.IapStore.Horizon,
-            storeId = "horizon",
-            transactionDate = System.currentTimeMillis().toDouble(),
-        )
-        assertTrue(iap.purchaseRequests.wasRequested(bought))
+        assertTrue(iap.purchaseRequests.wasRequested(premiumPurchase()))
         flow.dispose()
     }
+
+    @Test
+    fun `two overlapping requests that fail leave no mark, in either order`() {
+        for (earlierFailsFirst in listOf(true, false)) {
+            val requests = PurchaseRequests()
+            val undoEarlier = requests.mark(premiumRequest())
+            val undoLater = requests.mark(premiumRequest())
+            if (earlierFailsFirst) {
+                undoEarlier()
+                undoLater()
+            } else {
+                undoLater()
+                undoEarlier()
+            }
+            assertFalse(requests.wasRequested(premiumPurchase()), "earlierFailsFirst=$earlierFailsFirst")
+        }
+    }
+
+    @Test
+    fun `a failed request keeps an overlapping live request marked`() {
+        val requests = PurchaseRequests()
+        requests.mark(premiumRequest())
+        requests.mark(premiumRequest())()
+        assertTrue(requests.wasRequested(premiumPurchase()))
+    }
+
+    private fun premiumPurchase() = io.github.hyochan.kmpiap.openiap.PurchaseAndroid(
+        id = "in-flight",
+        isAutoRenewing = false,
+        productId = "premium",
+        purchaseState = io.github.hyochan.kmpiap.openiap.PurchaseState.Purchased,
+        quantity = 1,
+        store = io.github.hyochan.kmpiap.openiap.IapStore.Horizon,
+        storeId = "horizon",
+        transactionDate = System.currentTimeMillis().toDouble(),
+    )
 
     private fun premiumRequest() = RequestPurchaseProps(
         request = RequestPurchaseProps.Request.Purchase(

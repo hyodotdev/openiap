@@ -81,10 +81,13 @@ class OpenIapStoreConnectionLifecycleTest {
                 OpenIapError.PurchaseInProgress().also(module::emitError).let { throw it }
             }
 
-            val second = runCatching { store.requestPurchase(coins) }
+            val premium = RequestPurchaseProps.fromJson(mapOf(
+                "requestPurchase" to mapOf("google" to mapOf("skus" to listOf("premium"))),
+            ))
+            val refused = listOf(coins, premium, coins).map { runCatching { store.requestPurchase(it) } }
 
-            assertTrue(second.exceptionOrNull() is OpenIapError.PurchaseInProgress)
-            assertTrue(store.status.value.loadings.purchasing.contains("coins"))
+            assertTrue(refused.all { it.exceptionOrNull() is OpenIapError.PurchaseInProgress })
+            assertEquals(setOf("coins"), store.status.value.loadings.purchasing)
             assertNull(store.status.value.lastError)
             module.emitError(OpenIapError.PurchaseFailed("The first purchase failed"))
             assertEquals("coins", store.status.value.lastPurchaseResult?.productId)

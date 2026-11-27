@@ -782,7 +782,7 @@ function isUserCancellation(error: { code?: unknown }) {
 }`}</CodeBlock>
             ),
             kotlin: (
-              <CodeBlock language="kotlin">{`enum class OpenIapError {
+              <CodeBlock language="kotlin">{`enum class ErrorCode {
     Unknown,
     UserCancelled,
     UserError,
@@ -823,7 +823,7 @@ function isUserCancellation(error: { code?: unknown }) {
 }`}</CodeBlock>
             ),
             kmp: (
-              <CodeBlock language="kotlin">{`enum class OpenIapError {
+              <CodeBlock language="kotlin">{`enum class ErrorCode {
     Unknown,
     UserCancelled,
     UserError,

@@ -282,6 +282,9 @@ func _switch_billing_program(program: Types.BillingProgramAndroid) -> void:
 		billing_result_label.text = "Reconnecting failed; %s stays." % BILLING_PROGRAMS[billing_program]
 	billing_program_picker.select(billing_program_picker.get_item_index(billing_program))
 	billing_buy_button.disabled = not IapManager.store_connected
+	# Closing the panel while the switch ran still returns to standard billing.
+	if program != Types.BillingProgramAndroid.UNSPECIFIED and billing_program == program and not billing_panel.visible:
+		await _switch_billing_program(Types.BillingProgramAndroid.UNSPECIFIED)
 
 
 func _on_billing_close_pressed() -> void:

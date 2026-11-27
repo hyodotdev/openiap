@@ -82,6 +82,7 @@ object ErrorCodeUtils {
         alias("E_BILLING_UNAVAILABLE", "BILLING_UNAVAILABLE", target = ErrorCode.BillingUnavailable)
         alias("E_FEATURE_NOT_SUPPORTED", "FEATURE_NOT_SUPPORTED", target = ErrorCode.FeatureNotSupported)
         alias("E_EMPTY_SKU_LIST", "EMPTY_SKU_LIST", target = ErrorCode.EmptySkuList)
+        alias("E_PURCHASE_IN_PROGRESS", "PURCHASE_IN_PROGRESS", target = ErrorCode.PurchaseInProgress)
         alias("E_PURCHASE_VERIFICATION_FAILED", "PURCHASE_VERIFICATION_FAILED", target = ErrorCode.PurchaseVerificationFailed)
         alias("E_PURCHASE_VERIFICATION_FINISHED", "PURCHASE_VERIFICATION_FINISHED", target = ErrorCode.PurchaseVerificationFinished)
         alias("E_PURCHASE_VERIFICATION_FINISH_FAILED", "PURCHASE_VERIFICATION_FINISH_FAILED", target = ErrorCode.PurchaseVerificationFinishFailed)

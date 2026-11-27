@@ -339,6 +339,8 @@ class OpenIapModule(
     // Deduplicate callbacks across reconnects for this module's lifetime.
     private val handledUserChoiceTokens = mutableSetOf<String>()
     private val purchaseDeliveryClaims = PurchaseDeliveryClaims()
+    // Purchase updates in the order Play sent them: one waiting for the subscription list holds back later ones.
+    private val purchaseUpdateQueue = ArrayDeque<PurchaseUpdateSlot>()
     private val purchaseFlowTimeoutToken = Any()
 
     private fun resetConnectionStateLocked() {
@@ -2801,6 +2803,21 @@ class OpenIapModule(
         }
     }
 
+    private class PurchaseUpdateSlot {
+        var delivery: (() -> Unit)? = null
+    }
+
+    /** Marks [slot] ready, then delivers every ready update at the head of the queue, in order. */
+    private fun readyPurchaseUpdate(slot: PurchaseUpdateSlot, delivery: () -> Unit) {
+        synchronized(purchaseUpdateQueue) { slot.delivery = delivery }
+        while (true) {
+            val next = synchronized(purchaseUpdateQueue) {
+                purchaseUpdateQueue.firstOrNull()?.delivery?.also { purchaseUpdateQueue.removeFirst() }
+            } ?: return
+            next()
+        }
+    }
+
     private fun onPurchasesUpdated(
         sourceClient: BillingClient,
         owner: ActiveStoreListenerOwner<BillingClient>,
@@ -2830,8 +2847,12 @@ class OpenIapModule(
         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
             // DEFERRED replacement returns null purchases; the change applies at the next renewal.
             if (purchases != null) {
+                val slot = PurchaseUpdateSlot()
+                synchronized(purchaseUpdateQueue) { purchaseUpdateQueue.addLast(slot) }
                 if (purchases.all { knownProductType(it, pendingRequest) != null }) {
-                    deliverUpdatedPurchases(sourceClient, owner, pendingRequest, purchases, emptySet())
+                    readyPurchaseUpdate(slot) {
+                        deliverUpdatedPurchases(sourceClient, owner, pendingRequest, purchases, emptySet())
+                    }
                 } else {
                     val delivered = AtomicBoolean(false)
                     fun deliver(tokens: Set<String>?) {
@@ -2839,7 +2860,9 @@ class OpenIapModule(
                         if (tokens == null) {
                             OpenIapLog.warn("Play did not list subscriptions; a non-renewing purchase maps as one-time", TAG)
                         }
-                        deliverUpdatedPurchases(sourceClient, owner, pendingRequest, purchases, tokens.orEmpty())
+                        readyPurchaseUpdate(slot) {
+                            deliverUpdatedPurchases(sourceClient, owner, pendingRequest, purchases, tokens.orEmpty())
+                        }
                     }
                     querySubscriptionTokens(sourceClient) { tokens -> mainHandler.post { deliver(tokens) } }
                     // Bounds the wait should Play never answer.

@@ -38,4 +38,11 @@ class ErrorMappingTest {
             ErrorCodeUtils.fromPlatformCode(15, IapPlatform.Ios),
         )
     }
+
+    @Test
+    fun everyAndroidPlatformCodeDecodesToItsErrorCode() {
+        for (code in ErrorCode.entries) {
+            assertEquals(code, ErrorCodeUtils.fromPlatformCode(ErrorCodeUtils.toPlatformCode(code, IapPlatform.Android), IapPlatform.Android))
+        }
+    }
 }

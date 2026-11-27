@@ -144,6 +144,19 @@ public class OpenIapClientFacadeTests
                 SubscriptionRequest("premium"),
                 () => Task.FromException<int>(new InvalidOperationException("Another purchase is already in progress"))));
             Assert.True(PurchaseRequests.Take(Bought("GPA.3", "premium")));
+
+            // Two overlapping requests that both fail leave no mark, whichever fails first.
+            foreach (var earlierFailsFirst in new[] { true, false })
+            {
+                var fail = new[] { new TaskCompletionSource<int>(), new TaskCompletionSource<int>() };
+                var calls = fail.Select(source => PurchaseRequests.Track(SubscriptionRequest("premium"), () => source.Task)).ToArray();
+                foreach (var index in earlierFailsFirst ? new[] { 0, 1 } : [1, 0])
+                {
+                    fail[index].SetException(new InvalidOperationException("network"));
+                    await Assert.ThrowsAsync<InvalidOperationException>(() => calls[index]);
+                }
+                Assert.False(PurchaseRequests.Take(Bought("GPA.4", "premium")));
+            }
         }
         finally
         {

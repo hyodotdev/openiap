@@ -8,27 +8,25 @@ import {
 } from '../purchase-flow-core';
 import {ErrorCode, type Purchase} from '../types';
 
-// When the app asked for each SKU, so the flow can tell the user's own
-// purchase from one the store redelivers.
-const requested = new Map<string, number>();
-// Distinct per request, so an undo never takes another request's mark.
+// When each live request asked for each SKU, oldest first, so the flow can
+// tell the user's own purchase from one the store redelivers.
+const requested = new Map<string, number[]>();
+// Distinct per request, so an undo removes only its own mark.
 let lastMarkedAt = 0;
 
 // Returns the undo for a request that fails, which keeps other requests' marks.
 export function markRequested(skus: (string | null | undefined)[]): () => void {
   const now = Math.max(Date.now(), lastMarkedAt + 1);
   lastMarkedAt = now;
-  const previous = new Map<string, number | undefined>();
-  for (const sku of skus) {
-    if (!sku) continue;
-    if (!previous.has(sku)) previous.set(sku, requested.get(sku));
-    requested.set(sku, now);
+  const marked = new Set(skus.filter((sku): sku is string => !!sku));
+  for (const sku of marked) {
+    requested.set(sku, [...(requested.get(sku) ?? []), now]);
   }
   return () => {
-    for (const [sku, askedAt] of previous) {
-      if (requested.get(sku) !== now) continue;
-      if (askedAt === undefined) requested.delete(sku);
-      else requested.set(sku, askedAt);
+    for (const sku of marked) {
+      const live = requested.get(sku)?.filter((askedAt) => askedAt !== now);
+      if (live?.length) requested.set(sku, live);
+      else requested.delete(sku);
     }
   };
 }
@@ -40,7 +38,7 @@ function clearRequested(): void {
 // A purchase made after the app asked for it, or a plan change to what it
 // asked for; clears the mark.
 function takeRequested(purchase: Purchase): boolean {
-  const askedAt = requested.get(purchase.productId);
+  const askedAt = requested.get(purchase.productId)?.[0];
   const bought =
     askedAt !== undefined &&
     purchase.transactionDate >= askedAt - PURCHASE_REQUEST_CLOCK_SKEW_MS &&

@@ -125,8 +125,11 @@ var _platform: String = ""
 ## OS.has_feature, swappable in tests: an editor run carries no export tags.
 var _has_feature: Callable = Callable(OS, "has_feature")
 var _shell_open: Callable = Callable(OS, "shell_open")
-# When request_purchase got each SKU, so the flow can tell the user's purchase from a redelivery.
+# When each live request_purchase got each SKU, oldest first, so the flow can tell the user's
+# purchase from a redelivery.
 var _requested_skus := {}
+# Each request marks a distinct time, so an undo removes only its own mark.
+var _last_marked_at := 0.0
 var _listening_flows: Array = []
 
 
@@ -725,6 +728,7 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 		return _purchase_failure("developer-error", "requestSubscription requires type `subs`")
 
 	var result_raw = null
+	var unmark := Callable()
 	if _platform == "Android":
 		# Android requestPurchase is async — returns a pending response, then
 		# delivers the final state via purchase_updated / purchase_error.
@@ -816,7 +820,7 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 		if purchase_type == "in-app" and not offer_token.is_empty():
 			params["offerToken"] = offer_token
 		var params_json = JSON.stringify(params)
-		_mark_requested(params["skus"])
+		unmark = _mark_requested(params["skus"])
 		_log("Calling Android requestPurchase: type=%s, skus=%d, subscriptionOffers=%d, hasPurchaseToken=%s" % [purchase_type, params["skus"].size(), subscription_offers.size(), params.has("purchaseToken")])
 		result_raw = _native_plugin.call("requestPurchase", params_json)
 	elif _is_apple():
@@ -834,11 +838,19 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 			apple_payload["requestSubscription"] = { "apple": apple_props }
 		else:
 			apple_payload["requestPurchase"] = { "apple": apple_props }
-		_mark_requested([sku])
+		unmark = _mark_requested([sku])
 		result_raw = _native_plugin.call("requestPurchaseWithPayload", JSON.stringify(apple_payload))
 	else:
 		return _purchase_failure("feature-not-supported", "Unsupported platform")
 
+	var outcome := _read_purchase_result(result_raw)
+	var pending: bool = outcome.get("status", "") == "pending" or outcome.get("pending", false)
+	if unmark.is_valid() and not outcome.get("success", false) and not pending:
+		unmark.call()
+	return outcome
+
+
+func _read_purchase_result(result_raw) -> Dictionary:
 	if result_raw == null or str(result_raw) == "":
 		var err_msg = "requestPurchase returned empty. Billing may not be connected."
 		print("[GodotIap] ERROR: ", err_msg)
@@ -1653,15 +1665,28 @@ func _forget_requests_on_error(error: Dictionary) -> void:
 		_requested_skus.clear()
 
 
-func _mark_requested(skus: Array) -> void:
-	var now := Time.get_unix_time_from_system() * 1000.0
+# Returns the undo for a request that fails, which removes only this request's marks.
+func _mark_requested(skus: Array) -> Callable:
+	var now := maxf(Time.get_unix_time_from_system() * 1000.0, _last_marked_at + 1.0)
+	_last_marked_at = now
+	var marked := {}
 	for sku in skus:
-		_requested_skus[sku] = now
+		marked[sku] = true
+		var live: Array = _requested_skus.get(sku, [])
+		live.append(now)
+		_requested_skus[sku] = live
+	return func() -> void:
+		for sku in marked:
+			var live: Array = _requested_skus.get(sku, [])
+			live.erase(now)
+			if live.is_empty():
+				_requested_skus.erase(sku)
 
 
 # A purchase made after the app asked for it, or a plan change to what it asked for; clears the mark.
 func _take_requested(purchase: Dictionary) -> bool:
-	var asked_at = _requested_skus.get(purchase.get("productId"))
+	var live: Array = _requested_skus.get(purchase.get("productId"), [])
+	var asked_at = null if live.is_empty() else live[0]
 	var bought_at = purchase.get("transactionDate")
 	var bought: bool = asked_at != null and (bought_at is int or bought_at is float) \
 		and bought_at >= asked_at - PURCHASE_REQUEST_CLOCK_SKEW_MS and _requested_skus.erase(purchase.productId)

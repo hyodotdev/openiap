@@ -260,6 +260,10 @@ func _purchase(product_id: String, offer_token: String = "", developer_billing_o
 			if current.purchase_token == null or str(current.purchase_token).is_empty():
 				purchase_failed.emit(product_id, "The current plan has no purchase token; refresh subscriptions and try again")
 				return
+			if offer_token.is_empty():
+				# The offer decides the replacement mode Play accepts.
+				purchase_failed.emit(product_id, "The new plan's offers are not loaded; refresh products and try again")
+				return
 			var replacement := Types.SubscriptionProductReplacementParamsAndroid.new()
 			replacement.old_product_id = current.product_id
 			if _is_prepaid_offer(product_id, offer_token):

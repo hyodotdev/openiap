@@ -471,12 +471,13 @@ fun KmpIAP.createPurchaseFlow(
 
 /** The products passed to [KmpIAP.requestPurchase] whose purchase has not arrived yet. */
 internal class PurchaseRequests {
-    // When the app asked for each product. An atomic map: requests, deliveries, and errors arrive on different threads.
-    private val requestedAt = MutableStateFlow(emptyMap<String, Long>())
-    // Each request marks a distinct time, so an undo never takes another's mark.
+    // When each live request asked for each product, oldest first. An atomic map: requests,
+    // deliveries, and errors arrive on different threads.
+    private val requestedAt = MutableStateFlow(emptyMap<String, List<Long>>())
+    // Each request marks a distinct time, so an undo removes only its own mark.
     private val lastMarkedAt = MutableStateFlow(0L)
 
-    /** Marks what [params] asks for; the undo leaves a purchase still in flight its marks, as a refused double tap must. */
+    /** Marks what [params] asks for; the undo removes only this request's marks, as a refused double tap must. */
     fun mark(params: RequestPurchaseProps): () -> Unit {
         val requested = when (val request = params.request) {
             is RequestPurchaseProps.Request.Purchase ->
@@ -487,19 +488,13 @@ internal class PurchaseRequests {
         }
         val clock = Clock.System.now().toEpochMilliseconds()
         val now = lastMarkedAt.updateAndGet { maxOf(clock, it + 1) }
-        var previous = emptyMap<String, Long?>()
-        requestedAt.update { marks ->
-            previous = requested.associateWith { marks[it] }
-            marks + requested.associateWith { now }
-        }
+        val marked = requested.toSet()
+        requestedAt.update { marks -> marks + marked.associateWith { marks[it].orEmpty() + now } }
         return {
             requestedAt.update { marks ->
-                previous.entries.fold(marks) { acc, (productId, askedAt) ->
-                    when {
-                        acc[productId] != now -> acc
-                        askedAt == null -> acc - productId
-                        else -> acc + (productId to askedAt)
-                    }
+                marked.fold(marks) { acc, productId ->
+                    val live = acc[productId].orEmpty() - now
+                    if (live.isEmpty()) acc - productId else acc + (productId to live)
                 }
             }
         }
@@ -513,7 +508,7 @@ internal class PurchaseRequests {
         var matched = false
         requestedAt.update { marks ->
             // A receipt older than the request is the store redelivering an earlier purchase.
-            val bought = marks[purchase.productId]
+            val bought = marks[purchase.productId]?.firstOrNull()
                 ?.takeIf { purchase.transactionDate >= it - PURCHASE_REQUEST_CLOCK_SKEW_MS }
                 ?.let { purchase.productId }
             val changed = purchase.pendingPurchaseUpdate()?.products.orEmpty().filter { it in marks }

@@ -22,17 +22,22 @@ class PromiseUtilsTest {
     }
 
     @Test
-    fun `a refused double tap rejects only its own promise`() {
-        val inFlight = RecordingPromise()
-        val refused = RecordingPromise()
-        ExpoIapHelper.addPurchasePromise(inFlight)
-        ExpoIapHelper.addPurchasePromise(refused)
+    fun `each request settles only its own promise, in either order`() {
+        for (inFlightFirst in listOf(true, false)) {
+            val inFlight = RecordingPromise()
+            val refused = RecordingPromise()
+            ExpoIapHelper.addPurchasePromise(inFlight)
+            ExpoIapHelper.addPurchasePromise(refused)
 
-        ExpoIapHelper.rejectPurchasePromise(refused, "purchase-in-progress", "Another purchase is already in progress")
-        ExpoIapHelper.resolvePurchasePromises(emptyList())
+            val settle = listOf(
+                { ExpoIapHelper.resolvePurchasePromise(inFlight, emptyList()) },
+                { ExpoIapHelper.rejectPurchasePromise(refused, "purchase-in-progress", "Another purchase is already in progress") },
+            )
+            (if (inFlightFirst) settle else settle.reversed()).forEach { it() }
 
-        assertEquals(listOf("resolved"), inFlight.outcomes)
-        assertEquals(listOf("rejected:purchase-in-progress"), refused.outcomes)
+            assertEquals(listOf("resolved"), inFlight.outcomes)
+            assertEquals(listOf("rejected:purchase-in-progress"), refused.outcomes)
+        }
     }
 
     @Test

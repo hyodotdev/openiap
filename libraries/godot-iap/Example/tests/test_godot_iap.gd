@@ -341,6 +341,7 @@ func _run_all_tests() -> void:
 	await test_ios_single_purchase_reads_report_invalid_store_identities()
 	test_request_purchase_reports_invalid_store_identities()
 	test_apple_purchase_before_init_emits_not_prepared()
+	test_refused_double_tap_removes_only_its_own_marks()
 	test_freed_object_options_are_ignored()
 	test_sensitive_values_are_not_logged()
 
@@ -872,6 +873,27 @@ func test_request_purchase_reports_invalid_store_identities() -> void:
 	_assert_true(valid_purchase is Types.PurchaseAndroid, "Valid Android purchases should stay typed")
 	_assert_equal(valid_capture.errors, [], "Valid purchases should not log")
 
+	GodotIapPlugin._native_plugin = null
+	GodotIapPlugin._platform = ""
+
+
+func test_refused_double_tap_removes_only_its_own_marks() -> void:
+	var fake := FakePurchasePayloadPlugin.new()
+	GodotIapPlugin._native_plugin = fake
+	GodotIapPlugin._platform = "Android"
+	GodotIapPlugin._requested_skus.clear()
+
+	fake.responses["requestPurchase"] = JSON.stringify({"status": "pending"})
+	GodotIapPlugin.request_purchase({"requestPurchase": {"google": {"skus": ["premium"]}}, "type": "in-app"})
+	fake.responses["requestPurchase"] = JSON.stringify({
+		"success": false, "code": "purchase-in-progress", "error": "Another purchase is already in progress",
+	})
+	GodotIapPlugin.request_purchase({"requestPurchase": {"google": {"skus": ["premium", "coins"]}}, "type": "in-app"})
+
+	_assert_equal(GodotIapPlugin._requested_skus.get("premium", []).size(), 1, "A refused double tap should keep the purchase in flight requested")
+	_assert_false(GodotIapPlugin._requested_skus.has("coins"), "A refused double tap should drop its own marks")
+
+	GodotIapPlugin._requested_skus.clear()
 	GodotIapPlugin._native_plugin = null
 	GodotIapPlugin._platform = ""
 

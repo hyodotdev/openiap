@@ -893,6 +893,44 @@ void main() {
       flow.dispose();
     });
 
+    for (final firstToFail in [0, 1]) {
+      test(
+          'forgets both of two overlapping requests that fail ($firstToFail first)',
+          () async {
+        final iap = await connected('android');
+        final flow = iap.createPurchaseFlow(
+          confirmWithBackend: (purchase, {required isConsumable}) async =>
+              const PurchaseInvalid(reason: 'expired'),
+          isConsumable: (_) => false,
+        );
+        final outcome = flow.outcomes.first;
+        final pending = <Completer<Object?>>[];
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(_channel, (call) {
+          final reply = Completer<Object?>();
+          pending.add(reply);
+          return reply.future;
+        });
+
+        final calls = [
+          requestPurchase(iap, 'premium'),
+          requestPurchase(iap, 'premium'),
+        ];
+        await pumpEventQueue();
+        for (final index in [firstToFail, 1 - firstToFail]) {
+          pending[index].completeError(
+            PlatformException(code: 'service-error', message: 'network'),
+          );
+          await expectLater(calls[index], throwsA(anything));
+        }
+        final now = DateTime.now().millisecondsSinceEpoch.toDouble();
+        await deliver(_play('GPA.1', transactionDate: now));
+
+        expect(((await outcome).status as PurchaseInvalid).recovered, isTrue);
+        flow.dispose();
+      });
+    }
+
     test('drops request marks on dispose, whatever listens', () async {
       final iap = await connected('android');
       PurchaseFlow create([
