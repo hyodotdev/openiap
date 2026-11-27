@@ -74,7 +74,8 @@ internal static class PurchaseRequests
             var bought = Requested.TryGetValue(purchase.ProductId, out var live)
                 && purchase.TransactionDate >= live[0] - ClockSkewMs
                 && TakeMark(purchase.ProductId);
-            return changes.Count(TakeMark) > 0 || bought;
+            // A plan change within the same product answers one request, not two.
+            return changes.Distinct().Where(sku => !bought || sku != purchase.ProductId).Count(TakeMark) > 0 || bought;
         }
     }
 

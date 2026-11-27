@@ -1713,7 +1713,12 @@ func _take_requested(purchase: Dictionary) -> bool:
 	var changed := false
 	var change = purchase.get("pendingPurchaseUpdateAndroid")
 	if change is Dictionary:
+		# A plan change within the same product answers one request, not two.
+		var targets := {}
 		for product_id in change.get("products", []):
+			if not (bought and product_id == purchase.productId):
+				targets[product_id] = true
+		for product_id in targets:
 			changed = _take_mark(product_id) or changed
 	return bought or changed
 

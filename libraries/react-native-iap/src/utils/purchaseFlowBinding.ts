@@ -52,11 +52,14 @@ function takeRequested(purchase: Purchase): boolean {
     askedAt !== undefined &&
     purchase.transactionDate >= askedAt - PURCHASE_REQUEST_CLOCK_SKEW_MS &&
     takeMark(purchase.productId);
-  const changed = (
+  // A plan change within the same product answers one request, not two.
+  const changeTargets = new Set(
     ('pendingPurchaseUpdateAndroid' in purchase &&
       purchase.pendingPurchaseUpdateAndroid?.products) ||
-    []
-  ).filter(takeMark);
+      [],
+  );
+  if (bought) changeTargets.delete(purchase.productId);
+  const changed = [...changeTargets].filter(takeMark);
   return bought || changed.length > 0;
 }
 

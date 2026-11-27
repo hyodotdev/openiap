@@ -910,6 +910,12 @@ func test_refused_double_tap_removes_only_its_own_marks() -> void:
 	_assert_true(GodotIapPlugin._take_requested(bought) and GodotIapPlugin._take_requested(bought), "Two same-SKU requests should each answer a purchase")
 	_assert_false(GodotIapPlugin._take_requested(bought), "A third purchase should find no request left")
 
+	# A plan change within the same product answers one request.
+	GodotIapPlugin.request_purchase({"requestPurchase": {"google": {"skus": ["premium"]}}, "type": "in-app"})
+	GodotIapPlugin.request_purchase({"requestPurchase": {"google": {"skus": ["premium"]}}, "type": "in-app"})
+	var base_change := bought.merged({"pendingPurchaseUpdateAndroid": {"products": ["premium"]}})
+	_assert_true(GodotIapPlugin._take_requested(base_change) and GodotIapPlugin._take_requested(bought), "A same-product plan change should leave the other request marked")
+
 	GodotIapPlugin._requested_skus.clear()
 	GodotIapPlugin._native_plugin = null
 	GodotIapPlugin._platform = ""

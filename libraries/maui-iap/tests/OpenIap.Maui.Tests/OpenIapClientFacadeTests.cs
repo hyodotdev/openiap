@@ -164,6 +164,15 @@ public class OpenIapClientFacadeTests
             Assert.True(PurchaseRequests.Take(Bought("GPA.5", "premium")));
             Assert.True(PurchaseRequests.Take(Bought("GPA.6", "premium")));
             Assert.False(PurchaseRequests.Take(Bought("GPA.7", "premium")));
+
+            // A plan change within the same product answers one request.
+            await PurchaseRequests.Track(SubscriptionRequest("premium"), () => Task.FromResult(0));
+            await PurchaseRequests.Track(SubscriptionRequest("premium"), () => Task.FromResult(0));
+            Assert.True(PurchaseRequests.Take(Bought("GPA.8", "premium") with
+            {
+                PendingPurchaseUpdateAndroid = new() { Products = ["premium"], PurchaseToken = "change-token" },
+            }));
+            Assert.True(PurchaseRequests.Take(Bought("GPA.9", "premium")));
         }
         finally
         {

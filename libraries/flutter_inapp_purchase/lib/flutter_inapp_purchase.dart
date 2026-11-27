@@ -157,8 +157,11 @@ class _SharedNativeState {
     final changeTargets = purchase is gentype.PurchaseAndroid
         ? purchase.pendingPurchaseUpdateAndroid?.products
         : null;
+    // A plan change within the same product answers one request, not two.
+    final targets = {...?changeTargets};
+    if (bought) targets.remove(purchase.productId);
     var changed = false;
-    for (final productId in changeTargets ?? const <String>[]) {
+    for (final productId in targets) {
       changed = _takeMark(productId) || changed;
     }
     return bought || changed;

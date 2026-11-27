@@ -512,7 +512,8 @@ internal class PurchaseRequests {
                 ?.takeIf { purchase.transactionDate >= it - PURCHASE_REQUEST_CLOCK_SKEW_MS }
                 ?.let { purchase.productId }
             val changed = purchase.pendingPurchaseUpdate()?.products.orEmpty().filter { it in marks }
-            val hits = listOfNotNull(bought) + changed
+            // A plan change within the same product answers one request, not two.
+            val hits = (listOfNotNull(bought) + changed).distinct()
             matched = hits.isNotEmpty()
             // Each match clears only the oldest mark, which belongs to the request it answers.
             hits.fold(marks) { acc, productId ->
