@@ -1,5 +1,11 @@
 # Changelog
 
+## 11.6.0 (2026-11-28)
+
+- feat: report a refused double tap as PurchaseInProgress (#634)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-11.6.0
+
+
 ## 11.5.0 (2026-11-26)
 
 - feat: label Meta Horizon purchases verified from a development build as Sandbox (#633)
