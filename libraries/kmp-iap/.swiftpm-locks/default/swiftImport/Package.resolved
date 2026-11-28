@@ -5,8 +5,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/hyodotdev/openiap.git",
       "state" : {
-        "revision" : "f05abba412a1a9ad2f43acd2d28bc561f692a178",
-        "version" : "4.3.0"
+        "revision" : "503478adb6ce172743d7d4e34d777d317a493dce",
+        "version" : "4.4.0"
       }
     }
   ],
